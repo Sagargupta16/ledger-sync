@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
 /**
- * Single shimmer bar. Decorative — the surrounding skeleton container owns the
- * `role="status"` announcement, so individual bars are `aria-hidden` to avoid a
+ * Single shimmer bar. Decorative -- the surrounding skeleton container owns the
+ * loading announcement, so individual bars are `aria-hidden` to avoid a
  * screen reader reading "Loading" once per bar.
  */
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
@@ -14,7 +14,8 @@ export default function LoadingSkeleton({ className = '' }: Readonly<{ className
 /** Wraps a composite skeleton so AT announces a single "Loading" status. */
 function SkeletonStatus({ children, className = '' }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
-    <div role="status" aria-busy="true" aria-label="Loading" className={className}>
+    <div aria-busy="true" className={className}>
+      <output className="sr-only">Loading</output>
       {children}
     </div>
   )

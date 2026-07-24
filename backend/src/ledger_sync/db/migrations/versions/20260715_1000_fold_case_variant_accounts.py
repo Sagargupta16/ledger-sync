@@ -148,33 +148,47 @@ def _fold_planning_tables(bind: sa.Connection, canonical: dict[tuple[int, str], 
             )
 
 
+def _parse_excluded_account_names(raw: str | None) -> list[object] | None:
+    try:
+        names = json.loads(raw or "[]")
+    except (TypeError, ValueError):
+        return None
+    return names if isinstance(names, list) else None
+
+
+def _canonicalize_excluded_account_names(
+    user_id: int,
+    names: list[object],
+    canonical: dict[tuple[int, str], str],
+) -> tuple[list[object], bool]:
+    folded: list[object] = []
+    seen: set[str] = set()
+    changed = False
+    for name in names:
+        if not isinstance(name, str):
+            folded.append(name)
+            continue
+        canonical_name = canonical.get((user_id, name.lower()), name)
+        changed = changed or canonical_name != name
+        canonical_key = canonical_name.lower()
+        if canonical_key in seen:
+            changed = True
+            continue
+        seen.add(canonical_key)
+        folded.append(canonical_name)
+    return folded, changed
+
+
 def _fold_excluded_accounts(bind: sa.Connection, canonical: dict[tuple[int, str], str]) -> None:
     prefs = bind.execute(
         sa.text("SELECT user_id, excluded_accounts FROM user_preferences")
     ).fetchall()
     for user_id, raw in prefs:
-        try:
-            names = json.loads(raw or "[]")
-        except (TypeError, ValueError):
-            continue
-        if not isinstance(names, list):
+        names = _parse_excluded_account_names(raw)
+        if names is None:
             continue
 
-        folded: list[str] = []
-        seen: set[str] = set()
-        changed = False
-        for name in names:
-            if not isinstance(name, str):
-                folded.append(name)
-                continue
-            canon = canonical.get((user_id, name.lower()), name)
-            changed = changed or canon != name
-            if canon.lower() in seen:
-                changed = True
-                continue
-            seen.add(canon.lower())
-            folded.append(canon)
-
+        folded, changed = _canonicalize_excluded_account_names(user_id, names, canonical)
         if changed:
             bind.execute(
                 sa.text(

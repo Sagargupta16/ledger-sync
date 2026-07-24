@@ -17,8 +17,13 @@ import {
 import type { ChartDataPoint, MutualFundAccount } from './types'
 
 export function useMutualFundProjection() {
-  const { data: balanceData, isLoading } = useAccountBalances()
-  const { data: transactions = [] } = useTransactions()
+  const balancesQuery = useAccountBalances()
+  const transactionsQuery = useTransactions()
+  const balanceData = balancesQuery.data
+  const transactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  )
 
   const [monthlySIP, setMonthlySIP] = useState(10000)
   const [expectedReturn, setExpectedReturn] = useState(12)
@@ -27,12 +32,25 @@ export function useMutualFundProjection() {
   const [userModifiedSIP, setUserModifiedSIP] = useState(false)
   const [currentValueInput, setCurrentValueInput] = useState(0)
   const [mutualFundAccounts, setMutualFundAccounts] = useState<MutualFundAccount[]>([])
+  const [accountLoadError, setAccountLoadError] = useState(false)
 
   useEffect(() => {
     loadMutualFundAccountsData(balanceData as Record<string, unknown> | undefined)
-      .then(setMutualFundAccounts)
-      .catch(() => setMutualFundAccounts([]))
+      .then((accounts) => {
+        setMutualFundAccounts(accounts)
+        setAccountLoadError(false)
+      })
+      .catch(() => {
+        setMutualFundAccounts([])
+        setAccountLoadError(true)
+      })
   }, [balanceData])
+
+  const retry = () => {
+    setAccountLoadError(false)
+    void balancesQuery.refetch()
+    void transactionsQuery.refetch()
+  }
 
   const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
   const currentBalance = primaryAccount?.balance || 0
@@ -116,7 +134,9 @@ export function useMutualFundProjection() {
   const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
 
   return {
-    isLoading,
+    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading,
+    isError: balancesQuery.isError || transactionsQuery.isError || accountLoadError,
+    retry,
     primaryAccount,
     currentBalance,
     sipTransfers,

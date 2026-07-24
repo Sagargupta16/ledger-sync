@@ -104,6 +104,11 @@ export default function ParetoChart({
   const vitalFewCount = thresholdIndex < 0 ? data.length : thresholdIndex + 1
 
   const animate = shouldAnimate(data.length)
+  const categoryNoun = vitalFewCount === 1 ? 'category' : 'categories'
+  const summary =
+    data.length === 0
+      ? `Which categories make up ${threshold}% of your spend`
+      : `${vitalFewCount} ${categoryNoun} make up ${threshold}% of your spend -- the rest are the long tail`
 
   return (
     <motion.div
@@ -117,96 +122,92 @@ export default function ParetoChart({
         </div>
         <div>
           <h3 className="text-lg font-semibold text-foreground">Pareto Analysis</h3>
-          <p className="text-xs text-text-tertiary">
-            {data.length === 0
-              ? `Which categories make up ${threshold}% of your spend`
-              : `${vitalFewCount} ${vitalFewCount === 1 ? 'category' : 'categories'} make up ${threshold}% of your spend -- the rest are the long tail`}
-          </p>
+          <p className="text-xs text-text-tertiary">{summary}</p>
         </div>
       </div>
       {data.length === 0 ? (
         <ChartEmptyState height={height} message="No spending in this range. Try a wider date range or upload more statements." />
       ) : (
-      <ChartContainer height={height} ariaLabel={`Pareto chart of category spending: bars show spend per category with a cumulative percentage line and an ${threshold} percent reference line`}>
-        <ComposedChart
-          data={data}
-          margin={{ top: 8, right: 24, bottom: 8, left: 4 }}
-        >
-          <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis
-            dataKey="category"
-            {...xAxisDefaults(data.length, { angle: -30, height: 70 })}
-            interval={0}
-            tickFormatter={(value: string) =>
-              value.length > 14 ? `${value.slice(0, 12)}...` : value
-            }
-          />
-          <YAxis
-            yAxisId="left"
-            {...yAxisDefaults()}
-            tickFormatter={formatCurrencyShort}
-          />
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            domain={[0, 100]}
-            tickFormatter={(v: number) => `${v}%`}
-            stroke={rawColors.text.tertiary}
-            tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
-          />
-          <Tooltip
-            {...chartTooltipProps}
-            formatter={((value: number | undefined, name: string | undefined) =>
-              name === 'cumulativePct'
-                ? `${(value ?? 0).toFixed(1)}%`
-                : currencyTooltipFormatter(value)) as never}
-          />
-          <Legend {...LEGEND_DEFAULTS} />
-          {/* Vital-few bars (orange) vs trivial-many (muted) -- per-bar Cells so
-              the 80%-cutoff split the comment promises is actually rendered. */}
-          <Bar
-            yAxisId="left"
-            dataKey="amount"
-            name="Spend"
-            fill={rawColors.app.orange}
-            radius={[4, 4, 0, 0]}
-            isAnimationActive={animate}
-            animationDuration={600}
-            animationEasing="ease-out"
+        <ChartContainer height={height} ariaLabel={`Pareto chart of category spending: bars show spend per category with a cumulative percentage line and an ${threshold} percent reference line`}>
+          <ComposedChart
+            data={data}
+            margin={{ top: 8, right: 24, bottom: 8, left: 4 }}
           >
-            {data.map((row, i) => (
-              <Cell
-                key={row.category}
-                fill={i < vitalFewCount ? rawColors.app.orange : rawColors.text.tertiary}
-              />
-            ))}
-          </Bar>
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="cumulativePct"
-            name="Cumulative %"
-            stroke={rawColors.app.blue}
-            strokeWidth={2}
-            dot={{ r: 3, fill: rawColors.app.blue }}
-            activeDot={{ r: 5 }}
-            isAnimationActive={animate}
-            animationDuration={800}
-          />
-          <ReferenceLine
-            yAxisId="right"
-            y={threshold}
-            stroke={rawColors.text.tertiary}
-            strokeDasharray="4 4"
-            label={{
-              value: `${threshold}%`,
-              fill: rawColors.text.secondary,
-              fontSize: 11,
-              position: 'right',
-            }}
-          />
-        </ComposedChart>
-      </ChartContainer>
+            <CartesianGrid {...GRID_DEFAULTS} />
+            <XAxis
+              dataKey="category"
+              {...xAxisDefaults(data.length, { angle: -30, height: 70 })}
+              interval={0}
+              tickFormatter={(value: string) =>
+                value.length > 14 ? `${value.slice(0, 12)}...` : value
+              }
+            />
+            <YAxis
+              yAxisId="left"
+              {...yAxisDefaults()}
+              tickFormatter={formatCurrencyShort}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              stroke={rawColors.text.tertiary}
+              tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
+            />
+            <Tooltip
+              {...chartTooltipProps}
+              formatter={((value: number | undefined, name: string | undefined) =>
+                name === 'cumulativePct'
+                  ? `${(value ?? 0).toFixed(1)}%`
+                  : currencyTooltipFormatter(value)) as never}
+            />
+            <Legend {...LEGEND_DEFAULTS} />
+            {/* Vital-few bars (orange) vs trivial-many (muted) -- per-bar Cells so
+                the 80%-cutoff split the comment promises is actually rendered. */}
+            <Bar
+              yAxisId="left"
+              dataKey="amount"
+              name="Spend"
+              fill={rawColors.app.orange}
+              radius={[4, 4, 0, 0]}
+              isAnimationActive={animate}
+              animationDuration={600}
+              animationEasing="ease-out"
+            >
+              {data.map((row, i) => (
+                <Cell
+                  key={row.category}
+                  fill={i < vitalFewCount ? rawColors.app.orange : rawColors.text.tertiary}
+                />
+              ))}
+            </Bar>
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="cumulativePct"
+              name="Cumulative %"
+              stroke={rawColors.app.blue}
+              strokeWidth={2}
+              dot={{ r: 3, fill: rawColors.app.blue }}
+              activeDot={{ r: 5 }}
+              isAnimationActive={animate}
+              animationDuration={800}
+            />
+            <ReferenceLine
+              yAxisId="right"
+              y={threshold}
+              stroke={rawColors.text.tertiary}
+              strokeDasharray="4 4"
+              label={{
+                value: `${threshold}%`,
+                fill: rawColors.text.secondary,
+                fontSize: 11,
+                position: 'right',
+              }}
+            />
+          </ComposedChart>
+        </ChartContainer>
       )}
     </motion.div>
   )

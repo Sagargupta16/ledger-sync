@@ -12,7 +12,7 @@ import {
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer, shouldAnimate, GRID_DEFAULTS } from '@/components/ui'
-import { CHART_AXIS_COLOR } from '@/constants/chartColors'
+import { getChartAxisColor } from '@/constants/chartColors'
 import type { PeriodSummary } from '../types'
 
 interface SpendingDistributionProps {
@@ -25,6 +25,7 @@ interface SpendingDistributionProps {
 export function SpendingDistribution({
   periodA, periodB, distributionA, distributionB,
 }: Readonly<SpendingDistributionProps>) {
+  const axisColor = getChartAxisColor()
   if (distributionA.length === 0 && distributionB.length === 0) return null
 
   // Merge both periods into butterfly chart data
@@ -82,7 +83,7 @@ export function SpendingDistribution({
             <XAxis
               type="number"
               domain={[-maxVal, maxVal]}
-              tick={{ fill: CHART_AXIS_COLOR, fontSize: 10 }}
+              tick={{ fill: axisColor, fontSize: 10 }}
               tickLine={false}
               axisLine={{ stroke: rawColors.chart.axisLine }}
               tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
@@ -91,7 +92,7 @@ export function SpendingDistribution({
               type="category"
               dataKey="name"
               width={110}
-              tick={{ fill: CHART_AXIS_COLOR, fontSize: 11 }}
+              tick={{ fill: axisColor, fontSize: 11 }}
               tickLine={false}
               axisLine={{ stroke: rawColors.chart.axisLine }}
             />

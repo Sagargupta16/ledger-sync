@@ -5,7 +5,7 @@
 import { AlertTriangle, Check } from 'lucide-react'
 import { ANOMALY_TYPES } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { FieldLabel, Toggle } from '../sectionPrimitives'
+import { FieldLabel, FieldLegend, Toggle } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 
 interface Props {
@@ -51,25 +51,34 @@ export default function AnomalyDetectionSubsection({
           />
         </div>
         <div>
-          <FieldLabel>Enabled Types</FieldLabel>
+          <FieldLegend>Enabled Types</FieldLegend>
           <div className="space-y-1.5">
             {ANOMALY_TYPES.map((type) => {
               const isEnabled = localPrefs.anomaly_types_enabled.includes(type.value)
+              const controlId = `anomaly-type-${type.value}`
               return (
-                <label key={type.value} className="flex items-center gap-2 cursor-pointer">
-                  <button
-                    type="button"
-                    onClick={() => toggleAnomalyType(type.value)}
-                    aria-label={type.label}
-                    aria-pressed={isEnabled}
-                    className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
+                <label
+                  key={type.value}
+                  htmlFor={controlId}
+                  className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10"
+                >
+                  <input
+                    id={controlId}
+                    type="checkbox"
+                    checked={isEnabled}
+                    onChange={() => toggleAnomalyType(type.value)}
+                    className="sr-only"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-4 items-center justify-center rounded transition-colors ${
                       isEnabled
                         ? 'bg-primary text-on-accent'
                         : 'bg-[var(--overlay-2)] border border-border'
                     }`}
                   >
                     {isEnabled && <Check className="w-3 h-3" />}
-                  </button>
+                  </span>
                   <span className="text-sm text-foreground">{type.label}</span>
                 </label>
               )
@@ -83,6 +92,7 @@ export default function AnomalyDetectionSubsection({
         </FieldLabel>
         <Toggle
           id="auto-dismiss-recurring-anomalies"
+          aria-label="Auto-dismiss recurring anomalies"
           checked={localPrefs.auto_dismiss_recurring_anomalies}
           onChange={(val) => updateLocalPref('auto_dismiss_recurring_anomalies', val)}
         />

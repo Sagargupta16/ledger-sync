@@ -97,8 +97,10 @@ export function GrowthAssumptionsForm({
           />
         </div>
         <div className="flex items-center justify-between gap-3 self-end pb-0.5">
-          <FieldLabel>EPF Scales With Base</FieldLabel>
+          <FieldLabel htmlFor="growth-epf-scales">EPF Scales With Base</FieldLabel>
           <Toggle
+            id="growth-epf-scales"
+            aria-label="EPF scales with base salary"
             checked={growth.epf_scales_with_base}
             onChange={(val) => onUpdate('epf_scales_with_base', val)}
           />

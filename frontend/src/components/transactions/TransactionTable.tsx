@@ -5,16 +5,18 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   flexRender,
+  type Row,
   type SortingState,
   type Updater,
 } from '@tanstack/react-table'
 import { ArrowRightLeft, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-import type { Transaction } from '@/types'
-import { formatCurrency, formatDate } from '@/lib/formatters'
-import { getSemanticTextClass } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
+import { Money } from '@/components/ui'
+import { formatCurrency, formatDate } from '@/lib/formatters'
+import type { Transaction } from '@/types'
+import { getSemanticTextClass } from '@/constants/chartColors'
 
 import TagChips from './TagChips'
 import TagEditor from './TagEditor'
@@ -39,17 +41,41 @@ function getAmountPrefix(type: string): string {
   return '-'
 }
 
-export default function TransactionTable({ transactions, isLoading, sorting, onSortingChange, availableTags = [] }: Readonly<TransactionTableProps>) {
+function getCellClass(columnId: string): string {
+  if (columnId === 'amount') return 'text-right ledger-figure whitespace-nowrap'
+  if (columnId === 'date') return 'whitespace-nowrap'
+  return ''
+}
+
+function groupRowsByDate(rows: Row<Transaction>[]): Record<string, Row<Transaction>[]> {
+  return rows.reduce<Record<string, Row<Transaction>[]>>((groups, row) => {
+    const dateKey = row.original.date.substring(0, 10)
+    groups[dateKey] ??= []
+    groups[dateKey].push(row)
+    return groups
+  }, {})
+}
+
+export default function TransactionTable({
+  transactions,
+  isLoading,
+  sorting,
+  onSortingChange,
+  availableTags = [],
+}: Readonly<TransactionTableProps>) {
   const tableMeta: TransactionTableMeta = { availableTags }
 
   // Wrapper to handle TanStack Table's updater pattern
-  const handleSortingChange = useCallback((updaterOrValue: Updater<SortingState>) => {
-    if (typeof updaterOrValue === 'function') {
-      onSortingChange(updaterOrValue(sorting))
-    } else {
-      onSortingChange(updaterOrValue)
-    }
-  }, [onSortingChange, sorting])
+  const handleSortingChange = useCallback(
+    (updaterOrValue: Updater<SortingState>) => {
+      if (typeof updaterOrValue === 'function') {
+        onSortingChange(updaterOrValue(sorting))
+      } else {
+        onSortingChange(updaterOrValue)
+      }
+    },
+    [onSortingChange, sorting],
+  )
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -67,14 +93,24 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
 
   if (isLoading) {
     return (
-      <div className="ledger-panel">
+      <div
+        className="ledger-panel"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading transactions"
+      >
         {/* Desktop skeleton */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" aria-hidden="true">
+            <caption className="sr-only">Loading transactions</caption>
             <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
               <tr>
                 {Array.from({ length: 7 }, (_, i) => (
-                  <th key={`skeleton-header-${i}`} className="px-4 py-2.5 text-left">
+                  <th
+                    key={`skeleton-header-${i}`}
+                    scope="col"
+                    className="px-4 py-2.5 text-left"
+                  >
                     <div className="h-4 skeleton w-20" />
                   </th>
                 ))}
@@ -126,6 +162,8 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     )
   }
 
+  const groupedRows = groupRowsByDate(table.getRowModel().rows)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -134,8 +172,11 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
     >
       {/* Desktop table */}
       <div className="hidden md:block">
-        <div className="overflow-x-auto">
+        <section className="overflow-x-auto" aria-label="Transaction table">
           <table className="w-full">
+            <caption className="sr-only">
+              Transactions matching the current filters
+            </caption>
             <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
@@ -151,7 +192,12 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     return (
                       <th
                         key={header.id}
-                        className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground"
+                        scope="col"
+                        className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${
+                          header.column.id === 'amount'
+                            ? 'text-right ledger-figure [&_button]:ml-auto'
+                            : 'text-left'
+                        }`}
                         aria-sort={ariaSort}
                       >
                         {header.isPlaceholder
@@ -173,49 +219,60 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                   key={row.id}
                   className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 text-[13px]">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const cellClass = getCellClass(cell.column.id)
+                    return (
+                      <td key={cell.id} className={`px-4 py-3 text-[13px] ${cellClass}`}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </motion.tbody>
           </table>
-        </div>
+        </section>
       </div>
 
       {/* Mobile card view -- grouped by day with daily totals */}
-      <div className="md:hidden">
-        {(() => {
-          const rows = table.getRowModel().rows
-          const grouped = rows.reduce<Record<string, typeof rows>>((acc, row) => {
-            const dateKey = row.original.date.substring(0, 10)
-            if (!acc[dateKey]) acc[dateKey] = []
-            acc[dateKey].push(row)
-            return acc
-          }, {})
-
-          return Object.entries(grouped).map(([dateKey, dayRows]) => {
+      <ul
+        className="m-0 list-none p-0 md:hidden"
+        aria-label="Transactions grouped by date"
+      >
+        {Object.entries(groupedRows).map(([dateKey, dayRows]) => {
             const dayTotal = dayRows.reduce((sum, r) => {
               if (r.original.type === 'Expense') return sum - r.original.amount
               if (r.original.type === 'Income') return sum + r.original.amount
               return sum
             }, 0)
+            const dayLabel = formatDate(dateKey, {
+              weekday: 'short',
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+            })
 
             return (
-              <div key={dateKey}>
+              <li key={dateKey} aria-label={dayLabel}>
                 {/* Day header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
-                  <span className="text-xs font-semibold text-text-tertiary">
-                    {formatDate(dateKey, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })}
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
+                  <span className="min-w-0 text-xs font-semibold text-text-tertiary">
+                    {dayLabel}
                   </span>
-                  <span className={`text-xs font-semibold ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}>
-                    {dayTotal >= 0 ? '+' : ''}{formatCurrency(dayTotal)}
-                  </span>
+                  <Money
+                    value={Math.abs(dayTotal)}
+                    formatter={(value) =>
+                      `${dayTotal >= 0 ? '+' : '-'}${formatCurrency(value)}`
+                    }
+                    ariaLabel={`Net total ${formatCurrency(dayTotal)}`}
+                    className={`text-xs ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}
+                  />
                 </div>
                 {/* Day transactions */}
-                <div className="divide-y divide-[var(--hairline-1)]">
+                <ul
+                  className="m-0 list-none divide-y divide-[var(--hairline-1)] p-0"
+                  aria-label={`${dayLabel} transactions`}
+                >
                   {dayRows.map((row) => {
                     const tx = row.original
                     const isIncome = tx.type === 'Income'
@@ -225,24 +282,49 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                     const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
                     return (
-                      <div key={row.id} className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
+                      <li
+                        key={row.id}
+                        className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150"
+                      >
+                        <div className="mb-1.5 flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-2">
                             {isTransfer ? (
-                              <ArrowRightLeft className="size-3.5 text-app-teal" />
+                              <ArrowRightLeft
+                                className="mt-0.5 size-3.5 shrink-0 text-app-teal"
+                                aria-hidden
+                              />
                             ) : (
-                              <TypeIcon className={`w-3.5 h-3.5 ${isIncome ? 'text-app-green' : 'text-app-red'}`} />
+                              <TypeIcon
+                                className={`mt-0.5 size-3.5 shrink-0 ${
+                                  isIncome ? 'text-app-green' : 'text-app-red'
+                                }`}
+                                aria-hidden
+                              />
                             )}
-                            <span className="text-sm font-medium" title={tx.category}>{tx.category}</span>
-                            {tx.subcategory && (
-                              <span className="text-xs text-text-tertiary" title={tx.subcategory}>/ {tx.subcategory}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className={`text-sm font-semibold ${amountColor}`}>
-                              {prefix}{formatCurrency(Math.abs(tx.amount))}
+                            <span className="min-w-0">
+                              <span className="block break-words text-sm font-medium">
+                                {tx.category}
+                              </span>
+                              {tx.subcategory && (
+                                <span className="block break-words text-xs text-text-tertiary">
+                                  {tx.subcategory}
+                                </span>
+                              )}
                             </span>
-                            <TagEditor transactionId={tx.id} tags={tx.tags ?? []} availableTags={availableTags} />
+                          </div>
+                          <div className="flex min-h-11 shrink-0 items-center gap-1">
+                            <Money
+                              value={Math.abs(tx.amount)}
+                              formatter={(value) => `${prefix}${formatCurrency(value)}`}
+                              ariaLabel={`${tx.type} ${formatCurrency(Math.abs(tx.amount))}`}
+                              bold
+                              className={`text-sm ${amountColor}`}
+                            />
+                            <TagEditor
+                              transactionId={tx.id}
+                              tags={tx.tags ?? []}
+                              availableTags={availableTags}
+                            />
                           </div>
                         </div>
                         {tx.tags && tx.tags.length > 0 && (
@@ -250,23 +332,25 @@ export default function TransactionTable({ transactions, isLoading, sorting, onS
                             <TagChips tags={tx.tags} />
                           </div>
                         )}
-                        <div className="flex items-center justify-between text-xs text-text-tertiary">
-                          <span className="text-muted-foreground">{tx.account}</span>
+                        <div className="flex items-start justify-between gap-3 text-xs text-text-tertiary">
+                          <span className="min-w-0 break-words text-muted-foreground">
+                            {tx.account}
+                          </span>
                           {tx.note && (
-                            <span className="truncate max-w-[150px]" title={tx.note}>
+                            <span className="max-w-[55%] break-words text-right">
                               {tx.note}
                             </span>
                           )}
                         </div>
-                      </div>
+                      </li>
                     )
                   })}
-                </div>
-              </div>
+                </ul>
+              </li>
             )
           })
-        })()}
-      </div>
+        }
+      </ul>
     </motion.div>
   )
 }

@@ -15,9 +15,20 @@ import {
 } from '@/lib/chartPeriodUtils'
 import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
 const COLORS = CHART_COLORS_WARM
+const GRANULARITY_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+]
+const TOTAL_MODE_OPTIONS = [
+  { value: 'cumulative', label: 'Cumulative' },
+  { value: 'regular', label: 'Regular' },
+]
 
 interface EnhancedSubcategoryAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
@@ -159,65 +170,54 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   return (
     <motion.div
       className="glass p-6 rounded-xl border border-border"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.5 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-foreground">Enhanced Subcategory Analysis</h3>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleExport}
-            className="p-2.5 min-h-11 bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] border border-border rounded-lg text-foreground transition-colors"
             type="button"
             title="Export chart"
             aria-label="Export chart as CSV"
+            className="p-0"
           >
-            <Download className="w-4 h-4" />
-          </button>
+            <Download className="size-4" aria-hidden="true" />
+          </Button>
         </div>
 
         {/* Controls Row */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Category Dropdown */}
-            <select
+            <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:border-app-purple/50 min-w-50"
+              options={categories.map((category) => ({ value: category, label: category }))}
+              className="min-w-50"
               aria-label="Category to analyze"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category} className="bg-surface-dropdown text-foreground">
-                  {category}
-                </option>
-              ))}
-            </select>
+            />
 
             {/* Granularity */}
-            <select
+            <Select
               value={granularityOverride}
               onChange={(e) => setGranularityOverride(e.target.value as Granularity | 'auto')}
-              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              options={GRANULARITY_OPTIONS}
               aria-label="Time granularity"
-            >
-              <option value="auto" className="bg-surface-dropdown text-foreground">Auto</option>
-              <option value="day" className="bg-surface-dropdown text-foreground">Daily</option>
-              <option value="week" className="bg-surface-dropdown text-foreground">Weekly</option>
-              <option value="month" className="bg-surface-dropdown text-foreground">Monthly</option>
-            </select>
+            />
 
             {/* Cumulative Toggle */}
-            <select
+            <Select
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
-              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              options={TOTAL_MODE_OPTIONS}
               aria-label="Cumulative or regular totals"
-            >
-              <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
-              <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
-            </select>
+            />
           </div>
 
           <span className="text-xs text-muted-foreground">

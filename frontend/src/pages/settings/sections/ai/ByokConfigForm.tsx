@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react'
 
+import Button from '@/components/ui/Button'
 import type { AIConfig } from '@/services/api/aiConfig'
 
 import { FieldHint, FieldLabel } from '../../sectionPrimitives'
@@ -91,6 +92,9 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
               Custom model ID...
             </option>
           </select>
+          <label htmlFor="ai-model-custom" className="sr-only">
+            Custom model identifier
+          </label>
           <input
             id="ai-model-custom"
             type="text"
@@ -144,16 +148,20 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
                   ? 'Key configured (enter new to update)'
                   : 'Enter your API key'
               }
-              className={`${inputClass} pr-10`}
+              className={`${inputClass} pr-12`}
             />
-            <button
+            <Button
+              id="toggle-ai-key-visibility"
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowKey(!showKey)}
               aria-label={showKey ? 'Hide API key' : 'Show API key'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+              className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              icon={showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+              <span className="sr-only">{showKey ? 'Hide API key' : 'Show API key'}</span>
+            </Button>
           </div>
         </div>
       )}

@@ -28,12 +28,33 @@ export default defineConfig([
       react: { version: 'detect' },
     },
     rules: {
-      // React 17+ JSX transform — no need to import React
+      // React 17+ JSX transform -- no need to import React
       'react/react-in-jsx-scope': 'off',
       // Accessibility rules
       'jsx-a11y/alt-text': 'warn',
       'jsx-a11y/click-events-have-key-events': 'warn',
       'jsx-a11y/no-static-element-interactions': 'warn',
+    },
+  },
+  {
+    files: ['src/pages/settings/**/*.{ts,tsx}'],
+    rules: {
+      'jsx-a11y/control-has-associated-label': [
+        'error',
+        {
+          depth: 5,
+          ignoreElements: ['input', 'select', 'textarea'],
+        },
+      ],
+      'jsx-a11y/label-has-associated-control': [
+        'error',
+        {
+          labelComponents: ['FieldLabel'],
+          controlComponents: ['Toggle'],
+          assert: 'either',
+          depth: 5,
+        },
+      ],
     },
   },
 ])

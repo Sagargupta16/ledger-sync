@@ -60,17 +60,19 @@ class TestRsuGrant:
         assert grant.vestings[0].quantity == 25
 
     def test_grant_requires_at_least_one_vesting(self):
+        stock_price = Decimal("185.50")
         with pytest.raises(ValidationError):
             RsuGrant(
                 id="grant-1",
                 stock_name="AMZN",
-                stock_price=Decimal("185.50"),
+                stock_price=stock_price,
                 vestings=[],
             )
 
     def test_vesting_quantity_must_be_positive(self):
+        vesting_date = date(2026, 3, 15)
         with pytest.raises(ValidationError):
-            RsuVesting(date=date(2026, 3, 15), quantity=0)
+            RsuVesting(date=vesting_date, quantity=0)
 
     def test_vesting_price_at_vest_defaults_to_none(self):
         vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)
@@ -87,21 +89,25 @@ class TestRsuGrant:
             RsuVesting(date=vest_date, quantity=6, price_at_vest=zero)
 
     def test_stock_price_must_be_positive(self):
+        stock_price = Decimal("0")
+        vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)
         with pytest.raises(ValidationError):
             RsuGrant(
                 id="grant-1",
                 stock_name="AMZN",
-                stock_price=Decimal("0"),
-                vestings=[RsuVesting(date=date(2026, 3, 15), quantity=25)],
+                stock_price=stock_price,
+                vestings=[vesting],
             )
 
     def test_stock_name_must_be_nonempty(self):
+        stock_price = Decimal("100")
+        vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)
         with pytest.raises(ValidationError):
             RsuGrant(
                 id="grant-1",
                 stock_name="",
-                stock_price=Decimal("100"),
-                vestings=[RsuVesting(date=date(2026, 3, 15), quantity=25)],
+                stock_price=stock_price,
+                vestings=[vesting],
             )
 
     def test_optional_fields(self):

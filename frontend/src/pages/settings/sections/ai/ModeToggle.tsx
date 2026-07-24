@@ -28,6 +28,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
       </legend>
       <div className="grid grid-cols-1 gap-2">
         <ModeCard
+          id="ai-mode-app-bedrock"
           selected={mode === 'app_bedrock'}
           disabled={pending}
           onClick={() => onChange('app_bedrock')}
@@ -36,6 +37,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
           subtitle={`Up to ${appLimit} messages per day. No setup. Model picked by the app.`}
         />
         <ModeCard
+          id="ai-mode-byok"
           selected={mode === 'byok'}
           disabled={pending}
           onClick={() => onChange('byok')}
@@ -49,6 +51,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
 }
 
 interface ModeCardProps {
+  id: string
   selected: boolean
   disabled: boolean
   onClick: () => void
@@ -58,12 +61,14 @@ interface ModeCardProps {
 }
 
 function ModeCard(props: Readonly<ModeCardProps>) {
-  const { selected, disabled, onClick, icon, title, subtitle } = props
+  const { id, selected, disabled, onClick, icon, title, subtitle } = props
   return (
     <button
+      id={id}
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={selected}
       className={`text-left border rounded-xl p-3 transition-colors ${
         selected
           ? 'border-primary bg-primary/5'

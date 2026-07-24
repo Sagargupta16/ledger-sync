@@ -13,7 +13,7 @@
 
 import { ReferenceLine } from 'recharts'
 
-import { CHART_AXIS_COLOR, CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
+import { CHART_TEXT, CHART_SURFACE, getChartAxisColor } from '@/constants/chartColors'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
@@ -37,7 +37,7 @@ export function xAxisDefaults(dataLength = 0, opts?: {
   dateFormatter?: boolean
 }) {
   return {
-    stroke: CHART_AXIS_COLOR,
+    stroke: getChartAxisColor(),
     tick: AXIS_TICK,
     tickLine: false,
     axisLine: AXIS_LINE,
@@ -58,7 +58,7 @@ export function yAxisDefaults(opts?: {
   width?: number
 }) {
   return {
-    stroke: CHART_AXIS_COLOR,
+    stroke: getChartAxisColor(),
     tick: AXIS_TICK,
     tickLine: false,
     axisLine: AXIS_LINE,

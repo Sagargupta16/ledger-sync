@@ -42,6 +42,7 @@ export function SliderInput({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        aria-valuetext={`${prefix ?? ''}${value.toLocaleString('en-IN')}${suffix ?? ''}`}
         className="touch-slider"
       />
     </div>
@@ -57,6 +58,7 @@ export function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) 
       dataKey="year"
       height={280}
       stacked
+      ariaLabel="Projected account value by year, split between contributions and returns"
       tooltipFormatter={formatCurrency}
       areas={[
         { key: 'Contributed', color: rawColors.app.blue, fillOpacity: 0.7 },

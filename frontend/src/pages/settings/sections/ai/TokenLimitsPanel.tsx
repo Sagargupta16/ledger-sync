@@ -1,6 +1,7 @@
 import type { UsageResponse } from '@/services/api/aiUsage'
+import Button from '@/components/ui/Button'
 
-import { FieldHint, FieldLabel } from '../../sectionPrimitives'
+import { FieldHint, FieldLegend } from '../../sectionPrimitives'
 import { inputClass } from '../../styles'
 import { formatTokens } from './aiConstants'
 
@@ -20,7 +21,7 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
   return (
     <div className="border-t border-border pt-4 space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <FieldLabel htmlFor="ai-daily-limit">Token usage &amp; limits</FieldLabel>
+        <FieldLegend>Token usage &amp; limits</FieldLegend>
         {usage && (
           <div className="text-xs text-muted-foreground font-mono">
             Today {formatTokens(usage.today.total_tokens)}
@@ -84,14 +85,16 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
         month's usage would exceed the limit. For browser-direct providers (OpenAI, Anthropic)
         the limits are informational only -- the provider still charges your key.
       </FieldHint>
-      <button
+      <Button
+        id="save-ai-token-limits"
         type="button"
+        variant="secondary"
+        size="sm"
         onClick={onSave}
         disabled={saving}
-        className="px-3 py-1.5 text-xs bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors disabled:opacity-40"
       >
         {saving ? 'Saving limits...' : 'Save limits'}
-      </button>
+      </Button>
     </div>
   )
 }

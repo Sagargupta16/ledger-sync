@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react
 import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import LoadingSkeleton, { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
@@ -15,7 +16,7 @@ import { CategorySection } from './components/CategorySection'
 
 export default function ComparisonPage() {
   const {
-    isLoading, transactions,
+    isLoading, isError, retry, transactions,
     mode, setMode,
     monthOptions, yearOptions, fyOptions,
     effectiveMonthA, effectiveMonthB,
@@ -33,6 +34,16 @@ export default function ComparisonPage() {
         <LoadingSkeleton className="h-10 w-72" />
         <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2" />
       </PageContainer>
+    )
+  }
+
+  if (isError) {
+    return (
+      <PageErrorState
+        title="Comparison"
+        subtitle="Compare financial metrics across time periods"
+        onRetry={retry}
+      />
     )
   }
 
@@ -63,10 +74,11 @@ export default function ComparisonPage() {
             {([['month', 'Month'], ['year', 'Year'], ['fy', 'FY']] as const).map(([val, label]) => (
               <motion.button
                 key={val}
+                type="button"
                 role="tab"
                 aria-selected={mode === val}
                 onClick={() => setMode(val)}
-                className={`relative px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-sm font-medium transition-colors ${
+                className={`relative min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors lg:pointer-fine:min-h-0 lg:pointer-fine:py-1.5 ${
                   mode === val ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                 }`}
                 whileTap={{ scale: 0.97 }}
@@ -93,7 +105,7 @@ export default function ComparisonPage() {
         animate={{ opacity: 1, y: 0 }}
         className="glass rounded-2xl border border-border p-6"
       >
-        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row [&_select]:min-h-11 [&_select]:py-2.5 lg:pointer-fine:[&_select]:min-h-9 lg:pointer-fine:[&_select]:py-2">
           <PeriodSelector
             mode={mode} label="Period A"
             monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
@@ -151,19 +163,19 @@ export default function ComparisonPage() {
           deltas={expenseDeltas}
           periodA={periodA} periodB={periodB}
           invertChange
-          delay={0.15}
+          delay={0.04}
         />
         <CategorySection
           icon={<TrendingUp className="w-5 h-5 text-app-green" />}
           title="Income Categories"
           deltas={incomeDeltas}
           periodA={periodA} periodB={periodB}
-          delay={0.2}
+          delay={0.08}
         />
       </div>
 
       {/* Quick Stats */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass rounded-2xl border border-border p-4 md:p-6">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }} className="glass rounded-2xl border border-border p-4 md:p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <QuickStat label="Transactions" valueA={periodA.transactions} valueB={periodB.transactions} labelA={periodA.label} labelB={periodB.label} />
@@ -175,14 +187,14 @@ export default function ComparisonPage() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass rounded-2xl border border-border p-4 md:p-6">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }} className="glass rounded-2xl border border-border p-4 md:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb className="w-5 h-5 text-app-orange" />
             <h2 className="text-lg font-semibold">Key Insights</h2>
           </div>
           <div className="space-y-2">
             {insights.map((insight, i) => (
-              <motion.div key={insight} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--overlay-2)]">
+              <motion.div key={insight} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.015, 0.1), duration: 0.18 }} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--overlay-2)]">
                 <div className="w-1.5 h-1.5 rounded-full bg-app-orange mt-1.5 shrink-0" />
                 <p className="text-sm text-foreground">{insight}</p>
               </motion.div>

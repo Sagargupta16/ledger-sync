@@ -368,7 +368,7 @@ async def get_transaction_facets(
     ]
 
     count_rows = base.with_entities(Transaction.type, func.count()).group_by(Transaction.type).all()
-    counts: dict[TransactionType, int] = dict((row[0], row[1]) for row in count_rows)
+    counts: dict[TransactionType, int] = {row[0]: row[1] for row in count_rows}
 
     income = counts.get(TransactionType.INCOME, 0)
     expense = counts.get(TransactionType.EXPENSE, 0)

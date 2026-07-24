@@ -12,11 +12,8 @@ interface CalendarCell {
 }
 
 export function useBillCalendar() {
-  const {
-    data: recurringTransactions,
-    isLoading,
-    isError,
-  } = useRecurringTransactions({ active_only: true })
+  const recurringQuery = useRecurringTransactions({ active_only: true })
+  const { data: recurringTransactions, isLoading, isError } = recurringQuery
 
   const now = useMemo(() => new Date(), [])
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
@@ -44,7 +41,7 @@ export function useBillCalendar() {
   }
 
   const goToToday = () => {
-    // Read a fresh date at click time — `now` is captured at mount and would
+    // Read a fresh date at click time -- `now` is captured at mount and would
     // be stale if the tab has been open across a day boundary.
     const today = new Date()
     setSelectedDay(null)
@@ -128,6 +125,9 @@ export function useBillCalendar() {
 
   const hasAnyData = Boolean(recurringTransactions && recurringTransactions.length > 0)
   const isCurrentViewToday = viewYear === now.getFullYear() && viewMonth === now.getMonth()
+  const retry = () => {
+    void recurringQuery.refetch()
+  }
 
   return {
     now,
@@ -144,6 +144,7 @@ export function useBillCalendar() {
     selectedDayBills,
     isLoading,
     isError,
+    retry,
     hasAnyData,
     isCurrentViewToday,
   }

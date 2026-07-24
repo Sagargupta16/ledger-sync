@@ -1,4 +1,5 @@
 import { LogOut } from 'lucide-react'
+import { Button } from '@/components/ui'
 
 interface LogoutButtonProps {
   isPending: boolean
@@ -8,15 +9,17 @@ interface LogoutButtonProps {
 export function LogoutButton({ isPending, onLogout }: Readonly<LogoutButtonProps>) {
   return (
     <div className="px-6 py-4 border-t border-border">
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="lg"
         onClick={onLogout}
         disabled={isPending}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-app-red/10 text-app-red hover:bg-app-red/15 transition-colors duration-150 ease-out text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-app-red/10 text-app-red hover:bg-app-red/15 hover:text-app-red"
       >
-        <LogOut size={16} />
+        <LogOut size={16} aria-hidden="true" />
         <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>
-      </button>
+      </Button>
     </div>
   )
 }

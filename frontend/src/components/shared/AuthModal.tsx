@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import * as authApi from '@/services/api/auth'
 import type { OAuthProviderConfig } from '@/types'
+import { Button } from '@/components/ui'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -167,13 +168,16 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
           >
             <div className="relative rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-8 shadow-[var(--glass-shadow-strong)]">
               {/* Close Button */}
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onClose}
                 aria-label="Close sign-in dialog"
-                className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground"
+                className="absolute right-4 top-4 size-11 p-0 text-text-tertiary"
               >
-                <X className="w-5 h-5" />
-              </button>
+                <X className="size-5" aria-hidden="true" />
+              </Button>
 
               {/* Header */}
               <div className="flex flex-col items-center mb-8">
@@ -201,24 +205,28 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                   return (
                     <div className="space-y-3">
                       {googleProvider && (
-                        <button
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="lg"
                           onClick={() => handleOAuthLogin(googleProvider)}
-                          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-4 py-3 font-medium text-foreground transition-colors duration-150 ease-out hover:bg-[var(--overlay-5)]"
+                          className="w-full py-3"
                         >
-                          <GoogleIcon className="w-5 h-5" />
+                          <GoogleIcon className="size-5" />
                           Continue with Google
-                        </button>
+                        </Button>
                       )}
                       {githubProvider && (
-                        <button
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="lg"
                           onClick={() => handleOAuthLogin(githubProvider)}
-                          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] px-4 py-3 font-medium text-foreground transition-colors duration-150 ease-out hover:bg-[var(--overlay-5)]"
+                          className="w-full py-3"
                         >
-                          <GitHubIcon className="w-5 h-5" />
+                          <GitHubIcon className="size-5" />
                           Continue with GitHub
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )
@@ -232,13 +240,15 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                       <p className="text-text-tertiary text-xs mt-1">
                         The server may be waking up -- this usually takes a few seconds.
                       </p>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={retry}
-                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-app-blue bg-app-blue/10 hover:bg-app-blue/20 transition-colors duration-150"
+                        className="mt-4 bg-app-blue/10 px-4 text-app-blue hover:bg-app-blue/20 hover:text-app-blue"
                       >
                         Try again
-                      </button>
+                      </Button>
                     </div>
                   )
                 }
@@ -270,12 +280,15 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
 // Export the LoginButton component for use in HomePage
 export function LoginButton({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
-    <button
+    <Button
+      type="button"
+      variant="secondary"
+      size="lg"
       onClick={onClick}
-      className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong bg-[var(--overlay-2)] px-5 py-2.5 font-medium text-foreground transition-colors hover:bg-[var(--overlay-5)] hover:border-border-strong"
+      className="px-5"
     >
-      <LogIn className="w-4 h-4" />
+      <LogIn className="size-4" aria-hidden="true" />
       Sign In
-    </button>
+    </Button>
   )
 }

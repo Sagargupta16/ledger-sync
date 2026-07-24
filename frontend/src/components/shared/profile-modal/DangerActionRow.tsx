@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
+import { Button, Input } from '@/components/ui'
 
 interface DangerActionRowProps {
   expanded: boolean
@@ -41,13 +42,16 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
     inputBorderFocus,
     actionButton,
   } = props
+  const panelId = `profile-action-${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
 
   return (
     <div className={`rounded-xl border ${toneBorder} ${toneBg} p-4`}>
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between"
+        className="flex min-h-11 w-full items-center justify-between"
+        aria-expanded={expanded}
+        aria-controls={panelId}
       >
         <div className="flex items-center gap-2">
           <Icon size={14} className={toneText} />
@@ -63,6 +67,7 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
       <AnimatePresence>
         {expanded && (
           <motion.div
+            id={panelId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -78,32 +83,36 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
                 </span>{' '}
                 to confirm:
               </p>
-              <input
+              <Input
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder={`Type ${confirmKeyword} to confirm`}
-                className={`w-full px-3 py-1.5 bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg text-foreground text-sm ${inputBorderFocus} focus:outline-none transition-colors duration-150 ease-out`}
+                aria-label={`Confirmation text for ${title}`}
+                className={inputBorderFocus}
               />
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="danger"
+                  size="sm"
                   onClick={actionButton.onClick}
                   disabled={confirmText !== confirmKeyword || actionButton.pending}
-                  className={`flex items-center gap-2 px-3 py-1.5 ${actionButton.bgClass} text-foreground text-sm rounded-lg transition-colors duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${actionButton.bgClass} text-foreground`}
                 >
                   {actionButton.pending ? actionButton.pendingLabel : actionButton.label}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     setExpanded(false)
                     setConfirmText('')
                   }}
-                  className="px-3 py-1.5 bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground text-sm rounded-lg hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>

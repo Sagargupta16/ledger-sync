@@ -34,6 +34,89 @@ export interface CashFlow {
 const RATE_MIN = -0.9999
 const RATE_MAX = 10
 
+interface TimedCashFlow {
+  years: number
+  amount: number
+}
+
+function calculateNpv(flows: readonly TimedCashFlow[], rate: number): number {
+  let npv = 0
+  for (const flow of flows) {
+    npv += flow.amount / Math.pow(1 + rate, flow.years)
+  }
+  return npv
+}
+
+function calculateNpvAndDerivative(
+  flows: readonly TimedCashFlow[],
+  rate: number,
+): { npv: number; derivative: number } {
+  let npv = 0
+  let derivative = 0
+  for (const flow of flows) {
+    const factor = Math.pow(1 + rate, flow.years)
+    npv += flow.amount / factor
+    if (flow.years !== 0) {
+      derivative -= (flow.years * flow.amount) / (factor * (1 + rate))
+    }
+  }
+  return { npv, derivative }
+}
+
+function solveWithNewton(
+  flows: readonly TimedCashFlow[],
+  guess: number,
+  maxIterations: number,
+  tolerance: number,
+): number | null {
+  let rate = guess
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    const { npv, derivative } = calculateNpvAndDerivative(flows, rate)
+    if (Math.abs(derivative) < 1e-12) return null
+
+    const nextRate = rate - npv / derivative
+    if (Math.abs(nextRate - rate) < tolerance) {
+      return nextRate > RATE_MIN && nextRate < RATE_MAX ? nextRate : null
+    }
+    if (nextRate <= RATE_MIN || nextRate >= RATE_MAX) return null
+    rate = nextRate
+  }
+  return null
+}
+
+function solveWithBisection(
+  flows: readonly TimedCashFlow[],
+  tolerance: number,
+): number | null {
+  let low = RATE_MIN
+  let high = RATE_MAX
+  let lowNpv = calculateNpv(flows, low)
+  let highNpv = calculateNpv(flows, high)
+  if (!Number.isFinite(lowNpv) || !Number.isFinite(highNpv)) return null
+
+  while (lowNpv * highNpv > 0 && high < 1e9) {
+    high *= 10
+    highNpv = calculateNpv(flows, high)
+    if (!Number.isFinite(highNpv)) return null
+  }
+  if (lowNpv * highNpv > 0) return null
+
+  for (let iteration = 0; iteration < 200; iteration++) {
+    const midpoint = (low + high) / 2
+    const midpointNpv = calculateNpv(flows, midpoint)
+    if (Math.abs(midpointNpv) < tolerance || (high - low) / 2 < tolerance) {
+      return midpoint
+    }
+    if (lowNpv * midpointNpv < 0) {
+      high = midpoint
+    } else {
+      low = midpoint
+      lowNpv = midpointNpv
+    }
+  }
+  return (low + high) / 2
+}
+
 export function calculateXIRR(
   cashFlows: readonly CashFlow[],
   guess = 0.1,
@@ -48,68 +131,9 @@ export function calculateXIRR(
     amount: cf.amount,
   }))
 
-  const npvAt = (rate: number): number => {
-    let npv = 0
-    for (const f of flows) {
-      npv += f.amount / Math.pow(1 + rate, f.years)
-    }
-    return npv
-  }
+  const newtonRate = solveWithNewton(flows, guess, maxIterations, tolerance)
+  if (newtonRate !== null) return newtonRate * 100
 
-  // ── Newton-Raphson (fast path) ──────────────────────────────────
-  let rate = guess
-  for (let i = 0; i < maxIterations; i++) {
-    let npv = 0
-    let dnpv = 0
-    for (const f of flows) {
-      const factor = Math.pow(1 + rate, f.years)
-      npv += f.amount / factor
-      if (f.years !== 0) {
-        dnpv -= (f.years * f.amount) / (factor * (1 + rate))
-      }
-    }
-
-    if (Math.abs(dnpv) < 1e-12) break // flat curve -> bisection
-
-    const newRate = rate - npv / dnpv
-    if (Math.abs(newRate - rate) < tolerance) {
-      // Converged inside the plausible bracket -> done.
-      if (newRate > RATE_MIN && newRate < RATE_MAX) return newRate * 100
-      break
-    }
-    rate = newRate
-
-    if (rate <= RATE_MIN || rate >= RATE_MAX) break // left bracket -> bisection
-  }
-
-  // ── Bisection fallback (robust path) ────────────────────────────
-  // Guaranteed to converge when NPV changes sign across the bracket. The
-  // upper bound expands geometrically because short-horizon gains annualize
-  // to astronomically large but real rates (2x in a month ≈ 409,000%/yr).
-  let lo = RATE_MIN
-  let hi = RATE_MAX
-  let npvLo = npvAt(lo)
-  let npvHi = npvAt(hi)
-  if (!Number.isFinite(npvLo) || !Number.isFinite(npvHi)) return 0
-  while (npvLo * npvHi > 0 && hi < 1e9) {
-    hi *= 10
-    npvHi = npvAt(hi)
-    if (!Number.isFinite(npvHi)) return 0
-  }
-  if (npvLo * npvHi > 0) return 0 // no root anywhere: degenerate flows
-
-  for (let i = 0; i < 200; i++) {
-    const mid = (lo + hi) / 2
-    const npvMid = npvAt(mid)
-    if (Math.abs(npvMid) < tolerance || (hi - lo) / 2 < tolerance) {
-      return mid * 100
-    }
-    if (npvLo * npvMid < 0) {
-      hi = mid
-    } else {
-      lo = mid
-      npvLo = npvMid
-    }
-  }
-  return ((lo + hi) / 2) * 100
+  const bisectionRate = solveWithBisection(flows, tolerance)
+  return bisectionRate === null ? 0 : bisectionRate * 100
 }

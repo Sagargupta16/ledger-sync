@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Target, Plus, Trophy, Clock } from 'lucide-react'
-import { PageContainer, PageHeader, StatCard } from '@/components/ui'
+import { Button, PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import PageErrorState from '@/components/shared/PageErrorState'
 
 import useGoalsState from './useGoalsState'
 import SavingsPoolSummary from './components/SavingsPoolSummary'
@@ -26,18 +27,31 @@ const DEFAULT_PROJECTION = {
 export default function GoalsPage() {
   const state = useGoalsState()
 
+  if (state.isLoading) return <PageSkeleton />
+
+  if (state.isError) {
+    return (
+      <PageErrorState
+        title="Financial Goals"
+        subtitle="Track progress toward your financial targets"
+        onRetry={state.retry}
+      />
+    )
+  }
+
   return (
     <PageContainer>
       <PageHeader
         title="Financial Goals"
         subtitle="Track progress toward your financial targets"
         action={
-          <button
+          <Button
+            type="button"
             onClick={() => state.setShowCreateForm(!state.showCreateForm)}
-            className="flex min-h-9 items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+            icon={<Plus className="w-4 h-4" />}
           >
-            <Plus className="w-4 h-4" /> Create Goal
-          </button>
+            Create Goal
+          </Button>
         }
       />
 
@@ -110,15 +124,14 @@ export default function GoalsPage() {
         )}
       </AnimatePresence>
 
-      {state.isLoading && <PageSkeleton />}
-      {!state.isLoading && state.goals.length === 0 && (
+      {state.goals.length === 0 && (
         <EmptyState
           icon={Target}
           title="No financial goals yet"
           description="Create your first goal to start tracking your financial progress."
         />
       )}
-      {!state.isLoading && state.goals.length > 0 && (
+      {state.goals.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {state.sortedGoals.map((goal) => (
             <GoalCard

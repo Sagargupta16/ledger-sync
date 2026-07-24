@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 
+import Button from '@/components/ui/Button'
 import type { SalaryComponents } from '@/types/salary'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -51,35 +52,40 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Salary Structure</h3>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            id="previous-salary-financial-year"
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onPrev}
             disabled={fyIdx <= 0}
             aria-label="Previous financial year"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4 text-foreground" />
-          </button>
+            icon={<ChevronLeft className="w-4 h-4 text-foreground" />}
+          />
           <span className="text-sm font-medium text-foreground min-w-[80px] text-center">
             {fyKeys.length > 0 ? `FY ${selectedFY}` : 'No FY'}
           </span>
-          <button
+          <Button
+            id="next-salary-financial-year"
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onNext}
             disabled={fyIdx >= fyKeys.length - 1}
             aria-label="Next financial year"
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight className="w-4 h-4 text-foreground" />
-          </button>
-          <button
+            icon={<ChevronRight className="w-4 h-4 text-foreground" />}
+          />
+          <Button
+            id="add-salary-financial-year"
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onAddFY}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+            className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
+            icon={<Plus className="w-3.5 h-3.5" />}
           >
-            <Plus className="w-3.5 h-3.5" />
             Add FY
-          </button>
+          </Button>
         </div>
       </div>
 

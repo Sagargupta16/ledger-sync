@@ -89,9 +89,10 @@ export default function IncomeClassificationSection({
                       key={fullKey}
                       className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--overlay-2)] transition-colors"
                     >
-                      <span className="text-sm text-foreground flex-1 min-w-0 truncate">{sub}</span>
-                      <select
-                        aria-label={`Income classification for ${sub}`}
+                       <span className="text-sm text-foreground flex-1 min-w-0 truncate">{sub}</span>
+                       <select
+                         id={`income-classification-${encodeURIComponent(fullKey)}`}
+                         aria-label={`Income classification for ${sub}`}
                         value={currentType}
                         onChange={(e) =>
                           handleClassify(
@@ -99,7 +100,7 @@ export default function IncomeClassificationSection({
                             e.target.value as IncomeClassificationType | 'unclassified',
                           )
                         }
-                        className="px-2 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-xs focus:border-primary focus:outline-none w-40 sm:w-44"
+                         className="ledger-control min-h-11 w-40 rounded-lg border border-border px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none sm:min-h-10 sm:w-44"
                       >
                         <option value="unclassified" className="bg-background">
                           Unclassified

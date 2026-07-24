@@ -35,6 +35,10 @@ interface MonthlyBreakdownChartProps {
 }
 
 export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyBreakdownChartProps) {
+  const xAxisOptions = dims.angleXLabels && monthlyBarData.length > 6
+    ? { angle: -45, height: 50 }
+    : undefined
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -57,9 +61,7 @@ export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyB
               <XAxis
                 {...xAxisDefaults(
                   monthlyBarData.length,
-                  dims.angleXLabels && monthlyBarData.length > 6
-                    ? { angle: -45, height: 50 }
-                    : undefined,
+                  xAxisOptions,
                 )}
                 dataKey="name"
               />

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { Button } from '@/components/ui'
 
 interface Props {
   children: ReactNode
@@ -42,12 +43,14 @@ export class ChunkErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-muted-foreground">
               A network error prevented the page from loading.
             </p>
-            <button
+            <Button
+              type="button"
+              size="lg"
               onClick={() => globalThis.location.reload()}
-              className="inline-block rounded-md border border-foreground bg-foreground px-6 py-3 text-background transition-colors hover:bg-foreground/90"
+              className="px-6 py-3"
             >
               Reload
-            </button>
+            </Button>
           </div>
         </div>
       )

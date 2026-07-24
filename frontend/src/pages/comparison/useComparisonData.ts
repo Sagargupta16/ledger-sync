@@ -14,8 +14,19 @@ import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './
 import { generateAllInsights } from './insights'
 
 export function useComparisonData() {
-  const { data: transactions = [], isLoading } = useTransactions()
-  const { data: preferences } = usePreferences()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const transactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  )
+  const preferences = preferencesQuery.data
+  const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
+  const isError = transactionsQuery.isError || preferencesQuery.isError
+  const retry = () => {
+    void transactionsQuery.refetch()
+    void preferencesQuery.refetch()
+  }
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
   // Mode & selection state.
@@ -218,6 +229,8 @@ export function useComparisonData() {
 
   return {
     isLoading,
+    isError,
+    retry,
     transactions,
     mode, setMode,
     monthOptions, yearOptions, fyOptions,

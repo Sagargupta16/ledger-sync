@@ -15,11 +15,26 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { calculateCAGR, computeInvestmentMetrics, groupTransactionsByMonth } from './returnsAnalysisUtils'
 
 export function useReturnsAnalysis() {
-  const { data: allTransactions = [], isLoading: transactionsLoading, isError: transactionsError } = useTransactions()
+  const transactionsQuery = useTransactions()
+  const {
+    data: allTransactions = [],
+    isLoading: transactionsLoading,
+    isError: transactionsError,
+  } = transactionsQuery
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
   const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
-  const { data: balanceData, isLoading: balancesLoading, isError: balancesError } = useAccountBalances(dateParams)
-  const { data: aggregationData, isLoading: aggregationLoading, isError: aggregationError } = useMonthlyAggregation(dateParams)
+  const balancesQuery = useAccountBalances(dateParams)
+  const aggregationQuery = useMonthlyAggregation(dateParams)
+  const {
+    data: balanceData,
+    isLoading: balancesLoading,
+    isError: balancesError,
+  } = balancesQuery
+  const {
+    data: aggregationData,
+    isLoading: aggregationLoading,
+    isError: aggregationError,
+  } = aggregationQuery
   // Include the transactions query: the P&L metrics derive from `transactions`,
   // so omitting it flashed zeros as if loaded before transactions arrived.
   const isLoading = transactionsLoading || balancesLoading || aggregationLoading
@@ -80,9 +95,18 @@ export function useReturnsAnalysis() {
     ? (Math.pow(1 + estimatedCAGR / 100, 1 / 12) - 1) * 100
     : 0
 
+  const retry = () => {
+    const retries: Array<Promise<unknown>> = []
+    if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
+    if (balancesQuery.isError) retries.push(balancesQuery.refetch())
+    if (aggregationQuery.isError) retries.push(aggregationQuery.refetch())
+    void Promise.all(retries)
+  }
+
   return {
     isLoading,
     isError,
+    retry,
     timeFilterProps,
     investmentAccounts,
     dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,

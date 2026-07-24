@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 
+import { DataTable, Money, type DataTableColumn } from '@/components/ui'
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { rawColors } from '@/constants/colors'
 
@@ -12,6 +13,7 @@ import {
   formatMonthLabel,
   formatValue,
   type CompareMode,
+  type MetricRow,
 } from './period-comparison/periodMetrics'
 import {
   buildComparisonMetrics,
@@ -21,6 +23,61 @@ import {
   deriveYearlyData,
   makeGetTransactionCount,
 } from './periodComparisonUtils'
+
+function buildComparisonColumns(
+  period1Label: string,
+  period2Label: string,
+): DataTableColumn<MetricRow>[] {
+  return [
+    {
+      key: 'label',
+      header: 'Metric',
+      mobilePrimary: true,
+      cell: (metric) => (
+        <span className="font-medium text-foreground">{metric.label}</span>
+      ),
+    },
+    {
+      key: 'period1Value',
+      header: period1Label,
+      align: 'right',
+      mobileLabel: period1Label,
+      cell: (metric) => (
+        <Money
+          value={metric.period1Value}
+          formatter={(value) => formatValue(value, metric.format)}
+          bold
+          className="text-app-blue"
+        />
+      ),
+    },
+    {
+      key: 'period2Value',
+      header: period2Label,
+      align: 'right',
+      mobileLabel: period2Label,
+      cell: (metric) => (
+        <Money
+          value={metric.period2Value}
+          formatter={(value) => formatValue(value, metric.format)}
+          className="text-app-purple"
+        />
+      ),
+    },
+    {
+      key: 'changePercent',
+      header: 'Change',
+      align: 'right',
+      mobileLabel: 'Change',
+      cell: (metric) => (
+        <ChangeDisplay
+          changePercent={metric.changePercent}
+          isExpense={metric.isExpense}
+        />
+      ),
+    },
+  ]
+}
 
 export default function PeriodComparison() {
   const { data: monthlyData, isLoading } = useMonthlyAggregation()
@@ -74,15 +131,15 @@ export default function PeriodComparison() {
     ],
   )
 
-  const getPeriod1Label = () => {
-    if (compareMode === 'months' && effectiveMonth1) return formatMonthLabel(effectiveMonth1)
-    return effectiveYear1?.toString() ?? ''
-  }
-
-  const getPeriod2Label = () => {
-    if (compareMode === 'months' && effectiveMonth2) return formatMonthLabel(effectiveMonth2)
-    return effectiveYear2?.toString() ?? ''
-  }
+  const period1Label =
+    compareMode === 'months' && effectiveMonth1
+      ? formatMonthLabel(effectiveMonth1)
+      : (effectiveYear1?.toString() ?? '')
+  const period2Label =
+    compareMode === 'months' && effectiveMonth2
+      ? formatMonthLabel(effectiveMonth2)
+      : (effectiveYear2?.toString() ?? '')
+  const comparisonColumns = buildComparisonColumns(period1Label, period2Label)
 
   if (isLoading) {
     return (
@@ -120,7 +177,11 @@ export default function PeriodComparison() {
               boxShadow: `0 8px 24px ${rawColors.app.indigo}26`,
             }}
           >
-            <Zap className="w-6 h-6" style={{ color: rawColors.app.indigo }} />
+            <Zap
+              className="w-6 h-6"
+              style={{ color: rawColors.app.indigo }}
+              aria-hidden
+            />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-foreground">Quick Comparisons</h3>
@@ -147,67 +208,13 @@ export default function PeriodComparison() {
       />
 
       {comparisonMetrics && comparisonMetrics.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl">
-          <table className="w-full" aria-label="Period comparison metrics">
-            <thead>
-              <tr className="border-b border-border">
-                <th
-                  className="text-left py-3 px-4 text-sm font-semibold"
-                  style={{ color: rawColors.text.secondary }}
-                >
-                  Metric
-                </th>
-                <th
-                  className="text-right py-3 px-4 text-sm font-semibold"
-                  style={{ color: rawColors.app.blue }}
-                >
-                  {getPeriod1Label()}
-                </th>
-                <th
-                  className="text-right py-3 px-4 text-sm font-semibold"
-                  style={{ color: rawColors.app.purple }}
-                >
-                  {getPeriod2Label()}
-                </th>
-                <th
-                  className="text-right py-3 px-4 text-sm font-semibold"
-                  style={{ color: rawColors.text.secondary }}
-                >
-                  Change
-                </th>
-              </tr>
-            </thead>
-            <motion.tbody
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              {comparisonMetrics.map((metric) => (
-                <tr
-                  key={metric.label}
-                  className="border-b border-border hover:bg-[var(--overlay-5)] transition-colors"
-                >
-                  <td className="py-3 px-4 text-sm font-medium text-foreground/90">{metric.label}</td>
-                  <td
-                    className="py-3 px-4 text-sm text-right font-semibold tabular-nums"
-                    style={{ color: rawColors.app.blue }}
-                  >
-                    {formatValue(metric.period1Value, metric.format)}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-right tabular-nums" style={{ color: rawColors.app.purple }}>
-                    {formatValue(metric.period2Value, metric.format)}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-right">
-                    <ChangeDisplay
-                      changePercent={metric.changePercent}
-                      isExpense={metric.isExpense}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </motion.tbody>
-          </table>
-        </div>
+        <DataTable<MetricRow>
+          columns={comparisonColumns}
+          rows={comparisonMetrics}
+          rowKey={(metric) => metric.label}
+          ariaLabel={`${period1Label} and ${period2Label} financial metrics comparison`}
+          mobileCards
+        />
       ) : (
         <div className="text-center py-8" style={{ color: rawColors.text.secondary }}>
           <p>Unable to calculate comparisons. Please select different periods.</p>

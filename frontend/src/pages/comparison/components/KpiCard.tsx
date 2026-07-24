@@ -23,7 +23,10 @@ export function KpiCard({
   // change never reads as a green win / red loss it isn't.
   const isFlat = Math.abs(change) < 1
   const isGood = invertChange ? !isPositive : isPositive
-  const changeColorClass = isFlat ? 'text-muted-foreground' : isGood ? 'text-app-green' : 'text-app-red'
+  let changeColorClass = 'text-muted-foreground'
+  if (!isFlat) {
+    changeColorClass = isGood ? 'text-app-green' : 'text-app-red'
+  }
   const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
 
   const changeIndicator = (() => {

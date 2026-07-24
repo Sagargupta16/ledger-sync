@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+
 import { Sparkline } from '@/components/shared'
+import { Money } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 
@@ -40,7 +41,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
     <div className="glass rounded-2xl border border-border p-4 md:p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2.5 bg-app-purple/20 rounded-xl">
-          <TrendingUp className="w-5 h-5 text-app-purple" />
+          <TrendingUp className="w-5 h-5 text-app-purple" aria-hidden />
         </div>
         <div>
           <h3 className="text-lg font-semibold">Multi-Year Projection</h3>
@@ -50,25 +51,46 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <section
+        className="overflow-x-auto"
+        aria-label="Multi-year salary and tax projection"
+      >
+        <table
+          className="w-full min-w-max text-sm"
+          aria-describedby="multi-year-projection-note"
+        >
+          <caption className="sr-only">
+            Multi-year salary and tax projection by fiscal year
+          </caption>
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-2 px-3 text-muted-foreground font-medium max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown">
+              <th
+                scope="col"
+                className="text-left py-2 px-3 text-muted-foreground font-medium max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+              >
                 Component
               </th>
               {projections.map((p) => (
                 <th
                   key={p.fy}
+                  scope="col"
                   className="text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap"
                 >
                   FY {p.fy}
                   {p.isProjected && (
-                    <span className="text-caption text-text-quaternary ml-1">*</span>
+                    <>
+                      <span className="text-caption text-text-quaternary ml-1" aria-hidden>
+                        *
+                      </span>
+                      <span className="sr-only"> projected</span>
+                    </>
                   )}
                 </th>
               ))}
-              <th className="text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap">
+              <th
+                scope="col"
+                className="hidden sm:table-cell text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap"
+              >
                 Trend
               </th>
             </tr>
@@ -81,15 +103,18 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
               const growth = totalGrowthPct(values)
               return (
                 <tr key={row.key} className="border-b border-border/50">
-                  <td className="py-2.5 px-3 font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown">
+                  <th
+                    scope="row"
+                    className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+                  >
                     {row.label}
-                  </td>
+                  </th>
                   {projections.map((p, i) => (
                     <td key={p.fy} className={`py-2.5 px-3 text-right ${row.colorClass}`}>
-                      {formatCurrency(values[i])}
+                      <Money value={values[i]} className={row.colorClass} />
                     </td>
                   ))}
-                  <td className="py-2.5 px-3">
+                  <td className="hidden sm:table-cell py-2.5 px-3">
                     <div className="flex items-center justify-end gap-2">
                       {growth !== null && (
                         <span className="text-overline text-text-tertiary tabular-nums whitespace-nowrap">
@@ -108,15 +133,21 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
               )
             })}
             <tr className="border-b border-border/50">
-              <td className="py-2.5 px-3 font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown">
+              <th
+                scope="row"
+                className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+              >
                 Effective Tax Rate
-              </td>
+              </th>
               {projections.map((p) => (
-                <td key={p.fy} className="py-2.5 px-3 text-right text-muted-foreground tabular-nums">
+                <td
+                  key={p.fy}
+                  className="py-2.5 px-3 text-right text-muted-foreground tabular-nums whitespace-nowrap"
+                >
                   {p.effectiveTaxRate.toFixed(1)}%
                 </td>
               ))}
-              <td className="py-2.5 px-3">
+              <td className="hidden sm:table-cell py-2.5 px-3">
                 <div className="flex items-center justify-end gap-2">
                   {rateGrowth !== null && (
                     <span className="text-overline text-text-tertiary tabular-nums whitespace-nowrap">
@@ -134,9 +165,9 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
             </tr>
           </tbody>
         </table>
-      </div>
+      </section>
 
-      <p className="text-xs text-text-tertiary mt-3">
+      <p id="multi-year-projection-note" className="text-xs text-text-tertiary mt-3">
         * Projected values based on growth assumptions. Actual figures may vary.
       </p>
     </div>

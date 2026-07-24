@@ -17,6 +17,7 @@ import { motion } from 'framer-motion'
 
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
 import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'
+import { Button } from '@/components/ui'
 
 import ChatMessage from './ChatMessage'
 
@@ -102,24 +103,28 @@ export default function ChatPanel({
           <UsageBadge />
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClear}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors"
+            className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
             title="Clear chat"
             aria-label="Clear chat"
           >
-            <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-          </button>
-          <button
+            <Trash2 className="size-4 sm:size-3.5" aria-hidden="true" />
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onMinimize}
-            className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg hover:bg-[var(--overlay-5)] text-muted-foreground hover:text-foreground transition-colors"
+            className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
             title="Minimize"
             aria-label="Minimize chat"
           >
-            <Minus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-          </button>
+            <Minus className="size-4 sm:size-3.5" aria-hidden="true" />
+          </Button>
         </div>
       </div>
 
@@ -147,7 +152,7 @@ export default function ChatPanel({
                     key={s.label}
                     type="button"
                     onClick={() => onSend(s.prompt)}
-                    className="ledger-control flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs font-medium text-foreground transition-colors"
+                    className="ledger-control flex min-h-11 w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-xs font-medium text-foreground transition-colors"
                   >
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
                       <s.icon className="size-3.5 text-primary" aria-hidden="true" />
@@ -184,26 +189,30 @@ export default function ChatPanel({
             className="flex-1 resize-none bg-[var(--overlay-2)] border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
           {isStreaming ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={onStop}
               title="Stop generating"
               aria-label="Stop generating"
-              className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-app-red/20 text-app-red hover:bg-app-red/30 transition-colors"
+              className="size-11 shrink-0 rounded-xl bg-app-red/20 p-0 text-app-red hover:bg-app-red/30 hover:text-app-red sm:size-9 sm:min-h-9 sm:min-w-9"
             >
-              <Square className="w-4 h-4" />
-            </button>
+              <Square className="size-4" aria-hidden="true" />
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={handleSend}
               disabled={!input.trim()}
               title={input.trim() ? 'Send message' : 'Type a message first'}
               aria-label="Send message"
-              className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="size-11 shrink-0 rounded-xl bg-primary/20 p-0 text-primary hover:bg-primary/30 hover:text-primary sm:size-9 sm:min-h-9 sm:min-w-9"
             >
-              <Send className="w-4 h-4" />
-            </button>
+              <Send className="size-4" aria-hidden="true" />
+            </Button>
           )}
         </div>
       </div>

@@ -3,8 +3,9 @@
  * when a transaction note or account contains a phrase.
  */
 
-import { Loader2, Plus, Trash2, Wand2 } from 'lucide-react'
+import { Plus, Trash2, Wand2 } from 'lucide-react'
 
+import Button from '@/components/ui/Button'
 import type { LocalRule } from '../types'
 import { MATCH_FIELDS } from '../types'
 import { Section, Toggle, FieldLabel, FieldHint } from '../sectionPrimitives'
@@ -41,14 +42,17 @@ export default function CategorizationRulesSection({
         <p className="text-xs text-muted-foreground">
           First matching rule wins, top to bottom.
         </p>
-        <button
+        <Button
+          id="add-categorization-rule"
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={onAddRule}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+          className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
+          icon={<Plus className="w-3.5 h-3.5" />}
         >
-          <Plus className="w-3.5 h-3.5" />
           Add rule
-        </button>
+        </Button>
       </div>
 
       {rules.length === 0 && (
@@ -119,6 +123,7 @@ export default function CategorizationRulesSection({
               <div className="flex items-center gap-2">
                 <Toggle
                   id={`rule-active-${rule.localId}`}
+                  aria-label={`Enable rule ${rule.pattern || rule.localId}`}
                   checked={rule.is_active}
                   onChange={(val) => onUpdateRule(rule.localId, 'is_active', val)}
                 />
@@ -129,30 +134,33 @@ export default function CategorizationRulesSection({
                   Active
                 </label>
               </div>
-              <button
+              <Button
+                id={`delete-rule-${rule.localId}`}
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => onRemoveRule(rule.localId)}
-                className="p-2 rounded-lg text-app-red hover:bg-app-red/10 transition-colors"
                 title="Delete rule"
-                aria-label="Delete rule"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                aria-label={`Delete rule ${rule.pattern || rule.localId}`}
+                className="text-app-red hover:bg-app-red/10 hover:text-app-red"
+                icon={<Trash2 className="w-4 h-4" />}
+              />
             </div>
           </div>
         </div>
       ))}
 
       <div className="pt-1">
-        <button
+        <Button
+          id="apply-categorization-rules"
           type="button"
+          variant="secondary"
           onClick={onApplyRules}
           disabled={applying}
-          className="flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-lg bg-[var(--overlay-5)] text-foreground text-sm font-medium hover:bg-[var(--overlay-6)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          isLoading={applying}
         >
-          {applying && <Loader2 className="w-4 h-4 animate-spin" />}
           {applying ? 'Applying...' : 'Apply to existing transactions'}
-        </button>
+        </Button>
         <FieldHint>
           Rules also run automatically on every import. Applying now rewrites matching past
           transactions.

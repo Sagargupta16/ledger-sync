@@ -5,15 +5,15 @@ import { Flame, Calculator } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
-import { PageContainer, PageHeader, currencyTooltipFormatter } from '@/components/ui'
-import { formatCurrencyShort } from '@/lib/formatters'
+import { Button, PageContainer, PageHeader, currencyTooltipFormatter } from '@/components/ui'
 
 function SliderInput({ id, label, value, min, max, step, unit, valueText, onChange }: Readonly<{
   id: string; label: string; value: number; min: number; max: number; step: number; unit: string
@@ -51,8 +51,13 @@ function savingsRateSubtitle(rate: number): string {
 }
 
 export default function FIRECalculatorPage() {
-  const { data: monthlyData, isLoading } = useMonthlyAggregation()
-  const { data: totals } = useTotals()
+  const monthlyQuery = useMonthlyAggregation()
+  const totalsQuery = useTotals()
+  const monthlyData = monthlyQuery.data
+  const totals = totalsQuery.data
+  const queries = [monthlyQuery, totalsQuery] as const
+  const isLoading = queries.some((query) => query.isLoading)
+  const hasError = queries.some((query) => query.isError)
   const [activeTab, setActiveTab] = useState<'fire' | 'retirement'>('fire')
 
   // FIRE inputs with defaults from transaction data. The distinct-month count
@@ -103,6 +108,20 @@ export default function FIRECalculatorPage() {
 
   if (isLoading) return <PageSkeleton />
 
+  if (hasError) {
+    const retryFire = () => {
+      void monthlyQuery.refetch()
+      void totalsQuery.refetch()
+    }
+    return (
+      <PageErrorState
+        title="FIRE Calculator"
+        subtitle="Plan your financial independence using your actual spending data"
+        onRetry={retryFire}
+      />
+    )
+  }
+
   return (
     <PageContainer>
         <PageHeader
@@ -113,26 +132,34 @@ export default function FIRECalculatorPage() {
             // shows an EmptyState instead, so aria-controls would dangle).
             autoValues.annualExpenses > 0 ? (
               <div className="flex gap-1 p-1 rounded-lg bg-muted/20" role="tablist" aria-label="Calculator mode">
-                <button
+                <Button
+                  type="button"
                   role="tab"
                   id="fire-tab"
                   aria-selected={activeTab === 'fire'}
                   aria-controls="fire-panel"
                   onClick={() => setActiveTab('fire')}
-                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'fire' ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  variant={activeTab === 'fire' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  icon={<Flame className="w-4 h-4" />}
+                  className="px-4"
                 >
-                  <Flame className="w-4 h-4 inline mr-1.5" />FIRE
-                </button>
-                <button
+                  FIRE
+                </Button>
+                <Button
+                  type="button"
                   role="tab"
                   id="retirement-tab"
                   aria-selected={activeTab === 'retirement'}
                   aria-controls="retirement-panel"
                   onClick={() => setActiveTab('retirement')}
-                  className={`px-4 py-2.5 sm:py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'retirement' ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  variant={activeTab === 'retirement' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  icon={<Calculator className="w-4 h-4" />}
+                  className="px-4"
                 >
-                  <Calculator className="w-4 h-4 inline mr-1.5" />Retirement
-                </button>
+                  Retirement
+                </Button>
               </div>
             ) : undefined
           }
@@ -153,7 +180,8 @@ export default function FIRECalculatorPage() {
             actionLabel="Upload transactions"
             actionHref="/upload"
           />
-        ) : activeTab === 'fire' ? (
+        ) : ({
+          fire: (
           <div role="tabpanel" id="fire-panel" aria-labelledby="fire-tab" className="space-y-6 md:space-y-8">
             {/* FIRE Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -230,7 +258,8 @@ export default function FIRECalculatorPage() {
               </p>
             </motion.div>
           </div>
-        ) : (
+          ),
+          retirement: (
           <div role="tabpanel" id="retirement-panel" aria-labelledby="retirement-tab" className="space-y-6 md:space-y-8">
             {/* Retirement Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -281,7 +310,8 @@ export default function FIRECalculatorPage() {
               </p>
             </motion.div>
           </div>
-        )}
+          ),
+        }[activeTab])}
       </motion.div>
     </PageContainer>
   )

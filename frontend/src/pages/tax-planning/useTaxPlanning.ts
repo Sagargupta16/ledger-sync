@@ -29,8 +29,10 @@ import {
 import type { TaxRegimeOverride } from './types'
 
 export function useTaxPlanning() {
-  const { data: allTransactions = [], isLoading, isError } = useTransactions()
-  const { data: preferences } = usePreferences()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const allTransactions = transactionsQuery.data
+  const preferences = preferencesQuery.data
   const [selectedFY, setSelectedFY] = useState<string>('')
   const [showProjection, setShowProjection] = useState(false)
 
@@ -65,7 +67,13 @@ export function useTaxPlanning() {
   )
 
   const transactionsByFY = useMemo(
-    () => groupTransactionsByFY(allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction),
+    () =>
+      groupTransactionsByFY(
+        allTransactions ?? [],
+        fiscalYearStartMonth,
+        incomeClassification,
+        epfTaxableFraction,
+      ),
     [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction],
   )
 
@@ -396,9 +404,14 @@ export function useTaxPlanning() {
     if (canGoForward) setSelectedFY(fyList[currentIndex - 1])
   }
 
+  const retry = () => {
+    void Promise.all([transactionsQuery.refetch(), preferencesQuery.refetch()])
+  }
+
   return {
-    isLoading,
-    isError,
+    isLoading: transactionsQuery.isLoading || preferencesQuery.isLoading,
+    isError: transactionsQuery.isError || preferencesQuery.isError,
+    retry,
     preferredRegime,
     salaryIsNetOfTds,
     regimeOverride,
@@ -434,3 +447,5 @@ export function useTaxPlanning() {
     goToNextFY,
   }
 }
+
+export type TaxPlanningModel = ReturnType<typeof useTaxPlanning>

@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccountBalances, useMasterCategories } from '@/hooks/api/useAnalytics'
+import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { categorizationRulesService, type CategorizationRuleInput } from '@/services/api/categorizationRules'
 import { preferencesService } from '@/services/api/preferences'
@@ -22,16 +23,38 @@ import {
 
 export function useSettingsState() {
   // Data hooks
-  const { data: preferences, isLoading: preferencesLoading } = usePreferences()
+  const {
+    data: preferences,
+    isLoading: preferencesLoading,
+    isError: preferencesError,
+    refetch: refetchPreferences,
+  } = usePreferences()
   const updatePreferences = useUpdatePreferences()
   const resetPreferences = useResetPreferences()
-  const { data: masterCategories, isLoading: categoriesLoading } = useMasterCategories()
-  const { data: balanceData, isLoading: balancesLoading } = useAccountBalances()
+  const {
+    data: masterCategories,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useMasterCategories()
+  const {
+    data: balanceData,
+    isLoading: balancesLoading,
+    isError: balancesError,
+    refetch: refetchBalances,
+  } = useAccountBalances()
+  const {
+    data: closedAccounts = [],
+    isLoading: closedAccountsLoading,
+    isError: closedAccountsError,
+    refetch: refetchClosedAccounts,
+  } = useClosedAccounts()
   const { guardDemoAction } = useDemoGuard()
 
   // Local state
   const [classifications, setClassifications] = useState<Record<string, string>>({})
   const [classificationsLoading, setClassificationsLoading] = useState(true)
+  const [classificationsError, setClassificationsError] = useState(false)
   const [localPrefs, setLocalPrefs] = useState<LocalPrefs | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -43,6 +66,9 @@ export function useSettingsState() {
   const [localRsuGrants, setLocalRsuGrants] = useState<RsuGrant[]>([])
   const [localGrowthAssumptions, setLocalGrowthAssumptions] = useState<GrowthAssumptions>({ ...DEFAULT_GROWTH_ASSUMPTIONS })
   const [rules, setRules] = useState<LocalRule[]>([])
+  const [rulesLoading, setRulesLoading] = useState(true)
+  const [rulesError, setRulesError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [applyingRules, setApplyingRules] = useState(false)
   const queryClient = useQueryClient()
 
@@ -195,6 +221,7 @@ export function useSettingsState() {
     let cancelled = false
     const load = async () => {
       setClassificationsLoading(true)
+      setClassificationsError(false)
       try {
         const data = await accountClassificationsService.getAllClassifications()
         if (cancelled) return
@@ -203,19 +230,21 @@ export function useSettingsState() {
           | undefined
         setClassifications({ ...getDefaultClassifications(accounts, accountStats), ...data })
       } catch {
-        if (!cancelled) toast.error('Failed to load account classifications')
+        if (!cancelled) setClassificationsError(true)
       } finally {
         if (!cancelled) setClassificationsLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [accounts, balanceData])
+  }, [accounts, balanceData, reloadToken])
 
   // Load categorization rules
   useEffect(() => {
     let cancelled = false
     const load = async () => {
+      setRulesLoading(true)
+      setRulesError(false)
       try {
         const data = await categorizationRulesService.getRules()
         if (cancelled) return
@@ -231,12 +260,24 @@ export function useSettingsState() {
           })),
         )
       } catch {
-        if (!cancelled) toast.error('Failed to load categorization rules')
+        if (!cancelled) setRulesError(true)
+      } finally {
+        if (!cancelled) setRulesLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [reloadToken])
+
+  const retrySettings = useCallback(async () => {
+    setReloadToken((current) => current + 1)
+    await Promise.all([
+      refetchPreferences(),
+      refetchCategories(),
+      refetchBalances(),
+      refetchClosedAccounts(),
+    ])
+  }, [refetchPreferences, refetchCategories, refetchBalances, refetchClosedAccounts])
 
   // Categorization rule handlers
   const addRule = useCallback(() => {
@@ -402,10 +443,23 @@ export function useSettingsState() {
     }
   }, [resetPreferences, guardDemoAction])
 
-  const isLoading = preferencesLoading || classificationsLoading || categoriesLoading
+  const isLoading =
+    preferencesLoading ||
+    classificationsLoading ||
+    categoriesLoading ||
+    balancesLoading ||
+    closedAccountsLoading ||
+    rulesLoading
+  const loadError =
+    preferencesError ||
+    categoriesError ||
+    balancesError ||
+    closedAccountsError ||
+    classificationsError ||
+    rulesError
 
   return {
-    isLoading, balancesLoading, balanceData,
+    isLoading, loadError, retrySettings, balancesLoading, balanceData, closedAccounts,
     localPrefs, hasChanges, isSaving, showResetConfirm, setShowResetConfirm,
     classifications, setClassifications, setHasChanges,
     draggedItem, setDraggedItem, dragType, setDragType,

@@ -1,7 +1,6 @@
 import { memo, useMemo } from 'react'
 
-import { motion } from 'framer-motion'
-import { Shield } from 'lucide-react'
+import { ChevronDown, Shield } from 'lucide-react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -10,11 +9,11 @@ import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { rawColors } from '@/constants/colors'
-import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { useCountUp } from '@/hooks/useCountUp'
 import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
+import ErrorState from '@/components/shared/ErrorState'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
@@ -106,30 +105,22 @@ function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
   const color = TIER_COLORS[metric.status] ?? rawColors.app.red
 
   return (
-    <motion.div
-      variants={fadeUpItem}
-      whileHover={{ y: -2 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className="p-2.5 rounded-lg border border-border bg-[var(--overlay-1)]"
-    >
+    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-2.5">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-medium text-foreground truncate">{metric.name}</span>
         <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round(metric.score)}</span>
       </div>
       <div className="h-1 bg-muted/30 rounded-full overflow-hidden mb-1.5">
-        <motion.div
+        <div
           className="h-full rounded-full"
-          style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${metric.score}%` }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ backgroundColor: color, width: `${metric.score}%` }}
         />
       </div>
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-text-tertiary truncate">{metric.description}</p>
         <p className="text-[10px] text-text-quaternary shrink-0 ml-2">Target: {metric.target}</p>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -140,12 +131,25 @@ interface FinancialHealthScoreProps {
 }
 
 export default function FinancialHealthScore({ transactions: propTransactions }: Readonly<FinancialHealthScoreProps>) {
-  const { data: fetchedTransactions = [], isLoading: isFetching } = useTransactions()
-  const { data: preferences } = usePreferences()
-  const { data: balanceData } = useAccountBalances()
-  const { data: classifications } = useAccountClassifications()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const balancesQuery = useAccountBalances()
+  const classificationsQuery = useAccountClassifications()
+  const fetchedTransactions = transactionsQuery.data ?? []
+  const preferences = preferencesQuery.data
+  const balanceData = balancesQuery.data
+  const classifications = classificationsQuery.data
   const transactions = propTransactions ?? fetchedTransactions
-  const isLoading = !propTransactions && isFetching
+  const isLoading =
+    (!propTransactions && transactionsQuery.isLoading) ||
+    preferencesQuery.isLoading ||
+    balancesQuery.isLoading ||
+    classificationsQuery.isLoading
+  const isError =
+    (!propTransactions && transactionsQuery.isError) ||
+    preferencesQuery.isError ||
+    balancesQuery.isError ||
+    classificationsQuery.isError
   const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
 
@@ -210,6 +214,23 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   }, [analysisData])
 
   if (isLoading) return <LoadingSkeleton />
+  if (isError) {
+    const retryHealth = () => {
+      if (!propTransactions) void transactionsQuery.refetch()
+      void preferencesQuery.refetch()
+      void balancesQuery.refetch()
+      void classificationsQuery.refetch()
+    }
+    return (
+      <ErrorState
+        title="Financial health unavailable"
+        message="We could not load every balance and preference needed for an accurate score."
+        onRetry={retryHealth}
+        errorType="network"
+        variant="card"
+      />
+    )
+  }
   if (!analysisData) return <EmptyState />
 
   const metrics = calculateMetrics(analysisData, savingsGoalPercent)
@@ -226,42 +247,56 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   }))
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-    >
-      {/* FinHealth Score */}
-      <div className="glass rounded-2xl border border-border p-6">
-        <ScoreHeader
-          title="FinHealth Score"
-          score={overallScore}
-          subtitle={`Last ${analysisData.monthsAnalyzed} months`}
-          color={fhnStatus.color}
+    <details className="group ledger-panel overflow-hidden">
+      <summary className="ledger-control flex min-h-12 cursor-pointer list-none items-center gap-3 border-0 px-4 py-3 sm:px-5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-blue/10">
+          <Shield className="size-4 text-app-blue" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">Financial health details</span>
+          <span className="block text-xs text-muted-foreground">
+            Score breakdowns and planning ratios for the last {analysisData.monthsAnalyzed} months
+          </span>
+        </span>
+        <span className="hidden items-center gap-2 sm:flex">
+          <span className={`ledger-figure text-sm font-semibold ${fhnStatus.color}`}>
+            FinHealth {Math.round(overallScore)}
+          </span>
+          <span className={`ledger-figure text-sm font-semibold ${cfpStatus.color}`}>
+            CFP {Math.round(cfpCompositeScore)}
+          </span>
+        </span>
+        <ChevronDown
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+          aria-hidden="true"
         />
-        <RadarVisualization metrics={fhnRadarData} chartColor={rawColors.app.blue} />
-        <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          {metrics.map((m) => <HealthMetricCard key={m.name} metric={m} />)}
-        </motion.div>
-        <p className="text-[10px] text-center text-muted-foreground/50 mt-3">Financial Health Network framework</p>
-      </div>
+      </summary>
+      <div className="grid grid-cols-1 gap-6 border-t border-[var(--hairline-1)] p-4 sm:p-5 lg:grid-cols-2">
+        <section className="min-w-0 lg:border-r lg:border-[var(--hairline-1)] lg:pr-6">
+          <ScoreHeader
+            title="FinHealth Score"
+            score={overallScore}
+            subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            color={fhnStatus.color}
+          />
+          <RadarVisualization metrics={fhnRadarData} chartColor={rawColors.app.blue} />
+          <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {metrics.map((m) => <HealthMetricCard key={m.name} metric={m} />)}
+          </div>
+          <p className="text-[10px] text-center text-muted-foreground/50 mt-3">Financial Health Network framework</p>
+        </section>
 
-      {/* CFP Ratios */}
-      <div className="glass rounded-2xl border border-border p-6">
-        <ScoreHeader
-          title="CFP Ratios"
-          score={cfpCompositeScore}
-          subtitle={`Last ${analysisData.monthsAnalyzed} months`}
-          color={cfpStatus.color}
-        />
-        <CFPScoreView analysisData={analysisData} />
+        <section className="min-w-0">
+          <ScoreHeader
+            title="CFP Ratios"
+            score={cfpCompositeScore}
+            subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            color={cfpStatus.color}
+          />
+          <CFPScoreView analysisData={analysisData} />
+        </section>
       </div>
-    </motion.div>
+    </details>
   )
 }

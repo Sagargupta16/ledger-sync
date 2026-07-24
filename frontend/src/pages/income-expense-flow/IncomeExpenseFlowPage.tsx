@@ -1,4 +1,9 @@
+import { Upload } from 'lucide-react'
+
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import { FlowSummaryCards } from './components/FlowSummaryCards'
@@ -7,6 +12,37 @@ import { useIncomeExpenseFlow } from './useIncomeExpenseFlow'
 
 const IncomeExpenseFlowPage = () => {
   const m = useIncomeExpenseFlow()
+
+  if (m.isLoading) return <PageSkeleton />
+
+  if (m.isError) {
+    return (
+      <PageErrorState
+        title="Cash Flow"
+        subtitle="Visualize how your income flows into savings and expenses"
+        onRetry={m.retry}
+      />
+    )
+  }
+
+  if (!m.hasTransactions) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Cash Flow"
+          subtitle="Visualize how your income flows into savings and expenses"
+        />
+        <EmptyState
+          icon={Upload}
+          title="No transactions yet"
+          description="Upload a bank statement to map income, expenses, tax, and savings."
+          actionLabel="Upload Data"
+          actionHref="/upload"
+          variant="card"
+        />
+      </PageContainer>
+    )
+  }
 
   return (
     <PageContainer>

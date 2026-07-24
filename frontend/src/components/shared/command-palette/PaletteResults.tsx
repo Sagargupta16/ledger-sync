@@ -49,8 +49,9 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
               return (
                 <li key={page.path} data-index={index}>
                   <button
+                    type="button"
                     data-selected={isSelected}
-                    className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out cursor-pointer ${
+                    className={`flex min-h-11 w-full cursor-pointer items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out ${
                       isSelected ? 'bg-[var(--overlay-4)]' : 'hover:bg-[var(--overlay-3)]'
                     }`}
                     onClick={() => executeResult(result)}
@@ -112,8 +113,9 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
               return (
                 <li key={tx.id} data-index={index}>
                   <button
+                    type="button"
                     data-selected={isSelected}
-                    className={`w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out cursor-pointer ${
+                    className={`flex min-h-11 w-full cursor-pointer items-center gap-3 px-5 py-2.5 text-left transition-colors duration-150 ease-out ${
                       isSelected ? 'bg-[var(--overlay-4)]' : 'hover:bg-[var(--overlay-3)]'
                     }`}
                     onClick={() => executeResult(result)}

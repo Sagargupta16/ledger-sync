@@ -26,7 +26,8 @@ export default function useGoalsState() {
   const [goalOverrides, setGoalOverrides] = useState<Record<number, GoalOverride>>(loadGoalOverrides)
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
-  const { data: rawGoals = [], isLoading: goalsLoading } = useGoals({ include_achieved: true })
+  const goalsQuery = useGoals({ include_achieved: true })
+  const rawGoals = useMemo(() => goalsQuery.data ?? [], [goalsQuery.data])
 
   const goals = useMemo(
     () =>
@@ -42,8 +43,26 @@ export default function useGoalsState() {
 
   const createGoal = useCreateGoal()
   const { guardDemoAction } = useDemoGuard()
-  const { data: totals, isLoading: totalsLoading } = useTotals()
-  const { data: monthlySummaries = [] } = useMonthlySummaries()
+  const totalsQuery = useTotals()
+  const monthlySummariesQuery = useMonthlySummaries()
+  const totals = totalsQuery.data
+  const monthlySummaries = useMemo(
+    () => monthlySummariesQuery.data ?? [],
+    [monthlySummariesQuery.data],
+  )
+  const isLoading =
+    goalsQuery.isLoading ||
+    totalsQuery.isLoading ||
+    monthlySummariesQuery.isLoading
+  const isError =
+    goalsQuery.isError ||
+    totalsQuery.isError ||
+    monthlySummariesQuery.isError
+  const retry = () => {
+    void goalsQuery.refetch()
+    void totalsQuery.refetch()
+    void monthlySummariesQuery.refetch()
+  }
 
   const effectiveAmounts = useMemo(() => {
     const map: Record<number, number> = {}
@@ -173,8 +192,10 @@ export default function useGoalsState() {
     totalAllocated,
     avgMonthlySavings,
     totals,
-    totalsLoading,
-    isLoading: goalsLoading,
+    totalsLoading: totalsQuery.isLoading,
+    isLoading,
+    isError,
+    retry,
     // Form state
     showCreateForm,
     setShowCreateForm,

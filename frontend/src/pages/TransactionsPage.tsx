@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { toast } from 'sonner'
@@ -11,6 +10,8 @@ import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import SavedViewsMenu from '@/components/transactions/SavedViewsMenu'
 import Pagination from '@/components/transactions/Pagination'
+import PageErrorState from '@/components/shared/PageErrorState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 
@@ -60,7 +61,8 @@ export default function TransactionsPage() {
   // Dropdown options + per-type counts, aggregated server-side (no full-ledger
   // fetch). categories/accounts feed the filter dropdowns; the counts feed the
   // summary card.
-  const { data: facets } = useTransactionFacets()
+  const facetsQuery = useTransactionFacets()
+  const facets = facetsQuery.data
   const categories = facets?.categories ?? []
   const accounts = facets?.accounts ?? []
   const typeCounts = {
@@ -71,11 +73,12 @@ export default function TransactionsPage() {
 
   // Fetch filtered + sorted + paginated rows from the server. The response
   // carries the filtered total, so no separate count query is needed.
-  const { data: page, isLoading } = useQuery({
+  const pageQuery = useQuery({
     queryKey: ['transactions-page', serverFilters],
     queryFn: () => transactionsService.getTransactionsPaginated(serverFilters),
     staleTime: Infinity,
   })
+  const page = pageQuery.data
   const filteredTransactions = page?.data ?? []
   const total = page?.total ?? facets?.total_count ?? 0
   const unfilteredTotal = facets?.total_count ?? 0
@@ -129,6 +132,22 @@ export default function TransactionsPage() {
     }
   }
 
+  if (facetsQuery.isLoading || pageQuery.isLoading) return <PageSkeleton />
+
+  if (facetsQuery.isError || pageQuery.isError) {
+    const retryTransactions = () => {
+      void facetsQuery.refetch()
+      void pageQuery.refetch()
+    }
+    return (
+      <PageErrorState
+        title="Transactions"
+        subtitle="Search, filter, and export every reconciled ledger entry."
+        onRetry={retryTransactions}
+      />
+    )
+  }
+
   return (
     <PageContainer>
         {/* Header */}
@@ -157,11 +176,15 @@ export default function TransactionsPage() {
                 <Receipt className="size-4 text-foreground" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-xs text-muted-foreground">{isFiltered ? 'Matching transactions' : 'Total transactions'}</p>
-                <p className="ledger-figure mt-1 text-xl font-semibold">
+                <p className="text-xs leading-4 text-muted-foreground">
+                  {isFiltered ? 'Matching transactions' : 'Total transactions'}
+                </p>
+                <p className="ledger-figure mt-1 break-words text-xl font-semibold">
                   {total.toLocaleString('en-IN')}
                   {isFiltered && (
-                    <span className="text-sm font-medium text-muted-foreground"> of {unfilteredTotal.toLocaleString('en-IN')}</span>
+                    <span className="mt-0.5 block text-xs font-medium text-muted-foreground sm:ml-1 sm:inline sm:text-sm">
+                      of {unfilteredTotal.toLocaleString('en-IN')}
+                    </span>
                   )}
                 </p>
               </div>
@@ -195,7 +218,7 @@ export default function TransactionsPage() {
         </section>
 
         {/* Filters */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <div>
           <TransactionFilters
             key={filtersVersion}
             onFilterChange={handleFilterChange}
@@ -205,22 +228,22 @@ export default function TransactionsPage() {
             tagOptions={facets?.tags ?? []}
             savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
           />
-        </motion.div>
+        </div>
 
         {/* Table */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <div>
           <TransactionTable
             transactions={filteredTransactions}
-            isLoading={isLoading}
+            isLoading={pageQuery.isLoading}
             sorting={sorting}
             onSortingChange={setSorting}
             availableTags={facets?.tags?.map((t) => t.name) ?? []}
           />
-        </motion.div>
+        </div>
 
         {/* Pagination */}
         {total > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <div>
             <Pagination
               currentPage={currentPage}
               totalItems={total}
@@ -228,7 +251,7 @@ export default function TransactionsPage() {
               onPageChange={handlePageChange}
               onItemsPerPageChange={handleItemsPerPageChange}
             />
-          </motion.div>
+          </div>
         )}
         <div className="ledger-ruler" aria-hidden="true" />
     </PageContainer>

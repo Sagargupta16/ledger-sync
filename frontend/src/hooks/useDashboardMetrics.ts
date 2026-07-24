@@ -72,6 +72,8 @@ export interface DashboardMetrics {
     savings_rate: number
   } | undefined
   isLoading: boolean
+  isError: boolean
+  retry: () => void
 
   // Transactions filtered by selected time range
   filteredTransactions: import('@/types').Transaction[]
@@ -100,7 +102,8 @@ export interface DashboardMetrics {
 
 export function useDashboardMetrics(): DashboardMetrics {
   const { displayPreferences } = usePreferencesStore()
-  const { data: preferences } = usePreferences()
+  const preferencesQuery = usePreferences()
+  const preferences = preferencesQuery.data
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
 
   // Time-filter state
@@ -146,9 +149,30 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   // ------ Data fetching ------
   useRecentTransactions(5) // keep prefetch warm for other pages
-  const { data: filteredTotals, isLoading } = useTotals(dateRange)
-  const { data: monthlyData } = useMonthlyAggregation(dateRange)
-  const { data: allTransactions } = useTransactions()
+  const totalsQuery = useTotals(dateRange)
+  const monthlyQuery = useMonthlyAggregation(dateRange)
+  const transactionsQuery = useTransactions()
+  const filteredTotals = totalsQuery.data
+  const monthlyData = monthlyQuery.data
+  const allTransactions = transactionsQuery.data
+  const isLoading =
+    totalsQuery.isLoading ||
+    monthlyQuery.isLoading ||
+    transactionsQuery.isLoading ||
+    preferencesQuery.isLoading
+  const isError =
+    totalsQuery.isError ||
+    monthlyQuery.isError ||
+    transactionsQuery.isError ||
+    preferencesQuery.isError
+  const retry = () => {
+    void Promise.all([
+      totalsQuery.refetch(),
+      monthlyQuery.refetch(),
+      transactionsQuery.refetch(),
+      preferencesQuery.refetch(),
+    ])
+  }
 
   // ------ Date boundaries for AnalyticsTimeFilter ------
   const dataDateRange = useMemo(
@@ -293,6 +317,8 @@ export function useDashboardMetrics(): DashboardMetrics {
     dateRange,
     filteredTotals,
     isLoading,
+    isError,
+    retry,
     filteredTransactions,
     incomeBreakdown,
     cashbacksTotal,

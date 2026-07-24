@@ -11,16 +11,19 @@
 import { Archive } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { useClosedAccounts, useSetAccountStatus } from '@/hooks/api/useAccountStatus'
+import { useSetAccountStatus } from '@/hooks/api/useAccountStatus'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { Toggle } from '../sectionPrimitives'
 
 interface Props {
   accounts: string[]
+  closedAccounts: string[]
 }
 
-export default function ClosedAccountsSubsection({ accounts }: Readonly<Props>) {
-  const { data: closedAccounts = [] } = useClosedAccounts()
+export default function ClosedAccountsSubsection({
+  accounts,
+  closedAccounts,
+}: Readonly<Props>) {
   const setStatus = useSetAccountStatus()
   const { guardDemoAction } = useDemoGuard()
 
@@ -86,7 +89,8 @@ export default function ClosedAccountsSubsection({ accounts }: Readonly<Props>) 
                 <Toggle
                   checked={isClosed}
                   onChange={(next) => toggle(account, next)}
-                  id={`closed-${account}`}
+                  id={`closed-${encodeURIComponent(account)}`}
+                  aria-label={`${isClosed ? 'Reopen' : 'Close'} ${account}`}
                 />
               </div>
             )

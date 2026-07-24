@@ -1,15 +1,14 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Target, AlertTriangle } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
-import { SCROLL_FADE_UP } from '@/constants/animations'
 import { PageContainer, PageHeader } from '@/components/ui'
 import MetricCard from '@/components/shared/MetricCard'
 import ProgressBar from '@/components/shared/ProgressBar'
 import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -28,13 +27,15 @@ import { useBudgets, useGoals } from '@/hooks/api/useAnalyticsV2'
 export default function OverviewPage() {
   const navigate = useNavigate()
   const {
-    filteredTotals, isLoading,
+    filteredTotals, isLoading, isError, retry,
     incomeChartData, expenseChartData,
     momChanges,
   } = useDashboardMetrics()
 
-  const { data: budgets = [] } = useBudgets({ active_only: true })
-  const { data: goals = [] } = useGoals()
+  const budgetsQuery = useBudgets({ active_only: true })
+  const goalsQuery = useGoals()
+  const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data])
+  const goals = useMemo(() => goalsQuery.data ?? [], [goalsQuery.data])
 
   const income = Number(filteredTotals?.total_income ?? 0)
   const expenses = Math.abs(Number(filteredTotals?.total_expenses ?? 0))
@@ -57,7 +58,22 @@ export default function OverviewPage() {
   const topIncome = useMemo(() => incomeChartData.slice(0, 3), [incomeChartData])
   const topExpense = useMemo(() => expenseChartData.slice(0, 3), [expenseChartData])
 
-  if (isLoading) return <PageSkeleton />
+  if (isLoading || budgetsQuery.isLoading || goalsQuery.isLoading) return <PageSkeleton />
+
+  if (isError || budgetsQuery.isError || goalsQuery.isError) {
+    const retryOverview = () => {
+      retry()
+      void budgetsQuery.refetch()
+      void goalsQuery.refetch()
+    }
+    return (
+      <PageErrorState
+        title="Overview"
+        subtitle="Your complete financial picture"
+        onRetry={retryOverview}
+      />
+    )
+  }
 
   const hasData = income > 0 || expenses > 0
   if (!hasData) {
@@ -80,7 +96,7 @@ export default function OverviewPage() {
       <PageHeader title="Overview" subtitle="Your complete financial picture" />
 
       {/* Headline KPIs */}
-      <motion.div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6" {...SCROLL_FADE_UP}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <MetricCard
           title="Income" value={formatCurrency(income)} icon={TrendingUp} color="green"
           change={momChanges?.income} changeLabel="vs last month"
@@ -102,11 +118,11 @@ export default function OverviewPage() {
           subtitle="Assets less liabilities"
           onClick={() => navigate(ROUTES.NET_WORTH)}
         />
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Where money goes / comes from */}
-        <motion.div className="p-6 glass rounded-2xl border border-border" {...SCROLL_FADE_UP}>
+        <div className="p-6 glass rounded-2xl border border-border">
           <h2 className="text-lg font-semibold mb-4">This Period</h2>
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -132,14 +148,14 @@ export default function OverviewPage() {
               </ul>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Budgets at risk */}
-        <motion.button
+        <button
           type="button"
           onClick={() => navigate(ROUTES.BUDGETS)}
+          aria-label="Open budget details"
           className="p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40"
-          {...SCROLL_FADE_UP}
         >
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-app-orange" />
@@ -164,15 +180,15 @@ export default function OverviewPage() {
           ) : (
             <p className="text-sm text-text-tertiary">All budgets are on track.</p>
           )}
-        </motion.button>
+        </button>
       </div>
 
       {/* Goals progress */}
-      <motion.button
+      <button
         type="button"
         onClick={() => navigate(ROUTES.GOALS)}
+        aria-label="Open financial goals"
         className="w-full p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40"
-        {...SCROLL_FADE_UP}
       >
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Target className="w-5 h-5 text-app-purple" />
@@ -198,7 +214,7 @@ export default function OverviewPage() {
         ) : (
           <p className="text-sm text-text-tertiary">No active goals -- set one to start tracking.</p>
         )}
-      </motion.button>
+      </button>
     </PageContainer>
   )
 }

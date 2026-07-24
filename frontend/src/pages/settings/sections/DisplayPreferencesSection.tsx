@@ -11,7 +11,7 @@ import { useThemeStore } from '@/store/themeStore'
 import type { ThemeMode } from '@/lib/theme'
 import { TIME_RANGE_OPTIONS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { Section, FieldLabel, FieldHint } from '../sectionPrimitives'
+import { Section, FieldHint, FieldLabel, FieldLegend } from '../sectionPrimitives'
 import { selectClass } from '../styles'
 
 interface Props {
@@ -74,7 +74,7 @@ export default function DisplayPreferencesSection({
 
         {/* Derived preferences (read-only) */}
         <div>
-          <FieldLabel>Format (auto)</FieldLabel>
+          <FieldLegend>Format (auto)</FieldLegend>
           <div className="px-3 py-2 bg-[var(--overlay-2)] border border-border/50 rounded-lg text-sm text-muted-foreground">
             {selectedMeta.numberFormat === 'indian' ? 'Indian (1,00,000)' : 'International (100,000)'}
             {' '}&middot;{' '}
@@ -110,8 +110,12 @@ export default function DisplayPreferencesSection({
               onChange={(e) => updateLocalPref('earning_start_date', e.target.value || null)}
               className={`${selectClass} w-auto`}
             />
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10">
+            <label
+              htmlFor="use-earning-start-date"
+              className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10"
+            >
               <input
+                id="use-earning-start-date"
                 type="checkbox"
                 checked={localPrefs.use_earning_start_date}
                 disabled={!localPrefs.earning_start_date}
@@ -134,11 +138,12 @@ export default function DisplayPreferencesSection({
 
         {/* Appearance -- applied immediately (not part of the staged Save). */}
         <div className="lg:col-span-3">
-          <FieldLabel>Appearance</FieldLabel>
+          <FieldLegend>Appearance</FieldLegend>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Theme">
             {THEME_OPTIONS.map(({ value, label, Icon }) => (
               <label
                 key={value}
+                htmlFor={`theme-${value}`}
                 className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors sm:min-h-10 ${
                   themeMode === value
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
@@ -146,6 +151,7 @@ export default function DisplayPreferencesSection({
                 }`}
               >
                 <input
+                  id={`theme-${value}`}
                   type="radio"
                   name="theme"
                   value={value}

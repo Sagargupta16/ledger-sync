@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Save, RotateCcw } from 'lucide-react'
-import { PageContainer, PageHeader } from '@/components/ui'
+import ErrorState from '@/components/shared/ErrorState'
+import { Button, PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
 import { GroupHeader } from './sectionPrimitives'
@@ -57,6 +58,23 @@ export default function SettingsPage() {
     )
   }
 
+  if (s.loadError) {
+    return (
+      <PageContainer maxWidth="5xl" className="space-y-5">
+        <PageHeader
+          title="Settings"
+          subtitle="Configure your financial preferences"
+        />
+        <ErrorState
+          variant="card"
+          title="Could not load settings"
+          message="Your existing settings were not changed. Check your connection and try again."
+          onRetry={() => void s.retrySettings()}
+        />
+      </PageContainer>
+    )
+  }
+
   let sectionIndex = 0
 
   return (
@@ -68,27 +86,29 @@ export default function SettingsPage() {
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">
               {s.hasChanges && (
-                <span className="text-sm text-app-yellow flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 text-sm text-warning-text">
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
                 </span>
               )}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
+              <Button
+                id="reset-settings"
+                type="button"
+                variant="secondary"
                 onClick={() => s.setShowResetConfirm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors text-sm"
+                icon={<RotateCcw className="h-4 w-4" />}
+                aria-label="Reset settings"
               >
-                <RotateCcw className="w-4 h-4" />
                 <span className="hidden sm:inline">Reset</span>
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
+              </Button>
+              <Button
+                id="save-settings"
+                type="button"
                 onClick={s.handleSave}
                 disabled={!s.hasChanges || s.isSaving}
-                className="flex items-center gap-2 rounded-md border border-foreground bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+                icon={<Save className="h-4 w-4" />}
               >
-                <Save className="w-4 h-4" />
                 <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
-              </motion.button>
+              </Button>
             </div>
           }
         />
@@ -213,6 +233,7 @@ export default function SettingsPage() {
             accounts={s.accounts}
             creditCardAccounts={s.creditCardAccounts}
             excludedAccounts={s.excludedAccounts}
+            closedAccounts={s.closedAccounts}
             updateLocalPref={s.updateLocalPref}
           />
         )}
@@ -238,22 +259,25 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.18 }}
-              className="fixed inset-x-0 z-40 flex justify-center px-4 bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+              className="fixed inset-x-0 z-40 flex justify-start bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] pl-4 pr-24 sm:justify-center sm:px-4 lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
             >
               <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-[var(--glass-shadow-strong)] backdrop-blur-lg">
-                <span className="flex items-center gap-1.5 text-sm text-app-yellow">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
+                <span role="status" aria-live="polite" className="sr-only">
                   Unsaved changes
                 </span>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
+                <span className="hidden items-center gap-1.5 text-sm text-warning-text sm:flex">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
+                  {' '}Unsaved changes
+                </span>
+                <Button
+                  id="save-settings-floating"
+                  type="button"
                   onClick={s.handleSave}
                   disabled={s.isSaving}
-                  className="flex items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  icon={<Save className="h-4 w-4" />}
                 >
-                  <Save className="h-4 w-4" />
                   <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
-                </motion.button>
+                </Button>
               </div>
             </motion.div>
           )}

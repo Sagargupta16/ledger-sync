@@ -25,9 +25,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'min-h-11 min-w-11 px-2.5 py-1 text-xs rounded-md gap-1.5 sm:min-h-8 sm:min-w-0',
-  md: 'min-h-11 min-w-11 px-3.5 py-1.5 text-sm rounded-md gap-2 sm:min-h-9 sm:min-w-0',
-  lg: 'min-h-11 min-w-11 px-4 py-2 text-sm rounded-lg gap-2 sm:min-w-0',
+  sm: 'min-h-11 min-w-11 px-2.5 py-1 text-xs rounded-md gap-1.5 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0',
+  md: 'min-h-11 min-w-11 px-3.5 py-1.5 text-sm rounded-md gap-2 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-0',
+  lg: 'min-h-11 min-w-11 px-4 py-2 text-sm rounded-lg gap-2 lg:pointer-fine:min-w-0',
 }
 
 /**
@@ -35,12 +35,23 @@ const sizeClasses: Record<ButtonSize, string> = {
  * Supports primary, secondary, ghost, danger, and outline variants.
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', icon, isLoading, className, children, disabled, ...props },
+  {
+    variant = 'primary',
+    size = 'md',
+    type = 'button',
+    icon,
+    isLoading,
+    className,
+    children,
+    disabled,
+    ...props
+  },
   ref
 ) {
   return (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || isLoading}
       className={cn(
         // transition-[color,background-color,border-color,transform] keeps the

@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+import { Button } from '@/components/ui'
 
 interface Props {
   isNewRegime: boolean
@@ -34,69 +35,64 @@ export default function TaxPageActions({
     <div className="flex items-center gap-4 flex-wrap">
       {newRegimeAvailable && (
         <div className="flex rounded-lg border border-border overflow-hidden">
-          <button
+          <Button
             type="button"
             onClick={() => setRegimeOverride('new')}
-            className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
-              isNewRegime
-                ? 'bg-primary text-on-accent'
-                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
-            }`}
+            variant={isNewRegime ? 'primary' : 'ghost'}
+            size="sm"
+            className="rounded-none border-0"
           >
             New Regime
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setRegimeOverride('old')}
-            className={`px-3 py-2.5 sm:py-1.5 text-sm font-medium transition-colors ${
-              isNewRegime
-                ? 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
-                : 'bg-primary text-on-accent'
-            }`}
+            variant={isNewRegime ? 'ghost' : 'primary'}
+            size="sm"
+            className="rounded-none border-0"
           >
             Old Regime
-          </button>
+          </Button>
         </div>
       )}
 
       {isCurrentFY && hasSalaryData && (
-        <button
-          onClick={() => setShowProjection(!showProjection)}
+        <Button
           type="button"
-          className={`px-3 py-2.5 sm:py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-            showProjection
-              ? 'bg-primary text-on-accent shadow-lg shadow-primary/50'
-              : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
-          }`}
+          onClick={() => setShowProjection(!showProjection)}
+          variant={showProjection ? 'primary' : 'secondary'}
+          size="sm"
         >
           {showProjection ? 'Showing Projection' : 'Project from Salary'}
-        </button>
+        </Button>
       )}
 
       <div className="flex items-center gap-2">
-        <motion.button
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          icon={<ChevronLeft className="w-4 h-4" />}
           onClick={goToPreviousFY}
           disabled={!canGoBack}
-          className="p-2 rounded-lg glass-thin hover:bg-[var(--overlay-5)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          whileTap={canGoBack ? { scale: 0.95 } : undefined}
           aria-label="Previous FY"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </motion.button>
+          className="px-2"
+        />
 
         <span className="text-foreground font-medium min-w-28 text-center">
           {selectedFY || 'Select FY'}
         </span>
 
-        <motion.button
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          icon={<ChevronRight className="w-4 h-4" />}
           onClick={goToNextFY}
           disabled={!canGoForward}
-          className="p-2 rounded-lg glass-thin hover:bg-[var(--overlay-5)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          whileTap={canGoForward ? { scale: 0.95 } : undefined}
           aria-label="Next FY"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </motion.button>
+          className="px-2"
+        />
       </div>
     </div>
   )

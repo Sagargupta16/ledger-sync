@@ -2,7 +2,7 @@
 
 Developer-facing route and data-source catalog for Ledger Sync 2.22.0.
 
-Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-14.
+Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-24.
 
 ## Router Summary
 
@@ -14,6 +14,12 @@ The application has 27 routed page components:
 - 23 lazy page components, prefetched during browser idle time.
 
 `/home` is a protected compatibility route that redirects to `/dashboard`.
+
+## Shared Route States
+
+Data-driven protected pages keep their title and route context visible when a query fails, then provide a Try again action through the shared `PageErrorState`. Failed requests are evaluated before empty-data rendering so a network or backend failure cannot appear as a valid zero-value financial state.
+
+Upload and Sync handles parsing, conflict, persistence, and refresh failures inside its workflow because retry behavior depends on the selected file. More is navigation-only and has no financial query state.
 
 ## Public Routes
 

@@ -20,11 +20,18 @@ const DEFAULT_METRICS: TrendMetrics = {
 }
 
 export function useTrendsForecasts() {
-  const { data: preferences } = usePreferences()
-  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+  const preferencesQuery = usePreferences()
+  const trendsQuery = useTrends('all_time')
+  const transactionsQuery = useTransactions()
 
-  const { data: trendsData, isLoading, isError } = useTrends('all_time')
-  const { data: allTransactions = [] } = useTransactions()
+  const { data: preferences } = preferencesQuery
+  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+  const { data: trendsData } = trendsQuery
+  const { data: allTransactions = [] } = transactionsQuery
+  const isLoading =
+    preferencesQuery.isPending || trendsQuery.isPending || transactionsQuery.isPending
+  const isError =
+    preferencesQuery.isError || trendsQuery.isError || transactionsQuery.isError
 
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions, {
     availableModes: ['all_time', 'fy', 'yearly'],
@@ -200,10 +207,19 @@ export function useTrendsForecasts() {
 
   const [activeLabel, setActiveLabel] = useState<string | null>(null)
 
+  const retry = () => {
+    const retries: Array<Promise<unknown>> = []
+    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
+    if (trendsQuery.isError) retries.push(trendsQuery.refetch())
+    if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
+    void Promise.all(retries)
+  }
+
   return {
     savingsGoalPercent,
     isLoading,
     isError,
+    retry,
     timeFilterProps,
     metrics,
     chartData,

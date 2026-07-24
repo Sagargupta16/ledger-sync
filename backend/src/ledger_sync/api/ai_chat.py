@@ -185,6 +185,116 @@ def _from_bedrock_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _build_converse_kwargs(payload: BedrockChatRequest, model_id: str) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "modelId": model_id,
+        "messages": [_to_bedrock_message(message) for message in payload.messages],
+        "inferenceConfig": {"maxTokens": payload.max_tokens},
+    }
+    if payload.system_prompt:
+        kwargs["system"] = [{"text": payload.system_prompt}]
+    if payload.tools:
+        kwargs["toolConfig"] = {
+            "tools": [
+                {
+                    "toolSpec": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "inputSchema": {"json": tool.parameters},
+                    }
+                }
+                for tool in payload.tools
+            ]
+        }
+    return kwargs
+
+
+def _resolve_user_bearer(prefs: UserPreferences) -> str | None:
+    if prefs.ai_mode != "byok" or prefs.ai_provider != "bedrock":
+        return None
+    if not prefs.ai_api_key_encrypted:
+        return None
+    try:
+        candidate, _needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
+    except DecryptionError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Stored Bedrock key cannot be decrypted -- re-enter it in Settings.",
+        ) from exc
+    if not candidate or candidate == _LEGACY_BEDROCK_PLACEHOLDER:
+        return None
+    return candidate
+
+
+def _check_server_credential_path(session: Any, user_id: int) -> None:
+    has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+    has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
+    if not has_bearer and not has_sigv4:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Bedrock is not configured on the server. Set "
+                "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
+                "in the backend environment, or paste your own Bedrock "
+                "API key in Settings > AI Assistant."
+            ),
+        )
+    check_app_message_limit(session, user_id)
+
+
+def _build_bedrock_config() -> Any:
+    from botocore.config import Config  # type: ignore[import-untyped]
+
+    return Config(
+        connect_timeout=3,
+        read_timeout=8,
+        retries={"max_attempts": 1, "mode": "standard"},
+    )
+
+
+def _create_bedrock_client(region: str, config: Any, user_bearer: str | None) -> Any:
+    import boto3
+
+    if user_bearer is None:
+        return boto3.client("bedrock-runtime", region_name=region, config=config)
+
+    from botocore import UNSIGNED  # type: ignore[import-untyped]
+    from botocore.config import Config
+
+    unsigned_config = config.merge(Config(signature_version=UNSIGNED))
+    client = boto3.client("bedrock-runtime", region_name=region, config=unsigned_config)
+
+    def _attach_bearer(request: Any, **_kwargs: Any) -> None:
+        request.headers["Authorization"] = f"Bearer {user_bearer}"
+
+    client.meta.events.register("request-created.bedrock-runtime", _attach_bearer)
+    return client
+
+
+def _call_bedrock(
+    region: str,
+    config: Any,
+    user_bearer: str | None,
+    converse_kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        client = _create_bedrock_client(region, config, user_bearer)
+        response: dict[str, Any] = client.converse(**converse_kwargs)
+        return response
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
+
+
+def _extract_content_blocks(response: dict[str, Any]) -> list[dict[str, Any]]:
+    try:
+        content_blocks: list[dict[str, Any]] = response["output"]["message"]["content"]
+        return content_blocks
+    except (KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
+        ) from exc
+
+
 @router.post(
     "/bedrock/chat",
     responses={
@@ -213,115 +323,35 @@ def bedrock_chat_proxy(
         raise HTTPException(status_code=400, detail="No preferences found")
 
     model_id, region = _get_bedrock_model_region(prefs)
-
-    bedrock_messages = [_to_bedrock_message(m) for m in payload.messages]
-
-    kwargs: dict[str, Any] = {
-        "modelId": model_id,
-        "messages": bedrock_messages,
-        "inferenceConfig": {"maxTokens": payload.max_tokens},
-    }
-    if payload.system_prompt:
-        kwargs["system"] = [{"text": payload.system_prompt}]
-
-    if payload.tools:
-        kwargs["toolConfig"] = {
-            "tools": [
-                {
-                    "toolSpec": {
-                        "name": t.name,
-                        "description": t.description,
-                        "inputSchema": {"json": t.parameters},
-                    }
-                }
-                for t in payload.tools
-            ]
-        }
+    converse_kwargs = _build_converse_kwargs(payload, model_id)
 
     # BYOK Bedrock: if the user stored their own Bedrock API key (bearer
     # token), the call is signed with THEIR key -- they pay AWS directly and
     # the app's shared-key message cap does not apply (their own token caps
     # do). The legacy placeholder string means "no user key".
-    user_bearer: str | None = None
-    if prefs.ai_mode == "byok" and prefs.ai_provider == "bedrock" and prefs.ai_api_key_encrypted:
-        try:
-            candidate, _needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
-        except DecryptionError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail="Stored Bedrock key cannot be decrypted -- re-enter it in Settings.",
-            ) from exc
-        if candidate and candidate != _LEGACY_BEDROCK_PLACEHOLDER:
-            user_bearer = candidate
+    user_bearer = _resolve_user_bearer(prefs)
 
     if user_bearer is None:
         # Server-credential path. Pre-flight: if no auth mechanism is
         # reachable, give a clear error instead of letting boto3 surface its
         # misleading "model identifier is invalid" exception (which is what
         # it says when it can't sign the request).
-        has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
-        has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
-        if not has_bearer and not has_sigv4:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Bedrock is not configured on the server. Set "
-                    "LEDGER_SYNC_BEDROCK_API_KEY (or AWS_BEARER_TOKEN_BEDROCK) "
-                    "in the backend environment, or paste your own Bedrock "
-                    "API key in Settings > AI Assistant."
-                ),
-            )
         # Shared-key spend: enforce the app-wide daily message cap regardless
         # of mode so a user cannot bypass cost control by flipping to byok
         # without bringing a key.
-        check_app_message_limit(session, current_user.id)
+        _check_server_credential_path(session, current_user.id)
 
     if prefs.ai_mode != "app_bedrock":
         check_token_limits(session, current_user.id)
-
-    import boto3
-    from botocore.config import Config  # type: ignore[import-untyped]
 
     # Explicit, finite timeouts + bounded retries. Without this boto3 inherits
     # botocore's 60s connect / 60s read defaults, which on Vercel's 10s
     # serverless ceiling means a slow Bedrock dependency hangs the function
     # until the platform kills it (see the module docstring). Cap below the
     # platform limit so we fail fast with a clean 502 instead.
-    bedrock_config = Config(
-        connect_timeout=3,
-        read_timeout=8,
-        retries={"max_attempts": 1, "mode": "standard"},
-    )
-
-    try:
-        if user_bearer is not None:
-            # Per-user Bedrock API key: skip SigV4 (no server creds needed)
-            # and attach the user's bearer token to the request. Scoped to
-            # this client instance -- never mutates process env, so
-            # concurrent users cannot leak keys into each other's calls.
-            from botocore import UNSIGNED  # type: ignore[import-untyped]
-
-            unsigned_config = bedrock_config.merge(Config(signature_version=UNSIGNED))
-            client = boto3.client("bedrock-runtime", region_name=region, config=unsigned_config)
-
-            def _attach_bearer(request: Any, **_kwargs: Any) -> None:
-                request.headers["Authorization"] = f"Bearer {user_bearer}"
-
-            client.meta.events.register("request-created.bedrock-runtime", _attach_bearer)
-        else:
-            client = boto3.client("bedrock-runtime", region_name=region, config=bedrock_config)
-        response = client.converse(**kwargs)
-    except Exception as exc:
-        # Surface the real boto/AWS error to the client so the UI can display
-        # something actionable (bad model id, auth failure, region mismatch).
-        raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
-
-    try:
-        content_blocks = response["output"]["message"]["content"]
-    except (KeyError, TypeError) as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Unexpected Bedrock response shape: {exc}"
-        ) from exc
+    bedrock_config = _build_bedrock_config()
+    response = _call_bedrock(region, bedrock_config, user_bearer, converse_kwargs)
+    content_blocks = _extract_content_blocks(response)
 
     # Record usage from Bedrock's reported counters. Bedrock exposes these
     # in `usage: {inputTokens, outputTokens, totalTokens}` on converse().

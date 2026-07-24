@@ -44,6 +44,7 @@ export function Section({
       className="glass rounded-2xl border border-border overflow-hidden"
     >
       <button
+        id={`${panelId}-trigger`}
         type="button"
         onClick={() => setExpanded((p) => !p)}
         aria-expanded={expanded}
@@ -67,6 +68,8 @@ export function Section({
         {expanded && (
           <motion.div
             id={panelId}
+            role="region"
+            aria-labelledby={`${panelId}-trigger`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -107,10 +110,12 @@ export function Toggle({
   checked,
   onChange,
   id,
+  'aria-label': ariaLabel,
 }: Readonly<{
   checked: boolean
   onChange: (val: boolean) => void
-  id?: string
+  id: string
+  'aria-label': string
 }>) {
   return (
     <button
@@ -118,10 +123,11 @@ export function Toggle({
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       // Track stays 24x44px visually; a ::before pseudo expands the tap target
       // to the 44px min on touch without changing the switch's proportions.
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
         checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
       }`}
     >
@@ -141,12 +147,16 @@ export function Toggle({
 export function FieldLabel({
   htmlFor,
   children,
-}: Readonly<{ htmlFor?: string; children: React.ReactNode }>) {
+}: Readonly<{ htmlFor: string; children: React.ReactNode }>) {
   return (
     <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground mb-1.5">
       {children}
     </label>
   )
+}
+
+export function FieldLegend({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <span className="block text-sm font-medium text-foreground mb-1.5">{children}</span>
 }
 
 export function FieldHint({ children }: Readonly<{ children: React.ReactNode }>) {

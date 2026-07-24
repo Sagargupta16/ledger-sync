@@ -50,7 +50,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
         const note = tx.note ?? ''
         // Clean up common patterns
         let merchantName = note
-          .split(/[-–—|,/]/)[0] // Split by common separators
+      .split(/[-\u2013\u2014|,/]/)[0] // Split by common separators
           .replaceAll(/\d{4,}/g, '') // Remove long numbers (card numbers, refs)
           .replaceAll(/\s+/g, ' ')
           .trim()
@@ -133,6 +133,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setViewMode('amount')}
             aria-pressed={viewMode === 'amount'}
             className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${
@@ -144,6 +145,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
             By Amount
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('frequency')}
             aria-pressed={viewMode === 'frequency'}
             className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${

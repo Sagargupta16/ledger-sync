@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+
+import { Money } from '@/components/ui'
+import { formatPercent } from '@/lib/formatters'
 import type { Transaction } from '@/types'
 
 interface IncomeGroup {
@@ -39,16 +42,38 @@ export default function TaxableIncomeTable({
       <p className="text-sm font-medium text-muted-foreground mb-4">
         Salaried Taxable Income for {selectedFY}
       </p>
-      <div className="overflow-x-auto">
-        <table className="w-full" aria-label="Salaried taxable income breakdown">
+      <section
+        className="overflow-x-auto"
+        aria-label={`Salaried taxable income for ${selectedFY}`}
+      >
+        <table className="w-full">
+          <caption className="sr-only">
+            Salaried taxable income transactions grouped by source for {selectedFY}
+          </caption>
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Date</th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Amount</th>
-              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
+              <th
+                scope="col"
+                className="text-left py-3 px-4 text-sm font-semibold text-foreground"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                className="text-right py-3 px-4 text-sm font-semibold text-foreground"
+              >
+                Amount
+              </th>
+              <th
+                scope="col"
+                className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground"
+              >
                 Type
               </th>
-              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
+              <th
+                scope="col"
+                className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground"
+              >
                 Note
               </th>
             </tr>
@@ -60,11 +85,15 @@ export default function TaxableIncomeTable({
                   data.transactions.length > 0 && (
                     <React.Fragment key={group}>
                       <tr className="border-b border-border bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors">
-                        <td className="py-3 px-4 text-left font-bold text-foreground">
+                        <th
+                          scope="row"
+                          className="py-3 px-4 text-left font-bold text-foreground"
+                        >
                           <button
                             type="button"
                             onClick={() => toggleGroup(group)}
                             aria-expanded={expandedGroups.has(group)}
+                            aria-label={`${expandedGroups.has(group) ? 'Collapse' : 'Expand'} ${group} income transactions`}
                             className="flex items-center gap-2 w-full text-left min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40 rounded"
                           >
                             {expandedGroups.has(group) ? (
@@ -77,9 +106,9 @@ export default function TaxableIncomeTable({
                               ({data.transactions.length})
                             </span>
                           </button>
-                        </td>
-                        <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
-                          {formatCurrency(data.total)}
+                        </th>
+                        <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums whitespace-nowrap">
+                          <Money value={data.total} bold />
                           <span className="sm:hidden block text-xs font-normal text-muted-foreground">
                             {netTaxableIncome > 0
                               ? formatPercent((data.total / netTaxableIncome) * 100)
@@ -89,11 +118,13 @@ export default function TaxableIncomeTable({
                         </td>
                         <td
                           colSpan={2}
-                          className="hidden sm:table-cell py-3 px-4 text-right font-bold text-foreground"
+                          className="hidden sm:table-cell py-3 px-4 text-right font-bold text-foreground tabular-nums whitespace-nowrap"
                         >
+                          <span className="sr-only">Share of total taxable income: </span>
                           {netTaxableIncome > 0
                             ? formatPercent((data.total / netTaxableIncome) * 100)
-                            : '0%'}
+                            : '0%'}{' '}
+                          of total
                         </td>
                       </tr>
                       {expandedGroups.has(group) &&
@@ -104,32 +135,44 @@ export default function TaxableIncomeTable({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                           >
-                            <td className="py-3 pl-10 pr-4 text-foreground">
+                            <th
+                              scope="row"
+                              className="py-3 pl-10 pr-4 text-left font-normal text-foreground whitespace-nowrap"
+                            >
                               {new Date(tx.date).toLocaleDateString()}
                               {(tx.type || tx.note) && (
-                                <span className="sm:hidden block text-xs text-muted-foreground truncate max-w-[10rem]">
-                                  {[tx.type, tx.note].filter(Boolean).join(' · ')}
+                                <span className="sm:hidden block max-w-[12rem] whitespace-normal break-words text-xs text-muted-foreground">
+                                  {[tx.type, tx.note].filter(Boolean).join(' / ')}
                                 </span>
                               )}
-                            </td>
-                            <td className="py-3 px-4 text-right tabular-nums">
+                            </th>
+                            <td className="py-3 px-4 text-right tabular-nums whitespace-nowrap">
                               {group === 'EPF' ? (
                                 <div>
-                                  <div className="font-bold text-app-green">
-                                    {formatCurrency(tx.amount / 2)}
-                                  </div>
+                                  <Money
+                                    value={tx.amount / 2}
+                                    bold
+                                    className="text-app-green"
+                                  />
                                   <div className="text-xs text-muted-foreground">
-                                    (50% of {formatCurrency(tx.amount)})
+                                    (50% of{' '}
+                                    <Money
+                                      value={tx.amount}
+                                      className="inline font-normal text-muted-foreground"
+                                    />
+                                    )
                                   </div>
                                 </div>
                               ) : (
-                                <span className="font-bold text-app-green">
-                                  {formatCurrency(tx.amount)}
-                                </span>
+                                <Money value={tx.amount} bold className="text-app-green" />
                               )}
                             </td>
-                            <td className="hidden sm:table-cell py-3 px-4 text-foreground">{tx.type}</td>
-                            <td className="hidden sm:table-cell py-3 px-4 text-foreground">{tx.note}</td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-foreground">
+                              {tx.type}
+                            </td>
+                            <td className="hidden sm:table-cell py-3 px-4 text-foreground break-words">
+                              {tx.note}
+                            </td>
                           </motion.tr>
                         ))}
                     </React.Fragment>
@@ -137,7 +180,7 @@ export default function TaxableIncomeTable({
               )}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   )
 }

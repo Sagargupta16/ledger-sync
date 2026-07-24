@@ -57,13 +57,11 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
             expected at your assumed return
           </p>
         </div>
-        <div
-          className="flex gap-2 flex-wrap"
-          role="group"
-          aria-label="Projection period presets"
-        >
+        <fieldset className="m-0 flex flex-wrap gap-2 border-0 p-0">
+          <legend className="sr-only">Projection period presets</legend>
           {PRESETS.map((preset) => (
             <button
+              type="button"
               key={preset.years}
               onClick={() => onProjectionYearsChange(preset.years)}
               aria-pressed={projectionYears === preset.years}
@@ -76,7 +74,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
               {preset.label}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       {chartData.length === 0 ? (
         <ChartEmptyState

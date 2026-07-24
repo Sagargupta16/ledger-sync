@@ -1,5 +1,6 @@
 import { Shield, X } from 'lucide-react'
 
+import { Button } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 
 interface ProfileHeaderProps {
@@ -21,14 +22,16 @@ export function ProfileHeader(props: Readonly<ProfileHeaderProps>) {
         background: `linear-gradient(135deg, ${rawColors.app.purple}20, ${rawColors.app.indigo}12, transparent)`,
       }}
     >
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={onClose}
         aria-label="Close"
-        className="absolute top-4 right-4 w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-transparent hover:bg-[var(--overlay-3)] flex items-center justify-center transition-colors duration-150 ease-out"
+        className="absolute right-4 top-4 size-11 p-0 sm:size-8 sm:min-h-8 sm:min-w-8"
       >
-        <X size={16} className="text-text-tertiary hover:text-foreground" />
-      </button>
+        <X size={16} className="text-text-tertiary" aria-hidden="true" />
+      </Button>
 
       <div className="flex items-center gap-4">
         <div

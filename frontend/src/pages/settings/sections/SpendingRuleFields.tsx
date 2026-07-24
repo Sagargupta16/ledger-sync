@@ -3,7 +3,7 @@
  */
 
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { FieldLabel, FieldHint } from '../sectionPrimitives'
+import { FieldHint, FieldLegend } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 
 interface Props {
@@ -19,7 +19,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
 
   return (
     <div className="md:col-span-2 lg:col-span-3">
-      <FieldLabel>Spending Rule</FieldLabel>
+      <FieldLegend>Spending Rule</FieldLegend>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label htmlFor="needs-percent" className="text-xs text-muted-foreground mb-1 block">

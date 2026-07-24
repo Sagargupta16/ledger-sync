@@ -45,7 +45,7 @@ export interface DataTableProps<T> {
   readonly rows: readonly T[]
   readonly rowKey: (row: T, index: number) => string
   readonly initialSort?: { key: string; dir: SortDir }
-  /** Row fade-in on mount. Default true. Auto-disabled above 200 rows for perf. */
+  /** Row fade-in on mount. Default false. Auto-disabled above 200 rows for perf. */
   readonly animateRows?: boolean
   readonly rowClassName?: (row: T, index: number) => string
   readonly emptyState?: ReactNode
@@ -99,7 +99,7 @@ export default function DataTable<T>({
   rows,
   rowKey,
   initialSort,
-  animateRows = true,
+  animateRows = false,
   rowClassName,
   emptyState,
   ariaLabel,
@@ -114,7 +114,7 @@ export default function DataTable<T>({
   const sortedRows = useMemo(() => {
     if (sortKey === null) return rows
     const col = columns.find((c) => c.key === sortKey)
-    if (!col || col.sortable !== true) return rows
+    if (col?.sortable !== true) return rows
     const getter = col.sortValue ?? ((r: T) => defaultSortValue(r, sortKey))
     const copy = [...rows]
     copy.sort((a, b) => {
@@ -149,12 +149,12 @@ export default function DataTable<T>({
     const labelFor = (col: DataTableColumn<T>) =>
       col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
     return (
-      <div className="space-y-2" aria-label={ariaLabel}>
+      <ul className="m-0 list-none space-y-2 p-0" aria-label={ariaLabel}>
         {sortedRows.map((row, i) => {
           const primary = columns.find((c) => c.mobilePrimary)
           const rest = columns.filter((c) => !c.mobilePrimary)
           return (
-            <div
+            <li
               key={rowKey(row, i)}
               className={`ledger-panel p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
             >
@@ -173,10 +173,10 @@ export default function DataTable<T>({
                   </div>
                 ))}
               </dl>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
     )
   }
 
@@ -248,7 +248,7 @@ export default function DataTable<T>({
                   key={key}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.02, 0.2) }}
+                  transition={{ delay: Math.min(i * 0.015, 0.1), duration: 0.18 }}
                   className={baseRowCls}
                 >
                   {columns.map((col) => (

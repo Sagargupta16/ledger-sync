@@ -1,24 +1,22 @@
 import { useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
 import { ROUTES } from '@/constants'
-import { SCROLL_FADE_UP } from '@/constants/animations'
 import QuickInsights from '@/components/shared/QuickInsights'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
-import { usePreferences } from '@/hooks/api/usePreferences'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
@@ -28,7 +26,6 @@ const LIQUID_CLASSIFICATIONS = new Set(['Cash', 'Bank Accounts', 'Other Wallets'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  usePreferences()
 
   const {
     viewMode, setViewMode,
@@ -37,7 +34,7 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    filteredTransactions, isLoading,
+    filteredTransactions, isLoading, isError, retry,
     incomeBreakdown, cashbacksTotal,
     incomeChartData, incomeColorStyles,
     expenseChartData, expenseColorStyles,
@@ -45,7 +42,8 @@ export default function DashboardPage() {
   } = useDashboardMetrics()
 
   // Fixed Commitments from active recurring
-  const { data: recurringItems = [] } = useRecurringTransactions({ active_only: true, min_confidence: 0 })
+  const recurringQuery = useRecurringTransactions({ active_only: true, min_confidence: 0 })
+  const recurringItems = useMemo(() => recurringQuery.data ?? [], [recurringQuery.data])
   const fixedCommitmentsMonthly = useMemo(() => {
     const confirmed = recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense')
     return confirmed.reduce((sum, r) => sum + toMonthlyAmount(r.expected_amount, r.frequency), 0)
@@ -65,12 +63,14 @@ export default function DashboardPage() {
   // stocks) as spendable and inflated the runway (~754 days vs the real
   // cash position on audit data). Balances come from account_balances and
   // are filtered by the user's account classifications.
-  const { data: balanceData } = useAccountBalances()
-  const { data: accountClassifications } = useQuery({
+  const balanceQuery = useAccountBalances()
+  const balanceData = balanceQuery.data
+  const classificationsQuery = useQuery({
     queryKey: ['account-classifications'],
     queryFn: () => accountClassificationsService.getAllClassifications(),
     staleTime: Infinity,
   })
+  const accountClassifications = classificationsQuery.data
   const daysOfBuffering = useMemo(() => {
     if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
       return null
@@ -100,7 +100,34 @@ export default function DashboardPage() {
   const incomeHiddenCount = Math.max(0, incomeChartData.length - LEGEND_CAP)
   const expenseHiddenCount = Math.max(0, expenseChartData.length - LEGEND_CAP)
 
-  if (isLoading) return <PageSkeleton />
+  const pageLoading =
+    isLoading ||
+    recurringQuery.isLoading ||
+    balanceQuery.isLoading ||
+    classificationsQuery.isLoading
+  const pageError =
+    isError ||
+    recurringQuery.isError ||
+    balanceQuery.isError ||
+    classificationsQuery.isError
+  const retryDashboard = () => {
+    retry()
+    void recurringQuery.refetch()
+    void balanceQuery.refetch()
+    void classificationsQuery.refetch()
+  }
+
+  if (pageLoading) return <PageSkeleton />
+
+  if (pageError) {
+    return (
+      <PageErrorState
+        title="Dashboard"
+        subtitle="Monitor cash flow, financial health, and account activity."
+        onRetry={retryDashboard}
+      />
+    )
+  }
 
   // First-run: no transactions at all. Show a single full-page prompt to upload
   // instead of a grid of empty widgets.
@@ -136,7 +163,7 @@ export default function DashboardPage() {
         }
       />
 
-      <motion.section className="space-y-3" {...SCROLL_FADE_UP}>
+      <section className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Ledger snapshot</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -151,13 +178,13 @@ export default function DashboardPage() {
           fixedCount={fixedCount}
           momChanges={momChanges}
         />
-      </motion.section>
+      </section>
 
       {/* Financial Health Score */}
       <FinancialHealthScore transactions={filteredTransactions} />
 
       {/* Income Sources & Expense Sources */}
-      <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" {...SCROLL_FADE_UP}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Income Sources */}
         <section className="ledger-panel p-4 sm:p-5">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -181,9 +208,11 @@ export default function DashboardPage() {
               />
               <div className="space-y-1">
                 {incomeLegend.map((item, i) => (
-                  <button
+                  <Button
                     key={item.name}
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
                     className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
                   >
@@ -192,7 +221,7 @@ export default function DashboardPage() {
                       <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
-                  </button>
+                  </Button>
                 ))}
                 {incomeHiddenCount > 0 && (
                   <p className="text-xs text-text-tertiary px-1">+{incomeHiddenCount} more in Other</p>
@@ -241,9 +270,11 @@ export default function DashboardPage() {
               />
               <div className="space-y-1">
                 {expenseLegend.map((item, i) => (
-                  <button
+                  <Button
                     key={item.name}
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
                     className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
                   >
@@ -252,7 +283,7 @@ export default function DashboardPage() {
                       <span className="text-sm truncate" title={item.name}>{item.name}</span>
                     </span>
                     <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
-                  </button>
+                  </Button>
                 ))}
                 {expenseHiddenCount > 0 && (
                   <p className="text-xs text-text-tertiary px-1">+{expenseHiddenCount} more in Other</p>
@@ -269,7 +300,7 @@ export default function DashboardPage() {
             <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
           )}
         </section>
-      </motion.div>
+      </div>
 
       <div className="ledger-ruler" aria-hidden="true" />
     </PageContainer>

@@ -91,7 +91,7 @@ Layered architecture:
 ### Frontend (`frontend/src/`)
 
 - **`pages/`** - 27 routed page components: Home, Dashboard, OAuth Callback, and Demo Entry are eager; 23 heavier workspace pages are lazy-loaded and prefetched during browser idle time. The router exposes 3 public routes and 24 protected page routes. Pages import directly without page-level barrels. Multi-file pages use kebab-case directories with a thin page component, hook, types, helpers, and local components. Settings uses `sections/` because "section" is the domain term. See [`docs/HANDBOOK.md`](docs/HANDBOOK.md) for user workflows and [`docs/PAGES.md`](docs/PAGES.md) for the route/data catalog.
-- **`components/`** - Organized by domain: `analytics/`, `chat/`, `layout/` (`AppLayout`, `WorkspaceHeader`, sidebar, mobile tab bar), `shared/`, `transactions/`, `upload/`, and `ui/`. Shared UI includes ChartContainer, PageContainer, PageHeader, Spinner, DataTable, ConfirmDialog, CollapsibleSection, Money, and chart defaults.
+- **`components/`** - Organized by domain: `analytics/`, `chat/`, `layout/` (`AppLayout`, `WorkspaceHeader`, sidebar, mobile tab bar), `shared/`, `transactions/`, `upload/`, and `ui/`. Shared UI includes ChartContainer, PageContainer, PageHeader, PageErrorState, Spinner, DataTable, ConfirmDialog, CollapsibleSection, Money, and chart defaults.
 - **`hooks/`** - Custom React hooks. `useAnalyticsTimeFilter` encapsulates time-filter state (view mode, date range, FY) shared across all analytics pages. `useChartDimensions` provides responsive chart sizing. `hooks/api/` contains TanStack Query hooks for API calls, configured with `staleTime: Infinity` and `gcTime: 1 hour`.
 - **`services/api/`** - Axios-based API client. Axios interceptor auto-attaches JWT `Authorization` header. `aiConfig.ts` handles AI provider configuration CRUD.
 - **`store/`** - Zustand stores: `authStore`, `demoStore`, `themeStore`, `accountStore`, `budgetStore`, `investmentAccountStore`, and `preferencesStore`.
@@ -142,7 +142,7 @@ Three services, all free tier:
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-Three jobs on push/PR to main: `frontend` (shared-workflows `node-ci.yml`, working-directory frontend), `backend` (inline: uv sync --all-extras --group dev, ruff check + format --check, mypy, pytest on Python 3.13 -- inline because the shared python-ci swallows failures with `|| true`), and `security` (shared-workflows `security-scan.yml`).
+Three jobs on push/PR to main: `frontend` (shared-workflows `node-ci.yml`, working-directory frontend), `backend` (inline: locked wheel-only `uv sync`, then `uv run --no-sync` for ruff check + format --check, mypy, and pytest on Python 3.13 -- inline because the shared python-ci swallows failures with `|| true`), and `security` (shared-workflows `security-scan.yml`).
 
 ## Code Quality Rules
 
@@ -194,7 +194,7 @@ The repo-specific skill set (atlas/craft/task skills under `.claude/skills/`) wa
 ## Error Handling
 
 - **Backend**: Raise `HTTPException` with proper status codes. Never return raw 500s.
-- **Frontend**: `ChunkErrorBoundary` for lazy-loaded pages. TanStack Query handles API error states. Show user-friendly messages.
+- **Frontend**: `ChunkErrorBoundary` for lazy-loaded pages. TanStack Query handles API error states. Data-driven protected routes render `PageErrorState` before empty or zero-value states and wire retry to the failed queries.
 
 ## Database Rules
 

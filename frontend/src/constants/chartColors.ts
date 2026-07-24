@@ -144,10 +144,10 @@ export function getStatusBadgeClass(status: Status): string {
   return 'bg-info/10 text-info border-info/20'
 }
 
-// Chart axis and grid colors. `let` (not const) so the ESM live binding updates
-// for importers when refreshChartConstants() reassigns them on theme toggle.
-export let CHART_AXIS_COLOR = rawColors.chart.axisColor
-export let CHART_GRID_COLOR = rawColors.chart.gridSolid
+// Read primitive chart colors on demand so theme changes never leave importers
+// holding a stale string value.
+export const getChartAxisColor = (): string => rawColors.chart.axisColor
+export const getChartGridColor = (): string => rawColors.chart.gridSolid
 
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {
@@ -198,8 +198,8 @@ export const CHART_INPUT = {
 
 /**
  * Re-sync the derived chart constants from the (already-rebuilt) `rawColors`
- * after a theme toggle. Mutates each exported object in place + reassigns the
- * `let`-bound primitives so ESM live bindings update for every importer.
+ * after a theme toggle. Mutates each exported object in place so every
+ * importer keeps a stable reference while its values update.
  * Registered with colors.ts so refreshRawColors() drives it.
  */
 function rebuildPalette(target: string[], next: string[]): void {
@@ -231,9 +231,6 @@ function refreshChartConstants(): void {
 
   CHART_INPUT.bg = rawColors.chart.inputBg
   CHART_INPUT.border = rawColors.chart.inputBorder
-
-  CHART_AXIS_COLOR = rawColors.chart.axisColor
-  CHART_GRID_COLOR = rawColors.chart.gridSolid
 
   SEMANTIC_COLORS.income = rawColors.financial.income
   SEMANTIC_COLORS.expense = rawColors.financial.expense

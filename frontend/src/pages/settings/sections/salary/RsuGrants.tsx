@@ -1,5 +1,6 @@
-import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Plus, RefreshCw, Trash2 } from 'lucide-react'
 
+import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/formatters'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
@@ -43,14 +44,17 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">RSU Grants</h3>
-        <button
+        <Button
+          id="add-rsu-grant"
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={onAddGrant}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+          className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
+          icon={<Plus className="w-3.5 h-3.5" />}
         >
-          <Plus className="w-3.5 h-3.5" />
           Add Grant
-        </button>
+        </Button>
       </div>
 
       {grants.length === 0 && (
@@ -95,23 +99,23 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
                     placeholder="0"
                     className={inputClass}
                   />
-                  <button
+                  <Button
+                    id={`fetch-stock-price-${grant.id}`}
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => onFetchStockPrice(grant)}
                     disabled={!grant.stock_name.trim() || fetchingPriceFor === grant.id}
+                    isLoading={fetchingPriceFor === grant.id}
+                    aria-label={`Fetch latest price for ${grant.stock_name || 'this grant'}`}
                     title={
                       grant.stock_name.trim()
                         ? `Fetch latest price for ${grant.stock_name}`
                         : 'Enter stock name first'
                     }
-                    className="shrink-0 p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {fetchingPriceFor === grant.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4" />
-                    )}
-                  </button>
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                    icon={<RefreshCw className="w-4 h-4" />}
+                  />
                 </div>
               </div>
               <div>
@@ -126,14 +130,17 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
                 />
               </div>
             </div>
-            <button
+            <Button
+              id={`delete-rsu-grant-${grant.id}`}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onRemoveGrant(grant.id)}
-              className="p-2 rounded-lg text-app-red hover:bg-app-red/10 transition-colors mt-6"
+              className="mt-6 text-app-red hover:bg-app-red/10 hover:text-app-red"
               title="Delete grant"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              aria-label={`Delete ${grant.stock_name || 'RSU'} grant`}
+              icon={<Trash2 className="w-4 h-4" />}
+            />
           </div>
 
           {grant.vestings.length > 0 && (
@@ -146,14 +153,17 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
             />
           )}
 
-          <button
+          <Button
+            id={`add-vesting-${grant.id}`}
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onAddVesting(grant.id)}
-            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+            className="text-primary hover:text-primary/80"
+            icon={<Plus className="w-3.5 h-3.5" />}
           >
-            <Plus className="w-3.5 h-3.5" />
             Add Vesting Date
-          </button>
+          </Button>
         </div>
       ))}
 

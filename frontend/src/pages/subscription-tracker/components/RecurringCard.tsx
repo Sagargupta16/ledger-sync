@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2, Pencil, Check, X, Power, PowerOff, RefreshCw, Calendar } from 'lucide-react'
 
+import { Button, Input, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
@@ -33,47 +34,70 @@ export function RecurringCard({
 
   if (editing) {
     return (
-      <div className="glass rounded-2xl border border-app-blue/30 p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="glass space-y-3 rounded-xl border border-app-blue/30 p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="sm:col-span-2">
-            <label htmlFor={`e-n-${item.id}`} className="text-xs text-text-tertiary block mb-1">Name</label>
-            <input id={`e-n-${item.id}`} type="text" value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus
-              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
+            <Input
+              id={`e-n-${item.id}`}
+              label="Name"
+              type="text"
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              autoFocus
+            />
           </div>
-          <div>
-            <label htmlFor={`e-f-${item.id}`} className="text-xs text-text-tertiary block mb-1">Frequency</label>
-            <select id={`e-f-${item.id}`} value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
-              className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50">
-              {FREQUENCY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
+          <Select
+            id={`e-f-${item.id}`}
+            label="Frequency"
+            value={editFreq}
+            onChange={(event) => setEditFreq(event.target.value)}
+            options={FREQUENCY_OPTIONS}
+          />
         </div>
-        <div className="max-w-[200px]">
-          <label htmlFor={`e-a-${item.id}`} className="text-xs text-text-tertiary block mb-1">Amount</label>
-          <input id={`e-a-${item.id}`} type="number" min={0} step="any" value={editAmt} onChange={(e) => setEditAmt(e.target.value)}
-            className="w-full px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-blue/50" />
+        <div className="w-full sm:max-w-[200px]">
+          <Input
+            id={`e-a-${item.id}`}
+            label="Amount"
+            type="number"
+            min={0}
+            step="any"
+            value={editAmt}
+            onChange={(event) => setEditAmt(event.target.value)}
+          />
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={saveEdit} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm font-medium bg-app-blue/20 text-app-blue hover:bg-app-blue/30 transition-colors">
-            <Check className="w-3.5 h-3.5" /> Save
-          </button>
-          <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-sm text-muted-foreground bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors">
-            <X className="w-3.5 h-3.5" /> Cancel
-          </button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            icon={<Check className="h-3.5 w-3.5" />}
+            onClick={saveEdit}
+          >
+            Save
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            icon={<X className="h-3.5 w-3.5" />}
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className={`glass rounded-2xl border p-4 transition-colors duration-200 ${
+    <div className={`glass rounded-xl border p-4 transition-colors duration-200 ${
       item.is_active ? 'border-border hover:border-[var(--hairline-5)]' : 'border-[var(--hairline-1)] opacity-50'
     }`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-2 h-8 rounded-full shrink-0 ${isIncome ? 'bg-app-green' : 'bg-app-red'}`} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center">
+          <div className={`h-8 w-2 shrink-0 rounded-full ${isIncome ? 'bg-app-green' : 'bg-app-red'}`} />
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-medium text-foreground truncate" title={item.name}>
                 {item.name}
               </h3>
@@ -89,7 +113,7 @@ export function RecurringCard({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-0.5 text-xs text-text-tertiary">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary">
               {item.category && <span>{item.category}</span>}
               {item.last_occurrence && (
                 <span className="flex items-center gap-1">
@@ -104,28 +128,54 @@ export function RecurringCard({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
           <div className="text-right">
-            <p className={`text-base font-bold ${isIncome ? 'text-app-green' : 'text-app-red'}`}>
+            <p className={`whitespace-nowrap text-base font-bold tabular-nums ${isIncome ? 'text-app-green' : 'text-app-red'}`}>
               {formatCurrency(Math.abs(item.expected_amount))}
             </p>
-            <p className="text-[11px] text-muted-foreground">{formatCurrency(monthly)}/mo</p>
+            <p className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums">
+              {formatCurrency(monthly)}/mo
+            </p>
           </div>
           <div className="flex items-center gap-0.5">
-            <button type="button" onClick={() => { setEditName(item.name); setEditFreq(item.frequency ?? 'monthly'); setEditAmt(String(Math.abs(item.expected_amount))); setEditing(true) }}
-              title="Edit" aria-label="Edit recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button type="button" onClick={() => onUpdate({ is_active: !item.is_active })}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={<Pencil className="h-3.5 w-3.5" />}
+              onClick={() => {
+                setEditName(item.name)
+                setEditFreq(item.frequency ?? 'monthly')
+                setEditAmt(String(Math.abs(item.expected_amount)))
+                setEditing(true)
+              }}
+              title="Edit"
+              aria-label="Edit recurring item"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={
+                item.is_active
+                  ? <Power className="h-3.5 w-3.5" />
+                  : <PowerOff className="h-3.5 w-3.5" />
+              }
+              onClick={() => onUpdate({ is_active: !item.is_active })}
               title={item.is_active ? 'Deactivate' : 'Activate'}
               aria-label={item.is_active ? 'Pause recurring item' : 'Activate recurring item'}
-              className={`flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg transition-colors ${item.is_active ? 'text-app-green hover:bg-app-green/10' : 'text-text-tertiary hover:bg-[var(--overlay-5)]'}`}>
-              {item.is_active ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
-            </button>
-            <button type="button" onClick={onDelete}
-              title="Delete" aria-label="Delete recurring item" className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              className={item.is_active ? 'text-app-green hover:bg-app-green/10' : undefined}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+              onClick={onDelete}
+              title="Delete"
+              aria-label="Delete recurring item"
+              className="text-text-tertiary hover:bg-app-red/10 hover:text-app-red"
+            />
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import ProfileModal from '@/components/shared/ProfileModal'
+import { Button } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import {
   useAnomalies,
@@ -138,14 +139,16 @@ export default function Sidebar() {
 
   return (
     <>
-      <button
+      <Button
         ref={mobileToggleRef}
         type="button"
+        variant="secondary"
+        size="md"
         onClick={() => {
           if (isMobileOpen) closeMobile()
           else setIsMobileOpen(true)
         }}
-        className="ledger-control fixed z-50 flex size-11 items-center justify-center rounded-md border transition-transform active:scale-95 lg:hidden"
+        className="fixed z-50 size-11 p-0 lg:hidden"
         style={{
           top: 'calc(env(safe-area-inset-top, 0px) + 0.375rem)',
           left: 'calc(env(safe-area-inset-left, 0px) + 0.625rem)',
@@ -155,7 +158,7 @@ export default function Sidebar() {
         aria-controls="workspace-navigation"
       >
         {isMobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-      </button>
+      </Button>
 
       <aside
         ref={sidebarRef}
@@ -170,10 +173,12 @@ export default function Sidebar() {
           <BrandHeader />
 
           <div className="border-b border-[var(--hairline-1)] p-2.5">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={openSearch}
-              className="ledger-control flex min-h-11 w-full items-center gap-2 rounded-md border px-2.5 text-xs text-text-tertiary transition-colors duration-150 hover:text-foreground lg:min-h-9"
+              className="w-full justify-start px-2.5 text-xs text-text-tertiary hover:text-foreground"
               aria-label="Search workspace"
             >
               <Search className="size-3.5 shrink-0" />
@@ -181,7 +186,7 @@ export default function Sidebar() {
               <kbd className="rounded border border-[var(--hairline-2)] px-1 py-0.5 text-[9px]">
                 Ctrl K
               </kbd>
-            </button>
+            </Button>
           </div>
 
           <nav
@@ -245,20 +250,22 @@ export default function Sidebar() {
                     <item.icon className="size-4" />
                   </Link>
                 ))}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={
                     isDemoMode
                       ? () => exitDemoMode(queryClient, navigate)
                       : handleLogout
                   }
                   disabled={logout.isPending}
-                  className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-app-red/10 hover:text-app-red disabled:opacity-50 lg:size-9"
+                  className="size-11 p-0 text-text-tertiary hover:bg-app-red/10 hover:text-app-red lg:size-9 lg:min-h-9 lg:min-w-9"
                   title={isDemoMode ? 'Exit demo' : 'Sign out'}
                   aria-label={isDemoMode ? 'Exit demo' : 'Sign out'}
                 >
-                  <LogOut className="size-4" />
-                </button>
+                  <LogOut className="size-4" aria-hidden="true" />
+                </Button>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
+import { Button } from '@/components/ui'
 
 interface FYNavigatorProps {
   selectedFY: string
@@ -38,14 +39,17 @@ export default function FYNavigator({
       className="glass rounded-2xl border border-border p-6"
     >
       <div className="flex items-center justify-between gap-2">
-        <button
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
           onClick={onGoBack}
           disabled={!canGoBack}
           aria-label="Previous fiscal year"
-          className="p-3 rounded-xl bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
+          className="shrink-0 rounded-xl p-3 disabled:opacity-30"
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+          <ChevronLeft className="size-5" aria-hidden="true" />
+        </Button>
 
         <div className="text-center flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
@@ -61,16 +65,16 @@ export default function FYNavigator({
             {/* Projection Toggle - only for current FY */}
             {isCurrentFY && hasEmploymentIncome && (
               <div className="flex flex-col items-start gap-1">
-                <button
+                <Button
+                  type="button"
+                  variant={showProjection ? 'primary' : 'secondary'}
+                  size="sm"
                   onClick={onToggleProjection}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                    showProjection
-                      ? 'bg-primary text-on-accent'
-                      : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
-                  }`}
+                  aria-pressed={showProjection}
+                  className="whitespace-nowrap"
                 >
                   {showProjection ? 'Showing Projection' : 'Show Year-End Projection'}
-                </button>
+                </Button>
                 {showProjection && remainingMonths > 0 && (
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     Projecting {remainingMonths} more{' '}
@@ -83,14 +87,17 @@ export default function FYNavigator({
           </div>
         </div>
 
-        <button
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
           onClick={onGoForward}
           disabled={!canGoForward}
           aria-label="Next fiscal year"
-          className="p-3 rounded-xl bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-border shrink-0"
+          className="shrink-0 rounded-xl p-3 disabled:opacity-30"
         >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          <ChevronRight className="size-5" aria-hidden="true" />
+        </Button>
       </div>
     </motion.div>
   )

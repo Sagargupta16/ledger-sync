@@ -66,6 +66,7 @@
   --color-app-orange-vibrant: #ff9500;
   --color-app-yellow: #ffd93d;
   --color-app-yellow-vibrant: #ffd426;
+  --color-warning-text: #ffd93d;
   --color-app-teal: #5ac8f5;
   --color-app-teal-vibrant: #64d2ff;
   --color-app-purple: #a78bfa;
@@ -292,6 +293,7 @@
   --color-app-orange-vibrant: #ad6812;
   --color-app-yellow: #ca9a04;
   --color-app-yellow-vibrant: #b8860b;
+  --color-warning-text: #765600;
   --color-app-teal: #128da4;
   --color-app-teal-vibrant: #0e768b;
   --color-app-purple: #6f5ac7;
@@ -861,9 +863,53 @@ output {
   gap: 1px;
 }
 
+.ledger-flow-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ledger-flow-grid > * {
+  flex: 1 1 8.75rem;
+  min-width: min(100%, 8.75rem);
+}
+
+@media (min-width: 640px) {
+  .ledger-flow-grid > * {
+    flex-basis: 11rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ledger-flow-grid > * {
+    flex-basis: 13rem;
+  }
+}
+
 .ledger-cell {
   min-width: 0;
   background: var(--color-surface-1);
+}
+
+.quick-insight-card {
+  container-type: inline-size;
+}
+
+.insight-value {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@container (max-width: 165px) {
+  .quick-insight-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .insight-value {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
 }
 
 .ledger-ruler {

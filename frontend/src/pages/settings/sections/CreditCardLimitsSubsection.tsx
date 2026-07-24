@@ -36,9 +36,10 @@ export default function CreditCardLimitsSubsection({
                 {card.replace(' Credit Card', '')}
               </span>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground">Limit:</span>
-                <input
-                  type="number"
+                 <span className="text-xs text-muted-foreground">Limit:</span>
+                 <input
+                   id={`credit-limit-${encodeURIComponent(card)}`}
+                   type="number"
                   inputMode="decimal"
                   aria-label={`Credit limit for ${card.replace(' Credit Card', '')}`}
                   min="0"
@@ -51,7 +52,7 @@ export default function CreditCardLimitsSubsection({
                       [card]: Number.isFinite(n) ? Math.max(0, n) : 0,
                     })
                   }}
-                  className="w-32 px-2 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none"
+                   className="ledger-control min-h-11 w-32 rounded-lg border border-border px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
                 />
               </div>
             </div>

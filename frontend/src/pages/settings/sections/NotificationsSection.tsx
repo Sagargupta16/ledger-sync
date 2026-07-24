@@ -38,6 +38,8 @@ export default function NotificationsSection({
             </div>
           </div>
           <Toggle
+            id="notify-budget-alerts"
+            aria-label="Budget alerts"
             checked={localPrefs.notify_budget_alerts ?? true}
             onChange={(val) => updateLocalPref('notify_budget_alerts', val)}
           />
@@ -55,6 +57,8 @@ export default function NotificationsSection({
             </div>
           </div>
           <Toggle
+            id="notify-anomalies"
+            aria-label="Anomaly alerts"
             checked={localPrefs.notify_anomalies ?? true}
             onChange={(val) => updateLocalPref('notify_anomalies', val)}
           />
@@ -72,6 +76,8 @@ export default function NotificationsSection({
             </div>
           </div>
           <Toggle
+            id="notify-upcoming-bills"
+            aria-label="Upcoming bill alerts"
             checked={localPrefs.notify_upcoming_bills ?? true}
             onChange={(val) => updateLocalPref('notify_upcoming_bills', val)}
           />
@@ -84,7 +90,7 @@ export default function NotificationsSection({
             id="notify-days"
             value={localPrefs.notify_days_ahead ?? 7}
             onChange={(e) => updateLocalPref('notify_days_ahead', Number(e.target.value))}
-            className="px-3 py-1.5 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none"
+            className="ledger-control min-h-11 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
           >
             {DAYS_AHEAD_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value} className="bg-background">

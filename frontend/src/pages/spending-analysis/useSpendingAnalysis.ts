@@ -25,10 +25,25 @@ export function useSpendingAnalysis() {
     setSearchParams(next, { replace: true })
   }
 
-  const { data: transactions } = useTransactions()
-  const { data: preferences } = usePreferences()
+  const {
+    data: transactions = [],
+    isPending: isTransactionsPending,
+    isError: isTransactionsError,
+    refetch: refetchTransactions,
+  } = useTransactions()
+  const {
+    data: preferences,
+    isPending: isPreferencesPending,
+    isError: isPreferencesError,
+    refetch: refetchPreferences,
+  } = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions)
   const dateRangeCompat = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
+  const isError = isTransactionsError || isPreferencesError
+  const isLoading = !isError && (isTransactionsPending || isPreferencesPending)
+  const retry = () => {
+    void Promise.all([refetchTransactions(), refetchPreferences()])
+  }
 
   // Filter by date range, then by the category query param (deep-link from a
   // donut slice).
@@ -59,7 +74,6 @@ export function useSpendingAnalysis() {
 
   const categoriesCount = Object.keys(categoryBreakdown).length
   const subcategoriesCount = useMemo(() => {
-    if (!filteredTransactions) return 0
     const subs = new Set<string>()
     filteredTransactions.filter((t) => t.type === 'Expense' && t.subcategory).forEach((t) => subs.add(`${t.category}::${t.subcategory}`))
     return subs.size
@@ -69,12 +83,11 @@ export function useSpendingAnalysis() {
   const topCategoryAmount = topCategoryEntry?.[1] ?? 0
 
   const spendingBreakdown = useMemo(() => {
-    if (!filteredTransactions || !preferences) return null
+    if (!preferences) return null
     return calculateSpendingBreakdown(filteredTransactions, preferences.essential_categories)
   }, [filteredTransactions, preferences])
 
   const monthlyAvgSpending = useMemo(() => {
-    if (!filteredTransactions) return 0
     const expenses = filteredTransactions.filter((t) => t.type === 'Expense')
     if (expenses.length === 0) return 0
     const months = new Set(expenses.map((t) => t.date.slice(0, 7)))
@@ -127,21 +140,18 @@ export function useSpendingAnalysis() {
     return computeBudgetRuleMetrics(spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget)
   }, [spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget])
 
-  const spendingLegendColorStyles = useMemo(
-    () => spendingChartData.map((item) => ({ backgroundColor: item.color })),
-    [spendingChartData],
-  )
-
   return {
     categoryFilter,
     clearCategoryFilter,
     timeFilterProps,
     dateRangeCompat,
-    isLoading: !transactions,
+    isLoading,
+    isError,
+    retry,
     totalSpending, monthlyAvgSpending, savings,
     categoryBreakdown, categoriesCount, subcategoriesCount,
     topCategory, topCategoryAmount,
-    spendingBreakdown, spendingChartData, spendingLegendColorStyles,
+    spendingBreakdown, spendingChartData,
     budgetRuleMetrics,
     needsTarget, wantsTarget, savingsTarget,
     monthlyTrendData, peakExpense,

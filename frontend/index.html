@@ -26,9 +26,10 @@
           var m = localStorage.getItem('ledger-sync-theme');
           // Explicit choice wins; no value (or the legacy 'system') follows
           // the OS preference -- the default for new users.
-          var resolved = (m === 'dark' || m === 'light')
-            ? m
-            : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          var resolved = m;
+          if (m !== 'dark' && m !== 'light') {
+            resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
           document.documentElement.dataset.theme = resolved;
           // Keep the mobile browser chrome in step with the selected theme.
           var bar = resolved === 'light' ? '#eaf0f7' : '#0a0f16';
@@ -38,7 +39,8 @@
           };
           setMeta('theme-color', bar);
           setMeta('color-scheme', resolved);
-        } catch (e) {
+        } catch (error) {
+          console.warn('Unable to restore the saved theme; using light mode.', error);
           document.documentElement.dataset.theme = 'light';
         }
       })();

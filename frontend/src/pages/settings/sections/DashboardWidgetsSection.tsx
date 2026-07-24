@@ -40,35 +40,44 @@ export default function DashboardWidgetsSection({
       description="Choose which Quick Insight cards appear on your Dashboard"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-        {DASHBOARD_WIDGETS.map((widget) => {
-          const isVisible = visibleWidgets.includes(widget.key)
-          return (
-            <label
-              key={widget.key}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                isVisible ? 'hover:bg-[var(--overlay-2)]' : 'opacity-50 hover:opacity-75'
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => toggleWidget(widget.key)}
-                className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors ${
-                  isVisible
-                    ? 'bg-primary/20 text-primary border border-primary/50'
-                    : 'bg-[var(--overlay-2)] border border-border'
-                }`}
-              >
-                {isVisible && <Check className="w-3 h-3" />}
-              </button>
-              <span className="text-sm text-foreground">{widget.label}</span>
-            </label>
+         {DASHBOARD_WIDGETS.map((widget) => {
+           const isVisible = visibleWidgets.includes(widget.key)
+           const controlId = `dashboard-widget-${widget.key}`
+           return (
+             <label
+               key={widget.key}
+               htmlFor={controlId}
+               className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                 isVisible ? 'hover:bg-[var(--overlay-2)]' : 'opacity-50 hover:opacity-75'
+               }`}
+             >
+               <input
+                 id={controlId}
+                 type="checkbox"
+                 checked={isVisible}
+                 onChange={() => toggleWidget(widget.key)}
+                 className="sr-only"
+               />
+               <span
+                 aria-hidden="true"
+                 className={`flex size-5 shrink-0 items-center justify-center rounded transition-colors ${
+                   isVisible
+                     ? 'bg-primary/20 text-primary border border-primary/50'
+                     : 'bg-[var(--overlay-2)] border border-border'
+                 }`}
+               >
+                 {isVisible && <Check className="w-3 h-3" />}
+               </span>
+               <span className="text-sm text-foreground">{widget.label}</span>
+             </label>
           )
         })}
       </div>
-      <button
-        type="button"
-        onClick={showAll}
-        className="text-xs text-primary hover:underline mt-2"
+       <button
+         id="show-all-dashboard-widgets"
+         type="button"
+         onClick={showAll}
+         className="mt-2 min-h-11 rounded-md px-2 text-xs text-primary hover:underline sm:min-h-10"
       >
         Show all widgets
       </button>

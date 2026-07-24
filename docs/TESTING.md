@@ -372,14 +372,14 @@ dependencies, lints, builds, and runs Vitest.
 
 ### Backend job
 
-Uses Python 3.13 and runs:
+Uses Python 3.13, sets `PYTHONPATH=src`, and runs:
 
 ```bash
-uv sync --all-extras --group dev
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
-uv run mypy src/
-uv run pytest tests/ -q
+uv sync --locked --no-build --no-install-project --all-extras --group dev
+uv run --no-sync --locked --no-build ruff check src/ tests/
+uv run --no-sync --locked --no-build ruff format --check src/ tests/
+uv run --no-sync --locked --no-build mypy src/
+uv run --no-sync --locked --no-build pytest tests/ -q
 ```
 
 ### Security job

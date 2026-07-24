@@ -102,7 +102,7 @@ export function formatLikeSample(n: number, parsed: ParsedValue): string {
  * Re-runs when `value` changes (animating from the previous amount), so KPI
  * cards roll to their new figure when the filter changes.
  */
-export function useAnimatedValue(value: string | number, duration = 800): string {
+export function useAnimatedValue(value: string | number, duration = 240): string {
   const stringValue = String(value)
   // null = not animating; render the exact input. Set only from rAF frames.
   const [frameValue, setFrameValue] = useState<string | null>(null)
@@ -111,7 +111,8 @@ export function useAnimatedValue(value: string | number, duration = 800): string
 
   useEffect(() => {
     const parsed = parseFormattedValue(stringValue)
-    if (!parsed || parsed.amount === 0) {
+    const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    if (!parsed || parsed.amount === 0 || reduceMotion) {
       fromRef.current = parsed?.amount ?? 0
       return
     }

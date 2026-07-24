@@ -42,13 +42,13 @@ export default function AccountClassificationsSection({
       index={index}
       icon={Wallet}
       title="Account Classifications"
-      description="Drag accounts between categories to classify them"
+      description="Drag accounts between categories, or use each category menu"
       defaultCollapsed={defaultCollapsed}
     >
       {/* Unassigned accounts highlight */}
       {unclassifiedAccounts.length > 0 && (
         <div className="bg-app-yellow/10 border border-app-yellow/30 rounded-xl p-4">
-          <p className="text-sm font-medium text-app-yellow mb-1">
+          <p className="mb-1 text-sm font-medium text-warning-text">
             {unclassifiedAccounts.length}{' '}Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
           </p>
           <p className="text-xs text-muted-foreground mb-3">
@@ -74,12 +74,13 @@ export default function AccountClassificationsSection({
                   )}
                 </motion.div>
                 <select
+                  id={`account-classification-${encodeURIComponent(name)}`}
                   aria-label={`Classify ${name}`}
                   value=""
                   onChange={(e) => {
                     if (e.target.value) onAssignAccount(name, e.target.value)
                   }}
-                  className="shrink-0 w-36 px-2 py-2 min-h-[44px] bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-xs focus:border-primary focus:outline-none"
+                  className="ledger-control min-h-11 w-36 shrink-0 rounded-lg border border-border px-2 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                 >
                   <option value="" className="bg-background">
                     Classify as...
@@ -97,7 +98,7 @@ export default function AccountClassificationsSection({
       )}
 
       {/* Account type drop zones grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ACCOUNT_TYPES.map((category) => (
           <fieldset
             key={category}
@@ -116,20 +117,41 @@ export default function AccountClassificationsSection({
                 {accountsByCategory[category]?.length || 0}{' '}accounts
               </p>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-col gap-2">
               {accountsByCategory[category]?.map((name) => (
-                <motion.div
+                <div
                   key={name}
-                  draggable
-                  onDragStart={() => onDragStart(name)}
-                  onDragEnd={onDragEnd}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 1 }}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors"
+                  className="min-w-0 rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-2"
                 >
-                  <GripVertical className="w-2.5 h-2.5 text-foreground/30" />
-                  <span className="text-xs text-foreground truncate max-w-[120px]">{name}</span>
-                </motion.div>
+                  <motion.div
+                    draggable
+                    onDragStart={() => onDragStart(name)}
+                    onDragEnd={onDragEnd}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 1 }}
+                    className="flex min-w-0 cursor-move items-center gap-1 rounded-full border border-border bg-[var(--overlay-5)] px-2.5 py-1 transition-colors hover:bg-[var(--overlay-6)]"
+                  >
+                    <GripVertical className="h-2.5 w-2.5 shrink-0 text-foreground/30" />
+                    <span className="truncate text-xs text-foreground">{name}</span>
+                  </motion.div>
+                  <select
+                    id={`account-reclassification-${encodeURIComponent(name)}`}
+                    aria-label={`Move ${name} to another category`}
+                    value={category}
+                    onChange={(event) => {
+                      if (event.target.value !== category) {
+                        onAssignAccount(name, event.target.value)
+                      }
+                    }}
+                    className="ledger-control mt-2 min-h-11 w-full rounded-lg border border-border px-2 py-2 text-xs text-foreground focus:border-primary focus:outline-none lg:pointer-fine:min-h-10"
+                  >
+                    {ACCOUNT_TYPES.map((option) => (
+                      <option key={option} value={option} className="bg-background">
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               ))}
               {(!accountsByCategory[category] || accountsByCategory[category].length === 0) && (
                 <p className="text-xs text-text-tertiary py-3 w-full text-center">Drop here</p>

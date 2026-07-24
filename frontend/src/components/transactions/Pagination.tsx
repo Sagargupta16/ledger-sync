@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button, Select } from '@/components/ui'
 
 interface PaginationProps {
   currentPage: number
@@ -25,16 +26,16 @@ export default function Pagination({
         {/* Items per page */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-text-tertiary">Show</span>
-          <select
+          <Select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="px-3 py-2.5 sm:py-1 min-h-[44px] sm:min-h-0 bg-[var(--overlay-2)] border border-[var(--hairline-2)] rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors duration-150 cursor-pointer hover:bg-[var(--overlay-3)]"
-          >
-            <option value={10} className="bg-surface-dropdown text-foreground">10</option>
-            <option value={25} className="bg-surface-dropdown text-foreground">25</option>
-            <option value={50} className="bg-surface-dropdown text-foreground">50</option>
-            <option value={100} className="bg-surface-dropdown text-foreground">100</option>
-          </select>
+            options={[10, 25, 50, 100].map((value) => ({
+              value: String(value),
+              label: String(value),
+            }))}
+            className="w-20"
+            aria-label="Transactions per page"
+          />
           <span className="text-sm text-text-tertiary">per page</span>
         </div>
 
@@ -47,14 +48,17 @@ export default function Pagination({
 
         {/* Pagination controls */}
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             aria-label="Previous page"
-            className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
+            className="p-0 text-text-tertiary disabled:opacity-30"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </Button>
 
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -70,28 +74,35 @@ export default function Pagination({
               }
 
               return (
-                <button
+                <Button
                   key={pageNum}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => onPageChange(pageNum)}
-                  className={`px-3 py-2.5 sm:py-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-sm font-medium transition-colors duration-150 ${currentPage === pageNum
+                  aria-current={currentPage === pageNum ? 'page' : undefined}
+                  className={`px-3 ${currentPage === pageNum
                       ? 'bg-app-blue/20 text-app-blue'
-                      : 'text-muted-foreground hover:bg-[var(--overlay-3)] hover:text-foreground'
+                      : 'text-muted-foreground'
                     }`}
                 >
                   {pageNum}
-                </button>
+                </Button>
               )
             })}
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             aria-label="Next page"
-            className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
+            className="p-0 text-text-tertiary disabled:opacity-30"
           >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Button>
         </div>
       </div>
     </div>
