@@ -285,6 +285,38 @@ class AnomaliesMixin(AnalyticsEngineBase):
 
     # ─── large-transaction detector (rolling window) ───────────────────────
 
+    @staticmethod
+    def _large_transaction_materiality_floor(expense_txns: list[Transaction]) -> float:
+        monthly_totals: dict[str, float] = {}
+        for transaction in expense_txns:
+            month = transaction.date.strftime("%Y-%m")
+            monthly_totals[month] = monthly_totals.get(month, 0.0) + float(transaction.amount)
+        if not monthly_totals:
+            return 0.0
+        return _LARGE_TXN_MATERIALITY_FRACTION * median(monthly_totals.values())
+
+    @staticmethod
+    def _category_amount_history(
+        expense_txns: list[Transaction],
+    ) -> dict[str, list[tuple[datetime, float]]]:
+        history: dict[str, list[tuple[datetime, float]]] = {}
+        for transaction in expense_txns:
+            history.setdefault(transaction.category, []).append(
+                (transaction.date, float(transaction.amount))
+            )
+        return history
+
+    def _passes_log_dispersion_gate(self, amount: float, window: list[float]) -> bool:
+        log_window = [log(value) for value in window if value > 0]
+        if not log_window:
+            return True
+        log_median = median(log_window)
+        log_mad = self._mad(log_window, log_median)
+        if log_mad <= 0:
+            return True
+        log_modified_z = _MZ_CONSTANT * (log(amount) - log_median) / log_mad
+        return log_modified_z > _DEFAULT_MODIFIED_Z_CUTOFF
+
     def _detect_large_transactions(self, anomalies: list[dict[str, Any]]) -> None:
         """Append anomaly dicts for individual expenses that look large versus
         their category's rolling-12-month baseline.
@@ -305,22 +337,12 @@ class AnomaliesMixin(AnalyticsEngineBase):
         # Materiality floor: a 3x-of-median blip in a tiny category (a pricier
         # chai) is not worth a user's attention. Derived per user from their
         # own median monthly expense -- no hardcoded currency constants.
-        monthly_totals: dict[str, float] = {}
-        for t in expense_txns:
-            key = t.date.strftime("%Y-%m")
-            monthly_totals[key] = monthly_totals.get(key, 0.0) + float(t.amount)
-        materiality_floor = (
-            _LARGE_TXN_MATERIALITY_FRACTION * median(monthly_totals.values())
-            if monthly_totals
-            else 0.0
-        )
+        materiality_floor = self._large_transaction_materiality_floor(expense_txns)
 
         # Group amounts by category, retaining chronological order so the
         # rolling window can prune old entries with an O(1) index cursor.
         # amount_history[cat] = list of (date, amount) sorted ascending.
-        history: dict[str, list[tuple[datetime, float]]] = {}
-        for t in expense_txns:
-            history.setdefault(t.category, []).append((t.date, float(t.amount)))
+        history = self._category_amount_history(expense_txns)
 
         for txn in expense_txns:
             amount = float(txn.amount)
@@ -351,14 +373,8 @@ class AnomaliesMixin(AnalyticsEngineBase):
             # log-amount distribution. When log-MAD collapses (near-constant
             # window), keep the ratio-based flag -- mirroring the module's
             # MAD-collapse fallback convention.
-            log_window = [log(a) for a in window if a > 0]
-            if log_window:
-                log_med = median(log_window)
-                log_mad = self._mad(log_window, log_med)
-                if log_mad > 0:
-                    log_mz = _MZ_CONSTANT * (log(amount) - log_med) / log_mad
-                    if log_mz <= _DEFAULT_MODIFIED_Z_CUTOFF:
-                        continue
+            if not self._passes_log_dispersion_gate(amount, window):
+                continue
 
             severity = "high" if ratio >= _LARGE_TXN_HIGH_RATIO else "medium"
             anomalies.append(
