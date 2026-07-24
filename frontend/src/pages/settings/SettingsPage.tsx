@@ -86,7 +86,7 @@ export default function SettingsPage() {
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">
               {s.hasChanges && (
-                <span className="text-sm text-app-yellow flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 text-sm text-warning-text">
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
                 </span>
               )}
@@ -96,6 +96,7 @@ export default function SettingsPage() {
                 variant="secondary"
                 onClick={() => s.setShowResetConfirm(true)}
                 icon={<RotateCcw className="h-4 w-4" />}
+                aria-label="Reset settings"
               >
                 <span className="hidden sm:inline">Reset</span>
               </Button>
@@ -258,10 +259,13 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.18 }}
-              className="fixed inset-x-0 z-40 flex justify-center px-4 bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+              className="fixed inset-x-0 z-40 flex justify-start bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] pl-4 pr-24 sm:justify-center sm:px-4 lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
             >
               <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-[var(--glass-shadow-strong)] backdrop-blur-lg">
-                <span className="flex items-center gap-1.5 text-sm text-app-yellow">
+                <span role="status" aria-live="polite" className="sr-only">
+                  Unsaved changes
+                </span>
+                <span className="hidden items-center gap-1.5 text-sm text-warning-text sm:flex">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
                   {' '}Unsaved changes
                 </span>

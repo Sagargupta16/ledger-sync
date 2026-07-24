@@ -8,6 +8,8 @@ const MIN_DOT_PX = 4
 const MAX_DOT_PX = 9
 
 interface Props {
+  year: number
+  month: number
   day: number
   isToday: boolean
   isSelected: boolean
@@ -19,6 +21,8 @@ interface Props {
 }
 
 export default function DayCell({
+  year,
+  month,
   day,
   isToday,
   isSelected,
@@ -39,8 +43,9 @@ export default function DayCell({
   const opacityClass = isCurrentMonth ? '' : 'opacity-30'
   const selectionClass = isSelected
     ? 'bg-app-blue/20 border border-app-blue/40'
-    : 'hover:bg-[var(--overlay-4)] border border-transparent'
+    : `${isCurrentMonth ? 'hover:bg-[var(--overlay-4)]' : ''} border border-transparent`
   const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-app-blue/50' : ''
+  const interactionClass = isCurrentMonth ? 'cursor-pointer' : 'cursor-default'
 
   const dayNumberClass = (() => {
     if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-on-accent'
@@ -53,17 +58,26 @@ export default function DayCell({
     if (!hasBills) return 'no bills'
     return `${bills.length} bill${bills.length === 1 ? '' : 's'}`
   })()
-  const ariaLabel = `Day ${day}, ${billLabel}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`
+  const dateLabel = new Date(year, month, day).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const ariaLabel = isCurrentMonth
+    ? `${dateLabel}, ${billLabel}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`
+    : `${dateLabel}, outside the current month`
 
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!isCurrentMonth}
       aria-label={ariaLabel}
-      aria-pressed={isSelected}
+      aria-pressed={isCurrentMonth ? isSelected : undefined}
       className={`
-        relative flex flex-col items-center justify-start p-1.5 sm:p-2 rounded-xl min-h-[60px] sm:min-h-[72px]
-        transition-all duration-200 cursor-pointer group
+        group relative flex min-h-[60px] min-w-11 w-full flex-col items-center justify-start rounded-xl p-1.5
+        transition-colors duration-150 sm:min-h-[72px] sm:p-2
+        ${interactionClass}
         ${opacityClass}
         ${selectionClass}
         ${todayBorderClass}

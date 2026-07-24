@@ -16,7 +16,7 @@ export const sectionVariants = {
 }
 
 export const inputClass =
-  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none sm:min-h-10'
+  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none lg:pointer-fine:min-h-10'
 
 export const selectClass =
-  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none sm:min-h-10'
+  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none lg:pointer-fine:min-h-10'

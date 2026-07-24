@@ -142,7 +142,7 @@ Three services, all free tier:
 
 ### CI Pipeline (`.github/workflows/ci.yml`)
 
-Three jobs on push/PR to main: `frontend` (shared-workflows `node-ci.yml`, working-directory frontend), `backend` (inline: uv sync --all-extras --group dev, ruff check + format --check, mypy, pytest on Python 3.13 -- inline because the shared python-ci swallows failures with `|| true`), and `security` (shared-workflows `security-scan.yml`).
+Three jobs on push/PR to main: `frontend` (shared-workflows `node-ci.yml`, working-directory frontend), `backend` (inline: locked wheel-only `uv sync`, then `uv run --no-sync` for ruff check + format --check, mypy, and pytest on Python 3.13 -- inline because the shared python-ci swallows failures with `|| true`), and `security` (shared-workflows `security-scan.yml`).
 
 ## Code Quality Rules
 

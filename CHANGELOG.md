@@ -34,6 +34,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Sign-in provider failures remain distinguishable from a valid but unconfigured provider list.
 - Financial query failures no longer appear as empty ledgers, zero balances, or missing recurring items.
 - Mobile dashboard figures, table amounts, filters, and page actions no longer clip or overflow at 320px and 375px widths.
+- Calendar cells, settings controls, RSU vesting entries, upload feedback, and comparison tabs now remain readable and touch-friendly across phone, tablet, and pointer-coarse layouts.
+- SonarCloud now reports zero unresolved issues on the frontend consistency pull request.
+
+### Security
+
+- CI and migration jobs now require committed Python lock data, reject source and project builds during dependency installation, and run tools without an implicit dependency sync.
+- GitHub Pages installs the frozen pnpm lockfile with dependency lifecycle scripts disabled.
+- Patched development dependency alerts for `shell-quote`, `brace-expansion`, `fast-uri`, `sharp`, and `serialize-javascript`; root and frontend pnpm audits now report zero vulnerabilities.
 
 ## 2.22.0 - 2026-07-09
 

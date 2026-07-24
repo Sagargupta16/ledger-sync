@@ -92,31 +92,33 @@ export default function BillCalendarGrid({
       </div>
 
       {isLoading && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-7 gap-1">
-            {DAY_NAMES.map((name) => (
-              <div
-                key={name}
-                className="py-2 text-center text-xs font-medium text-muted-foreground"
-              >
-                {name}
-              </div>
-            ))}
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="min-w-[21rem] space-y-2">
+            <div className="grid grid-cols-7 gap-1">
+              {DAY_NAMES.map((name) => (
+                <div
+                  key={name}
+                  className="py-2 text-center text-xs font-medium text-muted-foreground"
+                >
+                  {name}
+                </div>
+              ))}
+            </div>
+            {Array.from({ length: 5 }, (_, index) => `skeleton-row-${index}`).map(
+              (rowId) => (
+                <div key={rowId} className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 7 }, (_, index) => `${rowId}-col-${index}`).map(
+                    (cellId) => (
+                      <div
+                        key={cellId}
+                        className="min-h-[60px] min-w-11 animate-pulse rounded-xl bg-[var(--overlay-2)] sm:min-h-[72px]"
+                      />
+                    ),
+                  )}
+                </div>
+              ),
+            )}
           </div>
-          {Array.from({ length: 5 }, (_, index) => `skeleton-row-${index}`).map(
-            (rowId) => (
-              <div key={rowId} className="grid grid-cols-7 gap-1">
-                {Array.from({ length: 7 }, (_, index) => `${rowId}-col-${index}`).map(
-                  (cellId) => (
-                    <div
-                      key={cellId}
-                      className="min-h-[60px] animate-pulse rounded-xl bg-[var(--overlay-2)] sm:min-h-[72px]"
-                    />
-                  ),
-                )}
-              </div>
-            ),
-          )}
         </div>
       )}
 
@@ -131,47 +133,51 @@ export default function BillCalendarGrid({
 
       {!isLoading && hasAnyData && (
         <>
-          <div className="mb-1 grid grid-cols-7 gap-1">
-            {DAY_NAMES.map((name) => (
-              <div
-                key={name}
-                className="py-2 text-center text-xs font-medium text-muted-foreground"
-              >
-                {name}
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <div className="min-w-[21rem]">
+              <div className="mb-1 grid grid-cols-7 gap-1">
+                {DAY_NAMES.map((name) => (
+                  <div
+                    key={name}
+                    className="py-2 text-center text-xs font-medium text-muted-foreground"
+                  >
+                    {name}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {calendarGrid.map((cell) => {
-              const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
-              const isToday = isSameDay(
-                cell.year,
-                cell.month,
-                cell.day,
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-              )
-              const isSelected = cell.isCurrentMonth && selectedDay === cell.day
+              <div className="grid grid-cols-7 gap-1">
+                {calendarGrid.map((cell) => {
+                  const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
+                  const isToday = isSameDay(
+                    cell.year,
+                    cell.month,
+                    cell.day,
+                    now.getFullYear(),
+                    now.getMonth(),
+                    now.getDate(),
+                  )
+                  const isSelected = cell.isCurrentMonth && selectedDay === cell.day
 
-              return (
-                <DayCell
-                  key={`cell-${cell.year}-${cell.month}-${cell.day}`}
-                  day={cell.day}
-                  isToday={isToday}
-                  isSelected={isSelected}
-                  isCurrentMonth={cell.isCurrentMonth}
-                  bills={bills}
-                  maxBillAmount={maxBillAmount}
-                  onClick={() => {
-                    if (cell.isCurrentMonth) {
-                      onSelectDay(selectedDay === cell.day ? null : cell.day)
-                    }
-                  }}
-                />
-              )
-            })}
+                  return (
+                    <DayCell
+                      key={`cell-${cell.year}-${cell.month}-${cell.day}`}
+                      year={cell.year}
+                      month={cell.month}
+                      day={cell.day}
+                      isToday={isToday}
+                      isSelected={isSelected}
+                      isCurrentMonth={cell.isCurrentMonth}
+                      bills={bills}
+                      maxBillAmount={maxBillAmount}
+                      onClick={() =>
+                        onSelectDay(selectedDay === cell.day ? null : cell.day)
+                      }
+                    />
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           <BillCalendarLegend />

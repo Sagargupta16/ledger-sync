@@ -58,6 +58,7 @@ export function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) 
       dataKey="year"
       height={280}
       stacked
+      ariaLabel="Projected account value by year, split between contributions and returns"
       tooltipFormatter={formatCurrency}
       areas={[
         { key: 'Contributed', color: rawColors.app.blue, fillOpacity: 0.7 },

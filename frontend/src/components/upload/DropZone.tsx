@@ -81,7 +81,7 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
           size="sm"
           onClick={onClear}
           aria-label="Remove selected file"
-          className="ml-auto shrink-0 rounded-full p-0 text-destructive hover:bg-destructive/20 hover:text-destructive sm:min-h-8 sm:min-w-8"
+          className="ml-auto shrink-0 rounded-full p-0 text-destructive hover:bg-destructive/20 hover:text-destructive lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
           disabled={isUploading}
         >
           <X className={cn(compact ? 'size-3' : 'size-4')} aria-hidden="true" />
@@ -126,9 +126,9 @@ function UploadingOverlay({ isUploading }: Readonly<UploadingOverlayProps>) {
   }
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60 text-on-accent backdrop-blur-sm">
       <div className="flex flex-col items-center gap-2">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent" />
         <p className="text-sm font-medium">Uploading...</p>
       </div>
     </div>
@@ -174,14 +174,18 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
           'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-150 ease-out',
           'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
           isDragActive && 'border-app-blue/50 bg-app-blue/5 scale-[1.01]',
-          isUploading && 'opacity-50 cursor-not-allowed',
+          isUploading && 'cursor-not-allowed',
           selectedFile ? 'border-[var(--hairline-4)] bg-[var(--overlay-1)]' : 'border-[var(--hairline-3)]',
           compact ? 'p-4' : 'p-12 rounded-2xl'
         )}
       >
         <input {...getInputProps({ 'aria-label': 'Upload transaction file' })} />
 
-        <div className={cn('flex items-center gap-3', !compact && 'flex-col gap-4')}>
+        <div className={cn(
+          'flex items-center gap-3',
+          !compact && 'flex-col gap-4',
+          isUploading && 'opacity-50'
+        )}>
           <IconBubble selectedFile={selectedFile} isDragActive={isDragActive} compact={compact} />
 
           {selectedFile ? (

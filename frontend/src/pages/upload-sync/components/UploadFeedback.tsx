@@ -31,10 +31,10 @@ export default function UploadFeedback({
           className="flex flex-wrap items-center gap-4 rounded-lg border border-app-yellow/30 bg-app-yellow/10 p-5"
         >
           <div className="rounded-full bg-app-yellow/20 p-3">
-            <AlertTriangle className="size-6 text-app-yellow" aria-hidden="true" />
+            <AlertTriangle className="size-6 text-warning-text" aria-hidden="true" />
           </div>
           <div className="min-w-48 flex-1">
-            <h3 className="font-semibold text-app-yellow">File Already Uploaded</h3>
+            <h3 className="font-semibold text-warning-text">File Already Uploaded</h3>
             <p className="text-pretty text-sm text-muted-foreground">
               <span className="font-mono text-sm text-foreground">
                 {conflict.parsed.fileName}

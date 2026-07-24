@@ -1,7 +1,9 @@
+import { useState } from 'react'
+
 import { motion } from 'framer-motion'
 import { Flame } from 'lucide-react'
 
-import { DAYS, heatmapColors, modeAccent } from '../types'
+import { DAYS, MONTHS_SHORT, heatmapColors, modeAccent } from '../types'
 import type { useYearInReview } from '../useYearInReview'
 
 import type { DayCell } from './DayOfWeekChart'
@@ -25,6 +27,18 @@ export default function YearHeatmapSection({
   review,
 }: YearHeatmapSectionProps) {
   const modeLabel = MODE_LABELS[review.mode]
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const monthlyDetail =
+    selectedMonth == null
+      ? null
+      : {
+          label: MONTHS_SHORT[selectedMonth],
+          expense: review.stats.monthlyExpense[selectedMonth] ?? 0,
+          income: review.stats.monthlyIncome[selectedMonth] ?? 0,
+          net:
+            (review.stats.monthlyIncome[selectedMonth] ?? 0) -
+            (review.stats.monthlyExpense[selectedMonth] ?? 0),
+        }
 
   return (
     <motion.section
@@ -53,7 +67,7 @@ export default function YearHeatmapSection({
         </div>
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <div className="overflow-x-auto">
           <div className="min-w-[820px]">
             <div className="mb-1 ml-10 flex">
@@ -93,6 +107,7 @@ export default function YearHeatmapSection({
                     '[data-cell-date]',
                   )
                   if (target) {
+                    setSelectedMonth(null)
                     const found: DayCell | undefined = review.grid.find(
                       (cell) => cell.date === target.dataset.cellDate,
                     )
@@ -104,6 +119,7 @@ export default function YearHeatmapSection({
                     '[data-cell-date]',
                   )
                   if (target) {
+                    setSelectedMonth(null)
                     const found: DayCell | undefined = review.grid.find(
                       (cell) => cell.date === target.dataset.cellDate,
                     )
@@ -128,10 +144,14 @@ export default function YearHeatmapSection({
         mode={review.mode}
         monthlyExpense={review.stats.monthlyExpense}
         monthlyIncome={review.stats.monthlyIncome}
+        selectedMonth={selectedMonth}
+        onSelectMonth={(monthIndex) =>
+          setSelectedMonth(selectedMonth === monthIndex ? null : monthIndex)
+        }
       />
 
-      <div className="mt-4 flex min-h-[28px] items-center gap-6 border-t border-border pt-3 text-xs">
-        <HeatmapDayDetail hoveredDay={review.hoveredDay} />
+      <div className="mt-4 flex min-h-[28px] flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-xs sm:gap-x-6">
+        <HeatmapDayDetail hoveredDay={review.hoveredDay} monthlyDetail={monthlyDetail} />
       </div>
     </motion.section>
   )

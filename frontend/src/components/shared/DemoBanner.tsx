@@ -16,7 +16,7 @@ export function DemoBanner() {
 
   return (
     <>
-      <div className="fixed left-1/2 top-1 z-50 flex min-h-12 max-w-[calc(100vw-4.5rem)] -translate-x-1/2 items-center gap-1.5 rounded-md border border-[var(--hairline-2)] bg-surface-dropdown px-2 py-1 text-sm shadow-[var(--glass-shadow)] sm:top-2 sm:max-w-none sm:gap-2 sm:px-2.5">
+      <div className="fixed left-[calc(env(safe-area-inset-left,0px)+4rem)] right-[max(0.5rem,env(safe-area-inset-right,0px))] top-[calc(env(safe-area-inset-top,0px)+0.25rem)] z-50 flex min-h-12 max-w-[calc(100vw-4.5rem)] items-center gap-1.5 rounded-md border border-[var(--hairline-2)] bg-surface-dropdown px-2 py-1 text-sm shadow-[var(--glass-shadow)] sm:left-1/2 sm:right-auto sm:top-[calc(env(safe-area-inset-top,0px)+0.5rem)] sm:max-w-none sm:-translate-x-1/2 sm:gap-2 sm:px-2.5">
         <Eye className="h-4 w-4 flex-shrink-0 text-app-blue" />
         <span className="whitespace-nowrap text-foreground/80">Sample data</span>
         <Button
@@ -33,7 +33,7 @@ export function DemoBanner() {
           variant="ghost"
           size="sm"
           onClick={() => { exitDemoMode(queryClient, navigate); setDismissed(true) }}
-          className="size-11 p-0 text-foreground/40 sm:size-8 sm:min-h-8 sm:min-w-8"
+          className="size-11 p-0 text-foreground/40 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
           title="Exit demo and clear sample data"
           aria-label="Exit demo"
         >

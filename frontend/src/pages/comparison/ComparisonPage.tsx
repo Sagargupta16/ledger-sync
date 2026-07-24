@@ -74,10 +74,11 @@ export default function ComparisonPage() {
             {([['month', 'Month'], ['year', 'Year'], ['fy', 'FY']] as const).map(([val, label]) => (
               <motion.button
                 key={val}
+                type="button"
                 role="tab"
                 aria-selected={mode === val}
                 onClick={() => setMode(val)}
-                className={`relative px-4 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg text-sm font-medium transition-colors ${
+                className={`relative min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors lg:pointer-fine:min-h-0 lg:pointer-fine:py-1.5 ${
                   mode === val ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
                 }`}
                 whileTap={{ scale: 0.97 }}
@@ -104,7 +105,7 @@ export default function ComparisonPage() {
         animate={{ opacity: 1, y: 0 }}
         className="glass rounded-2xl border border-border p-6"
       >
-        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row [&_select]:min-h-11 [&_select]:py-2.5 lg:pointer-fine:[&_select]:min-h-9 lg:pointer-fine:[&_select]:py-2">
           <PeriodSelector
             mode={mode} label="Period A"
             monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}

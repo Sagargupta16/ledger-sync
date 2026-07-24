@@ -70,9 +70,11 @@ export default function IncomeCategorySection({
                 totalIncome > 0 ? ((item.value / totalIncome) * 100).toFixed(1) : '0'
 
               return (
-                <div
+                <button
                   key={item.name}
-                  className="rounded-lg border border-[var(--hairline-1)] bg-surface-dropdown/30 p-4 transition-colors hover:bg-[var(--overlay-2)]"
+                  type="button"
+                  onClick={() => onSelectCategory(item.name)}
+                  className="w-full rounded-lg border border-[var(--hairline-1)] bg-surface-dropdown/30 p-4 text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="mb-2 flex items-center gap-3">
                     <div
@@ -95,7 +97,7 @@ export default function IncomeCategorySection({
                   <p className="ledger-figure text-xl font-bold" style={{ color: item.color }}>
                     {formatCurrency(item.value)}
                   </p>
-                </div>
+                </button>
               )
             })}
           </div>
