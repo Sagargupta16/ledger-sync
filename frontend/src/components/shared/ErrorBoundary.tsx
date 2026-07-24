@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui'
 
 interface Props {
   children: ReactNode
@@ -61,19 +62,24 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
             <div className="flex gap-3">
-              <button
+              <Button
+                type="button"
+                size="lg"
                 onClick={this.handleReset}
-                className="flex flex-1 items-center justify-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-3 text-background transition-colors hover:bg-foreground/90"
+                className="flex-1 py-3"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="size-4" aria-hidden="true" />
                 Try Again
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
                 onClick={() => globalThis.location.reload()}
-                className="flex-1 px-4 py-3 bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors"
+                className="flex-1 py-3"
               >
                 Reload Page
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -50,6 +50,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Phone bottom navigation plus a complete More page.
 - Light, dark, and system themes.
 - Mobile card layouts for wide data tables and 44px touch targets for primary controls.
+- Distinct loading, empty, and retryable error states across protected financial pages.
 - Installable PWA that never caches API responses.
 
 ## Application Map

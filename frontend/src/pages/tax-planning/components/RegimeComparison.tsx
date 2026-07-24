@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+import { Button } from '@/components/ui'
 import { calculateTax, getTaxSlabs } from '@/lib/taxCalculator'
 import { formatCurrency } from '@/lib/formatters'
+
 import { calculateBreakEvenDeduction } from '../taxPlanningUtils'
 import DeductionInput from './DeductionInput'
 import RegimeVerdictDetail from './RegimeVerdictDetail'
@@ -117,23 +120,27 @@ export default function RegimeComparison({
       </div>
 
       <div className="rounded-xl border border-border bg-[var(--overlay-1)] p-4">
-        <button
+        <Button
           type="button"
           onClick={() => setShowDeductions(!showDeductions)}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
+          variant="ghost"
+          size="sm"
+          icon={
+            showDeductions ? (
+              <ChevronLeft className="w-4 h-4 rotate-[-90deg]" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )
+          }
+          className="w-full justify-start px-0"
         >
-          {showDeductions ? (
-            <ChevronLeft className="w-4 h-4 rotate-[-90deg]" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
           Enter your deductions to compare accurately
           {totalDeductions > 0 && (
             <span className="ml-auto text-xs text-app-green font-semibold">
               Total: {formatCurrency(totalDeductions)}
             </span>
           )}
-        </button>
+        </Button>
 
         {showDeductions && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">

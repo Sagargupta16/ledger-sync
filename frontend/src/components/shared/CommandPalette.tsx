@@ -212,7 +212,8 @@ export default function CommandPalette() {
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search pages, transactions..."
-                className="flex-1 bg-transparent text-foreground text-base placeholder:text-text-quaternary outline-none"
+                className="min-h-11 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-text-quaternary"
+                aria-label="Search pages and transactions"
                 autoComplete="off"
                 spellCheck={false}
               />

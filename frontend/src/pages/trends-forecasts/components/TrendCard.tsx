@@ -62,7 +62,7 @@ export default function TrendCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
+      transition={{ delay, duration: 0.18, ease: 'easeOut' }}
       className="glass rounded-2xl border border-border p-4 sm:p-6"
     >
       <div className="flex items-center justify-between mb-4">

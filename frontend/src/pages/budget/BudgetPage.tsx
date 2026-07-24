@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
@@ -18,7 +19,7 @@ import { PeriodPicker, type PresetPeriod } from './components/PeriodPicker'
 import { toPeriodRange } from './budgetUtils'
 
 /**
- * /budgets — the 50/30/20 Budget Rule page.
+ * /budgets -- the 50/30/20 Budget Rule page.
  *
  * Header cards show Needs / Wants / Savings actuals vs targets from
  * `user_preferences.{needs,wants,savings}_target_percent`. The table below
@@ -33,32 +34,31 @@ export default function BudgetPage() {
   const [period, setPeriod] = useState<PresetPeriod>('last_12_months')
   const [customStart, setCustomStart] = useState<string>('')
   const [customEnd, setCustomEnd] = useState<string>('')
-  const { minDate, maxDate } = useDataDateRange()
+  const dateRangeQuery = useDataDateRange()
+  const { minDate, maxDate } = dateRangeQuery
 
   const range = useMemo(
     () => toPeriodRange(period, { customStart, customEnd, minDate, maxDate }),
     [period, customStart, customEnd, minDate, maxDate],
   )
 
-  const { data, isLoading, isError } = useSpendingRule({
+  const spendingRuleQuery = useSpendingRule({
     start_date: range.start,
     end_date: range.end,
   })
+  const { data } = spendingRuleQuery
 
-  if (isError) {
+  if (dateRangeQuery.isError || spendingRuleQuery.isError) {
+    const retryBudget = () => {
+      void dateRangeQuery.refetch()
+      void spendingRuleQuery.refetch()
+    }
     return (
-      <PageContainer>
-        <PageHeader
-          title="Budget Rule"
-          subtitle="Track your 50/30/20 split — Needs, Wants, Savings"
-        />
-        <EmptyState
-          icon={AlertTriangle}
-          title="Could not load budget rule"
-          description="We hit an error fetching your spending data. Check your connection and try again."
-          variant="card"
-        />
-      </PageContainer>
+      <PageErrorState
+        title="50/30/20 Budget Rule"
+        subtitle="Actual split of your income across Needs, Wants, and Savings"
+        onRetry={retryBudget}
+      />
     )
   }
 
@@ -83,7 +83,7 @@ export default function BudgetPage() {
         }
       />
 
-      {renderBody(isLoading, data)}
+      {renderBody(dateRangeQuery.isLoading || spendingRuleQuery.isLoading, data)}
     </PageContainer>
   )
 }

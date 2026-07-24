@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 
+import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/formatters'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
@@ -52,11 +53,18 @@ function VestingRow({
   const estValue = v.quantity * price
   const fy = v.date ? dateToFY(v.date) : ''
   const usesVestPrice = vested && v.price_at_vest != null && v.price_at_vest > 0
+  const rowName = `${grant.stock_name || 'RSU'} vesting ${stateIdx + 1}`
+  const dateId = `vesting-${grant.id}-${stateIdx}-date`
+  const quantityId = `vesting-${grant.id}-${stateIdx}-quantity`
 
   return (
     <tr className={`border-b border-border/50 ${vested ? 'opacity-75' : ''}`}>
       <td className="py-2 pr-3">
+        <label htmlFor={dateId} className="sr-only">
+          Date for {rowName}
+        </label>
         <input
+          id={dateId}
           type="date"
           value={v.date}
           onChange={(e) => onUpdateVesting(grant.id, stateIdx, { date: e.target.value })}
@@ -65,7 +73,11 @@ function VestingRow({
         />
       </td>
       <td className="py-2 pr-3">
+        <label htmlFor={quantityId} className="sr-only">
+          Quantity for {rowName}
+        </label>
         <input
+          id={quantityId}
           type="number"
           inputMode="decimal"
           min="0"
@@ -91,14 +103,18 @@ function VestingRow({
       </td>
       <td className="py-2 pr-3 text-muted-foreground">{fy ? `FY ${fy}` : '--'}</td>
       <td className="py-2">
-        <button
+        <Button
+          id={`remove-vesting-${grant.id}-${stateIdx}`}
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => onRemoveVesting(grant.id, stateIdx)}
-          className="p-1 rounded text-app-red hover:bg-app-red/10 transition-colors"
+          className="text-app-red hover:bg-app-red/10 hover:text-app-red"
           title="Remove vesting"
+          aria-label={`Remove ${rowName}`}
         >
           <X className="w-3.5 h-3.5" />
-        </button>
+        </Button>
       </td>
     </tr>
   )
@@ -117,14 +133,19 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[32rem] text-sm">
+      <table
+        aria-label={`Vesting schedule for ${grant.stock_name || 'RSU grant'}`}
+        className="w-full min-w-[32rem] text-sm"
+      >
         <thead>
           <tr className="text-xs text-muted-foreground border-b border-border">
-            <th className="text-left py-2 pr-3 font-medium">Date</th>
-            <th className="text-left py-2 pr-3 font-medium">Qty</th>
-            <th className="text-left py-2 pr-3 font-medium">Est. Value</th>
-            <th className="text-left py-2 pr-3 font-medium">FY</th>
-            <th className="py-2 w-8" />
+            <th scope="col" className="text-left py-2 pr-3 font-medium">Date</th>
+            <th scope="col" className="text-left py-2 pr-3 font-medium">Qty</th>
+            <th scope="col" className="text-left py-2 pr-3 font-medium">Est. Value</th>
+            <th scope="col" className="text-left py-2 pr-3 font-medium">FY</th>
+            <th scope="col" className="py-2 w-8">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>

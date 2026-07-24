@@ -89,6 +89,7 @@ export default function ExpenseCategoriesSection({
                   <span className="text-sm text-foreground flex-1 truncate">{cat}</span>
                   <div className="flex items-center gap-1 shrink-0 -my-2.5">
                     <button
+                      id={`essential-category-${encodeURIComponent(cat)}`}
                       type="button"
                       title="Essential"
                       aria-label={`Mark ${cat} as essential`}
@@ -107,6 +108,7 @@ export default function ExpenseCategoriesSection({
                       </span>
                     </button>
                     <button
+                      id={`fixed-category-${encodeURIComponent(cat)}`}
                       type="button"
                       title="Fixed"
                       aria-label={`Mark ${cat} as a fixed monthly expense`}

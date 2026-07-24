@@ -135,10 +135,14 @@ export default function CategoryBreakdown({
           <motion.div
             key={cat.name}
             className="h-full transition-opacity hover:opacity-80 cursor-pointer"
-            style={{ backgroundColor: cat.color, width: `${cat.percent}%` }}
-            initial={{ width: 0 }}
-            animate={{ width: `${cat.percent}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
+            style={{
+              backgroundColor: cat.color,
+              width: `${cat.percent}%`,
+              transformOrigin: 'left',
+            }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={() => toggleExpand(cat.name)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(cat.name) } }}
             role="button"
@@ -161,7 +165,9 @@ export default function CategoryBreakdown({
               <button
                 type="button"
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group ${
+                disabled={!hasSubcategories}
+                aria-expanded={hasSubcategories ? isExpanded : undefined}
+                className={`min-h-11 w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group disabled:opacity-100 ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
                 } ${isExpanded ? 'bg-[var(--overlay-2)] border border-[var(--hairline-2)]' : 'bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)]'}`}
               >
@@ -223,10 +229,18 @@ export default function CategoryBreakdown({
                   <div className="flex-1 h-1.5 rounded-full bg-[var(--overlay-2)] overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
-                      style={{ backgroundColor: cat.color }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${cat.percent}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.03 }}
+                      style={{
+                        backgroundColor: cat.color,
+                        width: `${cat.percent}%`,
+                        transformOrigin: 'left',
+                      }}
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{
+                        duration: 0.18,
+                        ease: 'easeOut',
+                        delay: Math.min(i * 0.015, 0.1),
+                      }}
                     />
                   </div>
                   {cat.monthlyHistory.length >= 2 && (
@@ -235,7 +249,7 @@ export default function CategoryBreakdown({
                       data={cat.monthlyHistory}
                       color={cat.color}
                       ariaLabel={`${cat.name} trend over the last 12 months`}
-                      title={`${cat.name} — last 12 months (independent of the selected date range)`}
+                      title={`${cat.name} -- last 12 months (independent of the selected date range)`}
                     />
                   )}
                 </div>

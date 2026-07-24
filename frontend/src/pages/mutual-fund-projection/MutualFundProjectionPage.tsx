@@ -1,4 +1,6 @@
 import { InstrumentProjections } from '@/components/analytics'
+import PageErrorState from '@/components/shared/PageErrorState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import { ChartStatsFooter } from './components/ChartStatsFooter'
@@ -11,6 +13,18 @@ import { useMutualFundProjection } from './useMutualFundProjection'
 
 export default function MutualFundProjectionPage() {
   const m = useMutualFundProjection()
+
+  if (m.isLoading) return <PageSkeleton />
+
+  if (m.isError) {
+    return (
+      <PageErrorState
+        title="Projections"
+        subtitle="SIP returns and instrument maturity projections"
+        onRetry={m.retry}
+      />
+    )
+  }
 
   return (
     <PageContainer className="md:space-y-6">

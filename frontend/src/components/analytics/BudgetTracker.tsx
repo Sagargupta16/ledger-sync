@@ -6,6 +6,7 @@ import { Target, Plus, Trash2, AlertTriangle, CheckCircle, Edit2 } from 'lucide-
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { Button, Input } from '@/components/ui'
 
 import { computeBudgetStatus, getStatusColor, getProgressColor } from './budgetUtils'
 import AddBudgetForm from './components/AddBudgetForm'
@@ -109,13 +110,16 @@ export default function BudgetTracker() {
             </p>
           </div>
         </div>
-        <button
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+          icon={<Plus className="size-4" />}
+          className="bg-primary/20 text-primary hover:bg-primary/30"
         >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm">Add Budget</span>
-        </button>
+          Add Budget
+        </Button>
       </div>
 
       {/* Summary */}
@@ -180,7 +184,7 @@ export default function BudgetTracker() {
                 </div>
                 <div className="flex items-center gap-2">
                   {editingCategory === budget.category ? (
-                    <input
+                    <Input
                       type="number"
                       inputMode="decimal"
                       defaultValue={budget.limit}
@@ -190,26 +194,33 @@ export default function BudgetTracker() {
                           handleEditBudget(budget.category, Number.parseFloat((e.target as HTMLInputElement).value))
                         }
                       }}
-                      className="w-24 px-2 py-1 rounded bg-background/50 border border-border-strong text-sm"
+                      aria-label={`Budget limit for ${budget.category}`}
+                      className="w-24 px-2 py-1 text-sm sm:min-h-8"
                       autoFocus
                     />
                   ) : (
                     <>
                       <span className="font-bold">{formatPercent(budget.percentage)}</span>
-                      <button
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setEditingCategory(budget.category)}
                         aria-label={`Edit ${budget.category} budget`}
-                        className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded hover:bg-[var(--overlay-5)]"
+                        className="p-0"
                       >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button
+                        <Edit2 className="size-3" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => removeBudget(budget.category)}
                         aria-label={`Remove ${budget.category} budget`}
-                        className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded hover:bg-[var(--overlay-5)] text-app-red"
+                        className="p-0 text-app-red hover:bg-app-red/10 hover:text-app-red"
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                        <Trash2 className="size-3" aria-hidden="true" />
+                      </Button>
                     </>
                   )}
                 </div>
@@ -253,17 +264,20 @@ export default function BudgetTracker() {
               .filter((c) => currentMonthSpending[c] && currentMonthSpending[c] > 1000)
               .slice(0, 3)
               .map((cat) => (
-                <button
+                <Button
                   key={cat}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
                     // Suggest 120% of current spending as budget
                     const suggested = Math.ceil(currentMonthSpending[cat] * 1.2 / 1000) * 1000
                     setBudget(cat, suggested)
                   }}
-                  className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
+                  className="rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
                 >
                   + {cat} ({formatCurrency(currentMonthSpending[cat])})
-                </button>
+                </Button>
               ))}
           </div>
         </div>

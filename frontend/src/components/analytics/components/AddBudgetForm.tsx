@@ -1,3 +1,5 @@
+import { Button, Input, Select } from '@/components/ui'
+
 interface AddBudgetFormProps {
   categoriesWithoutBudget: string[]
   newCategory: string
@@ -20,41 +22,36 @@ export default function AddBudgetForm({
   return (
     <div className="mb-4 p-4 rounded-xl bg-background/50 border border-border">
       <h4 className="text-sm font-medium mb-3">Add New Budget</h4>
-      <div className="flex gap-3">
-        <select
-          value={newCategory}
-          onChange={(e) => onCategoryChange(e.target.value)}
-          className="flex-1 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
-        >
-          <option value="">Select category</option>
-          {categoriesWithoutBudget.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="any"
-          value={newLimit}
-          onChange={(e) => onLimitChange(e.target.value)}
-          placeholder="Budget limit"
-          aria-label="Budget limit"
-          className="w-32 px-3 py-2 rounded-lg bg-background/50 border border-border text-sm"
-        />
-        <button
-          onClick={onAdd}
-          disabled={!newCategory || !newLimit}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-        >
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="min-w-0 flex-1">
+          <Select
+            value={newCategory}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            options={[
+              { value: '', label: 'Select category' },
+              ...categoriesWithoutBudget.map((category) => ({ value: category, label: category })),
+            ]}
+            aria-label="Budget category"
+          />
+        </div>
+        <div className="sm:w-32">
+          <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            value={newLimit}
+            onChange={(e) => onLimitChange(e.target.value)}
+            placeholder="Budget limit"
+            aria-label="Budget limit"
+          />
+        </div>
+        <Button type="button" onClick={onAdd} disabled={!newCategory || !newLimit}>
           Add
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm"
-        >
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   )

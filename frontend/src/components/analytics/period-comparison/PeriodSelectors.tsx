@@ -1,11 +1,9 @@
 import { ArrowLeftRight, Calendar } from 'lucide-react'
 
+import { Select } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 
 import { formatMonthLabel, type CompareMode, type MonthData } from './periodMetrics'
-
-const SELECT_CLASS =
-  'px-3 py-2 rounded-xl bg-surface-3 border border-border text-sm text-foreground cursor-pointer hover:bg-surface-hover transition-colors backdrop-blur-xl'
 
 interface PeriodSelectorsProps {
   compareMode: CompareMode
@@ -46,7 +44,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
           role="tab"
           aria-selected={compareMode === 'months'}
           onClick={() => setCompareMode('months')}
-          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:min-h-9"
           style={{
             backgroundColor: compareMode === 'months' ? rawColors.app.blue : 'transparent',
             color: compareMode === 'months' ? rawColors.onAccent : rawColors.text.secondary,
@@ -59,7 +57,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
           role="tab"
           aria-selected={compareMode === 'years'}
           onClick={() => setCompareMode('years')}
-          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:min-h-9"
           style={{
             backgroundColor: compareMode === 'years' ? rawColors.app.blue : 'transparent',
             color: compareMode === 'years' ? rawColors.onAccent : rawColors.text.secondary,
@@ -76,59 +74,47 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
 
         {compareMode === 'months' ? (
           <>
-            <select
+            <Select
               value={effectiveMonth1 ?? ''}
               onChange={(e) => setSelectedMonth1(e.target.value)}
-              className={SELECT_CLASS}
+              options={availableMonths.map((month) => ({
+                value: month.month,
+                label: formatMonthLabel(month.month),
+              }))}
               aria-label="First month to compare"
-            >
-              {availableMonths.map((m) => (
-                <option key={m.month} value={m.month} className="bg-surface-dropdown">
-                  {formatMonthLabel(m.month)}
-                </option>
-              ))}
-            </select>
+            />
             <ArrowLeftRight className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />
-            <select
+            <Select
               value={effectiveMonth2 ?? ''}
               onChange={(e) => setSelectedMonth2(e.target.value)}
-              className={SELECT_CLASS}
+              options={availableMonths.map((month) => ({
+                value: month.month,
+                label: formatMonthLabel(month.month),
+              }))}
               aria-label="Second month to compare"
-            >
-              {availableMonths.map((m) => (
-                <option key={m.month} value={m.month} className="bg-surface-dropdown">
-                  {formatMonthLabel(m.month)}
-                </option>
-              ))}
-            </select>
+            />
           </>
         ) : (
           <>
-            <select
+            <Select
               value={effectiveYear1 ?? ''}
               onChange={(e) => setSelectedYear1(Number.parseInt(e.target.value))}
-              className={SELECT_CLASS}
+              options={availableYears.map((year) => ({
+                value: String(year),
+                label: String(year),
+              }))}
               aria-label="First year to compare"
-            >
-              {availableYears.map((year) => (
-                <option key={year} value={year} className="bg-surface-dropdown">
-                  {year}
-                </option>
-              ))}
-            </select>
+            />
             <ArrowLeftRight className="w-4 h-4" style={{ color: rawColors.text.tertiary }} />
-            <select
+            <Select
               value={effectiveYear2 ?? ''}
               onChange={(e) => setSelectedYear2(Number.parseInt(e.target.value))}
-              className={SELECT_CLASS}
+              options={availableYears.map((year) => ({
+                value: String(year),
+                label: String(year),
+              }))}
               aria-label="Second year to compare"
-            >
-              {availableYears.map((year) => (
-                <option key={year} value={year} className="bg-surface-dropdown">
-                  {year}
-                </option>
-              ))}
-            </select>
+            />
           </>
         )}
       </div>

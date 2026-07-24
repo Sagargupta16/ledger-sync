@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { useUpdateTransactionTags } from '@/hooks/api/useTags'
 import { useDismissable } from '@/hooks/useDismissable'
+import { Button, Input } from '@/components/ui'
 
 const MAX_TAGS = 10
 const MAX_TAG_LENGTH = 50
@@ -65,17 +66,19 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="md"
         onClick={() => (open ? setOpen(false) : handleOpen())}
-        className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors"
+        className="p-0 text-muted-foreground"
         title="Edit tags"
         aria-label="Edit tags"
         aria-haspopup="true"
         aria-expanded={open}
       >
         <Tag className="w-4 h-4" aria-hidden="true" />
-      </button>
+      </Button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 w-64 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
@@ -101,28 +104,31 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
 
           {/* Add new tag */}
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddNew()
-              }}
-              placeholder="New tag"
-              maxLength={MAX_TAG_LENGTH}
-              disabled={atCap}
-              className="w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors min-h-[44px] disabled:opacity-50"
-              aria-label="New tag name"
-            />
-            <button
+            <div className="min-w-0 flex-1">
+              <Input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddNew()
+                }}
+                placeholder="New tag"
+                maxLength={MAX_TAG_LENGTH}
+                disabled={atCap}
+                aria-label="New tag name"
+              />
+            </div>
+            <Button
               type="button"
+              variant="ghost"
+              size="md"
               onClick={handleAddNew}
               disabled={!newTag.trim() || atCap}
-              className="shrink-0 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 bg-primary/15 p-0 text-primary hover:bg-primary/25 hover:text-primary"
               aria-label="Add tag"
             >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-            </button>
+              <Plus className="size-4" aria-hidden="true" />
+            </Button>
           </div>
           {atCap && (
             <p className="text-xs text-muted-foreground">Maximum of {MAX_TAGS} tags per transaction</p>
@@ -130,21 +136,25 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
 
           {/* Apply / Cancel */}
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="md"
               onClick={() => setOpen(false)}
-              className="px-3 py-2 min-h-[44px] rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)] transition-colors"
+              className="px-3 text-muted-foreground"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
+              size="md"
               onClick={handleApply}
               disabled={updateTags.isPending}
-              className="px-4 py-2 min-h-[44px] rounded-lg bg-primary/15 text-primary text-sm font-medium hover:bg-primary/25 transition-colors disabled:opacity-50"
+              className="bg-primary/15 px-4 text-primary hover:bg-primary/25 hover:text-primary"
             >
               {updateTags.isPending ? 'Saving...' : 'Apply'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

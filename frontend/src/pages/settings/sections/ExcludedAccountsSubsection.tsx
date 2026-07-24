@@ -42,24 +42,32 @@ export default function ExcludedAccountsSubsection({
         <p className="text-sm text-muted-foreground">No accounts found.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {accounts.map((account) => {
-            const isExcluded = excludedAccounts.includes(account)
-            return (
-              <label
-                key={account}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--overlay-2)] transition-colors"
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleExcludedAccount(account)}
-                  className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
-                    isExcluded
-                      ? 'bg-app-yellow text-on-warning'
-                      : 'bg-[var(--overlay-2)] border border-border'
-                  }`}
-                >
-                  {isExcluded && <Check className="w-3 h-3" />}
-                </button>
+           {accounts.map((account) => {
+             const isExcluded = excludedAccounts.includes(account)
+             const controlId = `excluded-account-${encodeURIComponent(account)}`
+             return (
+               <label
+                 key={account}
+                 htmlFor={controlId}
+                 className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--overlay-2)]"
+               >
+                 <input
+                   id={controlId}
+                   type="checkbox"
+                   checked={isExcluded}
+                   onChange={() => toggleExcludedAccount(account)}
+                   className="sr-only"
+                 />
+                 <span
+                   aria-hidden="true"
+                   className={`flex size-4 shrink-0 items-center justify-center rounded transition-colors ${
+                     isExcluded
+                       ? 'bg-app-yellow text-on-warning'
+                       : 'bg-[var(--overlay-2)] border border-border'
+                   }`}
+                 >
+                   {isExcluded && <Check className="w-3 h-3" />}
+                 </span>
                 <span
                   className={`text-sm truncate ${
                     isExcluded ? 'text-muted-foreground line-through' : 'text-foreground'

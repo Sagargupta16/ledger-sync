@@ -9,8 +9,8 @@ export const staggerContainer: Variants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
+      staggerChildren: 0.025,
+      delayChildren: 0,
     },
   },
 }
@@ -20,18 +20,18 @@ export const staggerFast: Variants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.04,
-      delayChildren: 0.02,
+      staggerChildren: 0.015,
+      delayChildren: 0,
     },
   },
 }
 
 export const fadeUpItem: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 8 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: 'easeOut' },
+    transition: { duration: 0.18, ease: 'easeOut' },
   },
 }
 
@@ -40,7 +40,7 @@ export const slideInLeftItem: Variants = {
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.3, ease: 'easeOut' },
+    transition: { duration: 0.18, ease: 'easeOut' },
   },
 }
 
@@ -49,15 +49,16 @@ export const slideInLeftItem: Variants = {
 // ---------------------------------------------------------------------------
 
 export const FADE_UP = {
-  initial: { opacity: 0, y: 20 },
+  initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.18, ease: 'easeOut' },
 } as const
 
 export function fadeUpWithDelay(delay: number) {
   return {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
-    transition: { delay },
+    transition: { delay: Math.min(delay, 0.1), duration: 0.18, ease: 'easeOut' },
   } as const
 }
 
@@ -66,10 +67,10 @@ export function fadeUpWithDelay(delay: number) {
 // ---------------------------------------------------------------------------
 
 export const SCROLL_FADE_UP = {
-  initial: { opacity: 0, y: 40 },
+  initial: { opacity: 0, y: 8 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-50px' },
-  transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] },
+  viewport: { once: true, margin: '-20px' },
+  transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
 } as const
 
 // ---------------------------------------------------------------------------
@@ -94,26 +95,26 @@ export const HOVER_LIFT = {
 /** Whole-page content entrance: one quiet fade-up on navigation. Applied by
  * PageContainer so every page gets it without per-page wiring. */
 export const PAGE_ENTER = {
-  initial: { opacity: 0, y: 14 },
+  initial: { opacity: 0, y: 4 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  transition: { duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] as const },
 } as const
 
 /** PageHeader title block: slides in slightly ahead of the body. */
 export const HEADER_ENTER = {
-  initial: { opacity: 0, y: -10 },
+  initial: { opacity: 1, y: 0 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, ease: 'easeOut' as const },
+  transition: { duration: 0 },
 } as const
 
 /** Section reveal with a hint of scale (portfolio-react sectionRevealEnhanced). */
 export const sectionReveal: Variants = {
-  hidden: { opacity: 0, y: 32, scale: 0.99 },
+  hidden: { opacity: 0, y: 8, scale: 0.995 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
   },
 }
 
@@ -121,16 +122,16 @@ export const sectionReveal: Variants = {
 export const waveCascadeContainer: Variants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.04, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.015, delayChildren: 0 },
   },
 }
 
 export const waveCascadeItem: Variants = {
-  hidden: { opacity: 0, y: 24, scale: 0.9 },
+  hidden: { opacity: 0, y: 6, scale: 0.995 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.35, ease: 'easeOut' },
+    transition: { duration: 0.16, ease: 'easeOut' },
   },
 }

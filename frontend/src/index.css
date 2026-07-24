@@ -861,9 +861,53 @@ output {
   gap: 1px;
 }
 
+.ledger-flow-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ledger-flow-grid > * {
+  flex: 1 1 8.75rem;
+  min-width: min(100%, 8.75rem);
+}
+
+@media (min-width: 640px) {
+  .ledger-flow-grid > * {
+    flex-basis: 11rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ledger-flow-grid > * {
+    flex-basis: 13rem;
+  }
+}
+
 .ledger-cell {
   min-width: 0;
   background: var(--color-surface-1);
+}
+
+.quick-insight-card {
+  container-type: inline-size;
+}
+
+.insight-value {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@container (max-width: 165px) {
+  .quick-insight-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .insight-value {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
 }
 
 .ledger-ruler {

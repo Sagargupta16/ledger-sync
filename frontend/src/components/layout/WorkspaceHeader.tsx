@@ -1,4 +1,6 @@
 import { Landmark, Search, Sparkles } from 'lucide-react'
+
+import { Button } from '@/components/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import NotificationCenter from '@/components/shared/NotificationCenter'
@@ -45,10 +47,12 @@ export default function WorkspaceHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={openSearch}
-          className="hidden min-h-9 items-center gap-2 rounded-md border border-[var(--hairline-2)] bg-[var(--ledger-control-bg)] px-3 text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-[var(--ledger-control-bg-hover)] hover:text-foreground sm:inline-flex"
+          className="hidden px-3 text-xs text-muted-foreground hover:text-foreground sm:inline-flex"
           aria-label="Search workspace"
         >
           <Search className="size-3.5" />
@@ -56,18 +60,20 @@ export default function WorkspaceHeader({
           <kbd className="rounded border border-[var(--hairline-2)] bg-[var(--overlay-2)] px-1 py-0.5 text-[10px] font-medium text-text-tertiary">
             Ctrl K
           </kbd>
-        </button>
+        </Button>
 
         {accessToken && !isDemoMode && isAssistantReady && (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={openAssistant}
-            className="hidden min-h-9 items-center justify-center gap-2 rounded-md border border-[var(--hairline-2)] bg-[var(--ledger-control-bg)] px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[var(--ledger-control-bg-hover)] sm:inline-flex"
+            className="hidden px-3 text-xs sm:inline-flex"
             aria-label="Open AI Assistant"
           >
             <Sparkles className="size-3.5" />
             <span>Ask AI</span>
-          </button>
+          </Button>
         )}
 
         {!isDemoMode && <NotificationCenter />}

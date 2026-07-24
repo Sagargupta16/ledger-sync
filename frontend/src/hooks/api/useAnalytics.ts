@@ -4,7 +4,7 @@ import { calculationsApi } from '@/services/api/calculations'
 import type { TimeRange } from '@/types'
 
 // Data only changes on upload (which clears the cache and re-prefetches).
-// staleTime: Infinity means queries never auto-refetch — cache is only
+// staleTime: Infinity means queries never auto-refetch -- cache is only
 // cleared by explicit mutation (upload / settings save).
 const STABLE = { staleTime: Infinity, refetchOnWindowFocus: false } as const
 
@@ -101,7 +101,13 @@ export const useTotals = (params?: { start_date?: string; end_date?: string }) =
 export const useQuickInsights = (params?: { start_date?: string; end_date?: string }) => useQuery(quickInsightsOptions(params))
 /** Returns `{ minDate, maxDate }` for the analytics time-filter without fetching the ledger. */
 export const useDataDateRange = () => {
-  const { data } = useQuery(dataDateRangeOptions())
-  return { minDate: data?.min_date ?? undefined, maxDate: data?.max_date ?? undefined }
+  const query = useQuery(dataDateRangeOptions())
+  return {
+    minDate: query.data?.min_date ?? undefined,
+    maxDate: query.data?.max_date ?? undefined,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  }
 }
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())

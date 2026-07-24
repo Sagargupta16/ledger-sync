@@ -99,6 +99,7 @@ export default function CohortSpendingAnalysis() {
           ] as const).map(([key, label]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setView(key)}
               aria-pressed={view === key}
               className={`px-2.5 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}

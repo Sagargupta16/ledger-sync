@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle, Sparkles, Trash2 } from 'lucide-react'
 
+import ErrorState from '@/components/shared/ErrorState'
+import Button from '@/components/ui/Button'
 import {
   aiConfigService,
   type AIConfig,
@@ -23,7 +25,12 @@ interface Props {
 
 export default function AIAssistantSection({ index }: Readonly<Props>) {
   const queryClient = useQueryClient()
-  const { data: config, isLoading } = useQuery<AIConfig>({
+  const {
+    data: config,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<AIConfig>({
     queryKey: ['ai-config'],
     queryFn: () => aiConfigService.getConfig(),
     staleTime: Infinity,
@@ -203,6 +210,23 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const canSave = provider && model && (isBedrock(provider) || apiKey)
 
   if (isLoading) return null
+  if (isError) {
+    return (
+      <Section
+        index={index}
+        icon={Sparkles}
+        title="AI Assistant"
+        description="Chat with your financial data"
+      >
+        <ErrorState
+          variant="compact"
+          title="Could not load AI settings"
+          message="Your saved AI configuration is unavailable."
+          onRetry={() => void refetch()}
+        />
+      </Section>
+    )
+  }
 
   const mode: AIMode = config?.mode ?? 'app_bedrock'
   const isByok = mode === 'byok'
@@ -256,32 +280,38 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             {provider && (
               <div className="flex items-center gap-3 pt-2">
                 {!isBedrock(provider) && (
-                  <button
+                  <Button
+                    id="test-ai-connection"
                     type="button"
+                    variant="secondary"
                     onClick={handleTest}
                     disabled={!apiKey || testStatus === 'testing'}
-                    className="px-4 py-2 text-sm bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors disabled:opacity-40"
+                    isLoading={testStatus === 'testing'}
                   >
                     {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  id="save-ai-configuration"
                   type="button"
                   onClick={handleSave}
                   disabled={!canSave || saveMutation.isPending}
-                  className="rounded-md border border-foreground bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-40"
+                  isLoading={saveMutation.isPending}
                 >
                   {saveMutation.isPending ? 'Saving...' : 'Save'}
-                </button>
+                </Button>
                 {config?.has_key && (
-                  <button
+                  <Button
+                    id="remove-ai-configuration"
                     type="button"
+                    variant="ghost"
                     onClick={() => deleteMutation.mutate()}
-                    className="px-4 py-2 text-sm text-app-red hover:bg-app-red/10 rounded-lg transition-colors flex items-center gap-1.5"
+                    isLoading={deleteMutation.isPending}
+                    className="text-app-red hover:bg-app-red/10 hover:text-app-red"
+                    icon={<Trash2 className="w-3.5 h-3.5" />}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
                     Remove
-                  </button>
+                  </Button>
                 )}
               </div>
             )}

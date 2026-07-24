@@ -1,5 +1,6 @@
 import { AlertCircle, RefreshCw, WifiOff, ServerCrash } from 'lucide-react'
-import { motion } from 'framer-motion'
+
+import Button from '@/components/ui/Button'
 
 interface ErrorStateProps {
   readonly title?: string
@@ -45,30 +46,33 @@ export default function ErrorState({
   // Inline variant - minimal horizontal layout
   if (isInline) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <div
+        role="alert"
+        aria-live="polite"
         className="flex items-center gap-3 rounded-lg border border-error/20 bg-error/10 px-4 py-3 shadow-[var(--ledger-control-shadow)]"
       >
         <AlertCircle className="w-5 h-5 text-error shrink-0" />
         <p className="text-sm text-error flex-1">{displayMessage}</p>
         {onRetry && (
-          <button
+          <Button
+            type="button"
             onClick={onRetry}
-            className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-error transition-colors duration-150 hover:bg-error/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-error hover:bg-error/10 hover:text-error"
             aria-label="Retry"
           >
             Retry
-          </button>
+          </Button>
         )}
-      </motion.div>
+      </div>
     )
   }
 
   const content = (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
+      role="alert"
+      aria-live="polite"
       className={`flex flex-col items-center justify-center text-center ${
         isCompact ? 'py-6 px-4' : 'py-10 px-6'
       }`}
@@ -102,18 +106,21 @@ export default function ErrorState({
 
       {/* Retry Button */}
       {onRetry && (
-        <button
+        <Button
+          type="button"
           onClick={onRetry}
+          variant="outline"
+          size={isCompact ? 'sm' : 'md'}
+          icon={<RefreshCw className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} />}
           className={`mt-4 inline-flex items-center gap-2 rounded-lg border border-error/20 bg-error/10 px-4 py-2 font-medium text-error transition-colors duration-150 hover:bg-error/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-error/40 ${
             isCompact ? 'text-xs' : 'text-sm'
           }`}
           aria-label="Retry loading"
         >
-          <RefreshCw className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} />
           Try Again
-        </button>
+        </Button>
       )}
-    </motion.div>
+    </div>
   )
 
   if (isCard) {

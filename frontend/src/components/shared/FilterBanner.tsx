@@ -1,5 +1,6 @@
 import { Filter, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Button } from '@/components/ui'
 
 interface FilterBannerProps {
   /** The active filter value, or ``null`` when no filter applied. */
@@ -34,15 +35,17 @@ export function FilterBanner({ value, label = 'Category', onClear }: FilterBanne
             <span className="text-text-tertiary">{label}:</span>{' '}
             <span className="font-medium">{value}</span>
           </p>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onClear}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-app-blue hover:bg-app-blue/15 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40"
+            className="gap-1 px-2 text-xs text-app-blue hover:bg-app-blue/15 hover:text-app-blue"
             aria-label="Clear filter"
           >
             <X className="w-3 h-3" aria-hidden />
             Clear
-          </button>
+          </Button>
         </motion.div>
       )}
     </AnimatePresence>

@@ -42,6 +42,7 @@ export function SliderInput({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        aria-valuetext={`${prefix ?? ''}${value.toLocaleString('en-IN')}${suffix ?? ''}`}
         className="touch-slider"
       />
     </div>

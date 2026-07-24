@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileSpreadsheet, X } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
 interface DropZoneProps {
@@ -74,14 +75,17 @@ function FileSelectedView({ selectedFile, compact, isUploading, onClear }: Reado
       )}>
         <FileSpreadsheet className={cn('text-muted-foreground', compact ? 'w-4 h-4' : 'w-5 h-5')} />
         <span className={cn('font-medium truncate', compact ? 'text-xs max-w-[120px]' : '')}>{selectedFile.name}</span>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={onClear}
           aria-label="Remove selected file"
-          className="ml-auto p-1 hover:bg-destructive/20 rounded-full transition-colors"
+          className="ml-auto shrink-0 rounded-full p-0 text-destructive hover:bg-destructive/20 hover:text-destructive sm:min-h-8 sm:min-w-8"
           disabled={isUploading}
         >
-          <X className={cn('text-destructive', compact ? 'w-3 h-3' : 'w-4 h-4')} />
-        </button>
+          <X className={cn(compact ? 'size-3' : 'size-4')} aria-hidden="true" />
+        </Button>
       </div>
       {!compact && (
         <p className="text-sm text-text-tertiary">
@@ -175,7 +179,7 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
           compact ? 'p-4' : 'p-12 rounded-2xl'
         )}
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps({ 'aria-label': 'Upload transaction file' })} />
 
         <div className={cn('flex items-center gap-3', !compact && 'flex-col gap-4')}>
           <IconBubble selectedFile={selectedFile} isDragActive={isDragActive} compact={compact} />

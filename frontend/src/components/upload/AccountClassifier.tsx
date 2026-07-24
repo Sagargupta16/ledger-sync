@@ -6,10 +6,30 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountStore } from '@/store/accountStore'
 import type { AccountType } from '@/types'
 
-const CLASSIFIER_TYPES: Array<{ type: AccountType; activeColor: string; hoverColor: string; label: string }> = [
-  { type: 'investment', activeColor: 'bg-app-purple border-app-purple', hoverColor: 'border-border-strong hover:border-app-purple', label: 'Investment' },
-  { type: 'deposit', activeColor: 'bg-app-blue border-app-blue', hoverColor: 'border-border-strong hover:border-app-blue', label: 'Deposit' },
-  { type: 'loan', activeColor: 'bg-app-red border-app-red', hoverColor: 'border-border-strong hover:border-app-red', label: 'Loan' },
+const CLASSIFIER_TYPES: Array<{
+  type: AccountType
+  activeColor: string
+  hoverColor: string
+  label: string
+}> = [
+  {
+    type: 'investment',
+    activeColor: 'bg-app-purple border-app-purple',
+    hoverColor: 'border-border-strong hover:border-app-purple',
+    label: 'Investment',
+  },
+  {
+    type: 'deposit',
+    activeColor: 'bg-app-blue border-app-blue',
+    hoverColor: 'border-border-strong hover:border-app-blue',
+    label: 'Deposit',
+  },
+  {
+    type: 'loan',
+    activeColor: 'bg-app-red border-app-red',
+    hoverColor: 'border-border-strong hover:border-app-red',
+    label: 'Loan',
+  },
 ]
 
 export default function AccountClassifier() {
@@ -31,8 +51,16 @@ export default function AccountClassifier() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div
+        className="flex justify-center p-8"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading account classifications"
+      >
+        <div
+          className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+          aria-hidden
+        />
       </div>
     )
   }
@@ -47,50 +75,87 @@ export default function AccountClassifier() {
       className="space-y-4 pt-8 border-t border-border"
     >
       <div className="flex items-center gap-2 mb-4">
-        <Settings2 className="w-5 h-5 text-primary" />
+        <Settings2 className="w-5 h-5 text-primary" aria-hidden />
         <h3 className="text-lg font-semibold">Account Configuration</h3>
       </div>
 
       <div className="bg-[var(--overlay-2)] backdrop-blur-sm rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left" aria-label="Account classification matrix">
-          <thead>
-            <tr className="bg-[var(--overlay-2)] border-b border-border">
-              <th className="p-4 font-medium">Account Name</th>
-              {CLASSIFIER_TYPES.map(({ type, label }) => (
-                <th key={type} className="p-4 font-medium text-center w-32">{label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--hairline-1)]">
-            {accounts.map((account) => {
-              const types = accountTypes[account] || []
-              return (
-                <tr key={account} className="hover:bg-[var(--overlay-5)] transition-colors">
-                  <td className="p-4 font-medium">{account}</td>
-                  {CLASSIFIER_TYPES.map(({ type, activeColor, hoverColor }) => (
-                    <td key={type} className="p-4 text-center">
-                      <button
-                        onClick={() => handleToggle(account, type)}
-                        aria-label={`${account} ${type}`}
-                        aria-pressed={types.includes(type)}
-                        className={`w-5 h-5 rounded border transition-colors flex items-center justify-center mx-auto ${
-                          types.includes(type) ? activeColor : hoverColor
-                        }`}
-                      >
-                        {types.includes(type) && <Check className="w-3 h-3 text-foreground" />}
-                      </button>
-                    </td>
-                  ))}
-                </tr>
-              )
-            })}
-          </tbody>
+        <div
+          className="overflow-x-auto"
+          role="region"
+          aria-label="Account classification matrix"
+          tabIndex={0}
+        >
+          <table
+            className="w-full min-w-[30rem] text-left"
+            aria-describedby="account-classification-help"
+          >
+            <caption className="sr-only">
+              Account classification matrix. Toggle whether each account is an investment,
+              deposit, or loan.
+            </caption>
+            <thead>
+              <tr className="bg-[var(--overlay-2)] border-b border-border">
+                <th
+                  scope="col"
+                  className="sticky left-0 z-20 bg-surface-dropdown p-4 font-medium"
+                >
+                  Account Name
+                </th>
+                {CLASSIFIER_TYPES.map(({ type, label }) => (
+                  <th
+                    key={type}
+                    scope="col"
+                    className="w-28 p-4 text-center font-medium"
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--hairline-1)]">
+              {accounts.map((account) => {
+                const types = accountTypes[account] || []
+                return (
+                  <tr key={account} className="hover:bg-[var(--overlay-5)] transition-colors">
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 max-w-52 break-words bg-surface-dropdown p-4 text-left font-medium"
+                    >
+                      {account}
+                    </th>
+                    {CLASSIFIER_TYPES.map(({ type, activeColor, hoverColor, label }) => {
+                      const isSelected = types.includes(type)
+                      return (
+                        <td key={type} className="p-2 text-center sm:p-4">
+                          <button
+                            type="button"
+                            onClick={() => handleToggle(account, type)}
+                            aria-label={`${isSelected ? 'Remove' : 'Set'} ${label.toLowerCase()} classification for ${account}`}
+                            aria-pressed={isSelected}
+                            className={`mx-auto flex size-11 items-center justify-center rounded-md border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
+                              isSelected ? activeColor : hoverColor
+                            }`}
+                          >
+                            {isSelected && (
+                              <Check className="size-4 text-foreground" aria-hidden />
+                            )}
+                          </button>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
           </table>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground flex items-center gap-2">
-        <Info className="w-4 h-4" />
+      <p
+        id="account-classification-help"
+        className="text-sm text-muted-foreground flex items-center gap-2"
+      >
+        <Info className="w-4 h-4 shrink-0" aria-hidden />
         Classify your accounts to enable advanced analytics in Investment and Net Worth pages.
       </p>
     </motion.div>

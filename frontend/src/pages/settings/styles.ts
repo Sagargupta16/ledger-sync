@@ -7,12 +7,16 @@ export const sectionVariants = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.06, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as const },
+    transition: {
+      delay: Math.min(i * 0.015, 0.1),
+      duration: 0.18,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
   }),
 }
 
 export const inputClass =
-  'min-h-11 w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors sm:min-h-10'
+  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none sm:min-h-10'
 
 export const selectClass =
-  'min-h-11 w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors sm:min-h-10'
+  'ledger-control min-h-11 w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors focus:border-primary focus:outline-none sm:min-h-10'

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Button, Input, Select } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import type { TagFacet } from '@/services/api/transactions'
@@ -32,8 +33,6 @@ export interface FilterValues {
 }
 
 const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
-const FILTER_CONTROL_CLASSES =
-  'ledger-control min-h-11 w-full rounded-md border border-[var(--hairline-2)] px-3 py-2 text-foreground transition-colors duration-150 focus:outline-none'
 
 export default function TransactionFilters({
   onFilterChange,
@@ -104,23 +103,26 @@ export default function TransactionFilters({
       {/* Search Bar */}
       <div className="ledger-panel p-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[12rem]">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary" aria-hidden="true" />
-            <input
+          <div className="min-w-[12rem] flex-1">
+            <Input
               type="text"
               placeholder="Search transactions by note, category, or account..."
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
-              className="ledger-control min-h-11 w-full rounded-md border pl-9 pr-3 text-foreground placeholder:text-text-quaternary focus:outline-none lg:min-h-10"
+              icon={<Search className="size-4" />}
+              className="lg:min-h-10"
               aria-label="Search transactions"
             />
           </div>
           {savedViewsSlot}
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="md"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex min-h-11 items-center gap-2 rounded-md border border-transparent px-3 py-2 transition-colors duration-150 lg:min-h-10 ${showAdvanced
+            className={`px-3 lg:min-h-10 ${showAdvanced
                 ? 'bg-[var(--overlay-4)] text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)]'
+                : 'text-muted-foreground'
               }`}
             aria-expanded={showAdvanced}
             aria-controls="advanced-filters"
@@ -136,16 +138,19 @@ export default function TransactionFilters({
                 {advancedFilterCount}
               </span>
             )}
-          </button>
+          </Button>
           {hasActiveFilters && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
               onClick={clearFilters}
-              className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-app-red transition-colors duration-150 hover:bg-app-red/10 lg:min-h-10"
+              className="px-3 text-app-red hover:bg-app-red/10 hover:text-app-red lg:min-h-10"
               aria-label="Clear all filters"
             >
               <X className="w-4 h-4" aria-hidden="true" />
               <span className="text-sm font-medium">Clear</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -171,75 +176,62 @@ export default function TransactionFilters({
               {/* Type Filter */}
               <div className="space-y-2">
                 <label htmlFor="filter-type" className="text-sm font-medium text-muted-foreground">Type</label>
-                <select
+                <Select
                   id="filter-type"
                   value={filters.type || ''}
                   onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
+                  options={[
+                    { value: '', label: 'All Types' },
+                    ...TRANSACTION_TYPES.map((type) => ({ value: type, label: type })),
+                  ]}
                   aria-label="Filter by transaction type"
-                >
-                  <option value="" className="bg-background text-foreground">All Types</option>
-                  {TRANSACTION_TYPES.map((type) => (
-                    <option key={type} value={type} className="bg-background text-foreground">
-                      {type}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               {/* Category Filter */}
               <div className="space-y-2">
                 <label htmlFor="filter-category" className="text-sm font-medium text-muted-foreground">Category</label>
-                <select
+                <Select
                   id="filter-category"
                   value={filters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
-                >
-                  <option value="" className="bg-background text-foreground">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category} className="bg-background text-foreground">
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'All Categories' },
+                    ...categories.map((category) => ({ value: category, label: category })),
+                  ]}
+                />
               </div>
 
               {/* Account Filter */}
               <div className="space-y-2">
                 <label htmlFor="filter-account" className="text-sm font-medium text-muted-foreground">Account</label>
-                <select
+                <Select
                   id="filter-account"
                   value={filters.account || ''}
                   onChange={(e) => handleFilterChange('account', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
-                >
-                  <option value="" className="bg-background text-foreground">All Accounts</option>
-                  {accounts.map((account) => (
-                    <option key={account} value={account} className="bg-background text-foreground">
-                      {account}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'All Accounts' },
+                    ...accounts.map((account) => ({ value: account, label: account })),
+                  ]}
+                />
               </div>
 
               {/* Tag Filter */}
               <div className="space-y-2">
                 <label htmlFor="filter-tag" className="text-sm font-medium text-muted-foreground">Tag</label>
-                <select
+                <Select
                   id="filter-tag"
                   value={filters.tag || ''}
                   onChange={(e) => handleFilterChange('tag', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
+                  options={[
+                    { value: '', label: 'All tags' },
+                    ...tagOptions.map((tag) => ({
+                      value: tag.name,
+                      label: `${tag.name} (${tag.count})`,
+                    })),
+                  ]}
                   aria-label="Filter by tag"
-                >
-                  <option value="" className="bg-background text-foreground">All tags</option>
-                  {tagOptions.map((tag) => (
-                    <option key={tag.name} value={tag.name} className="bg-background text-foreground">
-                      {tag.name} ({tag.count})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               {/* Start Date */}
@@ -248,12 +240,11 @@ export default function TransactionFilters({
                   <Calendar className="w-3 h-3" />
                   Start Date
                 </label>
-                <input
+                <Input
                   id="filter-start-date"
                   type="date"
                   value={filters.start_date || ''}
                   onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
@@ -263,40 +254,37 @@ export default function TransactionFilters({
                   <Calendar className="w-3 h-3" />
                   End Date
                 </label>
-                <input
+                <Input
                   id="filter-end-date"
                   type="date"
                   value={filters.end_date || ''}
                   onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
               {/* Min Amount */}
               <div className="space-y-2">
                 <label htmlFor="filter-min-amount" className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
-                <input
+                <Input
                   id="filter-min-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={filters.min_amount || ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
 
               {/* Max Amount */}
               <div className="space-y-2">
                 <label htmlFor="filter-max-amount" className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
-                <input
+                <Input
                   id="filter-max-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="∞"
                   value={filters.max_amount || ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}
-                  className={FILTER_CONTROL_CLASSES}
                 />
               </div>
             </div>

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 
 import {
   buildMilestoneRows,
@@ -20,14 +20,22 @@ import {
 } from './netWorthUtils'
 
 export function useNetWorth() {
-  const { data: balanceData, isLoading: balancesLoading, isError: balancesError } =
-    useAccountBalances()
-  const { data: transactions = [], isLoading: transactionsLoading, isError: transactionsError } =
-    useTransactions()
-  const { data: preferences } = usePreferences()
+  const balancesQuery = useAccountBalances()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const classificationsQuery = useAccountClassifications()
+  const balanceData = balancesQuery.data
+  const transactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  )
+  const preferences = preferencesQuery.data
+  const classifications = useMemo(
+    () => classificationsQuery.data ?? {},
+    [classificationsQuery.data],
+  )
   const [showStacked, setShowStacked] = useState(false)
   const [showProjection, setShowProjection] = useState(false)
-  const [classifications, setClassifications] = useState<Record<string, string>>({})
   const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set())
   const [expandedLiabilityCategories, setExpandedLiabilityCategories] = useState<Set<string>>(
     new Set(),
@@ -37,20 +45,22 @@ export function useNetWorth() {
     defaultViewMode: 'all_time',
   })
 
-  useEffect(() => {
-    const loadClassifications = async () => {
-      try {
-        const data = await accountClassificationsService.getAllClassifications()
-        setClassifications(data)
-      } catch {
-        /* defaults if loading fails */
-      }
-    }
-    loadClassifications()
-  }, [])
-
-  const isLoading = balancesLoading || transactionsLoading
-  const isError = balancesError || transactionsError
+  const isLoading =
+    balancesQuery.isLoading ||
+    transactionsQuery.isLoading ||
+    preferencesQuery.isLoading ||
+    classificationsQuery.isLoading
+  const isError =
+    balancesQuery.isError ||
+    transactionsQuery.isError ||
+    preferencesQuery.isError ||
+    classificationsQuery.isError
+  const retry = () => {
+    void balancesQuery.refetch()
+    void transactionsQuery.refetch()
+    void preferencesQuery.refetch()
+    void classificationsQuery.refetch()
+  }
 
   const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
   const totalAssets = Object.values(accounts)
@@ -258,6 +268,7 @@ export function useNetWorth() {
   return {
     isLoading,
     isError,
+    retry,
     accounts,
     totalAssets,
     totalLiabilities,

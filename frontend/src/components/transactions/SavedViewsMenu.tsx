@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { useSavedViews, useSaveView, useDeleteView } from '@/hooks/api/useSavedViews'
 import { useDismissable } from '@/hooks/useDismissable'
+import { Button, Input } from '@/components/ui'
 
 import type { FilterValues } from './TransactionFilters'
 
@@ -53,12 +54,14 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
 
   return (
     <div ref={ref} className="relative">
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="md"
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg border border-border bg-[var(--overlay-2)] transition-colors duration-150 ${open
+        className={`px-4 ${open
             ? 'text-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-3)]'
+            : 'text-muted-foreground hover:text-foreground'
           }`}
         aria-haspopup="true"
         aria-expanded={open}
@@ -66,7 +69,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
       >
         <Bookmark className="w-4 h-4" aria-hidden="true" />
         <span className="text-sm font-medium hidden sm:inline">Views</span>
-      </button>
+      </Button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-72 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
@@ -75,25 +78,29 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
             <ul className="space-y-1 max-h-56 overflow-y-auto">
               {views.map((view) => (
                 <li key={view.id} className="flex items-center gap-1">
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="md"
                     onClick={() => {
                       onApply(view.filters as FilterValues)
                       setOpen(false)
                     }}
-                    className="flex-1 min-h-[44px] px-3 py-2 text-left text-sm text-foreground rounded-lg hover:bg-[var(--overlay-3)] transition-colors truncate"
+                    className="min-w-0 flex-1 justify-start truncate px-3 text-sm"
                     title={view.name}
                   >
                     {view.name}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="md"
                     onClick={() => handleDelete(view.id)}
-                    className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-app-red hover:bg-app-red/10 transition-colors"
+                    className="shrink-0 p-0 text-app-red hover:bg-app-red/10 hover:text-app-red"
                     aria-label={`Delete view ${view.name}`}
                   >
-                    <Trash2 className="w-4 h-4" aria-hidden="true" />
-                  </button>
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -105,26 +112,29 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
 
           {/* Save current view */}
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSave()
-              }}
-              placeholder="View name"
-              maxLength={100}
-              className="w-full px-3 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm focus:border-primary focus:outline-none transition-colors min-h-[44px]"
-              aria-label="Name for saved view"
-            />
-            <button
+            <div className="min-w-0 flex-1">
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSave()
+                }}
+                placeholder="View name"
+                maxLength={100}
+                aria-label="Name for saved view"
+              />
+            </div>
+            <Button
               type="button"
+              variant="ghost"
+              size="md"
               onClick={handleSave}
               disabled={!name.trim() || saveView.isPending}
-              className="shrink-0 px-3 py-2 min-h-[44px] rounded-lg bg-primary/15 text-primary text-sm font-medium hover:bg-primary/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 bg-primary/15 px-3 text-primary hover:bg-primary/25 hover:text-primary"
             >
               {saveView.isPending ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

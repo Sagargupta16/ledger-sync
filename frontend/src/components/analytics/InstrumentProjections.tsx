@@ -191,7 +191,9 @@ export default function InstrumentProjections() {
           {TABS.map(({ key, label }) => (
             <button
               key={key}
+              type="button"
               onClick={() => setTab(key)}
+              aria-pressed={tab === key}
               className={`min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-8 ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}

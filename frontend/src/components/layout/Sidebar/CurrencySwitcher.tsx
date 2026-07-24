@@ -65,7 +65,7 @@ export default function CurrencySwitcher() {
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors',
+          'ledger-control flex min-h-11 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors lg:min-h-8',
           isConverted
             ? 'bg-app-blue/15 text-app-blue hover:bg-app-blue/25'
             : 'text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)]',
@@ -104,7 +104,7 @@ export default function CurrencySwitcher() {
               aria-selected={meta.code === displayCurrency}
               onClick={() => handleSelect(meta)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
+                'flex min-h-11 w-full items-center gap-3 px-3 py-2 text-sm transition-colors',
                 meta.code === displayCurrency
                   ? 'bg-app-blue/15 text-foreground'
                   : 'text-muted-foreground hover:bg-[var(--overlay-3)] hover:text-foreground',

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { type LucideIcon, FileQuestion, Settings, Upload, TrendingUp, PiggyBank } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { Button } from '@/components/ui'
 
 interface EmptyStateProps {
   readonly icon?: LucideIcon
@@ -53,9 +54,9 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   }
 
   return (
-    <button onClick={onAction} className={baseClass}>
+    <Button type="button" onClick={onAction} className={baseClass}>
       {actionLabel}
-    </button>
+    </Button>
   )
 }
 

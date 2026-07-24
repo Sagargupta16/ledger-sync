@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import {
@@ -122,18 +123,21 @@ export default function NotificationCenter() {
   return (
     <div className="relative">
       {/* Bell button */}
-      <button
+      <Button
         ref={buttonRef}
+        type="button"
+        variant="ghost"
+        size="sm"
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
-          'relative flex size-11 items-center justify-center rounded-md border border-transparent transition-colors duration-150 ease-out sm:size-9',
-          'text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)]',
+          'relative size-11 p-0 text-text-tertiary sm:size-9 sm:min-h-9 sm:min-w-9',
           isOpen && 'bg-[var(--overlay-4)] text-foreground',
         )}
         title="Notifications"
         aria-label={`Notifications${unreadSuffix}`}
+        aria-expanded={isOpen}
       >
-        <Bell size={18} />
+        <Bell size={18} aria-hidden="true" />
         {totalCount > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-app-red px-0.5 text-[9px] font-bold text-on-accent"
@@ -141,7 +145,7 @@ export default function NotificationCenter() {
             {totalCount > 9 ? '9+' : totalCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Dropdown panel */}
       <AnimatePresence>
@@ -173,20 +177,26 @@ export default function NotificationCenter() {
               </div>
               <div className="flex items-center gap-1">
                 {totalCount > 0 && (
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={handleDismissAll}
-                    className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-[var(--overlay-5)] transition-colors"
+                    className="px-2 text-[11px] text-muted-foreground"
                   >
                     Clear all
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="inline-flex items-center justify-center min-w-6 min-h-6 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
+                  className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
                   aria-label="Close notifications"
                 >
-                  <X size={14} />
-                </button>
+                  <X size={14} aria-hidden="true" />
+                </Button>
               </div>
             </div>
 
@@ -252,16 +262,19 @@ export default function NotificationCenter() {
                                 {relativeTime(item.timestamp)}
                               </p>
                             </div>
-                            <button
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleDismiss(item.id)
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)] transition-all flex-shrink-0"
+                              className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:size-8 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                               aria-label={`Dismiss: ${item.message}`}
                             >
-                              <X size={12} />
-                            </button>
+                              <X size={12} aria-hidden="true" />
+                            </Button>
                           </div>
                         </motion.div>
                       ))}

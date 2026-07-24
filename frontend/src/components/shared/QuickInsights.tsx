@@ -1,18 +1,17 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
 import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
   Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
   Clock, Layers, DollarSign, Hourglass, ShieldCheck, Lock, Percent,
-  Repeat, Scale, CalendarRange,
+  Repeat, Scale, CalendarRange, ChevronDown,
 } from 'lucide-react'
 
 import { useCategoryBreakdown, useTotals, useQuickInsights } from '@/hooks/api/useAnalytics'
-import { waveCascadeContainer, waveCascadeItem } from '@/constants/animations'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { formatCurrency } from '@/lib/formatters'
 
+import ErrorState from './ErrorState'
 import LoadingSkeleton from './LoadingSkeleton'
 import {
   type CategoryData,
@@ -47,19 +46,22 @@ function InsightCard({ item }: Readonly<{ item: InsightDescriptor }>) {
   // Format-preserving count-up; settles on the exact formatted string.
   const animatedValue = useAnimatedValue(item.value)
   return (
-    <motion.div
-      variants={waveCascadeItem}
-      className="ledger-cell flex min-h-20 items-center gap-3 p-3 transition-colors duration-150 hover:bg-[var(--overlay-1)]"
-    >
+    <div className="quick-insight-card ledger-cell flex min-h-20 items-center gap-3 p-3 transition-colors duration-150 hover:bg-[var(--overlay-1)]">
       <div className={`flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
         <item.icon className={`size-3.5 ${item.color}`} />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="truncate text-[11px] text-muted-foreground">{item.title}</p>
-        <p className="ledger-figure truncate text-xs font-semibold text-foreground sm:text-sm tabular-nums" title={item.value}>{animatedValue}</p>
-        {item.subtitle && <p className="text-[11px] text-text-tertiary truncate" title={item.subtitle}>{item.subtitle}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] leading-4 text-muted-foreground">{item.title}</p>
+        <p className="insight-value ledger-figure whitespace-nowrap font-semibold text-foreground tabular-nums" title={item.value}>
+          {animatedValue}
+        </p>
+        {item.subtitle && (
+          <p className="break-words text-[11px] leading-4 text-text-tertiary" title={item.subtitle}>
+            {item.subtitle}
+          </p>
+        )}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -73,14 +75,25 @@ export default function QuickInsights({
   fixedCount = 0,
   momChanges,
 }: QuickInsightsProps) {
-  const { data: categoryData, isLoading: categoryLoading } = useCategoryBreakdown({
+  const categoryQuery = useCategoryBreakdown({
     transaction_type: 'expense',
     ...dateRange,
   })
-  const { data: insights, isLoading: insightsLoading } = useQuickInsights(dateRange)
-  const { data: totalsData, isLoading: totalsLoading } = useTotals(dateRange)
+  const insightsQuery = useQuickInsights(dateRange)
+  const totalsQuery = useTotals(dateRange)
+  const categoryData = categoryQuery.data
+  const insights = insightsQuery.data
+  const totalsData = totalsQuery.data
 
-  const isLoading = categoryLoading || insightsLoading || totalsLoading
+  const isLoading = categoryQuery.isLoading || insightsQuery.isLoading || totalsQuery.isLoading
+  const isError = categoryQuery.isError || insightsQuery.isError || totalsQuery.isError
+  const retry = () => {
+    void Promise.all([
+      categoryQuery.refetch(),
+      insightsQuery.refetch(),
+      totalsQuery.refetch(),
+    ])
+  }
 
   const categories = categoryData?.categories || {}
 
@@ -208,44 +221,55 @@ export default function QuickInsights({
 
   // Filter by user widget prefs
   const visibleKeys = useMemo(() => getVisibleWidgetKeys(), [])
+  const visibleQuickInsights = filterByVisibility(quickInsights, visibleKeys)
+  const visibleFunFacts = filterByVisibility(funFacts, visibleKeys)
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="ledger-band ledger-flow-grid">
           {Array.from({ length: 7 }, (_, i) => <LoadingSkeleton key={`s-${i}`} className="h-16 w-full" />)}
         </div>
-        <div className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="ledger-band ledger-flow-grid">
           {Array.from({ length: 8 }, (_, i) => <LoadingSkeleton key={`f-${i}`} className="h-16 w-full" />)}
         </div>
       </div>
     )
   }
 
+  if (isError) {
+    return (
+      <ErrorState
+        title="Insights unavailable"
+        message="We could not load the selected period's insights. No values have been replaced with zero."
+        onRetry={retry}
+        errorType="network"
+        variant="inline"
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
-      {/* Quick Insights: tiles cascade in as a wave, values count up. */}
-      <motion.div
-        className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-        variants={waveCascadeContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {filterByVisibility(quickInsights, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-      </motion.div>
-
-      {/* Fun Facts */}
-      <div>
-        <h3 className="mb-2 text-xs font-medium text-muted-foreground">Behavior signals</h3>
-        <motion.div
-          className="ledger-band grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-          variants={waveCascadeContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          {filterByVisibility(funFacts, visibleKeys).map((item) => <InsightCard key={item.title} item={item} />)}
-        </motion.div>
+      <div className="ledger-band ledger-flow-grid">
+        {visibleQuickInsights.map((item) => <InsightCard key={item.title} item={item} />)}
       </div>
+
+      <details className="group">
+        <summary className="ledger-control flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md border px-3 py-2 text-sm font-medium text-foreground">
+          <span className="flex-1">Behavior signals</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {visibleFunFacts.length} metrics
+          </span>
+          <ChevronDown
+            className="size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="ledger-band ledger-flow-grid mt-2">
+          {visibleFunFacts.map((item) => <InsightCard key={item.title} item={item} />)}
+        </div>
+      </details>
     </div>
   )
 }

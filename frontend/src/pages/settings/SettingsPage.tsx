@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Save, RotateCcw } from 'lucide-react'
-import { PageContainer, PageHeader } from '@/components/ui'
+import ErrorState from '@/components/shared/ErrorState'
+import { Button, PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
 import { GroupHeader } from './sectionPrimitives'
@@ -57,6 +58,23 @@ export default function SettingsPage() {
     )
   }
 
+  if (s.loadError) {
+    return (
+      <PageContainer maxWidth="5xl" className="space-y-5">
+        <PageHeader
+          title="Settings"
+          subtitle="Configure your financial preferences"
+        />
+        <ErrorState
+          variant="card"
+          title="Could not load settings"
+          message="Your existing settings were not changed. Check your connection and try again."
+          onRetry={() => void s.retrySettings()}
+        />
+      </PageContainer>
+    )
+  }
+
   let sectionIndex = 0
 
   return (
@@ -72,23 +90,24 @@ export default function SettingsPage() {
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
                 </span>
               )}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
+              <Button
+                id="reset-settings"
+                type="button"
+                variant="secondary"
                 onClick={() => s.setShowResetConfirm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--overlay-5)] text-foreground rounded-lg hover:bg-[var(--overlay-6)] transition-colors text-sm"
+                icon={<RotateCcw className="h-4 w-4" />}
               >
-                <RotateCcw className="w-4 h-4" />
                 <span className="hidden sm:inline">Reset</span>
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
+              </Button>
+              <Button
+                id="save-settings"
+                type="button"
                 onClick={s.handleSave}
                 disabled={!s.hasChanges || s.isSaving}
-                className="flex items-center gap-2 rounded-md border border-foreground bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+                icon={<Save className="h-4 w-4" />}
               >
-                <Save className="w-4 h-4" />
                 <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
-              </motion.button>
+              </Button>
             </div>
           }
         />
@@ -213,6 +232,7 @@ export default function SettingsPage() {
             accounts={s.accounts}
             creditCardAccounts={s.creditCardAccounts}
             excludedAccounts={s.excludedAccounts}
+            closedAccounts={s.closedAccounts}
             updateLocalPref={s.updateLocalPref}
           />
         )}
@@ -245,15 +265,15 @@ export default function SettingsPage() {
                   <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
                   Unsaved changes
                 </span>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
+                <Button
+                  id="save-settings-floating"
+                  type="button"
                   onClick={s.handleSave}
                   disabled={s.isSaving}
-                  className="flex items-center gap-2 rounded-md border border-foreground bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  icon={<Save className="h-4 w-4" />}
                 >
-                  <Save className="h-4 w-4" />
                   <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
-                </motion.button>
+                </Button>
               </div>
             </motion.div>
           )}

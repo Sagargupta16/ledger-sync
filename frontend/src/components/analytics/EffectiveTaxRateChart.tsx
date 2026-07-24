@@ -113,7 +113,7 @@ export default function EffectiveTaxRateChart({
             <TrendingUp className="w-5 h-5 text-app-orange" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Effective Tax Rate — New vs Old Regime</h3>
+      <h3 className="text-lg font-semibold">Effective Tax Rate - New vs Old Regime</h3>
             <p className="text-xs text-muted-foreground">
               Compare both regimes side-by-side (without deductions for Old Regime)
             </p>
@@ -153,7 +153,7 @@ export default function EffectiveTaxRateChart({
               ]}
               labelFormatter={(label: unknown) => `Income: ${formatCurrencyShort(Number(label))}`}
             />
-            {/* Old Regime — blue dashed line (no fill, so the crossover with
+            {/* Old Regime -- blue dashed line (no fill, so the crossover with
                 the New Regime curve stays crisp instead of blurring under two
                 translucent area gradients) */}
             <Line
@@ -168,7 +168,7 @@ export default function EffectiveTaxRateChart({
               animationEasing="ease-out"
               isAnimationActive={shouldAnimate(chartData.length)}
             />
-            {/* New Regime — orange solid line */}
+            {/* New Regime -- orange solid line */}
             <Line
               type="monotone"
               dataKey="newRegimeRate"
@@ -255,7 +255,8 @@ export default function EffectiveTaxRateChart({
                 key={value}
                 type="button"
                 onClick={() => setMaxIncome(value)}
-                className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                aria-pressed={maxIncome === value}
+                className={`min-h-11 px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-8 ${
                   maxIncome === value
                     ? 'bg-app-orange/20 text-app-orange'
                     : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'

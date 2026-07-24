@@ -1,3 +1,4 @@
+import { Money } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 
@@ -50,19 +51,41 @@ export default function TaxSlabBreakdown({
         </p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full" aria-label="Tax slab breakdown">
+      <div
+        className="overflow-x-auto"
+        role="region"
+        aria-label={`${isNewRegime ? 'New' : 'Old'} regime tax slab calculation`}
+        tabIndex={0}
+      >
+        <table className="w-full">
+          <caption className="sr-only">
+            Tax slab calculation under the {isNewRegime ? 'new' : 'old'} tax regime
+          </caption>
           <thead>
             <tr className="border-b border-border">
-              <th className="hidden sm:table-cell text-left py-3 px-4 text-sm font-semibold text-foreground">
+              <th
+                scope="col"
+                className="hidden sm:table-cell text-right py-3 px-4 text-sm font-semibold text-foreground"
+              >
                 Lower Limit
               </th>
-              <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">
+              <th
+                scope="col"
+                className="text-left sm:text-right py-3 px-2 sm:px-4 text-sm font-semibold text-foreground"
+              >
                 <span className="sm:hidden">Slab</span>
                 <span className="hidden sm:inline">Upper Limit</span>
               </th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Tax %</th>
-              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">
+              <th
+                scope="col"
+                className="text-right py-3 px-2 sm:px-4 text-sm font-semibold text-foreground whitespace-nowrap"
+              >
+                Tax %
+              </th>
+              <th
+                scope="col"
+                className="text-right py-3 px-2 sm:px-4 text-sm font-semibold text-foreground whitespace-nowrap"
+              >
                 Tax Amount
               </th>
             </tr>
@@ -78,74 +101,113 @@ export default function TaxSlabBreakdown({
                   key={`${slab.lower}-${slab.upper}`}
                   className={`border-b border-border ${isApplicable ? 'bg-primary/5' : ''}`}
                 >
-                  <td className="hidden sm:table-cell py-3 px-4 text-foreground tabular-nums">
-                    {formatCurrency(slab.lower)}
+                  <td className="hidden sm:table-cell py-3 px-4 text-right">
+                    <Money value={slab.lower} />
                   </td>
-                  <td className="py-3 px-4 text-foreground tabular-nums">
-                    {slab.upper === Infinity ? 'Above' : formatCurrency(slab.upper)}
-                    <span className="sm:hidden block text-xs text-muted-foreground">
+                  <th
+                    scope="row"
+                    className="py-3 px-2 sm:px-4 text-left sm:text-right font-normal text-foreground tabular-nums"
+                  >
+                    {slab.upper === Infinity ? (
+                      <span className="whitespace-nowrap">Above</span>
+                    ) : (
+                      <Money value={slab.upper} />
+                    )}
+                    <span className="sm:hidden block whitespace-nowrap text-xs text-muted-foreground">
                       from {formatCurrency(slab.lower)}
                     </span>
-                  </td>
-                  <td className="py-3 px-4 text-right text-foreground font-semibold tabular-nums">
+                  </th>
+                  <td className="py-3 px-2 sm:px-4 text-right text-foreground font-semibold tabular-nums whitespace-nowrap">
                     {slab.rate.toFixed(2)}%
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-primary tabular-nums">
-                    {isApplicable ? formatCurrency(taxAmount) : formatCurrency(0)}
+                  <td className="py-3 px-2 sm:px-4 text-right">
+                    <Money
+                      value={isApplicable ? taxAmount : 0}
+                      bold
+                      className="text-primary"
+                    />
                   </td>
                 </tr>
               )
             })}
             <tr className="border-t border-border">
-              <td colSpan={3} className="py-3 px-4 text-right font-semibold text-foreground">
+              <th
+                scope="row"
+                colSpan={3}
+                className="py-3 px-2 sm:px-4 text-right font-semibold text-foreground"
+              >
                 Tax on Base:
-              </td>
-              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
-                {formatCurrency(baseTax)}
+              </th>
+              <td className="py-3 px-2 sm:px-4 text-right">
+                <Money value={baseTax} bold />
               </td>
             </tr>
             {rebate87A > 0 && (
-            <tr className="border-b border-border">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-app-green">
-                - Section 87A Rebate:
-              </td>
-              <td className="py-3 px-4 text-right text-sm text-app-green tabular-nums">
-                -{formatCurrency(rebate87A)}
-              </td>
-            </tr>
+              <tr className="border-b border-border">
+                <th
+                  scope="row"
+                  colSpan={3}
+                  className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-app-green"
+                >
+                  - Section 87A Rebate:
+                </th>
+                <td className="py-3 px-2 sm:px-4 text-right text-sm">
+                  <Money
+                    value={rebate87A}
+                    formatter={(value) => `-${formatCurrency(value)}`}
+                    className="text-app-green"
+                  />
+                </td>
+              </tr>
             )}
             {surcharge > 0 && (
-            <tr className="border-b border-border">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
-                + Surcharge:
-              </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
-                {formatCurrency(surcharge)}
-              </td>
-            </tr>
+              <tr className="border-b border-border">
+                <th
+                  scope="row"
+                  colSpan={3}
+                  className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
+                >
+                  + Surcharge:
+                </th>
+                <td className="py-3 px-2 sm:px-4 text-right text-sm">
+                  <Money value={surcharge} />
+                </td>
+              </tr>
             )}
             <tr className="border-b border-border">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
+              <th
+                scope="row"
+                colSpan={3}
+                className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
+              >
                 + Health & Education Cess (4%):
-              </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
-                {formatCurrency(cess)}
+              </th>
+              <td className="py-3 px-2 sm:px-4 text-right text-sm">
+                <Money value={cess} />
               </td>
             </tr>
             <tr className="border-b border-border">
-              <td colSpan={3} className="py-3 px-4 text-right text-sm text-muted-foreground">
+              <th
+                scope="row"
+                colSpan={3}
+                className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
+              >
                 + Professional Tax:
-              </td>
-              <td className="py-3 px-4 text-right text-sm text-foreground tabular-nums">
-                {formatCurrency(professionalTax)}
+              </th>
+              <td className="py-3 px-2 sm:px-4 text-right text-sm">
+                <Money value={professionalTax} />
               </td>
             </tr>
             <tr className="border-t-2 border-primary/30">
-              <td colSpan={3} className="py-4 px-4 text-right text-lg font-bold text-foreground">
+              <th
+                scope="row"
+                colSpan={3}
+                className="py-4 px-2 sm:px-4 text-right text-base font-bold text-foreground"
+              >
                 {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Already Paid:'}
-              </td>
-              <td className="py-4 px-4 text-right text-2xl font-bold text-primary tabular-nums">
-                {formatCurrency(totalTax)}
+              </th>
+              <td className="py-4 px-2 sm:px-4 text-right text-base">
+                <Money value={totalTax} bold className="text-primary" />
               </td>
             </tr>
           </tbody>

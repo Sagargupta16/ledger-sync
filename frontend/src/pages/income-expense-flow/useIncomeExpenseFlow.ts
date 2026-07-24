@@ -22,8 +22,19 @@ import {
 } from './sankeyDrilldown'
 
 export function useIncomeExpenseFlow() {
-  const { data: allTransactions = [], isLoading } = useTransactions()
-  const { data: preferences } = usePreferences()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const allTransactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  )
+  const preferences = preferencesQuery.data
+  const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
+  const isError = transactionsQuery.isError || preferencesQuery.isError
+  const retry = () => {
+    void transactionsQuery.refetch()
+    void preferencesQuery.refetch()
+  }
   // Gate the horizontal Sankey to lg+ (>=1024px): it uses left/right:200 margins
   // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
   const isMobile = useIsMobile(1024)
@@ -244,6 +255,9 @@ export function useIncomeExpenseFlow() {
   return {
     ...computed,
     isLoading,
+    isError,
+    retry,
+    hasTransactions: allTransactions.length > 0,
     isMobile,
     currentFY,
     timeFilterProps,

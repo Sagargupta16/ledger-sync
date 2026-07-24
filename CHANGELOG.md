@@ -13,6 +13,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Workspace header** with the current page label, command-palette access, notifications, and a context-aware AI entry point.
 - **Product screenshots** for desktop and mobile landing-page presentation.
 - **Authentication regression coverage** for provider loading/retry states, dialog focus management, and OAuth callback failures.
+- **Shared page recovery state** that keeps route context visible and lets users retry failed financial-data queries without reloading the application.
+- **Stricter frontend accessibility checks** for labels, keyboard interaction, semantic tables, and accessible control names.
 
 ### Changed
 
@@ -22,12 +24,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Local API routing** now defaults to the same-origin Vite proxy. `VITE_API_BASE_URL` is required only for split production hosting.
 - **Theme-aware global feedback** now follows the resolved Light, Dark, or System theme.
 - **Documentation refresh** aligns the READMEs, handbook, route catalog, API reference, database guide, calculations, architecture, testing guide, deployment notes, migration notes, and diagrams with the 2.22.0 codebase.
+- **Protected data pages** now distinguish loading, empty, and failed-query states instead of rendering failed requests as valid zero-value dashboards.
+- **Dense routes and controls** were split into focused components, aligned to shared buttons, inputs, selects, responsive tables, and shorter reduced-motion-aware transitions.
 
 ### Fixed
 
 - `/home` now redirects to `/dashboard` instead of rendering the public landing page inside the authenticated workspace.
 - Demo mode returns an empty AI tool registry without making a backend request.
 - Sign-in provider failures remain distinguishable from a valid but unconfigured provider list.
+- Financial query failures no longer appear as empty ledgers, zero balances, or missing recurring items.
+- Mobile dashboard figures, table amounts, filters, and page actions no longer clip or overflow at 320px and 375px widths.
 
 ## 2.22.0 - 2026-07-09
 

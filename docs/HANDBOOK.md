@@ -2,7 +2,7 @@
 
 User guide for Ledger Sync 2.22.0.
 
-Verified against the live frontend source on 2026-07-14. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
+Verified against the live frontend source on 2026-07-24. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
 
 ## Start Here
 
@@ -48,6 +48,10 @@ Use the sidebar Search control, the workspace header, or `Ctrl+K` to open the co
 ### Themes
 
 Light is the default. Settings and the sidebar theme control support Light, Dark, and System.
+
+### Data errors and recovery
+
+Financial pages distinguish loading, empty, and failed requests. A failed request keeps the page title visible and shows Try again; it does not replace missing data with zero balances or an empty ledger. Settings uses the same recovery behavior for initial preference loading. Upload and Sync keeps file-specific parsing and upload failures beside the selected file so the exact operation can be retried.
 
 ## Recommended Workflow
 

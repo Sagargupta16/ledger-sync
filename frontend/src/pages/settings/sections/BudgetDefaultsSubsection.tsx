@@ -41,6 +41,7 @@ export default function BudgetDefaultsSubsection({
         <div className="flex items-center gap-3 pt-6">
           <Toggle
             id="auto-create-budgets"
+            aria-label="Auto-create budgets"
             checked={localPrefs.auto_create_budgets}
             onChange={(val) => updateLocalPref('auto_create_budgets', val)}
           />
@@ -51,6 +52,7 @@ export default function BudgetDefaultsSubsection({
         <div className="flex items-center gap-3 pt-6">
           <Toggle
             id="budget-rollover-enabled"
+            aria-label="Budget rollover"
             checked={localPrefs.budget_rollover_enabled}
             onChange={(val) => updateLocalPref('budget_rollover_enabled', val)}
           />

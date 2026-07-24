@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, TrendingUp, TrendingDown } from 'lucid
 
 import type { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { Button } from '@/components/ui'
 
 import TagChips from './TagChips'
 import TagEditor from './TagEditor'
@@ -24,13 +25,16 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'date',
     header: ({ column }) => (
-      <button
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-text-tertiary hover:text-foreground transition-colors duration-150"
+        className="px-0 text-text-tertiary hover:text-foreground"
       >
         Date
         {sortIcon(column)}
-      </button>
+      </Button>
     ),
     cell: ({ row }) => (
       <span className="text-sm text-text-tertiary">{formatDate(row.original.date, { month: 'short', day: '2-digit', year: 'numeric' })}</span>
@@ -80,13 +84,16 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: 'amount',
     header: ({ column }) => (
-      <button
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
         onClick={() => column.toggleSorting()}
-        className="flex items-center gap-2 text-text-tertiary hover:text-foreground transition-colors duration-150"
+        className="px-0 text-text-tertiary hover:text-foreground"
       >
         Amount
         {sortIcon(column)}
-      </button>
+      </Button>
     ),
     cell: ({ row }) => {
       const amount = row.original.amount

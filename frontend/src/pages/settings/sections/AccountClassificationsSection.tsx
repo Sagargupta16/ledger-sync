@@ -74,12 +74,13 @@ export default function AccountClassificationsSection({
                   )}
                 </motion.div>
                 <select
+                  id={`account-classification-${encodeURIComponent(name)}`}
                   aria-label={`Classify ${name}`}
                   value=""
                   onChange={(e) => {
                     if (e.target.value) onAssignAccount(name, e.target.value)
                   }}
-                  className="shrink-0 w-36 px-2 py-2 min-h-[44px] bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-xs focus:border-primary focus:outline-none"
+                  className="ledger-control min-h-11 w-36 shrink-0 rounded-lg border border-border px-2 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                 >
                   <option value="" className="bg-background">
                     Classify as...

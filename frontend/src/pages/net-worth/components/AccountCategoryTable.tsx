@@ -6,7 +6,8 @@ import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import ProgressBar from '@/components/shared/ProgressBar'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { Money } from '@/components/ui'
+import { formatPercent } from '@/lib/formatters'
 
 import { ariaSort } from '../netWorthUtils'
 
@@ -30,7 +31,9 @@ function AllocationCell({
   const ratio = allocationRatio(balance, total)
   return (
     <div className="flex items-center justify-end gap-2">
-      <span className="tabular-nums">{ratio === null ? 'n/a' : formatPercent(ratio)}</span>
+      <span className="whitespace-nowrap tabular-nums">
+        {ratio === null ? 'n/a' : formatPercent(ratio)}
+      </span>
       {ratio !== null && (
         <ProgressBar
           value={ratio}
@@ -110,31 +113,54 @@ export function AccountCategoryTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto"
+      role="region"
+      aria-label="Accounts by category"
+      tabIndex={0}
+    >
       <table className="w-full">
+        <caption className="sr-only">
+          Accounts grouped by category with balances, allocation percentages, and transaction
+          counts
+        </caption>
         <thead>
           <tr className="border-b border-border">
-            <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
+            <th
+              scope="col"
+              className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground"
+            >
               Account
             </th>
             <th
-              onClick={() => toggleSort('balance')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  toggleSort('balance')
-                }
-              }}
-              tabIndex={0}
+              scope="col"
               aria-sort={ariaSort(sortKey, 'balance', sortDir)}
-              className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none"
+              className="text-right py-1 px-2 text-sm font-semibold text-muted-foreground"
             >
-              Balance {sortKey === 'balance' && (sortDir === 'asc' ? '↑' : '↓')}
+              <button
+                type="button"
+                onClick={() => toggleSort('balance')}
+                aria-label={`Sort accounts by balance ${
+                  sortKey === 'balance' && sortDir === 'desc' ? 'ascending' : 'descending'
+                }`}
+                className="ml-auto flex min-h-11 items-center justify-end gap-1 rounded px-2 select-none hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              >
+                Balance
+                {sortKey === 'balance' && (
+                  <span aria-hidden>{sortDir === 'asc' ? '↑' : '↓'}</span>
+                )}
+              </button>
             </th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
+            <th
+              scope="col"
+              className="hidden sm:table-cell text-right py-3 px-4 text-sm font-semibold text-muted-foreground"
+            >
               % Allocated
             </th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">
+            <th
+              scope="col"
+              className="hidden sm:table-cell text-right py-3 px-4 text-sm font-semibold text-muted-foreground"
+            >
               Transactions
             </th>
           </tr>
@@ -180,39 +206,51 @@ export function AccountCategoryTable({
                       (sum, [, data]) => sum + data.transactions,
                       0,
                     )
+                    const catAllocation = allocationRatio(catBalance, total)
 
                     acc.elements.push(
                       <tr
                         key={`header-${currentCategory}`}
                         className="bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors"
                       >
-                        <td className="py-2 px-4 text-sm font-semibold text-primary">
+                        <th
+                          scope="row"
+                          className="py-2 px-4 text-left text-sm font-semibold text-primary"
+                        >
                           <button
                             type="button"
                             onClick={() => onToggleCategory(currentCategory)}
                             aria-expanded={expandedCategories.has(currentCategory)}
-                            className="flex items-center gap-2 w-full bg-transparent border-none cursor-pointer text-inherit font-inherit p-0 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/40"
+                            aria-label={`${expandedCategories.has(currentCategory) ? 'Collapse' : 'Expand'} ${currentCategory} accounts`}
+                            className="flex min-h-11 w-full items-center gap-2 rounded bg-transparent border-none p-0 text-left font-inherit text-inherit cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                           >
                             {expandedCategories.has(currentCategory) ? (
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="size-4 shrink-0" aria-hidden />
                             ) : (
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="size-4 shrink-0" aria-hidden />
                             )}
-                            {currentCategory}
-                            <span className="text-xs text-text-tertiary font-normal">
-                              ({categoryAccounts.length})
+                            <span className="min-w-0 break-words">
+                              {currentCategory}
+                              <span className="ml-1 text-xs text-text-tertiary font-normal">
+                                ({categoryAccounts.length})
+                              </span>
                             </span>
                           </button>
+                          <span className="block sm:hidden text-xs font-normal text-text-tertiary">
+                            {catAllocation === null
+                              ? 'Allocation n/a'
+                              : `${formatPercent(catAllocation)} allocated`}
+                            {' / '}
+                            {catTransactions} transactions
+                          </span>
+                        </th>
+                        <td className="py-2 px-4 text-right text-sm">
+                          <Money value={catBalance} className={headerBalanceColorClass} />
                         </td>
-                        <td
-                          className={`py-2 px-4 text-right text-sm font-medium tabular-nums ${headerBalanceColorClass}`}
-                        >
-                          {formatCurrency(catBalance)}
-                        </td>
-                        <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
+                        <td className="hidden sm:table-cell py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
                           <AllocationCell balance={catBalance} total={total} barColor={barColor} />
                         </td>
-                        <td className="py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
+                        <td className="hidden sm:table-cell py-2 px-4 text-right text-sm font-medium text-muted-foreground/70 tabular-nums">
                           {catTransactions}
                         </td>
                       </tr>,
@@ -220,6 +258,8 @@ export function AccountCategoryTable({
                   }
 
                   if (expandedCategories.has(currentCategory)) {
+                    const accountBalance = Math.abs(accountData.balance)
+                    const accountAllocation = allocationRatio(accountBalance, total)
                     acc.elements.push(
                       <motion.tr
                         key={accountName}
@@ -227,29 +267,37 @@ export function AccountCategoryTable({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
-                        <td className="py-3 pl-10 pr-4 text-foreground font-medium">
-                          <span className="inline-flex items-center gap-2">
+                        <th
+                          scope="row"
+                          className="py-3 pl-10 pr-4 text-left text-foreground font-medium"
+                        >
+                          <span className="inline-flex max-w-full items-center gap-2 break-words">
                             {accountName}
                             {closedAccounts.includes(accountName) && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[var(--overlay-5)] text-muted-foreground">
+                              <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[var(--overlay-5)] text-muted-foreground">
                                 Closed
                               </span>
                             )}
                           </span>
+                          <span className="block sm:hidden text-xs font-normal text-text-tertiary">
+                            {accountAllocation === null
+                              ? 'Allocation n/a'
+                              : `${formatPercent(accountAllocation)} allocated`}
+                            {' / '}
+                            {accountData.transactions} transactions
+                          </span>
+                        </th>
+                        <td className="py-3 px-4 text-right">
+                          <Money value={accountBalance} bold className={balanceColorClass} />
                         </td>
-                        <td
-                          className={`py-3 px-4 text-right font-bold tabular-nums ${balanceColorClass}`}
-                        >
-                          {formatCurrency(Math.abs(accountData.balance))}
-                        </td>
-                        <td className="py-3 px-4 text-right text-muted-foreground">
+                        <td className="hidden sm:table-cell py-3 px-4 text-right text-muted-foreground">
                           <AllocationCell
-                            balance={Math.abs(accountData.balance)}
+                            balance={accountBalance}
                             total={total}
                             barColor={barColor}
                           />
                         </td>
-                        <td className="py-3 px-4 text-right text-muted-foreground">
+                        <td className="hidden sm:table-cell py-3 px-4 text-right text-muted-foreground tabular-nums">
                           {accountData.transactions}
                         </td>
                       </motion.tr>,

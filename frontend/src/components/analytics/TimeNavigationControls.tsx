@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { formatMonthKey, type ViewMode } from '@/lib/dateUtils'
 
 interface TimeNavigationControlsProps {
@@ -27,25 +28,29 @@ export default function TimeNavigationControls({
   if (viewMode === 'monthly') {
     return (
       <div className="flex items-center gap-3">
-        <button
+        <Button
           onClick={handlePrevMonth}
           aria-label="Previous month"
-          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
+          variant="ghost"
+          size="sm"
+          className="p-0 text-muted-foreground"
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+          <ChevronLeft className="size-5" aria-hidden="true" />
+        </Button>
         <span className="text-foreground font-medium min-w-30 text-center">
           {formatMonthKey(currentMonth, { month: 'long', year: 'numeric' })}
         </span>
-        <button
+        <Button
           onClick={handleNextMonth}
           aria-label="Next month"
-          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
+          variant="ghost"
+          size="sm"
+          className="p-0 text-muted-foreground"
         >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          <ChevronRight className="size-5" aria-hidden="true" />
+        </Button>
         <span className="text-muted-foreground text-sm ml-2">
           {totalTransactions} {transactionLabel}
         </span>
@@ -56,23 +61,27 @@ export default function TimeNavigationControls({
   if (viewMode === 'yearly') {
     return (
       <div className="flex items-center gap-3">
-        <button
+        <Button
           onClick={handlePrevYear}
           aria-label="Previous year"
-          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
+          variant="ghost"
+          size="sm"
+          className="p-0 text-muted-foreground"
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+          <ChevronLeft className="size-5" aria-hidden="true" />
+        </Button>
         <span className="text-foreground font-medium min-w-25 text-center">Year {currentYear}</span>
-        <button
+        <Button
           onClick={handleNextYear}
           aria-label="Next year"
-          className="p-1.5 hover:bg-[var(--overlay-5)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           type="button"
+          variant="ghost"
+          size="sm"
+          className="p-0 text-muted-foreground"
         >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          <ChevronRight className="size-5" aria-hidden="true" />
+        </Button>
         <span className="text-muted-foreground text-sm ml-2">
           {totalTransactions} {transactionLabel}
         </span>

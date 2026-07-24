@@ -15,9 +15,21 @@ import {
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
 export function useYearInReview() {
-  const { data: transactions = [], isLoading, isError } = useTransactions()
-  const { data: dailySummaries = [] } = useDailySummaries()
-  const { data: preferences } = usePreferences()
+  const transactionsQuery = useTransactions()
+  const dailySummariesQuery = useDailySummaries()
+  const preferencesQuery = usePreferences()
+
+  const { data: transactions = [] } = transactionsQuery
+  const { data: dailySummaries = [] } = dailySummariesQuery
+  const { data: preferences } = preferencesQuery
+  const isLoading =
+    transactionsQuery.isPending ||
+    dailySummariesQuery.isPending ||
+    preferencesQuery.isPending
+  const isError =
+    transactionsQuery.isError ||
+    dailySummariesQuery.isError ||
+    preferencesQuery.isError
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
   const { displayPreferences } = usePreferencesStore()
 
@@ -132,10 +144,19 @@ export function useYearInReview() {
     })
   }, [stats, isFYMode, selectedYear, fiscalYearStartMonth])
 
+  const retry = () => {
+    const retries: Array<Promise<unknown>> = []
+    if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
+    if (dailySummariesQuery.isError) retries.push(dailySummariesQuery.refetch())
+    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
+    void Promise.all(retries)
+  }
+
   return {
     transactions,
     isLoading,
     isError,
+    retry,
     mode,
     setMode,
     hoveredDay,

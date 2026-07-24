@@ -6,7 +6,7 @@ import { Target } from 'lucide-react'
 import { formatCurrency, getOrdinalSuffix } from '@/lib/formatters'
 import { MONTHS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { Section, FieldLabel, FieldHint, Toggle } from '../sectionPrimitives'
+import { Section, FieldHint, FieldLabel, FieldLegend, Toggle } from '../sectionPrimitives'
 import { inputClass, selectClass } from '../styles'
 import { PAYDAY_OPTIONS } from '../helpers'
 import SpendingRuleFields from './SpendingRuleFields'
@@ -54,9 +54,13 @@ export default function FinancialSettingsSection({
 
         {/* Savings Goal */}
         <div>
-          <FieldLabel htmlFor="savings-goal">Savings Goal (%)</FieldLabel>
+          <FieldLegend>Savings Goal (%)</FieldLegend>
           <div className="flex items-center gap-3">
+            <label htmlFor="savings-goal-slider" className="sr-only">
+              Savings goal percentage slider
+            </label>
             <input
+              id="savings-goal-slider"
               type="range"
               min="0"
               max="100"
@@ -65,8 +69,11 @@ export default function FinancialSettingsSection({
               onChange={(e) => updateLocalPref('savings_goal_percent', Number(e.target.value))}
               className="touch-slider flex-1"
             />
+            <label htmlFor="savings-goal-number" className="sr-only">
+              Savings goal percentage
+            </label>
             <input
-              id="savings-goal"
+              id="savings-goal-number"
               type="number"
               inputMode="decimal"
               min="0"
@@ -79,7 +86,7 @@ export default function FinancialSettingsSection({
                   Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
                 )
               }}
-              className="min-h-11 w-16 px-2 py-2 bg-[var(--overlay-2)] border border-border rounded-lg text-foreground text-sm text-center focus:border-primary focus:outline-none sm:min-h-10"
+              className="ledger-control min-h-11 w-16 rounded-lg border border-border px-2 py-2 text-center text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
             />
           </div>
         </div>
@@ -133,11 +140,12 @@ export default function FinancialSettingsSection({
 
         {/* Tax Regime */}
         <div>
-          <FieldLabel>Tax Regime</FieldLabel>
+          <FieldLegend>Tax Regime</FieldLegend>
           <div className="flex gap-2">
             {(['new', 'old'] as const).map((regime) => (
               <label
                 key={regime}
+                htmlFor={`tax-regime-${regime}`}
                 className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors sm:min-h-10 ${
                   (localPrefs.preferred_tax_regime ?? 'new') === regime
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
@@ -145,6 +153,7 @@ export default function FinancialSettingsSection({
                 }`}
               >
                 <input
+                  id={`tax-regime-${regime}`}
                   type="radio"
                   name="tax-regime"
                   value={regime}
@@ -166,13 +175,15 @@ export default function FinancialSettingsSection({
         {/* TDS Schedule toggle */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <FieldLabel>Show TDS schedule</FieldLabel>
+            <FieldLabel htmlFor="show-tds-schedule">Show TDS schedule</FieldLabel>
             <FieldHint>
               Adds a per-month tax-deducted chart to the Tax Planning page
               (needs a salary structure configured).
             </FieldHint>
           </div>
           <Toggle
+            id="show-tds-schedule"
+            aria-label="Show TDS schedule"
             checked={localPrefs.show_tds_schedule ?? false}
             onChange={(val) => updateLocalPref('show_tds_schedule', val)}
           />
@@ -181,7 +192,7 @@ export default function FinancialSettingsSection({
         {/* Salary TDS treatment */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <FieldLabel>Salary recorded net of TDS</FieldLabel>
+            <FieldLabel htmlFor="salary-net-of-tds">Salary recorded net of TDS</FieldLabel>
             <FieldHint>
               On (default): your recorded salary is what hit your bank (after TDS),
               so Tax Planning backs out the gross and shows the TDS already
@@ -190,6 +201,8 @@ export default function FinancialSettingsSection({
             </FieldHint>
           </div>
           <Toggle
+            id="salary-net-of-tds"
+            aria-label="Salary recorded net of TDS"
             checked={localPrefs.salary_is_net_of_tds ?? true}
             onChange={(val) => updateLocalPref('salary_is_net_of_tds', val)}
           />
@@ -198,7 +211,7 @@ export default function FinancialSettingsSection({
         {/* EPF withdrawal taxability */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <FieldLabel>Tax EPF withdrawals</FieldLabel>
+            <FieldLabel htmlFor="tax-epf-withdrawals">Tax EPF withdrawals</FieldLabel>
             <FieldHint>
               EPF withdrawals are tax-free after 5 years of continuous service
               (Section 10(12)). Leave off if your withdrawals qualify; turn on to
@@ -206,6 +219,8 @@ export default function FinancialSettingsSection({
             </FieldHint>
           </div>
           <Toggle
+            id="tax-epf-withdrawals"
+            aria-label="Tax EPF withdrawals"
             checked={localPrefs.epf_withdrawal_taxable ?? false}
             onChange={(val) => updateLocalPref('epf_withdrawal_taxable', val)}
           />

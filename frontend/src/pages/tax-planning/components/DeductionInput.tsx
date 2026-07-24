@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui'
+
 interface Props {
   label: string
   sublabel: string
@@ -7,10 +9,13 @@ interface Props {
 }
 
 export default function DeductionInput({ label, sublabel, value, max, onChange }: Readonly<Props>) {
+  const inputId = `deduction-${label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
+
   return (
     <div>
-      <label className="text-xs font-medium text-muted-foreground block mb-1">{label}</label>
-      <input
+      <Input
+        id={inputId}
+        label={label}
         type="number"
         inputMode="decimal"
         min={0}
@@ -18,9 +23,12 @@ export default function DeductionInput({ label, sublabel, value, max, onChange }
         value={value || ''}
         onChange={(e) => onChange(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
         placeholder="0"
-        className="w-full px-3 py-1.5 text-sm bg-[var(--overlay-2)] border border-border rounded-lg text-foreground placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-app-blue/50"
+        aria-describedby={`${inputId}-help`}
+        className="text-sm"
       />
-      <span className="text-caption text-text-quaternary mt-0.5 block">{sublabel}</span>
+      <span id={`${inputId}-help`} className="text-caption text-text-quaternary mt-0.5 block">
+        {sublabel}
+      </span>
     </div>
   )
 }

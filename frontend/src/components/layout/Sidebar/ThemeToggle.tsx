@@ -1,5 +1,6 @@
 import { Sun, Moon } from 'lucide-react'
 
+import { Button } from '@/components/ui'
 import { useThemeStore } from '@/store/themeStore'
 import type { ThemeMode } from '@/lib/theme'
 
@@ -18,14 +19,16 @@ export default function ThemeToggle() {
   const Icon = ICON[mode]
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={() => setMode(NEXT[mode])}
-      className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-surface-hover hover:text-foreground lg:size-9"
+      className="size-11 p-0 text-text-tertiary hover:bg-surface-hover lg:size-9 lg:min-h-9 lg:min-w-9"
       title={`Theme: ${LABEL[mode]} (tap to switch to ${LABEL[NEXT[mode]]})`}
       aria-label={`Theme: ${LABEL[mode]}. Tap to switch to ${LABEL[NEXT[mode]]}.`}
     >
-      <Icon size={18} />
-    </button>
+      <Icon size={18} aria-hidden="true" />
+    </Button>
   )
 }

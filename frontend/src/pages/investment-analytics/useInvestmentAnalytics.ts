@@ -16,9 +16,14 @@ import {
 } from './investmentUtils'
 
 export function useInvestmentAnalytics() {
-  const { isLoading: balancesLoading, isError: balancesError } = useAccountBalances()
-  const { data: transactions = [], isError: transactionsError } = useTransactions()
-  const { data: preferences, isLoading: preferencesLoading, isError: preferencesError } = usePreferences()
+  const balancesQuery = useAccountBalances()
+  const transactionsQuery = useTransactions()
+  const preferencesQuery = usePreferences()
+  const transactions = useMemo(
+    () => transactionsQuery.data ?? [],
+    [transactionsQuery.data],
+  )
+  const preferences = preferencesQuery.data
 
   const investmentMappings = useMemo(
     () => preferences?.investment_account_mappings || {},
@@ -26,8 +31,19 @@ export function useInvestmentAnalytics() {
   )
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
 
-  const isLoading = balancesLoading || preferencesLoading
-  const isError = balancesError || transactionsError || preferencesError
+  const isLoading =
+    balancesQuery.isLoading ||
+    transactionsQuery.isLoading ||
+    preferencesQuery.isLoading
+  const isError =
+    balancesQuery.isError ||
+    transactionsQuery.isError ||
+    preferencesQuery.isError
+  const retry = () => {
+    void balancesQuery.refetch()
+    void transactionsQuery.refetch()
+    void preferencesQuery.refetch()
+  }
 
   const accountToCategory = useMemo(() => {
     const mapping: Record<string, InvestmentCategory> = {}
@@ -288,6 +304,7 @@ export function useInvestmentAnalytics() {
   return {
     isLoading,
     isError,
+    retry,
     investmentAccounts,
     totalInvestmentValue,
     portfolioXIRR,

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { CreditCard, PiggyBank, Target, TrendingUp } from 'lucide-react'
 
 import { CreditCardHealth } from '@/components/analytics'
@@ -7,7 +6,8 @@ import MetricCard from '@/components/shared/MetricCard'
 import Sparkline from '@/components/shared/Sparkline'
 import { rawColors } from '@/constants/colors'
 import { PageContainer, PageHeader } from '@/components/ui'
-import ErrorState from '@/components/shared/ErrorState'
+import PageErrorState from '@/components/shared/PageErrorState'
+import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 
@@ -18,21 +18,26 @@ import { useNetWorth } from './useNetWorth'
 
 export default function NetWorthPage() {
   const m = useNetWorth()
-  const { data: closedAccounts = [] } = useClosedAccounts()
+  const closedAccountsQuery = useClosedAccounts()
+  const closedAccounts = closedAccountsQuery.data ?? []
 
   // Leverage = liabilities as a share of assets. Reuses the totals already
   // computed in the hook; clamps the assets-zero edge so we never divide by 0.
   const leveragePct = m.totalAssets > 0 ? (m.totalLiabilities / m.totalAssets) * 100 : 0
 
-  if (m.isError && !m.isLoading) {
+  if (m.isLoading || closedAccountsQuery.isLoading) return <PageSkeleton />
+
+  if (m.isError || closedAccountsQuery.isError) {
+    const retryNetWorth = () => {
+      m.retry()
+      void closedAccountsQuery.refetch()
+    }
     return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="Net Worth" subtitle="Assets and liabilities from your transactions (book value, not live market prices)" />
-        <ErrorState
-          variant="card"
-          message="We couldn't load your net worth data. Please try again."
-        />
-      </PageContainer>
+      <PageErrorState
+        title="Net Worth"
+        subtitle="Assets and liabilities from your transactions (book value, not live market prices)"
+        onRetry={retryNetWorth}
+      />
     )
   }
 
@@ -109,13 +114,7 @@ export default function NetWorthPage() {
         {/* (Monthly Net Worth Change waterfall chart removed -- the Net
             Worth Trend already shows month-over-month direction; the
             waterfall added clutter without unique insight.) */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-2xl border border-border p-4 md:p-6"
-        >
+        <div className="glass rounded-2xl border border-border p-4 md:p-6">
           <div className="flex items-center gap-3 mb-4">
             <Target className="w-5 h-5 text-app-blue" />
             <h3 className="text-lg font-semibold text-foreground">Net Worth Milestones</h3>
@@ -125,15 +124,9 @@ export default function NetWorthPage() {
             currentNetWorth={m.currentNetWorth}
             monthlyGrowth={m.monthlyGrowth}
           />
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-2xl border border-border p-4 md:p-6"
-        >
+        <div className="glass rounded-2xl border border-border p-4 md:p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">Assets (Positive Balances)</h3>
           <AccountCategoryTable
             accounts={m.accounts}
@@ -151,15 +144,9 @@ export default function NetWorthPage() {
             emptyDescription="Add transactions for accounts with positive balances to see your assets."
             isLoading={m.isLoading}
           />
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="glass rounded-2xl border border-border p-4 md:p-6"
-        >
+        <div className="glass rounded-2xl border border-border p-4 md:p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">
             Liabilities (Negative Balances)
           </h3>
@@ -179,7 +166,7 @@ export default function NetWorthPage() {
             emptyDescription="Great news! You don't have any liability accounts with negative balances."
             isLoading={m.isLoading}
           />
-        </motion.div>
+        </div>
 
         <CreditCardHealth />
     </PageContainer>

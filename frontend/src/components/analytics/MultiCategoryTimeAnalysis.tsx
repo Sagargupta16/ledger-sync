@@ -14,9 +14,20 @@ import {
 } from '@/lib/chartPeriodUtils'
 import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
 const COLORS = CHART_COLORS_WARM.slice(0, 6)
+const GRANULARITY_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+]
+const TOTAL_MODE_OPTIONS = [
+  { value: 'cumulative', label: 'Cumulative' },
+  { value: 'regular', label: 'Regular' },
+]
 
 interface MultiCategoryTimeAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
@@ -122,9 +133,9 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   return (
     <motion.div
       className="glass p-6 rounded-xl border border-border"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.7 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     >
       <div className="space-y-4">
         {/* Header */}
@@ -141,39 +152,33 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Granularity */}
-            <select
+            <Select
               value={granularityOverride}
               onChange={(e) => setGranularityOverride(e.target.value as Granularity | 'auto')}
-              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              options={GRANULARITY_OPTIONS}
               aria-label="Time granularity"
-            >
-              <option value="auto" className="bg-surface-dropdown text-foreground">Auto</option>
-              <option value="day" className="bg-surface-dropdown text-foreground">Daily</option>
-              <option value="week" className="bg-surface-dropdown text-foreground">Weekly</option>
-              <option value="month" className="bg-surface-dropdown text-foreground">Monthly</option>
-            </select>
+            />
 
             {/* Cumulative Toggle */}
-            <select
+            <Select
               value={cumulative ? 'cumulative' : 'regular'}
               onChange={(e) => setCumulative(e.target.value === 'cumulative')}
-              className="px-3 py-1.5 bg-surface-dropdown/80 border border-border rounded-lg text-foreground text-sm focus:outline-none"
+              options={TOTAL_MODE_OPTIONS}
               aria-label="Cumulative or regular totals"
-            >
-              <option value="cumulative" className="bg-surface-dropdown text-foreground">Cumulative</option>
-              <option value="regular" className="bg-surface-dropdown text-foreground">Regular</option>
-            </select>
+            />
 
             {/* Export */}
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleExport}
-              className="p-2.5 min-h-11 bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] border border-border rounded-lg text-foreground transition-colors"
               type="button"
               title="Export chart"
               aria-label="Export chart as CSV"
+              className="p-0"
             >
-              <Download className="w-4 h-4" />
-            </button>
+              <Download className="size-4" aria-hidden="true" />
+            </Button>
           </div>
         </div>
 
