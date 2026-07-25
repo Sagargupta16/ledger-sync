@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { AlertTriangle } from 'lucide-react'
 import { formatCurrencyCompact } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'

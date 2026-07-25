@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Store } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { formatCurrency } from '@/lib/formatters'

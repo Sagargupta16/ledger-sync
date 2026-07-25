@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Flame } from 'lucide-react'
 
 import { DAYS, MONTHS_SHORT, heatmapColors, modeAccent } from '../types'

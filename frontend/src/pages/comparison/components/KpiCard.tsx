@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { pctChange } from '../utils'

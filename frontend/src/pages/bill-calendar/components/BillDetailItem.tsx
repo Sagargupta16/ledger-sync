@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { formatCurrency } from '@/lib/formatters'
 import { capitalize, getBillDotColor } from '../billUtils'
 import type { PlacedBill } from '../types'

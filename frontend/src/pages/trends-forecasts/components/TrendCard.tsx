@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { formatCurrency, formatPercent } from '@/lib/formatters'

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 import { Money } from '@/components/ui'

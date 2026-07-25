@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { rawColors } from '@/constants/colors'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'

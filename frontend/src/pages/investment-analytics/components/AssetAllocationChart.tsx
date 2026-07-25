@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { PieChart } from 'lucide-react'
 
 import StandardPieChart from '@/components/analytics/StandardPieChart'

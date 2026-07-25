@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Target, Plus, Trash2, AlertTriangle, CheckCircle, Edit2 } from 'lucide-react'
 
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'

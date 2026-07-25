@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 

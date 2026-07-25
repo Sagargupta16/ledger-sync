@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'

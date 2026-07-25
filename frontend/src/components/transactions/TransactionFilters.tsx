@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
 import { Search, Filter, X, Calendar } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { Button, Input, Select } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePreferencesStore } from '@/store/preferencesStore'

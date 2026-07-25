@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Flame, Calculator } from 'lucide-react'
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'

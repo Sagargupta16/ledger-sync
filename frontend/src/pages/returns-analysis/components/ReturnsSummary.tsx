@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 
 import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'

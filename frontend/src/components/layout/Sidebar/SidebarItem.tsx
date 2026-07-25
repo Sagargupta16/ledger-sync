@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 

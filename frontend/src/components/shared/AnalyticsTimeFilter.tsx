@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export type { AnalyticsViewMode } from '@/lib/dateUtils'

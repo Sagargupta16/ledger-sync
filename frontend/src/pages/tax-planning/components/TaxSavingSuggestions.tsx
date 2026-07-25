@@ -1,5 +1,5 @@
 import { Lightbulb } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import { CollapsibleSection } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'

@@ -1,4 +1,4 @@
-import type { Variants } from 'framer-motion'
+import type { Variants } from 'motion/react'
 
 // ---------------------------------------------------------------------------
 // Variant-based animations (use with variants={...} initial="hidden" animate="visible")

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'

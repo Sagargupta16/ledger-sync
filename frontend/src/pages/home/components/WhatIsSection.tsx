@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Calculator, FileSpreadsheet, Wallet } from 'lucide-react'
 
 import { sectionReveal, slideInLeftItem, staggerContainer } from '@/constants/animations'

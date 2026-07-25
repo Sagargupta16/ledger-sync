@@ -2,7 +2,7 @@
  * Account Classifications section - drag-and-drop account categorization.
  */
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Wallet, GripVertical } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { ACCOUNT_TYPES } from '../types'

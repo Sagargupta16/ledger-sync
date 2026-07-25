@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { Calendar } from 'lucide-react'
 
 /**

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { LineChart as LineChartIcon } from 'lucide-react'
 import {
   Area,

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowRight, Check, Eye, Target } from 'lucide-react'
 
 const HIGHLIGHTS = [

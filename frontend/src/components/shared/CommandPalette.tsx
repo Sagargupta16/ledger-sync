@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom'
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { Command, Search } from 'lucide-react'
 
 import { ROUTES } from '@/constants'

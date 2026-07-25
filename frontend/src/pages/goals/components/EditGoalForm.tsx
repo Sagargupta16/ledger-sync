@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 

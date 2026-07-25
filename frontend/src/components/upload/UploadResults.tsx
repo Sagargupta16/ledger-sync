@@ -1,5 +1,5 @@
 import { CheckCircle, AlertCircle, Trash2, Copy, Clock } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import type { UploadStats } from '@/types'
 

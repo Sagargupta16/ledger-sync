@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowDown, ChevronRight } from 'lucide-react'
 
 import { rawColors } from '@/constants/colors'

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import type { DayCell } from './DayOfWeekChart'
 import DayOfWeekChart from './DayOfWeekChart'

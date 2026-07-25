@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Calculator, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 

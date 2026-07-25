@@ -1,6 +1,6 @@
 import { memo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react'
 
 import { staggerContainer, fadeUpItem } from '@/constants/animations'

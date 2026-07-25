@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
 import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'

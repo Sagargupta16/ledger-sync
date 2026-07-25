@@ -3,7 +3,7 @@
  */
 
 import { useId, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
 import { sectionVariants } from './styles'
 

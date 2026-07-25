@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucide-react'
 
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence } from 'motion/react'
 import { Plus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 

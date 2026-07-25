@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 
 import CommandPalette from '@/components/shared/CommandPalette'
 import ChatWidget from '@/components/chat/ChatWidget'

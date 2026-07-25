@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { PiggyBank } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrencyCompact } from '@/lib/formatters'

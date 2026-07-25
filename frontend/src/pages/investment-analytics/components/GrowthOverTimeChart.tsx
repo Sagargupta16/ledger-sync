@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { LineChart } from 'lucide-react'
 import { Area, AreaChart, Brush, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
 

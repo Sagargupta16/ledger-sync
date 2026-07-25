@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { BarChart3, Shield, TrendingUp, Zap } from 'lucide-react'
 
 import { staggerContainer, fadeUpItem } from '@/constants/animations'
