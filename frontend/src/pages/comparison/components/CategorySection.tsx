@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'

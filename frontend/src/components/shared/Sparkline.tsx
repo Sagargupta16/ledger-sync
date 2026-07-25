@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate } from 'motion/react'
 
 import { rawColors } from '@/constants/colors'
 import { formatCurrencyShort } from '@/lib/formatters'

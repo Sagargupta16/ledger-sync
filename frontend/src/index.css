@@ -678,7 +678,7 @@ body {
 }
 
 /* Year-in-review heatmap: cells pop in as a left-to-right wave (per-cell
- * animation-delay set inline). CSS keyframes, not framer-motion -- the grid
+ * animation-delay set inline). CSS keyframes, not motion -- the grid
  * has ~370 cells and per-cell JS animation would add real mount cost. */
 @keyframes heatmap-pop {
   from {
@@ -699,7 +699,7 @@ body {
 /* ===== REDUCED MOTION =====
  * Motion is visible BY DEFAULT (a deliberate product choice). This block ONLY
  * fires when the user has set the OS "reduce motion" accessibility preference,
- * which the framer-motion <MotionConfig reducedMotion="user"> already honors for
+ * which the motion <MotionConfig reducedMotion="user"> already honors for
  * JS animations -- this covers the CSS-keyframe layer (animate-glow/float/pulse/
  * spin/fade-up) and transitions that MotionConfig can't reach. Scope is strictly
  * the reduce query; it never tones motion down for everyone else. */

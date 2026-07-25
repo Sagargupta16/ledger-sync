@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sparkles } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { useQuery } from '@tanstack/react-query'
 import { aiConfigService } from '@/services/api/aiConfig'
 import { useAuthStore } from '@/store/authStore'

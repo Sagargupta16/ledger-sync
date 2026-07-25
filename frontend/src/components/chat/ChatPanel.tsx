@@ -13,7 +13,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
 import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'

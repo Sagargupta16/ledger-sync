@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import { rawColors } from '@/constants/colors'
 
@@ -20,7 +20,7 @@ interface SankeyLinkRendererProps {
  * by index), then a soft dash shimmer keeps drifting along the flow direction
  * forever -- money visibly "flowing" through the pipes, like the reference
  * sankey animation. The shimmer is SMIL on stroke-dashoffset (compositor-only,
- * no React re-renders); the draw-in is framer-motion pathLength.
+ * no React re-renders); the draw-in is motion pathLength.
  */
 export const SankeyLinkRenderer = ({
   sourceX: rawSX,

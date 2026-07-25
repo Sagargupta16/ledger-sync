@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import { PAGE_ENTER } from '@/constants/animations'
 import { cn } from '@/lib/cn'

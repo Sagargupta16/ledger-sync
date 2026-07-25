@@ -30,7 +30,7 @@ export default function HeatmapCell({ cell, mode, modeMax, appearDelay = 0 }: Re
   // A real <button> (not a div with role/tabIndex): natively focusable +
   // interactive, so keyboard/SR users get the per-day figure and the parent's
   // onFocus delegation fires. type=button avoids implicit form submission.
-  // The pop-in wave is a per-cell CSS animation (~370 cells) -- framer-motion
+  // The pop-in wave is a per-cell CSS animation (~370 cells) -- motion
   // components at that count would add measurable mount cost for no benefit.
   return (
     <button

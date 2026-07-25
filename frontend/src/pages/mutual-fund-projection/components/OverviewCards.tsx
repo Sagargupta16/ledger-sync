@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Calculator, Percent, TrendingUp } from 'lucide-react'
 
 import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'

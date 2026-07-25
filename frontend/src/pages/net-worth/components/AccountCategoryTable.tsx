@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'

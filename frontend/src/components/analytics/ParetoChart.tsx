@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { TrendingDown } from 'lucide-react'
 import {
   Bar,

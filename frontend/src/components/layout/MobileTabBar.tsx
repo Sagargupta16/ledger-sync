@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { LayoutDashboard, Receipt, ArrowRightLeft, Grid3x3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 

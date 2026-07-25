@@ -69,7 +69,7 @@ export default defineConfig({
         manualChunks(id) {
           if (/node_modules\/(react|react-dom|react-router-dom)\//.test(id)) return 'vendor-react'
           if (/node_modules\/recharts\//.test(id)) return 'vendor-recharts'
-          if (/node_modules\/framer-motion\//.test(id)) return 'vendor-motion'
+          if (/node_modules\/(motion|framer-motion)\//.test(id)) return 'vendor-motion'
           if (/node_modules\/@tanstack\/react-query\//.test(id)) return 'vendor-tanstack'
         },
       },

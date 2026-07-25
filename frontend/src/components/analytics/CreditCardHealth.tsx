@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { CreditCard, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 

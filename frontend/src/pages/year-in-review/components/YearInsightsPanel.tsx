@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Flame, Sun, Moon, TrendingDown, TrendingUp, BarChart3 } from 'lucide-react'
 
 import { formatCurrencyCompact } from '@/lib/formatters'

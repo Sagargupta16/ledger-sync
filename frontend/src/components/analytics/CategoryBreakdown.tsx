@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { calculationsApi } from '@/services/api/calculations'

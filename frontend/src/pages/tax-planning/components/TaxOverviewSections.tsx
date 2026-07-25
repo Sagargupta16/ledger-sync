@@ -1,5 +1,5 @@
 import { ListTree, Receipt } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import EffectiveTaxRateChart from '@/components/analytics/EffectiveTaxRateChart'
 import TaxableIncomeTable from '@/components/analytics/TaxableIncomeTable'

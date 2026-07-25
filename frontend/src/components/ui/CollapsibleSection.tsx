@@ -2,11 +2,11 @@
  * CollapsibleSection
  *
  * A reusable collapsible section with premium design system styling,
- * animated expand/collapse via framer-motion, and an optional badge pill.
+ * animated expand/collapse via motion, and an optional badge pill.
  */
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 

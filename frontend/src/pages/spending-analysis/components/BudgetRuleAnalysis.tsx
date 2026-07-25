@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { PiggyBank, ShieldCheck, Sparkles } from 'lucide-react'
 import { Cell, Pie, PieChart, Tooltip } from 'recharts'
 

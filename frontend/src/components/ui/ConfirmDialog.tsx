@@ -2,12 +2,12 @@
  * ConfirmDialog
  *
  * A modal confirmation dialog with premium design system styling,
- * animated entrance via framer-motion, and danger/warning variants.
+ * animated entrance via motion, and danger/warning variants.
  * Closes on overlay click or Escape key.
  */
 
 import { useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 
 interface ConfirmDialogProps {
   readonly open: boolean

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { ProgressBar } from '@/components/shared'
 import { hexToRgba, rawColors } from '@/constants/colors'

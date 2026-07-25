@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'

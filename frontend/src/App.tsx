@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MotionConfig } from 'framer-motion'
+import { MotionConfig } from 'motion/react'
 import { Toaster } from 'sonner'
 
 import { queryClient } from '@/lib/queryClient'

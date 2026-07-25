@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { Pencil, Trash2, Edit3 } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'

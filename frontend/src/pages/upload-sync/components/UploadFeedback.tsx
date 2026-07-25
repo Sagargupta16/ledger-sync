@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
 import ErrorState from '@/components/shared/ErrorState'

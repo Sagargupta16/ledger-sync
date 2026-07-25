@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Check, Info, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 

@@ -1,6 +1,6 @@
 import { useDropzone } from 'react-dropzone'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { CheckCircle2, FileSpreadsheet, RefreshCw, Sparkles, Upload } from 'lucide-react'
 
 import { Spinner } from '@/components/ui'

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import StandardBarChart from '@/components/analytics/StandardBarChart'

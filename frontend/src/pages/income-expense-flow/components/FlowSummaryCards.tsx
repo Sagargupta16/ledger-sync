@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react'
 
 import { ProgressBar } from '@/components/shared'

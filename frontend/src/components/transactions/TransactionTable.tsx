@@ -10,7 +10,7 @@ import {
   type Updater,
 } from '@tanstack/react-table'
 import { ArrowRightLeft, TrendingUp, TrendingDown, Search } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { Money } from '@/components/ui'

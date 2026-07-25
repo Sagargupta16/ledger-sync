@@ -1,5 +1,5 @@
 import { BarChart3, Percent, Receipt } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import { fadeUpItem } from '@/constants/animations'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'

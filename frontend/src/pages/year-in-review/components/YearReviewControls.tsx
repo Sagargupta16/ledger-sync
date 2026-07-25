@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { DollarSign, TrendingDown, TrendingUp } from 'lucide-react'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'

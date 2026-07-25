@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react'
 import { Target, Plus, Trophy, Clock } from 'lucide-react'
 import { Button, PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'

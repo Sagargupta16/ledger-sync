@@ -1,5 +1,5 @@
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 
 import { StatCard } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'

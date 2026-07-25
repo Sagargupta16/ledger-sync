@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
 import { Button, Input } from '@/components/ui'
 

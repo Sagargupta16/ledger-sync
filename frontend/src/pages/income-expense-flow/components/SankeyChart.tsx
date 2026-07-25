@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { ArrowRightLeft, ChevronRight, CornerUpLeft } from 'lucide-react'
 import { Sankey, Tooltip } from 'recharts'
 

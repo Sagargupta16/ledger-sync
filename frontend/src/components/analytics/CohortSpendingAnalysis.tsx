@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import { Calendar, TrendingUp } from 'lucide-react'
 import { useCohortSpending } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
