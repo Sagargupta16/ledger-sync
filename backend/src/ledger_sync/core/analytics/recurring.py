@@ -172,7 +172,10 @@ class RecurringMixin(AnalyticsEngineBase):
             txn_type,
         )
 
-        # If a user-confirmed record matches, update its stats instead
+        # If a user-confirmed record matches, update its stats instead. The
+        # kind is NOT re-derived here: once a user confirms a pattern they own
+        # the classification, and a habit they deliberately track as a
+        # commitment must stay one.
         if label in confirmed_names:
             existing = confirmed_names[label]
             existing.occurrences_detected = info["occurrences"]
@@ -196,6 +199,7 @@ class RecurringMixin(AnalyticsEngineBase):
             expected_day=info["expected_day"],
             confidence_score=info["confidence"],
             occurrences_detected=info["occurrences"],
+            pattern_kind=info["pattern_kind"],
             last_occurrence=info["last_occurrence"],
             is_active=True,
             first_detected=datetime.now(UTC),

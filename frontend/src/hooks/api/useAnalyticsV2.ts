@@ -44,8 +44,8 @@ export const analyticsV2Keys = {
     [...analyticsV2Keys.all, 'category-trends', filters?.category, filters?.subcategory, filters?.limit, filters?.offset] as const,
   transferFlows: (filters?: { limit?: number; offset?: number }) =>
     [...analyticsV2Keys.all, 'transfer-flows', filters?.limit, filters?.offset] as const,
-  recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number; limit?: number; offset?: number }) =>
-    [...analyticsV2Keys.all, 'recurring-transactions', filters?.active_only, filters?.min_confidence, filters?.limit, filters?.offset] as const,
+  recurringTransactions: (filters?: { active_only?: boolean; min_confidence?: number; pattern_kind?: string; limit?: number; offset?: number }) =>
+    [...analyticsV2Keys.all, 'recurring-transactions', filters?.active_only, filters?.min_confidence, filters?.pattern_kind, filters?.limit, filters?.offset] as const,
   merchantIntelligence: (filters?: { min_transactions?: number; recurring_only?: boolean; limit?: number; offset?: number }) =>
     [...analyticsV2Keys.all, 'merchant-intelligence', filters?.min_transactions, filters?.recurring_only, filters?.limit, filters?.offset] as const,
   netWorth: (filters?: { limit?: number; offset?: number }) =>
@@ -125,6 +125,8 @@ export function useTransferFlows(params?: { limit?: number; offset?: number }) {
 export function useRecurringTransactions(params?: {
   active_only?: boolean
   min_confidence?: number
+  /** 'commitment' for bill/fixed-cost surfaces, 'habit' for discretionary repeats. */
+  pattern_kind?: string
   limit?: number
   offset?: number
 }) {
@@ -142,6 +144,7 @@ export interface RecurringTransactionPatch {
   expected_amount?: number
   is_confirmed?: boolean
   is_active?: boolean
+  pattern_kind?: string
 }
 
 export function useUpdateRecurringTransaction() {

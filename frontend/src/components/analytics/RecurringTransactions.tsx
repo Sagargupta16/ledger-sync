@@ -12,7 +12,12 @@ export default function RecurringTransactions() {
   // Source of truth is the backend recurring_transactions rollup (confidence-
   // scored detection on upload); we adapt expense patterns to the display
   // shape instead of re-detecting over the full ledger client-side.
-  const { data: apiRecurring = [], isLoading } = useRecurringTransactions()
+  //
+  // Commitments only: this component sums a "Monthly Fixed Costs" figure, and
+  // habit rows (repeated meals, weekly groceries) are not fixed costs.
+  const { data: apiRecurring = [], isLoading } = useRecurringTransactions({
+    pattern_kind: 'commitment',
+  })
 
   const recurringTransactions = useMemo(() => adaptApiRecurring(apiRecurring), [apiRecurring])
 

@@ -41,17 +41,27 @@ export default function DashboardPage() {
     momChanges,
   } = useDashboardMetrics()
 
-  // Fixed Commitments from active recurring
-  const recurringQuery = useRecurringTransactions({ active_only: true, min_confidence: 0 })
+  // Fixed Commitments from active recurring.
+  //
+  // Commitments only, confirmed OR detected. Requiring is_confirmed read 0 --
+  // nothing in the product sets that flag, so a ledger full of real rent
+  // reported no fixed costs. Habit rows (the daily lunch) are excluded because
+  // they repeat without being owed.
+  const recurringQuery = useRecurringTransactions({
+    active_only: true,
+    min_confidence: 0,
+    pattern_kind: 'commitment',
+  })
   const recurringItems = useMemo(() => recurringQuery.data ?? [], [recurringQuery.data])
-  const fixedCommitmentsMonthly = useMemo(() => {
-    const confirmed = recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense')
-    return confirmed.reduce((sum, r) => sum + toMonthlyAmount(r.expected_amount, r.frequency), 0)
-  }, [recurringItems])
-  const fixedCount = useMemo(
-    () => recurringItems.filter((r) => r.is_confirmed && r.type === 'Expense').length,
+  const fixedCommitments = useMemo(
+    () => recurringItems.filter((r) => r.type === 'Expense'),
     [recurringItems],
   )
+  const fixedCommitmentsMonthly = useMemo(
+    () => fixedCommitments.reduce((sum, r) => sum + toMonthlyAmount(r.expected_amount, r.frequency), 0),
+    [fixedCommitments],
+  )
+  const fixedCount = fixedCommitments.length
 
   // Age of Money & Days of Buffering
   const ageOfMoney = useMemo(

@@ -12,6 +12,7 @@ import {
   useCreateRecurringTransaction,
   useUpdateRecurringTransaction,
   useDeleteRecurringTransaction,
+  type RecurringTransaction,
   type RecurringTransactionPatch,
 } from '@/hooks/api/useAnalyticsV2'
 
@@ -40,25 +41,45 @@ export default function SubscriptionTrackerPage() {
   const [suggestion, setSuggestion] = useState<Suggestion | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
-  const confirmed = useMemo(() => items.filter((i) => i.is_confirmed), [items])
-  const active = useMemo(
-    () =>
-      [...confirmed]
-        .filter((i) => i.is_active)
-        .sort(
-          (a, b) =>
-            toMonthlyAmount(b.expected_amount, b.frequency) -
-            toMonthlyAmount(a.expected_amount, a.frequency),
-        ),
-    [confirmed],
+  // Commitments only. The detector also emits `habit` rows -- a lunch bought
+  // every week is genuinely periodic but is not a bill, and summing it into
+  // "Monthly Expense" would overstate fixed costs.
+  //
+  // Detected commitments are shown, NOT filtered out. This page used to render
+  // only `is_confirmed` rows, so a ledger with dozens of detected bills showed
+  // "No recurring transactions yet" -- nothing in the product ever set
+  // is_confirmed, so the filter matched nothing by construction.
+  const commitments = useMemo(
+    () => items.filter((i) => i.pattern_kind !== 'habit'),
+    [items],
   )
-  const inactive = useMemo(() => confirmed.filter((i) => !i.is_active), [confirmed])
+  const habits = useMemo(() => items.filter((i) => i.pattern_kind === 'habit'), [items])
 
+  const byMonthlyCostDesc = (a: RecurringTransaction, b: RecurringTransaction) =>
+    toMonthlyAmount(b.expected_amount, b.frequency) -
+    toMonthlyAmount(a.expected_amount, a.frequency)
+
+  const active = useMemo(
+    () => commitments.filter((i) => i.is_active && i.is_confirmed).sort(byMonthlyCostDesc),
+    [commitments],
+  )
+  const detected = useMemo(
+    () => commitments.filter((i) => i.is_active && !i.is_confirmed).sort(byMonthlyCostDesc),
+    [commitments],
+  )
+  const inactive = useMemo(() => commitments.filter((i) => !i.is_active), [commitments])
+
+  // A detected bill still leaves the account every month, so the KPIs cover
+  // confirmed AND detected commitments. Scoping them to confirmed rows only is
+  // what made this page report 0/mo against a ledger full of real rent.
   const summary = useMemo(() => {
-    const expenses = active.filter((s) => s.type === 'Expense')
-    const incomes = active.filter((s) => s.type === 'Income')
-    const monthlyExpense = expenses.reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
-    const monthlyIncome = incomes.reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
+    const live = [...active, ...detected]
+    const monthlyFor = (type: string) =>
+      live
+        .filter((s) => s.type === type)
+        .reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
+    const monthlyExpense = monthlyFor('Expense')
+    const monthlyIncome = monthlyFor('Income')
     const deactivatedExpenseSavings = inactive
       .filter((s) => s.type === 'Expense')
       .reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
@@ -66,11 +87,11 @@ export default function SubscriptionTrackerPage() {
       monthlyExpense,
       monthlyIncome,
       netMonthly: monthlyIncome - monthlyExpense,
-      count: active.length,
+      count: live.length,
       deactivatedExpenseSavings,
       deactivatedCount: inactive.filter((s) => s.type === 'Expense').length,
     }
-  }, [active, inactive])
+  }, [active, detected, inactive])
 
   const { guardDemoAction } = useDemoGuard()
 
@@ -141,7 +162,7 @@ export default function SubscriptionTrackerPage() {
 
       {!showForm && !isLoading && (
         <QuickAddSuggestions
-          compact={confirmed.length > 0}
+          compact={items.length > 0}
           onSelect={openWithSuggestion}
         />
       )}
@@ -163,13 +184,28 @@ export default function SubscriptionTrackerPage() {
       {!isLoading && (
         <>
           <RecurringItemsSection
-            title="Active"
+            title="Confirmed"
             items={active}
             onUpdate={handleUpdate}
             onDelete={(id, name) => setDeleteTarget({ id, name })}
           />
           <RecurringItemsSection
-            title="Inactive"
+            title="Detected"
+            description="Found in your ledger by pattern detection. Confirm the ones you want to keep, or dismiss the rest."
+            items={detected}
+            onUpdate={handleUpdate}
+            onDelete={(id, name) => setDeleteTarget({ id, name })}
+          />
+          <RecurringItemsSection
+            title="Repeat spending"
+            description="These repeat but are not bills, so they stay out of your fixed-cost totals. Mark one as a commitment if it belongs there."
+            items={habits}
+            muted
+            onUpdate={handleUpdate}
+            onDelete={(id, name) => setDeleteTarget({ id, name })}
+          />
+          <RecurringItemsSection
+            title="Paused"
             items={inactive}
             muted
             onUpdate={handleUpdate}
@@ -178,7 +214,7 @@ export default function SubscriptionTrackerPage() {
         </>
       )}
 
-      {!isLoading && confirmed.length === 0 && !showForm && (
+      {!isLoading && items.length === 0 && !showForm && (
         <EmptyState
           icon={RefreshCw}
           title="No recurring transactions yet"

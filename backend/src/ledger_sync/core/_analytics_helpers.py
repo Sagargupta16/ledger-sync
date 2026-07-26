@@ -74,6 +74,7 @@ def resolve_pattern_display(
         "account": most_recent.account,
         "txn_type": txn_type,
         "frequency": frequency,
+        "pattern_kind": classify_pattern_kind(dates, frequency),
         "expected_amount": Decimal(str(avg_amount)),
         "amount_variance": Decimal(str(amount_variance)),
         "expected_day": expected_day,
@@ -119,6 +120,87 @@ def infer_expected_day_of_month(days: list[int]) -> int | None:
     if mode >= 28:
         return max(days)
     return mode
+
+
+# A commitment lands on a calendar date. These thresholds were fitted on a real
+# 6,830-row ledger where the note-keyed grouping produced 77 "recurring"
+# patterns, roughly half of them meals ("Egg Fried Rice" 45x, "Milk Shake -
+# Banana" 117x) that are periodic but not owed.
+_ANCHOR_TOLERANCE_DAYS = 3
+_MIN_ANCHOR_SHARE = 0.6
+_MAX_DUPLICATE_PERIOD_SHARE = 0.25
+_DAYS_IN_MONTH_CYCLE = 31
+
+# Only these cadences can anchor to a day of the month. Weekly and biweekly
+# streams have no month anchor by construction, and on real data every
+# weekly-banded group was a habit, so they classify as habits outright.
+MONTHLY_OR_LONGER = frozenset(
+    {
+        RecurrenceFrequency.MONTHLY,
+        RecurrenceFrequency.BIMONTHLY,
+        RecurrenceFrequency.QUARTERLY,
+        RecurrenceFrequency.SEMIANNUAL,
+        RecurrenceFrequency.YEARLY,
+    },
+)
+
+
+def day_of_month_anchor_share(days: list[int]) -> float:
+    """Share of occurrences falling within tolerance of the best month anchor.
+
+    Distance is circular over a 31-day cycle so a 1st-of-month bill that
+    sometimes posts on the 30th still counts as anchored. A bill scores near
+    1.0; a lunch bought whenever scores near the tolerance window's share of
+    the month (~0.2-0.4).
+    """
+    if not days:
+        return 0.0
+    best = 0
+    for anchor in range(1, _DAYS_IN_MONTH_CYCLE + 1):
+        hits = sum(
+            1
+            for d in days
+            if min(abs(d - anchor), _DAYS_IN_MONTH_CYCLE - abs(d - anchor))
+            <= _ANCHOR_TOLERANCE_DAYS
+        )
+        best = max(best, hits)
+    return best / len(days)
+
+
+def duplicate_period_share(dates: list[datetime]) -> float:
+    """Share of calendar months holding more than one occurrence.
+
+    A monthly commitment bills once a month. Something bought twice in the same
+    month is a habit whose median gap merely happens to look monthly.
+    """
+    if not dates:
+        return 0.0
+    per_month: dict[str, int] = defaultdict(int)
+    for d in dates:
+        per_month[d.strftime("%Y-%m")] += 1
+    repeated = sum(1 for count in per_month.values() if count > 1)
+    return repeated / len(per_month)
+
+
+def classify_pattern_kind(
+    dates: list[datetime],
+    frequency: RecurrenceFrequency,
+) -> str:
+    """Label a detected pattern ``commitment`` or ``habit``.
+
+    Gap regularity alone cannot tell a rent payment from a daily lunch -- both
+    repeat. What separates them is calendar anchoring: a commitment is due on a
+    date and bills once per period. Verified on the maintainer's ledger: all 39
+    real commitments (salary, rent, EPF, Netflix, utilities, maid, cook) pass;
+    all 38 habits (meals, fruit runs, ride-hails, peer transfers) fail.
+    """
+    if frequency not in MONTHLY_OR_LONGER:
+        return "habit"
+    if day_of_month_anchor_share([d.day for d in dates]) < _MIN_ANCHOR_SHARE:
+        return "habit"
+    if duplicate_period_share(dates) > _MAX_DUPLICATE_PERIOD_SHARE:
+        return "habit"
+    return "commitment"
 
 
 def aggregate_holdings_data(

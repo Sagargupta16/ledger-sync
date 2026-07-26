@@ -97,6 +97,14 @@ export interface RecurringTransaction {
   times_missed: number
   is_active: boolean
   is_confirmed: boolean
+  /**
+   * 'commitment' = owed on a calendar date (rent, salary, Netflix).
+   * 'habit' = repeats but is discretionary (the daily lunch, the weekly fruit run).
+   *
+   * Gap regularity cannot tell the two apart, so any surface that means "fixed
+   * cost", "bill" or "missed payment" must filter to 'commitment'.
+   */
+  pattern_kind: string
 }
 
 export interface MerchantIntelligence {
@@ -316,6 +324,7 @@ export const analyticsV2Service = {
   getRecurringTransactions(params?: {
     active_only?: boolean
     min_confidence?: number
+    pattern_kind?: string
     limit?: number
     offset?: number
   }) {
@@ -330,6 +339,7 @@ export const analyticsV2Service = {
       expected_amount?: number
       is_confirmed?: boolean
       is_active?: boolean
+      pattern_kind?: string
     },
   ) {
     const response = await apiClient.patch<{ status: string; id: number }>(

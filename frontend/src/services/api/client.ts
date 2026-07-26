@@ -85,8 +85,10 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   [
     '/analytics/v2/recurring-transactions',
     (_txs, params) => {
-      const rows = generateDemoRecurring()
-      return wrap(params.active_only ? rows.filter((r) => r.is_active) : rows)
+      let rows = generateDemoRecurring()
+      if (params.active_only) rows = rows.filter((r) => r.is_active)
+      if (params.pattern_kind) rows = rows.filter((r) => r.pattern_kind === params.pattern_kind)
+      return wrap(rows)
     },
   ],
   ['/analytics/v2/net-worth', (txs) => wrap(generateDemoNetWorth(txs))],

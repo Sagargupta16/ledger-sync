@@ -67,6 +67,10 @@ def get_recurring_transactions(
     min_confidence: Annotated[
         float, Query(ge=0, le=100, description="Minimum confidence score")
     ] = 50,
+    pattern_kind: Annotated[
+        str | None,
+        Query(description="Filter by kind: 'commitment' (bill/salary) or 'habit'"),
+    ] = None,
 ) -> dict[str, Any]:
     """Get detected recurring transaction patterns.
 
@@ -75,6 +79,11 @@ def get_recurring_transactions(
     - Bills (rent, utilities)
     - Salary/income patterns
     - Regular investments
+
+    Each row carries ``pattern_kind``: ``commitment`` rows are owed on a
+    calendar date, ``habit`` rows just repeat (the daily lunch, the weekly fruit
+    run). Fixed-cost totals, the bill calendar and missed-payment alerts must
+    filter to ``commitment`` -- a repeated meal is not a bill.
     """
     query = (
         db.query(RecurringTransaction)
@@ -89,6 +98,8 @@ def get_recurring_transactions(
         query = query.filter(RecurringTransaction.is_active.is_(True))
     if min_confidence:
         query = query.filter(RecurringTransaction.confidence_score >= min_confidence)
+    if pattern_kind:
+        query = query.filter(RecurringTransaction.pattern_kind == pattern_kind)
 
     recurring = query.all()
 
@@ -116,16 +127,20 @@ def get_recurring_transactions(
                 "times_missed": r.times_missed,
                 "is_active": r.is_active,
                 "is_confirmed": r.is_user_confirmed,
+                "pattern_kind": r.pattern_kind,
             }
             for r in recurring
         ],
         "count": len(recurring),
         "summary": {
+            # Commitments only: a repeated lunch is not a fixed monthly cost.
             "total_monthly_recurring": sum(
                 float(r.expected_amount)
                 for r in recurring
-                if r.frequency and r.frequency.value == "monthly"
+                if r.frequency and r.frequency.value == "monthly" and r.pattern_kind == "commitment"
             ),
+            "commitment_count": sum(1 for r in recurring if r.pattern_kind == "commitment"),
+            "habit_count": sum(1 for r in recurring if r.pattern_kind == "habit"),
         },
     }
 
@@ -138,7 +153,10 @@ class RecurringTransactionUpdate(BaseModel):
     expected_amount: float | None = None
     is_confirmed: bool | None = None
     is_active: bool | None = None
+    pattern_kind: str | None = None
 
+
+_VALID_PATTERN_KINDS = {"commitment", "habit"}
 
 _VALID_FREQUENCIES = {
     "daily",
@@ -156,7 +174,7 @@ _VALID_FREQUENCIES = {
     "/recurring-transactions/{item_id}",
     responses={
         404: {"description": "Recurring transaction not found"},
-        422: {"description": "Invalid frequency value"},
+        422: {"description": "Invalid frequency or pattern kind value"},
     },
 )
 def update_recurring_transaction(
@@ -192,6 +210,13 @@ def update_recurring_transaction(
         record.is_user_confirmed = body.is_confirmed
     if body.is_active is not None:
         record.is_active = body.is_active
+    if body.pattern_kind is not None:
+        kind = body.pattern_kind.lower()
+        if kind not in _VALID_PATTERN_KINDS:
+            raise HTTPException(
+                status_code=422, detail=f"Invalid pattern kind: {body.pattern_kind}"
+            )
+        record.pattern_kind = kind
     record.last_updated = datetime.now(UTC)
     db.commit()
 
@@ -244,6 +269,9 @@ def create_recurring_transaction(
         expected_day=body.expected_day,
         confidence_score=100,
         occurrences_detected=0,
+        # A manually added recurring item is by definition something the user
+        # means to track as owed, so it is a commitment regardless of cadence.
+        pattern_kind="commitment",
         is_active=True,
         is_user_confirmed=True,
         first_detected=datetime.now(UTC),
