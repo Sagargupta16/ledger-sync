@@ -227,6 +227,11 @@ class MerchantIntelligence(Base):
         Text,
         nullable=True,
     )  # JSON list of variations
+    #: ``brand`` when the label came from the recognised-brand table, else
+    #: ``descriptor`` (the note itself). Consumers must not present a
+    #: descriptor as a payee -- "Juice - Pineapple" is a purchase description,
+    #: not a merchant, and a "top merchants" chart that mixes the two lies.
+    label_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="descriptor")
 
     # Primary category
     primary_category: Mapped[str] = mapped_column(String(255), nullable=False)

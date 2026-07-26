@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -288,6 +289,10 @@ def get_merchant_intelligence(
     db: DatabaseSession,
     min_transactions: Annotated[int, Query(ge=1, description="Minimum transaction count")] = 3,
     recurring_only: Annotated[bool, Query(description="Only show recurring merchants")] = False,
+    label_kind: Annotated[
+        str | None,
+        Query(description="Filter by label kind: 'brand' (recognised payee) or 'descriptor'"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:
     """Get merchant/vendor intelligence.
@@ -296,6 +301,11 @@ def get_merchant_intelligence(
     - Top merchants by spend
     - Transaction patterns per merchant
     - Recurring merchant detection
+
+    Each row carries ``label_kind``: ``brand`` rows are recognised payees,
+    ``descriptor`` rows are the transaction note itself. A "top merchants"
+    surface should filter to ``brand`` or label descriptors as descriptions --
+    "Juice - Pineapple" is what was bought, not who was paid.
     """
     query = (
         db.query(MerchantIntelligence)
@@ -307,6 +317,8 @@ def get_merchant_intelligence(
         query = query.filter(MerchantIntelligence.transaction_count >= min_transactions)
     if recurring_only:
         query = query.filter(MerchantIntelligence.is_recurring.is_(True))
+    if label_kind:
+        query = query.filter(MerchantIntelligence.label_kind == label_kind)
 
     merchants = query.limit(limit).all()
 
@@ -314,6 +326,8 @@ def get_merchant_intelligence(
         "data": [
             {
                 "merchant": m.merchant_name,
+                "label_kind": m.label_kind,
+                "aliases": json.loads(m.merchant_aliases) if m.merchant_aliases else [],
                 "category": m.primary_category,
                 "subcategory": m.primary_subcategory,
                 "total_spent": float(m.total_spent),
