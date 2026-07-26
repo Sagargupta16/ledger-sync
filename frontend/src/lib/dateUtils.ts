@@ -249,3 +249,117 @@ export const capSeriesToToday = <T>(rows: readonly T[], key: keyof T): T[] => {
     return raw <= cutoff
   })
 }
+
+/**
+ * Shift a `YYYY-MM-DD` key by N days (negative shifts backwards), staying on the
+ * local calendar. `new Date(key)` would parse as UTC midnight and drift the day
+ * for offset zones, so the parts are passed to the Date constructor instead --
+ * it normalises month/year rollover on its own.
+ */
+export const addDaysToKey = (dateKey: string, days: number): string => {
+  const [y, m, d] = dateKey.slice(0, 10).split('-').map(Number)
+  return toLocalDateKey(new Date(y, m - 1, d + days))
+}
+
+/**
+ * Inclusive number of calendar days between two `YYYY-MM-DD` keys, so a single
+ * day spans 1 and Jan 1 to Jan 31 spans 31. Use for any per-day average divisor;
+ * never hardcode 30.
+ */
+export const inclusiveDaySpan = (startKey: string, endKey: string): number => {
+  const [sy, sm, sd] = startKey.slice(0, 10).split('-').map(Number)
+  const [ey, em, ed] = endKey.slice(0, 10).split('-').map(Number)
+  const spanMs = new Date(ey, em - 1, ed).getTime() - new Date(sy, sm - 1, sd).getTime()
+  return Math.max(1, Math.round(spanMs / MS_PER_DAY) + 1)
+}
+
+/** Number of days in a `YYYY-MM` month. */
+export const daysInMonth = (monthKey: string): number => {
+  const [year, month] = monthKey.slice(0, 7).split('-').map(Number)
+  return new Date(year, month, 0).getDate()
+}
+
+/**
+ * How far through a `YYYY-MM` month we are, as elapsed / total days.
+ *
+ * A month in the past is complete (`isPartial: false`, `fraction: 1`); a future
+ * month has no elapsed days. Only the CURRENT month is partial.
+ */
+export interface PeriodProgress {
+  /** True only for the in-progress month -- the one whose totals are incomplete. */
+  readonly isPartial: boolean
+  /** Days of the month that have already happened (1..daysTotal). */
+  readonly daysElapsed: number
+  /** Calendar length of the month. */
+  readonly daysTotal: number
+  /** `daysElapsed / daysTotal`, in (0, 1]. */
+  readonly fraction: number
+}
+
+export const getMonthProgress = (monthKey: string, now: Date = new Date()): PeriodProgress => {
+  const daysTotal = daysInMonth(monthKey)
+  const currentMonth = toLocalDateKey(now).slice(0, 7)
+  const month = monthKey.slice(0, 7)
+
+  if (month < currentMonth) {
+    return { isPartial: false, daysElapsed: daysTotal, daysTotal, fraction: 1 }
+  }
+  if (month > currentMonth) {
+    return { isPartial: false, daysElapsed: 0, daysTotal, fraction: 0 }
+  }
+  const daysElapsed = now.getDate()
+  return { isPartial: true, daysElapsed, daysTotal, fraction: daysElapsed / daysTotal }
+}
+
+/**
+ * Whether a `YYYY-MM` month is still in progress.
+ *
+ * Comparing a partial month against complete ones is the single most common
+ * way a finance dashboard lies: on the 26th of a month where salary lands on
+ * the 30th, income is near zero while rent has already been paid, so a naive
+ * savings rate reads several hundred percent negative. Callers must either
+ * exclude the partial month, annotate it, or run its totals through
+ * `projectPartialMonth`.
+ */
+export const isPartialMonth = (monthKey: string, now: Date = new Date()): boolean =>
+  getMonthProgress(monthKey, now).isPartial
+
+/**
+ * Drop the trailing partial month from a chronologically sorted month series.
+ *
+ * Use for any chart that compares months to each other (MoM bars, savings-rate
+ * trend, seasonality). Do NOT use where the user is asking "how am I doing so
+ * far this month" -- annotate there instead.
+ */
+export const dropPartialMonth = <T>(
+  rows: readonly T[],
+  key: keyof T,
+  now: Date = new Date()
+): T[] => {
+  const rowMonth = (row: T): string | null => {
+    const raw = row[key]
+    if (raw instanceof Date) return toLocalDateKey(raw).slice(0, 7)
+    return typeof raw === 'string' ? raw.slice(0, 7) : null
+  }
+  return rows.filter((row) => {
+    const month = rowMonth(row)
+    return month === null || !isPartialMonth(month, now)
+  })
+}
+
+/**
+ * Scale a partial month's running total to a full-month estimate.
+ *
+ * Straight-line extrapolation (`total / fraction`) is only honest for flows
+ * that accrue steadily, so it is NOT appropriate for salary income (one lump
+ * on a fixed day) or rent. Use it for day-to-day expense pace, and always
+ * label the result as a projection.
+ */
+export const projectPartialMonth = (
+  total: number,
+  monthKey: string,
+  now: Date = new Date()
+): number => {
+  const { fraction } = getMonthProgress(monthKey, now)
+  return fraction > 0 ? total / fraction : total
+}

@@ -1,6 +1,18 @@
 import { describe, it, expect } from 'vitest'
 
-import { capEndDateAtToday, capSeriesToToday, formatMonthKey, toLocalDateKey } from '../dateUtils'
+import {
+  addDaysToKey,
+  capEndDateAtToday,
+  capSeriesToToday,
+  daysInMonth,
+  dropPartialMonth,
+  formatMonthKey,
+  getMonthProgress,
+  inclusiveDaySpan,
+  isPartialMonth,
+  projectPartialMonth,
+  toLocalDateKey,
+} from '../dateUtils'
 
 /**
  * These guard the timezone-stable date helpers. The bug class they replace:
@@ -125,5 +137,162 @@ describe('capSeriesToToday', () => {
       { date: today, v: 3 }
     ]
     expect(capSeriesToToday(rows, 'date').map((r) => r.v)).toEqual([1, 2, 3])
+  })
+})
+
+/**
+ * Partial-period helpers. The bug class they replace: a month still in
+ * progress is charted and compared as if it were complete. On a real ledger
+ * where salary lands near month-end, the 26th of the month showed income of
+ * 13,511 against a typical 225,000, so the naive savings rate read -696.8%.
+ */
+describe('addDaysToKey', () => {
+  it('shifts within a month', () => {
+    expect(addDaysToKey('2026-07-01', 25)).toBe('2026-07-26')
+  })
+
+  it('rolls over month and year boundaries', () => {
+    expect(addDaysToKey('2026-01-31', 1)).toBe('2026-02-01')
+    expect(addDaysToKey('2026-12-31', 1)).toBe('2027-01-01')
+  })
+
+  it('handles leap February', () => {
+    expect(addDaysToKey('2024-02-28', 1)).toBe('2024-02-29')
+    expect(addDaysToKey('2026-02-28', 1)).toBe('2026-03-01')
+  })
+
+  it('shifts backwards for a negative offset', () => {
+    expect(addDaysToKey('2026-03-01', -1)).toBe('2026-02-28')
+  })
+
+  it('accepts a longer ISO string and returns a date key', () => {
+    expect(addDaysToKey('2026-07-26T10:30:00', 0)).toBe('2026-07-26')
+  })
+})
+
+describe('inclusiveDaySpan', () => {
+  it('counts a single day as 1', () => {
+    expect(inclusiveDaySpan('2026-07-26', '2026-07-26')).toBe(1)
+  })
+
+  it('counts a full month inclusively', () => {
+    expect(inclusiveDaySpan('2026-01-01', '2026-01-31')).toBe(31)
+  })
+
+  it('counts a non-leap year as 365 and a leap year as 366', () => {
+    expect(inclusiveDaySpan('2026-01-01', '2026-12-31')).toBe(365)
+    expect(inclusiveDaySpan('2024-01-01', '2024-12-31')).toBe(366)
+  })
+
+  it('counts a fiscal year across the year boundary', () => {
+    expect(inclusiveDaySpan('2025-04-01', '2026-03-31')).toBe(365)
+  })
+
+  it('floors at 1 for an inverted range', () => {
+    expect(inclusiveDaySpan('2026-07-26', '2026-07-01')).toBe(1)
+  })
+})
+
+describe('daysInMonth', () => {
+  it('returns calendar length for 31, 30, and 28 day months', () => {
+    expect(daysInMonth('2026-01')).toBe(31)
+    expect(daysInMonth('2026-04')).toBe(30)
+    expect(daysInMonth('2026-02')).toBe(28)
+  })
+
+  it('handles leap February', () => {
+    expect(daysInMonth('2024-02')).toBe(29)
+  })
+
+  it('accepts a full date key', () => {
+    expect(daysInMonth('2026-07-26')).toBe(31)
+  })
+})
+
+describe('getMonthProgress', () => {
+  const now = new Date(2026, 6, 26) // 2026-07-26, 31-day month
+
+  it('reports the current month as partial with elapsed days', () => {
+    expect(getMonthProgress('2026-07', now)).toEqual({
+      isPartial: true,
+      daysElapsed: 26,
+      daysTotal: 31,
+      fraction: 26 / 31,
+    })
+  })
+
+  it('reports a past month as complete', () => {
+    expect(getMonthProgress('2026-06', now)).toEqual({
+      isPartial: false,
+      daysElapsed: 30,
+      daysTotal: 30,
+      fraction: 1,
+    })
+  })
+
+  it('reports a future month as not partial with zero elapsed', () => {
+    expect(getMonthProgress('2026-08', now)).toEqual({
+      isPartial: false,
+      daysElapsed: 0,
+      daysTotal: 31,
+      fraction: 0,
+    })
+  })
+
+  it('treats the last day of the month as fully elapsed', () => {
+    expect(getMonthProgress('2026-07', new Date(2026, 6, 31)).fraction).toBe(1)
+  })
+})
+
+describe('isPartialMonth', () => {
+  const now = new Date(2026, 6, 26)
+
+  it('is true only for the current month', () => {
+    expect(isPartialMonth('2026-07', now)).toBe(true)
+    expect(isPartialMonth('2026-06', now)).toBe(false)
+    expect(isPartialMonth('2026-08', now)).toBe(false)
+  })
+})
+
+describe('dropPartialMonth', () => {
+  const now = new Date(2026, 6, 26)
+
+  it('drops the in-progress month from a month-keyed series', () => {
+    const rows = [
+      { month: '2026-05', savingsRate: 46 },
+      { month: '2026-06', savingsRate: 52 },
+      { month: '2026-07', savingsRate: -696.8 },
+    ]
+    expect(dropPartialMonth(rows, 'month', now)).toEqual(rows.slice(0, 2))
+  })
+
+  it('drops day-keyed rows that fall in the partial month', () => {
+    const rows = [{ date: '2026-06-30', v: 1 }, { date: '2026-07-02', v: 2 }]
+    expect(dropPartialMonth(rows, 'date', now)).toEqual([rows[0]])
+  })
+
+  it('keeps rows whose key is not a date', () => {
+    const rows = [{ month: null as unknown as string, v: 1 }]
+    expect(dropPartialMonth(rows, 'month', now)).toEqual(rows)
+  })
+
+  it('returns an empty series unchanged', () => {
+    expect(dropPartialMonth([] as Array<{ month: string }>, 'month', now)).toEqual([])
+  })
+})
+
+describe('projectPartialMonth', () => {
+  const now = new Date(2026, 6, 26)
+
+  it('extrapolates a partial total to a full-month estimate', () => {
+    expect(projectPartialMonth(26000, '2026-07', now)).toBeCloseTo(31000, 6)
+  })
+
+  it('leaves a complete month untouched', () => {
+    expect(projectPartialMonth(30000, '2026-06', now)).toBe(30000)
+  })
+
+  it('returns the input when no days have elapsed', () => {
+    expect(projectPartialMonth(0, '2026-08', now)).toBe(0)
   })
 })

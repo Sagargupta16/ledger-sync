@@ -3,7 +3,13 @@ import { useTrends } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { getDateKey, formatMonthKey } from '@/lib/dateUtils'
+import {
+  dropPartialMonth,
+  formatMonthKey,
+  getDateKey,
+  getMonthProgress,
+  isPartialMonth,
+} from '@/lib/dateUtils'
 import { percentChange } from '@/lib/formatters'
 import { getTrendDirection } from './trendsUtils'
 import type { TrendMetrics } from './types'
@@ -49,12 +55,32 @@ export function useTrendsForecasts() {
     })
   }, [trendsData, dateRange])
 
+  /**
+   * Month-over-month comparisons run on COMPLETE months only. The in-progress
+   * month has partial income (salary lands late) against near-full fixed costs,
+   * so leaving it in reported "spending is down 43%" and a savings rate in the
+   * hundreds of percent negative -- artifacts of the calendar, not behaviour.
+   * The page states the exclusion via `partialMonth` rather than silently
+   * dropping a bar.
+   */
+  const completeMonthlyTrends = useMemo(
+    () => dropPartialMonth(filteredMonthlyTrends, 'month'),
+    [filteredMonthlyTrends],
+  )
+
+  const partialMonth = useMemo(() => {
+    const inProgress = filteredMonthlyTrends.find((t) => isPartialMonth(t.month))
+    if (!inProgress) return null
+    const { daysElapsed, daysTotal } = getMonthProgress(inProgress.month)
+    return { label: formatMonthKey(inProgress.month), daysElapsed, daysTotal }
+  }, [filteredMonthlyTrends])
+
   const metrics = useMemo(() => {
-    if (!filteredMonthlyTrends || filteredMonthlyTrends.length < 1) {
+    if (completeMonthlyTrends.length < 1) {
       return { spending: DEFAULT_METRICS, income: DEFAULT_METRICS, savings: DEFAULT_METRICS }
     }
 
-    const trends = filteredMonthlyTrends
+    const trends = completeMonthlyTrends
     const latest = trends.at(-1)
     if (!latest) {
       return { spending: DEFAULT_METRICS, income: DEFAULT_METRICS, savings: DEFAULT_METRICS }
@@ -105,12 +131,12 @@ export function useTrendsForecasts() {
         lowest: Math.min(...surpluses),
       },
     }
-  }, [filteredMonthlyTrends])
+  }, [completeMonthlyTrends])
 
   const chartData = useMemo(() => {
-    if (!filteredMonthlyTrends.length) return []
+    if (!completeMonthlyTrends.length) return []
 
-    return filteredMonthlyTrends.map((t, index, arr) => {
+    return completeMonthlyTrends.map((t, index, arr) => {
       const prev = index > 0 ? arr[index - 1] : t
       const rawSavingsRate = t.income > 0 ? (t.surplus / t.income) * 100 : 0
       return {
@@ -121,7 +147,7 @@ export function useTrendsForecasts() {
         savingsRate: Math.max(0, rawSavingsRate),
       }
     })
-  }, [filteredMonthlyTrends])
+  }, [completeMonthlyTrends])
 
   const filteredTransactions = useMemo(() => {
     if (!allTransactions.length) return []
@@ -162,15 +188,15 @@ export function useTrendsForecasts() {
   }, [filteredTransactions])
 
   const monthlyTrendChartData = useMemo(() => {
-    if (!filteredMonthlyTrends.length) return []
-    return filteredMonthlyTrends.map((t) => ({
+    if (!completeMonthlyTrends.length) return []
+    return completeMonthlyTrends.map((t) => ({
       month: t.month,
       label: formatMonthKey(t.month, { month: 'short', year: '2-digit' }),
       income: t.income,
       expenses: t.expenses,
       savings: t.surplus,
     }))
-  }, [filteredMonthlyTrends])
+  }, [completeMonthlyTrends])
 
   const monthlyTrendWithAvg = useMemo(
     () =>
@@ -222,6 +248,7 @@ export function useTrendsForecasts() {
     retry,
     timeFilterProps,
     metrics,
+    partialMonth,
     chartData,
     dailySavingsData,
     monthlyTrendWithAvg,

@@ -1,6 +1,7 @@
 import { CashFlowForecast } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import MonthlyBreakdownTable from './components/MonthlyBreakdownTable'
@@ -33,6 +34,15 @@ export default function TrendsForecastsPage() {
         subtitle={PAGE_SUBTITLE}
         action={<AnalyticsTimeFilter {...trends.timeFilterProps} />}
       />
+
+      {trends.partialMonth && (
+        <PartialPeriodNotice
+          label={trends.partialMonth.label}
+          daysElapsed={trends.partialMonth.daysElapsed}
+          daysTotal={trends.partialMonth.daysTotal}
+          treatment="Trends, averages and the month-on-month table cover completed months only, so a half-month of income cannot masquerade as a spending win."
+        />
+      )}
 
       <TrendSummaryGrid metrics={trends.metrics} isLoading={trends.isLoading} />
       <MonthlyTrendSection

@@ -2,15 +2,18 @@ import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
+  daysInMonth,
   getCurrentYear,
   getCurrentFY,
   getFYDateRange,
   getDateKey,
   getAvailableFYs,
-  MS_PER_DAY,
+  inclusiveDaySpan,
+  toLocalDateKey,
 } from '@/lib/dateUtils'
-import type { CompareMode, PeriodSummary, CategoryDelta } from './types'
+import type { CompareMode, PartialPeriod, PeriodSummary, CategoryDelta } from './types'
 import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './utils'
+import { alignToElapsed, type DateSpan } from './periodAlign'
 import { generateAllInsights } from './insights'
 
 export function useComparisonData() {
@@ -37,10 +40,7 @@ export function useComparisonData() {
 
   // Month selectors
   const monthOptions = useMemo(() => getMonthOptions(transactions), [transactions])
-  const currentMonthKey = useMemo(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  }, [])
+  const currentMonthKey = useMemo(() => toLocalDateKey(new Date()).slice(0, 7), [])
   const defaultMonths = useMemo(() => {
     const complete = monthOptions.filter((m) => m < currentMonthKey)
     return { a: complete[1] || monthOptions[1] || '', b: complete[0] || monthOptions[0] || '' }
@@ -69,7 +69,12 @@ export function useComparisonData() {
 
   // Build period summaries
   const buildSummary = useMemo(() => {
-    return (label: string, startDate: string, endDate: string): PeriodSummary => {
+    return (
+      label: string,
+      startDate: string,
+      endDate: string,
+      isPartial: boolean,
+    ): PeriodSummary => {
       const cats: Record<string, { income: number; expense: number }> = {}
       let income = 0
       let expense = 0
@@ -91,15 +96,10 @@ export function useComparisonData() {
       }
 
       const savings = income - expense
-      // Inclusive day span of the period, computed from the explicit date parts
-      // (local midnight) so daily averages divide by the real length -- not a
+      // Inclusive day span of the period, from the explicit date parts (local
+      // midnight) so daily averages divide by the real length -- not a
       // hardcoded 30 that is ~12x wrong for year/FY comparisons.
-      const [sy, sm, sd] = startDate.slice(0, 10).split('-').map(Number)
-      const [ey, em, ed] = endDate.slice(0, 10).split('-').map(Number)
-      const days = Math.max(
-        1,
-        Math.round((new Date(ey, em - 1, ed).getTime() - new Date(sy, sm - 1, sd).getTime()) / MS_PER_DAY) + 1,
-      )
+      const days = inclusiveDaySpan(startDate, endDate)
       return {
         label,
         income,
@@ -108,72 +108,81 @@ export function useComparisonData() {
         savingsRate: income > 0 ? (savings / income) * 100 : 0,
         transactions: count,
         days,
+        isPartial,
         categories: cats,
       }
     }
   }, [transactions])
 
+  /**
+   * Raw calendar spans for the selected pair, before any partial-period
+   * alignment. Month end days come from the calendar (not a hardcoded 31) and FY
+   * spans honour the user's fiscal-year start month.
+   */
+  const rawSpans = useMemo((): { a: DateSpan; b: DateSpan; labelA: string; labelB: string } => {
+    if (mode === 'month') {
+      const monthSpan = (key: string): DateSpan => ({
+        start: `${key}-01`,
+        end: `${key}-${String(daysInMonth(key)).padStart(2, '0')}`,
+      })
+      return {
+        a: monthSpan(effectiveMonthA),
+        b: monthSpan(effectiveMonthB),
+        labelA: formatMonthLabel(effectiveMonthA),
+        labelB: formatMonthLabel(effectiveMonthB),
+      }
+    }
+    if (mode === 'year') {
+      return {
+        a: { start: `${yearA}-01-01`, end: `${yearA}-12-31` },
+        b: { start: `${yearB}-01-01`, end: `${yearB}-12-31` },
+        labelA: String(yearA),
+        labelB: String(yearB),
+      }
+    }
+    return {
+      a: getFYDateRange(fyA, fiscalYearStartMonth),
+      b: getFYDateRange(fyB, fiscalYearStartMonth),
+      labelA: fyA,
+      labelB: fyB,
+    }
+  }, [mode, effectiveMonthA, effectiveMonthB, yearA, yearB, fyA, fyB, fiscalYearStartMonth])
+
+  /**
+   * When period B is still running, BOTH spans are cut to the same elapsed-day
+   * count. A month, a calendar year and an FY all suffer the same distortion
+   * otherwise: 26 days of July against all 31 of June reads as a spending win,
+   * and two months into an FY against a full prior FY reads as an 83% income
+   * collapse. This applies to every mode, not just FY.
+   */
+  const aligned = useMemo(() => alignToElapsed(rawSpans.a, rawSpans.b), [rawSpans])
+
+  const partialPeriod = useMemo((): PartialPeriod | null => {
+    if (!aligned.partial) return null
+    return {
+      label: rawSpans.labelB,
+      daysElapsed: aligned.partial.daysElapsed,
+      daysTotal: aligned.partial.daysTotal,
+    }
+  }, [aligned, rawSpans.labelB])
+
   const [periodA, periodB] = useMemo((): [PeriodSummary, PeriodSummary] => {
     if (transactions.length === 0) {
       const empty: PeriodSummary = {
         label: '-', income: 0, expense: 0, savings: 0,
-        savingsRate: 0, transactions: 0, days: 1, categories: {},
+        savingsRate: 0, transactions: 0, days: 1, isPartial: false, categories: {},
       }
       return [empty, empty]
     }
 
-    if (mode === 'month') {
-      const aStart = `${effectiveMonthA}-01`
-      const [ay, am] = effectiveMonthA.split('-').map(Number)
-      const aEnd = `${effectiveMonthA}-${new Date(ay, am, 0).getDate()}`
-      const bStart = `${effectiveMonthB}-01`
-      const [by, bm] = effectiveMonthB.split('-').map(Number)
-      const bEnd = `${effectiveMonthB}-${new Date(by, bm, 0).getDate()}`
-      return [
-        buildSummary(formatMonthLabel(effectiveMonthA), aStart, aEnd),
-        buildSummary(formatMonthLabel(effectiveMonthB), bStart, bEnd),
-      ]
-    }
-
-    if (mode === 'year') {
-      return [
-        buildSummary(String(yearA), `${yearA}-01-01`, `${yearA}-12-31`),
-        buildSummary(String(yearB), `${yearB}-01-01`, `${yearB}-12-31`),
-      ]
-    }
-
-    // FY: when fyB is the current (in-progress) FY we truncate BOTH ranges to
-    // the elapsed-day count so the comparison is apples-to-apples (2 months in
-    // vs 2 months of last FY, not 12 months of last FY). Without this, a user
-    // opening the page in May of FY25-26 would see "last FY ₹24L vs this FY
-    // ₹4L - 83% down!" which is just an artifact of the FY being young.
-    const currentFY = getCurrentFY(fiscalYearStartMonth)
-    const rangeA = getFYDateRange(fyA, fiscalYearStartMonth)
-    const rangeB = getFYDateRange(fyB, fiscalYearStartMonth)
-
-    if (fyB === currentFY) {
-      const today = new Date().toISOString().substring(0, 10)
-      // Cap fyB at today. ISO-8601 dates are pure-ASCII + fixed-width, so
-      // localeCompare() also happens to be chronological here.
-      const truncatedB = today.localeCompare(rangeB.end) < 0 ? today : rangeB.end
-      // Cap fyA at the same day-of-FY: offset = daysElapsedInFY(B)
-      const fyBStart = new Date(rangeB.start)
-      const daysElapsed = Math.floor(
-        (new Date(truncatedB).getTime() - fyBStart.getTime()) / 86_400_000,
-      )
-      const fyAStart = new Date(rangeA.start)
-      fyAStart.setUTCDate(fyAStart.getUTCDate() + daysElapsed)
-      const truncatedA = fyAStart.toISOString().substring(0, 10)
-      return [
-        buildSummary(`${fyA} (to same date)`, rangeA.start, truncatedA),
-        buildSummary(`${fyB} (YTD)`, rangeB.start, truncatedB),
-      ]
-    }
+    const isPartial = aligned.partial !== null
+    const labelA = isPartial ? `${rawSpans.labelA} (to same day)` : rawSpans.labelA
+    const labelB = isPartial ? `${rawSpans.labelB} (to date)` : rawSpans.labelB
     return [
-      buildSummary(fyA, rangeA.start, rangeA.end),
-      buildSummary(fyB, rangeB.start, rangeB.end),
+      buildSummary(labelA, aligned.a.start, aligned.a.end, isPartial),
+      buildSummary(labelB, aligned.b.start, aligned.b.end, isPartial),
     ]
-  }, [transactions, buildSummary, mode, effectiveMonthA, effectiveMonthB, yearA, yearB, fyA, fyB, fiscalYearStartMonth])
+  }, [transactions, buildSummary, aligned, rawSpans.labelA, rawSpans.labelB])
 
   // Category deltas
   const categoryDeltas = useMemo((): CategoryDelta[] => {
@@ -240,7 +249,7 @@ export function useComparisonData() {
     setMonthA, setMonthB,
     setYearA, setYearB,
     setFyA, setFyB,
-    periodA, periodB,
+    periodA, periodB, partialPeriod,
     expenseDeltas, incomeDeltas,
     distributionA, distributionB,
     insights,
