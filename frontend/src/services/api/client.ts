@@ -31,6 +31,7 @@ import {
   generateDemoDailySummaries,
   generateDemoDataDateRange,
   generateDemoFacets,
+  generateDemoIncomeFacets,
   generateDemoInvestmentHoldings,
   generateDemoMerchantIntelligence,
   generateDemoQuickInsights,
@@ -75,6 +76,7 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/calculations/quick-insights', (txs) => generateDemoQuickInsights(txs)],
   ['/calculations/data-date-range', (txs) => generateDemoDataDateRange(txs)],
   ['/calculations/income-analysis', (txs, params) => generateDemoIncomeAnalysis(txs, params)],
+  ['/calculations/income-facets', (txs) => generateDemoIncomeFacets(txs)],
   [
     '/calculations/category-monthly-history',
     (txs, params) =>

@@ -2,6 +2,9 @@
  * Constants and helper functions for the Settings page.
  */
 
+import type { IncomeClassificationType } from './types'
+import { INCOME_CLASSIFICATION_KEY_MAP } from './types'
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -161,12 +164,37 @@ export function getDefaultClassifications(
   return defaults
 }
 
-const INCOME_CLASSIFICATION_RULES: Array<{ keywords: string[]; bucket: 'taxable' | 'investment' | 'non_taxable' | 'other' }> = [
+const INCOME_CLASSIFICATION_RULES: Array<{ keywords: string[]; bucket: IncomeClassificationType }> = [
   { keywords: ['salary', 'stipend', 'bonus', 'freelance', 'gig work', 'consulting', 'rsus', 'self employment', 'rental', 'employment income'], bucket: 'taxable' },
   { keywords: ['dividend', 'interest', 'capital gain', 'f&o', 'stock market', 'investment', 'mutual fund', 'trading'], bucket: 'investment' },
   { keywords: ['cashback', 'refund', 'reward', 'reimbursement', 'deposit return'], bucket: 'non_taxable' },
   { keywords: ['gift', 'prize', 'pocket money', 'epf contribution', 'one-time', 'other', 'modified balancing'], bucket: 'other' },
 ]
+
+/**
+ * Suggest a tax bucket for one income subcategory by keyword matching.
+ *
+ * Single source of truth for the keyword rules: both the first-run default
+ * seeding (`getDefaultIncomeClassifications`) and the unclassified-income
+ * prompt (`auditIncomeClassification`) read it, so a suggestion the user sees
+ * in Settings is the same one the defaults would have picked.
+ *
+ * Returns `null` when nothing matches -- an honest "we don't know", which the
+ * UI must surface rather than guess at.
+ */
+export function suggestIncomeBucket(
+  category: string,
+  subcategory: string,
+): IncomeClassificationType | null {
+  const subLower = subcategory.toLowerCase()
+  const catLower = category.toLowerCase()
+  // Check subcategory first (specific), then category (broad) to avoid
+  // broad keywords like 'employment income' swallowing specific subcategories
+  const matched =
+    INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => subLower.includes(kw))) ??
+    INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => catLower.includes(kw)))
+  return matched?.bucket ?? null
+}
 
 /**
  * Classify income subcategory items (format: "Category::Subcategory") into
@@ -199,18 +227,118 @@ export function getDefaultIncomeClassifications(
       const item = `${cat}::${sub}`
       if (alreadyClassified.has(item)) continue
 
-      const subLower = sub.toLowerCase()
-      const catLower = cat.toLowerCase()
-      // Check subcategory first (specific), then category (broad) to avoid
-      // broad keywords like 'employment income' swallowing specific subcategories
-      const matched =
-        INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => subLower.includes(kw))) ??
-        INCOME_CLASSIFICATION_RULES.find((rule) => rule.keywords.some((kw) => catLower.includes(kw)))
-      if (matched) result[matched.bucket].push(item)
+      const bucket = suggestIncomeBucket(cat, sub)
+      if (bucket) result[bucket].push(item)
     }
   }
 
   return result
+}
+
+// ---------------------------------------------------------------------------
+// Income classification audit
+// ---------------------------------------------------------------------------
+
+/** One "Category::Subcategory" income bucket as it exists in the ledger. */
+export interface IncomeFacet {
+  category: string
+  subcategory: string
+  count: number
+  total: number
+}
+
+/** A ledger income bucket that no classification list claims. */
+export interface UnclassifiedIncomeItem {
+  key: string
+  category: string
+  subcategory: string
+  count: number
+  total: number
+  /** Keyword-derived bucket, or `null` when no rule matches. */
+  suggested: IncomeClassificationType | null
+}
+
+/** A saved classification key that matches zero ledger rows. */
+export interface DeadIncomeKey {
+  key: string
+  classification: IncomeClassificationType
+}
+
+export interface IncomeClassificationAudit {
+  unclassified: UnclassifiedIncomeItem[]
+  deadKeys: DeadIncomeKey[]
+  /** Money sitting in unclassified buckets -- the cost of leaving the prompt alone. */
+  unclassifiedTotal: number
+  /** Transaction count behind `unclassifiedTotal`. */
+  unclassifiedRows: number
+}
+
+type IncomeClassificationLists = Record<IncomeClassificationType, string[]>
+
+/**
+ * Reconcile the four saved classification lists against the ledger's actual
+ * income buckets.
+ *
+ * Why this exists: the lists are EXACT-MATCH key sets and a stored non-empty
+ * list is honoured verbatim by the backend (`core/analytics/base.py`). So a
+ * partially-configured list has two silent failure modes, neither of which
+ * raises anything:
+ *   - a ledger bucket in NO list falls through every consumer's classification
+ *     chain (`classifyIncomeType` returns 'other', `_is_taxable_income` returns
+ *     false), so the money quietly leaves every classified total; and
+ *   - a saved key no transaction carries contributes zero, so a drifted
+ *     spelling reads as a configured-and-working bucket while summing nothing.
+ *
+ * Matching is case-insensitive to mirror `matchesClassification` in
+ * `lib/preferencesUtils.ts` -- a key differing only in case is honoured by the
+ * consumers, so flagging it here would be a false alarm.
+ */
+export function auditIncomeClassification(
+  facets: IncomeFacet[],
+  lists: IncomeClassificationLists,
+): IncomeClassificationAudit {
+  const claimedBy = new Map<string, IncomeClassificationType>()
+  for (const type of Object.keys(INCOME_CLASSIFICATION_KEY_MAP) as IncomeClassificationType[]) {
+    for (const key of lists[type]) {
+      const lower = key.toLowerCase()
+      // First list wins, matching the fixed resolution order consumers use.
+      if (!claimedBy.has(lower)) claimedBy.set(lower, type)
+    }
+  }
+
+  const ledgerKeys = new Set(
+    facets.map((f) => `${f.category}::${f.subcategory}`.toLowerCase()),
+  )
+
+  const unclassified: UnclassifiedIncomeItem[] = []
+  for (const facet of facets) {
+    const key = `${facet.category}::${facet.subcategory}`
+    if (claimedBy.has(key.toLowerCase())) continue
+    unclassified.push({
+      key,
+      category: facet.category,
+      subcategory: facet.subcategory,
+      count: facet.count,
+      total: facet.total,
+      suggested: suggestIncomeBucket(facet.category, facet.subcategory),
+    })
+  }
+  // Biggest money impact first -- that is the row worth fixing.
+  unclassified.sort((a, b) => b.total - a.total)
+
+  const deadKeys: DeadIncomeKey[] = []
+  for (const type of Object.keys(INCOME_CLASSIFICATION_KEY_MAP) as IncomeClassificationType[]) {
+    for (const key of lists[type]) {
+      if (!ledgerKeys.has(key.toLowerCase())) deadKeys.push({ key, classification: type })
+    }
+  }
+
+  return {
+    unclassified,
+    deadKeys,
+    unclassifiedTotal: unclassified.reduce((sum, item) => sum + item.total, 0),
+    unclassifiedRows: unclassified.reduce((sum, item) => sum + item.count, 0),
+  }
 }
 
 const INVESTMENT_MAPPING_RULES: Array<{ keywords: string[]; endsWith?: string[]; type: string }> = [

@@ -89,6 +89,14 @@ export const masterCategoriesOptions = () =>
     ...STABLE,
   })
 
+/** Income buckets with row counts + sums, for the Settings classification audit. */
+export const incomeFacetsOptions = () =>
+  queryOptions({
+    queryKey: ['calculations', 'income-facets'] as const,
+    queryFn: async () => (await calculationsApi.getIncomeFacets()).data,
+    ...STABLE,
+  })
+
 // ─── Hook Wrappers ───────────────────────────────────────────────────────────
 
 export const useKPIs = (params?: { time_range?: TimeRange }) => useQuery(kpisOptions(params))
@@ -113,3 +121,4 @@ export const useDataDateRange = () => {
   }
 }
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())
+export const useIncomeFacets = () => useQuery(incomeFacetsOptions())

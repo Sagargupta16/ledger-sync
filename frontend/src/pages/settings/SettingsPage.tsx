@@ -173,7 +173,9 @@ export default function SettingsPage() {
             index={sectionIndex++}
             allIncomeCategories={s.allIncomeCategories}
             localPrefs={s.localPrefs}
-            unclassifiedIncomeItems={s.unclassifiedIncomeItems}
+            incomeAudit={s.incomeAudit}
+            applyIncomeSuggestions={s.applyIncomeSuggestions}
+            removeIncomeKey={s.removeIncomeKey}
             setLocalPrefs={s.setLocalPrefs}
             setHasChanges={s.setHasChanges}
             defaultCollapsed={false}

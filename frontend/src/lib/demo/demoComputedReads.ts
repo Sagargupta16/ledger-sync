@@ -7,7 +7,7 @@ import type {
   SpendingRuleResponse,
   TransferFlow,
 } from '@/services/api/analyticsV2'
-import type { QuickInsightsData } from '@/services/api/calculations'
+import type { IncomeFacetsData, QuickInsightsData } from '@/services/api/calculations'
 import type { SavedView } from '@/services/api/savedViews'
 import type { TransactionFacets } from '@/services/api/transactions'
 import {
@@ -87,6 +87,24 @@ export function generateDemoDataDateRange(txs: Transaction[]): {
   if (txs.length === 0) return { min_date: null, max_date: null }
   // txs arrive sorted newest-first.
   return { min_date: txs.at(-1)?.date ?? null, max_date: txs[0].date }
+}
+
+/** Mirrors /api/calculations/income-facets: income buckets with count + sum. */
+export function generateDemoIncomeFacets(txs: Transaction[]): IncomeFacetsData {
+  const buckets = new Map<
+    string,
+    { category: string; subcategory: string; total: number; count: number }
+  >()
+  for (const t of txs.filter(isIncome)) {
+    const category = t.category || 'Uncategorized'
+    const subcategory = t.subcategory || 'Other'
+    const key = `${category}::${subcategory}`
+    const bucket = buckets.get(key) ?? { category, subcategory, total: 0, count: 0 }
+    bucket.total += Math.abs(t.amount)
+    bucket.count += 1
+    buckets.set(key, bucket)
+  }
+  return { facets: [...buckets.values()] }
 }
 
 /**

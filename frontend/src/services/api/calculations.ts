@@ -82,6 +82,10 @@ export interface IncomeAnalysisData {
   growth_rate: number
 }
 
+export interface IncomeFacetsData {
+  facets: { category: string; subcategory: string; total: number; count: number }[]
+}
+
 export interface QuickInsightsData {
   min_date: string | null
   max_date: string | null
@@ -130,6 +134,10 @@ export const calculationsApi = {
     apiClient.get<Record<string, number[]>>('/api/calculations/category-monthly-history', {
       params: { months: months.join(','), transaction_type: transactionType },
     }),
+
+  /** Every income (category, subcategory) bucket with its row count and sum. */
+  getIncomeFacets: () =>
+    apiClient.get<IncomeFacetsData>('/api/calculations/income-facets'),
 
   /** Min/max transaction date (YYYY-MM-DD) for time-filter nav bounds. */
   getDataDateRange: () =>

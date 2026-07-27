@@ -520,6 +520,58 @@ def get_data_date_range(
     }
 
 
+@router.get("/income-facets")
+def get_income_facets(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, list[dict[str, Any]]]:
+    """Every ``(category, subcategory)`` income bucket with its row count and sum.
+
+    Powers the Settings income-classification audit, which reconciles the four
+    saved ``*_income_categories`` preference lists against what the ledger
+    actually carries. Those lists are EXACT-MATCH key sets and a stored
+    non-empty list is honoured verbatim, so a bucket missing from all four is
+    silently unclassified and a saved key matching no row silently sums zero.
+    Answering "which buckets exist, and how much money is in each?" needs the
+    counts and totals, which ``/categories/master`` (distinct names only) does
+    not carry.
+
+    Reads raw transactions rather than the ``category_trends`` rollup: the
+    rollup can lag a fresh import, and a bucket missing from it would read as
+    "already classified" -- exactly the silent gap this endpoint exists to
+    close. Aggregated in SQL, so the response is a few rows either way.
+    """
+    base = build_transaction_query(db, current_user).subquery()
+    cat_col = func.coalesce(base.c.category, "Uncategorized")
+    subcat_col = func.coalesce(base.c.subcategory, "Other")
+
+    rows = (
+        db.query(
+            cat_col.label("category"),
+            subcat_col.label("subcategory"),
+            func.coalesce(func.sum(base.c.amount), 0).label("total"),
+            func.count().label("count"),
+        )
+        .filter(base.c.type == TransactionType.INCOME)
+        .group_by(cat_col, subcat_col)
+        .all()
+    )
+
+    return {
+        "facets": [
+            {
+                "category": row.category,
+                "subcategory": row.subcategory,
+                # Income amounts are stored positive, but abs() keeps a
+                # sign-flipped correction row from subtracting from its bucket.
+                "total": abs(float(row.total)),
+                "count": row.count,
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.get("/income-analysis")
 def get_income_analysis(
     current_user: CurrentUser,
