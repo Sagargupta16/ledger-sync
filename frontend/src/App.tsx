@@ -34,6 +34,8 @@ const pageImports = {
   GSTAnalysisPage: () => import('@/pages/gst-analysis/GSTAnalysisPage'),
   NetWorthPage: () => import('@/pages/net-worth/NetWorthPage'),
   SpendingAnalysisPage: () => import('@/pages/spending-analysis/SpendingAnalysisPage'),
+  MerchantIntelligencePage: () =>
+    import('@/pages/merchant-intelligence/MerchantIntelligencePage'),
   IncomeAnalysisPage: () => import('@/pages/income-analysis/IncomeAnalysisPage'),
   IncomeExpenseFlowPage: () => import('@/pages/income-expense-flow/IncomeExpenseFlowPage'),
   TrendsForecastsPage: () => import('@/pages/trends-forecasts/TrendsForecastsPage'),
@@ -42,6 +44,7 @@ const pageImports = {
   YearInReviewPage: () => import('@/pages/year-in-review/YearInReviewPage'),
   SettingsPage: () => import('@/pages/settings/SettingsPage'),
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
+  DataHealthPage: () => import('@/pages/data-health/DataHealthPage'),
   GoalsPage: () => import('@/pages/goals/GoalsPage'),
   SubscriptionTrackerPage: () => import('@/pages/subscription-tracker/SubscriptionTrackerPage'),
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
@@ -59,6 +62,7 @@ const TaxPlanningPage = lazy(pageImports.TaxPlanningPage)
 const GSTAnalysisPage = lazy(pageImports.GSTAnalysisPage)
 const NetWorthPage = lazy(pageImports.NetWorthPage)
 const SpendingAnalysisPage = lazy(pageImports.SpendingAnalysisPage)
+const MerchantIntelligencePage = lazy(pageImports.MerchantIntelligencePage)
 const IncomeAnalysisPage = lazy(pageImports.IncomeAnalysisPage)
 const IncomeExpenseFlowPage = lazy(pageImports.IncomeExpenseFlowPage)
 const TrendsForecastsPage = lazy(pageImports.TrendsForecastsPage)
@@ -67,6 +71,7 @@ const BudgetPage = lazy(pageImports.BudgetPage)
 const YearInReviewPage = lazy(pageImports.YearInReviewPage)
 const SettingsPage = lazy(pageImports.SettingsPage)
 const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
+const DataHealthPage = lazy(pageImports.DataHealthPage)
 const GoalsPage = lazy(pageImports.GoalsPage)
 const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
 const BillCalendarPage = lazy(pageImports.BillCalendarPage)
@@ -81,7 +86,12 @@ const OverviewPage = lazy(pageImports.OverviewPage)
 function prefetchAllPages() {
   const prefetch = () => {
     for (const loader of Object.values(pageImports)) {
-      loader()
+      // Swallow deliberately. A chunk fetch that fails during idle prefetch is
+      // not an error the user should see -- `ChunkErrorBoundary` handles the
+      // case that matters, which is a failure at NAVIGATION time. Left bare,
+      // each rejected import surfaced as an unhandled promise rejection in the
+      // console on a flaky connection, for a page the user never opened.
+      loader().catch(() => {})
     }
   }
 
@@ -245,6 +255,7 @@ function App() {
                     <Route path={toRelativePath(ROUTES.GST_ANALYSIS)} element={<GSTAnalysisPage />} />
                     <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
                     <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
+                    <Route path={toRelativePath(ROUTES.MERCHANT_INTELLIGENCE)} element={<MerchantIntelligencePage />} />
                     <Route path={toRelativePath(ROUTES.INCOME_ANALYSIS)} element={<IncomeAnalysisPage />} />
                     <Route path={toRelativePath(ROUTES.INCOME_EXPENSE_FLOW)} element={<IncomeExpenseFlowPage />} />
                     <Route path={toRelativePath(ROUTES.TRENDS_FORECASTS)} element={<TrendsForecastsPage />} />
@@ -252,6 +263,7 @@ function App() {
                     <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
                     <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
                     <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
+                    <Route path={toRelativePath(ROUTES.DATA_HEALTH)} element={<DataHealthPage />} />
                     <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
                     <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
                     <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />

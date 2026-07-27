@@ -17,6 +17,7 @@ import {
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { rollingAvgCaption } from '@/lib/chartUtils'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrencyShort } from '@/lib/formatters'
 
@@ -24,14 +25,24 @@ import type { MonthlyIncomeDatum } from '../useIncomeAnalysis'
 
 interface IncomeTrendSectionProps {
   readonly data: readonly MonthlyIncomeDatum[]
-  readonly peakIncome: number
+  /**
+   * `undefined` when the only month on the chart is the one in progress -- a
+   * running total is not a peak, so the reference line is omitted rather than
+   * drawn across the single partial bar.
+   */
+  readonly peakIncome: number | undefined
   readonly avgIncome: number
+  /** Count of months that have a real rolling average (not the data length). */
+  readonly rollingAvgPointCount: number
+  readonly rollingAvgMonths: number
 }
 
 export default function IncomeTrendSection({
   data,
   peakIncome,
   avgIncome,
+  rollingAvgPointCount,
+  rollingAvgMonths,
 }: IncomeTrendSectionProps) {
   const dimensions = useChartDimensions()
 
@@ -51,7 +62,8 @@ export default function IncomeTrendSection({
               Income Trend
             </h2>
             <p className="text-pretty text-sm text-text-tertiary">
-              Monthly income with 3-month rolling average
+              Monthly income with a {rollingAvgMonths}-month rolling average.{' '}
+              {rollingAvgCaption(rollingAvgPointCount, rollingAvgMonths)}
             </p>
           </div>
         </div>
@@ -59,7 +71,7 @@ export default function IncomeTrendSection({
         {data.length > 0 ? (
           <ChartContainer
             height={dimensions.chartHeight}
-            ariaLabel="Monthly income over time with a 3-month rolling average, plus peak and average reference lines."
+            ariaLabel={`Monthly income over time with a ${rollingAvgMonths}-month rolling average, plus peak and average reference lines`}
           >
             <AreaChart data={data} margin={dimensions.margin}>
               <defs>{areaGradient('incomeTrend', rawColors.app.green, 0.4, 0)}</defs>
@@ -77,15 +89,16 @@ export default function IncomeTrendSection({
                 }}
                 formatter={(value, name) => [
                   currencyTooltipFormatter(value),
-                  name === 'incomeAvg' ? 'Income (3m avg)' : 'Income',
+                  name === 'incomeAvg' ? `Income (${rollingAvgMonths}m avg)` : 'Income',
                 ]}
                 itemSorter={(item) => -(item.value as number)}
               />
-              {referenceLine({
-                y: peakIncome,
-                label: `Peak: ${formatCurrencyShort(peakIncome)}`,
-                variant: 'peak',
-              })}
+              {peakIncome !== undefined &&
+                referenceLine({
+                  y: peakIncome,
+                  label: `Peak: ${formatCurrencyShort(peakIncome)}`,
+                  variant: 'peak',
+                })}
               {avgIncome > 0 &&
                 referenceLine({
                   y: avgIncome,
@@ -109,8 +122,12 @@ export default function IncomeTrendSection({
                 stroke={rawColors.app.green}
                 strokeWidth={2}
                 strokeDasharray="6 3"
-                dot={data.length === 1 ? { r: 3, fill: rawColors.app.green } : false}
-                name="Income (3m avg)"
+                // One defined point cannot be stroked (recharts emits `M x,y Z`),
+                // so mark it instead of drawing nothing at all. This keys off the
+                // AVERAGE point count, not `data.length` -- the leading months
+                // carry no average, so a 3-month window is exactly this case.
+                dot={rollingAvgPointCount === 1 ? { r: 3, fill: rawColors.app.green } : false}
+                name={`Income (${rollingAvgMonths}m avg)`}
                 isAnimationActive={shouldAnimate(data.length)}
                 animationDuration={600}
                 animationEasing="ease-out"

@@ -24,7 +24,7 @@ describe('TransactionFilters debounced search', () => {
     render(
       <TransactionFilters onFilterChange={onFilterChange} categories={CATEGORIES} accounts={ACCOUNTS} />,
     )
-    act(() => vi.advanceTimersByTime(500))
+    act(() => { vi.advanceTimersByTime(500) })
     expect(onFilterChange).not.toHaveBeenCalled()
   })
 
@@ -37,10 +37,10 @@ describe('TransactionFilters debounced search', () => {
 
     fireEvent.change(search, { target: { value: 'coffee' } })
     // Before the debounce window elapses, nothing is emitted.
-    act(() => vi.advanceTimersByTime(200))
+    act(() => { vi.advanceTimersByTime(200) })
     expect(onFilterChange).not.toHaveBeenCalled()
 
-    act(() => vi.advanceTimersByTime(150))
+    act(() => { vi.advanceTimersByTime(150) })
     expect(lastCall(onFilterChange)).toEqual({ query: 'coffee' })
   })
 
@@ -61,7 +61,7 @@ describe('TransactionFilters debounced search', () => {
     //    category chosen in step 1 -- this is the stale-closure case the
     //    useEffectEvent refactor guards against.
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'uber' } })
-    act(() => vi.advanceTimersByTime(350))
+    act(() => { vi.advanceTimersByTime(350) })
 
     expect(lastCall(onFilterChange)).toEqual({ type: 'Expense', query: 'uber' })
   })

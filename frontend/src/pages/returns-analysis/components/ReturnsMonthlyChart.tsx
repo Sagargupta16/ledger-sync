@@ -1,10 +1,10 @@
+import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Activity } from 'lucide-react'
 import {
   Bar,
   Brush,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -93,6 +93,22 @@ function ComboTooltip({
 export default function ReturnsMonthlyChart({
   data,
 }: Readonly<{ data: readonly MonthlyComboDatum[] }>) {
+  // Green for a profitable month, red for a loss. The colour rides on the data
+  // row as `fill` (Recharts merges each row over its bar rectangle props). This
+  // replaces the deprecated `<Cell>` child AND fixes a real mis-colouring: Cell
+  // children are matched positionally against the RENDERED bar list, which is
+  // the brush-sliced window, so once the user dragged the brush (or the default
+  // startIndex kicked in, which it does for any series over 6 months) every bar
+  // wore the colour of a different month's profit or loss.
+  const bars = useMemo(
+    () =>
+      data.map((datum) => ({
+        ...datum,
+        fill: datum.net >= 0 ? rawColors.app.green : rawColors.app.red,
+      })),
+    [data],
+  )
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -120,7 +136,7 @@ export default function ReturnsMonthlyChart({
           height={360}
           ariaLabel="Combo chart of monthly investment net profit or loss with a cumulative growth line."
         >
-          <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+          <ComposedChart data={bars} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis {...xAxisDefaults(data.length)} dataKey="month" />
             <YAxis {...yAxisDefaults()} />
@@ -133,14 +149,7 @@ export default function ReturnsMonthlyChart({
               isAnimationActive={shouldAnimate(data.length)}
               animationDuration={600}
               animationEasing="ease-out"
-            >
-              {data.map((datum) => (
-                <Cell
-                  key={datum.month}
-                  fill={datum.net >= 0 ? rawColors.app.green : rawColors.app.red}
-                />
-              ))}
-            </Bar>
+            />
             <Line
               type="monotone"
               dataKey="cumulative"

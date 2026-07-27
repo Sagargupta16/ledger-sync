@@ -7,9 +7,17 @@ import {
   Repeat, Scale, CalendarRange, ChevronDown,
 } from 'lucide-react'
 
-import { useCategoryBreakdown, useTotals, useQuickInsights } from '@/hooks/api/useAnalytics'
+import {
+  useCategoryBreakdown,
+  useTotals,
+  useQuickInsights,
+  useMonthlyAggregation,
+} from '@/hooks/api/useAnalytics'
+import { useDailySummaries, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
+import { toLocalDateKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
+import { netSavings as computeNetSavings, savingsRatePercentOr } from '@/lib/savingsRate'
 
 import ErrorState from './ErrorState'
 import LoadingSkeleton from './LoadingSkeleton'
@@ -20,12 +28,24 @@ import {
   filterByVisibility,
   computeDaysInRange,
   computeMonthsInRange,
+  resolveSpanRange,
+  medianSpendingDay,
+  medianSpendingMonth,
   fmtChange,
   buildQuickInsights,
   buildFunFacts,
   DAY_NAMES,
   monthLabel,
 } from './quickInsightsData'
+import { typicalMonthlyIncome } from './recentIncome'
+
+/**
+ * Upper bound the `/analytics/v2/daily-summaries` endpoint accepts (`Query(le=3000)`).
+ * Requesting the maximum keeps ~8 years of daily history in one page; beyond it
+ * the endpoint truncates the oldest days and the "typical spending day" figure
+ * self-suppresses rather than quoting a partially covered window.
+ */
+const MAX_DAILY_SUMMARY_ROWS = 3000
 
 interface QuickInsightsProps {
   readonly dateRange?: { start_date?: string; end_date?: string }
@@ -81,10 +101,27 @@ export default function QuickInsights({
   })
   const insightsQuery = useQuickInsights(dateRange)
   const totalsQuery = useTotals(dateRange)
+  // Period series behind the "typical day / typical month" halves of the mean
+  // KPIs. The daily series asks for the endpoint's maximum page because the
+  // 1,500-row default truncates the OLDEST days, and `medianSpendingDay` then
+  // refuses to quote a typical day for any window starting before the first row
+  // it received. On the real ledger (1,519 stored days) the default page dropped
+  // 2019-01-01..2019-06-08, which is why this costs one request that the
+  // no-argument app-wide prefetch cannot serve.
+  const monthlyQuery = useMonthlyAggregation(dateRange)
+  const dailyQuery = useDailySummaries({ limit: MAX_DAILY_SUMMARY_ROWS })
+  // Recent-income baseline for Recurring Coverage. Argument-free so it shares the
+  // cache slot the app-wide prefetch already warms -- no extra request.
+  const monthlySummariesQuery = useMonthlySummaries()
   const categoryData = categoryQuery.data
   const insights = insightsQuery.data
   const totalsData = totalsQuery.data
 
+  // The three rollup series are deliberately absent from the gates below. Each
+  // one only feeds a disclosure that self-suppresses when its data is missing:
+  // the period series drop the "typical" half of a subtitle, and the income
+  // baseline withholds the Recurring Coverage card. Failing there degrades one
+  // line rather than blanking every card in the band.
   const isLoading = categoryQuery.isLoading || insightsQuery.isLoading || totalsQuery.isLoading
   const isError = categoryQuery.isError || insightsQuery.isError || totalsQuery.isError
   const retry = () => {
@@ -92,20 +129,22 @@ export default function QuickInsights({
       categoryQuery.refetch(),
       insightsQuery.refetch(),
       totalsQuery.refetch(),
+      monthlyQuery.refetch(),
+      dailyQuery.refetch(),
+      monthlySummariesQuery.refetch(),
     ])
   }
 
-  const categories = categoryData?.categories || {}
+  const categories = categoryData?.categories ?? {}
 
   const topCategory = Object.entries(categories)
     .sort(([, a], [, b]) => (b as CategoryData).total - (a as CategoryData).total)[0]
 
   // Days/months in range: prefer the explicit filter, else the data's actual
-  // span (returned by the endpoint as min/max date) -- no raw rows needed.
-  const spanRange = {
-    start_date: dateRange.start_date ?? insights?.min_date ?? undefined,
-    end_date: dateRange.end_date ?? insights?.max_date ?? undefined,
-  }
+  // span (returned by the endpoint as min/max date) -- no raw rows needed. The
+  // end is capped at today so forward-dated rows cannot stretch the divisor past
+  // the elapsed period; see `resolveSpanRange`.
+  const spanRange = resolveSpanRange(dateRange, insights, toLocalDateKey(new Date()))
   const daysInRange = computeDaysInRange(spanRange, [])
   const monthsInRange = computeMonthsInRange(spanRange, [])
 
@@ -120,9 +159,21 @@ export default function QuickInsights({
   const totalTransfers = insights?.total_transfers ?? 0
 
   // New insights data
-  const savingsRate = totalsData?.savings_rate ?? 0
+  //
+  // Savings rate and net savings are recomputed from the flows through the
+  // shared definition rather than read from the response's own `savings_rate` /
+  // `net_savings` fields. Those are precomputed server-side, so a tile could
+  // contradict the income and expense totals printed beside it on this very
+  // card. Deriving all three from one pair of flows makes the band internally
+  // consistent by construction.
+  //
+  // This does NOT make the number true: on the no-date-filter path the backend
+  // serves these totals from the `monthly_summaries` rollup, which can lag the
+  // raw ledger. That staleness is surfaced separately by StaleAnalyticsAlert.
   const totalIncome = totalsData?.total_income ?? 0
-  const netSavings = totalsData?.net_savings ?? 0
+  const totalExpenses = Math.abs(totalsData?.total_expenses ?? 0)
+  const savingsRate = savingsRatePercentOr({ income: totalIncome, expense: totalExpenses })
+  const netSavings = computeNetSavings({ income: totalIncome, expense: totalExpenses })
 
   const topIncomeSource: [string, number] | null = insights?.top_income_source
     ? [insights.top_income_source.category, insights.top_income_source.amount]
@@ -142,6 +193,11 @@ export default function QuickInsights({
 
   const medianTransaction = insights?.median_expense ?? 0
 
+  // Typical (median) counterparts to the mean rate KPIs. Scoped to the same
+  // window the means use so the two halves of a subtitle describe one period.
+  const typicalSpendingDay = medianSpendingDay(dailyQuery.data, spanRange)
+  const typicalSpendingMonth = medianSpendingMonth(monthlyQuery.data)
+
   // ─── Build two arrays: Quick Insights (key metrics) + Fun Facts (behavioral) ─
 
   const biggestTransaction = {
@@ -149,9 +205,24 @@ export default function QuickInsights({
     category: insights?.biggest_expense?.category || 'N/A',
   }
 
-  // Recurring coverage: what % of monthly income goes to fixed recurring
-  const monthlyIncome = totalIncome / Math.max(monthsInRange, 1)
-  const recurringCoverage = monthlyIncome > 0 ? (fixedCommitmentsMonthly / monthlyIncome) * 100 : 0
+  // Recurring coverage: what % of monthly income goes to fixed recurring.
+  //
+  // The denominator is the median of the last 12 COMPLETE months, not the
+  // all-time mean (`totalIncome / monthsInRange`). Both the numerator and the
+  // question are about today: `fixedCommitmentsMonthly` is what the active
+  // recurring patterns cost per month right now. Dividing that by a lifetime
+  // average of a growing income answers nothing -- on the real ledger the mean is
+  // 68,130.93/month against a recent median of 216,756.94, which turned 115,027.89
+  // of commitments into 168.8% coverage ("High fixed cost load") instead of 53.1%.
+  //
+  // Falling back to the all-time mean when the rollup is unavailable would swap
+  // the honest number for the wrong one, so coverage stays null and the card is
+  // withheld instead.
+  const typicalIncome = typicalMonthlyIncome(monthlySummariesQuery.data)
+  const recurringCoverage =
+    typicalIncome != null && typicalIncome > 0
+      ? (fixedCommitmentsMonthly / typicalIncome) * 100
+      : null
 
   // Income vs Expense ratio
   const totalExpenseAbs = Math.abs(totalsData?.total_expenses ?? 0)
@@ -205,6 +276,8 @@ export default function QuickInsights({
       peakDay,
       monthlyBurnRate,
       monthsInRange,
+      medianSpendingDay: typicalSpendingDay,
+      medianSpendingMonth: typicalSpendingMonth,
       uniqueCategories,
       uniqueSubcategories,
       totalTransfers,

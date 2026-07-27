@@ -123,10 +123,13 @@ export default function CommandPalette() {
 
   const executeResult = useCallback(
     (result: PaletteResult) => {
+      // `void navigate(...)`: typed `void | Promise<void>` by react-router but
+      // returns undefined under BrowserRouter (App.tsx), and closing the
+      // palette below does not depend on the transition resolving.
       if (result.kind === 'page') {
-        navigate(result.entry.path)
+        void navigate(result.entry.path)
       } else {
-        navigate(ROUTES.TRANSACTIONS)
+        void navigate(ROUTES.TRANSACTIONS)
       }
       close()
     },

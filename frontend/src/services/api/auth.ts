@@ -40,12 +40,20 @@ export const logout = async (): Promise<void> => {
 }
 
 /**
- * Update user profile
+ * Update user profile.
+ *
+ * JSON BODY, not query params. `PUT /api/auth/me` declares `updates:
+ * UserUpdate`, so sending a null body with `params: { full_name }` was rejected
+ * 422 `{"loc": ["body"], "msg": "Field required"}` -- saving a display name in
+ * the profile modal could never succeed. Reproduced against the real app at
+ * 2026-07-27 and pinned in backend/tests/integration/test_profile_update.py.
+ *
+ * `/account/reset` below is the genuine query-param case (its handler declares
+ * `mode: Annotated[..., Query()]`), so the two are not the same shape by
+ * accident.
  */
 export const updateProfile = async (fullName: string): Promise<User> => {
-  const response = await apiClient.put<User>(`${AUTH_BASE}/me`, null, {
-    params: { full_name: fullName },
-  })
+  const response = await apiClient.put<User>(`${AUTH_BASE}/me`, { full_name: fullName })
   return response.data
 }
 

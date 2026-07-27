@@ -1,3 +1,5 @@
+import type { AccountBalancesResponse } from '@/types'
+
 import { apiClient } from './client'
 
 export interface MasterCategories {
@@ -47,20 +49,19 @@ export interface CategoryBreakdown {
   total: number
 }
 
-export interface AccountBalance {
-  balance: number
-  transactions: number
-  last_transaction: string | null
-}
+/**
+ * `GET /api/calculations/account-balances`.
+ *
+ * The five summary numbers live NESTED under `statistics` on the wire -- see
+ * `_compute_account_statistics` in `backend/src/ledger_sync/api/calculations_helpers.py`,
+ * which returns `{"accounts": ..., "statistics": {...}}`. This alias existed here
+ * as a FLAT interface, so `data.total_balance` type-checked and resolved to
+ * `undefined` at runtime. Aliasing the response type keeps one definition.
+ */
+export type AccountBalances = AccountBalancesResponse
 
-export interface AccountBalances {
-  accounts: Record<string, AccountBalance>
-  total_balance: number
-  total_accounts: number
-  average_balance: number
-  positive_accounts: number
-  negative_accounts: number
-}
+/** One entry of the `accounts` map, keyed by account name. */
+export type AccountBalance = AccountBalancesResponse['accounts'][string]
 
 export interface DateRangeParams {
   start_date?: string
@@ -70,7 +71,12 @@ export interface DateRangeParams {
 export interface IncomeAnalysisData {
   total_income: number
   category_breakdown: Record<string, number>
-  monthly_data: { month: string; income: number; income_avg_3m: number }[]
+  /**
+   * `income_avg_3m` is `null` for the leading months that have no full 3-month
+   * window behind them -- the backend abstains rather than dividing a short
+   * window by its own length and labelling the result a 3-month mean.
+   */
+  monthly_data: { month: string; income: number; income_avg_3m: number | null }[]
   cashbacks_total: number
   peak_income: number
   growth_rate: number

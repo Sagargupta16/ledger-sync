@@ -11,6 +11,8 @@ import {
   inclusiveDaySpan,
   toLocalDateKey,
 } from '@/lib/dateUtils'
+import { isSpending } from '@/lib/expenseClassification'
+import { savingsRatePercentOr } from '@/lib/savingsRate'
 import type { CompareMode, PartialPeriod, PeriodSummary, CategoryDelta } from './types'
 import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './utils'
 import { alignToElapsed, type DateSpan } from './periodAlign'
@@ -89,7 +91,9 @@ export function useComparisonData() {
         if (tx.type === 'Income') {
           income += Math.abs(tx.amount)
           cats[cat].income += Math.abs(tx.amount)
-        } else if (tx.type === 'Expense') {
+        } else if (tx.type === 'Expense' && isSpending(tx)) {
+          // Realised capital losses are Expense rows but not consumption, so
+          // they must not move the period expense total or the savings rate.
           expense += Math.abs(tx.amount)
           cats[cat].expense += Math.abs(tx.amount)
         }
@@ -105,7 +109,7 @@ export function useComparisonData() {
         income,
         expense,
         savings,
-        savingsRate: income > 0 ? (savings / income) * 100 : 0,
+        savingsRate: savingsRatePercentOr({ income, expense }),
         transactions: count,
         days,
         isPartial,

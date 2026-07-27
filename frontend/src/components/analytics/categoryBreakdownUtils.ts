@@ -80,6 +80,42 @@ export function averagePerActiveMonth(monthlyHistory: number[]): number {
   return active.reduce((sum, m) => sum + m, 0) / active.length
 }
 
+/**
+ * Row label for {@link averagePerActiveMonth}, naming the divisor it used.
+ *
+ * The label was the flat string "<amount>/mo avg", sitting inches from a
+ * sparkline titled "last 12 months", while the divisor was only the months that
+ * HAD spend. A category with spend in 2 of 12 months therefore advertised a
+ * figure 6x its own 12-month monthly average as if it were one -- and the
+ * sparser the category, the bigger the overstatement.
+ *
+ * The mean itself is a legitimate statistic (it answers "when I do spend on
+ * this, how much per month?"), so the divisor travels with the number instead,
+ * exactly as `monthlyAvgLineLabelFor` does for the Expense Trend reference line.
+ * Kept to "mo" abbreviations because this renders at 11px inside a row that also
+ * carries the name, percentage, amount and sparkline.
+ *
+ * The AMOUNT LEADS the string on purpose. The meta line is `truncate` inside a
+ * `min-w-0` flex child, so on a phone the tail is what gets cut -- putting the
+ * qualifier last means an ellipsis eats "in 3 of 12 mo", never half of the
+ * digits (the `₹12,91` class this repo already paid for once).
+ *
+ * Returns `null` when there is nothing to average, so callers can drop the
+ * clause entirely rather than print a zero.
+ */
+export function monthlyAvgLabel(
+  monthlyHistory: number[],
+  formatMoney: (value: number) => string,
+): string | null {
+  const average = averagePerActiveMonth(monthlyHistory)
+  if (average <= 0) return null
+  const total = monthlyHistory.length
+  const active = monthlyHistory.filter((m) => m > 0).length
+  return active < total
+    ? `${formatMoney(average)}/mo in ${active} of ${total} mo`
+    : `${formatMoney(average)}/mo over ${total} mo`
+}
+
 export function buildCategories(
   categoryData: { categories?: Record<string, Record<string, unknown>> } | undefined,
   colorMap: Record<string, string> | undefined,

@@ -164,7 +164,10 @@ export function useRsuGrants(
       if (cancelled || fetched.size === 0) return
       updateRsuGrants(applyVestPrices(localRsuGrants, fetched))
     }
-    run()
+    // Every await inside `run` is individually try/caught (a failed lookup
+    // falls back to the current price), so it never rejects; `void` marks the
+    // intentional fire-and-forget in the effect.
+    void run()
     return () => {
       cancelled = true
     }

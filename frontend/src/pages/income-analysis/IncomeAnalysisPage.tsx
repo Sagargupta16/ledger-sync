@@ -4,6 +4,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import ErrorState from '@/components/shared/ErrorState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import IncomeCategorySection from './components/IncomeCategorySection'
@@ -21,6 +22,8 @@ export default function IncomeAnalysisPage() {
     categoryFilter,
     clearCategoryFilter,
     dateRange,
+    partialPeriod,
+    noCompleteMonthBasis,
     timeFilterProps,
     totalIncome,
     cashbacksTotal,
@@ -31,6 +34,8 @@ export default function IncomeAnalysisPage() {
     cashbackShare,
     incomeTypeChartData,
     monthlyTrendData,
+    rollingAvgPointCount,
+    rollingAvgMonths,
     avgIncome,
     incomeSeries,
   } = useIncomeAnalysis()
@@ -60,6 +65,18 @@ export default function IncomeAnalysisPage() {
       />
 
       <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
+      {partialPeriod && (
+        <PartialPeriodNotice
+          label={partialPeriod.label}
+          daysElapsed={partialPeriod.daysElapsed}
+          daysTotal={partialPeriod.daysTotal}
+          treatment={
+            noCompleteMonthBasis
+              ? 'There is no completed month here to compare against, so the trend and average cover the month so far and the growth rate and peak are withheld rather than guessed.'
+              : 'Total Income includes it. The trend, average, peak and growth rate cover completed months only, so salary that has not landed yet cannot read as income collapsing.'
+          }
+        />
+      )}
       <IncomeMetricGrid
         totalIncome={totalIncome}
         primaryIncomeType={primaryIncomeType}
@@ -72,14 +89,18 @@ export default function IncomeAnalysisPage() {
       <IncomeCategorySection
         data={incomeTypeChartData}
         totalIncome={totalIncome}
-        onSelectCategory={(name) =>
-          navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
-        }
+        onSelectCategory={(name) => {
+          // navigate is typed `void | Promise<void>`; under BrowserRouter it
+          // returns undefined and the prop expects void.
+          void navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
+        }}
       />
       <IncomeTrendSection
         data={monthlyTrendData}
         peakIncome={peakIncome}
         avgIncome={avgIncome}
+        rollingAvgPointCount={rollingAvgPointCount}
+        rollingAvgMonths={rollingAvgMonths}
       />
       <IncomeSourcesSection dateRange={dateRange} />
     </PageContainer>

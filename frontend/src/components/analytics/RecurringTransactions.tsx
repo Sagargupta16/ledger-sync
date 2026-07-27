@@ -6,7 +6,7 @@ import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucid
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 
-import { adaptApiRecurring } from './recurringUtils'
+import { adaptApiRecurring, sumMonthlyCommitment } from './recurringUtils'
 
 export default function RecurringTransactions() {
   // Source of truth is the backend recurring_transactions rollup (confidence-
@@ -22,15 +22,13 @@ export default function RecurringTransactions() {
   const recurringTransactions = useMemo(() => adaptApiRecurring(apiRecurring), [apiRecurring])
 
   // Calculate totals
-  const monthlyCommitment = useMemo(() => {
-    return recurringTransactions
-      .filter((r) => r.isActive)
-      .reduce((sum, r) => {
-        if (r.frequency === 'monthly') return sum + r.avgAmount
-        if (r.frequency === 'quarterly') return sum + r.avgAmount / 3
-        return sum + r.avgAmount / 12
-      }, 0)
-  }, [recurringTransactions])
+  // Sums the adapter's `monthlyAmount`. The three-branch chain this replaced
+  // divided everything that was not monthly/quarterly by 12, so a weekly or
+  // daily commitment was billed as if it were annual.
+  const monthlyCommitment = useMemo(
+    () => sumMonthlyCommitment(recurringTransactions.filter((r) => r.isActive)),
+    [recurringTransactions],
+  )
 
   const activeCount = recurringTransactions.filter((r) => r.isActive).length
 

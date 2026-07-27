@@ -15,10 +15,17 @@ import { formatCurrency } from '@/lib/formatters'
 
 import type { IncomeCategoryDatum } from '../useIncomeAnalysis'
 
+/**
+ * Category -> icon. Cosmetic only (unmatched keys fall back to DollarSign), but
+ * the keys still have to match reality: real exports carry "Refunds &
+ * Cashbacks" (PLURAL), so the singular key alone showed the generic icon for
+ * every cashback and refund row. Both spellings are mapped.
+ */
 const INCOME_CATEGORY_ICONS: Record<string, LucideIcon> = {
   'Employment Income': Briefcase,
   'Investment Income': TrendingUp,
   'Refund & Cashbacks': Wallet,
+  'Refunds & Cashbacks': Wallet,
   'One-time Income': PiggyBank,
   'Other Income': DollarSign,
   'Business/Self Employment Income': Activity,
@@ -49,11 +56,10 @@ export default function IncomeCategorySection({
 
       {data.length > 0 ? (
         <div className="flex flex-col items-center gap-4 md:gap-6 lg:flex-row lg:gap-8">
-          <div
-            className="w-64"
-            role="img"
-            aria-label="Donut chart breaking down total income by source category"
-          >
+          {/* No role="img" wrapper here -- it would enclose the chart's sr-only
+              data table and ARIA presentational children would hide it again.
+              `ariaLabel` puts the label on the chart's own wrapper instead. */}
+          <div className="w-64">
             <StandardPieChart
               data={[...data]}
               height={256}
@@ -61,6 +67,7 @@ export default function IncomeCategorySection({
               outerRadius={90}
               showLegend={false}
               onSliceClick={onSelectCategory}
+              ariaLabel="Donut chart breaking down total income by source category"
             />
           </div>
           <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -103,12 +110,25 @@ export default function IncomeCategorySection({
           </div>
         </div>
       ) : (
+        /*
+          Pointed at Settings ("Configure income categories") and it could not
+          help: this breakdown is the backend's `category_breakdown`, which
+          buckets income rows by `transaction.category` alone
+          (`calculations_helpers.py::_compute_income_analysis`). The Settings
+          income-classification lists drive the cashback total, nothing here, so
+          a user who followed that advice classified categories and watched the
+          chart stay empty. The two causes that DO empty it are no income rows at
+          all and a date range with none in it -- so the action matches the
+          sibling `IncomeTrendSection` and points at /upload, with the range
+          named as the second cause.
+        */
         <EmptyState
           icon={Wallet}
-          title="No income type data available"
-          description="Configure income categories in Settings to see breakdown."
-          actionLabel="Go to Settings"
-          actionHref="/settings"
+          title="No income data available"
+          description="Start by uploading your transaction data to see income by category. Already uploaded? Widen the selected date range."
+          actionLabel="Upload Data"
+          actionHref="/upload"
+          variant="chart"
         />
       )}
     </motion.section>

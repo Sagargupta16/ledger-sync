@@ -9,6 +9,7 @@ import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 import {
   CATEGORY_COLORS,
   INVESTMENT_CATEGORIES,
+  buildDailyGrowthSeries,
   computeNetInvestmentPL,
   mapToCategory,
   processInvestmentTransaction,
@@ -26,7 +27,7 @@ export function useInvestmentAnalytics() {
   const preferences = preferencesQuery.data
 
   const investmentMappings = useMemo(
-    () => preferences?.investment_account_mappings || {},
+    () => preferences?.investment_account_mappings ?? {},
     [preferences?.investment_account_mappings],
   )
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
@@ -128,7 +129,7 @@ export function useInvestmentAnalytics() {
     let total = 0
     for (const tx of transactions) {
       if (!tx.date.startsWith(currentMonthKey)) continue
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
+      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account ?? '')) {
         total += tx.amount
       }
     }
@@ -177,103 +178,10 @@ export function useInvestmentAnalytics() {
       }))
   }, [filteredInvestmentTotals, accountToCategory, totalInvestmentValue])
 
-  const dailyGrowthData = useMemo(() => {
-    if (!transactions.length || !investmentAccounts.length) return []
-
-    const investmentTransactions = transactions
-      .filter((tx) => {
-        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) return true
-        if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || ''))
-          return true
-        if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) return true
-        if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) return true
-        return false
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    if (investmentTransactions.length === 0) return []
-
-    const accountInvestments: Record<string, number> = {}
-    investmentAccounts.forEach((acc) => {
-      accountInvestments[acc] = 0
-    })
-
-    const dailySnapshots: Array<{ date: string; investments: Record<string, number> }> = []
-    let currentDay = ''
-
-    investmentTransactions.forEach((tx) => {
-      const dayKey = tx.date.substring(0, 10)
-      const amount = tx.amount
-
-      if (dayKey !== currentDay && currentDay !== '') {
-        dailySnapshots.push({ date: currentDay, investments: { ...accountInvestments } })
-      }
-      currentDay = dayKey
-
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-        accountInvestments[tx.to_account || 'Unknown'] += amount
-      }
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-        accountInvestments[tx.from_account || 'Unknown'] -= amount
-      }
-      if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
-        accountInvestments[tx.account || 'Unknown'] += amount
-      }
-      if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
-        accountInvestments[tx.account || 'Unknown'] -= amount
-      }
-    })
-
-    if (currentDay) {
-      dailySnapshots.push({ date: currentDay, investments: { ...accountInvestments } })
-    }
-
-    if (dailySnapshots.length === 0) return []
-
-    const firstDate = new Date(dailySnapshots[0].date)
-    const lastSnapshot = dailySnapshots.at(-1)
-    if (!lastSnapshot) return []
-    const lastDate = new Date(lastSnapshot.date)
-    const allDays: string[] = []
-    for (const d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
-      allDays.push(d.toISOString().substring(0, 10))
-    }
-
-    const snapshotMap = new Map(dailySnapshots.map((s) => [s.date, s.investments]))
-    const lastKnown: Record<string, number> = {}
-    investmentAccounts.forEach((acc) => {
-      lastKnown[acc] = 0
-    })
-
-    return allDays.map((date) => {
-      const dataPoint: Record<string, string | number> = { date, fullDate: date }
-      const snapshot = snapshotMap.get(date)
-
-      if (snapshot) {
-        investmentAccounts.forEach((account) => {
-          lastKnown[account] = snapshot[account] || lastKnown[account]
-        })
-      }
-
-      const categoryTotals: Record<InvestmentCategory, number> = {
-        'FD/Bonds': 0,
-        'Mutual Funds': 0,
-        'PPF/EPF': 0,
-        Stocks: 0,
-      }
-
-      investmentAccounts.forEach((account) => {
-        const category = accountToCategory[account] || 'Mutual Funds'
-        categoryTotals[category] += lastKnown[account]
-      })
-
-      INVESTMENT_CATEGORIES.forEach((cat) => {
-        dataPoint[cat] = Math.max(0, categoryTotals[cat])
-      })
-
-      return dataPoint
-    })
-  }, [transactions, investmentAccounts, accountToCategory])
+  const dailyGrowthData = useMemo(
+    () => buildDailyGrowthSeries(transactions, investmentAccounts, accountToCategory),
+    [transactions, investmentAccounts, accountToCategory],
+  )
 
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions, {
     defaultViewMode: 'all_time',

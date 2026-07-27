@@ -11,7 +11,7 @@ import { useState, useMemo } from 'react'
 import { useRecentTransactions, useMonthlyAggregation, useTotals } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { usePreferencesStore } from '@/store/preferencesStore'
+import { usePreferencesStore, resolveIncomeClassification } from '@/store/preferencesStore'
 import {
   type AnalyticsViewMode,
   getAnalyticsDateRange,
@@ -25,6 +25,7 @@ import {
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
+import { completeMonthKeys, savingsRatePercent } from '@/lib/savingsRate'
 import { computeDataDateRange, filterTransactionsByDateRange } from '@/lib/transactionUtils'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 
@@ -82,11 +83,9 @@ export interface DashboardMetrics {
   incomeBreakdown: Record<string, number> | null
   cashbacksTotal: number
   incomeChartData: ChartDatum[]
-  incomeColorStyles: Array<{ backgroundColor: string }>
 
   // Expense breakdown by category
   expenseChartData: ChartDatum[]
-  expenseColorStyles: Array<{ backgroundColor: string }>
 
   // Sparklines
   incomeSparkline: number[]
@@ -192,15 +191,18 @@ export function useDashboardMetrics(): DashboardMetrics {
     return calculateIncomeByCategoryBreakdown(filteredTransactions)
   }, [filteredTransactions])
 
+  // `?? []` per field was the bug: the backend column default is the JSON string
+  // "[]", so an unconfigured user sends four empty lists, and
+  // `calculateCashbacksTotal`'s `custom ?? getPrefs()...` override short-circuits
+  // the store defaults with them -- no key matches, so the cashback KPI reads 0.
+  // `resolveIncomeClassification` applies the group rule instead (defaults only
+  // when all four are empty; a populated sibling makes an empty list deliberate).
   const cashbacksTotal = useMemo(() => {
     if (filteredTransactions.length === 0 || !preferences) return 0
-    const incomeClassification = {
-      taxable: preferences.taxable_income_categories || [],
-      investmentReturns: preferences.investment_returns_categories || [],
-      nonTaxable: preferences.non_taxable_income_categories || [],
-      other: preferences.other_income_categories || [],
-    }
-    return calculateCashbacksTotal(filteredTransactions, incomeClassification)
+    return calculateCashbacksTotal(
+      filteredTransactions,
+      resolveIncomeClassification(preferences),
+    )
   }, [filteredTransactions, preferences])
 
   // ------ Expense breakdown by category ------
@@ -234,17 +236,6 @@ export function useDashboardMetrics(): DashboardMetrics {
       .map((d, i) => ({ ...d, color: getChartColor(i) }))
   }, [expenseBreakdown])
 
-  // Precomputed style objects (stable refs)
-  const incomeColorStyles = useMemo(
-    () => incomeChartData.map((item) => ({ backgroundColor: item.color })),
-    [incomeChartData],
-  )
-
-  const expenseColorStyles = useMemo(
-    () => expenseChartData.map((item) => ({ backgroundColor: item.color })),
-    [expenseChartData],
-  )
-
   // ------ Sparklines ------
   const incomeSparkline = useMemo(() => {
     if (!monthlyData) return []
@@ -268,11 +259,10 @@ export function useDashboardMetrics(): DashboardMetrics {
     if (!monthlyData) return noChange
     const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
 
-    const now = new Date()
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-    // Drop the current month if it's the latest (incomplete)
-    const completeMonths = allMonths.at(-1) === currentMonthKey ? allMonths.slice(0, -1) : allMonths
+    // Drop every unfinished month. Testing only `at(-1)` assumed the current
+    // month sorts last, so a single future-dated row (the ledger has a
+    // 2026-07-31 payroll entry) left the in-progress month in as "current".
+    const completeMonths = completeMonthKeys(allMonths)
 
     if (completeMonths.length < 2) return noChange
 
@@ -286,8 +276,10 @@ export function useDashboardMetrics(): DashboardMetrics {
     // For savings, use abs(prev) as denominator so a sign flip (e.g. -1000 → +500)
     // correctly shows improvement (+150%) rather than a misleading -150%.
     const savingsPct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
-    const currSavingsRate = curr.income === 0 ? 0 : (curr.net_savings / curr.income) * 100
-    const prevSavingsRate = prev.income === 0 ? 0 : (prev.net_savings / prev.income) * 100
+    // Shared definition, fed from income/expense rather than the pre-computed
+    // net_savings field, so this delta cannot drift from the KPI above it.
+    const currSavingsRate = savingsRatePercent({ income: curr.income, expense: Math.abs(curr.expense) })
+    const prevSavingsRate = savingsRatePercent({ income: prev.income, expense: Math.abs(prev.expense) })
 
     const fmt = (key: string) => {
       const [y, m] = key.split('-')
@@ -298,7 +290,10 @@ export function useDashboardMetrics(): DashboardMetrics {
       income: pct(curr.income, prev.income),
       expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
       savings: savingsPct(curr.net_savings, prev.net_savings),
-      savingsRate: prev.income === 0 ? undefined : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
+      savingsRate:
+        currSavingsRate === null || prevSavingsRate === null
+          ? undefined
+          : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
       label: `${fmt(currKey)} vs ${fmt(prevKey)}`,
     }
   }, [monthlyData])
@@ -323,9 +318,7 @@ export function useDashboardMetrics(): DashboardMetrics {
     incomeBreakdown,
     cashbacksTotal,
     incomeChartData,
-    incomeColorStyles,
     expenseChartData,
-    expenseColorStyles,
     incomeSparkline,
     expenseSparkline,
     momChanges,

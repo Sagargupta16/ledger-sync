@@ -8,7 +8,7 @@ import { savedViewsService } from '@/services/api/savedViews'
 export function useSavedViews() {
   return useQuery({
     queryKey: ['saved-views'],
-    queryFn: savedViewsService.getViews,
+    queryFn: () => savedViewsService.getViews(),
     staleTime: Infinity,
   })
 }
@@ -23,7 +23,9 @@ export function useSaveView() {
     mutationFn: ({ name, filters }: { name: string; filters: Record<string, unknown> }) =>
       savedViewsService.saveView(name, filters),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['saved-views'] })
+      // Fire-and-forget: invalidateQueries never rejects (query-core swallows
+      // refetch errors), and a failed save toasts via the global MutationCache.
+      void queryClient.invalidateQueries({ queryKey: ['saved-views'] })
     },
   })
 }
@@ -37,7 +39,8 @@ export function useDeleteView() {
   return useMutation({
     mutationFn: savedViewsService.deleteView,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['saved-views'] })
+      // Fire-and-forget: see useSaveView above.
+      void queryClient.invalidateQueries({ queryKey: ['saved-views'] })
     },
   })
 }

@@ -25,28 +25,30 @@ export const MONTHS_SHORT = [
  * automatically -- the previous literal `rgba(239,68,68,...)` etc. bypassed
  * theme flip entirely.
  */
-export const heatmapColors: Record<HeatmapMode, string[]> = {
-  expense: [
-    rawColors.chart.grid,
-    `${rawColors.app.red}33`,
-    `${rawColors.app.red}66`,
-    `${rawColors.app.red}A6`,
-    `${rawColors.app.red}E6`,
-  ],
-  income: [
-    rawColors.chart.grid,
-    `${rawColors.app.green}33`,
-    `${rawColors.app.green}66`,
-    `${rawColors.app.green}A6`,
-    `${rawColors.app.green}E6`,
-  ],
-  net: [
-    rawColors.chart.grid,
-    `${rawColors.app.blue}33`,
-    `${rawColors.app.blue}66`,
-    `${rawColors.app.blue}A6`,
-    `${rawColors.app.blue}E6`,
-  ],
+const ramp = (hex: string): string[] => [
+  rawColors.chart.grid,
+  `${hex}33`,
+  `${hex}66`,
+  `${hex}A6`,
+  `${hex}E6`,
+]
+
+/** Level-0 stop: no activity (or a net of exactly zero) reads as an empty cell. */
+export const heatmapNeutral = rawColors.chart.grid
+
+const expenseRamp = ramp(rawColors.app.red)
+const incomeRamp = ramp(rawColors.app.green)
+
+/**
+ * Ramp per mode, split by the SIGN of the value. `net` is diverging: a surplus
+ * ramps through the income hue and a deficit through the expense hue, so the
+ * darkest cell on a "Savings" heatmap can no longer be the user's worst day.
+ * `expense` and `income` are single-sign, so both branches share one ramp.
+ */
+export const heatmapRamps: Record<HeatmapMode, { surplus: string[]; deficit: string[] }> = {
+  expense: { surplus: expenseRamp, deficit: expenseRamp },
+  income: { surplus: incomeRamp, deficit: incomeRamp },
+  net: { surplus: incomeRamp, deficit: expenseRamp },
 }
 
 export const modeAccent: Record<HeatmapMode, string> = {

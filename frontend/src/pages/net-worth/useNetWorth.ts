@@ -5,6 +5,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
+import { capSeriesToToday, dropPartialMonth, formatMonthKey } from '@/lib/dateUtils'
 
 import {
   buildMilestoneRows,
@@ -14,6 +15,7 @@ import {
   type NetWorthPoint,
 } from './netWorthProjection'
 import {
+  NON_ASSET_CATEGORIES,
   computeNetWorthTimeSeries,
   resolveAccountCategory,
   resolveAccountType,
@@ -41,7 +43,7 @@ export function useNetWorth() {
     new Set(),
   )
 
-  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(transactions, {
+  const { dateRange, partialPeriod, timeFilterProps } = useAnalyticsTimeFilter(transactions, {
     defaultViewMode: 'all_time',
   })
 
@@ -62,7 +64,7 @@ export function useNetWorth() {
     void classificationsQuery.refetch()
   }
 
-  const accounts = useMemo(() => balanceData?.accounts || {}, [balanceData?.accounts])
+  const accounts = useMemo(() => balanceData?.accounts ?? {}, [balanceData?.accounts])
   const totalAssets = Object.values(accounts)
     .filter((acc) => acc.balance > 0)
     .reduce((sum, acc) => sum + acc.balance, 0)
@@ -74,7 +76,7 @@ export function useNetWorth() {
   const netWorth = totalAssets - totalLiabilities
 
   const investmentMappings = useMemo(
-    () => preferences?.investment_account_mappings || {},
+    () => preferences?.investment_account_mappings ?? {},
     [preferences?.investment_account_mappings],
   )
 
@@ -101,12 +103,18 @@ export function useNetWorth() {
     )
   }, [accounts, categorizeAccount])
 
-  const allCategories = useMemo(() => {
-    const categories = new Set(Object.keys(categoryTotals))
-    return Array.from(categories).filter(
-      (cat) => !['Credit Cards', 'Loans', 'Loans/Lended', 'Other'].includes(cat),
-    )
-  }, [categoryTotals])
+  // Asset categories only -- the stacked series splits POSITIVE net worth, so
+  // liabilities and the unclassified bucket are excluded. The exclusion list
+  // lives beside the category vocabulary in netWorthUtils; the literal array
+  // that used to sit here carried a dead `'Loans'` entry (the backend enum
+  // serializes `'Loans/Lended'`) and would have gone stale again on any rename.
+  const allCategories = useMemo(
+    () =>
+      Object.keys(categoryTotals).filter(
+        (cat) => !(NON_ASSET_CATEGORIES as readonly string[]).includes(cat),
+      ),
+    [categoryTotals],
+  )
 
   const totalPositive = useMemo(() => totalAssets, [totalAssets])
 
@@ -118,8 +126,23 @@ export function useNetWorth() {
     return props
   }, [categoryTotals, allCategories, totalPositive])
 
+  /**
+   * Daily cumulative net worth, with future-dated rows cut off.
+   *
+   * The ledger legitimately carries forward-dated accruals (the real workbook
+   * has an EPF contribution booked 2026-07-31 while today is 2026-07-26). Left
+   * in, the cumulative series gained a point five days ahead of today, so the
+   * chart drew its "Now" marker in the future, the last trend point showed money
+   * not yet received, and the growth model's most recent monthly delta was taken
+   * from a partly-future month. This is a HISTORICAL series, so it stops at
+   * today; the projection overlay builds its own future points from the anchor.
+   */
   const netWorthData = useMemo(
-    () => computeNetWorthTimeSeries(transactions, allCategories, categoryProportions),
+    () =>
+      capSeriesToToday(
+        computeNetWorthTimeSeries(transactions, allCategories, categoryProportions),
+        'date',
+      ),
     [transactions, allCategories, categoryProportions],
   )
 
@@ -155,11 +178,53 @@ export function useNetWorth() {
     [chartSeries],
   )
 
-  // Linear (average monthly delta) growth model. The series is cumulative
-  // cash flow (book value, no market prices), so a compound/geometric fit
-  // would treat savings as an asset return and blow up long-horizon
-  // projections -- see computeAvgMonthlyGrowth docs.
-  const growthStats = useMemo(() => computeLinearGrowthStats(chartSeries, 12), [chartSeries])
+  /**
+   * `chartSeries` with the in-progress month removed -- the basis for every
+   * month-over-month figure on the page.
+   *
+   * `computeLinearGrowthStats` averages month-END deltas, so a month that is 26
+   * of 31 days done contributes a stub delta as if it were a full month. On the
+   * real ledger that pulled the model to 114,005/month with sigma 74,889 off a
+   * final delta of -97,823, where the completed months give 120,553/month, sigma
+   * 55,645 and a final delta of +144,411. The chart itself still shows today.
+   */
+  const completeMonthSeries: NetWorthPoint[] = useMemo(
+    () => dropPartialMonth(chartSeries, 'date'),
+    [chartSeries],
+  )
+
+  /**
+   * Linear (average monthly delta) growth model. The series is cumulative cash
+   * flow (book value, no market prices), so a compound/geometric fit would treat
+   * savings as an asset return and blow up long-horizon projections -- see
+   * computeAvgMonthlyGrowth docs.
+   *
+   * `computeLinearGrowthStats` needs 3 month buckets to produce 2 deltas and
+   * returns `{growth: 0, sigma: 0}` below that. Dropping the in-progress month
+   * from a 3-month history leaves 2 buckets, and a 0 growth silently disables the
+   * projection overlay (`chartData` guards on `monthlyGrowth <= 0`) and blanks
+   * every milestone ETA -- so any user with about a quarter of history lost the
+   * feature to a guard meant to improve it. Below the model's minimum, fall back
+   * to the capped-at-today series: including a partial final month skews the
+   * model, but a skewed projection the notice already qualifies beats no
+   * projection with nothing on screen to explain the absence.
+   */
+  // Month BUCKETS, not points: the model buckets by YYYY-MM and needs 3.
+  // Testing the returned growth for 0 instead would conflate "not enough
+  // history" with a real flat quarter and swap the basis under it.
+  const hasCompleteMonthGrowthBasis = useMemo(
+    () => new Set(completeMonthSeries.map((p) => p.date.slice(0, 7))).size >= 3,
+    [completeMonthSeries],
+  )
+
+  const growthStats = useMemo(
+    () =>
+      computeLinearGrowthStats(
+        hasCompleteMonthGrowthBasis ? completeMonthSeries : chartSeries,
+        12,
+      ),
+    [hasCompleteMonthGrowthBasis, completeMonthSeries, chartSeries],
+  )
   const monthlyGrowth = growthStats.growth
 
   const milestoneRows = useMemo(
@@ -217,10 +282,17 @@ export function useNetWorth() {
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
-  // Month-end net-worth series (reuses the same downsampling the chart uses) --
+  // Month-END net-worth series (reuses the same downsampling the chart uses) --
   // drives the Net Worth KPI sparkline + its month-over-month delta. Derived
-  // purely from data already on the page; no extra fetch.
-  const monthlyNetWorth = useMemo(() => downsampleToMonthly(chartSeries), [chartSeries])
+  // purely from data already on the page; no extra fetch. Built off the
+  // complete-months series: the last "month end" of an unfinished month is just
+  // today's running balance, and comparing it to a real month end reported a
+  // -4.5% net-worth drop on the real ledger (uncapped) / -4.7% (capped at today)
+  // when the last completed month was in fact +7.4%.
+  const monthlyNetWorth = useMemo(
+    () => downsampleToMonthly(completeMonthSeries),
+    [completeMonthSeries],
+  )
 
   const netWorthSparkline = useMemo(
     () => monthlyNetWorth.slice(-12).map((p) => p.netWorth),
@@ -236,6 +308,17 @@ export function useNetWorth() {
     const curr = monthlyNetWorth.at(-1)?.netWorth ?? 0
     if (prev <= 0) return undefined
     return Math.round(((curr - prev) / prev) * 1000) / 10
+  }, [monthlyNetWorth])
+
+  /**
+   * What the MoM badge and sparkline actually compare. Named explicitly because
+   * mid-month the most recent completed month is NOT "last month" -- saying so
+   * is the difference between an honest delta and a wrong one.
+   */
+  const netWorthMoMLabel = useMemo(() => {
+    const latestMonth = monthlyNetWorth.at(-1)?.date.slice(0, 7)
+    if (monthlyNetWorth.length < 2 || !latestMonth) return 'vs last month'
+    return `${formatMonthKey(latestMonth, { month: 'short', year: '2-digit' })} vs prior month`
   }, [monthlyNetWorth])
 
   // Account counts for the asset/liability KPI subtitles (point-in-time
@@ -281,11 +364,14 @@ export function useNetWorth() {
     showProjection,
     setShowProjection,
     monthlyGrowth,
+    growthUsesPartialMonth: !hasCompleteMonthGrowthBasis,
     anchor,
     milestoneRows,
     currentNetWorth,
     netWorthSparkline,
     netWorthMoMChange,
+    netWorthMoMLabel,
+    partialPeriod,
     assetAccountCount,
     liabilityAccountCount,
     expandedAssetCategories,

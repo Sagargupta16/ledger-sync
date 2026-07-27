@@ -1,21 +1,22 @@
 import { motion } from 'motion/react'
 
 import { Select } from '@/components/ui'
+import { EMITTED_ANOMALY_SEVERITIES } from '@/services/api/analyticsV2'
 
-const TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
-  { value: 'high_expense', label: 'High Expense' },
-  { value: 'unusual_category', label: 'Unusual Category' },
-  { value: 'large_transfer', label: 'Large Transfer' },
-  { value: 'budget_exceeded', label: 'Budget Exceeded' },
-  { value: 'closed_account_activity', label: 'Closed Account Activity' },
-]
+import { ANOMALY_TYPE_FILTER_OPTIONS, SEVERITY_LABELS } from '../constants'
 
+/**
+ * Only severities a detector writes. `anomalies.py` grades everything `"high"` or
+ * `"medium"`, so the `Low` option this list used to carry selected an
+ * always-empty result -- a control whose only possible outcome is "no anomalies
+ * detected" on a page that has anomalies.
+ */
 const SEVERITY_OPTIONS = [
   { value: '', label: 'All Severities' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
+  ...EMITTED_ANOMALY_SEVERITIES.map((severity) => ({
+    value: severity,
+    label: SEVERITY_LABELS[severity],
+  })),
 ]
 
 interface Props {
@@ -47,7 +48,7 @@ export default function AnomalyFilters({
             value={typeFilter}
             onChange={(event) => onTypeFilterChange(event.target.value)}
             aria-label="Filter by anomaly type"
-            options={TYPE_OPTIONS}
+            options={[...ANOMALY_TYPE_FILTER_OPTIONS]}
           />
         </div>
         <div className="w-full sm:w-48">

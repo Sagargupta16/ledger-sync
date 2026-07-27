@@ -9,6 +9,8 @@ import type {
   RecurringTransaction,
 } from '@/services/api/analyticsV2'
 import type { Transaction } from '@/types'
+import { toLocalDateKey } from '@/lib/dateUtils'
+import { savingsRatePercentOr, shareOfIncomePercent } from '@/lib/savingsRate'
 
 import { generateDemoMonthlyAggregation } from './demoCalculations'
 import {
@@ -96,9 +98,14 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
       },
       savings: {
         net: data.net_savings,
-        rate: data.income > 0 ? (data.net_savings / data.income) * 100 : 0,
+        // The demo payload must carry the same definition the backend rollup
+        // does, or the demo tour teaches a number the real app won't reproduce.
+        rate: savingsRatePercentOr({ income: data.income, expense: data.expense }),
       },
-      expense_ratio: data.income > 0 ? (data.expense / data.income) * 100 : 0,
+      // Deliberately the share-of-income helper, not a savings rate: the
+      // numerator is a single flow. Its complement to the rate above is only
+      // exact because transfers are excluded from both.
+      expense_ratio: shareOfIncomePercent(data.expense, data.income),
       total_transactions: data.transactions,
       last_calculated: now,
     }
@@ -114,7 +121,7 @@ function groupTransactionsByMonth(
   for (const tx of txs) {
     if (isTransfer(tx)) continue
     const mk = monthKey(tx.date)
-    const key = `${tx.category}|${tx.subcategory || ''}`
+    const key = `${tx.category}|${tx.subcategory ?? ''}`
     if (!grouped[mk]) grouped[mk] = {}
     if (!grouped[mk][key]) grouped[mk][key] = { total: 0, count: 0, amounts: [] }
     grouped[mk][key].total += tx.amount
@@ -171,14 +178,12 @@ export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] 
 
 export function generateDemoRecurring(): RecurringTransaction[] {
   const now = new Date()
-  const nextMonth = (day: number) => {
-    const d = new Date(now.getFullYear(), now.getMonth() + 1, day)
-    return d.toISOString().slice(0, 10)
-  }
-  const lastMonth = (day: number) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, day)
-    return d.toISOString().slice(0, 10)
-  }
+  // Both helpers build the Date from LOCAL components, so the key has to be read
+  // back from local components too. `toISOString().slice(0, 10)` reprojects to
+  // UTC first, which in IST turned "the 1st" into the previous month's last day
+  // -- an `expected_day: 1` commitment then rendered as due on the 31st.
+  const nextMonth = (day: number) => toLocalDateKey(new Date(now.getFullYear(), now.getMonth() + 1, day))
+  const lastMonth = (day: number) => toLocalDateKey(new Date(now.getFullYear(), now.getMonth() - 1, day))
 
   return [
     { id: 1, name: 'Salary Credit', category: 'Employment Income', subcategory: 'Salary', account: 'HDFC Salary', type: 'Income', frequency: 'monthly', expected_amount: 170000, variance: 4000, expected_day: 1, confidence: 98, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
@@ -331,7 +336,7 @@ export function generateDemoFYSummaries(txs: Transaction[]): FYSummary[] {
       investments_made: investments,
       savings: {
         net: income - expenses,
-        rate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+        rate: savingsRatePercentOr({ income, expense: expenses }),
       },
       yoy: {
         income: prevIncome > 0 ? ((income - prevIncome) / prevIncome) * 100 : null,
@@ -418,7 +423,10 @@ export function generateDemoBudgets(): Budget[] {
 
 export function generateDemoGoals(): FinancialGoal[] {
   const now = new Date()
-  const toISO = (d: Date) => d.toISOString().slice(0, 10)
+  // Local key, not `toISOString().slice(0, 10)`: `new Date(now)` carries the
+  // local wall clock, and in IST a pre-05:30 "today" reprojected to yesterday --
+  // enough to make a goal look a day overdue on its own target date.
+  const toISO = (d: Date) => toLocalDateKey(d)
   const monthsAgo = (n: number) => {
     const d = new Date(now)
     d.setMonth(d.getMonth() - n)

@@ -1,4 +1,5 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
+import { useMemo } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { Receipt } from 'lucide-react'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import {
@@ -28,6 +29,22 @@ interface Props {
  * deduction (faded). A bonus/RSU month spikes with the extra tax on that income.
  */
 export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
+  // Past months = solid blue (deducted); future = faded blue (expected). The
+  // paint rides on the data rows because Recharts merges each row over its bar
+  // rectangle props -- the supported replacement for the deprecated `<Cell>`
+  // child. Memoised so `Bar` keeps a stable `data` identity: recharts mints a
+  // new animation id whenever that reference changes, so a fresh array on every
+  // parent re-render would replay the bar entry animation.
+  const bars = useMemo(
+    () =>
+      schedule.map((r) => ({
+        ...r,
+        fill: rawColors.app.blue,
+        fillOpacity: r.monthIndex < monthsPaid ? 1 : EXPECTED_OPACITY,
+      })),
+    [schedule, monthsPaid],
+  )
+
   if (schedule.length === 0) return null
 
   const totalTds = schedule.at(-1)?.cumulativeTds ?? 0
@@ -55,7 +72,7 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
         height={300}
         ariaLabel="Tax deducted per month -- solid bars for months already paid, faded for the expected remainder of the year"
       >
-        <BarChart data={schedule as TdsMonthRow[]} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+        <BarChart data={bars} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
           <CartesianGrid {...GRID_DEFAULTS} />
           <XAxis dataKey="month" {...xAxisDefaults(schedule.length)} />
           <YAxis {...yAxisDefaults()} tickFormatter={(v: number) => formatCurrencyShort(v)} />
@@ -68,7 +85,6 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
                 ? 'Deducted'
                 : 'Expected',
             ]}
-            labelFormatter={(label) => `${label}`}
           />
           <Bar
             dataKey="monthlyTds"
@@ -76,19 +92,7 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
             isAnimationActive={shouldAnimate(schedule.length)}
             animationDuration={600}
             animationEasing="ease-out"
-          >
-            {schedule.map((r) => {
-              // Past months = solid blue (deducted); future = faded blue (expected).
-              const isPaid = r.monthIndex < monthsPaid
-              return (
-                <Cell
-                  key={r.month}
-                  fill={rawColors.app.blue}
-                  fillOpacity={isPaid ? 1 : EXPECTED_OPACITY}
-                />
-              )
-            })}
-          </Bar>
+          />
         </BarChart>
       </ChartContainer>
 

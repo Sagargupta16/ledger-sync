@@ -1,7 +1,7 @@
 import { formatCurrency } from '@/lib/formatters'
 import type { DayCell } from './DayOfWeekChart'
-import { getIntensityLevel } from '../heatmapUtils'
-import { heatmapColors, modeAccent, type HeatmapMode } from '../types'
+import { getHeatmapSwatch, heatmapValueNoun } from '../heatmapUtils'
+import { modeAccent, type HeatmapMode } from '../types'
 
 interface Props {
   cell: DayCell
@@ -11,21 +11,19 @@ interface Props {
   appearDelay?: number
 }
 
-const MODE_NOUN: Record<HeatmapMode, string> = {
-  expense: 'spent',
-  income: 'earned',
-  net: 'net',
-}
-
 export default function HeatmapCell({ cell, mode, modeMax, appearDelay = 0 }: Readonly<Props>) {
-  const valMap = { expense: cell.expense, income: cell.income, net: Math.abs(cell.net) }
+  // Signed, so `net` keeps its direction: the swatch takes its hue from the
+  // sign and the label says which way the day went.
+  const valMap = { expense: cell.expense, income: cell.income, net: cell.net }
   const val = valMap[mode]
-  const level = getIntensityLevel(val, modeMax)
-  const bgColor = heatmapColors[mode][level]
+  const { color: bgColor } = getHeatmapSwatch(mode, val, modeMax)
 
   // Focusable + labelled so keyboard/SR users get the per-day figure (and the
   // parent's onFocus delegation fires at all). Empty days read as "no activity".
-  const label = val > 0 ? `${cell.date}: ${formatCurrency(val)} ${MODE_NOUN[mode]}` : `${cell.date}: no activity`
+  const label =
+    val !== 0
+      ? `${cell.date}: ${formatCurrency(Math.abs(val))} ${heatmapValueNoun(mode, val)}`
+      : `${cell.date}: no activity`
 
   // A real <button> (not a div with role/tabIndex): natively focusable +
   // interactive, so keyboard/SR users get the per-day figure and the parent's

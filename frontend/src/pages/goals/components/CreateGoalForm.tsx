@@ -1,5 +1,7 @@
 import { motion } from 'motion/react'
 
+import { GOAL_TYPE_OPTIONS } from '../constants'
+
 interface CreateGoalFormProps {
   formData: {
     name: string
@@ -10,7 +12,7 @@ interface CreateGoalFormProps {
   }
   isPending: boolean
   onFormDataChange: (data: CreateGoalFormProps['formData']) => void
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onSubmit: (e: React.SubmitEvent<HTMLFormElement>) => void
   onCancel: () => void
 }
 
@@ -45,12 +47,14 @@ export default function CreateGoalForm({
             onChange={(e) => onFormDataChange({ ...formData, goal_type: e.target.value })}
             className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
           >
-            <option value="savings">Savings</option>
-            <option value="debt_payoff">Debt Payoff</option>
-            <option value="investment">Investment</option>
-            <option value="expense_reduction">Expense Reduction</option>
-            <option value="income_increase">Income Increase</option>
-            <option value="custom">Custom</option>
+            {/* Options come from the shared vocabulary. Hardcoding them here was
+                a third copy of the same six labels, and the surface most likely to
+                drift: this is where a new goal_type value enters the database. */}
+            {GOAL_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
           <input
             type="number"

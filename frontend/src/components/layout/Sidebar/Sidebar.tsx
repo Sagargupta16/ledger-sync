@@ -99,7 +99,11 @@ export default function Sidebar() {
   }, [])
 
   const handleLogout = () => {
-    logout.mutate(undefined, { onSuccess: () => navigate('/') })
+    // Block body + `void`: the mutate callback must return void, and navigate
+    // is typed `void | Promise<void>` (returns undefined under BrowserRouter).
+    // useLogout clears client state in both onSuccess and onError, so a failed
+    // logout is not silently dropped here.
+    logout.mutate(undefined, { onSuccess: () => { void navigate('/') } })
   }
 
   const displayUser = isDemoMode

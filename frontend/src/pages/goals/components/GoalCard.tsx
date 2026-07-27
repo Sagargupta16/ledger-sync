@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Pencil, Trash2, Edit3 } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import { parseLocalDate } from '@/lib/dateUtils'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ProgressBar } from '@/components/shared'
 import { rawColors } from '@/constants/colors'
-import { GOAL_TYPE_COLORS, GOAL_TYPE_LABELS } from '../constants'
+import { goalTypeColor, goalTypeLabel } from '../constants'
 import type { GoalProjection } from '../types'
 import { differenceInMonths } from '../helpers'
 import CircularProgress from './CircularProgress'
@@ -42,7 +43,10 @@ export default function GoalCard({
   onDelete: (goalId: number) => void
 }>) {
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const color = GOAL_TYPE_COLORS[goal.goal_type]
+  // Accessor, not a direct index: an unmapped `goal_type` used to make this
+  // `undefined`, which the chip below interpolated into the literal CSS value
+  // "undefined20" and the browser dropped.
+  const color = goalTypeColor(goal.goal_type)
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
   const remaining = Math.max(0, goal.target_amount - effectiveAmount)
 
@@ -54,7 +58,7 @@ export default function GoalCard({
   // Skip when the goal is open-ended (no deadline) or already achieved.
   const onPacePct = (() => {
     if (!goal.target_date || projection.status === 'achieved') return undefined
-    const totalSpan = differenceInMonths(new Date(goal.target_date), new Date(goal.start_date))
+    const totalSpan = differenceInMonths(parseLocalDate(goal.target_date), parseLocalDate(goal.start_date))
     if (!Number.isFinite(totalSpan) || totalSpan <= 0) return undefined
     const elapsedFraction = (totalSpan - projection.monthsRemaining) / totalSpan
     return Math.max(0, Math.min(100, elapsedFraction * 100))
@@ -96,7 +100,7 @@ export default function GoalCard({
             className="inline-block mt-1 px-2.5 py-0.5 text-xs rounded-full font-medium"
             style={{ backgroundColor: `${color}20`, color }}
           >
-            {GOAL_TYPE_LABELS[goal.goal_type]}
+            {goalTypeLabel(goal.goal_type)}
           </span>
         </div>
         <div className="relative flex items-center justify-center flex-shrink-0 ml-3">

@@ -1,11 +1,3 @@
-// Base API response wrapper
-export interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  error?: string
-  message?: string
-}
-
 // Upload response
 export interface UploadStats {
   processed?: number
@@ -45,13 +37,6 @@ export interface Transaction {
   tags?: string[]
 }
 
-export interface TransactionsResponse {
-  transactions: Transaction[]
-  total: number
-  page: number
-  limit: number
-}
-
 // Meta types
 export interface Account {
   id: string
@@ -81,14 +66,23 @@ export interface KPIs {
   average_daily_spending: number
 }
 
-// Account type classification
-export type AccountType = 'investment' | 'deposit' | 'loan'
-
-export interface AccountClassification {
-  accountId: string
-  accountName: string
-  types: AccountType[]
-}
+/**
+ * Local heuristic account-type slugs, re-exported from their single declaration
+ * in `@/constants/accountTypes` -- the module that owns `inferAccountType`.
+ *
+ * This file used to DECLARE a competing `'investment' | 'deposit' | 'loan'`
+ * union. It was a strict subset (no `'credit_card'`) and nominally distinct, so
+ * `inferAccountType()`'s return value was NOT assignable to it:
+ *   Type '.../constants/accountTypes").AccountType[]' is not assignable to type
+ *   '.../types/index").AccountType[]'.
+ *
+ * Note this is the CLIENT-side slug vocabulary, not the wire vocabulary. Backend
+ * `AccountType` enum VALUES ('Cash', 'Bank Accounts', 'Credit Cards', ...) live
+ * in `ACCOUNT_TYPE_VALUES` / `AccountTypeValue` in
+ * `@/services/api/accountClassifications`. Use that one for anything that
+ * compares against, or sends, an API value.
+ */
+export type { AccountType } from '@/constants/accountTypes'
 
 // Time range for analytics
 // Values must match backend TimeRange enum (ledger_sync.core.time_filter)
@@ -137,36 +131,6 @@ export interface OAuthCallbackRequest {
   state?: string
 }
 
-// Analytics response types
-export interface OverviewResponse {
-  total_income: number
-  total_expenses: number
-  net_change: number
-  best_month: { month: string; surplus: number } | null
-  worst_month: { month: string; surplus: number } | null
-  asset_allocation: Array<{ account: string; balance: number }>
-  transaction_count: number
-}
-
-export interface KPIsResponse {
-  savings_rate: number
-  daily_spending_rate: number
-  monthly_burn_rate: number
-  spending_velocity: number
-  category_concentration: number
-  consistency_score: number
-  lifestyle_inflation: number
-  convenience_spending_pct: number
-}
-
-export interface TotalsResponse {
-  total_income: number
-  total_expenses: number
-  net_savings: number
-  savings_rate: number
-  transaction_count: number
-}
-
 export interface MonthlyAggregation {
   [monthKey: string]: {
     income: number
@@ -176,16 +140,13 @@ export interface MonthlyAggregation {
   }
 }
 
-export interface CategoryBreakdownResponse {
-  categories: Record<string, {
-    total: number
-    count: number
-    percentage: number
-    subcategories: Record<string, number>
-  }>
-  total: number
-}
-
+/**
+ * `GET /api/calculations/account-balances`, matching `_compute_account_statistics`
+ * in `backend/src/ledger_sync/api/calculations_helpers.py` key for key. The five
+ * summary numbers are NESTED under `statistics`; anything that flattens them
+ * reads `undefined` at runtime. `services/api/calculations.ts` aliases this as
+ * `AccountBalances`, so this is the single definition of the wire shape.
+ */
 export interface AccountBalancesResponse {
   accounts: Record<string, {
     balance: number
@@ -199,27 +160,4 @@ export interface AccountBalancesResponse {
     positive_accounts: number
     negative_accounts: number
   }
-}
-
-export interface ChartDataResponse {
-  data: Array<Record<string, string | number>>
-}
-
-export interface BehaviorResponse {
-  avg_transaction_size: number
-  spending_frequency: number
-  convenience_spending_pct: number
-  lifestyle_inflation: number
-  top_categories: Array<{ category: string; amount: number }>
-}
-
-export interface TrendsResponse {
-  monthly_trends: Array<{
-    month: string
-    income: number
-    expenses: number
-    surplus: number
-  }>
-  surplus_trend: Array<{ month: string; surplus: number }>
-  consistency_score: number
 }

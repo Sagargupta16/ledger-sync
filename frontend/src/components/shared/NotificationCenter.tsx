@@ -65,7 +65,7 @@ export default function NotificationCenter() {
   const grouped = useMemo(() => {
     const map = new Map<NotificationType, Notification[]>()
     for (const n of notifications) {
-      const list = map.get(n.type) || []
+      const list = map.get(n.type) ?? []
       list.push(n)
       map.set(n.type, list)
     }

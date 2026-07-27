@@ -11,6 +11,12 @@
  * - FPSB India Financial Planning Standards
  */
 
+import {
+  investmentAllocationRatePercent,
+  savingsRatePercentOr,
+  shareOfIncomePercent,
+} from './savingsRate'
+
 export interface CFPRatio {
   name: string
   value: number
@@ -38,7 +44,37 @@ function mapToScore(value: number, thresholds: [number, number, number, number, 
   if (value >= target) return 60 + ((value - target) / (good - target)) * 20
   if (value >= warningLow) return 40 + ((value - warningLow) / (target - warningLow)) * 20
   if (value >= poorMax) return 20 + ((value - poorMax) / (warningLow - poorMax)) * 20
-  return clamp((value / poorMax) * 20, 0, 20)
+  // Below the poor floor, fade 20 -> 0 across one more band-width.
+  //
+  // THIS BRANCH IS SHARED BY ALL FIVE NON-INVERSE RATIOS AND MOVES THREE OF
+  // THEM. It is not a savings-rate-only change; the effects, measured:
+  //
+  //  - Savings Rate (floor -10) and Investment Ratio (floor -5) -- the reason
+  //    the branch was rewritten. `(value / poorMax) * 20` only decays for a
+  //    POSITIVE floor; dividing by a negative makes it GROW as the value
+  //    worsens, so it pinned at the clamp. A -696.8% savings rate (the real
+  //    ledger's in-progress month) scored the same 20/100 as -10%, and no
+  //    overspend, however severe, could reach 0. Now -50% and below score 0.
+  //
+  //  - Solvency Ratio (floor 0) -- CHANGED TOO, and the number goes UP for a
+  //    barely-insolvent user: `(value / 0) * 20` was -Infinity, so the old code
+  //    floored EVERY negative net worth to 0. That is a cliff, not a grade:
+  //    +0.01% solvency scored 20 and -0.01% scored 0, and a user 5% underwater
+  //    scored identically to one 300% underwater. The fade grades the range
+  //    instead (-5% -> 16, -10% -> 12, -24% -> 0.8, -25% and worse -> 0) while
+  //    `statusFromScore` still reports "poor" throughout, so the caption does
+  //    not claim solvency. Pinned in healthScore.test.ts.
+  //
+  //  - Liquidity Ratio and Emergency Fund (floor 0) -- unchanged in practice
+  //    because their value is months of coverage computed from a non-negative
+  //    numerator (`computeBalancePosition` files negative balances as
+  //    liabilities; the flow proxy is `Math.max(0, ...)`), so a value below 0
+  //    cannot arise and `value === 0` is taken by the `>= poorMax` branch above.
+  //
+  // Measuring the distance below the floor in band-widths is sign-agnostic and
+  // keeps the decay monotonic for every floor, positive, zero or negative.
+  const bandWidth = Math.abs(warningLow - poorMax) || Math.abs(poorMax) || 1
+  return clamp(20 * (1 - (poorMax - value) / bandWidth), 0, 20)
 }
 
 function mapToScoreInverse(value: number, thresholds: [number, number, number, number, number]): number {
@@ -76,11 +112,11 @@ function describeByThresholdInverse(value: number, levels: Array<[number, string
 }
 
 /**
- * 1. Savings Rate = (Income - Expenses) / Income
+ * 1. Savings Rate -- the shared app-wide definition (see `lib/savingsRate.ts`).
  * Target: >= 20% (CFP standard)
  */
 function computeSavingsRate(income: number, expenses: number): CFPRatio {
-  const value = income > 0 ? ((income - expenses) / income) * 100 : 0
+  const value = savingsRatePercentOr({ income, expense: expenses })
   const score = mapToScore(value, [-10, 0, 10, 20, 30])
   return {
     name: 'Savings Rate',
@@ -117,7 +153,7 @@ function computeLiquidityRatio(liquidAssets: number, monthlyExpenses: number): C
  * "Have a sustainable debt load": green < 36%, yellow 36-43%, red > 43%.
  */
 function computeDebtServiceRatio(monthlyDebt: number, monthlyIncome: number): CFPRatio {
-  const value = monthlyIncome > 0 ? (monthlyDebt / monthlyIncome) * 100 : 0
+  const value = shareOfIncomePercent(monthlyDebt, monthlyIncome)
   const score = mapToScoreInverse(value, [10, 20, 36, 43, 55])
   return {
     name: 'Debt Service Ratio',
@@ -133,9 +169,12 @@ function computeDebtServiceRatio(monthlyDebt: number, monthlyIncome: number): CF
 /**
  * 4. Investment-to-Income Ratio = Net Investments / Total Income
  * Target: >= 15% (India: higher due to no employer pension for most)
+ *
+ * A separate metric from the savings rate, not a variant of it -- see
+ * `investmentAllocationRatePercent` in `lib/savingsRate.ts`.
  */
 function computeInvestmentRatio(netInvestments: number, totalIncome: number): CFPRatio {
-  const value = totalIncome > 0 ? (netInvestments / totalIncome) * 100 : 0
+  const value = investmentAllocationRatePercent(netInvestments, totalIncome)
   const score = mapToScore(value, [-5, 0, 5, 15, 25])
   return {
     name: 'Investment Ratio',
@@ -157,6 +196,10 @@ function computeInvestmentRatio(netInvestments: number, totalIncome: number): CF
 function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
   let value: number
   if (totalAssets > 0) value = (netWorth / totalAssets) * 100
+  // No asset side means no denominator, so the ratio is answered by sign alone:
+  // nothing owed against nothing owned is fully solvent, anything owed is not.
+  // Callers must hand a real 0 in for this to be reachable -- substituting a
+  // sentinel 1 divides rupees by one rupee and reports that as a percentage.
   else value = netWorth >= 0 ? 100 : 0
   const score = mapToScore(value, [0, 25, 50, 75, 90])
   return {
@@ -207,9 +250,15 @@ export interface BalanceInputs {
 }
 
 /**
- * Compute all 6 CFP ratios and a weighted composite score.
+ * Inputs to {@link computeCFPScore}.
+ *
+ * `totalIncome` / `totalExpenses` must be the OBSERVED pooled sums for the
+ * period. Do not reconstitute them as `avgMonthly * monthCount`: that is only
+ * equal while both averages share the divisor, and floating point breaks it even
+ * then. Build this object with `cfpInputsFromAnalysis` (in
+ * `components/analytics/health/healthScoreAnalysis.ts`) rather than by hand.
  */
-export function computeCFPScore(params: {
+export interface CFPScoreInputs {
   totalIncome: number
   totalExpenses: number
   avgMonthlyIncome: number
@@ -221,7 +270,12 @@ export function computeCFPScore(params: {
   totalDebtOutstanding: number
   /** Real balances; when present, override the flow-based asset proxy. */
   balances?: BalanceInputs | null
-}): CFPScoreResult {
+}
+
+/**
+ * Compute all 6 CFP ratios and a weighted composite score.
+ */
+export function computeCFPScore(params: CFPScoreInputs): CFPScoreResult {
   const {
     totalIncome,
     totalExpenses,
@@ -259,7 +313,7 @@ export function computeCFPScore(params: {
     computeLiquidityRatio(liquidAssets, avgMonthlyExpense),
     computeDebtServiceRatio(avgMonthlyDebt, avgMonthlyIncome),
     computeInvestmentRatio(netInvestments, totalIncome),
-    computeSolvencyRatio(netWorth, totalAssets > 0 ? totalAssets : 1),
+    computeSolvencyRatio(netWorth, totalAssets),
     computeEmergencyFundCoverage(liquidAssets, avgMonthlyExpense),
   ]
 

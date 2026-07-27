@@ -79,6 +79,15 @@ function messageBlocks(msg: ChatMessage): Block[] {
   return [{ type: 'text', text: msg.content ?? '' }]
 }
 
+/**
+ * Read an error body without trusting it. `res.json()` is typed `any`, so the
+ * parsed value is kept at `unknown` and only narrowed through the caller's
+ * cast. A non-JSON body resolves to `{}`, exactly as before.
+ */
+async function readErrorBody(res: Response): Promise<unknown> {
+  return res.json().catch((): unknown => ({}))
+}
+
 function normaliseStopReason(raw: string | null | undefined): StopReason {
   if (raw === 'tool_use' || raw === 'tool_calls') return 'tool_use'
   if (raw === 'end_turn' || raw === 'stop') return 'end_turn'
@@ -172,7 +181,7 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
     signal: params.signal,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
+    const err = await readErrorBody(res)
     const message = (err as { error?: { message?: string } }).error?.message
     throw new Error(message ?? `OpenAI error ${res.status}`)
   }
@@ -273,7 +282,7 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
     signal: params.signal,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
+    const err = await readErrorBody(res)
     const message = (err as { error?: { message?: string } }).error?.message
     throw new Error(message ?? `Anthropic error ${res.status}`)
   }
@@ -350,7 +359,7 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
     signal: params.signal,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
+    const err = await readErrorBody(res)
     throw new Error((err as { detail?: string }).detail ?? `Bedrock error ${res.status}`)
   }
   const data = (await res.json()) as {

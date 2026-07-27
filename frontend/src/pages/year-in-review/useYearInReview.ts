@@ -4,6 +4,7 @@ import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { getCurrentFY, getCurrentMonth, getCurrentYear, MONTHS_PER_YEAR, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { savingsRatePercentOr } from '@/lib/savingsRate'
 import type { DayCell } from './components/DayOfWeekChart'
 import {
   accumulateStats,
@@ -105,7 +106,7 @@ export function useYearInReview() {
     return {
       ...acc,
       totalSavings: totalIncome - totalExpense,
-      savingsRate: totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0,
+      savingsRate: savingsRatePercentOr({ income: totalIncome, expense: totalExpense }),
       dailyAvg,
       bestMonth: bestMonth >= 0 ? MONTHS_SHORT[bestMonth] : 'N/A',
       worstMonth: worstMonth >= 0 ? MONTHS_SHORT[worstMonth] : 'N/A',

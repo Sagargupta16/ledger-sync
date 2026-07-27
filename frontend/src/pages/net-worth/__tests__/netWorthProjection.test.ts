@@ -291,6 +291,20 @@ describe('projectNetWorth', () => {
     expect(pts[2].date).toBe('2024-04-01')
   })
 
+  it('gives every calendar month exactly one point from a month-end anchor', () => {
+    // The anchor is the last day of the user's selected window, so most period
+    // choices (FY / calendar-year / monthly) hand it a day-29-to-31 date.
+    // `setUTCMonth(+i)` overflowed those: 31 Jan + 1 month became 2 Mar, so
+    // some months got two points and others none (a 60-month horizon rendered
+    // only 35 distinct months).
+    const pts = projectNetWorth({ date: '2025-12-31', netWorth: 1_000_000 }, 10_000, 60)
+    const months = pts.map((p) => p.date.slice(0, 7))
+    expect(new Set(months).size).toBe(60)
+    expect(pts[0].date).toBe('2026-01-31')
+    expect(pts[1].date).toBe('2026-02-28') // clamped, not 2026-03-03
+    expect(pts[2].date).toBe('2026-03-31')
+  })
+
   it('does not compound: a cumulative-flow series grows linearly, not geometrically', () => {
     // Regression guard for the ₹28 Cr bug: the projection must be linear in
     // the anchor value, not exponential. 60 months at 50k/mo from 50L is 80L,
@@ -363,6 +377,14 @@ describe('projectNetWorthLinearBand', () => {
 
   it('returns empty for non-positive horizon', () => {
     expect(projectNetWorthLinearBand(anchor, 10_000, 5_000, 0)).toEqual([])
+  })
+
+  it('gives every calendar month exactly one point from a month-end anchor', () => {
+    // This is the band variant the chart actually renders (useNetWorth.ts feeds
+    // it `chartSeries.at(-1)`), so the month-overflow guard matters here most.
+    const pts = projectNetWorthLinearBand({ date: '2025-12-31', netWorth: 1_000_000 }, 10_000, 0, 60)
+    expect(new Set(pts.map((p) => p.date.slice(0, 7))).size).toBe(60)
+    expect(pts[1].date).toBe('2026-02-28')
   })
 
   it('collapses upper/lower to mean when sigma is zero', () => {

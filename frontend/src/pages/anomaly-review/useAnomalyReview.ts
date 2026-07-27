@@ -22,12 +22,15 @@ export function useAnomalyReview() {
   const reviewMutation = useReviewAnomaly()
   const { guardDemoAction } = useDemoGuard()
 
+  // `total` is the row count, not high + medium: the severity column is free text
+  // on the backend, so a row graded anything else still has to be counted or the
+  // page would under-report how many anomalies exist.
   const summary = useMemo<AnomalySummaryCounts>(() => {
     const allAnomalies = summaryQuery.data ?? []
     return {
       high: allAnomalies.filter((anomaly) => anomaly.severity === 'high').length,
       medium: allAnomalies.filter((anomaly) => anomaly.severity === 'medium').length,
-      low: allAnomalies.filter((anomaly) => anomaly.severity === 'low').length,
+      total: allAnomalies.length,
     }
   }, [summaryQuery.data])
 

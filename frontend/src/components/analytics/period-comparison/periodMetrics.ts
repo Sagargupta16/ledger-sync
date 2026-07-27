@@ -1,5 +1,6 @@
 import { formatCurrency } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 
 export type CompareMode = 'months' | 'years'
 export type MetricFormat = 'currency' | 'percent' | 'number' | 'days'
@@ -71,8 +72,13 @@ function safeDivide(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0
 }
 
+/**
+ * Both comparison columns must use the ONE shared definition, since the whole
+ * point of this table is that the two numbers beside each other are comparable.
+ * `MonthData` carries `net_savings`, so this is the from-net re-expression.
+ */
 function calcSavingsRate(netSavings: number, income: number): number {
-  return income > 0 ? (netSavings / income) * 100 : 0
+  return savingsRatePercentFromNet(netSavings, income) ?? 0
 }
 
 export function buildMonthlyMetrics(

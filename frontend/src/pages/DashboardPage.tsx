@@ -5,6 +5,8 @@ import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 
+import PieLegend from '@/components/shared/PieLegend'
+import { capPieSlices } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import QuickInsights from '@/components/shared/QuickInsights'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -13,7 +15,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { Button, PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
@@ -23,6 +25,7 @@ import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
 
 /** Account types whose balances count as spendable for runway math. */
 const LIQUID_CLASSIFICATIONS = new Set(['Cash', 'Bank Accounts', 'Other Wallets'])
+
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -36,8 +39,8 @@ export default function DashboardPage() {
     dataDateRange, dateRange,
     filteredTransactions, isLoading, isError, retry,
     incomeBreakdown, cashbacksTotal,
-    incomeChartData, incomeColorStyles,
-    expenseChartData, expenseColorStyles,
+    incomeChartData,
+    expenseChartData,
     momChanges,
   } = useDashboardMetrics()
 
@@ -101,14 +104,13 @@ export default function DashboardPage() {
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
   const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
 
-  // The pie folds to the largest 7 slices + an "Other" wedge (maxSlices=8).
-  // Mirror that in the legend: show the top 7 rows, then a "+N more" line so the
-  // visible rows reconcile with the all-categories Total below.
-  const LEGEND_CAP = 7
-  const incomeLegend = useMemo(() => incomeChartData.slice(0, LEGEND_CAP), [incomeChartData])
-  const expenseLegend = useMemo(() => expenseChartData.slice(0, LEGEND_CAP), [expenseChartData])
-  const incomeHiddenCount = Math.max(0, incomeChartData.length - LEGEND_CAP)
-  const expenseHiddenCount = Math.max(0, expenseChartData.length - LEGEND_CAP)
+  // The legend is built from the SAME capped array the pie renders, not a
+  // hand-mirrored slice count -- that drifted the moment the pie's default cap
+  // changed (7 rows listed against 6 wedges, row 7 wearing a color the pie never
+  // painted). One row per wedge, including the folded "Other" rollup, so the
+  // rows also add up to the Total below.
+  const incomeSlices = useMemo(() => capPieSlices(incomeChartData), [incomeChartData])
+  const expenseSlices = useMemo(() => capPieSlices(expenseChartData), [expenseChartData])
 
   const pageLoading =
     isLoading ||
@@ -212,30 +214,21 @@ export default function DashboardPage() {
                 ariaLabel="Income sources pie chart"
                 centerValue={formatCurrencyShort(incomeTotal)}
                 centerLabel="Total"
-                onSliceClick={(name) =>
-                  navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                }
+                // `void navigate(...)`: react-router types it `void |
+                // Promise<void>`, and these props expect a void return. Same
+                // convention as CommandPalette and ProfileModal.
+                onSliceClick={(name) => {
+                  void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }}
               />
               <div className="space-y-1">
-                {incomeLegend.map((item, i) => (
-                  <Button
-                    key={item.name}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-green/40"
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={incomeColorStyles[i]} />
-                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
-                    </span>
-                    <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
-                  </Button>
-                ))}
-                {incomeHiddenCount > 0 && (
-                  <p className="text-xs text-text-tertiary px-1">+{incomeHiddenCount} more in Other</p>
-                )}
+                <PieLegend
+                  slices={incomeSlices}
+                  focusRingClass="focus-visible:ring-app-green/40"
+                  onSelect={(name) => {
+                    void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                  }}
+                />
                 {incomeBreakdown && (
                   <div className="pt-2 mt-2 border-t border-border space-y-1">
                     <div className="flex items-center justify-between">
@@ -274,30 +267,18 @@ export default function DashboardPage() {
                 ariaLabel="Expense sources pie chart"
                 centerValue={formatCurrencyShort(expenseTotal)}
                 centerLabel="Total"
-                onSliceClick={(name) =>
-                  navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                }
+                onSliceClick={(name) => {
+                  void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }}
               />
               <div className="space-y-1">
-                {expenseLegend.map((item, i) => (
-                  <Button
-                    key={item.name}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(item.name)}`)}
-                    className="w-full flex items-center justify-between gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-[var(--overlay-2)] transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-red/40"
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={expenseColorStyles[i]} />
-                      <span className="text-sm truncate" title={item.name}>{item.name}</span>
-                    </span>
-                    <span className="text-sm font-medium shrink-0">{formatCurrency(item.value)}</span>
-                  </Button>
-                ))}
-                {expenseHiddenCount > 0 && (
-                  <p className="text-xs text-text-tertiary px-1">+{expenseHiddenCount} more in Other</p>
-                )}
+                <PieLegend
+                  slices={expenseSlices}
+                  focusRingClass="focus-visible:ring-app-red/40"
+                  onSelect={(name) => {
+                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                  }}
+                />
                 <div className="pt-2 mt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Total</span>

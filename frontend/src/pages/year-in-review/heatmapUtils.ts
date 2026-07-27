@@ -1,7 +1,8 @@
 import { rawColors } from '@/constants/colors'
 import { MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
+import { isSpending } from '@/lib/expenseClassification'
 import type { DayCell } from './components/DayOfWeekChart'
-import { MONTHS_SHORT, type HeatmapMode } from './types'
+import { MONTHS_SHORT, heatmapNeutral, heatmapRamps, type HeatmapMode } from './types'
 
 export function getIntensityLevel(value: number, max: number): number {
   if (value === 0 || max === 0) return 0
@@ -10,6 +11,46 @@ export function getIntensityLevel(value: number, max: number): number {
   if (ratio < 0.35) return 2
   if (ratio < 0.6) return 3
   return 4
+}
+
+export type HeatmapSign = 'surplus' | 'deficit' | 'neutral'
+
+export interface HeatmapSwatch {
+  /** 0 = neutral/empty, 1-4 = increasing magnitude. */
+  level: number
+  /** Design-token colour: hue from the sign, intensity from the magnitude. */
+  color: string
+  sign: HeatmapSign
+}
+
+/**
+ * Pick a cell's colour: INTENSITY from the magnitude, HUE from the sign.
+ *
+ * A net cash flow of -50k and +50k are equally extreme but opposite in
+ * meaning, so they must not share a swatch. Magnitude-zero (and no-activity)
+ * cells fall back to the neutral empty-cell stop.
+ */
+export function getHeatmapSwatch(mode: HeatmapMode, value: number, max: number): HeatmapSwatch {
+  const level = getIntensityLevel(Math.abs(value), max)
+  if (level === 0) return { level: 0, color: heatmapNeutral, sign: 'neutral' }
+  const sign: HeatmapSign = value < 0 ? 'deficit' : 'surplus'
+  return { level, color: heatmapRamps[mode][sign][level], sign }
+}
+
+const MODE_NOUN: Record<HeatmapMode, string> = {
+  expense: 'spent',
+  income: 'earned',
+  net: 'net',
+}
+
+/**
+ * Direction-explicit noun for a value in the active mode, for aria-labels and
+ * tooltips. A negative net cash flow is a deficit and must never be announced
+ * with savings-positive wording.
+ */
+export function heatmapValueNoun(mode: HeatmapMode, value: number): string {
+  if (mode !== 'net') return MODE_NOUN[mode]
+  return value < 0 ? 'net deficit' : 'net surplus'
 }
 
 /** Get monthly value for a given mode */
@@ -24,15 +65,44 @@ export function getMonthlyValue(
   return monthlyIncome[index] - monthlyExpense[index]
 }
 
-/** Get max monthly value for a given mode (used for intensity scaling) */
+/**
+ * Per-sign monthly maxima for a mode. `net` reports the largest surplus and the
+ * largest deficit separately; `expense`/`income` are single-sign, so only the
+ * surplus side is populated.
+ */
+export function getMonthlyMaxBySign(
+  mode: HeatmapMode,
+  monthlyExpense: number[],
+  monthlyIncome: number[],
+): { surplus: number; deficit: number } {
+  if (mode === 'expense') return { surplus: Math.max(...monthlyExpense), deficit: 0 }
+  if (mode === 'income') return { surplus: Math.max(...monthlyIncome), deficit: 0 }
+
+  let surplus = 0
+  let deficit = 0
+  for (const [idx, inc] of monthlyIncome.entries()) {
+    const net = inc - monthlyExpense[idx]
+    if (net > surplus) surplus = net
+    else if (-net > deficit) deficit = -net
+  }
+  return { surplus, deficit }
+}
+
+/**
+ * Get max monthly value for a given mode (used for intensity scaling).
+ *
+ * ONE shared magnitude scale across both signs, not two independent ramps: a
+ * -50k month and a +50k month are equally extreme so they must reach the same
+ * intensity and differ only in hue, whereas independent scales would paint a
+ * tiny best-surplus as dark as a catastrophic deficit.
+ */
 export function getMonthlyMax(
   mode: HeatmapMode,
   monthlyExpense: number[],
   monthlyIncome: number[],
 ): number {
-  if (mode === 'expense') return Math.max(...monthlyExpense)
-  if (mode === 'income') return Math.max(...monthlyIncome)
-  return Math.max(...monthlyIncome.map((inc, idx) => Math.abs(inc - monthlyExpense[idx])))
+  const { surplus, deficit } = getMonthlyMaxBySign(mode, monthlyExpense, monthlyIncome)
+  return Math.max(surplus, deficit)
 }
 
 /** Get streak color based on streak length */
@@ -42,9 +112,20 @@ export function getStreakColor(maxStreak: number): string {
   return rawColors.app.green
 }
 
-/** Aggregate per-day expense/income totals from transactions within a date range. */
+/**
+ * Aggregate per-day expense/income totals from transactions within a date range.
+ *
+ * Realised capital losses are skipped: a single loss row renders as an
+ * extreme-spend day and blows out the colour scale for every other day.
+ */
 export function aggregateDayTotals(
-  transactions: { date: string; type: string; amount: number }[],
+  transactions: {
+    date: string
+    type: string
+    amount: number
+    category?: string
+    subcategory?: string
+  }[],
   startStr: string,
   endStr: string,
 ) {
@@ -56,6 +137,7 @@ export function aggregateDayTotals(
     if (d < startStr || d > endStr) continue
 
     if (tx.type === 'Expense') {
+      if (!isSpending(tx)) continue
       dayExpenses[d] = (dayExpenses[d] || 0) + Math.abs(tx.amount)
     } else if (tx.type === 'Income') {
       dayIncomes[d] = (dayIncomes[d] || 0) + Math.abs(tx.amount)
@@ -93,7 +175,10 @@ export function buildDayCells(
   const cells: DayCell[] = []
   let mxE = 0
   let mxI = 0
-  let mxN = 0
+  // Net maxima tracked per sign so the diverging ramp can be reasoned about
+  // (and reported in the legend) instead of collapsing to one abs() figure.
+  let mxNSurplus = 0
+  let mxNDeficit = 0
 
   const current = new Date(startDate)
   while (current <= endDate) {
@@ -108,8 +193,8 @@ export function buildDayCells(
 
     if (exp > mxE) mxE = exp
     if (inc > mxI) mxI = inc
-    const absNet = Math.abs(net)
-    if (absNet > mxN) mxN = absNet
+    if (net > mxNSurplus) mxNSurplus = net
+    else if (-net > mxNDeficit) mxNDeficit = -net
 
     cells.push({
       date: dateStr,
@@ -124,7 +209,17 @@ export function buildDayCells(
     })
     current.setDate(current.getDate() + 1)
   }
-  return { cells, mxE, mxI, mxN }
+  // ONE shared magnitude scale for net (max of both signs), not two independent
+  // ramps: equal-magnitude surplus and deficit days must reach equal intensity
+  // and differ only in hue, so the ramp stays comparable across the sign flip.
+  return {
+    cells,
+    mxE,
+    mxI,
+    mxN: Math.max(mxNSurplus, mxNDeficit),
+    mxNSurplus,
+    mxNDeficit,
+  }
 }
 
 /** Derive month labels positioned at their first Sunday occurrence. */

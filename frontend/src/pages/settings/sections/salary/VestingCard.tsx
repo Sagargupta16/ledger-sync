@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/formatters'
 import { vestingPrice } from '@/lib/rsuVesting'
+import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '../../styles'
 import { dateToFY } from './fyHelpers'
@@ -18,9 +19,10 @@ export default function VestingCard({
   onSortVestings,
 }: Readonly<VestingEntryProps>) {
   const { vesting, stateIdx } = entry
+  const fyStartMonth = usePreferencesStore(selectFiscalYearStartMonth)
   const price = vestingPrice(grant, vesting, today)
   const estimatedValue = vesting.quantity * price
-  const fiscalYear = vesting.date ? dateToFY(vesting.date) : ''
+  const fiscalYear = vesting.date ? dateToFY(vesting.date, fyStartMonth) : ''
   const usesVestPrice = vested && vesting.price_at_vest != null && vesting.price_at_vest > 0
   const rowName = `${grant.stock_name || 'RSU'} vesting ${stateIdx + 1}`
   const dateId = `mobile-vesting-${grant.id}-${stateIdx}-date`

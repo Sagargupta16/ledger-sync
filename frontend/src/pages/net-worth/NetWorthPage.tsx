@@ -3,6 +3,7 @@ import { CreditCard, PiggyBank, Target, TrendingUp } from 'lucide-react'
 import { CreditCardHealth } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import MetricCard from '@/components/shared/MetricCard'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import Sparkline from '@/components/shared/Sparkline'
 import { rawColors } from '@/constants/colors'
 import { PageContainer, PageHeader } from '@/components/ui'
@@ -59,6 +60,19 @@ export default function NetWorthPage() {
           action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
         />
 
+        {m.partialPeriod && (
+          <PartialPeriodNotice
+            label={m.partialPeriod.label}
+            daysElapsed={m.partialPeriod.daysElapsed}
+            daysTotal={m.partialPeriod.daysTotal}
+            treatment={
+              m.growthUsesPartialMonth
+                ? 'Balances and the trend line are current to today. The month-on-month badge and the sparkline compare completed months, but there are fewer than three of those, so the growth rate behind the milestone ETAs still includes the month in progress.'
+                : 'Balances and the trend line are current to today. The month-on-month badge, the sparkline and the growth rate behind the milestone ETAs compare completed months only.'
+            }
+          />
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           <MetricCard
             title="Total Assets"
@@ -83,7 +97,7 @@ export default function NetWorthPage() {
             color="blue"
             hero
             change={m.netWorthMoMChange}
-            changeLabel="vs last month"
+            changeLabel={m.netWorthMoMLabel}
             subtitle="Assets less liabilities"
             trend={
               m.netWorthSparkline.length >= 2 ? (

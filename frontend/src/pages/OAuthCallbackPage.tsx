@@ -31,19 +31,23 @@ export default function OAuthCallbackPage() {
     if (processedRef.current) return
     processedRef.current = true
 
+    // `void navigate(...)` below: react-router types the return as
+    // `void | Promise<void>`, but under BrowserRouter (App.tsx) it returns
+    // undefined and nothing here depends on the transition finishing.
+
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
 
     if (error) {
       toast.error(`OAuth error: ${error}`)
-      navigate(ROUTES.HOME, { replace: true })
+      void navigate(ROUTES.HOME, { replace: true })
       return
     }
 
     if (!code || !provider) {
       toast.error('Invalid OAuth callback')
-      navigate(ROUTES.HOME, { replace: true })
+      void navigate(ROUTES.HOME, { replace: true })
       return
     }
 
@@ -66,15 +70,17 @@ export default function OAuthCallbackPage() {
         prefetchCoreData()
 
         toast.success('Signed in successfully!')
-        navigate(ROUTES.DASHBOARD, { replace: true })
+        void navigate(ROUTES.DASHBOARD, { replace: true })
       } catch (err) {
         const message = getApiErrorMessage(err)
         toast.error(message)
-        navigate(ROUTES.HOME, { replace: true })
+        void navigate(ROUTES.HOME, { replace: true })
       }
     }
 
-    handleCallback()
+    // `handleCallback` catches every failure into toast.error + redirect home,
+    // so it never rejects; `void` marks the fire-and-forget in the effect.
+    void handleCallback()
   }, [provider, searchParams, navigate, login, setTokens])
 
   return (

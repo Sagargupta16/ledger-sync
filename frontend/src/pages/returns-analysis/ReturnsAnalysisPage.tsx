@@ -1,4 +1,5 @@
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import ErrorState from '@/components/shared/ErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
@@ -24,8 +25,7 @@ export default function ReturnsAnalysisPage() {
     netProfitLoss,
     totalIncome,
     totalExpenses,
-    estimatedCAGR,
-    roi,
+    realisedEventCount,
     monthlyComboData,
   } = useReturnsAnalysis()
 
@@ -58,11 +58,16 @@ export default function ReturnsAnalysisPage() {
 
       <ReturnsSummary
         netProfitLoss={netProfitLoss}
-        estimatedCAGR={estimatedCAGR}
-        roi={roi}
         totalIncome={totalIncome}
         totalExpenses={totalExpenses}
+        realisedEventCount={realisedEventCount}
       />
+
+      <CostBasisOnlyNotice
+        metricLabel="CAGR and monthly ROI"
+        shownInstead="This page reports realised cash only: dividends, interest, booked profit or loss, and broker costs."
+      />
+
       <ReturnsMonthlyChart data={monthlyComboData} />
 
       {investmentAccounts.length > 0 && (

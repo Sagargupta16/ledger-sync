@@ -91,7 +91,7 @@ export default function TaxSlabBreakdown({
           <tbody>
             {taxSlabs.map((slab) => {
               const breakdown = slabBreakdown.find((b) => b.slab === slab)
-              const taxAmount = breakdown?.taxAmount || 0
+              const taxAmount = breakdown?.taxAmount ?? 0
               const isApplicable = grossTaxableIncome > slab.lower
 
               return (

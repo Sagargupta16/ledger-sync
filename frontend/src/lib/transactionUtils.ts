@@ -7,6 +7,7 @@
 
 import type { Transaction } from '@/types'
 import { filterTransactionsByDateRange as dateFilterImpl } from '@/lib/dateUtils'
+import { isSpending } from '@/lib/expenseClassification'
 
 /**
  * Compute the min/max date range from an array of transactions.
@@ -37,14 +38,17 @@ export function filterTransactionsByDateRange(
 
 /**
  * Aggregate expense amounts by category from a list of transactions.
- * Only includes transactions with type === 'Expense'.
+ *
+ * Only spending counts: realised capital losses are booked as Expense rows so
+ * the cash column balances, but they are a negative investment return, not
+ * consumption, so ranking them against Food or Rent is meaningless.
  */
 export function computeCategoryBreakdown(
   transactions: Transaction[],
 ): Record<string, number> {
   const categories: Record<string, number> = {}
   for (const t of transactions) {
-    if (t.type !== 'Expense') continue
+    if (t.type !== 'Expense' || !isSpending(t)) continue
     const category = t.category || 'Uncategorized'
     categories[category] = (categories[category] || 0) + Math.abs(t.amount)
   }

@@ -85,10 +85,13 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
     staleTime: 30_000,
   })
 
+  // `void queryClient.invalidateQueries(...)` below: query-core swallows refetch
+  // rejections internally, so these promises never reject. The mutation failures
+  // themselves are toasted by the global MutationCache onError in lib/queryClient.
   const saveMutation = useMutation({
     mutationFn: (data: AIConfigUpdate) => aiConfigService.updateConfig(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
       setApiKey('')
     },
   })
@@ -96,7 +99,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const deleteMutation = useMutation({
     mutationFn: () => aiConfigService.deleteConfig(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
       setProvider('')
       setModel('')
       setApiKey('')
@@ -106,8 +109,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const modeMutation = useMutation({
     mutationFn: (mode: AIMode) => aiConfigService.setMode(mode),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
     },
   })
 
@@ -125,8 +128,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
+      void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
     },
   })
 
@@ -188,6 +191,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
         setTestStatus('error')
         return
       } else {
+        // Bare `return` left testStatus on 'testing' forever, so an unrecognised
+        // provider spun the button's spinner with no error and no way out but a
+        // reload. Every other exit from this function resolves the status.
+        setTestError(`No connection test available for provider "${provider}"`)
+        setTestStatus('error')
         return
       }
 
@@ -195,7 +203,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       if (resp.ok) {
         setTestStatus('success')
       } else {
-        const err = await resp.json().catch(() => ({}))
+        // Typed at the parse, not asserted after: `resp.json()` is `any`, so
+        // reading `.error.message` off it was unchecked, and a provider that
+        // answers a differently-shaped error body would have thrown on the
+        // member access instead of falling back to the status code.
+        const err: unknown = await resp.json().catch(() => ({}))
         const errMsg =
           (err as { error?: { message?: string } }).error?.message ?? `Error ${resp.status}`
         setTestError(errMsg)
@@ -284,7 +296,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                     id="test-ai-connection"
                     type="button"
                     variant="secondary"
-                    onClick={handleTest}
+                    // handleTest is async but wraps its whole body in
+                    // try/catch (setTestError on failure), so it never
+                    // rejects; `void` adapts it to the void-returning prop.
+                    onClick={() => void handleTest()}
                     disabled={!apiKey || testStatus === 'testing'}
                     isLoading={testStatus === 'testing'}
                   >

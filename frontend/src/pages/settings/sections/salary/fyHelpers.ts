@@ -1,16 +1,34 @@
-import { FY_START_MONTH } from '@/lib/taxCalculator'
+/**
+ * Bare fiscal-year labels ("2026-27") for the salary-structure grid.
+ *
+ * These are the STORAGE keys of `preferences.salary_structure`, so they stay
+ * bare -- unlike the "FY 2026-27" display labels the tax engine returns.
+ *
+ * Every function takes `fyStartMonth` explicitly, defaulting to
+ * `FY_START_MONTH` only as a last resort. They used to hardcode April: a user
+ * who set `fiscal_year_start_month` to anything else got salary rows filed
+ * under a different FY than `getFYFromDate` (the tax engine) resolves the same
+ * date to, so the projection silently rescaled the base salary and the FY
+ * badges on RSU vestings disagreed with the tax page. Callers read the real
+ * value from `selectFiscalYearStartMonth`.
+ */
+
+import { FY_START_MONTH, getFYFromDate } from '@/lib/taxCalculator'
+import { getTodayKey } from '@/lib/dateUtils'
 
 export function parseBareStartYear(fy: string): number {
   return Number.parseInt(fy.split('-')[0] || '0', 10)
 }
 
-export function currentFYLabel(): string {
-  const now = new Date()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
-  const startYear = month >= FY_START_MONTH ? year : year - 1
-  const endYear = (startYear + 1) % 100
-  return `${startYear}-${String(endYear).padStart(2, '0')}`
+/** Strip the "FY " prefix the tax engine emits: "FY 2026-27" -> "2026-27". */
+function toBareLabel(fyDisplayLabel: string): string {
+  return fyDisplayLabel.replace(/^FY\s+/, '')
+}
+
+export function currentFYLabel(fyStartMonth: number = FY_START_MONTH): string {
+  // `getTodayKey()`, not `new Date()` getters -- see dateUtils. Delegating to
+  // `getFYFromDate` keeps this in lockstep with the tax engine's own boundary.
+  return toBareLabel(getFYFromDate(getTodayKey(), fyStartMonth))
 }
 
 export function nextFY(fy: string): string {
@@ -19,22 +37,7 @@ export function nextFY(fy: string): string {
   return `${start}-${String(end).padStart(2, '0')}`
 }
 
-export function dateToFY(dateStr: string): string {
-  // Parse YYYY-MM directly so a 1st-of-month date isn't shifted into the prior
-  // month/FY off-UTC (new Date(iso) is UTC midnight but getMonth() is local).
-  const isoMatch = /^(\d{4})-(\d{2})/.exec(dateStr)
-  let month: number
-  let year: number
-  if (isoMatch) {
-    year = Number(isoMatch[1])
-    month = Number(isoMatch[2])
-  } else {
-    const d = new Date(dateStr)
-    if (Number.isNaN(d.getTime())) return ''
-    month = d.getUTCMonth() + 1
-    year = d.getUTCFullYear()
-  }
-  const fyStartYear = month >= FY_START_MONTH ? year : year - 1
-  const endYear = (fyStartYear + 1) % 100
-  return `${fyStartYear}-${String(endYear).padStart(2, '0')}`
+export function dateToFY(dateStr: string, fyStartMonth: number = FY_START_MONTH): string {
+  if (!/^\d{4}-\d{2}/.test(dateStr) && Number.isNaN(new Date(dateStr).getTime())) return ''
+  return toBareLabel(getFYFromDate(dateStr, fyStartMonth))
 }

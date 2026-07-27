@@ -19,6 +19,14 @@ import { formatCurrency } from '@/lib/formatters'
  *   - `shrink-0`      -- flex parents can't compress it
  *   - default `font-medium` weight (override via `bold`)
  *
+ * `formatCurrency` is exact to the paise and drops only a zero fraction, so a
+ * column can mix "₹1,281.57" and "₹173". `text-right` + `tabular-nums` pin the
+ * right edge of the whole string at a fixed glyph pitch, which means the two
+ * strings end flush but their units digits sit in different columns -- exact
+ * decimal-point stacking is NOT provided here. That is accepted: the amounts
+ * are correct and comparable, and padding the fraction back in everywhere would
+ * restore the ".00" noise. Do not "fix" it by rounding the values.
+ *
  * Consumers pick the width via a preset (`sm` | `md` | `lg`) or a raw class
  * for the rare custom case. No fixed default width -- the caller knows its
  * layout, and forcing one would break the many free-flowing usages.

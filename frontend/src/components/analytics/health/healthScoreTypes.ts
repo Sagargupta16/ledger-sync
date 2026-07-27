@@ -49,8 +49,19 @@ export interface AnalysisResult {
   monthsAnalyzed: number
   savingsRate: number
   essentialToIncomeRatio: number
+  /**
+   * Pooled totals over the analysed months. Present so consumers never
+   * reconstitute them as `avgMonthly * monthsAnalyzed`: that round-trip is only
+   * equal while both averages share the divisor, and floating point breaks it
+   * even then ((1111.11 + 2222.22 + 99999.9) / 3 * 3 = 103333.22999999998).
+   */
+  totalIncome: number
+  totalExpense: number
+  totalEssentialExpense: number
+  totalDebt: number
   avgMonthlyIncome: number
   avgMonthlyExpense: number
+  avgMonthlyEssentialExpense: number
   emergencyFundMonths: number
   cumulativeNetSavings: number
   investmentRegularity: number
@@ -227,7 +238,7 @@ export function checkIsInvestmentTransaction(
 ): boolean {
   if (tx.type !== 'Transfer' || !tx.to_account) return false
   const toAccount = tx.to_account.toLowerCase()
-  const note = (tx.note || '').toLowerCase()
+  const note = (tx.note ?? '').toLowerCase()
   const category = (tx.category || '').toLowerCase()
   if (isInvestmentAccount(tx.to_account)) return true
   if (matchesPatterns(toAccount, INVESTMENT_ACCOUNT_PATTERNS)) return true

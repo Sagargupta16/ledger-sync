@@ -6,7 +6,11 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { Banknote } from 'lucide-react'
 
-import { selectDisplayCurrency, usePreferencesStore } from '@/store/preferencesStore'
+import {
+  selectDisplayCurrency,
+  selectFiscalYearStartMonth,
+  usePreferencesStore,
+} from '@/store/preferencesStore'
 import type { GrowthAssumptions, RsuGrant, SalaryComponents } from '@/types/salary'
 import { DEFAULT_SALARY_COMPONENTS } from '@/types/salary'
 
@@ -38,6 +42,9 @@ export default function SalaryStructureSection({
   updateGrowthAssumptions,
   defaultCollapsed = true,
 }: Readonly<SalaryStructureSectionProps>) {
+  // The user's own FY boundary, not a hardcoded April: a non-April user was
+  // shown (and saved) salary under a different FY key than the tax engine reads.
+  const fyStartMonth = usePreferencesStore(selectFiscalYearStartMonth)
   const fyKeys = useMemo(
     () =>
       Object.keys(localSalaryStructure).sort(
@@ -46,7 +53,7 @@ export default function SalaryStructureSection({
     [localSalaryStructure],
   )
   const [selectedFY, setSelectedFY] = useState(() => {
-    const cur = currentFYLabel()
+    const cur = currentFYLabel(fyStartMonth)
     return fyKeys.includes(cur) ? cur : fyKeys[0] ?? cur
   })
 
@@ -72,7 +79,7 @@ export default function SalaryStructureSection({
   )
 
   const addFY = useCallback(() => {
-    const next = fyKeys.length > 0 ? nextFY(fyKeys[fyKeys.length - 1]) : currentFYLabel()
+    const next = fyKeys.length > 0 ? nextFY(fyKeys[fyKeys.length - 1]) : currentFYLabel(fyStartMonth)
     if (localSalaryStructure[next]) return
     const lastSalary =
       fyKeys.length > 0 ? localSalaryStructure[fyKeys[fyKeys.length - 1]] : undefined
@@ -81,7 +88,7 @@ export default function SalaryStructureSection({
       [next]: lastSalary ? { ...lastSalary } : { ...DEFAULT_SALARY_COMPONENTS },
     })
     setSelectedFY(next)
-  }, [fyKeys, localSalaryStructure, updateSalaryStructure])
+  }, [fyKeys, fyStartMonth, localSalaryStructure, updateSalaryStructure])
 
   const goNext = useCallback(() => {
     const idx = fyKeys.indexOf(selectedFY)
@@ -171,7 +178,10 @@ export default function SalaryStructureSection({
         onUpdateVesting={updateVesting}
         onRemoveVesting={removeVesting}
         onSortVestings={sortGrantVestings}
-        onFetchStockPrice={fetchStockPrice}
+        // fetchStockPrice is async but catches its own failure (the user can
+        // still type the price manually), so it never rejects; `void` adapts
+        // it to the void-returning prop.
+        onFetchStockPrice={(grant) => void fetchStockPrice(grant)}
       />
 
       <div className="border-t border-border" />

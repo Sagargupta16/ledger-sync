@@ -37,19 +37,20 @@ export function AssetAllocationChart({
       {isLoading ? (
         <ChartSkeleton />
       ) : (
-        <div role="img" aria-label="Donut chart breaking down portfolio value by asset class.">
-          <StandardPieChart
-            data={assetAllocation.map((item) => ({
-              name: item.name,
-              value: item.value,
-              color: item.color,
-            }))}
-            height={340}
-            centerLabel="Total"
-            centerValue={formatCurrencyShort(total)}
-            tooltipFormatter={(value) => formatCurrency(value)}
-          />
-        </div>
+        // No role="img" wrapper -- it would enclose the chart's sr-only data
+        // table and ARIA presentational children would hide it again.
+        <StandardPieChart
+          data={assetAllocation.map((item) => ({
+            name: item.name,
+            value: item.value,
+            color: item.color,
+          }))}
+          height={340}
+          centerLabel="Total"
+          centerValue={formatCurrencyShort(total)}
+          tooltipFormatter={(value) => formatCurrency(value)}
+          ariaLabel="Donut chart breaking down portfolio value by asset class."
+        />
       )}
     </motion.div>
   )

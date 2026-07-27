@@ -5,6 +5,7 @@
  */
 export * from './healthScoreTypes'
 export {
+  cfpInputsFromAnalysis,
   classifyTransaction,
   computeAnalysis,
   computeMonthlyData,

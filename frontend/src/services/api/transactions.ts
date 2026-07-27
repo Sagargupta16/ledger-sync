@@ -34,6 +34,13 @@ export interface TagFacet {
 
 export interface TransactionFacets {
   categories: string[]
+  /**
+   * Transfer routing labels ("Transfer: Bank: HDFC -> Stocks: Groww"), kept out
+   * of `categories` because there is one per account pair -- 118 of them against
+   * 17 real categories on the reference ledger. Optional so a cached response
+   * from before the split still parses.
+   */
+  transfer_categories?: string[]
   accounts: string[]
   tags: TagFacet[]
   income_count: number
@@ -84,7 +91,7 @@ export const transactionsService = {
   },
 
   getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {
-    const { sort, ...rest } = filters || {}
+    const { sort, ...rest } = filters ?? {}
     const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions/search', {
       params: { ...rest, sort_by: sort, limit: rest.limit || 100 },
     })
@@ -106,7 +113,11 @@ export const transactionsService = {
   },
 
   exportToCSV: async (filters: TransactionFilters = {}): Promise<Blob> => {
-    const response = await apiClient.get('/api/transactions/export', {
+    // `<Blob>` matches `responseType: 'blob'`. Without it `response.data` is
+    // `any`, so the promised `Blob` was an unchecked claim -- and this endpoint
+    // really does answer `text/csv`, not JSON (verified live 2026-07-27), which
+    // is exactly the case a wrong assertion here would hide.
+    const response = await apiClient.get<Blob>('/api/transactions/export', {
       params: filters,
       responseType: 'blob',
     })

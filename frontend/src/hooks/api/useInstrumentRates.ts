@@ -41,7 +41,10 @@ export function useInstrumentRates(): {
 
   const query = useQuery({
     queryKey: ['instrument-rates'],
-    queryFn: ratesService.getInstrumentRates,
+    // Called through the object, not detached. Passing the bare method works
+    // only as long as its body never touches `this`; every other queryFn in
+    // hooks/api/ is already a closure, so this matches them.
+    queryFn: () => ratesService.getInstrumentRates(),
     enabled: !!accessToken,
     staleTime: MS_PER_DAY,
     gcTime: MS_PER_DAY,

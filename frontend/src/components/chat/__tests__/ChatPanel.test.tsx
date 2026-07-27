@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from 'vitest'
 import ChatPanel from '../ChatPanel'
 
 // jsdom doesn't implement Element.scrollTo; the panel calls it on message
-// changes. Stub it so the effect is a no-op in tests.
-Element.prototype.scrollTo = Element.prototype.scrollTo || (() => {})
+// changes. Stub it so the effect is a no-op in tests. Assigned unconditionally
+// rather than via `proto.scrollTo || fallback`, which detached the method from
+// its receiver -- a `this`-binding hazard the moment jsdom does implement it.
+Element.prototype.scrollTo = () => {}
 
 function renderPanel(onSend = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })

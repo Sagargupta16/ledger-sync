@@ -1,15 +1,6 @@
+import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Pie, PieChart, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import {
@@ -24,6 +15,7 @@ import {
 } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
+import { tooltipLabelString } from '@/lib/chartUtils'
 import { formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
 import type { GSTSlabBreakdown, GSTSummary } from '@/lib/gstCalculator'
 
@@ -35,6 +27,20 @@ interface Props {
 }
 
 export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
+  // Slice colours ride on the data rows as `fill`. Recharts merges each row
+  // over its sector props, so this is the supported replacement for the
+  // deprecated `<Cell>` child and resolves to the exact same hex values.
+  // Memoised so the `Pie` keeps a stable `data` identity and does not
+  // re-run its entry animation on unrelated parent re-renders.
+  const slabSlices = useMemo(
+    () =>
+      taxableSlabs.map((entry) => ({
+        ...entry,
+        fill: GST_SLAB_COLORS[entry.slab] ?? rawColors.app.blue,
+      })),
+    [taxableSlabs],
+  )
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-5">
@@ -47,7 +53,7 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
           >
             <PieChart>
               <Pie
-                data={taxableSlabs}
+                data={slabSlices}
                 dataKey="gstAmount"
                 nameKey="slab"
                 cx="50%"
@@ -55,18 +61,12 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
                 outerRadius={90}
                 innerRadius={50}
                 paddingAngle={2}
-                isAnimationActive={shouldAnimate(taxableSlabs.length)}
-              >
-                {taxableSlabs.map((entry) => (
-                  <Cell
-                    key={entry.slab}
-                    fill={GST_SLAB_COLORS[entry.slab] ?? rawColors.app.blue}
-                  />
-                ))}
-              </Pie>
+                isAnimationActive={shouldAnimate(slabSlices.length)}
+              />
               <Tooltip
                 formatter={currencyTooltipFormatter}
-                labelFormatter={(slab) => `${slab}% slab`}
+                // Pie tooltip label is the `nameKey` value, i.e. the numeric slab rate.
+                labelFormatter={(slab) => `${tooltipLabelString(slab)}% slab`}
                 {...chartTooltipProps}
               />
             </PieChart>

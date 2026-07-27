@@ -241,8 +241,9 @@ export function normalizeArray(value: string[] | string): string[] {
   if (Array.isArray(value)) return value
   if (typeof value === 'string' && value.length > 0) {
     try {
-      const parsed = JSON.parse(value)
-      return Array.isArray(parsed) ? parsed : []
+      // JSON.parse is typed `any`; keep it at `unknown` and narrow.
+      const parsed: unknown = JSON.parse(value)
+      return Array.isArray(parsed) ? (parsed as string[]) : []
     } catch {
       return []
     }
@@ -253,7 +254,13 @@ export function normalizeArray(value: string[] | string): string[] {
 export function getStoredWidgets(): string[] {
   try {
     const raw = localStorage.getItem('ledger-sync-visible-widgets')
-    if (raw) return JSON.parse(raw)
+    // JSON.parse is typed `any`; keep it at `unknown` and narrow. A stored
+    // non-array (corrupted value) previously returned as-is; it now falls
+    // through to the default set instead of poisoning callers with a non-array.
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed as string[]
+    }
   } catch {
     // localStorage unavailable or corrupted
   }
@@ -264,14 +271,24 @@ export function getStoredWidgets(): string[] {
 
 /** Build a deep-cloned LocalPrefs from server preferences data */
 export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<string, unknown> {
+  // These fields arrive as `unknown` and may legitimately be absent, so each
+  // `?? []` guard is load-bearing. Casting to a bare `string[]` claimed they
+  // were always present, which made the guards look dead to the type checker;
+  // the `| undefined` keeps the assertion honest without changing runtime.
+  const list = (value: unknown) => value as string[] | undefined
+  // `Array.isArray` narrows an `unknown` to `any[]`, so spreading the result
+  // re-introduced an implicit any. Copy through a typed view instead; the
+  // non-array branch (a JSON string, or absent) is passed along untouched.
+  const copyIfArray = (value: unknown): unknown =>
+    Array.isArray(value) ? [...(value as unknown[])] : (value ?? [])
   return {
     fiscal_year_start_month: p.fiscal_year_start_month,
-    essential_categories: [...((p.essential_categories as string[]) || [])],
+    essential_categories: [...(list(p.essential_categories) ?? [])],
     investment_account_mappings: { ...(p.investment_account_mappings as Record<string, string>) },
-    taxable_income_categories: [...((p.taxable_income_categories as string[]) || [])],
-    investment_returns_categories: [...((p.investment_returns_categories as string[]) || [])],
-    non_taxable_income_categories: [...((p.non_taxable_income_categories as string[]) || [])],
-    other_income_categories: [...((p.other_income_categories as string[]) || [])],
+    taxable_income_categories: [...(list(p.taxable_income_categories) ?? [])],
+    investment_returns_categories: [...(list(p.investment_returns_categories) ?? [])],
+    non_taxable_income_categories: [...(list(p.non_taxable_income_categories) ?? [])],
+    other_income_categories: [...(list(p.other_income_categories) ?? [])],
     default_budget_alert_threshold: p.default_budget_alert_threshold,
     auto_create_budgets: p.auto_create_budgets,
     budget_rollover_enabled: p.budget_rollover_enabled,
@@ -281,7 +298,7 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     currency_symbol_position: p.currency_symbol_position,
     default_time_range: p.default_time_range,
     anomaly_expense_threshold: p.anomaly_expense_threshold,
-    anomaly_types_enabled: [...((p.anomaly_types_enabled as string[]) || [])],
+    anomaly_types_enabled: [...(list(p.anomaly_types_enabled) ?? [])],
     auto_dismiss_recurring_anomalies: p.auto_dismiss_recurring_anomalies,
     recurring_min_confidence: p.recurring_min_confidence,
     recurring_auto_confirm_occurrences: p.recurring_auto_confirm_occurrences,
@@ -291,16 +308,12 @@ export function buildInitialLocalPrefs(p: Record<string, unknown>): Record<strin
     credit_card_limits: { ...(p.credit_card_limits as Record<string, number>) },
     earning_start_date: p.earning_start_date ?? null,
     use_earning_start_date: p.use_earning_start_date ?? false,
-    fixed_expense_categories: Array.isArray(p.fixed_expense_categories)
-      ? [...p.fixed_expense_categories]
-      : (p.fixed_expense_categories ?? []),
+    fixed_expense_categories: copyIfArray(p.fixed_expense_categories),
     savings_goal_percent: p.savings_goal_percent ?? 20,
     monthly_investment_target: p.monthly_investment_target ?? 0,
     payday: p.payday ?? 1,
     preferred_tax_regime: p.preferred_tax_regime ?? 'new',
-    excluded_accounts: Array.isArray(p.excluded_accounts)
-      ? [...p.excluded_accounts]
-      : (p.excluded_accounts ?? []),
+    excluded_accounts: copyIfArray(p.excluded_accounts),
     notify_budget_alerts: p.notify_budget_alerts ?? true,
     notify_anomalies: p.notify_anomalies ?? true,
     notify_upcoming_bills: p.notify_upcoming_bills ?? true,

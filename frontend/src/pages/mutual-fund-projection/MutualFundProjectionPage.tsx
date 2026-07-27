@@ -1,4 +1,5 @@
 import { InstrumentProjections } from '@/components/analytics'
+import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
@@ -40,13 +41,15 @@ export default function MutualFundProjectionPage() {
         detectedMonthlySIP={m.detectedMonthlySIP}
         transactionCount={m.sipTransfers.length}
         totalHistoricalInvested={m.totalHistoricalInvested}
-        realizedGains={m.realizedGains}
-        realizedGainsPercent={m.realizedGainsPercent}
-        gainsBgClass={m.gainsBgClass}
-        gainsIconClass={m.gainsIconClass}
-        gainsTextClass={m.gainsTextClass}
-        gainsSignPrefix={m.gainsSignPrefix}
+        investmentDurationYears={m.investmentDurationYears}
       />
+
+      {!m.hasCurrentValueOverride && (
+        <CostBasisOnlyNotice
+          metricLabel="Gain and annualised return"
+          shownInstead="Enter your fund's current value under Returns Analysis below and both are computed for real."
+        />
+      )}
 
       <ProjectionParameters
         sipInputValue={m.sipInputValue}
@@ -77,6 +80,7 @@ export default function MutualFundProjectionPage() {
           totalReturnSignPrefix={m.totalReturnSignPrefix}
           xirrColorClass={m.xirrColorClass}
           xirrSignPrefix={m.xirrSignPrefix}
+          hasCurrentValueOverride={m.hasCurrentValueOverride}
         />
       </ProjectionParameters>
 

@@ -5,7 +5,15 @@
  * share ONE "current" value and ONE growth rate so the numbers stay
  * self-consistent. Anchor: the last point of the historical series that
  * the chart itself is rendering.
+ *
+ * Every future date is stepped with `addMonthsToKey`, never `setUTCMonth`.
+ * The anchor is the last day of the user's selected window, which lands on day
+ * 29-31 for most period choices, and `setUTCMonth` overflows those into the
+ * following month -- so the overlay skipped calendar months and stacked two
+ * points on others.
  */
+
+import { addDaysToKey, addMonthsToKey, DAYS_PER_AVG_MONTH } from '@/lib/dateUtils'
 
 export interface NetWorthPoint {
   date: string
@@ -157,13 +165,9 @@ export function projectNetWorth(
 ): NetWorthPoint[] {
   if (horizonMonths <= 0) return []
   const points: NetWorthPoint[] = []
-  const start = new Date(anchor.date)
-  start.setUTCHours(0, 0, 0, 0)
   for (let i = 1; i <= horizonMonths; i++) {
-    const d = new Date(start)
-    d.setUTCMonth(d.getUTCMonth() + i)
     points.push({
-      date: d.toISOString().substring(0, 10),
+      date: addMonthsToKey(anchor.date, i),
       netWorth: anchor.netWorth + monthlyGrowth * i,
     })
   }
@@ -242,15 +246,11 @@ export function projectNetWorthLinearBand(
 ): NetWorthProjectionBandPoint[] {
   if (horizonMonths <= 0) return []
   const points: NetWorthProjectionBandPoint[] = []
-  const start = new Date(anchor.date)
-  start.setUTCHours(0, 0, 0, 0)
   for (let i = 1; i <= horizonMonths; i++) {
-    const d = new Date(start)
-    d.setUTCMonth(d.getUTCMonth() + i)
     const mean = anchor.netWorth + monthlyGrowth * i
     const halfBand = sigma > 0 ? sigma * Math.sqrt(i) : 0
     points.push({
-      date: d.toISOString().substring(0, 10),
+      date: addMonthsToKey(anchor.date, i),
       mean,
       upper: mean + halfBand,
       lower: mean - halfBand,
@@ -327,12 +327,18 @@ function buildUpcomingRow(
     return { ...m, status: 'upcoming', date: null, distance: null, stableSince: null }
   }
   const monthsAway = (m.value - anchor.netWorth) / monthlyGrowth
-  const eta = new Date(anchor.date)
-  eta.setUTCDate(eta.getUTCDate() + Math.round(monthsAway * 30.44))
+  // Whole months stepped on the real calendar, then the remainder as days.
+  // Stepping the whole part as `monthsAway * 30.44` days drifted against the
+  // projection overlay's own points (which advance by calendar month), so a
+  // milestone ETA and the chart crossing it corresponds to disagreed by up to
+  // several days over a 5-year horizon.
+  const wholeMonths = Math.floor(monthsAway)
+  const remainderDays = Math.round((monthsAway - wholeMonths) * DAYS_PER_AVG_MONTH)
+  const etaKey = addDaysToKey(addMonthsToKey(anchor.date, wholeMonths), remainderDays)
   return {
     ...m,
     status: 'upcoming',
-    date: eta.toISOString().substring(0, 10),
+    date: etaKey,
     distance: Math.round(monthsAway * 10) / 10,
     stableSince: null,
   }

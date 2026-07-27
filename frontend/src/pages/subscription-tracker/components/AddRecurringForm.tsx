@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { motion } from 'motion/react'
 import { Check, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,7 +25,7 @@ export function AddRecurringForm({
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(initial?.category ?? '')
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!name.trim()) { toast.error('Name is required'); return }
     const amt = Number(amount)

@@ -7,7 +7,7 @@ import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+import { computeDayOfWeekAverages } from '../dayOfWeekUtils'
 
 export interface DayCell {
   date: string
@@ -35,47 +35,7 @@ export interface DayOfWeekChartProps {
  * highest-spending day and weekend-vs-weekday delta as the plain takeaway.
  */
 export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) {
-  const { data, insights } = useMemo(() => {
-    const totals: Record<number, { expense: number; income: number; count: number }> = {}
-    for (let i = 0; i < 7; i++) totals[i] = { expense: 0, income: 0, count: 0 }
-
-    for (const cell of grid) {
-      totals[cell.dayOfWeek].expense += cell.expense
-      totals[cell.dayOfWeek].income += cell.income
-      totals[cell.dayOfWeek].count++
-    }
-
-    const series = DAYS.map((d, i) => ({
-      day: d,
-      spending: totals[i].count > 0 ? totals[i].expense / totals[i].count : 0,
-      earning: totals[i].count > 0 ? totals[i].income / totals[i].count : 0,
-      dayIndex: i,
-    }))
-
-    // Insights -- compute once for the strip below the chart.
-    const sortedBySpend = [...series].sort((a, b) => b.spending - a.spending)
-    const top = sortedBySpend[0]
-    const bottom = sortedBySpend.at(-1)
-    const weekendSpend = (series[0].spending + series[6].spending) / 2 // Sun + Sat
-    const weekdaySpend =
-      series.slice(1, 6).reduce((sum, d) => sum + d.spending, 0) / 5 // Mon-Fri
-
-    return {
-      data: series,
-      insights:
-        top && top.spending > 0
-          ? {
-              topDay: top.day,
-              topAmount: top.spending,
-              bottomDay: bottom?.day,
-              weekendDelta:
-                weekdaySpend > 0
-                  ? (weekendSpend - weekdaySpend) / weekdaySpend
-                  : 0,
-            }
-          : null,
-    }
-  }, [grid])
+  const { data, insights } = useMemo(() => computeDayOfWeekAverages(grid), [grid])
 
   const hasData = grid.some((c) => c.hasTx)
   if (!hasData) return <ChartEmptyState height={260} />

@@ -13,7 +13,7 @@ import {
   computeTaxPaidTillDate,
   type TdsMonthRow,
 } from '@/lib/tdsScheduleCalculator'
-import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
   usePreferencesStore,
@@ -58,10 +58,10 @@ export function useTaxPlanning() {
 
   const incomeClassification = useMemo(
     () => ({
-      taxable: preferences?.taxable_income_categories || [],
-      investmentReturns: preferences?.investment_returns_categories || [],
-      nonTaxable: preferences?.non_taxable_income_categories || [],
-      other: preferences?.other_income_categories || [],
+      taxable: preferences?.taxable_income_categories ?? [],
+      investmentReturns: preferences?.investment_returns_categories ?? [],
+      nonTaxable: preferences?.non_taxable_income_categories ?? [],
+      other: preferences?.other_income_categories ?? [],
     }),
     [preferences],
   )
@@ -105,7 +105,11 @@ export function useTaxPlanning() {
     return [...allFYs].sort((a, b) => a.localeCompare(b)).reverse()
   }, [txFyList, projectedFYList])
 
-  const currentFYLabel = getFYFromDate(new Date().toISOString().split('T')[0], fiscalYearStartMonth)
+  // `getTodayKey()`, not `toISOString().split('T')[0]`. The latter is a UTC key,
+  // so for the first 5.5 hours of an IST day it reports yesterday -- and on
+  // 1 April that is the PREVIOUS fiscal year, which would default the whole tax
+  // page (slabs, TDS schedule, projection) to the wrong FY.
+  const currentFYLabel = getFYFromDate(getTodayKey(), fiscalYearStartMonth)
 
   const effectiveFY =
     selectedFY || (fyList.includes(currentFYLabel) ? currentFYLabel : fyList[0]) || ''
@@ -115,10 +119,10 @@ export function useTaxPlanning() {
   const useSalaryProjection = hasSalaryData && (isFutureFY || (showProjection && isCurrentFY))
 
   const currentFYData = effectiveFY ? transactionsByFY[effectiveFY] : null
-  const income = currentFYData?.income || 0
-  const expense = currentFYData?.expense || 0
-  const netTaxableIncome = currentFYData?.taxableIncome || 0
-  const salaryMonthsCount = currentFYData?.salaryMonths?.size || 0
+  const income = currentFYData?.income ?? 0
+  const expense = currentFYData?.expense ?? 0
+  const netTaxableIncome = currentFYData?.taxableIncome ?? 0
+  const salaryMonthsCount = currentFYData?.salaryMonths?.size ?? 0
 
   const taxComputation = computeTaxForFY(
     effectiveFY,
