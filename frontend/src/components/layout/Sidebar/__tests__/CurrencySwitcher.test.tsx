@@ -145,9 +145,9 @@ describe('CurrencySwitcher unpriced-selection state', () => {
 
     // The control names the currency the figures are really in, not the dead
     // selection. Silence here is what let dirhams label rupees.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /no rate for AED, showing INR/i })).toBeInTheDocument(),
-    )
+    expect(
+      await screen.findByRole('button', { name: /no rate for AED, showing INR/i }),
+    ).toBeInTheDocument()
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('No AED rate')
     expect(status).toHaveTextContent('INR')

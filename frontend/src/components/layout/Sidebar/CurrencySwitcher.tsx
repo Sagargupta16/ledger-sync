@@ -117,12 +117,13 @@ export default function CurrencySwitcher() {
           base currency pass unexplained. Unlike the old silent behaviour, the
           amounts really are rupees now, so this only names what is on screen. */}
       {isUnpriced && (
-        <div
-          role="status"
-          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full border border-warning/20 bg-warning/10 text-[10px] text-warning whitespace-nowrap"
-        >
+        // Native <output>, not role="status" (S6819) -- it carries the live-region
+        // semantics itself, matching StaleDataBadge and PartialPeriodNotice. The
+        // `block` is explicit because <output> is inline by default; `absolute`
+        // already blockifies it, so this only pins the intent.
+        <output className="absolute left-1/2 mt-1 block -translate-x-1/2 whitespace-nowrap rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
           No {displayCurrency} rate -- in {BASE_CURRENCY}
-        </div>
+        </output>
       )}
 
       {/* Rate indicator pill */}

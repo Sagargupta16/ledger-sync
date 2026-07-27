@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -56,9 +56,7 @@ describe('/merchants in demo mode', () => {
   it('shows a Notes chip and no Unclassified chip', async () => {
     renderInDemoMode()
 
-    const notes = await waitFor(() => screen.getByRole('button', { name: /^Notes/ }), {
-      timeout: 5000,
-    })
+    const notes = await screen.findByRole('button', { name: /^Notes/ }, { timeout: 5000 })
     // The chip's trailing count is the row set it yields -- a nonzero count is
     // what proves the demo rows landed in the descriptor bucket.
     expect(notes.textContent).toMatch(/^Notes\d+$/)
@@ -71,14 +69,14 @@ describe('/merchants in demo mode', () => {
 
   it('drops the pre-label_kind honesty banner', async () => {
     renderInDemoMode()
-    await waitFor(() => screen.getByRole('button', { name: /^Notes/ }), { timeout: 5000 })
+    await screen.findByRole('button', { name: /^Notes/ }, { timeout: 5000 })
     // Demo mode is not a stale rollup, so it must not claim to be one.
     expect(screen.queryByText(/predates payee classification/)).not.toBeInTheDocument()
   })
 
   it('badges rows as notes rather than leaving them unlabelled', async () => {
     renderInDemoMode()
-    await waitFor(() => screen.getByRole('button', { name: /^Notes/ }), { timeout: 5000 })
+    await screen.findByRole('button', { name: /^Notes/ }, { timeout: 5000 })
     expect(
       screen.getAllByTitle('Raw transaction note, not a confirmed payee. This is what was bought.')
         .length,

@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import re
 
-# Excel exports carry a literal carriage-return artifact in text columns.
-_XL_ARTIFACT = re.compile(r"_x000[dD]_", re.IGNORECASE)
+# Excel exports carry a literal carriage-return artifact in text columns. The
+# whole pattern is case-insensitive, so a `[dD]` class would be redundant with
+# the flag (S5869) -- `_X000D_` already matches.
+_XL_ARTIFACT = re.compile(r"_x000d_", re.IGNORECASE)
 # Leading quantity prefixes: "3* Jeans", "2 x Track Pants", and the U+00D7
 # MULTIPLICATION SIGN variant real note text uses. That non-ASCII character is
 # deliberately in the character class -- dropping it would stop stripping the

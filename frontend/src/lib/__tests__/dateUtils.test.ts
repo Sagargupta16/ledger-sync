@@ -3,6 +3,8 @@ import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
   addDaysToKey,
   addMonthsToKey,
+  addMonthsToMonthKey,
+  monthKeysBetween,
   getCurrentMonth,
   getTodayKey,
   capEndDateAtToday,
@@ -281,6 +283,69 @@ describe('addMonthsToKey', () => {
 
   it('accepts a longer ISO string and returns a date key', () => {
     expect(addMonthsToKey('2026-07-26T10:30:00', 0)).toBe('2026-07-26')
+  })
+})
+
+describe('addMonthsToMonthKey', () => {
+  it('steps a month key forward and back', () => {
+    expect(addMonthsToMonthKey('2026-07', 1)).toBe('2026-08')
+    expect(addMonthsToMonthKey('2026-07', -1)).toBe('2026-06')
+    expect(addMonthsToMonthKey('2026-07', 0)).toBe('2026-07')
+  })
+
+  it('wraps at the year boundary in both directions', () => {
+    // The wrap that was hand-rolled at two call sites before this existed.
+    expect(addMonthsToMonthKey('2026-12', 1)).toBe('2027-01')
+    expect(addMonthsToMonthKey('2026-01', -1)).toBe('2025-12')
+    expect(addMonthsToMonthKey('2026-06', 18)).toBe('2027-12')
+    expect(addMonthsToMonthKey('2026-06', -18)).toBe('2024-12')
+  })
+
+  it('accepts a full date key and answers in month resolution', () => {
+    // Callers hold `YYYY-MM-DD` as often as `YYYY-MM`; a month-end day must not
+    // clamp its way into a different month.
+    expect(addMonthsToMonthKey('2026-01-31', 1)).toBe('2026-02')
+    expect(addMonthsToMonthKey('2026-08-31', 1)).toBe('2026-09')
+  })
+})
+
+describe('monthKeysBetween', () => {
+  it('is inclusive of both ends', () => {
+    expect(monthKeysBetween('2026-04', '2026-07')).toEqual([
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+    ])
+    expect(monthKeysBetween('2026-04', '2026-04')).toEqual(['2026-04'])
+  })
+
+  it('crosses a year boundary without a gap or a repeat', () => {
+    expect(monthKeysBetween('2025-11', '2026-02')).toEqual([
+      '2025-11',
+      '2025-12',
+      '2026-01',
+      '2026-02',
+    ])
+  })
+
+  it('is empty when the end precedes the start', () => {
+    // `spanMonthKeys` relies on this to fall back to its caller's own months
+    // instead of reporting a zero for an inverted or all-future window.
+    expect(monthKeysBetween('2026-07', '2026-04')).toEqual([])
+  })
+
+  it('accepts full date keys and yields month resolution', () => {
+    expect(monthKeysBetween('2026-05-17', '2026-07-02')).toEqual(['2026-05', '2026-06', '2026-07'])
+  })
+
+  it('yields one key per calendar month over a long span', () => {
+    // 100 months is past any single FY window and well inside the runaway guard.
+    const keys = monthKeysBetween('2018-03', '2026-06')
+    expect(keys).toHaveLength(100)
+    expect(new Set(keys).size).toBe(100)
+    expect(keys[0]).toBe('2018-03')
+    expect(keys.at(-1)).toBe('2026-06')
   })
 })
 

@@ -5,6 +5,7 @@
 
 import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { monthKeysBetween } from '@/lib/dateUtils'
 import { meanRateSubtitle, medianOf } from '@/lib/distribution'
 import { currentMonthKey } from '@/lib/savingsRate'
 
@@ -23,23 +24,15 @@ export interface MonthlySpendShape {
   readonly monthsWithSpend: number
 }
 
-/** Every "YYYY-MM" from `first` to `last` inclusive, gaps included. */
-export function monthKeysBetween(first: string, last: string): string[] {
-  const keys: string[] = []
-  let year = Number(first.slice(0, 4))
-  let month = Number(first.slice(5, 7))
-  for (let guard = 0; guard < 1200; guard++) {
-    const key = `${year}-${String(month).padStart(2, '0')}`
-    if (key > last) break
-    keys.push(key)
-    month += 1
-    if (month > 12) {
-      month = 1
-      year += 1
-    }
-  }
-  return keys
-}
+/**
+ * Every "YYYY-MM" from `first` to `last` inclusive, gaps included.
+ *
+ * Lives in `@/lib/dateUtils` rather than here: the same walk is needed by
+ * `computeMonthsInRange` in `quickInsightsData`, and one owner of the December
+ * wrap is the point. Re-exported because this module's tests and `spanMonthKeys`
+ * both address it at this path.
+ */
+export { monthKeysBetween }
 
 /**
  * The CALENDAR months a window covers, given the months that carry rows.

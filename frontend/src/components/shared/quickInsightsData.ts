@@ -1,6 +1,12 @@
 import type React from 'react'
 
-import { addMonthsToKey, daysInMonth, MS_PER_DAY, weekdayOf } from '@/lib/dateUtils'
+import {
+  addMonthsToKey,
+  daysInMonth,
+  monthKeysBetween,
+  MS_PER_DAY,
+  weekdayOf,
+} from '@/lib/dateUtils'
 import {
   meanRateSubtitle,
   meanVsTypicalSubtitle,
@@ -200,20 +206,13 @@ export function monthsCovered(startKey: string, endKey: string): number {
   if (end < start) return monthsCovered(end, start)
 
   let months = 0
-  let cursorYear = Number(start.slice(0, 4))
-  let cursorMonth = Number(start.slice(5, 7))
-  for (let guard = 0; guard < 1200; guard++) {
-    const monthKey = `${cursorYear}-${String(cursorMonth).padStart(2, '0')}`
-    if (monthKey > end.slice(0, 7)) break
+  // Shared month walk (`@/lib/dateUtils`), so the December wrap has one owner
+  // rather than a copy here and another in `spendingAnalysisUtils`.
+  for (const monthKey of monthKeysBetween(start, end)) {
     const total = daysInMonth(monthKey)
     const firstDay = monthKey === start.slice(0, 7) ? Number(start.slice(8, 10)) : 1
     const lastDay = monthKey === end.slice(0, 7) ? Number(end.slice(8, 10)) : total
     months += (lastDay - firstDay + 1) / total
-    cursorMonth += 1
-    if (cursorMonth > 12) {
-      cursorMonth = 1
-      cursorYear += 1
-    }
   }
   // A single day is a real fraction of a month, not zero and not a whole one.
   return Math.max(months, 1 / 31)

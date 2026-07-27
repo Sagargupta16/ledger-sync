@@ -8,7 +8,15 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  /**
+   * `.claude` holds local agent state, including git worktrees checked out
+   * under it. Those carry their own `frontend/tsconfig.json`, which made
+   * `projectService` report "multiple candidate TSConfigRootDirs" and fail to
+   * parse the real root configs -- 485 errors from files that are gitignored
+   * and never ship. The pre-commit eslint hook lints the whole tree, so this is
+   * what keeps a commit possible while an agent worktree exists.
+   */
+  globalIgnores(['dist', '.claude']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

@@ -61,11 +61,12 @@ export default function MerchantFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-      <div
-        className="flex gap-1 rounded-lg bg-muted/20 p-0.5"
-        role="group"
-        aria-label="Filter payees by label kind"
-      >
+      {/* Native <fieldset>/<legend>, not role="group" + aria-label: the element
+          carries the grouping semantics itself, so it works where the ARIA role
+          has patchy support (S6819). Same shape as the button groups in
+          NetWorthTrendChart and GrowthChart. */}
+      <fieldset className="m-0 flex gap-1 rounded-lg border-0 bg-muted/20 p-0.5">
+        <legend className="sr-only">Filter payees by label kind</legend>
         {visibleKinds.map(([kind, label]) => (
           <button
             key={kind}
@@ -82,7 +83,7 @@ export default function MerchantFilters({
             <span className="ml-1 tabular-nums text-text-tertiary">{countFor(kind)}</span>
           </button>
         ))}
-      </div>
+      </fieldset>
 
       <button
         type="button"

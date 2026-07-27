@@ -75,6 +75,41 @@ export const addMonthsToKey = (dateKey: string, n: number): string => {
 }
 
 /**
+ * The `YYYY-MM` month key `n` months after `monthKey` (`n` may be negative).
+ *
+ * Exists so the December-to-January wrap is written once. Two separate month
+ * walks each hand-rolled `month += 1; if (month > 12) { month = 1; year += 1 }`,
+ * which is correct but is also the kind of arithmetic that only has to be got
+ * wrong once. Sonar's symbolic execution additionally mis-reads the reset as a
+ * redundant assignment (S4165) at both sites, because it does not carry the
+ * range that proves `month` is 13 there.
+ *
+ * Delegates to `addMonthsToKey` on the first of the month, so the wrap logic has
+ * exactly one implementation. Day-clamping is irrelevant at day 01.
+ */
+export const addMonthsToMonthKey = (monthKey: string, n: number): string =>
+  addMonthsToKey(`${monthKey.slice(0, 7)}-01`, n).slice(0, 7)
+
+/**
+ * Every `YYYY-MM` from `first` to `last` inclusive, gaps included.
+ *
+ * Empty when `last` precedes `first`, which is what makes an inverted or
+ * all-future window fall back to its caller's own months rather than showing a
+ * zero. The 1200-iteration ceiling (100 years) is a runaway guard, not a limit
+ * any real ledger reaches.
+ */
+export const monthKeysBetween = (first: string, last: string): string[] => {
+  const keys: string[] = []
+  let key = first.slice(0, 7)
+  const end = last.slice(0, 7)
+  for (let guard = 0; guard < 1200 && key <= end; guard += 1) {
+    keys.push(key)
+    key = addMonthsToMonthKey(key, 1)
+  }
+  return keys
+}
+
+/**
  * Normalize a datetime string to a YYYY-MM-DD date key
  */
 export const getDateKey = (dateString: string): string => dateString.substring(0, 10)
