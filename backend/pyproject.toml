@@ -134,6 +134,12 @@ select = [
 # Audited 2026-07-26, no real credential. Kept file-scoped on purpose so a
 # genuine hardcoded key added to any OTHER test fixture still fails CI.
 "tests/unit/test_auth.py" = ["S105", "S106"]
+# S603: this test shells out to `alembic upgrade head` to prove a from-scratch
+# database bootstrap works -- the argv is this interpreter plus string literals,
+# never user input. File-scoped rather than an inline noqa because ruff 0.15
+# (pinned in .pre-commit-config.yaml) raises S603 here while 0.16 does not, so
+# an inline directive fails one version or the other on RUF100.
+"tests/integration/test_migrations_from_scratch.py" = ["S101", "S603"]
 # Migration SQL is static DDL built from module-level constants and hardcoded
 # table lists, never from user input. The remaining S608 is a multi-line
 # f-string INSERT of default preference values whose diagnostic anchors to the

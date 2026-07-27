@@ -422,6 +422,14 @@ def _repair_fiscal(
 def upgrade() -> None:
     bind = op.get_bind()
 
+    user_ids = [row[0] for row in bind.execute(sa.text("SELECT id FROM users")).fetchall()]
+    if not user_ids:
+        # Nothing to repair. Checked before the preferences SELECT below, which
+        # names columns that only ``create_all()`` ever added -- on a database
+        # bootstrapped from migrations alone they do not exist until the
+        # reconciliation revision that follows this one.
+        return
+
     prefs_by_user: dict[int, dict[str, Any]] = {
         row["user_id"]: dict(row)
         for row in bind.execute(
@@ -434,7 +442,7 @@ def upgrade() -> None:
         ).mappings()
     }
 
-    for (user_id,) in bind.execute(sa.text("SELECT id FROM users")).fetchall():
+    for user_id in user_ids:
         prefs = prefs_by_user.get(user_id)
         # A missing preferences row falls back exactly like an empty one, so it
         # is in the victim class for both settings.

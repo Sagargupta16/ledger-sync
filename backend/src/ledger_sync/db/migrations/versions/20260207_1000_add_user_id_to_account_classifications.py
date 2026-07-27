@@ -18,6 +18,49 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+ACCOUNT_TYPE_VALUES = (
+    "CASH",
+    "BANK_ACCOUNTS",
+    "CREDIT_CARDS",
+    "INVESTMENTS",
+    "LOANS",
+    "OTHER_WALLETS",
+)
+
+
+def _create_account_classifications_if_missing(inspector: sa.Inspector) -> None:
+    """Create ``account_classifications`` when no earlier migration has.
+
+    No migration ever created this table -- every deployed database got it from
+    ``init_db()``'s ``create_all()``, so the reference below (and in later
+    revisions) only resolved by luck. Creating it here, guarded on reflection,
+    lets a fresh database bootstrap from migrations alone while staying a no-op
+    everywhere the table already exists. Columns match what the ORM expected at
+    this revision; ``is_closed`` / ``closed_date`` arrive in closed_accounts_2026.
+    """
+    if "account_classifications" in inspector.get_table_names():
+        return
+
+    op.create_table(
+        "account_classifications",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("account_name", sa.String(length=255), nullable=False),
+        sa.Column(
+            "account_type",
+            sa.Enum(*ACCOUNT_TYPE_VALUES, name="accounttype"),
+            nullable=False,
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "ix_account_classifications_account_name",
+        "account_classifications",
+        ["account_name"],
+    )
+
+
 def upgrade() -> None:
     """Add user_id to account_classifications, new indexes to transactions."""
     # --- account_classifications: add user_id column ---
@@ -27,6 +70,8 @@ def upgrade() -> None:
     # Check if user_id column already exists (idempotent)
     conn = op.get_bind()
     inspector = sa.inspect(conn)
+    _create_account_classifications_if_missing(inspector)
+    inspector.clear_cache()
     existing_columns = [col["name"] for col in inspector.get_columns("account_classifications")]
 
     if "user_id" not in existing_columns:
