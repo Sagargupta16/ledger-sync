@@ -58,7 +58,7 @@ def _build_canonical_map(bind: sa.Connection) -> dict[tuple[int, str], str]:
     for col in _ACCOUNT_LEGS:
         rows = bind.execute(
             sa.text(
-                f"SELECT user_id, {col}, COUNT(*) FROM transactions "  # noqa: S608
+                f"SELECT user_id, {col}, COUNT(*) FROM transactions "
                 f"WHERE {col} IS NOT NULL GROUP BY user_id, {col}"
             )
         )
@@ -77,7 +77,7 @@ def _fold_transactions(bind: sa.Connection, canonical: dict[tuple[int, str], str
         for col in _ACCOUNT_LEGS:
             bind.execute(
                 sa.text(
-                    f"UPDATE transactions SET {col} = :canon "  # noqa: S608
+                    f"UPDATE transactions SET {col} = :canon "
                     f"WHERE user_id = :uid AND LOWER({col}) = :low AND {col} != :canon"
                 ),
                 {"canon": canon, "uid": user_id, "low": low},
@@ -141,7 +141,7 @@ def _fold_planning_tables(bind: sa.Connection, canonical: dict[tuple[int, str], 
         for (user_id, low), canon in canonical.items():
             bind.execute(
                 sa.text(
-                    f"UPDATE {table} SET account = :canon "  # noqa: S608
+                    f"UPDATE {table} SET account = :canon "
                     f"WHERE user_id = :uid AND LOWER(account) = :low AND account != :canon"
                 ),
                 {"canon": canon, "uid": user_id, "low": low},

@@ -20,7 +20,7 @@ from ledger_sync.utils.logging import logger
 
 USER_ID_REQUIRED_MSG = "user_id is required for reconciliation"
 
-__all__ = ["ReconciliationStats", "Reconciler"]
+__all__ = ["Reconciler", "ReconciliationStats"]
 
 
 class Reconciler(TransferReconcilerMixin):

@@ -168,8 +168,16 @@ class User(Base):
         return f"<User(id={self.id}, email={self.email})>"
 
 
-# Default JSON values for UserPreferences - empty by default for new users
-# Users should configure these based on their actual data after first upload
+# Default JSON values for UserPreferences: empty JSON documents meaning
+# "the user has not configured this yet".
+#
+# These are STRINGS, and a non-empty string is truthy in Python, so a reader
+# must never gate on the raw column (``if prefs.essential_categories:`` passes
+# for "[]" and yields an empty parse). Decide "configured?" from the PARSED
+# value instead -- see ``AnalyticsEngineBase._configured_json``, which treats an
+# empty parsed collection as unset for the fields where empty has no meaning
+# (essential categories, income classification) and honours it for the fields
+# where it does (excluded accounts, investment mappings).
 _DEFAULT_ESSENTIAL_CATEGORIES = "[]"
 _DEFAULT_INVESTMENT_MAPPINGS = "{}"
 
@@ -248,6 +256,26 @@ class UserPreferences(Base):
         nullable=False,
         # Empty by default - user configures based on their data
         default="[]",
+    )
+
+    # ===== 4b. Realised Capital Losses booked as EXPENSE =====
+    # JSON array of "Category::Subcategory" keys the user has declared to be
+    # realised investment losses rather than consumption. A cashbook has to
+    # record a trading loss as an EXPENSE row for the cash column to balance,
+    # but a loss bought no goods or services, so summing it as spending inflates
+    # expense totals, the essential/discretionary split, the 50/30/20 Wants
+    # share and the anomaly baseline at once.
+    #
+    # Empty by default AND intentionally NOT defaulted group-wide the way the
+    # four income lists are: only the user can say which of their own rows are
+    # losses, and guessing would silently rewrite their historical numbers. Until
+    # this is configured every aggregate behaves exactly as before; the
+    # data-health signal surfaces likely rows and asks the user to classify.
+    capital_loss_categories: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="[]",
+        server_default="[]",
     )
 
     # ===== 5. Budget Defaults =====

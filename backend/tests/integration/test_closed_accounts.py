@@ -137,7 +137,7 @@ def test_recurring_detection_skips_closed_accounts(two_user_client) -> None:
     session.commit()
 
     engine = AnalyticsEngine(session, user_id=user_a.id)
-    engine._detect_recurring_transactions()  # noqa: SLF001
+    engine._detect_recurring_transactions()
     session.commit()
 
     patterns = (
@@ -167,7 +167,7 @@ def test_anomaly_flags_activity_after_close_date_only(two_user_client) -> None:
     session.commit()
 
     engine = AnalyticsEngine(session, user_id=user_a.id)
-    engine._detect_anomalies()  # noqa: SLF001
+    engine._detect_anomalies()
     session.commit()
 
     flagged = (

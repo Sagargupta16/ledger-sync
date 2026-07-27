@@ -20,6 +20,8 @@ from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
 
 FACET_KEYS = {
     "categories",
+    # Transfer routing labels, tiered away from the real category list.
+    "transfer_categories",
     "accounts",
     "tags",
     "income_count",

@@ -173,7 +173,7 @@ def _decrypt_v1(raw: bytes) -> str:
         try:
             key = _derive_key_v1(salt, material)
             return AESGCM(key).decrypt(nonce, ciphertext, None).decode()
-        except Exception as exc:  # noqa: BLE001 -- try next material
+        except Exception as exc:  # broad on purpose -- try next key material
             last_error = exc
 
     raise DecryptionError(

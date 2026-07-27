@@ -34,7 +34,7 @@ class TransferReconcilerMixin:
     user_id: int | None
     hasher: TransactionHasher
 
-    def _ensure_user_id(self) -> int:  # noqa: D401, ANN101
+    def _ensure_user_id(self) -> int:
         raise NotImplementedError
 
     def _batch_fetch_existing(self, record_ids: list[str], user_id: int) -> dict[str, Transaction]:
@@ -253,7 +253,7 @@ class TransferReconcilerMixin:
                 skip_flags.append(True)
 
         # Phase 2: Batch-fetch all existing records
-        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags) if rid and not skip]
+        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags, strict=True) if rid and not skip]
         existing_map = self._batch_fetch_existing(valid_ids, user_id)
 
         # Phase 3: Process each row using pre-fetched data

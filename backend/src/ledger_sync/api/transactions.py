@@ -2,13 +2,14 @@
 
 import csv
 import io
-from datetime import UTC, datetime, timedelta
+import json
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
-from sqlalchemy import delete, exists, func, literal, or_
+from sqlalchemy import case, delete, exists, func, literal, or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     excluded_accounts_for,
+    inclusive_end,
 )
 from ledger_sync.db.models import Transaction, TransactionTag, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
@@ -34,19 +36,27 @@ _TxQuery = SAQuery[Transaction]
 START_DATE_DESC = "Start date (inclusive)"
 END_DATE_DESC = "End date (inclusive)"
 
-
-def _inclusive_end(end: datetime) -> datetime:
-    """Make an end-date bound inclusive of the whole day.
-
-    Transaction.date is a DateTime, so filtering `date <= end` against a
-    date-only value (parsed to midnight) silently drops same-day transactions
-    that carry a time component. When `end` is at midnight, extend it to the end
-    of that day so the day is fully included; a caller who passes an explicit
-    time is respected as-is.
-    """
-    if (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0):
-        return end + timedelta(days=1) - timedelta(microseconds=1)
-    return end
+# Hard safety cap for the unpaginated /api/transactions/all response.
+#
+# Sizing, measured 2026-07-26 by serialising the maintainer's live ledger into
+# the ``TransactionResponse`` shape (6,961 non-deleted rows -> 2.86 MB of JSON,
+# 394 KB after gzip, i.e. ~431 B raw / ~58 B gzipped per row):
+#   * 25,000 rows ~= 10.3 MB raw / ~1.4 MB gzipped. The response leaves the
+#     Vercel function already gzipped, and Vercel caps a function response body
+#     at 4.5 MB (https://vercel.com/docs/functions/limitations#request-body-size),
+#     so this keeps ~3x headroom on that limit.
+#   * It is ~3.6x the current real ledger and covers ~20 years at 100
+#     transactions/month, so no existing caller is affected.
+#   * The upload validator accepts 100,000 rows per file with no cross-file
+#     total, so without a cap this endpoint scales to a ~41 MB response --
+#     an outage, not a slow page.
+#
+# Exceeding the cap raises 413 instead of truncating. A truncated JSON array is
+# indistinguishable from a complete one, and 14 frontend call sites feed it into
+# totals, net worth and tax numbers: a silently short ledger produces confidently
+# wrong money. Callers past the cap must narrow start_date/end_date or page
+# through /api/transactions.
+MAX_ALL_TRANSACTIONS = 25_000
 
 
 # Map of transaction type strings to TransactionType enum values
@@ -106,7 +116,7 @@ def _apply_date_and_amount_filters(
     if filters.start_date:
         tx_query = tx_query.filter(Transaction.date >= filters.start_date)
     if filters.end_date:
-        tx_query = tx_query.filter(Transaction.date <= _inclusive_end(filters.end_date))
+        tx_query = tx_query.filter(Transaction.date <= inclusive_end(filters.end_date))
     if filters.min_amount is not None:
         tx_query = tx_query.filter(Transaction.amount >= filters.min_amount)
     if filters.max_amount is not None:
@@ -220,6 +230,29 @@ def _tags_for_transactions(
     return tags_map
 
 
+def _all_tags_for_user(db: Session, user_id: int) -> dict[str, list[str]]:
+    """Batch-fetch every tag the user owns, keyed by transaction id.
+
+    Same shape and alphabetical ordering as ``_tags_for_transactions``, but
+    without an ``IN (...)`` list. The CSV export is unpaginated -- the upload
+    validator alone accepts 100,000 rows per file -- and binding one parameter
+    per exported row blows past SQLite's variable cap (32,766) and
+    PostgreSQL's (65,535). One user-scoped scan of ``transaction_tags`` costs
+    less than the ledger it annotates.
+    """
+    rows = (
+        db.query(TransactionTag.transaction_id, TransactionTag.tag)
+        .filter(TransactionTag.user_id == user_id)
+        .all()
+    )
+    tags_map: dict[str, list[str]] = {}
+    for txn_id, tag in rows:
+        tags_map.setdefault(txn_id, []).append(tag)
+    for tag_list in tags_map.values():
+        tag_list.sort()
+    return tags_map
+
+
 def _to_transaction_response(
     tx: Transaction,
     tags: list[str] | None = None,
@@ -272,7 +305,7 @@ def _apply_date_range(
     if start_date:
         query = query.filter(Transaction.date >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= _inclusive_end(end_date))
+        query = query.filter(Transaction.date <= inclusive_end(end_date))
     return query
 
 
@@ -325,7 +358,12 @@ async def get_transactions(
     )
 
 
-@router.get("/api/transactions/all")
+@router.get(
+    "/api/transactions/all",
+    responses={
+        413: {"description": f"Result set exceeds {MAX_ALL_TRANSACTIONS} rows"},
+    },
+)
 async def get_all_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -335,13 +373,39 @@ async def get_all_transactions(
     """Return every non-deleted transaction in a single JSON array.
 
     Designed for the frontend analytics layer which needs the full dataset
-    for client-side aggregation. No pagination overhead — one request, one
+    for client-side aggregation. No pagination overhead -- one request, one
     response.
+
+    Capped at ``MAX_ALL_TRANSACTIONS`` rows (see that constant for the sizing
+    rationale). The cap **rejects** rather than truncates: a shortened JSON
+    array looks exactly like a complete one, and every caller feeds it into
+    money totals. Over the cap the endpoint returns 413 with the real row count
+    and a pointer to narrow the date range or page ``/api/transactions``.
+
+    No response headers are added. An ``X-Total-Count`` set to the number of
+    rows in the array duplicates ``len(body)``, and its name promises the
+    unfiltered total, which it is not; a caller wanting the real total has
+    ``/api/transactions`` (``total`` in the body). Nothing consumed either
+    header, and cross-origin JS could not read them anyway -- the CORS layer
+    sets no ``expose_headers``.
     """
     query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
 
-    transactions = query.order_by(Transaction.date.desc()).all()
+    # Fetch one row past the cap: the sentinel proves the limit was exceeded
+    # without paying for a COUNT(*) on every normal request.
+    transactions = query.order_by(Transaction.date.desc()).limit(MAX_ALL_TRANSACTIONS + 1).all()
+
+    if len(transactions) > MAX_ALL_TRANSACTIONS:
+        total = query.count()
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"{total} transactions match this request, above the "
+                f"{MAX_ALL_TRANSACTIONS}-row limit of /api/transactions/all. "
+                "Narrow start_date/end_date, or page through /api/transactions."
+            ),
+        )
 
     return [_to_transaction_response(tx) for tx in transactions]
 
@@ -360,9 +424,26 @@ async def get_transaction_facets(
     """
     base = _base_transaction_query(db, current_user)
 
-    categories = [
-        row[0] for row in base.with_entities(Transaction.category).distinct().all() if row[0]
-    ]
+    # Categories are split by whether the label is ever used on a non-transfer
+    # row. Transfers carry a routing label in `category` ("Transfer: Bank: HDFC
+    # -> Stocks: Groww"), which is not a spending category at all: it is a
+    # per-account-pair string, so it grows with accounts^2 and swamps the real
+    # list. On the reference ledger that is 118 routing labels against 17 real
+    # categories, i.e. the dropdown was 87% noise. A label used by BOTH a
+    # transfer and a real row counts as real, so nothing legitimate is hidden.
+    category_rows = (
+        base.with_entities(
+            Transaction.category,
+            func.min(case((Transaction.type == TransactionType.TRANSFER, 1), else_=0)).label(
+                "transfer_only"
+            ),
+        )
+        .group_by(Transaction.category)
+        .all()
+    )
+    categories = [row[0] for row in category_rows if row[0] and not row.transfer_only]
+    transfer_categories = [row[0] for row in category_rows if row[0] and row.transfer_only]
+
     accounts = [
         row[0] for row in base.with_entities(Transaction.account).distinct().all() if row[0]
     ]
@@ -394,6 +475,7 @@ async def get_transaction_facets(
 
     return TransactionFacetsResponse(
         categories=sorted(categories, key=lambda s: s.lower()),
+        transfer_categories=sorted(transfer_categories, key=lambda s: s.lower()),
         accounts=sorted(accounts, key=lambda s: s.lower()),
         tags=tag_facets,
         income_count=income,
@@ -469,13 +551,29 @@ async def search_transactions(
 async def export_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
-    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
-    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
+    filters: Annotated[SearchFilters, Depends()],
 ) -> Response:
-    """Export all non-deleted transactions as CSV for the current user."""
+    """Export the current user's non-deleted transactions as CSV.
+
+    Takes the same ``SearchFilters`` dependency as
+    ``/api/transactions/search`` and applies the same helpers in the same
+    order, so the file matches the table the user is looking at. It
+    previously declared only ``start_date``/``end_date``: every other filter
+    (type, category, account, tag, amount range, free text) was accepted by
+    the HTTP layer and then dropped, so filtering to one type and clicking
+    Export silently downloaded the entire ledger -- measured on the
+    maintainer's data as 6,961 exported rows against 726 shown.
+
+    ``start_date``/``end_date`` are unchanged: ``SearchFilters`` already
+    carries both, and ``_apply_date_and_amount_filters`` applies exactly the
+    bounds ``_apply_date_range`` did (``>= start``, ``<= inclusive_end(end)``).
+    """
     query = _base_transaction_query(db, current_user)
-    query = _apply_date_range(query, start_date, end_date)
+    query = _apply_search_filters(query, filters)
+    query = _apply_tag_filter(query, current_user.id, filters.tag)
     transactions = query.all()
+
+    tags_map = _all_tags_for_user(db, current_user.id)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -494,6 +592,7 @@ async def export_transactions(
             "note",
             "source_file",
             "last_seen_at",
+            "tags",
         ],
     )
     for tx in transactions:
@@ -512,6 +611,13 @@ async def export_transactions(
                 tx.note or "",
                 tx.source_file,
                 tx.last_seen_at.isoformat(),
+                # Same JSON array the API serves for this field
+                # (``TransactionResponse.tags``), so the column round-trips
+                # losslessly. A delimiter-joined string would not: tags are
+                # free strings, so any separator can legitimately appear
+                # inside a tag. Untagged rows carry "[]" rather than an empty
+                # cell so a reader can json.loads every row unconditionally.
+                json.dumps(tags_map.get(tx.transaction_id, [])),
             ],
         )
     output.seek(0)

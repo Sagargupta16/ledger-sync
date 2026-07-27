@@ -68,6 +68,12 @@ class TransactionFacetsResponse(BaseModel):
     """
 
     categories: list[str]
+    # Transfer routing labels ("Transfer: Bank: HDFC -> Stocks: Groww") are kept
+    # separate from real spending categories: they are per-account-pair strings,
+    # so they grow with the square of the account count and drown the list the
+    # user actually picks from. Still returned because filtering by a specific
+    # transfer route is legitimate -- just not mixed into `categories`.
+    transfer_categories: list[str] = Field(default_factory=list)
     accounts: list[str]
     tags: list[TagFacet] = Field(default_factory=list)
     income_count: int

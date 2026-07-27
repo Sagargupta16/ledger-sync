@@ -156,12 +156,12 @@ async def create_or_update_classification(
     # Validate account type
     try:
         acc_type = AccountType(account_type)
-    except ValueError:
+    except ValueError as err:
         valid_types = ", ".join([t.value for t in AccountType])
         raise HTTPException(
             status_code=422,
             detail=f"Invalid account type. Must be one of: {valid_types}",
-        )
+        ) from err
 
     stmt = select(AccountClassification).where(
         AccountClassification.account_name == account_name,
@@ -237,12 +237,12 @@ async def get_accounts_by_type(
     """
     try:
         acc_type = AccountType(account_type)
-    except ValueError:
+    except ValueError as err:
         valid_types = ", ".join([t.value for t in AccountType])
         raise HTTPException(
             status_code=422,
             detail=f"Invalid account type. Must be one of: {valid_types}",
-        )
+        ) from err
 
     stmt = select(AccountClassification).where(
         AccountClassification.account_type == acc_type,

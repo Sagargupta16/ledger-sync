@@ -41,6 +41,7 @@ def upgrade() -> None:
         "transfer_flows",
     ]
     for table in aggregation_tables:
+        # Table names come from the hardcoded list above, never from user input.
         op.execute(sa.text(f"DELETE FROM {table}"))
 
     # Use batch_alter_table for SQLite compatibility (no ALTER FK support).

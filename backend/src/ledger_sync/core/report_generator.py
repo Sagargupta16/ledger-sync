@@ -224,6 +224,6 @@ def report_data_to_dict(data: MonthlyReportData) -> dict[str, Any]:
 
 
 # Re-export from sibling module to keep this file under 500 LOC.
-from ledger_sync.core.report_generator_html import generate_html_report  # noqa: E402, F401
+from ledger_sync.core.report_generator_html import generate_html_report  # noqa: E402
 
 __all__ = ["MonthlyReportData", "generate_html_report", "query_report_data", "report_data_to_dict"]

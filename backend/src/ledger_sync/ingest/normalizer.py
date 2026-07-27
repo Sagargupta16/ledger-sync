@@ -10,6 +10,7 @@ This module provides comprehensive data cleaning and normalization:
 
 import re
 import unicodedata
+from collections.abc import Callable
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, ClassVar
@@ -25,7 +26,7 @@ from ledger_sync.db.models import TransactionType
 # sync_engine.py catch -- they escaped every handler as a raw 500.
 from ledger_sync.ingest.normalizer_rows import NormalizationError, NormalizeRowsMixin
 
-__all__ = ["DataNormalizer", "NormalizationError"]
+__all__ = ["DataNormalizer", "NormalizationError", "format_transfer_category"]
 
 
 FOOD_AND_DINING = "Food & Dining"
@@ -33,6 +34,36 @@ ENTERTAINMENT_AND_RECREATIONS = "Entertainment & Recreations"
 TRANSFER_IN = "transfer in"
 TRANSFER_IN_HYPHEN = "transfer-in"
 TRANSFER_OUT_HYPHEN = "transfer-out"
+
+
+def format_transfer_category(from_account: str, to_account: str) -> str:
+    """Build the per-pair category label stored on a transfer row.
+
+    Single definition of the label so a future de-pollution pass has one place
+    to change. ``normalizer_rows`` still inlines the same f-string at its two
+    transfer sites (it is the lower-level module of the pair, so importing this
+    would be a cycle); ``TestTransferCategoryCarriesDestination`` asserts a
+    normalized row's label equals this helper's output, so the forms cannot
+    drift apart silently.
+    """
+    return f"Transfer: {from_account} → {to_account}"
+
+
+def _recase_bank_token(canonical: str) -> Callable[[re.Match[str]], str]:
+    """Build a re.sub replacement that only re-cases all-lowercase matches.
+
+    "hdfc" becomes the canonical "HDFC", but any match where the user chose
+    the casing themselves is returned untouched: "AXIS" stays "AXIS" and
+    "Bob" stays "Bob" (BANK_CANONICAL_NAMES maps "bob" -> "BOB" for Bank of
+    Baroda, which would otherwise shout a person's name). See
+    :meth:`DataNormalizer._standardize_account`.
+    """
+
+    def replace(match: re.Match[str]) -> str:
+        matched = match.group(0)
+        return canonical if matched.islower() else matched
+
+    return replace
 
 
 class DataNormalizer(NormalizeRowsMixin):
@@ -123,6 +154,18 @@ class DataNormalizer(NormalizeRowsMixin):
     def _standardize_category(self, category: str) -> str:
         """Standardize category name for consistency.
 
+        Casing rule, in precedence order: an entry in
+        :attr:`CATEGORY_CORRECTIONS` wins (matched case-insensitively);
+        all-lowercase input is title-cased ("housing" -> "Housing", which reads
+        as "didn't reach for shift"); anything else is preserved verbatim.
+        Preserving all-caps matters because Indian finance acronyms (EPF, PPF,
+        NPS, TDS) were being rewritten to "Epf" / "Ppf".
+
+        This method sees one label at a time and cannot merge case variants.
+        Collapsing "GROCERIES" and "Groceries" onto one taxonomy entry is
+        ``SyncEngine._canonicalize_category_casing``'s job -- it has the user's
+        existing ledger to fold onto.
+
         Args:
             category: Raw category name
 
@@ -141,9 +184,9 @@ class DataNormalizer(NormalizeRowsMixin):
         if category_lower in self.CATEGORY_CORRECTIONS:
             return self.CATEGORY_CORRECTIONS[category_lower]
 
-        # Title case for consistency if not in corrections
-        # But preserve original if it looks intentional (has mixed case)
-        if category.isupper() or category.islower():
+        # Lowercase-only input gets title-cased; everything else (all-caps
+        # acronyms, mixed case) is the user's intent and stays verbatim.
+        if category.islower():
             return category.title()
 
         return category
@@ -151,9 +194,13 @@ class DataNormalizer(NormalizeRowsMixin):
     # Canonical casing for common Indian bank names. Keys are lowercased
     # tokens as they appear in the account name; the value is the display
     # form we want. Matched as whole words (case-insensitive, ignoring
-    # surrounding whitespace) via _BANK_NAME_PATTERN so both
-    # "sbi bank" and "SBI Bank" become "SBI Bank", and "HDFC Credit Card"
-    # becomes "HDFC Credit Card" (not "hdfc Credit Card").
+    # surrounding whitespace) so "sbi bank" becomes "SBI bank" and
+    # "hdfc Credit Card" becomes "HDFC Credit Card".
+    #
+    # This table encodes *our* opinion about how each bank spells itself, so
+    # it only ever fixes casing the user clearly did not choose: all-lowercase.
+    # Any token the user shift-keyed ("AXIS", "Bob") is left alone -- see
+    # _standardize_account.
     BANK_CANONICAL_NAMES: ClassVar[dict[str, str]] = {
         "sbi": "SBI",
         "hdfc": "HDFC",
@@ -184,10 +231,14 @@ class DataNormalizer(NormalizeRowsMixin):
         """Standardize account name for consistency.
 
         Applies canonical casing to known bank-name tokens while preserving
-        the rest of the label. Case-insensitive and works whether or not
-        the user wrote "bank" at the end, so "hdfc bank", "HDFC Bank",
-        "HDFC CC", and "Hdfc Credit Card" all end up with "HDFC" in the
-        right place.
+        the rest of the label, so "hdfc bank" becomes "HDFC bank".
+
+        **Only all-lowercase tokens are re-cased.** The canonical table is our
+        house style, not the user's; imposing it on a label the user shift-keyed
+        rewrote real account names ("CC: AXIS Google Flex" -> "CC: Axis Google
+        Flex") and would shout a person's name ("Bob" -> "BOB", since "bob" is
+        the Bank of Baroda key). Case variants that survive this are merged per
+        user by ``SyncEngine._canonicalize_account_casing``.
         """
         if not account:
             return ""
@@ -196,11 +247,12 @@ class DataNormalizer(NormalizeRowsMixin):
 
         # Sort keys longest-first so "idfc first" is matched before "idfc",
         # and "standard chartered" before "standard". Case-insensitive
-        # whole-token replacement.
+        # whole-token match; _recase_bank_token decides whether the matched
+        # spelling is actually ours to change.
         for token in sorted(self.BANK_CANONICAL_NAMES, key=len, reverse=True):
             canonical = self.BANK_CANONICAL_NAMES[token]
             pattern = re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE)
-            account = pattern.sub(canonical, account)
+            account = pattern.sub(_recase_bank_token(canonical), account)
 
         return account
 

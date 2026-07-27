@@ -15,7 +15,7 @@ from typing import Any
 from ledger_sync.db.models import Transaction, TransactionType
 
 
-def _to_decimal(amount: int | float | str | Decimal) -> Decimal:
+def _to_decimal(amount: float | str | Decimal) -> Decimal:
     """Safely convert a transaction amount to Decimal."""
     if isinstance(amount, Decimal):
         return amount
@@ -119,14 +119,33 @@ def group_by_account(transactions: list[Transaction]) -> dict[str, float]:
     return {k: float(v) for k, v in account_totals.items()}
 
 
+def is_measurable_consistency(monthly_expenses: list[float]) -> bool:
+    """Whether ``calculate_consistency_score`` can return a real measurement.
+
+    A coefficient of variation needs at least two observations and a non-zero
+    mean. Outside those preconditions the score function returns a flat ``100.0``
+    that LOOKS like the best possible result -- "perfectly consistent spending"
+    off one month of history, or off a ledger with no expenses at all.
+
+    Callers that publish the score to a user must gate on this first. It lives
+    beside the score rather than in each caller so the two cannot drift: the
+    insight generators already abstain (``insight_generators.spending_insights``,
+    ``insight_rules.MIN_MONTHS_FOR_VOLATILITY``) and this makes the same
+    precondition callable instead of re-derived.
+    """
+    return len(monthly_expenses) > 1 and mean(monthly_expenses) != 0
+
+
 def calculate_consistency_score(monthly_expenses: list[float]) -> float:
-    """Calculate spending consistency score (0-100). Higher = more consistent."""
-    if len(monthly_expenses) <= 1:
+    """Calculate spending consistency score (0-100). Higher = more consistent.
+
+    Returns a flat ``100.0`` when a coefficient of variation is not defined
+    (fewer than two months, or a zero mean). That is a SENTINEL, not a score --
+    gate on ``is_measurable_consistency`` before showing it to anyone.
+    """
+    if not is_measurable_consistency(monthly_expenses):
         return 100.0
-    avg = mean(monthly_expenses)
-    if avg == 0:
-        return 100.0
-    cv = (pstdev(monthly_expenses) / avg) * 100
+    cv = (pstdev(monthly_expenses) / mean(monthly_expenses)) * 100
     return max(0.0, 100.0 - cv)
 
 
@@ -233,7 +252,14 @@ def calculate_spending_velocity(
 
 
 def find_best_worst_months(monthly_data: dict[str, dict[str, float]]) -> dict[str, Any]:
-    """Find best and worst months by surplus."""
+    """Find best and worst months by surplus.
+
+    ``surplus`` nets off ``capital_losses`` when the caller supplies it (the SQL
+    path in ``analytics_helpers`` does; the in-memory ``group_by_month`` reports
+    a constant 0). A classified realised loss is out of ``expenses`` but the
+    cash still left, so a loss month that is genuinely the user's worst must not
+    rank as their best simply because the loss was relabelled.
+    """
     if not monthly_data:
         return {"best_month": None, "worst_month": None}
 
@@ -242,7 +268,7 @@ def find_best_worst_months(monthly_data: dict[str, dict[str, float]]) -> dict[st
             "month": month,
             "income": data["income"],
             "expenses": data["expenses"],
-            "surplus": data["income"] - data["expenses"],
+            "surplus": data["income"] - data["expenses"] - data.get("capital_losses", 0.0),
         }
 
     entries = [_to_entry(m, d) for m, d in monthly_data.items()]

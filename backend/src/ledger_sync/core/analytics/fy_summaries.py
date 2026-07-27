@@ -43,6 +43,7 @@ class FYSummariesMixin(AnalyticsEngineBase):
                 "investment_income": Decimal(0),
                 "other_income": Decimal(0),
                 "total_expenses": Decimal(0),
+                "capital_losses": Decimal(0),
                 "tax_paid": Decimal(0),
                 "investments_made": Decimal(0),
                 "start_date": None,
@@ -74,7 +75,13 @@ class FYSummariesMixin(AnalyticsEngineBase):
             data = fy_data[fy]
             total_income = data["total_income"]
             total_expenses = data["total_expenses"]
-            net_savings = total_income - total_expenses
+            # Mirrors the monthly rollup: net_savings nets the realised loss off
+            # (the cash left, so FY-end wealth is lower) and savings_rate stays
+            # net_savings / income, so the published rate still equals the
+            # published net on the same row. See ``summaries.py`` for why the
+            # rate must NOT be quietly redefined to a consumption ratio under an
+            # unchanged column name.
+            net_savings = total_income - total_expenses - data["capital_losses"]
             savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
 
             yoy_income, yoy_expense, yoy_savings = self._calculate_yoy_changes(
@@ -155,6 +162,7 @@ class FYSummariesMixin(AnalyticsEngineBase):
             investment_income=data["investment_income"],
             other_income=data["other_income"],
             total_expenses=total_expenses,
+            capital_losses=data["capital_losses"],
             tax_paid=data["tax_paid"],
             investments_made=data["investments_made"],
             net_savings=net_savings,
@@ -185,6 +193,20 @@ class FYSummariesMixin(AnalyticsEngineBase):
                 data["other_income"] += amount
 
         elif txn.type == TransactionType.EXPENSE:
+            # Same exclusion as the monthly rollup: a classified realised loss
+            # is a negative investment return, not consumption, so it must not
+            # inflate FY expenses or the FY savings rate. Its own bucket keeps
+            # the loss visible and auditable.
+            #
+            # The tax_paid test below is skipped along with it, which is correct
+            # and load-bearing: the loss subcategory would otherwise be free to
+            # match ``_TAX_NOTE_RE`` on a note like "STCG loss adjustment" and
+            # book a capital LOSS as tax PAID, which then flows into the Tax
+            # Planning page as a credit the user never paid.
+            if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+                data["capital_losses"] += amount
+                return
+
             data["total_expenses"] += amount
             if txn.category == "Taxes" or _TAX_NOTE_RE.search(txn.note or ""):
                 data["tax_paid"] += amount

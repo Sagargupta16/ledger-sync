@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import calendar
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
@@ -49,7 +50,12 @@ def _compute_next_expected(
             if month > 12:
                 month = 1
                 year += 1
-            day = min(expected_day, 28)
+            # Clamp to the target month's real length, not a flat 28. A bill due
+            # on the 31st was reported as due on the 28th in every 31-day month,
+            # so the bill calendar and the missed-payment check both fired three
+            # days early -- and in February the two happen to agree anyway.
+            max_day = calendar.monthrange(year, month)[1]
+            day = min(expected_day, max_day)
             candidate = last_occurrence.replace(year=year, month=month, day=day)
             if candidate > last_occurrence:
                 return candidate.isoformat()

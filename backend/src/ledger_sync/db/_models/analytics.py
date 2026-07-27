@@ -100,6 +100,19 @@ class MonthlySummary(Base):
         default=0,
     )
 
+    # Realised investment losses booked as EXPENSE rows (see
+    # ``user_preferences.capital_loss_categories``). Held OUT of total_expenses:
+    # a loss bought no goods or services, so it must not inflate consumption,
+    # the essential/discretionary split or savings_rate. Kept as its own column
+    # rather than netted into investment_income because the API publishes
+    # salary + investment + other == total_income. net_savings still subtracts
+    # it -- the cash did leave. Zero for every user who has classified nothing.
+    capital_losses: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2),
+        default=0,
+        server_default="0",
+    )
+
     # Transfer totals
     total_transfers_out: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     total_transfers_in: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
@@ -282,6 +295,13 @@ class FYSummary(Base):
     total_expenses: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     tax_paid: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
     investments_made: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)
+    # Realised investment losses booked as EXPENSE rows -- see
+    # ``MonthlySummary.capital_losses`` for why they sit outside total_expenses.
+    capital_losses: Mapped[Decimal] = mapped_column(
+        Numeric(precision=15, scale=2),
+        default=0,
+        server_default="0",
+    )
 
     # Net position
     net_savings: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=0)

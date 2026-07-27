@@ -25,8 +25,11 @@ import re
 
 # Excel exports carry a literal carriage-return artifact in text columns.
 _XL_ARTIFACT = re.compile(r"_x000[dD]_", re.IGNORECASE)
-# Leading quantity prefixes: "3* Jeans", "2 x Track Pants".
-_QTY_PREFIX = re.compile(r"^\d+\s*[*x×]\s*", re.IGNORECASE)
+# Leading quantity prefixes: "3* Jeans", "2 x Track Pants", and the U+00D7
+# MULTIPLICATION SIGN variant real note text uses. That non-ASCII character is
+# deliberately in the character class -- dropping it would stop stripping the
+# quantity prefix on those notes -- so RUF001's homoglyph warning is expected.
+_QTY_PREFIX = re.compile(r"^\d+\s*[*x×]\s*", re.IGNORECASE)  # noqa: RUF001
 # Trailing month/year tokens so "Rent Mar 2026" and "Rent Apr 2026" merge.
 _MONTH_TRAILER = re.compile(
     r"[\s\-,]*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*"

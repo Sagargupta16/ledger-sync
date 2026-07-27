@@ -54,16 +54,40 @@ class RecurringMixin(AnalyticsEngineBase):
     # leap-year / late-by-a-week tolerance).
     _FREQ_MAX_DAYS: float = 400
 
-    def _load_confirmed_recurring(self) -> dict[str, RecurringTransaction]:
-        """Load user-confirmed recurring patterns keyed by group label.
+    # Detection deliberately does NOT set ``is_user_confirmed``.
+    #
+    # ``is_user_confirmed`` is a single boolean that records a USER decision,
+    # and rows carrying it are preserved across refreshes while every other row
+    # is deleted and re-derived. A detector that writes it therefore breaks four
+    # ways at once: the promoted row outlives the transactions it was built from
+    # (a cancelled subscription bills forever), a renamed note spawns a second
+    # row while the stale one keeps being summed, ``expected_day`` / frequency /
+    # account freeze at their first-seen values, and a user who un-confirms the
+    # row has that decision silently reverted on the next refresh -- the model
+    # has no "rejected" marker to hold it.
+    #
+    # ``recurring_auto_confirm_occurrences`` stays a preference with no reader
+    # here on purpose: promoting a guess to a user decision needs a separate
+    # column (detector-owned vs user-owned) plus a rejection state, which is a
+    # schema change, not a detection tweak. Unconfirmed rows are not invisible --
+    # the dashboard, subscription tracker and bill calendar all render detected
+    # commitments and label them "Detected".
+
+    def _load_confirmed_recurring(self) -> dict[tuple[str, str], RecurringTransaction]:
+        """Load user-confirmed recurring patterns keyed by (group label, type).
 
         Detection groups transactions by ``normalize_note(txn.note)`` (falling
-        back to the lowercased category/subcategory), but ``pattern_name``
-        stores the raw most-recent note (e.g. "Rent Mar 2026"). Keying each
-        confirmed record by BOTH the normalized name and the plain lowercase
-        name lets the refresh find the confirmed row under the stable group
-        label ("rent") instead of creating an unconfirmed duplicate while the
-        confirmed row's stats freeze.
+        back to the lowercased category/subcategory) PLUS the transaction type,
+        while ``pattern_name`` stores the raw most-recent note (e.g. "Rent Mar
+        2026"). Keying each confirmed record by BOTH the normalized name and the
+        plain lowercase name lets the refresh find the confirmed row under the
+        stable group label ("rent") instead of creating an unconfirmed duplicate
+        while the confirmed row's stats freeze.
+
+        The type is part of the key because the groups are: an Income "Fee" and
+        an Expense "Fee" are two different patterns, and keying on the label
+        alone collapsed them into one dict entry -- so one row absorbed the
+        other's statistics and the loser froze.
         """
         if self.user_id is None:
             return {}
@@ -75,12 +99,13 @@ class RecurringMixin(AnalyticsEngineBase):
             )
             .all()
         )
-        keyed: dict[str, RecurringTransaction] = {}
+        keyed: dict[tuple[str, str], RecurringTransaction] = {}
         for c in confirmed:
+            txn_type = c.transaction_type.value
             normalized = _normalize_note(c.pattern_name)
             if normalized:
-                keyed[normalized] = c
-            keyed[c.pattern_name.lower()] = c
+                keyed[normalized, txn_type] = c
+            keyed[c.pattern_name.lower(), txn_type] = c
         return keyed
 
     def _detect_recurring_transactions(
@@ -141,7 +166,7 @@ class RecurringMixin(AnalyticsEngineBase):
         label: str,
         txn_type: str,
         txns: list[Transaction],
-        confirmed_names: dict[str, RecurringTransaction],
+        confirmed_names: dict[tuple[str, str], RecurringTransaction],
         min_conf: float,
     ) -> int:
         """Detect one pattern group and persist it; returns 1 if kept, else 0."""
@@ -175,14 +200,19 @@ class RecurringMixin(AnalyticsEngineBase):
         # If a user-confirmed record matches, update its stats instead. The
         # kind is NOT re-derived here: once a user confirms a pattern they own
         # the classification, and a habit they deliberately track as a
-        # commitment must stay one.
-        if label in confirmed_names:
-            existing = confirmed_names[label]
+        # commitment must stay one. ``expected_day`` is refreshed because the
+        # bill calendar reads it: a rent payment that moves from the 20th to the
+        # 1st must not keep rendering on the 20th forever. ``pattern_name``,
+        # ``frequency`` and ``expected_amount`` overrides live in the PATCH
+        # endpoint, so only the stats the detector owns are written here.
+        if (label, txn_type) in confirmed_names:
+            existing = confirmed_names[label, txn_type]
             existing.occurrences_detected = info["occurrences"]
             existing.last_occurrence = info["last_occurrence"]
             existing.confidence_score = info["confidence"]
             existing.expected_amount = info["expected_amount"]
             existing.amount_variance = info["amount_variance"]
+            existing.expected_day = info["expected_day"]
             existing.last_updated = datetime.now(UTC)
             return 1
 

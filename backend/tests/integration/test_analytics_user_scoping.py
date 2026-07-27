@@ -20,7 +20,7 @@ from ledger_sync.db.base import Base
 from ledger_sync.db.models import Transaction, TransactionType, User
 
 # Fake bcrypt hash for test fixtures -- not a real credential.
-TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"  # noqa: S105
+TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
 
 @pytest.fixture
@@ -149,7 +149,7 @@ def test_month_detector_uses_rolling_baseline_not_alltime(analytics_db: Session)
                 user_id=user.id,
                 transaction_id=f"drift-{i}",
                 date=datetime(2022 + year, month + 1, 15, tzinfo=UTC),
-                amount=Decimal("1000") if i < 24 else Decimal("5000"),  # noqa: PLR2004
+                amount=Decimal("1000") if i < 24 else Decimal("5000"),
                 currency="INR",
                 type=TransactionType.EXPENSE,
                 account="HDFC",

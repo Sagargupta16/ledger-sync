@@ -17,5 +17,5 @@ used throughout the codebase. Importing this module ensures every ORM class is
 registered against ``Base.metadata`` before Alembic/``init_db`` runs.
 """
 
-from ledger_sync.db._models import *  # noqa: F401, F403
+from ledger_sync.db._models import *  # noqa: F403
 from ledger_sync.db._models import __all__  # noqa: F401

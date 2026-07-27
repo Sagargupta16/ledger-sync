@@ -20,9 +20,72 @@ from ledger_sync.core._analytics_helpers import (
     DEFAULT_ESSENTIAL_CATEGORIES,
     DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
 )
+from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
 from ledger_sync.core.query_helpers import apply_excluded_accounts_filter
 from ledger_sync.db.models import Transaction, UserPreferences
 from ledger_sync.utils.logging import get_analytics_logger
+
+#: Shipped defaults for the four income-classification columns, keyed by column
+#: name. One mapping rather than four inline literals because
+#: ``_any_income_list_configured`` has to compare a stored list against the
+#: default for ITS OWN field to tell a reset row from a user choice.
+#:
+#: Entries are EXACT-MATCH ``"Category::Subcategory"`` keys, so a drifted
+#: spelling costs money silently -- a key no transaction carries contributes zero
+#: without raising. Both the historical spelling and the spelling real exports
+#: carry are therefore listed: an unmatched key costs nothing, a missing one
+#: costs money. Verified against a real exported ledger -- "Refunds & Cashbacks"
+#: (PLURAL) is what the data carries and it is a material share of non-taxable
+#: income while the singular matched nothing at all; the real subcategories are
+#: "Deposit Return" (not "Deposits Return"), "Stock Market Profit" and
+#: "F&O Profits" (the plural/"Income" variants matched 0 rows, so realised market
+#: profit fell out of investment returns into "other" entirely); and Gifts /
+#: Pocket Money live under "Other Income", not "One-time Income". Absolute
+#: amounts stay out of tracked source; see ``.claude/docs/studies/``.
+#:
+#: The non-taxable list is the twin of ``api/preferences.py::
+#: _DEFAULT_NON_TAXABLE_INCOME_CATEGORIES``, which ``POST /api/preferences/reset``
+#: persists verbatim -- keep the two in sync or the reset-detection in
+#: ``_any_income_list_configured`` silently stops recognising a reset row.
+_INCOME_LIST_DEFAULTS: dict[str, tuple[str, ...]] = {
+    "taxable_income_categories": (
+        "Employment Income::Salary",
+        "Employment Income::Stipend",
+        "Employment Income::Bonuses",
+        "Employment Income::RSUs",
+        "Business/Self Employment Income::Gig Work Income",
+    ),
+    "investment_returns_categories": (
+        "Investment Income::Dividends",
+        "Investment Income::Interest",
+        "Investment Income::F&O Income",
+        "Investment Income::F&O Profits",
+        "Investment Income::Stock Market Profits",
+        "Investment Income::Stock Market Profit",
+    ),
+    "non_taxable_income_categories": (
+        "Refund & Cashbacks::Credit Card Cashbacks",
+        "Refund & Cashbacks::Other Cashbacks",
+        "Refund & Cashbacks::Product/Service Refunds",
+        "Refund & Cashbacks::Deposits Return",
+        "Refunds & Cashbacks::Credit Card Cashbacks",
+        "Refunds & Cashbacks::Other Cashbacks",
+        "Refunds & Cashbacks::Product/Service Refunds",
+        "Refunds & Cashbacks::Deposit Return",
+        "Employment Income::Expense Reimbursement",
+    ),
+    "other_income_categories": (
+        "One-time Income::Gifts",
+        "One-time Income::Pocket Money",
+        "One-time Income::Competition/Contest Prizes",
+        "Other Income::Gifts",
+        "Other Income::Pocket Money",
+        "Other Income::Freelance Income",
+        "Other Income::Uncategorised",
+        "Employment Income::EPF Contribution",
+        "Other::Other",
+    ),
+}
 
 
 class AnalyticsEngineBase:
@@ -95,39 +158,98 @@ class AnalyticsEngineBase:
                 return default
         return value
 
+    def _configured_json(
+        self,
+        value: str | list[Any] | dict[str, Any] | None,
+    ) -> list[Any] | dict[str, Any] | None:
+        """Return the stored JSON collection, or ``None`` when it is not configured.
+
+        Every JSON preference column is ``Text`` whose model default is the
+        STRING ``"[]"`` / ``"{}"`` (see ``db/_models/user.py``), and a non-empty
+        string is TRUTHY in Python. The historic guard ``if prefs and
+        prefs.<field>:`` therefore PASSED for a row nobody had ever edited, and
+        the accessor returned the EMPTY parse instead of the documented default.
+        For ``essential_categories`` that booked 100% of spend as discretionary
+        for every new user.
+
+        "Not configured" here means null, blank, malformed, the wrong JSON type,
+        or an EMPTY collection. Empty counts as unset only for the fields whose
+        accessors call this helper -- see each property for why.
+        """
+        parsed = self._parse_json_field(value, None)
+        if isinstance(parsed, (list, dict)) and parsed:
+            return parsed
+        return None
+
     # ─── property accessors ─────────────────────────────────────────────────
 
     @property
     def essential_categories(self) -> set[str]:
-        """Get essential categories from preferences or defaults."""
-        if self._preferences and self._preferences.essential_categories:
-            cats = self._parse_json_field(
-                self._preferences.essential_categories,
-                list(DEFAULT_ESSENTIAL_CATEGORIES),
-            )
-            return set(cats)
+        """Essential (needs) expense categories, falling back to the defaults.
+
+        An empty stored list means "not configured", NOT "nothing is essential".
+        Three code paths write ``"[]"`` into this column for users who have
+        never expressed an opinion -- the model default, ``_get_or_create_
+        preferences``, and ``POST /api/preferences/reset`` -- so an empty list
+        cannot distinguish a deliberate choice from an untouched row. Honouring
+        it as deliberate booked 100% of expense as discretionary and made every
+        needs/wants surface (50/30/20, Lean FIRE, essential share) read 0% needs.
+
+        Unlike the four income lists, this field has no sibling partition, so the
+        decision is per-field: nothing else can be populated to signal that an
+        empty list here was deliberate.
+
+        NOT aligned with ``analytics_v2_impl/spending_rule.py``, which keeps its
+        own ``_DEFAULT_NEEDS`` keyword set, matches on category OR subcategory,
+        matches case-insensitively at word boundaries, and UNIONS the user's list
+        with its defaults instead of honouring it verbatim. Measured on the
+        owner's ledger the two disagree by well under a point for an
+        unconfigured user and by several points for a configured one, both
+        before and after this fix. Unifying them means having spending_rule
+        resolve essentials through this property; until then, treat the /budgets
+        needs bucket and the ``monthly_summaries`` essential split as two
+        different definitions.
+        """
+        cats = self._configured_json(
+            self._preferences.essential_categories if self._preferences else None,
+        )
+        if isinstance(cats, list):
+            return {str(c) for c in cats if c}
         return DEFAULT_ESSENTIAL_CATEGORIES
 
     @property
     def excluded_accounts(self) -> set[str]:
-        """Get excluded account names from preferences (empty set if none)."""
-        if self._preferences and getattr(self._preferences, "excluded_accounts", None):
-            accounts = self._parse_json_field(
-                self._preferences.excluded_accounts,
-                [],
-            )
-            return set(accounts)
+        """Account names to drop from analytics; empty set when none.
+
+        Deliberately NOT routed through ``_configured_json``: here an empty list
+        is a meaningful configuration -- "exclude nothing" -- and it coincides
+        with the shipped default, so the truthiness trap has no effect. Falling
+        back to a non-empty default would instead hide real accounts.
+        ``query_helpers.excluded_accounts_for`` applies the same reading.
+        """
+        accounts = self._parse_json_field(
+            self._preferences.excluded_accounts if self._preferences else None,
+            [],
+        )
+        if isinstance(accounts, list):
+            return {str(a) for a in accounts if a}
         return set()
 
     @property
     def investment_account_patterns(self) -> dict[str, str]:
-        """Get investment account mappings from preferences or defaults."""
-        if self._preferences and self._preferences.investment_account_mappings:
-            result: dict[str, str] = self._parse_json_field(
-                self._preferences.investment_account_mappings,
-                DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
-            )
-            return result
+        """Account-name fragment -> investment type, from preferences.
+
+        Both readings agree for this field: ``DEFAULT_INVESTMENT_ACCOUNT_
+        PATTERNS`` is intentionally EMPTY (shipping the maintainer's account
+        names would leak them into every install), so "unset" and "explicitly
+        empty" produce the same ``{}``. Consumers already handle empty --
+        ``net_worth.py`` skips its investment split when this is falsy.
+        """
+        patterns = self._configured_json(
+            self._preferences.investment_account_mappings if self._preferences else None,
+        )
+        if isinstance(patterns, dict):
+            return {str(k): str(v) for k, v in patterns.items() if k}
         return DEFAULT_INVESTMENT_ACCOUNT_PATTERNS
 
     @property
@@ -137,76 +259,105 @@ class AnalyticsEngineBase:
             return self._preferences.fiscal_year_start_month
         return 4  # Default: April (India FY)
 
+    def _any_income_list_configured(self) -> bool:
+        """True when the USER has classified at least one income item anywhere.
+
+        The four income lists are not four independent settings -- they are a
+        PARTITION written by one exclusive-assignment UI.
+        ``IncomeClassificationSection.handleClassify`` removes the item from all
+        four lists and appends it to exactly one, so "taxable is empty because I
+        filed every income item under non-taxable" is a state the UI produces.
+
+        That makes the per-field rule used for ``essential_categories`` wrong
+        here. Injecting the shipped defaults into one empty list would RE-TAX
+        income the user explicitly marked non-taxable, and re-label income the
+        user explicitly filed as other -- overriding a deliberate choice, which
+        is the failure mode the whole fix exists to avoid.
+
+        So the fallback is decided for the GROUP: defaults apply only when no
+        list holds a user choice (genuinely untouched, which is what the model
+        default, ``_get_or_create_preferences``, and ``POST
+        /api/preferences/reset`` all leave behind), and an individual empty list
+        is honoured as deliberate as soon as a sibling holds one.
+
+        "A user choice" excludes a list that is exactly the shipped default for
+        its own field, because ``POST /api/preferences/reset`` PERSISTS
+        ``_DEFAULT_NON_TAXABLE_INCOME_CATEGORIES`` verbatim while writing ``[]``
+        for the other three (see ``api/preferences.py``). Counting that as
+        configuration would treat a reset user's taxable/investment/other lists
+        as deliberately empty and re-open exactly this bug for them. A user who
+        hand-picks precisely the 9 shipped keys is indistinguishable from reset
+        at the data layer; resolving that tie toward the defaults costs nothing
+        for the field itself and keeps the siblings populated.
+        """
+        if not self._preferences:
+            return False
+        for field, shipped in _INCOME_LIST_DEFAULTS.items():
+            stored = self._configured_json(getattr(self._preferences, field, None))
+            if isinstance(stored, list) and {str(c) for c in stored if c} != set(shipped):
+                return True
+        return False
+
+    def _income_categories(self, field: str) -> list[str]:
+        """Resolve one income-classification list from the group's state.
+
+        A populated list is always honoured verbatim. An EMPTY list means
+        "deliberately empty" when a sibling carries a user choice, and "never
+        configured" otherwise -- see ``_any_income_list_configured`` for why the
+        decision is group-wide.
+
+        The nothing-configured case is the one that corrupted real money: with
+        every list empty, ``_is_taxable_income`` / ``_is_salary_income`` /
+        ``_is_bonus_income`` / ``_is_investment_income`` all returned False, so
+        every credit landed in ``other_income`` in ``monthly_summaries`` and the
+        FY summaries, and salary/bonus/investment income read zero.
+        """
+        configured = self._configured_json(
+            getattr(self._preferences, field, None) if self._preferences else None,
+        )
+        if isinstance(configured, list):
+            return [str(c) for c in configured if c]
+        if self._any_income_list_configured():
+            # A sibling carries a user choice, so this empty list is deliberate.
+            return []
+        return list(_INCOME_LIST_DEFAULTS[field])
+
     @property
     def taxable_income_categories(self) -> list[str]:
         """Get taxable income subcategories from preferences."""
-        default = [
-            "Employment Income::Salary",
-            "Employment Income::Stipend",
-            "Employment Income::Bonuses",
-            "Employment Income::RSUs",
-            "Business/Self Employment Income::Gig Work Income",
-        ]
-        if self._preferences and self._preferences.taxable_income_categories:
-            result: list[str] = self._parse_json_field(
-                self._preferences.taxable_income_categories,
-                default,
-            )
-            return result
-        return default
+        return self._income_categories("taxable_income_categories")
 
     @property
     def investment_returns_categories(self) -> list[str]:
         """Get investment returns subcategories from preferences."""
-        default = [
-            "Investment Income::Dividends",
-            "Investment Income::Interest",
-            "Investment Income::F&O Income",
-            "Investment Income::Stock Market Profits",
-        ]
-        if self._preferences and self._preferences.investment_returns_categories:
-            result: list[str] = self._parse_json_field(
-                self._preferences.investment_returns_categories,
-                default,
-            )
-            return result
-        return default
+        return self._income_categories("investment_returns_categories")
 
     @property
     def non_taxable_income_categories(self) -> list[str]:
         """Get non-taxable income subcategories from preferences."""
-        default = [
-            "Refund & Cashbacks::Credit Card Cashbacks",
-            "Refund & Cashbacks::Other Cashbacks",
-            "Refund & Cashbacks::Product/Service Refunds",
-            "Refund & Cashbacks::Deposits Return",
-            "Employment Income::Expense Reimbursement",
-        ]
-        if self._preferences and self._preferences.non_taxable_income_categories:
-            result: list[str] = self._parse_json_field(
-                self._preferences.non_taxable_income_categories,
-                default,
-            )
-            return result
-        return default
+        return self._income_categories("non_taxable_income_categories")
 
     @property
     def other_income_categories(self) -> list[str]:
         """Get other income subcategories from preferences."""
-        default = [
-            "One-time Income::Gifts",
-            "One-time Income::Pocket Money",
-            "One-time Income::Competition/Contest Prizes",
-            "Employment Income::EPF Contribution",
-            "Other::Other",
-        ]
-        if self._preferences and self._preferences.other_income_categories:
-            result: list[str] = self._parse_json_field(
-                self._preferences.other_income_categories,
-                default,
-            )
-            return result
-        return default
+        return self._income_categories("other_income_categories")
+
+    @property
+    def capital_loss_keys(self) -> set[str]:
+        """Normalised keys the user declared to be realised investment losses.
+
+        Read straight off the raw column with NO default fallback, which is the
+        opposite of the four income lists above. Those lists carry shipped
+        defaults because an unclassified ledger reports zero salary income --
+        visibly broken. Here an empty set means the aggregates keep counting
+        those rows as expenses, exactly as they did before the preference
+        existed, and that is the safe state: only the user knows which of their
+        EXPENSE rows are losses, and defaulting would silently move their
+        historical expense totals and savings rate.
+        """
+        if not self._preferences:
+            return set()
+        return capital_loss_keys(getattr(self._preferences, "capital_loss_categories", None))
 
     @property
     def _currency_symbol(self) -> str:
@@ -217,15 +368,24 @@ class AnalyticsEngineBase:
 
     @property
     def anomaly_expense_threshold(self) -> float:
-        """Get anomaly detection threshold (std devs)."""
+        """Get anomaly detection threshold (std devs).
+
+        A truthiness guard is safe here: ``AnomalySettingsConfig`` constrains
+        this to ``ge=1.0``, so 0 is unreachable through the API.
+        """
         if self._preferences and self._preferences.anomaly_expense_threshold:
             return self._preferences.anomaly_expense_threshold
         return 2.0
 
     @property
     def recurring_min_confidence(self) -> float:
-        """Get minimum confidence for recurring detection."""
-        if self._preferences and self._preferences.recurring_min_confidence:
+        """Get minimum confidence for recurring detection.
+
+        ``is None``, not truthiness: ``RecurringSettingsConfig`` allows ``ge=0``,
+        so "show every detected pattern, unfiltered" is a legal setting a
+        truthiness guard would silently rewrite to 50.
+        """
+        if self._preferences and self._preferences.recurring_min_confidence is not None:
             return self._preferences.recurring_min_confidence
         return 50.0
 
@@ -245,6 +405,26 @@ class AnalyticsEngineBase:
             query = query.filter(Transaction.user_id == self.user_id)
         query = apply_excluded_accounts_filter(query, self.excluded_accounts)
         return query
+
+    def _exclude_capital_losses[QueryT: Query[Any]](self, query: QueryT) -> QueryT:
+        """Drop rows the user classified as realised investment losses.
+
+        For SQL-side aggregates that would otherwise treat a loss as spending.
+        Returns *query* UNCHANGED when nothing is configured, so the default
+        case emits exactly the SQL it did before this helper existed.
+
+        Generic in the query type (like ``apply_excluded_accounts_filter``) so a
+        row-returning aggregate query keeps its tuple element types through the
+        call instead of widening to ``Query[Any]``.
+
+        Only meaningful on a query already restricted to EXPENSE rows -- callers
+        do that themselves, since income-side classification uses the separate
+        ``investment_returns_categories`` list.
+        """
+        predicate = capital_loss_sql_filter(self.capital_loss_keys)
+        if predicate is None:
+            return query
+        return query.filter(predicate)
 
     # ─── fiscal year helper (shared by summaries and fy_summaries mixins) ──
 

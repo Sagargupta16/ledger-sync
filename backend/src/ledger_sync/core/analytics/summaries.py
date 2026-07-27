@@ -40,6 +40,7 @@ class SummariesMixin(AnalyticsEngineBase):
                 "total_expenses": Decimal(0),
                 "essential_expenses": Decimal(0),
                 "discretionary_expenses": Decimal(0),
+                "capital_losses": Decimal(0),
                 "total_transfers_out": Decimal(0),
                 "total_transfers_in": Decimal(0),
                 "net_investment_flow": Decimal(0),
@@ -67,7 +68,25 @@ class SummariesMixin(AnalyticsEngineBase):
             data = monthly_data[period_key]
             total_income = data["total_income"]
             total_expenses = data["total_expenses"]
-            net_savings = total_income - total_expenses
+            capital_losses = data["capital_losses"]
+            # net_savings subtracts realised losses even though they are no
+            # longer expenses: the cash genuinely left, so month-end wealth
+            # really is lower and a savings figure that ignored it would not
+            # reconcile against account balances.
+            #
+            # savings_rate KEEPS ITS ORIGINAL DEFINITION -- net_savings over
+            # income -- so the published rate still equals net_savings /
+            # total_income on the same row. Redefining it to
+            # (income - expenses) / income while net_savings netted the loss off
+            # silently changed what a persisted historical series MEANS: the same
+            # column would step upward at the moment a user classified a
+            # category, with no rename and no label change to say why.
+            #
+            # The consumption-share question ("what share of income did I spend
+            # on goods and services") is answered by expense_ratio, which is
+            # already named for it and now excludes the loss because
+            # total_expenses does.
+            net_savings = total_income - total_expenses - capital_losses
             savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
             expense_ratio = float(total_expenses / total_income * 100) if total_income > 0 else 0
 
@@ -137,6 +156,7 @@ class SummariesMixin(AnalyticsEngineBase):
             existing.total_expenses = total_expenses
             existing.essential_expenses = data["essential_expenses"]
             existing.discretionary_expenses = data["discretionary_expenses"]
+            existing.capital_losses = data["capital_losses"]
             existing.total_transfers_out = data["total_transfers_out"]
             existing.total_transfers_in = data["total_transfers_in"]
             existing.net_investment_flow = data["net_investment_flow"]
@@ -164,6 +184,7 @@ class SummariesMixin(AnalyticsEngineBase):
                     total_expenses=total_expenses,
                     essential_expenses=data["essential_expenses"],
                     discretionary_expenses=data["discretionary_expenses"],
+                    capital_losses=data["capital_losses"],
                     total_transfers_out=data["total_transfers_out"],
                     total_transfers_in=data["total_transfers_in"],
                     net_investment_flow=data["net_investment_flow"],
@@ -203,6 +224,28 @@ class SummariesMixin(AnalyticsEngineBase):
                 data["other_income"] += amount
 
         elif txn.type == TransactionType.EXPENSE:
+            # A realised capital loss the user has classified is a negative
+            # investment RETURN, not consumption. Counting it as an expense
+            # inflated four numbers at once -- total_expenses, the
+            # essential/discretionary split, savings_rate and expense_ratio --
+            # because nothing sat between the type check and the accumulator.
+            #
+            # It gets its OWN bucket rather than being netted into
+            # investment_income, because the API publishes salary + investment +
+            # other == total_income and a negative component would break that
+            # sum for every consumer. It is not added to total_income either: a
+            # loss is not negative income, and pushing it there would corrupt
+            # the savings-rate denominator the same way the mirror gains bug
+            # does. It stays out of expense_count too, which backs "how many
+            # things did I spend on".
+            #
+            # The money DID leave, so net_savings still subtracts it (see
+            # ``_calculate_monthly_summaries``): wealth fell, consumption did
+            # not.
+            if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+                data["capital_losses"] += amount
+                return
+
             data["total_expenses"] += amount
             data["expense_count"] += 1
             if txn.category in self.essential_categories:
@@ -240,6 +283,7 @@ class SummariesMixin(AnalyticsEngineBase):
             lambda: {
                 "total_income": Decimal(0),
                 "total_expenses": Decimal(0),
+                "capital_losses": Decimal(0),
                 "income_count": 0,
                 "expense_count": 0,
                 "transfer_count": 0,
@@ -256,6 +300,14 @@ class SummariesMixin(AnalyticsEngineBase):
                 day["total_income"] += amount
                 day["income_count"] += 1
             elif txn.type == TransactionType.EXPENSE:
+                # Same exclusion as the monthly rollup, for the same reason.
+                # Without it the YearInReview heatmap paints the day a realised
+                # loss was booked as the user's heaviest SPENDING day of the
+                # year, and ``top_category`` names the loss category as what
+                # they spent most on.
+                if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+                    day["capital_losses"] += amount
+                    continue
                 day["total_expenses"] += amount
                 day["expense_count"] += 1
                 day["expense_categories"][txn.category] += amount
@@ -290,7 +342,11 @@ class SummariesMixin(AnalyticsEngineBase):
                     date=date_key,
                     total_income=total_income,
                     total_expenses=total_expenses,
-                    net=total_income - total_expenses,
+                    # Losses are out of total_expenses (consumption) but still
+                    # out of pocket, so ``net`` subtracts them separately. This
+                    # keeps the daily net reconciling against the monthly
+                    # net_savings without needing a second daily column.
+                    net=total_income - total_expenses - data["capital_losses"],
                     income_count=data["income_count"],
                     expense_count=data["expense_count"],
                     transfer_count=data["transfer_count"],

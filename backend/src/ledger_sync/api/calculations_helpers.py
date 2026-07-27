@@ -15,6 +15,10 @@ from sqlalchemy.orm import Session
 from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
 
+#: Window of the income trend's rolling average, in complete months. Mirrors the
+#: client-side ``ROLLING_AVG_MONTHS`` on Spending Analysis and Trends.
+ROLLING_AVG_MONTHS = 3
+
 
 def _compute_income_analysis(
     transactions: list[Transaction],
@@ -37,14 +41,23 @@ def _compute_income_analysis(
         by_category[t.category or "Other Income"] += abs(float(t.amount))
 
     # Monthly trend with a trailing 3-month rolling average.
+    #
+    # A short leading window yields ``None``, not a mean of whatever is there.
+    # This used to divide by ``len(window)``, so the first point was one month's
+    # income verbatim and the second was a 2-month mean, both plotted under a
+    # legend reading "3m avg". On the default FY view that made 2 of 3 points
+    # false. The frontend counts the non-null points and captions accordingly,
+    # matching what Spending Analysis and Trends already do client-side.
     by_month: dict[str, float] = defaultdict(float)
     for t in income:
         by_month[t.date.strftime("%Y-%m")] += abs(float(t.amount))
     sorted_months = sorted(by_month.items())
     monthly_data: list[dict[str, Any]] = []
     for i, (month, amount) in enumerate(sorted_months):
-        window = sorted_months[max(0, i - 2) : i + 1]
-        avg = sum(a for _, a in window) / len(window)
+        avg: float | None = None
+        if i + 1 >= ROLLING_AVG_MONTHS:
+            window = sorted_months[i + 1 - ROLLING_AVG_MONTHS : i + 1]
+            avg = sum(a for _, a in window) / ROLLING_AVG_MONTHS
         monthly_data.append({"month": month, "income": amount, "income_avg_3m": avg})
 
     # Cashback = income rows whose Category::Subcategory is in the user's
