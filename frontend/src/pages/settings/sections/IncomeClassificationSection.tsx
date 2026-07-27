@@ -5,15 +5,19 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { DollarSign } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
+import type { IncomeClassificationAudit as Audit } from '../helpers'
 import type { LocalPrefs, IncomeClassificationType } from '../types'
 import { INCOME_CLASSIFICATION_TYPES, INCOME_CLASSIFICATION_KEY_MAP } from '../types'
 import { Section } from '../sectionPrimitives'
+import IncomeClassificationAudit from './IncomeClassificationAudit'
 
 interface Props {
   index: number
   allIncomeCategories: Record<string, string[]>
   localPrefs: LocalPrefs
-  unclassifiedIncomeItems: string[]
+  incomeAudit: Audit
+  applyIncomeSuggestions: () => void
+  removeIncomeKey: (key: string) => void
   setLocalPrefs: Dispatch<SetStateAction<LocalPrefs | null>>
   setHasChanges: (v: boolean) => void
   defaultCollapsed?: boolean
@@ -36,7 +40,9 @@ export default function IncomeClassificationSection({
   index,
   allIncomeCategories,
   localPrefs,
-  unclassifiedIncomeItems,
+  incomeAudit,
+  applyIncomeSuggestions,
+  removeIncomeKey,
   setLocalPrefs,
   setHasChanges,
   defaultCollapsed = true,
@@ -74,6 +80,13 @@ export default function IncomeClassificationSection({
         />
       ) : (
         <div className="space-y-4">
+          <IncomeClassificationAudit
+            audit={incomeAudit}
+            onClassify={handleClassify}
+            onApplySuggestions={applyIncomeSuggestions}
+            onRemoveKey={removeIncomeKey}
+          />
+
           {Object.entries(allIncomeCategories).map(([parentCat, subs]) => (
             <div key={parentCat}>
               <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
@@ -129,7 +142,7 @@ export default function IncomeClassificationSection({
                 </span>
               )
             })}
-            <span>{unclassifiedIncomeItems.length} unclassified</span>
+            <span>{incomeAudit.unclassified.length} unclassified</span>
           </div>
         </div>
       )}

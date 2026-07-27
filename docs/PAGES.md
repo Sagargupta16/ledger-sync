@@ -525,7 +525,7 @@ Twelve sections:
 2. Income and Salary Structure
 3. Account Classifications
 4. Expense Categories
-5. Income Classification
+5. Income Classification (reads `/api/calculations/income-facets` to audit the four `*_income_categories` lists against the ledger: unclassified buckets with their amount, plus saved keys matching no transactions)
 6. Categorization Rules
 7. Investment Mappings
 8. Display Preferences

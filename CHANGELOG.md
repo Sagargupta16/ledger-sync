@@ -10,6 +10,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Income classification audit** in Settings. Income categories the ledger carries but no classification list claims are now listed with their transaction count and amount, each with a one-click bucket picker and a bulk "apply suggestions" action. Saved keys that match zero transactions (drifted spellings left behind after an import) are listed separately and can be removed.
+- **`GET /api/calculations/income-facets`** returns every income category and subcategory bucket with its row count and total.
 - **Workspace header** with the current page label, command-palette access, notifications, and a context-aware AI entry point.
 - **Product screenshots** for desktop and mobile landing-page presentation.
 - **Authentication regression coverage** for provider loading/retry states, dialog focus management, and OAuth callback failures.

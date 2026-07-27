@@ -414,7 +414,7 @@ Both start expanded.
 
 3. **Account Classifications** - assign accounts to Cash, Bank Accounts, Credit Cards, Investments, Loans/Lended, or Other Wallets.
 4. **Expense Categories** - essential and fixed-expense classification.
-5. **Income Classification** - taxable, investment return, non-taxable, and other income buckets.
+5. **Income Classification** - taxable, investment return, non-taxable, and other income buckets. The section opens with an audit: any income category your transactions carry that sits in none of the four buckets is listed with its transaction count and amount, so the money never silently drops out of your taxable-income and cashback totals. Pick a bucket per row, or apply every keyword suggestion at once. Saved categories that match no transactions (usually a spelling left behind after a rename) are listed below and can be removed.
 6. **Categorization Rules** - ordered note/account matching rules with optional retroactive application.
 7. **Investment Mappings** - map investment accounts to the four analytics categories.
 
