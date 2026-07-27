@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # No `version:` here -- action-setup reads it from the root
-      # package.json `packageManager` field (pnpm@11.10.0). Pinning a
+      # package.json `packageManager` field (pnpm@11.17.0). Pinning a
       # second version conflicts with packageManager (ERR_PNPM_BAD_PM_VERSION).
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 

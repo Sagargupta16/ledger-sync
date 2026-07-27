@@ -34,6 +34,8 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Expense, income, cash flow, period comparison, year review, forecasting, and net worth analysis.
 - Investment analytics, SIP projections, XIRR/CAGR returns, and instrument projections.
 - 50/30/20 budget analysis, goals, recurring commitments, bill calendar, and anomaly review.
+- Merchant intelligence derived from transaction notes, with spend concentration and recurring detection.
+- Data health reporting: ledger coverage, last-import row counts, and whether analytics rollups are current.
 - Indian income tax, RSU vesting, projected TDS, GST estimation, and FIRE planning.
 
 ### AI assistant
@@ -48,25 +50,25 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 
 - Compact desktop workspace with grouped navigation, search, notifications, theme control, and AI access.
 - Phone bottom navigation plus a complete More page.
-- Light, dark, and system themes.
+- Light and dark themes. New users start on the operating system preference.
 - Mobile card layouts for wide data tables and 44px touch targets for primary controls.
 - Distinct loading, empty, and retryable error states across protected financial pages.
 - Installable PWA that never caches API responses.
 
 ## Application Map
 
-The router contains 3 public routes and 24 protected workspace pages.
+The router contains 3 public routes and 26 protected workspace pages.
 
 | Area | Pages |
 | --- | --- |
 | Public | Home, demo entry, OAuth callback |
-| Core | Dashboard, Overview |
-| Analytics | Expense Analysis, Income Analysis, Cash Flow, Comparison, Year in Review |
+| Top level | Dashboard, Overview, Transactions |
+| Analytics | Expense Analysis, Merchants, Income Analysis, Cash Flow, Comparison, Year in Review |
 | Wealth | Net Worth, Trends and Forecasts, Investment Analytics, Projections, Returns Analysis |
 | Commitments | Recurring, Bill Calendar |
-| Planning | Budget Rule, Financial Goals, FIRE Calculator, Anomaly Review |
+| Planning | Budget Rule, Financial Goals, FIRE Calculator, Anomaly Review, Data Health |
 | Tax | Income Tax, Indirect Tax (GST) |
-| Data | Transactions, Upload and Sync, Settings |
+| Utility bar | Upload and Sync, Settings |
 | Mobile | More |
 
 See [docs/PAGES.md](docs/PAGES.md) for the route and data-source catalog and [docs/HANDBOOK.md](docs/HANDBOOK.md) for the user workflow guide.
@@ -137,7 +139,7 @@ uv run alembic upgrade head
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Framer Motion 12 |
+| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Motion 12 |
 | Backend | Python 3.13+, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Database | SQLite for development, Neon PostgreSQL 17 for production |
 | State | TanStack Query 5, Zustand 5 |
@@ -171,7 +173,7 @@ The hosted installation uses:
 | Service | Platform |
 | --- | --- |
 | Frontend | GitHub Pages |
-| Backend | Vercel serverless through Mangum |
+| Backend | Vercel serverless, ASGI |
 | Database | Neon PostgreSQL 17 with PgBouncer |
 
 Frontend and backend deployments run from `main`. Database migrations run through the dedicated GitHub Actions workflow when migration or model files change. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before changing production configuration.

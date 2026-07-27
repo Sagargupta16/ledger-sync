@@ -1,17 +1,17 @@
 # Pages Reference
 
-Developer-facing route and data-source catalog for Ledger Sync 2.22.0.
+Developer-facing route and data-source catalog for Ledger Sync 2.23.0.
 
-Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-24.
+Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-27.
 
 ## Router Summary
 
-The application has 27 routed page components:
+The application has 29 routed page components:
 
 - 3 public page routes.
-- 24 protected workspace page routes.
+- 26 protected workspace page routes.
 - 4 eager page components: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 23 lazy page components, prefetched during browser idle time.
+- 25 lazy page components, prefetched during browser idle time.
 
 `/home` is a protected compatibility route that redirects to `/dashboard`.
 
@@ -38,6 +38,7 @@ The public Home route remains available to authenticated users. Its primary acti
 | Core | `/dashboard` | Dashboard |
 | Core | `/overview` | Overview |
 | Analytics | `/spending` | Expense Analysis |
+| Analytics | `/merchants` | Merchants |
 | Analytics | `/income` | Income Analysis |
 | Analytics | `/income-expense-flow` | Cash Flow |
 | Analytics | `/comparison` | Comparison |
@@ -53,6 +54,7 @@ The public Home route remains available to authenticated users. Its primary acti
 | Planning | `/goals` | Financial Goals |
 | Planning | `/fire-calculator` | FIRE Calculator |
 | Planning | `/anomalies` | Anomaly Review |
+| Planning | `/data-health` | Data Health |
 | Tax | `/tax` | Income Tax |
 | Tax | `/tax/gst` | Indirect Tax (GST) |
 | Data | `/transactions` | Transactions |
@@ -97,7 +99,7 @@ Displays:
 
 - Ledger snapshot through configurable Quick Insights.
 - Confirmed active recurring expenses as fixed commitments.
-- Age of Money and Days of Buffering. Buffering uses only accounts classified as Cash, Bank Accounts, or Other Wallets.
+- Age of Money and Days of Buffering. Buffering uses only accounts classified as Cash, Bank Accounts, or Other Wallets, then subtracts credit-card debt and overdrawn balances. See [CALCULATIONS.md](CALCULATIONS.md) for the definition.
 - Financial Health Score.
 - Income Sources and Expense Sources pies with drill-down links.
 
@@ -150,6 +152,22 @@ Displays:
 - Multi-category and cohort views.
 
 Category deep links use the `category` query parameter. Calculations combine the filtered ledger with user preferences such as essential categories.
+
+### Merchants
+
+**Route:** `/merchants`
+
+**Source:** `frontend/src/pages/merchant-intelligence/MerchantIntelligencePage.tsx`
+
+Displays:
+
+- Merchant count, share of spend covered, and the Pareto concentration point.
+- Ranked merchants with spend, transaction count, average ticket, and first and last seen.
+- Recurring-only filter and free-text search.
+
+Primary source: `/api/analytics/v2/merchant-intelligence`.
+
+Merchant labels are derived from transaction notes. A note that cannot be resolved to a confident merchant is kept as a full descriptor rather than being truncated to its first word, so unrelated purchases are not merged under one label.
 
 ### Income Analysis
 
@@ -428,6 +446,23 @@ Actions:
 
 The page can include reviewed items and exposes anomaly preference controls.
 
+### Data Health
+
+**Route:** `/data-health`
+
+**Source:** `frontend/src/pages/data-health/DataHealthPage.tsx`
+
+Displays:
+
+- The last date the ledger covers and how many days since then are unimported.
+- Rows processed, inserted, and already present from the most recent import.
+- Placeholder-note, uncategorized, and future-dated row counts.
+- Whether the analytics rollups are behind the committed transactions, with an in-place recompute action.
+
+Primary source: `/api/analytics/v2/data-health`.
+
+When the rollups lag a committed import, the page states that displayed figures come from the previous import rather than showing them as current.
+
 ## Tax
 
 ### Income Tax
@@ -568,7 +603,7 @@ The page includes sign-out and exposes every route that is not a dedicated botto
 
 ### Themes
 
-`themeStore` persists Light, Dark, or System mode. Light is the default for new users.
+`themeStore` persists Light or Dark mode. A user with no stored choice gets the operating system `prefers-color-scheme` value, resolved once before first paint.
 
 ### Demo mode
 

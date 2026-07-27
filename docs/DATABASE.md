@@ -1,8 +1,8 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.22.0.
+Database reference for Ledger Sync 2.23.0.
 
-Verified against SQLAlchemy metadata and the Alembic chain on 2026-07-14.
+Verified against SQLAlchemy metadata and the Alembic chain on 2026-07-27.
 The current model contains 26 tables.
 
 ## Runtime Databases

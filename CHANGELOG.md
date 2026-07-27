@@ -6,44 +6,66 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## Unreleased
+## 2.23.0 - 2026-07-27
+
+Two waves in one release: the workspace UI rework that had been sitting unreleased, and a correctness pass over money math, API contracts, and static analysis. Two on-screen figures intentionally change value, both called out below.
 
 ### Added
 
-- **Income classification audit** in Settings. Income categories the ledger carries but no classification list claims are now listed with their transaction count and amount, each with a one-click bucket picker and a bulk "apply suggestions" action. Saved keys that match zero transactions (drifted spellings left behind after an import) are listed separately and can be removed.
-- **`GET /api/calculations/income-facets`** returns every income category and subcategory bucket with its row count and total.
 - **Workspace header** with the current page label, command-palette access, notifications, and a context-aware AI entry point.
-- **Product screenshots** for desktop and mobile landing-page presentation.
-- **Authentication regression coverage** for provider loading/retry states, dialog focus management, and OAuth callback failures.
+- **Merchant Intelligence page (`/merchants`)**. Transaction notes are extracted into merchant labels with an ambiguity guard, so "Milk Shake - Apple" no longer books to the tech company. On a miss the whole normalized note is kept as a descriptor rather than its first word, which stopped both the silent drops and the over-merging of unrelated purchases into one label.
+- **Data Health page (`/data-health`)**. Names the exact date the ledger ends and how many days are unimported, reports rows processed / inserted / already-present from the last import, and surfaces the placeholder-note, uncategorized, and future-dated counts that previously had no home. When the analytics rollups fall behind a committed import it says the displayed numbers are from the previous import and offers an in-place recompute.
+- **`GET /api/calculations/income-facets`** returns every income category and subcategory bucket with its row count and total.
+- **Income classification audit** in Settings. Income categories the ledger carries but no classification list claims are now listed with their transaction count and amount, each with a one-click bucket picker and a bulk "apply suggestions" action. Saved keys that match zero transactions (drifted spellings left behind after an import) are listed separately and can be removed.
+- **From-scratch migration coverage** (`backend/tests/integration/test_migrations_from_scratch.py`) runs `alembic upgrade head` against an empty database, which is the case CI never exercised because production only ever does incremental upgrades.
+- **IST ledger clock.** Date boundaries are resolved in Asia/Kolkata rather than the server's timezone, so a late-evening transaction no longer lands in the next day's totals.
 - **Shared page recovery state** that keeps route context visible and lets users retry failed financial-data queries without reloading the application.
+- **Authentication regression coverage** for provider loading/retry states, dialog focus management, and OAuth callback failures.
 - **Stricter frontend accessibility checks** for labels, keyboard interaction, semantic tables, and accessible control names.
+- **Product screenshots** for desktop and mobile landing-page presentation.
 
 ### Changed
 
+- **Days of Buffering on the Dashboard now nets out debt.** It reads the split-aware liquid pool instead of a bare total across spendable accounts. A bare total has already lost the asset/liability split, so it could neither exclude parked deposits nor subtract what is owed. On the audit ledger the figure drops from 142 to 125 days, and the entire gap is liabilities the old path could not see: 57,812.58 of credit-card debt and 4,668.14 across four overdrawn wallets. The lower number is the correct one.
+- **Savings targets are split by definition.** `/budgets` measures savings as the change in the investment perimeter; `/spending-analysis` measures income minus comparable spending. These answer two legitimately different questions and are roughly 2x apart on real data, yet both were scored against a single `savings_target_percent`, so one page could say "under target" while the other said "on track". Each definition now carries its own target. The two numerators are deliberate and are not reconciled.
+- **Capital loss is separated from consumption**, so a fall in investment value no longer reads as spending.
+- **Every sort has an explicit comparator.** Implicit lexicographic ordering silently mis-sorted numeric and date columns.
 - **Complete workspace UI rework.** The shell, sidebar, mobile navigation, page headers, metric cards, controls, transaction filters, tables, charts, settings, home page, upload flow, and key planning pages now share one compact ledger-oriented visual system.
 - **Responsive behavior** was tightened across desktop and phone layouts, including stable workspace dimensions, safe-area handling in the global header, mobile transaction presentation, and non-overlapping demo/chat/navigation surfaces.
 - **Home and sign-in flow** now use the real dashboard screenshots, clearer calls to action, a retryable provider-loading state, keyboard focus trapping, Escape dismissal, and focus restoration.
-- **Local API routing** now defaults to the same-origin Vite proxy. `VITE_API_BASE_URL` is required only for split production hosting.
-- **Theme-aware global feedback** now follows the resolved Light, Dark, or System theme.
-- **Documentation refresh** aligns the READMEs, handbook, route catalog, API reference, database guide, calculations, architecture, testing guide, deployment notes, migration notes, and diagrams with the 2.22.0 codebase.
 - **Protected data pages** now distinguish loading, empty, and failed-query states instead of rendering failed requests as valid zero-value dashboards.
 - **Dense routes and controls** were split into focused components, aligned to shared buttons, inputs, selects, responsive tables, and shorter reduced-motion-aware transitions.
+- **Local API routing** now defaults to the same-origin Vite proxy. `VITE_API_BASE_URL` is required only for split production hosting.
+- **Theme-aware global feedback** now follows the resolved Light or Dark theme.
+- **Static-analysis baseline**: ruff reports zero findings across 25 rule families, mypy is clean over 156 source files, and SonarCloud reports zero open issues. The frontend lint tier was widened to `recommendedTypeChecked` over `src/**`, which is what catches `any` flowing through a value.
+- **Documentation refresh** aligns the READMEs, handbook, route catalog, API reference, database guide, calculations, architecture, testing guide, deployment notes, migration notes, and diagrams with the 2.23.0 codebase.
 
 ### Fixed
 
+- **Goal cards no longer crash on a goal with no start date.** `financial_goals.created_at` was created nullable and never altered, and the serializer derives both `start_date` and `created_at` from that one column, so any row written before the model-level default arrives as `null`. The TypeScript type declared it non-null, so the card passed `null` into `parseLocalDate`, which threw on `.slice` -- and a throw during render unmounts the whole card, not just the on-pace indicator. The wire type now admits null and the pace calculation is skipped when there is no timeline to measure against.
+- **`alembic upgrade head` works against an empty database.** It previously failed with `ValueError: No such index: 'ix_fy_summaries_fiscal_year'`, dropping an index that the creating migration never created. Not reachable in production, where only incremental upgrades run.
+- **Two features that returned HTTP 422.** FastAPI reads a field's source from the handler signature, so posting query parameters to handlers that declare a request body failed validation. Found by diffing the OpenAPI schema against the client; neither TypeScript nor CI could see it.
+- **`Refunds & Cashbacks` key drift** zeroed 54,700 of offsetting credits because a plural spelling never matched the singular key.
+- **Anomaly deviation percentages were 100x too small** -- the formatter applied no x100.
+- **Essential-category defaults were dead code**, because `"[]"` is a truthy string and so the fallback never ran.
+- **Cognitive complexity** reduced below the threshold in `spending_rule.py`, `fy_summaries.py`, `summaries.py`, `investmentUtils.ts`, and `CreditCardHealth.tsx`. The `CreditCardHealth` extraction was checked against 60,000 differential cases with zero divergence and 10 of 10 injected mutants caught; the `investmentUtils` split against 85,000 cases and 29 mutants.
+- **A React component defined inside its parent** was hoisted to module scope, which stops the subtree unmounting on every render.
 - `/home` now redirects to `/dashboard` instead of rendering the public landing page inside the authenticated workspace.
 - Demo mode returns an empty AI tool registry without making a backend request.
 - Sign-in provider failures remain distinguishable from a valid but unconfigured provider list.
 - Financial query failures no longer appear as empty ledgers, zero balances, or missing recurring items.
 - Mobile dashboard figures, table amounts, filters, and page actions no longer clip or overflow at 320px and 375px widths.
-- Calendar cells, settings controls, RSU vesting entries, upload feedback, and comparison tabs now remain readable and touch-friendly across phone, tablet, and pointer-coarse layouts.
-- SonarCloud now reports zero unresolved issues on the frontend consistency pull request.
+- Calendar cells, settings controls, RSU vesting entries, upload feedback, and comparison tabs stay readable and touch-friendly across phone, tablet, and pointer-coarse layouts.
 
 ### Security
 
 - CI and migration jobs now require committed Python lock data, reject source and project builds during dependency installation, and run tools without an implicit dependency sync.
 - GitHub Pages installs the frozen pnpm lockfile with dependency lifecycle scripts disabled.
 - Patched development dependency alerts for `shell-quote`, `brace-expansion`, `fast-uri`, `sharp`, and `serialize-javascript`; root and frontend pnpm audits now report zero vulnerabilities.
+
+### Developer experience
+
+- **Agent git worktrees no longer break the local gates.** A worktree checked out under `frontend/` gave typescript-eslint two tsconfig roots, so the pre-commit hook failed repo-wide with zero real lint problems, and vitest counted the duplicated suite (147 files / 1741 tests against CI's 116 / 1383). `eslint.config.js` now ignores `.claude` and vitest excludes `**/.claude/**`.
 
 ## 2.22.0 - 2026-07-09
 

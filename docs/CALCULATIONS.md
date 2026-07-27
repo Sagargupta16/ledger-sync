@@ -1,9 +1,9 @@
 # Calculations and Data Processing
 
-Calculation reference for Ledger Sync 2.22.0.
+Calculation reference for Ledger Sync 2.23.0.
 
 Verified against the backend analytics engine and frontend calculator modules
-on 2026-07-14.
+on 2026-07-27.
 
 ## Calculation Boundaries
 
@@ -296,6 +296,39 @@ daily_spending_rate =
 monthly_burn_rate =
   total expense / inclusive month span from first to last expense
 ```
+
+### Days of Buffering and Age of Money
+
+Both live in `frontend/src/lib/ageOfMoneyCalculator.ts` and feed Dashboard Quick
+Insights.
+
+```text
+net_liquid =
+  balances of accounts classified Cash, Bank Accounts, or Other Wallets
+  minus outstanding credit-card debt
+  minus overdrawn wallet balances
+  excluding parked deposits and accounts excluded in Settings
+
+days_of_buffering =
+  max(0, round(net_liquid / mean_daily_burn))
+```
+
+Two deliberate choices:
+
+- The numerator is NET, not gross. A gross pool tells someone who has to clear a
+  card this month that they hold money they do not have.
+- The denominator is the MEAN daily burn over the trailing 90 days, not the
+  median. "How long does my cash last" is a total-outflow question: rent, EMIs,
+  and annual premiums still land if income stops, and on right-skewed ledger data
+  a median denominator overstates the same pool several times over. The median is
+  still reported as a burn rate and never published as a days figure.
+
+`null` is returned when the window has no spending to rate against, and an
+underwater pool reads 0 days rather than a negative number.
+
+Age of Money is a FIFO match: each expense is drawn from the oldest unspent
+income bucket first, and the result is the amount-weighted average gap in days
+between when money arrived and when it left.
 
 ### Spending velocity
 

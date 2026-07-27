@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/alembic/**'
       - 'backend/src/ledger_sync/db/migrations/**'
       - 'backend/src/ledger_sync/db/models.py'
       - 'backend/src/ledger_sync/db/_models/**'
