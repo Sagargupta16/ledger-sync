@@ -40,11 +40,13 @@ jobs:
         # PEP 735) -- they are not extras, so --all-extras alone misses them.
         run: uv sync --locked --no-build --no-install-project --all-extras --group dev
 
+      # Lint the whole backend dir, matching `pnpm run lint:backend`, so CI can
+      # never pass on a tree where the documented local command fails.
       - name: Ruff lint
-        run: uv run --no-sync --locked --no-build ruff check src/ tests/
+        run: uv run --no-sync --locked --no-build ruff check .
 
       - name: Ruff format check
-        run: uv run --no-sync --locked --no-build ruff format --check src/ tests/
+        run: uv run --no-sync --locked --no-build ruff format --check .
 
       - name: Mypy
         run: uv run --no-sync --locked --no-build mypy src/

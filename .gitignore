@@ -50,6 +50,8 @@ coverage.xml
 *.sqlite
 *.sqlite3
 ledger_sync.db
+# Local pre-migration snapshots of the dev database (real financial data)
+*.db.bak*
 
 # Alembic
 alembic/versions/__pycache__/
@@ -146,6 +148,8 @@ nul
 # Temporary files
 *.tmp
 *.temp
+*.tmp.test.ts
+*.tmp.test.tsx
 *.swp
 *.swo
 .cache/
