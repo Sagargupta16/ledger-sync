@@ -17,39 +17,17 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from typing import TYPE_CHECKING
 
 from ledger_sync.api.calculations import get_income_facets
-from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction, TransactionType, User, UserPreferences
+from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
 
-# Fake bcrypt hash for test fixtures -- not a real credential.
-TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"  # noqa: S105
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
+    from sqlalchemy.orm import Session
 
-@pytest.fixture
-def facets_db() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    session = sessionmaker(bind=engine)()
-    yield session
-    session.close()
-
-
-def _make_user(session: Session, email: str) -> User:
-    user = User(
-        email=email,
-        hashed_password=TEST_BCRYPT_HASH,
-        full_name=email,
-        is_active=True,
-        is_verified=True,
-    )
-    session.add(user)
-    session.commit()
-    return user
+    from ledger_sync.db.models import User
 
 
 def _add(
@@ -86,23 +64,24 @@ def _by_key(response: dict) -> dict[str, dict]:
     return {f"{f['category']}::{f['subcategory']}": f for f in response["facets"]}
 
 
-def test_groups_income_by_category_and_subcategory(facets_db: Session) -> None:
-    user = _make_user(facets_db, "a@example.com")
-    _add(facets_db, user.id, "1", TransactionType.INCOME, "Salary", "Basic", "50000.00")
-    _add(facets_db, user.id, "2", TransactionType.INCOME, "Salary", "Basic", "50000.00")
-    _add(facets_db, user.id, "3", TransactionType.INCOME, "Salary", "Bonus", "10000.00")
+def test_groups_income_by_category_and_subcategory(
+    test_db_session: Session, test_user: User
+) -> None:
+    _add(test_db_session, test_user.id, "1", TransactionType.INCOME, "Salary", "Basic", "50000.00")
+    _add(test_db_session, test_user.id, "2", TransactionType.INCOME, "Salary", "Basic", "50000.00")
+    _add(test_db_session, test_user.id, "3", TransactionType.INCOME, "Salary", "Bonus", "10000.00")
     _add(
-        facets_db,
-        user.id,
+        test_db_session,
+        test_user.id,
         "4",
         TransactionType.INCOME,
         "Refunds & Cashbacks",
         "Deposit Return",
         "200.00",
     )
-    facets_db.commit()
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert set(facets) == {
         "Salary::Basic",
@@ -119,93 +98,91 @@ def test_groups_income_by_category_and_subcategory(facets_db: Session) -> None:
     assert facets["Refunds & Cashbacks::Deposit Return"]["count"] == 1
 
 
-def test_excludes_expenses_and_transfers(facets_db: Session) -> None:
-    user = _make_user(facets_db, "b@example.com")
-    _add(facets_db, user.id, "in", TransactionType.INCOME, "Salary", "Basic")
-    _add(facets_db, user.id, "out", TransactionType.EXPENSE, "Food", "Groceries")
-    _add(facets_db, user.id, "mv", TransactionType.TRANSFER, "Transfer", "Internal")
-    facets_db.commit()
+def test_excludes_expenses_and_transfers(test_db_session: Session, test_user: User) -> None:
+    _add(test_db_session, test_user.id, "in", TransactionType.INCOME, "Salary", "Basic")
+    _add(test_db_session, test_user.id, "out", TransactionType.EXPENSE, "Food", "Groceries")
+    _add(test_db_session, test_user.id, "mv", TransactionType.TRANSFER, "Transfer", "Internal")
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
-
-    assert set(facets) == {"Salary::Basic"}
-
-
-def test_is_user_scoped(facets_db: Session) -> None:
-    alice = _make_user(facets_db, "alice@example.com")
-    bob = _make_user(facets_db, "bob@example.com")
-    _add(facets_db, alice.id, "a1", TransactionType.INCOME, "Salary", "Basic")
-    _add(facets_db, bob.id, "b1", TransactionType.INCOME, "Freelance", "Consulting")
-    facets_db.commit()
-
-    facets = _by_key(get_income_facets(alice, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert set(facets) == {"Salary::Basic"}
 
 
-def test_excludes_soft_deleted(facets_db: Session) -> None:
-    user = _make_user(facets_db, "c@example.com")
-    _add(facets_db, user.id, "live", TransactionType.INCOME, "Salary", "Basic")
+def test_is_user_scoped(
+    test_db_session: Session, test_user: User, make_user: Callable[[str], User]
+) -> None:
+    other = make_user("other@example.com")
+    _add(test_db_session, test_user.id, "a1", TransactionType.INCOME, "Salary", "Basic")
+    _add(test_db_session, other.id, "b1", TransactionType.INCOME, "Freelance", "Consulting")
+    test_db_session.commit()
+
+    facets = _by_key(get_income_facets(test_user, test_db_session))
+
+    assert set(facets) == {"Salary::Basic"}
+
+
+def test_excludes_soft_deleted(test_db_session: Session, test_user: User) -> None:
+    _add(test_db_session, test_user.id, "live", TransactionType.INCOME, "Salary", "Basic")
     _add(
-        facets_db,
-        user.id,
+        test_db_session,
+        test_user.id,
         "dead",
         TransactionType.INCOME,
         "Ghost",
         "Removed",
         is_deleted=True,
     )
-    facets_db.commit()
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert set(facets) == {"Salary::Basic"}
 
 
-def test_honours_excluded_accounts(facets_db: Session) -> None:
-    user = _make_user(facets_db, "d@example.com")
-    facets_db.add(
-        UserPreferences(user_id=user.id, excluded_accounts=json.dumps(["Excluded Wallet"]))
+def test_honours_excluded_accounts(test_db_session: Session, test_user: User) -> None:
+    test_db_session.add(
+        UserPreferences(user_id=test_user.id, excluded_accounts=json.dumps(["Excluded Wallet"]))
     )
-    _add(facets_db, user.id, "keep", TransactionType.INCOME, "Salary", "Basic")
+    _add(test_db_session, test_user.id, "keep", TransactionType.INCOME, "Salary", "Basic")
     _add(
-        facets_db,
-        user.id,
+        test_db_session,
+        test_user.id,
         "drop",
         TransactionType.INCOME,
         "Gift",
         "Cash Gift",
         account="Excluded Wallet",
     )
-    facets_db.commit()
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert set(facets) == {"Salary::Basic"}
 
 
-def test_coalesces_null_subcategory_to_other(facets_db: Session) -> None:
+def test_coalesces_null_subcategory_to_other(test_db_session: Session, test_user: User) -> None:
     # The audit matches on "Category::Subcategory" strings built from these
     # labels, so they must agree with /categories/master's coalescing.
     # (``category`` is NOT NULL in the schema; only ``subcategory`` is
     # nullable, so only that side is exercisable here.)
-    user = _make_user(facets_db, "e@example.com")
-    _add(facets_db, user.id, "1", TransactionType.INCOME, "Salary", None)
-    _add(facets_db, user.id, "2", TransactionType.INCOME, "Salary", "Basic")
-    facets_db.commit()
+    _add(test_db_session, test_user.id, "1", TransactionType.INCOME, "Salary", None)
+    _add(test_db_session, test_user.id, "2", TransactionType.INCOME, "Salary", "Basic")
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert set(facets) == {"Salary::Other", "Salary::Basic"}
 
 
-def test_sign_flipped_correction_row_does_not_shrink_its_bucket(facets_db: Session) -> None:
+def test_sign_flipped_correction_row_does_not_shrink_its_bucket(
+    test_db_session: Session, test_user: User
+) -> None:
     # Income is stored positive; a negative correction row would otherwise
     # subtract from the bucket and understate the money at stake.
-    user = _make_user(facets_db, "f@example.com")
-    _add(facets_db, user.id, "1", TransactionType.INCOME, "Salary", "Basic", "-500.00")
-    facets_db.commit()
+    _add(test_db_session, test_user.id, "1", TransactionType.INCOME, "Salary", "Basic", "-500.00")
+    test_db_session.commit()
 
-    facets = _by_key(get_income_facets(user, facets_db))
+    facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert facets["Salary::Basic"]["total"] == 500.0

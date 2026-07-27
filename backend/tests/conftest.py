@@ -79,6 +79,25 @@ def test_db_session() -> Session:
 
 
 @pytest.fixture
+def make_user(test_db_session: Session):
+    """Factory for extra users on ``test_db_session`` (user-scoping tests)."""
+
+    def _make(email: str) -> User:
+        user = User(
+            email=email,
+            hashed_password=TEST_BCRYPT_HASH,
+            full_name=email,
+            is_active=True,
+            is_verified=True,
+        )
+        test_db_session.add(user)
+        test_db_session.commit()
+        return user
+
+    return _make
+
+
+@pytest.fixture
 def test_user(test_db_session: Session) -> User:
     """Create a test user for transaction ownership."""
     user = User(
