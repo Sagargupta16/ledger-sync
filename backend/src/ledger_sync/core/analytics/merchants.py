@@ -2,32 +2,22 @@
 
 from __future__ import annotations
 
-import re
+import json
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
-from statistics import mean
+from statistics import mean, median
 from typing import Any
 
 from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.analytics.merchant_extract import extract_merchant
 from ledger_sync.db.models import MerchantIntelligence, Transaction, TransactionType
 
-# Known merchant patterns -- compiled once and reused. We search, not match,
-# so a merchant name anywhere in the narration is found. UPI/NEFT narrations
-# rarely start with the merchant ("UPI/Swiggy/ref123", "Payment to Zomato"),
-# so the old ^-anchored form silently missed most real transactions.
-# Patterns use word boundaries to avoid "Uber" matching inside "UberEats".
-_MERCHANT_PATTERNS = [
-    re.compile(
-        r"\b(Uber|Ola|Rapido|Swiggy|Zomato|Amazon|Flipkart|BigBasket|Zepto|Blinkit|Dunzo)\b",
-        re.IGNORECASE,
-    ),
-    re.compile(r"\b(Netflix|Spotify|YouTube|Disney|Prime|Hotstar)\b", re.IGNORECASE),
-    re.compile(r"\b(Google|Apple|Microsoft|Adobe|AWS|Azure)\b", re.IGNORECASE),
-    re.compile(r"\b(HDFC|SBI|ICICI|Axis|Kotak)\b", re.IGNORECASE),
-]
+#: Cap on stored alias variations per merchant, so a descriptor merchant with
+#: hundreds of note spellings does not bloat the JSON column.
+_MAX_ALIASES = 25
 
 
 class MerchantsMixin(AnalyticsEngineBase):
@@ -46,23 +36,30 @@ class MerchantsMixin(AnalyticsEngineBase):
                 .all()
             )
 
-        merchants: dict[str, dict[str, Any]] = defaultdict(
+        # Keyed on (label, kind) so a descriptor that happens to spell a brand
+        # name -- an "Apple" fruit row versus real Apple Inc. purchases -- does
+        # not merge two unrelated buckets.
+        merchants: dict[tuple[str, str], dict[str, Any]] = defaultdict(
             lambda: {
                 "amounts": [],
                 "dates": [],
                 "categories": defaultdict(int),
                 "subcategories": defaultdict(int),
+                "aliases": defaultdict(int),
             },
         )
 
-        for txn in expenses:
-            merchant_name = self._extract_merchant_name(txn.note or "")
-            if merchant_name:
-                merchants[merchant_name]["amounts"].append(float(txn.amount))
-                merchants[merchant_name]["dates"].append(txn.date)
-                merchants[merchant_name]["categories"][txn.category] += 1
-                if txn.subcategory:
-                    merchants[merchant_name]["subcategories"][txn.subcategory] += 1
+        for txn in expenses or []:
+            extracted = extract_merchant(txn.note, txn.category)
+            if not extracted:
+                continue
+            entry = merchants[extracted]
+            entry["amounts"].append(float(txn.amount))
+            entry["dates"].append(txn.date)
+            entry["categories"][txn.category] += 1
+            entry["aliases"][" ".join((txn.note or "").split())] += 1
+            if txn.subcategory:
+                entry["subcategories"][txn.subcategory] += 1
 
         # Delete existing for this user and insert new
         del_stmt = delete(MerchantIntelligence)
@@ -71,10 +68,10 @@ class MerchantsMixin(AnalyticsEngineBase):
         self.db.execute(del_stmt)
 
         count = 0
-        for merchant_name, data in merchants.items():
+        for (merchant_name, label_kind), data in merchants.items():
             if len(data["amounts"]) < 2:  # Skip one-off merchants
                 continue
-            merchant = self._build_merchant_record(merchant_name, data)
+            merchant = self._build_merchant_record(merchant_name, label_kind, data)
             self.db.add(merchant)
             count += 1
 
@@ -83,6 +80,7 @@ class MerchantsMixin(AnalyticsEngineBase):
     def _build_merchant_record(
         self,
         merchant_name: str,
+        label_kind: str,
         data: dict[str, Any],
     ) -> MerchantIntelligence:
         """Build a MerchantIntelligence ORM instance from aggregated data."""
@@ -106,18 +104,26 @@ class MerchantsMixin(AnalyticsEngineBase):
         else:
             months_active = 1
 
-        # Calculate average days between transactions
+        # Gap statistics use the MEDIAN, not the mean: the mean of consecutive
+        # gaps telescopes to span/(n-1), so a single long dormant stretch used
+        # to push a genuinely monthly merchant out of the recurring band.
         avg_days = 0.0
+        median_days = 0.0
         if len(dates) >= 2:
             day_diffs = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
-            avg_days = mean(day_diffs) if day_diffs else 0
+            if day_diffs:
+                avg_days = mean(day_diffs)
+                median_days = median(day_diffs)
 
-        # Detect if recurring (regular interval +/- 5 days)
-        is_recurring = len(amounts) >= 3 and 0 < avg_days < 45
+        is_recurring = len(amounts) >= 3 and 0 < median_days < 45
+
+        aliases = sorted(data["aliases"].items(), key=lambda kv: -kv[1])[:_MAX_ALIASES]
 
         return MerchantIntelligence(
             user_id=self.user_id,
             merchant_name=merchant_name,
+            merchant_aliases=json.dumps([alias for alias, _count in aliases]),
+            label_kind=label_kind,
             primary_category=primary_cat,
             primary_subcategory=primary_subcat,
             total_spent=Decimal(str(sum(amounts))),
@@ -130,24 +136,3 @@ class MerchantsMixin(AnalyticsEngineBase):
             is_recurring=is_recurring,
             last_calculated=datetime.now(UTC),
         )
-
-    def _extract_merchant_name(self, note: str) -> str | None:
-        """Extract merchant name from a transaction note."""
-        if not note:
-            return None
-
-        note = note.strip()
-
-        for pattern in _MERCHANT_PATTERNS:
-            # search, not match -- merchant name can appear anywhere in note.
-            m = pattern.search(note)
-            if m:
-                return m.group(1).title()
-
-        # Default: first word if it looks like a merchant
-        words = note.split()
-        first_word = words[0] if words else None
-        if first_word and len(first_word) > 2 and first_word[0].isupper():
-            return first_word
-
-        return None

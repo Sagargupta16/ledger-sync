@@ -17,9 +17,11 @@ import {
   Goal,
   Flame,
   AlertTriangle,
+  HeartPulse,
   Landmark,
   Receipt,
   Compass,
+  Store,
   LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -60,6 +62,7 @@ const SECTIONS: readonly MoreSection[] = [
     title: 'Analytics',
     items: [
       { to: ROUTES.SPENDING_ANALYSIS, label: 'Expense', icon: BarChart3, color: 'text-app-red' },
+      { to: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchants', icon: Store, color: 'text-app-orange' },
       { to: ROUTES.INCOME_ANALYSIS, label: 'Income', icon: CircleDollarSign, color: 'text-app-green' },
       { to: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows, color: 'text-app-blue' },
       { to: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays, color: 'text-app-purple' },
@@ -89,6 +92,7 @@ const SECTIONS: readonly MoreSection[] = [
       { to: ROUTES.GOALS, label: 'Goals', icon: Goal, color: 'text-app-purple' },
       { to: ROUTES.FIRE_CALCULATOR, label: 'FIRE', icon: Flame, color: 'text-app-orange' },
       { to: ROUTES.ANOMALIES, label: 'Anomalies', icon: AlertTriangle, color: 'text-app-red' },
+      { to: ROUTES.DATA_HEALTH, label: 'Data Health', icon: HeartPulse, color: 'text-app-teal' },
     ],
   },
   {
@@ -129,7 +133,11 @@ export default function MorePage() {
   const navigate = useNavigate()
 
   const handleSignOut = () => {
-    logout.mutate(undefined, { onSuccess: () => navigate('/') })
+    // Block body + `void`: the mutate callback must return void, and navigate
+    // is typed `void | Promise<void>` (returns undefined under BrowserRouter).
+    // A failed logout still clears client state via useLogout's own onError,
+    // so nothing is silenced here.
+    logout.mutate(undefined, { onSuccess: () => { void navigate('/') } })
   }
 
   return (

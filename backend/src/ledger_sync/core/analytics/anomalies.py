@@ -52,6 +52,7 @@ from typing import Any
 from sqlalchemy import delete, func
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     closed_accounts_for,
@@ -190,7 +191,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
     @staticmethod
     def _tukey_upper_fence(values: list[float], k: float = 1.5) -> float | None:
         """Q3 + k * IQR. Returns None if there are too few values for Q1/Q3."""
-        if len(values) < 4:  # noqa: PLR2004 -- quantile needs >=4 samples
+        if len(values) < 4:  # quantile needs >=4 samples
             return None
         q1, _q2, q3 = quantiles(values, n=4)
         return q3 + k * (q3 - q1)
@@ -219,10 +220,18 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
         )
+        # Classified realised losses are not spending, so they must not enter
+        # either side of this comparison. Excluding them affects the detector
+        # TWICE: the month under test stops being flagged as an overspending
+        # month (a bad trade is not overspending, and the "reduce your spending"
+        # framing is advice the user cannot act on), and every trailing baseline
+        # median/MAD drops them too -- a loss left in the window raises the bar
+        # and can mask a genuine overspending month later.
+        monthly_query = self._exclude_capital_losses(monthly_query)
         monthly_query = apply_excluded_accounts_filter(monthly_query, self.excluded_accounts)
         monthly_expenses = sorted(monthly_query.group_by(period_col).all(), key=lambda m: m.period)
 
-        if len(monthly_expenses) <= 3:  # noqa: PLR2004 -- documented warmup
+        if len(monthly_expenses) <= 3:  # documented warmup
             return
 
         # Rolling baseline: judge each month against the trailing 12 months
@@ -276,12 +285,12 @@ class AnomaliesMixin(AnalyticsEngineBase):
         if use_iqr:
             if iqr_fence is None or total <= iqr_fence:
                 return None
-            return "high" if total > med * 2.5 else "medium"  # noqa: PLR2004
+            return "high" if total > med * 2.5 else "medium"
         m_z = _MZ_CONSTANT * (total - med) / mad
         if m_z <= z_cutoff:
             return None
         # Grade by how far past the cutoff we are, not raw deviation.
-        return "high" if m_z >= z_cutoff * 1.5 else "medium"  # noqa: PLR2004
+        return "high" if m_z >= z_cutoff * 1.5 else "medium"
 
     # ─── large-transaction detector (rolling window) ───────────────────────
 
@@ -327,9 +336,16 @@ class AnomaliesMixin(AnalyticsEngineBase):
         """
         sym = self._currency_symbol
 
+        # Same exclusion as the monthly detector. A realised loss is typically
+        # the largest single "expense" row a ledger carries, so leaving it in
+        # produced a high-severity "unusually large transaction" alert for a bad
+        # trade the user already knows about, AND inflated its category's
+        # rolling median so subsequent genuine outliers in that category slipped
+        # under the 3x ratio gate.
         expense_txns = (
-            self._user_transaction_query()
-            .filter(Transaction.type == TransactionType.EXPENSE)
+            self._exclude_capital_losses(
+                self._user_transaction_query().filter(Transaction.type == TransactionType.EXPENSE)
+            )
             .order_by(Transaction.date.asc())
             .all()
         )
@@ -460,9 +476,19 @@ class AnomaliesMixin(AnalyticsEngineBase):
         if not budgets:
             return 0
 
-        # Get current month's spending by category
+        # "Current month" is an IST month, because that is what
+        # ``fmt_year_month(Transaction.date)`` below produces -- the date column
+        # holds naive IST wall-clock values. Deriving the key from
+        # ``datetime.now(UTC)`` was wrong for the first 5.5 hours of every
+        # month: at 01:30 IST on 1 August it is still 31 July in UTC, so budget
+        # tracking read July's spend as the current month and could key a
+        # BUDGET_EXCEEDED anomaly to the month that had just ended.
+        #
+        # ``now`` stays UTC: it only feeds the audit columns
+        # (``budget.updated_at``, ``detected_at``), whose stored values are
+        # naive UTC throughout the schema.
+        current_period = ledger_now().strftime("%Y-%m")
         now = datetime.now(UTC)
-        current_period = now.strftime("%Y-%m")
 
         spending_query = (
             self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
@@ -471,6 +497,12 @@ class AnomaliesMixin(AnalyticsEngineBase):
             .filter(Transaction.type == TransactionType.EXPENSE)
             .filter(fmt_year_month(Transaction.date) == current_period)
         )
+        # A realised loss must not consume a spending budget. Left in, a single
+        # loss booked to a budgeted category blows that budget for the month and
+        # fires a BUDGET_EXCEEDED anomaly, while ``budget.current_month_spent``
+        # and ``current_month_remaining`` -- persisted, and read straight into the
+        # budget UI -- report money the user never spent.
+        spending_query = self._exclude_capital_losses(spending_query)
         spending_query = apply_excluded_accounts_filter(spending_query, self.excluded_accounts)
         current_spending = spending_query.group_by(Transaction.category).all()
         spending_map = {c.category: float(c.total) for c in current_spending}
@@ -500,7 +532,7 @@ class AnomaliesMixin(AnalyticsEngineBase):
             budget.updated_at = now
 
             # Check for budget exceeded anomaly
-            if budget.current_month_pct > 100 and current_period not in reviewed_budget_periods:  # noqa: PLR2004
+            if budget.current_month_pct > 100 and current_period not in reviewed_budget_periods:
                 anomaly = Anomaly(
                     user_id=self.user_id,
                     anomaly_type=AnomalyType.BUDGET_EXCEEDED,

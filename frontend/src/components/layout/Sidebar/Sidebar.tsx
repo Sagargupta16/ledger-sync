@@ -56,7 +56,12 @@ export default function Sidebar() {
 
   const { data: budgets = [] } = useBudgets({ active_only: true })
   const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
-  const { data: recurring = [] } = useRecurringTransactions({ active_only: true })
+  // The Bill Calendar badge counts bills due in 7 days, so it must match what
+  // that page plots: commitments only, not habit repeats.
+  const { data: recurring = [] } = useRecurringTransactions({
+    active_only: true,
+    pattern_kind: 'commitment',
+  })
 
   const badgeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -94,7 +99,11 @@ export default function Sidebar() {
   }, [])
 
   const handleLogout = () => {
-    logout.mutate(undefined, { onSuccess: () => navigate('/') })
+    // Block body + `void`: the mutate callback must return void, and navigate
+    // is typed `void | Promise<void>` (returns undefined under BrowserRouter).
+    // useLogout clears client state in both onSuccess and onError, so a failed
+    // logout is not silently dropped here.
+    logout.mutate(undefined, { onSuccess: () => { void navigate('/') } })
   }
 
   const displayUser = isDemoMode

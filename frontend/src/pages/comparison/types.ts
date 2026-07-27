@@ -9,7 +9,19 @@ export interface PeriodSummary {
   transactions: number
   /** Inclusive number of calendar days the period spans (for daily averages). */
   days: number
+  /**
+   * True when this pair was truncated because period B is still running. Totals
+   * are then partial-vs-partial: comparable to each other, not to a full period.
+   */
+  isPartial: boolean
   categories: Record<string, { income: number; expense: number }>
+}
+
+/** The in-progress period a comparison was truncated to, for on-screen disclosure. */
+export interface PartialPeriod {
+  label: string
+  daysElapsed: number
+  daysTotal: number
 }
 
 export interface CategoryDelta {

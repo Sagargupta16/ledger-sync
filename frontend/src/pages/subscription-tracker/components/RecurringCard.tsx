@@ -1,5 +1,17 @@
 import { useState } from 'react'
-import { Trash2, Pencil, Check, X, Power, PowerOff, RefreshCw, Calendar } from 'lucide-react'
+import {
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Calendar,
+  CheckCircle2,
+  Receipt,
+  ShoppingBag,
+} from 'lucide-react'
 
 import { Button, Input, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
@@ -8,13 +20,22 @@ import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { FREQUENCY_OPTIONS } from '../constants'
 import { toMonthlyAmount, capitalize, formatDate } from '../helpers'
 
+interface RecurringCardPatch {
+  pattern_name?: string
+  frequency?: string
+  expected_amount?: number
+  is_active?: boolean
+  is_confirmed?: boolean
+  pattern_kind?: string
+}
+
 export function RecurringCard({
   item,
   onUpdate,
   onDelete,
 }: Readonly<{
   item: RecurringTransaction
-  onUpdate: (patch: { pattern_name?: string; frequency?: string; expected_amount?: number; is_active?: boolean }) => void
+  onUpdate: (patch: RecurringCardPatch) => void
   onDelete: () => void
 }>) {
   const [editing, setEditing] = useState(false)
@@ -24,6 +45,7 @@ export function RecurringCard({
 
   const monthly = toMonthlyAmount(item.expected_amount, item.frequency)
   const isIncome = item.type === 'Income'
+  const isHabit = item.pattern_kind === 'habit'
 
   const saveEdit = () => {
     const amt = Number(editAmt)
@@ -112,6 +134,19 @@ export function RecurringCard({
                   Paused
                 </span>
               )}
+              {isHabit && (
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--overlay-5)] text-text-tertiary">
+                  Not a bill
+                </span>
+              )}
+              {!item.is_confirmed && !isHabit && (
+                <span
+                  className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-yellow/10 text-app-yellow"
+                  title={`Detected from ${item.occurrences} matching transactions (${Math.round(item.confidence)}% confidence)`}
+                >
+                  Detected
+                </span>
+              )}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary">
               {item.category && <span>{item.category}</span>}
@@ -138,6 +173,39 @@ export function RecurringCard({
             </p>
           </div>
           <div className="flex items-center gap-0.5">
+            {!item.is_confirmed && !isHabit && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                onClick={() => onUpdate({ is_confirmed: true })}
+                title="Confirm this is a real commitment"
+                aria-label="Confirm recurring item"
+                className="text-app-green hover:bg-app-green/10"
+              />
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              icon={
+                isHabit
+                  ? <Receipt className="h-3.5 w-3.5" />
+                  : <ShoppingBag className="h-3.5 w-3.5" />
+              }
+              onClick={() =>
+                onUpdate({
+                  pattern_kind: isHabit ? 'commitment' : 'habit',
+                  // Reclassifying is a deliberate judgement, so it counts as
+                  // confirming: the detector must not overwrite it next refresh.
+                  is_confirmed: true,
+                })
+              }
+              title={isHabit ? 'Treat as a bill (count in fixed costs)' : 'Not a bill (exclude from fixed costs)'}
+              aria-label={isHabit ? 'Treat as a bill' : 'Mark as not a bill'}
+              className="text-text-tertiary hover:text-foreground"
+            />
             <Button
               type="button"
               variant="ghost"

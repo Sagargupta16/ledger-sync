@@ -4,6 +4,7 @@ import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import LoadingSkeleton, { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
@@ -22,7 +23,7 @@ export default function ComparisonPage() {
     effectiveMonthA, effectiveMonthB,
     yearA, yearB, fyA, fyB,
     setMonthA, setMonthB, setYearA, setYearB, setFyA, setFyB,
-    periodA, periodB,
+    periodA, periodB, partialPeriod,
     expenseDeltas, incomeDeltas,
     distributionA, distributionB,
     insights,
@@ -124,6 +125,15 @@ export default function ComparisonPage() {
           />
         </div>
       </motion.div>
+
+      {partialPeriod && (
+        <PartialPeriodNotice
+          label={partialPeriod.label}
+          daysElapsed={partialPeriod.daysElapsed}
+          daysTotal={partialPeriod.daysTotal}
+          treatment={`Both periods are cut to the first ${partialPeriod.daysElapsed} days so the comparison is like-for-like.`}
+        />
+      )}
 
       {/* KPI Overview */}
       <AnimatePresence mode="wait">

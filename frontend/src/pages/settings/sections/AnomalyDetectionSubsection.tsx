@@ -1,11 +1,28 @@
 /**
  * Anomaly Detection sub-section within Advanced settings.
+ *
+ * Only `anomaly_expense_threshold` is here, because it is the only anomaly
+ * preference the detection engine reads: `core/analytics/base.py` exposes it and
+ * `core/analytics/anomalies.py` converts it into the modified-Z cutoff.
+ *
+ * Two controls were removed rather than completed:
+ *
+ *  - "Enabled Types" (an `anomaly_types_enabled` checkbox grid). Nothing under
+ *    `backend/src/ledger_sync/core/` reads that field -- only
+ *    `api/preferences.py` and `api/preferences_helpers.py`, which persist it and
+ *    echo it back -- so `_detect_anomalies()` ran every detector regardless of
+ *    what was ticked. It also listed four of the enum's seven members, so the
+ *    tempting fix was to add three more checkboxes that equally do nothing.
+ *  - "Auto-dismiss recurring anomalies" (`auto_dismiss_recurring_anomalies`),
+ *    which has no reader either.
+ *
+ * Both columns still exist and are still round-tripped by the save call in
+ * `AnomalyDetectionPanel`, so wiring them up server-side loses no stored data.
  */
 
-import { AlertTriangle, Check } from 'lucide-react'
-import { ANOMALY_TYPES } from '../types'
+import { AlertTriangle } from 'lucide-react'
 import type { LocalPrefs, LocalPrefKey } from '../types'
-import { FieldLabel, FieldLegend, Toggle } from '../sectionPrimitives'
+import { FieldLabel } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 
 interface Props {
@@ -17,16 +34,6 @@ export default function AnomalyDetectionSubsection({
   localPrefs,
   updateLocalPref,
 }: Readonly<Props>) {
-  const toggleAnomalyType = (type: string) => {
-    const enabled = localPrefs.anomaly_types_enabled.includes(type)
-    updateLocalPref(
-      'anomaly_types_enabled',
-      enabled
-        ? localPrefs.anomaly_types_enabled.filter((t) => t !== type)
-        : [...localPrefs.anomaly_types_enabled, type],
-    )
-  }
-
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -49,53 +56,11 @@ export default function AnomalyDetectionSubsection({
             }
             className={inputClass}
           />
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Lower flags more months as unusually high. Applies to the high-expense and
+            large-transaction detectors.
+          </p>
         </div>
-        <div>
-          <FieldLegend>Enabled Types</FieldLegend>
-          <div className="space-y-1.5">
-            {ANOMALY_TYPES.map((type) => {
-              const isEnabled = localPrefs.anomaly_types_enabled.includes(type.value)
-              const controlId = `anomaly-type-${type.value}`
-              return (
-                <label
-                  key={type.value}
-                  htmlFor={controlId}
-                  className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10"
-                >
-                  <input
-                    id={controlId}
-                    type="checkbox"
-                    checked={isEnabled}
-                    onChange={() => toggleAnomalyType(type.value)}
-                    className="sr-only"
-                  />
-                  <span
-                    aria-hidden="true"
-                    className={`flex size-4 items-center justify-center rounded transition-colors ${
-                      isEnabled
-                        ? 'bg-primary text-on-accent'
-                        : 'bg-[var(--overlay-2)] border border-border'
-                    }`}
-                  >
-                    {isEnabled && <Check className="w-3 h-3" />}
-                  </span>
-                  <span className="text-sm text-foreground">{type.label}</span>
-                </label>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-4">
-        <FieldLabel htmlFor="auto-dismiss-recurring-anomalies">
-          Auto-dismiss recurring anomalies
-        </FieldLabel>
-        <Toggle
-          id="auto-dismiss-recurring-anomalies"
-          aria-label="Auto-dismiss recurring anomalies"
-          checked={localPrefs.auto_dismiss_recurring_anomalies}
-          onChange={(val) => updateLocalPref('auto_dismiss_recurring_anomalies', val)}
-        />
       </div>
     </div>
   )

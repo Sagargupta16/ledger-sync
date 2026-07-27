@@ -81,7 +81,7 @@ export function useSettingsState() {
 
   // Derived data
   const accounts = useMemo(() => {
-    const acc = balanceData?.accounts || {}
+    const acc = balanceData?.accounts ?? {}
     return Object.keys(acc)
       .filter((name) => acc[name].balance !== 0)
       .sort((a, b) => a.localeCompare(b))
@@ -274,7 +274,9 @@ export function useSettingsState() {
         if (!cancelled) setClassificationsLoading(false)
       }
     }
-    load()
+    // `load` catches its own failure into classificationsError, so it never
+    // rejects; `void` marks the intentional fire-and-forget in the effect.
+    void load()
     return () => { cancelled = true }
   }, [accounts, balanceData, reloadToken])
 
@@ -304,7 +306,9 @@ export function useSettingsState() {
         if (!cancelled) setRulesLoading(false)
       }
     }
-    load()
+    // `load` catches its own failure into rulesError, so it never rejects;
+    // `void` marks the intentional fire-and-forget in the effect.
+    void load()
     return () => { cancelled = true }
   }, [reloadToken])
 
@@ -358,12 +362,16 @@ export function useSettingsState() {
       toast.success(`Updated ${res.updated} of ${res.matched} matching transactions`)
       // Retro apply changes categories AND transaction ids, so everything
       // that reads transactions or baked-in analytics must refetch.
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
-      queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
-      queryClient.invalidateQueries({ queryKey: ['analytics'] })
-      queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
-      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      // `void`: invalidateQueries never rejects (query-core swallows refetch
+      // errors), and each refetched query renders its own error state. The
+      // applyRules call above is the failure path that matters, and it is
+      // already awaited inside try/catch -> toast.error below.
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      void queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
+      void queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
+      void queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      void queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+      void queryClient.invalidateQueries({ queryKey: ['calculations'] })
     } catch {
       toast.error('Failed to apply rules')
     } finally {

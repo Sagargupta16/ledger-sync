@@ -12,6 +12,7 @@ import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { savingsRatePercentOr } from '@/lib/savingsRate'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useBudgets, useGoals } from '@/hooks/api/useAnalyticsV2'
 
@@ -25,6 +26,10 @@ import { useBudgets, useGoals } from '@/hooks/api/useAnalyticsV2'
  * configurable widget board; Overview is the fixed at-a-glance summary.
  */
 export default function OverviewPage() {
+  // react-router types `navigate` as `void | Promise<void>`; under BrowserRouter
+  // (see App.tsx) it returns undefined, and nothing here awaits the transition,
+  // so `void navigate(...)` below is an honest fire-and-forget, not a swallowed
+  // rejection.
   const navigate = useNavigate()
   const {
     filteredTotals, isLoading, isError, retry,
@@ -40,7 +45,9 @@ export default function OverviewPage() {
   const income = Number(filteredTotals?.total_income ?? 0)
   const expenses = Math.abs(Number(filteredTotals?.total_expenses ?? 0))
   const net = income - expenses
-  const savingsRate = income > 0 ? (net / income) * 100 : 0
+  // The tile below always renders a number, so it opts into the 0 fallback
+  // explicitly rather than re-deciding the no-income branch. See lib/savingsRate.
+  const savingsRate = savingsRatePercentOr({ income, expense: expenses })
 
   const atRiskBudgets = useMemo(
     () => budgets
@@ -95,28 +102,34 @@ export default function OverviewPage() {
     <PageContainer>
       <PageHeader title="Overview" subtitle="Your complete financial picture" />
 
-      {/* Headline KPIs */}
+      {/* Headline KPIs.
+          The delta is the last two COMPLETE months (see `useDashboardMetrics`),
+          which on any day after the 1st is NOT "this month vs last month" -- and
+          the value it sits beside is the whole selected range, not one month. So
+          the label is the hook's own `momChanges.label` ("Jun vs May"), the same
+          string QuickInsights renders, rather than a hardcoded claim that goes
+          stale the moment the calendar rolls over. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <MetricCard
           title="Income" value={formatCurrency(income)} icon={TrendingUp} color="green"
-          change={momChanges?.income} changeLabel="vs last month"
-          onClick={() => navigate(ROUTES.INCOME_ANALYSIS)}
+          change={momChanges?.income} changeLabel={momChanges?.label}
+          onClick={() => void navigate(ROUTES.INCOME_ANALYSIS)}
         />
         <MetricCard
           title="Spending" value={formatCurrency(expenses)} icon={TrendingDown} color="red"
-          change={momChanges?.expense} changeLabel="vs last month" invertChange
-          onClick={() => navigate(ROUTES.SPENDING_ANALYSIS)}
+          change={momChanges?.expense} changeLabel={momChanges?.label} invertChange
+          onClick={() => void navigate(ROUTES.SPENDING_ANALYSIS)}
         />
         <MetricCard
           title="Net Saved" value={formatCurrency(net)} icon={PiggyBank}
           color={net >= 0 ? 'purple' : 'red'}
           subtitle={`${formatPercent(savingsRate)} savings rate`}
-          onClick={() => navigate(ROUTES.INCOME_EXPENSE_FLOW)}
+          onClick={() => void navigate(ROUTES.INCOME_EXPENSE_FLOW)}
         />
         <MetricCard
           title="Net Worth" value="View" icon={Wallet} color="blue"
           subtitle="Assets less liabilities"
-          onClick={() => navigate(ROUTES.NET_WORTH)}
+          onClick={() => void navigate(ROUTES.NET_WORTH)}
         />
       </div>
 
@@ -153,7 +166,7 @@ export default function OverviewPage() {
         {/* Budgets at risk */}
         <button
           type="button"
-          onClick={() => navigate(ROUTES.BUDGETS)}
+          onClick={() => void navigate(ROUTES.BUDGETS)}
           aria-label="Open budget details"
           className="p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40"
         >
@@ -186,7 +199,7 @@ export default function OverviewPage() {
       {/* Goals progress */}
       <button
         type="button"
-        onClick={() => navigate(ROUTES.GOALS)}
+        onClick={() => void navigate(ROUTES.GOALS)}
         aria-label="Open financial goals"
         className="w-full p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40"
       >

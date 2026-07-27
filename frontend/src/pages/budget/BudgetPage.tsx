@@ -6,12 +6,12 @@ import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { Money, PageContainer, PageHeader } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
 import type { SpendingBucket, SpendingRuleResponse } from '@/services/api/analyticsV2'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import { BucketCard } from './components/BucketCard'
 import { CategoryTable } from './components/CategoryTable'
@@ -26,9 +26,15 @@ import { toPeriodRange } from './budgetUtils'
  * breaks down every category the user spent on in the selected period,
  * grouped by bucket, with monthly-average calculated over the period length.
  *
- * The visual model follows Elizabeth Warren's *All Your Worth*: savings is
- * income - expenses (the header savings card), while the table's Savings rows
- * show what actually landed in investment accounts (SIP, PPF, EPF, etc.).
+ * The bucket model follows Elizabeth Warren's *All Your Worth* for Needs and
+ * Wants. Savings is the NET CHANGE IN THE INVESTMENT PERIMETER (allocations into
+ * SIP/PPF/EPF/NPS/stocks, minus redemptions out of them) -- the header card and
+ * the table's Savings rows are the same number, deliberately.
+ *
+ * It is NOT income minus expenses. Money that merely stayed in a bank account
+ * was never allocated to anything, so counting it as saved reported an intention
+ * as an outcome. The residual now has its own name, `unallocated_amount`, so the
+ * three buckets plus unallocated add up to income exactly.
  */
 export default function BudgetPage() {
   const [period, setPeriod] = useState<PresetPeriod>('last_12_months')
@@ -141,7 +147,12 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
     {
       bucket: 'savings',
       title: 'Savings',
-      description: 'Income minus Expenses',
+      // The caption has to state the definition, because the intuitive reading
+      // (income minus expenses) is a DIFFERENT and larger number: on the real
+      // ledger for FY2025-26 the perimeter change is 578,428.79 while income
+      // minus expenses is 1,182,355.68. Whatever stayed in the bank shows up as
+      // Unallocated instead.
+      description: 'Net moved into investments',
       icon: PiggyBank,
       kind: 'floor',
     },
@@ -171,6 +182,26 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
           </div>
         </div>
       </motion.div>
+
+      {/* The residual. Without it the three cards below visibly fail to add to
+          100% of income and the user has no name for the gap -- whatever was
+          neither spent nor moved into the investment perimeter. */}
+      {hasIncome && (
+        <motion.div variants={fadeUpItem}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 glass rounded-2xl border border-border px-4 py-3 text-sm">
+            <div className="text-muted-foreground">
+              <span className="font-medium text-foreground">Unallocated</span>
+              {' -- income that stayed put: neither spent nor invested'}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <Money value={data.unallocated_amount} width="md" bold />
+              <span className="text-muted-foreground">
+                {formatPercent(data.unallocated_pct_of_income)} of income
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {!hasIncome && (
         <motion.div variants={fadeUpItem}>

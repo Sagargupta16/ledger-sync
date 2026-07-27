@@ -97,7 +97,7 @@ export function useChat(
     staleTime: Infinity,
   })
 
-  const send = useCallback(
+  const sendAsync = useCallback(
     async (content: string) => {
       if (isStreaming) return
       // BYOK requires a configured provider+model; app mode provides its own.
@@ -166,6 +166,12 @@ export function useChat(
     },
     [mode, provider, model, region, isStreaming, messages, tools],
   )
+
+  // The public `send` is declared void-returning (ChatPanel's onSend prop), so
+  // hand callers a void wrapper instead of a promise they would drop on the
+  // floor. `sendAsync` catches every failure into `error`, which ChatPanel
+  // renders, so nothing is silenced by not awaiting it.
+  const send = useCallback((content: string) => void sendAsync(content), [sendAsync])
 
   const stop = useCallback(() => {
     abortRef.current?.abort()

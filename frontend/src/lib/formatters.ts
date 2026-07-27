@@ -6,34 +6,54 @@
  * - Exchange rate (for conversion from base currency)
  *
  * Usage:
- * - formatCurrency(value)        -> "$1,502.34" (2 decimal places, for display)
- * - formatCurrencyCompact(value) -> "$1,502" (rounded, for charts/cards)
+ * - formatCurrency(value)        -> "$1,502" / "$12.50" (exact, drops only ".00")
+ * - formatCurrencyCompact(value) -> "$1,502" (always rounded, for charts/cards)
  * - formatCurrencyShort(value)   -> "$1.5K" (abbreviated, for chart axes)
  */
 
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { getCurrencyMeta, BASE_CURRENCY } from '@/constants/currencies'
+import { getCurrencyMeta, BASE_CURRENCY, effectiveCurrencyCode } from '@/constants/currencies'
 
 // Get current preferences (for non-React contexts)
 const getDisplayCurrency = () => usePreferencesStore.getState().displayCurrency
 const getExchangeRate = () => usePreferencesStore.getState().exchangeRate
 
 /**
- * Convert an amount from base currency (INR) to the display currency.
- * Returns the original value if display currency equals base currency or no rate available.
+ * The currency these formatters will actually render in.
+ *
+ * Not simply `displayCurrency`: the symbol and the number MUST be decided from
+ * the same fact. Previously `convertAmount` returned the value unconverted when
+ * no rate was held while `getActiveCurrencyMeta` still applied the selected
+ * currency's symbol, so 100,000 INR rendered as "AED 100,000" -- a ~23x lie,
+ * silent, with no indicator. Now an unpriceable currency falls back to the base
+ * currency for BOTH the arithmetic and the symbol, so the worst case is an
+ * honest rupee figure rather than a mislabelled one.
+ */
+const getRenderCurrency = (): string =>
+  effectiveCurrencyCode(getDisplayCurrency(), getExchangeRate())
+
+/**
+ * Convert an amount from base currency (INR) to the render currency.
+ *
+ * Returns the value untouched exactly when the render currency IS the base
+ * currency -- which `getRenderCurrency` guarantees is also when the symbol says
+ * rupees. The old "no rate, so return it unconverted" branch is gone: that was
+ * the money-lie primitive, because it made "unconverted" and "labelled foreign"
+ * simultaneously possible.
  */
 const convertAmount = (value: number): number => {
-  const displayCurrency = getDisplayCurrency()
-  if (displayCurrency === BASE_CURRENCY) return value
+  const renderCurrency = getRenderCurrency()
+  if (renderCurrency === BASE_CURRENCY) return value
   const rate = getExchangeRate()
-  if (rate == null) return value
-  return value * rate
+  // Non-null and usable by construction: getRenderCurrency only leaves the base
+  // currency behind when the rate is a positive finite number.
+  return rate == null ? value : value * rate
 }
 
 /**
- * Get the CurrencyMeta for the current display currency.
+ * Get the CurrencyMeta for the currency being rendered.
  */
-const getActiveCurrencyMeta = () => getCurrencyMeta(getDisplayCurrency())
+const getActiveCurrencyMeta = () => getCurrencyMeta(getRenderCurrency())
 
 /**
  * Active display locale (e.g. 'en-IN', 'en-US', 'de-DE') derived from the user's
@@ -64,28 +84,69 @@ const addCurrencySymbol = (formatted: string): string => {
 }
 
 /**
- * Format currency with 2 decimal places - use for detailed displays, tables, tooltips
+ * How many fractional digits `value` actually needs.
+ *
+ * Returns the currency's `decimals` whenever the amount really has a non-zero
+ * fraction at that precision, and 0 when it does not -- so "₹80,66,209.00"
+ * renders as "₹80,66,209" while "₹12.50" keeps its paise. A currency declaring
+ * `decimals: 0` (JPY, KRW) has no sub-unit and always gets 0.
+ *
+ * There is deliberately NO magnitude threshold here. Dropping the fraction of a
+ * large amount would make displayed money stop adding up: a day header or a KPI
+ * total and the rows underneath it are both rendered through this function, so
+ * rounding one side and not the other produces visible arithmetic errors (an
+ * exact 1,16,505.14 month total against category rows that display a 1,16,505.69
+ * sum). Trailing ".00" is noise; a real fraction is data.
+ */
+const significantFractionDigits = (value: number, decimals: number): number => {
+  if (decimals <= 0) return 0
+  const scale = 10 ** decimals
+  // Round on the absolute value so a half-sub-unit is detected symmetrically
+  // for both signs (Math.round breaks ties toward +Infinity).
+  const hasFraction = Math.round(Math.abs(value) * scale) % scale !== 0
+  return hasFraction ? decimals : 0
+}
+
+/**
+ * Collapse a value that rounds away to nothing at `digits` precision onto a
+ * plain 0. A float-sum residue such as -1e-9 would otherwise be rendered by
+ * Intl as a signed "-₹0", so one page could show zero two different ways.
+ */
+const collapseNegativeZero = (value: number, digits: number): number =>
+  Math.round(Math.abs(value) * 10 ** digits) === 0 ? 0 : value
+
+/**
+ * Format currency for detailed displays, tables, tooltips and KPIs.
+ *
+ * Exact to the currency's sub-unit; only a zero fraction is dropped
+ * (see `significantFractionDigits`).
  * @param value - The numeric value to format
- * @returns Formatted string like "₹1,23,456.78"
+ * @returns Formatted string like "₹1,23,456.78", "₹182" or "₹12.50"
  */
 export const formatCurrency = (value: number): string => {
   const meta = getActiveCurrencyMeta()
   const converted = convertAmount(value)
-  const formatted = formatWithLocale(converted, {
-    minimumFractionDigits: meta.decimals,
-    maximumFractionDigits: meta.decimals,
+  const digits = significantFractionDigits(converted, meta.decimals)
+  const formatted = formatWithLocale(collapseNegativeZero(converted, digits), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   })
   return addCurrencySymbol(formatted)
 }
 
 /**
  * Format currency rounded to nearest integer - use for charts, stat cards, summaries
+ *
+ * Rounds through Intl (half away from zero) exactly like `formatCurrency`, NOT
+ * through `Math.round` (half toward +Infinity): the two run on the same number
+ * on the same screen (a goal card shows one via each), and a negative
+ * half-unit such as -1,679.50 would otherwise disagree by a whole rupee.
  * @param value - The numeric value to format
  * @returns Formatted string like "₹1,23,457"
  */
 export const formatCurrencyCompact = (value: number): string => {
   const converted = convertAmount(value)
-  const formatted = formatWithLocale(Math.round(converted), {
+  const formatted = formatWithLocale(collapseNegativeZero(converted, 0), {
     maximumFractionDigits: 0,
   })
   return addCurrencySymbol(formatted)
@@ -194,13 +255,23 @@ export function getOrdinalSuffix(n: number): string {
   return 'th'
 }
 
-/** Safely parse a value that may be a JSON string array or already an array. */
+/**
+ * Safely parse a value that may be a JSON string array or already an array.
+ *
+ * The elements are FILTERED to strings, not just checked for array-ness.
+ * `JSON.parse` returns `any`, so `Array.isArray(parsed) ? parsed : []` handed
+ * back a `number[]` (or an array of objects) while the signature promised
+ * `string[]` -- the caller would then call `.trim()` or `.toLowerCase()` on a
+ * number and throw at runtime. Preference columns are TEXT holding JSON written
+ * by an earlier schema, so a non-string element is a live possibility, not a
+ * hypothetical.
+ */
 export function parseStringArray(raw: string[] | string | undefined): string[] {
   if (!raw) return []
-  if (Array.isArray(raw)) return raw
+  if (Array.isArray(raw)) return raw.filter((v) => typeof v === 'string')
   try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
   } catch {
     return []
   }

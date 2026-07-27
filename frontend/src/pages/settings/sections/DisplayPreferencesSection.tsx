@@ -5,8 +5,15 @@
  * from the CURRENCIES metadata map.
  */
 
+import { useMemo } from 'react'
 import { Settings2, Sun, Moon, type LucideIcon } from 'lucide-react'
-import { CURRENCIES, getCurrencyMeta } from '@/constants/currencies'
+import {
+  BASE_CURRENCY,
+  CURRENCIES,
+  getCurrencyMeta,
+  selectableCurrencies,
+} from '@/constants/currencies'
+import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 import { useThemeStore } from '@/store/themeStore'
 import type { ThemeMode } from '@/lib/theme'
 import { TIME_RANGE_OPTIONS } from '../types'
@@ -20,8 +27,6 @@ interface Props {
   updateLocalPref: <K extends LocalPrefKey>(key: K, value: LocalPrefs[K]) => void
 }
 
-const currencyList = Object.values(CURRENCIES)
-
 const THEME_OPTIONS: { value: ThemeMode; label: string; Icon: LucideIcon }[] = [
   { value: 'light', label: 'Light', Icon: Sun },
   { value: 'dark', label: 'Dark', Icon: Moon },
@@ -34,6 +39,26 @@ export default function DisplayPreferencesSection({
 }: Readonly<Props>) {
   const themeMode = useThemeStore((s) => s.mode)
   const setThemeMode = useThemeStore((s) => s.setMode)
+  // Shares the app-wide rates query by key, so this adds no request.
+  const { ratedCodes } = useExchangeRate()
+  const selected = localPrefs.display_currency ?? BASE_CURRENCY
+
+  // Same rule as the sidebar switcher: offer only currencies the served rates
+  // can price. `Object.values(CURRENCIES)` offered the whole metadata catalogue,
+  // which is how AED stayed selectable here even though the live feed does not
+  // carry it -- see `selectableCurrencies`.
+  //
+  // A currency already persisted on the account is kept in the list even when
+  // unpriced. Dropping it would leave this controlled `<select>` with a value
+  // matching no option, which browsers render as the first option instead -- so
+  // the settings page would claim a currency the account is not set to, and any
+  // unrelated Save would silently rewrite the preference to it.
+  const currencyList = useMemo(() => {
+    const offered = selectableCurrencies(ratedCodes)
+    if (offered.some((c) => c.code === selected) || !(selected in CURRENCIES)) return offered
+    return [...offered, CURRENCIES[selected]]
+  }, [ratedCodes, selected])
+
   const handleCurrencyChange = (code: string) => {
     const meta = getCurrencyMeta(code)
     updateLocalPref('display_currency', code)
@@ -42,7 +67,7 @@ export default function DisplayPreferencesSection({
     updateLocalPref('currency_symbol_position', meta.symbolPosition)
   }
 
-  const selectedMeta = getCurrencyMeta(localPrefs.display_currency ?? 'INR')
+  const selectedMeta = getCurrencyMeta(selected)
 
   return (
     <Section
@@ -57,7 +82,7 @@ export default function DisplayPreferencesSection({
           <FieldLabel htmlFor="display-currency">Display Currency</FieldLabel>
           <select
             id="display-currency"
-            value={localPrefs.display_currency ?? 'INR'}
+            value={selected}
             onChange={(e) => handleCurrencyChange(e.target.value)}
             className={selectClass}
           >
@@ -68,7 +93,9 @@ export default function DisplayPreferencesSection({
             ))}
           </select>
           <FieldHint>
-            All amounts will be converted using live exchange rates
+            {selected !== BASE_CURRENCY && ratedCodes.length > 0 && !ratedCodes.includes(selected)
+              ? `No live rate for ${selected} right now, so amounts stay in ${BASE_CURRENCY}`
+              : 'All amounts will be converted using live exchange rates'}
           </FieldHint>
         </div>
 

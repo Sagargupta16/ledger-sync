@@ -62,6 +62,17 @@ class IncomeSourcesConfig(BaseModel):
     )
 
 
+class CapitalLossConfig(BaseModel):
+    """Expense categories that are really realised investment losses."""
+
+    capital_loss_categories: list[str] = Field(
+        description="'Category::Subcategory' keys booked as EXPENSE that are realised "
+        "investment losses, not consumption. Excluded from expense totals, the "
+        "essential/discretionary split and the anomaly baseline once set. Empty by "
+        "default so nothing is reclassified without the user asking.",
+    )
+
+
 class BudgetDefaultsConfig(BaseModel):
     """Budget default settings."""
 
@@ -186,6 +197,9 @@ class UserPreferencesResponse(BaseModel):
     non_taxable_income_categories: list[str]
     other_income_categories: list[str]
 
+    # 4b. Realised capital losses booked as EXPENSE
+    capital_loss_categories: list[str] = []
+
     # 5. Budget Defaults
     default_budget_alert_threshold: float
     auto_create_budgets: bool
@@ -280,6 +294,9 @@ class UserPreferencesUpdate(BaseModel):
     investment_returns_categories: list[str] | None = None
     non_taxable_income_categories: list[str] | None = None
     other_income_categories: list[str] | None = None
+
+    # 4b. Realised capital losses booked as EXPENSE
+    capital_loss_categories: list[str] | None = None
 
     # 5. Budget Defaults
     default_budget_alert_threshold: float | None = None
@@ -378,6 +395,7 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         investment_returns_categories=_parse_json_field(prefs.investment_returns_categories),
         non_taxable_income_categories=_parse_json_field(prefs.non_taxable_income_categories),
         other_income_categories=_parse_json_field(prefs.other_income_categories),
+        capital_loss_categories=_parse_json_field(prefs.capital_loss_categories),
         default_budget_alert_threshold=prefs.default_budget_alert_threshold,
         auto_create_budgets=prefs.auto_create_budgets,
         budget_rollover_enabled=prefs.budget_rollover_enabled,

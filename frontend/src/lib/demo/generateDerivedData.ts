@@ -25,3 +25,7 @@ export {
   generateDemoNetWorth,
   generateDemoRecurring,
 } from './demoAnalyticsV2'
+// Data health lives with the other computed reads: its quality counts mirror the
+// server's `_ledger_quality`, which matches a SET of placeholder notes and
+// catch-all categories rather than one literal each.
+export { generateDemoDataHealth } from './demoComputedReads'

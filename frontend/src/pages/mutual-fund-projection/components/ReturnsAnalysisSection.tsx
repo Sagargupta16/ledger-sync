@@ -29,6 +29,8 @@ interface ReturnsAnalysisSectionProps {
   totalReturnSignPrefix: string
   xirrColorClass: string
   xirrSignPrefix: string
+  /** True once the user supplies a real market value, which is what makes the two rate tiles meaningful. */
+  hasCurrentValueOverride: boolean
 }
 
 export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionProps>) {
@@ -48,6 +50,7 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
     totalReturnSignPrefix,
     xirrColorClass,
     xirrSignPrefix,
+    hasCurrentValueOverride,
   } = props
 
   return (
@@ -78,27 +81,52 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
           <p className="text-xs text-muted-foreground mt-1">{currentValueLabel}</p>
         </div>
 
-        <div className="flex flex-col justify-center">
-          <p className="text-sm text-muted-foreground">Total Return</p>
-          <AnimatedStat
-            value={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
-            className={`text-2xl font-bold ${totalReturnColorClass}`}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
-          </p>
-        </div>
+        {/* Both rate tiles need a market value. Without the override,
+            effectiveCurrentValue falls back to the book balance -- the same
+            contributions the denominator is built from -- so the "return" would
+            be a rounding residue (+0.14% on the owner's real fund). Show the
+            prompt instead of a number that looks measured and is not. */}
+        {hasCurrentValueOverride ? (
+          <div className="flex flex-col justify-center">
+            <p className="text-sm text-muted-foreground">Total Return</p>
+            <AnimatedStat
+              value={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
+              className={`text-2xl font-bold ${totalReturnColorClass}`}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col justify-center">
+            <p className="text-sm text-muted-foreground">Total Return</p>
+            <p className="text-2xl font-bold text-text-quaternary">-</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Enter a current value to compute
+            </p>
+          </div>
+        )}
 
-        <div className="flex flex-col justify-center">
-          <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-          <AnimatedStat
-            value={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
-            className={`text-2xl font-bold ${xirrColorClass}`}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Over {investmentDurationYears.toFixed(1)} years
-          </p>
-        </div>
+        {hasCurrentValueOverride ? (
+          <div className="flex flex-col justify-center">
+            <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
+            <AnimatedStat
+              value={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
+              className={`text-2xl font-bold ${xirrColorClass}`}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Over {investmentDurationYears.toFixed(1)} years
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col justify-center">
+            <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
+            <p className="text-2xl font-bold text-text-quaternary">-</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Needs a current value, not just contributions
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Effective Value</p>

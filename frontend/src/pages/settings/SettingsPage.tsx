@@ -103,7 +103,11 @@ export default function SettingsPage() {
               <Button
                 id="save-settings"
                 type="button"
-                onClick={s.handleSave}
+                // handleSave/handleReset/handleApplyRules are async but each
+                // wraps its body in try/catch with a sonner toast on failure,
+                // so they never reject; `void` adapts them to void-returning
+                // handler props without swallowing an unreported error.
+                onClick={() => void s.handleSave()}
                 disabled={!s.hasChanges || s.isSaving}
                 icon={<Save className="h-4 w-4" />}
               >
@@ -184,7 +188,7 @@ export default function SettingsPage() {
           onAddRule={s.addRule}
           onRemoveRule={s.removeRule}
           onUpdateRule={s.updateRule}
-          onApplyRules={s.handleApplyRules}
+          onApplyRules={() => void s.handleApplyRules()}
           applying={s.applyingRules}
         />
 
@@ -274,7 +278,7 @@ export default function SettingsPage() {
                 <Button
                   id="save-settings-floating"
                   type="button"
-                  onClick={s.handleSave}
+                  onClick={() => void s.handleSave()}
                   disabled={s.isSaving}
                   icon={<Save className="h-4 w-4" />}
                 >

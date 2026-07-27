@@ -161,8 +161,9 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       arr = raw
     } else {
       try {
-        const parsed = JSON.parse(raw)
-        arr = Array.isArray(parsed) ? parsed : []
+        // JSON.parse is typed `any`; keep it at `unknown` and narrow.
+        const parsed: unknown = JSON.parse(raw)
+        arr = Array.isArray(parsed) ? (parsed as string[]) : []
       } catch {
         arr = []
       }

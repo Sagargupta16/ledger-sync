@@ -13,6 +13,8 @@ import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
 import MobileTabBar from './MobileTabBar'
+import { PAGE_TITLES } from './pageTitles'
+import StaleAnalyticsAlert from './StaleAnalyticsAlert'
 import WorkspaceHeader from './WorkspaceHeader'
 
 const pageTransition = {
@@ -20,35 +22,6 @@ const pageTransition = {
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -4 },
   transition: { duration: 0.2, ease: 'easeOut' as const },
-}
-
-// Route → browser tab title
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/overview': 'Overview',
-  '/transactions': 'Transactions',
-  '/subscriptions': 'Subscriptions',
-  '/bill-calendar': 'Bill Calendar',
-  '/spending': 'Expense Analysis',
-  '/income': 'Income Analysis',
-  '/income-expense-flow': 'Cash Flow',
-  '/comparison': 'Comparison',
-  '/year-in-review': 'Year in Review',
-  '/budgets': 'Budget Manager',
-  '/goals': 'Financial Goals',
-  '/fire-calculator': 'FIRE Calculator',
-  '/anomalies': 'Anomaly Review',
-  '/net-worth': 'Net Worth',
-  '/forecasts': 'Trends & Forecasts',
-  '/investments/analytics': 'Investment Analytics',
-  '/investments/sip-projection': 'SIP Projections',
-  '/investments/returns': 'Returns Analysis',
-  '/tax': 'Income Tax',
-  '/tax/gst': 'Indirect Tax (GST)',
-  '/upload': 'Upload & Sync',
-  '/settings': 'Settings',
-  '/more': 'More',
-  '/demo': 'Demo',
 }
 
 export default function AppLayout() {
@@ -86,6 +59,11 @@ export default function AppLayout() {
       <Sidebar />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <WorkspaceHeader title={PAGE_TITLES[location.pathname] ?? 'Ledger Sync'} />
+        {/*
+          Above the scroll container, not inside it: a warning that the numbers
+          below are stale is worthless if the user has to scroll up to find it.
+        */}
+        <StaleAnalyticsAlert />
         <main
           id="main-content"
           className="min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"

@@ -59,10 +59,27 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
 export default Input
 
+interface SelectOption {
+  value: string
+  label: string
+}
+
+interface SelectOptionGroup {
+  label: string
+  options: SelectOption[]
+}
+
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
-  options: Array<{ value: string; label: string }>
+  options: SelectOption[]
+  /**
+   * Optional `<optgroup>` blocks rendered after `options`. Use when a long list
+   * has a secondary tier the user rarely wants (e.g. transfer routing labels
+   * behind real spending categories) so it stays reachable without burying the
+   * common choices.
+   */
+  groups?: SelectOptionGroup[]
 }
 
 /**
@@ -70,7 +87,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
  * Matches Input styling for visual consistency.
  */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, options, className, id, ...props },
+  { label, error, options, groups, className, id, ...props },
   ref
 ) {
   const selectId = id || (label ? label.toLowerCase().replaceAll(/\s+/g, '-') : undefined)
@@ -103,6 +120,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
             {opt.label}
           </option>
         ))}
+        {groups?.map((group) =>
+          group.options.length > 0 ? (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </optgroup>
+          ) : null
+        )}
       </select>
       {error && (
         <p id={selectId ? `${selectId}-error` : undefined} className="text-xs text-app-red" role="alert">

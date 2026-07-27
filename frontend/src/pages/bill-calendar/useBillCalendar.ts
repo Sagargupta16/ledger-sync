@@ -12,7 +12,12 @@ interface CalendarCell {
 }
 
 export function useBillCalendar() {
-  const recurringQuery = useRecurringTransactions({ active_only: true })
+  // A bill calendar plots things that are owed on a date. Habit rows repeat but
+  // are not owed, so plotting them filled the grid with lunch purchases.
+  const recurringQuery = useRecurringTransactions({
+    active_only: true,
+    pattern_kind: 'commitment',
+  })
   const { data: recurringTransactions, isLoading, isError } = recurringQuery
 
   const now = useMemo(() => new Date(), [])

@@ -49,6 +49,61 @@ describe('groupTransactionsByFY EPF taxable fraction', () => {
   })
 })
 
+function salaryTx(amount: number): Transaction {
+  return {
+    id: `salary-${amount}`,
+    date: '2025-06-30', // FY 2025-26
+    amount,
+    type: 'Income',
+    category: 'Employment Income',
+    subcategory: 'Salary',
+    account: 'Bank: SBI',
+    note: '',
+  } as Transaction
+}
+
+/**
+ * `useTaxPlanning` and `useIncomeExpenseFlow` build the classification with
+ * `preferences?.<field> ?? []` per field, straight off the API payload, and the
+ * backend column default for all four is the JSON string `"[]"`. So an
+ * unconfigured user reaches `groupTransactionsByFY` with four empty lists,
+ * `classifyIncomeType` matches nothing, and the page reports zero taxable income
+ * and zero tax on a real salary. The resolver runs inside
+ * `groupTransactionsByFY` so both call sites are covered without editing them.
+ */
+describe('groupTransactionsByFY resolves an unconfigured classification', () => {
+  it('taxes salary when all four lists arrive empty', () => {
+    const grouped = groupTransactionsByFY([salaryTx(1_000_000)], 4, {
+      taxable: [],
+      investmentReturns: [],
+      nonTaxable: [],
+      other: [],
+    })
+    const fy = grouped['FY 2025-26']
+
+    expect(fy.taxableIncome).toBe(1_000_000)
+    expect(fy.incomeGroups['Salary & Stipend'].total).toBe(1_000_000)
+    expect(fy.salaryMonths.has('2025-06')).toBe(true)
+  })
+
+  it('honours a deliberate empty taxable list when a sibling is populated', () => {
+    const grouped = groupTransactionsByFY([salaryTx(1_000_000)], 4, {
+      taxable: [],
+      investmentReturns: [],
+      nonTaxable: ['Employment Income::Salary'],
+      other: [],
+    })
+    const fy = grouped['FY 2025-26']
+
+    // The user filed Salary as non-taxable; re-injecting the taxable defaults
+    // per field would tax it anyway.
+    expect(fy.taxableIncome).toBe(0)
+    expect(fy.incomeGroups['Salary & Stipend'].total).toBe(0)
+    // The credit is still counted as income for the page's gross inflow.
+    expect(fy.income).toBe(1_000_000)
+  })
+})
+
 describe('computeTaxForFY salary TDS treatment toggle', () => {
   const recorded = 1_500_000
 

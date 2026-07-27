@@ -2,116 +2,90 @@ import { useMemo, useState } from 'react'
 
 import { motion } from 'motion/react'
 import { Store } from 'lucide-react'
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { formatCurrency } from '@/lib/formatters'
-import { CHART_COLORS } from '@/constants/chartColors'
+
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
-
-interface MerchantData {
-  name: string
-  totalSpent: number
-  transactionCount: number
-  avgTransaction: number
-  categories: string[]
-  lastTransaction: string
-  firstTransaction: string
-}
+import { Money } from '@/components/ui'
+import { CHART_COLORS } from '@/constants/chartColors'
+import { useMerchantIntelligence } from '@/hooks/api/useAnalyticsV2'
+import { formatCurrency } from '@/lib/formatters'
+import {
+  toLabelKind,
+  usableMerchants,
+} from '@/pages/merchant-intelligence/merchantUtils'
+import type { MerchantRow } from '@/pages/merchant-intelligence/types'
 
 interface TopMerchantsProps {
-  readonly dateRange?: { start_date?: string; end_date?: string }
-  /** When set, only merchants whose transactions are in this category are shown. */
+  /**
+   * When set, only payees whose PRIMARY category matches are listed.
+   *
+   * The rollup stores one category per payee, not a per-category split, so a
+   * payee that spans categories is matched on its primary one and its total is
+   * its whole spend. The card says so under the heading rather than implying
+   * the amounts were re-cut per category.
+   */
   readonly categoryFilter?: string | null
 }
 
 const COLORS = CHART_COLORS
-const COLOR_STYLES = COLORS.map(c => ({ backgroundColor: c }))
+const TOP_N = 10
 
-export default function TopMerchants({ dateRange, categoryFilter }: TopMerchantsProps) {
-  const { data: transactions = [], isLoading } = useTransactions()
+/** Rollup floor: the backend already drops single-payment labels. */
+const MIN_TRANSACTIONS = 2
+const ROW_LIMIT = 200
+
+/**
+ * Top payees, read from the server-side merchant rollup.
+ *
+ * This used to call `useTransactions()` with no arguments -- the entire ledger
+ * (~3.8 MB on a real account) into the browser just to re-split notes in JS on
+ * every render. The backend already extracts, aggregates and brand-classifies
+ * merchants in `core/analytics/merchants.py`, so this reads that instead: one
+ * bounded payload, and the same brand/descriptor honesty the dedicated page has.
+ *
+ * The trade the rollup forces: it is whole-ledger and one-category-per-payee, so
+ * this card cannot honour a date window and cannot re-cut a payee's spend by
+ * category. It therefore takes no `dateRange` at all (a prop that only changed
+ * a subtitle was worse than none) and states its real scope in the header.
+ */
+export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
+  const { data, isPending } = useMerchantIntelligence({
+    min_transactions: MIN_TRANSACTIONS,
+    limit: ROW_LIMIT,
+  })
   const [viewMode, setViewMode] = useState<'amount' | 'frequency'>('amount')
 
-  const merchantData = useMemo(() => {
-    const merchants: Record<string, MerchantData> = {}
+  const merchants = useMemo<MerchantRow[]>(() => {
+    const rows = usableMerchants(data ?? []).filter(
+      (row) => !categoryFilter || row.category === categoryFilter,
+    )
+    // Spread-then-sort, not `toSorted`: toSorted needs Firefox 115 and Vite 8's
+    // default `baseline-widely-available` target is firefox114, with no polyfill
+    // injected. Guarded by `lib/demo/__tests__/browserTargetBuiltins.test.ts`.
+    const sorted = [...rows].sort((a, b) =>
+      viewMode === 'amount'
+        ? b.total_spent - a.total_spent
+        : b.transaction_count - a.transaction_count,
+    )
+    return sorted.slice(0, TOP_N)
+  }, [data, viewMode, categoryFilter])
 
-    transactions
-      .filter((tx) => {
-        if (tx.type !== 'Expense' || !tx.note) return false
-        if (categoryFilter && tx.category !== categoryFilter) return false
-        if (dateRange?.start_date) {
-          const txDate = tx.date.substring(0, 10)
-          if (txDate < dateRange.start_date) return false
-          if (dateRange.end_date && txDate > dateRange.end_date) return false
-        }
-        return true
-      })
-      .forEach((tx) => {
-        // Extract merchant name from note (usually first part before any details)
-        const note = tx.note ?? ''
-        // Clean up common patterns
-        let merchantName = note
-      .split(/[-\u2013\u2014|,/]/)[0] // Split by common separators
-          .replaceAll(/\d{4,}/g, '') // Remove long numbers (card numbers, refs)
-          .replaceAll(/\s+/g, ' ')
-          .trim()
-
-        // Skip if too short or too generic
-        if (merchantName.length < 3 || merchantName.length > 50) return
-
-        // Normalize case
-        merchantName = merchantName
-          .toLowerCase()
-          .split(' ')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ')
-
-        if (!merchants[merchantName]) {
-          merchants[merchantName] = {
-            name: merchantName,
-            totalSpent: 0,
-            transactionCount: 0,
-            avgTransaction: 0,
-            categories: [],
-            lastTransaction: tx.date,
-            firstTransaction: tx.date,
-          }
-        }
-
-        const m = merchants[merchantName]
-        m.totalSpent += Math.abs(tx.amount)
-        m.transactionCount++
-        if (!m.categories.includes(tx.category)) {
-          m.categories.push(tx.category)
-        }
-        if (tx.date > m.lastTransaction) m.lastTransaction = tx.date
-        if (tx.date < m.firstTransaction) m.firstTransaction = tx.date
-      })
-
-    // Calculate averages
-    Object.values(merchants).forEach((m) => {
-      m.avgTransaction = m.totalSpent / m.transactionCount
-    })
-
-    // Sort and get top merchants
-    const sorted = Object.values(merchants)
-      .filter((m) => m.transactionCount >= 2) // At least 2 transactions
-      .sort((a, b) => {
-        if (viewMode === 'amount') return b.totalSpent - a.totalSpent
-        return b.transactionCount - a.transactionCount
-      })
-
-    return sorted.slice(0, 10)
-  }, [transactions, viewMode, dateRange, categoryFilter])
-
-  const totalSpentAtTopMerchants = merchantData.reduce((sum, m) => sum + m.totalSpent, 0)
-
-  // Largest value (by active mode) for the per-row proportional bar width.
-  const maxMetric = merchantData.reduce(
-    (max, m) => Math.max(max, viewMode === 'amount' ? m.totalSpent : m.transactionCount),
+  const totalAtTop = merchants.reduce((sum, m) => sum + m.total_spent, 0)
+  const visitsAtTop = merchants.reduce((sum, m) => sum + m.transaction_count, 0)
+  const maxMetric = merchants.reduce(
+    (max, m) => Math.max(max, viewMode === 'amount' ? m.total_spent : m.transaction_count),
     0,
   )
 
-  if (isLoading) {
+  // One line, always shown, naming both limits of the rollup this reads. The
+  // category variant additionally warns that a payee's total is its full spend:
+  // the rollup keeps a single primary category per payee, so a payee that spans
+  // categories cannot be split and one whose primary category differs is absent.
+  const subtitle = categoryFilter
+    ? `All-time payees whose main category is ${categoryFilter}, at their full spend`
+    : 'All-time totals per payee, not filtered by the date range above'
+
+  if (isPending) {
     return <ChartSkeleton height="h-80" />
   }
 
@@ -121,14 +95,14 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
       animate={{ opacity: 1, y: 0 }}
       className="glass rounded-2xl border border-border p-6"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-orange/20 rounded-xl">
-            <Store className="w-6 h-6 text-app-orange" />
+          <div className="rounded-xl bg-app-orange/20 p-3">
+            <Store className="h-6 w-6 text-app-orange" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Top Merchants</h3>
-            <p className="text-sm text-muted-foreground">Where your money goes</p>
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -136,7 +110,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
             type="button"
             onClick={() => setViewMode('amount')}
             aria-pressed={viewMode === 'amount'}
-            className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${
+            className={`min-h-11 rounded-lg px-3 py-2.5 text-sm transition-colors ${
               viewMode === 'amount'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -148,7 +122,7 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
             type="button"
             onClick={() => setViewMode('frequency')}
             aria-pressed={viewMode === 'frequency'}
-            className={`px-3 py-2.5 min-h-11 rounded-lg text-sm transition-colors ${
+            className={`min-h-11 rounded-lg px-3 py-2.5 text-sm transition-colors ${
               viewMode === 'frequency'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background/50 hover:bg-background/70'
@@ -159,21 +133,21 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
         </div>
       </div>
 
-      {merchantData.length === 0 ? (
-        <ChartEmptyState message="No merchant data available. Transaction notes help identify merchants." />
+      {merchants.length === 0 ? (
+        <ChartEmptyState message="No payees identified yet. Transaction notes are what name a payee." />
       ) : (
         // A ranked list with an inline proportional bar per row reads merchant
         // magnitudes more accurately than a >7-slice donut did -- and it keeps
         // the rich per-merchant detail (visits, avg) the donut couldn't show.
-        // No separate chart, so nothing is duplicated.
         <div className="space-y-2">
-          {merchantData.map((merchant, index) => {
-            const metric = viewMode === 'amount' ? merchant.totalSpent : merchant.transactionCount
+          {merchants.map((merchant, index) => {
+            const metric = viewMode === 'amount' ? merchant.total_spent : merchant.transaction_count
             const barWidth = maxMetric > 0 ? (metric / maxMetric) * 100 : 0
+            const isNote = toLabelKind(merchant.label_kind) === 'descriptor'
             return (
               <div
-                key={merchant.name}
-                className="relative flex items-center gap-3 p-3 rounded-xl bg-background/30 hover:bg-background/50 transition-colors overflow-hidden"
+                key={`${merchant.merchant}-${merchant.label_kind ?? 'unclassified'}`}
+                className="relative flex items-center gap-3 overflow-hidden rounded-xl bg-background/30 p-3 transition-colors hover:bg-background/50"
               >
                 {/* Proportional bar behind the row content */}
                 <div
@@ -182,42 +156,50 @@ export default function TopMerchants({ dateRange, categoryFilter }: TopMerchants
                   style={{ width: `${barWidth}%`, backgroundColor: COLORS[index % COLORS.length] }}
                 />
                 <div
-                  className="relative w-8 h-8 rounded-lg flex items-center justify-center text-foreground font-bold text-sm shrink-0"
-                  style={COLOR_STYLES[index % COLOR_STYLES.length]}
+                  className="relative flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-foreground"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 >
                   {index + 1}
                 </div>
-                <div className="relative flex-1 min-w-0">
-                  <p className="font-medium truncate">{merchant.name}</p>
+                <div className="relative min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {merchant.merchant}
+                    {isNote && (
+                      <span
+                        className="ml-1.5 text-[11px] font-normal text-text-tertiary"
+                        title="Raw transaction note, so this describes what was bought rather than who was paid."
+                      >
+                        (note)
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    {merchant.transactionCount} visits • Avg {formatCurrency(merchant.avgTransaction)}
+                    {merchant.transaction_count} payments &middot; Avg{' '}
+                    {formatCurrency(merchant.avg_transaction)}
                   </p>
                 </div>
-                <div className="relative text-right shrink-0">
-                  <p className="font-semibold tabular-nums">{formatCurrency(merchant.totalSpent)}</p>
-                </div>
+                <Money value={merchant.total_spent} bold className="relative" />
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Summary */}
-      {merchantData.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+      {merchants.length > 0 && (
+        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 text-center sm:grid-cols-3">
           <div>
-            <p className="text-2xl font-bold text-app-orange">{merchantData.length}</p>
-            <p className="text-xs text-muted-foreground">Top Merchants</p>
+            <p className="text-2xl font-bold text-app-orange">{merchants.length}</p>
+            <p className="text-xs text-muted-foreground">Payees Shown</p>
           </div>
           <div>
-            <p className="text-2xl font-bold break-all tabular-nums">{formatCurrency(totalSpentAtTopMerchants)}</p>
-            <p className="text-xs text-muted-foreground">Total at Top 10</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">
-              {merchantData.reduce((sum, m) => sum + m.transactionCount, 0)}
+            <p className="text-2xl font-bold tabular-nums break-all">
+              {formatCurrency(totalAtTop)}
             </p>
-            <p className="text-xs text-muted-foreground">Total Visits</p>
+            <p className="text-xs text-muted-foreground">Total at Top {merchants.length}</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold tabular-nums">{visitsAtTop}</p>
+            <p className="text-xs text-muted-foreground">Payments</p>
           </div>
         </div>
       )}

@@ -2,6 +2,10 @@
  * Shared types and constants for the Settings page tabs.
  */
 
+import {
+  ACCOUNT_TYPE_VALUES,
+  type AccountTypeValue,
+} from '@/services/api/accountClassifications'
 import type { UserPreferences } from '@/services/api/preferences'
 
 // Local preferences shape used across all settings tabs
@@ -10,15 +14,17 @@ export type LocalPrefs = Omit<UserPreferences, 'id' | 'created_at' | 'updated_at
 // Typed key for updating local prefs generically
 export type LocalPrefKey = keyof LocalPrefs
 
-// Account classification types
-export const ACCOUNT_TYPES = [
-  'Cash',
-  'Bank Accounts',
-  'Credit Cards',
-  'Investments',
-  'Loans/Lended',
-  'Other Wallets',
-]
+/**
+ * Account classification types, re-exported from the wire vocabulary rather than
+ * restated.
+ *
+ * This used to be a hand-copied `string[]` holding the same six labels. A second
+ * copy of a vocabulary is a drift bug waiting for the next member: the Settings
+ * dropdown would keep offering the old set while `/api/account-classifications`
+ * accepted a new one. `ACCOUNT_TYPE_VALUES` is the single source of truth, so
+ * adding a member there now reaches this dropdown for free.
+ */
+export const ACCOUNT_TYPES: readonly AccountTypeValue[] = ACCOUNT_TYPE_VALUES
 
 export const CATEGORY_COLORS: Record<string, string> = {
   Cash: 'from-app-green to-app-green',
@@ -82,13 +88,23 @@ export const TIME_RANGE_OPTIONS = [
   { value: 'monthly', label: 'Monthly' },
 ]
 
-// Anomaly types
-export const ANOMALY_TYPES = [
-  { value: 'high_expense', label: 'High Expense Months' },
-  { value: 'unusual_category', label: 'Unusual Category Spending' },
-  { value: 'large_transfer', label: 'Large Transfers' },
-  { value: 'budget_exceeded', label: 'Budget Exceeded' },
-]
+/*
+ * `ANOMALY_TYPES` used to live here: a hand-written four, picked from a
+ * seven-member backend enum, feeding an "Enabled Types" checkbox grid.
+ *
+ * Completing it to seven was the obvious fix and the wrong one.
+ * `anomaly_types_enabled` is PERSISTED AND IGNORED -- nothing under
+ * `backend/src/ledger_sync/core/` reads it (only `api/preferences.py` and
+ * `api/preferences_helpers.py`, which store it and echo it back), so
+ * `_detect_anomalies()` runs all of its detectors no matter what is ticked.
+ * Completing the list would have turned three dead checkboxes into six.
+ * `auto_dismiss_recurring_anomalies` has exactly the same problem.
+ *
+ * So both controls were removed from `sections/AnomalyDetectionSubsection.tsx`.
+ * The preference FIELDS stay on `UserPreferences` and are still round-tripped by
+ * the save call: they are real columns, and honouring them is a backend change
+ * (a filter in `_detect_anomalies()`), not a frontend one.
+ */
 
 // Income classification types
 export const INCOME_CLASSIFICATION_TYPES = [

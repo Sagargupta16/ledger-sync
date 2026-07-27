@@ -138,7 +138,7 @@ export const ACTIVE_DOT = {
  *             same "this is good to be above" semantic as the income palette
  * - `zero`  -- break-even baseline at y=0 (solid-ish, strong)
  */
-type ReferenceLineVariant = 'peak' | 'avg' | 'target' | 'goal' | 'zero'
+export type ReferenceLineVariant = 'peak' | 'avg' | 'target' | 'goal' | 'zero'
 
 const REFERENCE_LINE_VARIANTS: Record<
   ReferenceLineVariant,
@@ -211,7 +211,7 @@ export const LEGEND_DEFAULTS = {
 
 // ─── Brush (drag-to-zoom) defaults ──────────────────────────────────────────
 
-import { rawColors } from '@/constants/colors'
+import { hexToRgba, onRawColorsRefresh, rawColors } from '@/constants/colors'
 
 /**
  * Custom Brush traveller (the draggable handle at each end of the time-range
@@ -270,9 +270,11 @@ function renderBrushTraveller({
         stroke={rawColors.app.blueVibrant}
         strokeWidth={1.5}
       />
-      {/* Two grip lines so it reads as a draggable handle */}
-      <line x1={cx - lineGap} y1={lineTop} x2={cx - lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.9)" strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={cx + lineGap} y1={lineTop} x2={cx + lineGap} y2={lineBottom} stroke="rgba(255,255,255,0.9)" strokeWidth={1.5} strokeLinecap="round" />
+      {/* Two grip lines so it reads as a draggable handle. They sit on the blue
+          traveller fill, so the foreground token is `onAccent` -- the same one
+          used for text on accent surfaces, which stays white in both themes. */}
+      <line x1={cx - lineGap} y1={lineTop} x2={cx - lineGap} y2={lineBottom} stroke={rawColors.onAccent} strokeWidth={1.5} strokeLinecap="round" />
+      <line x1={cx + lineGap} y1={lineTop} x2={cx + lineGap} y2={lineBottom} stroke={rawColors.onAccent} strokeWidth={1.5} strokeLinecap="round" />
     </g>
   )
 }
@@ -291,17 +293,31 @@ function renderBrushTraveller({
  * <Brush {...BRUSH_DEFAULTS} dataKey="date" startIndex={...} tickFormatter={...} />
  * ```
  */
-export const BRUSH_DEFAULTS = {
-  height: 34,
-  travellerWidth: 16,
-  traveller: (props: { x: number; y: number; width: number; height: number }) =>
-    renderBrushTraveller(props),
-  // Hairline frame around the overview strip; the traveller carries the accent.
-  // Theme-aware ink/white hairline (SVG attr -> concrete value, not var()).
-  stroke: rawColors.chart.svgStroke,
-  // Selection window: a blue wash so the kept range reads as "selected"
-  // against the dimmed full-history overview behind it.
-  fill: 'rgba(59,158,255,0.12)',
-  fillOpacity: 1,
-  // 34px wrapper gives touch users a comfortable drag target on tablets.
-} as const
+function buildBrushDefaults() {
+  return {
+    height: 34,
+    travellerWidth: 16,
+    traveller: (props: { x: number; y: number; width: number; height: number }) =>
+      renderBrushTraveller(props),
+    // Hairline frame around the overview strip; the traveller carries the accent.
+    // Theme-aware ink/white hairline (SVG attr -> concrete value, not var()).
+    stroke: rawColors.chart.svgStroke,
+    // Selection window: a wash of the same investment blue the traveller uses,
+    // derived from the token instead of a baked literal so a palette change
+    // moves both together.
+    fill: hexToRgba(rawColors.app.blue, 0.12),
+    fillOpacity: 1,
+    // 34px wrapper gives touch users a comfortable drag target on tablets.
+  }
+}
+
+/**
+ * Recharts takes these as SVG presentation attributes, which cannot hold
+ * `var()`, so the colors are baked concrete strings resolved at module load.
+ * That means they would freeze at whatever theme was active on first paint --
+ * mutated in place on toggle (same pattern as `metricColorConfig`) so the
+ * object identity importers captured keeps showing live values.
+ */
+export const BRUSH_DEFAULTS = buildBrushDefaults()
+
+onRawColorsRefresh(() => Object.assign(BRUSH_DEFAULTS, buildBrushDefaults()))

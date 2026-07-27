@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ledger_sync.api.ai_tools_impl import REGISTRY  # noqa: F401 - triggers registration
+from ledger_sync.api.ai_tools_impl import REGISTRY  # triggers tool registration
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 
 router = APIRouter(prefix="/api/ai/tools", tags=["ai-tools"])
@@ -66,6 +66,6 @@ def execute_tool(
         result = spec.execute(current_user, session, request.arguments)
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(400, f"Tool {request.name} failed: {exc}") from exc
     return {"name": request.name, "result": result}

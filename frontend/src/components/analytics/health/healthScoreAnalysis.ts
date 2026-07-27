@@ -1,4 +1,13 @@
 import type { Transaction } from '@/types'
+import type { CFPScoreInputs } from '@/lib/financialHealthCalculator'
+import {
+  completeMonthKeys,
+  investmentAllocationRatePercent,
+  savingsRatePercentOr,
+  shareOfIncomePercent,
+  sumFlows,
+} from '@/lib/savingsRate'
+import { isSpending } from '@/lib/expenseClassification'
 
 import type { AnalysisResult, BalancePosition, MonthlyBucket } from './healthScoreTypes'
 import {
@@ -45,7 +54,10 @@ export function classifyTransaction(
     bucket.income += amount
     return
   }
-  if (tx.type === 'Expense') {
+  // A realised capital loss is filed as an Expense row but is a negative
+  // investment return, so counting it depresses the savings-rate and
+  // cash-flow components of the score.
+  if (tx.type === 'Expense' && isSpending(tx)) {
     bucket.expense += amount
     bucket.categories[category] = (bucket.categories[category] || 0) + amount
     if (matchesCategoryList(category, DEBT_CATEGORIES)) bucket.debt += amount
@@ -53,7 +65,7 @@ export function classifyTransaction(
     const isEssential = matchesCategoryList(category, ESSENTIAL_CATEGORIES)
     const isUserFixed = userFixedCategories
       ? userFixedCategories.has(category.toLowerCase()) ||
-        userFixedCategories.has(`${category}::${tx.subcategory || ''}`.toLowerCase())
+        userFixedCategories.has(`${category}::${tx.subcategory ?? ''}`.toLowerCase())
       : false
     if (isEssential || isUserFixed) bucket.essential += amount
   }
@@ -76,18 +88,27 @@ export function computeMonthlyData(
     classifyTransaction(tx, monthlyData[month], isInvestmentAccount, userFixedCategories)
   }
 
-  const months = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
+  const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
 
-  // Use LOCAL month + day consistently. Mixing toISOString() (UTC month) with
-  // getDate() (local day) disagreed on the boundary day for offset users, so
-  // the partial-current-month exclusion could drop the wrong month.
-  const today = new Date()
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  if (today.getDate() < 15 && months.includes(currentMonth)) {
-    months.pop()
-    delete monthlyData[currentMonth]
+  // Drop every unfinished month unconditionally. The old rule only dropped the
+  // current month before the 15th, so the same ledger reported two different
+  // savings rates depending on the calendar day the user opened the app (on the
+  // real ledger the in-progress month reads -696.8% and moves the all-time rate
+  // by 1.6pp). It also used `months.pop()`, which removes the LAST key -- a
+  // single future-dated row makes that the wrong month.
+  const months = completeMonthKeys(allMonths)
+  const kept = new Set(months)
+  for (const month of allMonths) {
+    if (!kept.has(month)) delete monthlyData[month]
   }
 
+  // The floor counts FINISHED months only, so it is one month stricter than it
+  // used to be from the 15th onward: an account whose whole history is
+  // "this month plus the two before it" now returns null and the panel renders
+  // its empty state where it previously showed a score. That is deliberate --
+  // the score it used to show was two finished months blended with a
+  // part-month that reads several hundred percent negative -- but it is a real
+  // change for brand-new accounts, not just a precision tweak.
   if (months.length < 3) return null
   return { months, monthlyData }
 }
@@ -101,18 +122,32 @@ export function computeAnalysis(
   const count = months.length
   const halfPoint = Math.floor(count / 2)
 
-  const totalIncome = buckets.reduce((s, m) => s + m.income, 0)
-  const totalExpense = buckets.reduce((s, m) => s + m.expense, 0)
+  // Pool via the shared helper so the totals handed to every downstream ratio
+  // (and to computeCFPScore) are the observed sums, never `avg * count`.
+  const pooled = sumFlows(buckets)
+  const totalIncome = pooled.income
+  const totalExpense = pooled.expense
   const avgMonthlyIncome = totalIncome / count
   const avgMonthlyExpense = totalExpense / count
 
-  const savingsRate =
-    avgMonthlyIncome > 0
-      ? ((avgMonthlyIncome - avgMonthlyExpense) / avgMonthlyIncome) * 100
-      : 0
+  // Pooled over the period via the shared definition -- not derived from the
+  // two monthly averages, which only agree while both use the same divisor.
+  //
+  // This is the CONSUMPTION rate: `totalExpense` already had realised capital
+  // losses filtered out by `classifyTransaction`, so the question answered is
+  // "what share of income did I not spend on goods and services". It is NOT the
+  // `savings_rate` field on `/api/calculations/totals`, which is
+  // `net_savings / income` and DOES carry the loss (40% where this reads 60% on
+  // the same rows). The two are different questions, both correct under their own
+  // name -- see "TWO RATES, TWO QUESTIONS" in lib/savingsRate.ts. Do not
+  // "reconcile" this against the endpoint field.
+  const savingsRate = savingsRatePercentOr({ income: totalIncome, expense: totalExpense })
 
   const totalEssential = buckets.reduce((s, m) => s + m.essential, 0)
-  const essentialToIncomeRatio = totalIncome > 0 ? (totalEssential / totalIncome) * 100 : 100
+  // No income means essentials consume everything, hence the 100 fallback --
+  // the opposite choice from the debt ratio below, which is why the fallback is
+  // explicit at each call site.
+  const essentialToIncomeRatio = shareOfIncomePercent(totalEssential, totalIncome, 100)
 
   const totalInvestmentInflow = buckets.reduce((s, m) => s + m.investmentInflow, 0)
   const totalInvestmentOutflow = buckets.reduce((s, m) => s + m.investmentOutflow, 0)
@@ -120,8 +155,9 @@ export function computeAnalysis(
   const monthsWithNetInvestments = monthlyNetInvestments.filter((n) => n > 0).length
   const investmentRegularity = monthsWithNetInvestments / count
   const totalNetInvestment = totalInvestmentInflow - totalInvestmentOutflow
-  const investmentToIncomeRatio =
-    totalIncome > 0 ? (totalNetInvestment / totalIncome) * 100 : 0
+  // A distinct metric from the savings rate on purpose: see the docstring on
+  // investmentAllocationRatePercent. Transfers are the numerator here.
+  const investmentToIncomeRatio = investmentAllocationRatePercent(totalNetInvestment, totalIncome)
 
   const cumulativeNetSavings = totalIncome - totalExpense
   // Prefer the real liquid balance (bank + cash + wallets). Only when no
@@ -134,8 +170,8 @@ export function computeAnalysis(
 
   const totalDebt = buckets.reduce((s, m) => s + m.debt, 0)
   const avgMonthlyDebt = totalDebt / count
-  const debtToIncomeRatio =
-    avgMonthlyIncome > 0 ? (avgMonthlyDebt / avgMonthlyIncome) * 100 : 0
+  // Pooled totals, not the two averages: same ratio, one fewer divisor to drift.
+  const debtToIncomeRatio = shareOfIncomePercent(totalDebt, totalIncome)
 
   const firstHalfDebt =
     buckets.slice(0, halfPoint).reduce((s, m) => s + m.debt, 0) / (halfPoint || 1)
@@ -148,7 +184,7 @@ export function computeAnalysis(
       : debtTrendBase
 
   const monthlySavingsRates = buckets.map((m) =>
-    m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0,
+    savingsRatePercentOr({ income: m.income, expense: m.expense }),
   )
   const positiveSavingsMonths = monthlySavingsRates.filter((r) => r > 0).length
   const positiveSavingsRatio = positiveSavingsMonths / count
@@ -162,7 +198,7 @@ export function computeAnalysis(
   const VOLATILITY_WINDOW = 12
   const recentBuckets = buckets.slice(-VOLATILITY_WINDOW)
   const recentSavingsRates = recentBuckets
-    .map((m) => (m.income > 0 ? ((m.income - m.expense) / m.income) * 100 : 0))
+    .map((m) => savingsRatePercentOr({ income: m.income, expense: m.expense }))
     .filter((r) => r > 0)
   const savingsVolatilityCV = weightedCoefficientOfVariation(recentSavingsRates)
 
@@ -175,8 +211,13 @@ export function computeAnalysis(
     monthsAnalyzed: count,
     savingsRate,
     essentialToIncomeRatio,
+    totalIncome,
+    totalExpense,
+    totalEssentialExpense: totalEssential,
+    totalDebt,
     avgMonthlyIncome,
     avgMonthlyExpense,
+    avgMonthlyEssentialExpense: totalEssential / count,
     emergencyFundMonths,
     cumulativeNetSavings,
     investmentRegularity,
@@ -190,5 +231,31 @@ export function computeAnalysis(
     savingsVolatilityCV,
     incomeCV,
     balances,
+  }
+}
+
+/**
+ * Build the CFP scorer's inputs from an analysis result.
+ *
+ * The single place this mapping happens. Both callers previously reconstituted
+ * the period totals as `avgMonthlyIncome * monthsAnalyzed` and
+ * `avgMonthlyExpense * monthsAnalyzed`, which is a lossy round-trip of sums the
+ * analysis already had -- and it silently diverges the moment the two averages
+ * stop sharing a divisor, shifting the weighted composite with no failing test.
+ * `totalDebtOutstanding` stays a flow proxy (debt SERVICE summed over the
+ * window, not a balance); it is only used when no real balance feed is attached.
+ */
+export function cfpInputsFromAnalysis(data: AnalysisResult): CFPScoreInputs {
+  return {
+    totalIncome: data.totalIncome,
+    totalExpenses: data.totalExpense,
+    avgMonthlyIncome: data.avgMonthlyIncome,
+    avgMonthlyExpense: data.avgMonthlyExpense,
+    avgMonthlyEssentialExpense: data.avgMonthlyEssentialExpense,
+    avgMonthlyDebt: data.avgMonthlyDebt,
+    cumulativeNetSavings: data.cumulativeNetSavings,
+    netInvestments: data.totalInvestmentInflow - data.totalInvestmentOutflow,
+    totalDebtOutstanding: data.totalDebt,
+    balances: data.balances,
   }
 }

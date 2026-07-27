@@ -16,15 +16,18 @@ export default function DemoEntryPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
+    // `void navigate(...)`: typed `void | Promise<void>` by react-router but
+    // returns undefined under BrowserRouter (App.tsx), and nothing here waits
+    // on the transition.
     // Already logged in as real user — go to dashboard
     if (isAuthenticated && !isDemoMode()) {
-      navigate(ROUTES.DASHBOARD, { replace: true })
+      void navigate(ROUTES.DASHBOARD, { replace: true })
       return
     }
 
     // Already in demo mode — go to dashboard
     if (isDemoMode()) {
-      navigate(ROUTES.DASHBOARD, { replace: true })
+      void navigate(ROUTES.DASHBOARD, { replace: true })
       return
     }
 

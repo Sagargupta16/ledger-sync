@@ -36,6 +36,42 @@ export default defineConfig([
       'jsx-a11y/no-static-element-interactions': 'warn',
     },
   },
+  /**
+   * Type-aware tier. `tseslint.configs.recommended` is syntax-only and cannot
+   * see `any` flowing through a value, which is how two shipped features stayed
+   * broken (a null request body posted to a handler that required one) and how
+   * the auth refresh interceptor came to read its whole payload off `any`.
+   *
+   * Scoped to `src/**` because the root-level configs (vite, vitest,
+   * pwa-assets) are not in the app tsconfig project and would only report parse
+   * errors. `projectService` resolves each file through the real tsconfig graph.
+   *
+   * The `no-unsafe-*` and `no-floating-promises` rules are at zero in
+   * production code as of 2026-07-27 -- this tier keeps them there.
+   */
+  ...tseslint.configs.recommendedTypeChecked.map((config) => ({
+    ...config,
+    files: ['src/**/*.{ts,tsx}'],
+  })),
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      // Redundant-but-correct assertions. The rule fires precisely BECAUSE the
+      // type already matches, so every one of the 37 sites is cosmetic, and
+      // `--fix` on them churns files other work is mid-edit. Left as warn so
+      // they surface without gating CI.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      // Fires on `async` test callbacks that await nothing, which is the normal
+      // shape when a test awaits only inside a `waitFor`.
+      '@typescript-eslint/require-await': 'warn',
+    },
+  },
   {
     files: ['src/pages/settings/**/*.{ts,tsx}'],
     rules: {

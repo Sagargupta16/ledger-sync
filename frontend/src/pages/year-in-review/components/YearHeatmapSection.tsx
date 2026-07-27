@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Flame } from 'lucide-react'
 
-import { DAYS, MONTHS_SHORT, heatmapColors, modeAccent } from '../types'
+import { DAYS, MONTHS_SHORT, modeAccent } from '../types'
 import type { useYearInReview } from '../useYearInReview'
 
 import type { DayCell } from './DayOfWeekChart'
 import HeatmapDayDetail from './HeatmapDayDetail'
+import HeatmapLegend from './HeatmapLegend'
 import HeatmapWeeks from './HeatmapWeeks'
 import MobileMonthlySummary from './MobileMonthlySummary'
 
@@ -53,18 +54,7 @@ export default function YearHeatmapSection({
             {modeLabel} Heatmap -- {review.isFYMode ? review.currentFY : review.selectedYear}
           </span>
         </h2>
-        <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-          <span>Less</span>
-          {heatmapColors[review.mode].map((color) => (
-            <span
-              key={color}
-              className="h-3 w-3 rounded-sm"
-              style={{ backgroundColor: color }}
-              aria-hidden="true"
-            />
-          ))}
-          <span>More</span>
-        </div>
+        <HeatmapLegend mode={review.mode} />
       </div>
 
       <div className="hidden lg:block">

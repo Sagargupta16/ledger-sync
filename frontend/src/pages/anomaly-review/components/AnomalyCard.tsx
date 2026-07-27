@@ -1,18 +1,36 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, ChevronDown, ChevronUp, X } from 'lucide-react'
 
+import type { LucideIcon } from 'lucide-react'
+
 import { Button, Input } from '@/components/ui'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatDate } from '@/lib/formatters'
 
 import {
-  ANOMALY_TYPE_ICONS,
-  ANOMALY_TYPE_LABELS,
+  anomalyTypeIcon,
+  anomalyTypeLabel,
   DETECTED_AT_OPTIONS,
-  SEVERITY_ICONS,
-  SEVERITY_STYLES,
+  severityIcon,
+  severityStyle,
 } from '../constants'
 import AnomalyValueComparison from './AnomalyValueComparison'
+
+/**
+ * Renders a resolved icon component.
+ *
+ * The icon is chosen per anomaly at render time (via the `constants` accessors),
+ * and binding that choice to a capitalized local is what `react-hooks/
+ * static-components` rejects: React sees a fresh component identity each render
+ * and remounts the subtree instead of updating it. Taking the icon as a PROP on
+ * a module-level component is the repo's existing answer to this -- `MetricCard`,
+ * `EmptyState`, `SidebarItem` and `SummaryCard` all declare `icon: LucideIcon`
+ * and destructure it as `icon: Icon`. Here the choice is dynamic rather than
+ * caller-supplied, so the indirection lives in this file.
+ */
+function AnomalyIcon({ icon: Icon, className }: Readonly<{ icon: LucideIcon; className: string }>) {
+  return <Icon className={className} />
+}
 
 interface Props {
   anomaly: Anomaly
@@ -33,9 +51,12 @@ export default function AnomalyCard({
   onNoteTextChange,
   onReview,
 }: Readonly<Props>) {
-  const TypeIcon = ANOMALY_TYPE_ICONS[anomaly.anomaly_type]
-  const SeverityIcon = SEVERITY_ICONS[anomaly.severity]
-  const severity = SEVERITY_STYLES[anomaly.severity]
+  // Accessors, not direct indexing: both fields come off the wire, and an
+  // unmapped one used to produce `undefined` in a className (or throw outright on
+  // `severity.bg`) instead of degrading to a neutral chip.
+  const typeIcon = anomalyTypeIcon(anomaly.anomaly_type)
+  const sevIcon = severityIcon(anomaly.severity)
+  const severity = severityStyle(anomaly.severity)
 
   return (
     <motion.div
@@ -46,17 +67,17 @@ export default function AnomalyCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${severity.bg}`}>
-            <TypeIcon className={`w-4 h-4 ${severity.text}`} />
+            <AnomalyIcon icon={typeIcon} className={`w-4 h-4 ${severity.text}`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">
-                {ANOMALY_TYPE_LABELS[anomaly.anomaly_type]}
+                {anomalyTypeLabel(anomaly.anomaly_type)}
               </span>
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${severity.bg} ${severity.text} ${severity.border}`}
               >
-                <SeverityIcon className="w-3 h-3" />
+                <AnomalyIcon icon={sevIcon} className="w-3 h-3" />
                 {anomaly.severity}
               </span>
               {anomaly.is_reviewed && (

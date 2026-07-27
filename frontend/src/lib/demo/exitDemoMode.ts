@@ -15,6 +15,8 @@ export function exitDemoMode(queryClient: QueryClient, navigate: NavigateFunctio
   // 3. Clear all cached demo data
   queryClient.clear()
 
-  // 4. Navigate to landing page
-  navigate('/')
+  // 4. Navigate to landing page.
+  // See enterDemoMode: NavigateFunction is typed `void | Promise<void>` but
+  // returns undefined under BrowserRouter, so `void` is fire-and-forget.
+  void navigate('/')
 }

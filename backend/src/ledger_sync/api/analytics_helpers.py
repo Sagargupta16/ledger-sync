@@ -6,14 +6,18 @@ Extracted from analytics.py to keep both modules under 500 LOC.
 from __future__ import annotations
 
 import calendar
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import case, func
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.expense_class import capital_loss_sql_filter
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
+    capital_loss_keys_for,
+    capital_loss_sum_col,
     expense_sum_col,
     fmt_year_month,
     income_sum_col,
@@ -69,7 +73,11 @@ def _get_time_range_dates(
     if not has_any:
         return None, None
 
-    now = datetime.now(UTC)
+    # IST wall clock, not UTC: the stored dates are naive IST and the product is
+    # built on the Apr-Mar financial year. A UTC anchor puts "this month" and
+    # the financial year one period behind for the 5.5 hours after IST
+    # midnight, so at 02:00 IST on 1 April every FY figure reads a year stale.
+    now = ledger_now()
     end_date: datetime | None = None
 
     if time_range == TimeRange.THIS_MONTH:
@@ -95,8 +103,9 @@ def _get_time_range_dates(
         start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     elif time_range == TimeRange.LAST_YEAR:
         year = now.year - 1
-        start_date = datetime(year, 1, 1, tzinfo=UTC)
-        end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
+        # Naive to match the other branches and the naive ``date`` column.
+        start_date = datetime(year, 1, 1)  # noqa: DTZ001
+        end_date = datetime(year, 12, 31, 23, 59, 59)  # noqa: DTZ001
     elif time_range == TimeRange.LAST_DECADE:
         start_date = _subtract_months(
             now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 119
@@ -137,25 +146,36 @@ def _get_sql_totals(
     user: User,
     time_range: TimeRange,
 ) -> dict[str, float]:
-    """Compute total income, expenses, net change, and count in a single SQL query.
+    """Compute total income, expenses, losses, net change, and count in one SQL query.
 
     Uses ``func.sum(case(...))`` so the database does all aggregation.
+
+    ``capital_losses`` is reported alongside ``total_expenses`` rather than
+    inside it, and ``net_change`` subtracts BOTH. Excluding a classified loss
+    from expenses without republishing it made the rupees disappear: the same
+    period read ``net_change`` here and ``net_savings`` from
+    ``/api/calculations/totals`` differing by exactly the loss amount, so "net"
+    had two answers depending on which endpoint the page happened to call.
     """
+    loss_keys = capital_loss_keys_for(user)
     base = _build_base_query(db, user, time_range).subquery()
 
     row = db.query(
         income_sum_col(base),
-        expense_sum_col(base),
+        expense_sum_col(base, loss_keys=loss_keys),
+        capital_loss_sum_col(base, loss_keys=loss_keys),
         func.count().label("transaction_count"),
     ).one()
 
     total_income = float(row.total_income)
     total_expenses = float(row.total_expenses)
+    capital_losses = float(row.capital_losses)
 
     return {
         "total_income": total_income,
         "total_expenses": total_expenses,
-        "net_change": total_income - total_expenses,
+        "capital_losses": capital_losses,
+        "net_change": total_income - total_expenses - capital_losses,
         "transaction_count": row.transaction_count,
     }
 
@@ -165,11 +185,14 @@ def _get_sql_monthly_data(
     user: User,
     time_range: TimeRange,
 ) -> dict[str, dict[str, float]]:
-    """Return monthly income/expenses using SQL GROUP BY.
+    """Return monthly income/expenses/capital_losses using SQL GROUP BY.
 
     Keys are ``"YYYY-MM"`` strings.  Values match the shape returned by
-    ``calculator.group_by_month``.
+    ``calculator.group_by_month`` plus a ``capital_losses`` entry, so every
+    consumer that derives a net figure (``find_best_worst_months``, the
+    monthly-trends chart) can subtract the loss instead of losing it.
     """
+    loss_keys = capital_loss_keys_for(user)
     base = _build_base_query(db, user, time_range).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
 
@@ -177,14 +200,20 @@ def _get_sql_monthly_data(
         db.query(
             month_col,
             income_sum_col(base, label="income"),
-            expense_sum_col(base, label="expenses"),
+            expense_sum_col(base, label="expenses", loss_keys=loss_keys),
+            capital_loss_sum_col(base, loss_keys=loss_keys),
         )
         .group_by(month_col)
         .all()
     )
 
     return {
-        row.month: {"income": float(row.income), "expenses": float(row.expenses)} for row in rows
+        row.month: {
+            "income": float(row.income),
+            "expenses": float(row.expenses),
+            "capital_losses": float(row.capital_losses),
+        }
+        for row in rows
     }
 
 
@@ -197,12 +226,18 @@ def _get_sql_category_totals(
 
     Only ``EXPENSE`` transactions are included, matching the behaviour of
     ``calculator.group_by_category``.
+
+    Taxonomies the user classified as realised investment losses are dropped so
+    this ranking agrees with ``CategoryTrend`` / ``/category-breakdown``; a
+    realised loss is a negative investment return, not a spending category.
     """
-    base = (
-        _build_base_query(db, user, time_range)
-        .filter(Transaction.type == TransactionType.EXPENSE)
-        .subquery()
+    expense_query = _build_base_query(db, user, time_range).filter(
+        Transaction.type == TransactionType.EXPENSE
     )
+    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
+    if not_a_loss is not None:
+        expense_query = expense_query.filter(not_a_loss)
+    base = expense_query.subquery()
 
     rows = (
         db.query(

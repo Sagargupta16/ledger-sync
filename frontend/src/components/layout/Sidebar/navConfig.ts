@@ -20,6 +20,8 @@ import {
   Settings2,
   Flame,
   Compass,
+  HeartPulse,
+  Store,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -74,6 +76,10 @@ export const navigationSections: NavSection[] = [
     title: 'Analytics',
     items: [
       { path: ROUTES.SPENDING_ANALYSIS, label: 'Expense Analysis', icon: BarChart3 },
+      // Sits under Expense Analysis because it answers the next question that
+      // page raises: the 12 categories say what kind of spend, this says who
+      // was actually paid.
+      { path: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchants', icon: Store },
       { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
@@ -104,6 +110,10 @@ export const navigationSections: NavSection[] = [
       { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
       { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
       { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
+      // Sits beside Anomaly Review because both answer "can I trust what the
+      // other pages are showing me" -- one about individual rows, one about
+      // whether the ledger is current at all.
+      { path: ROUTES.DATA_HEALTH, label: 'Data Health', icon: HeartPulse },
     ],
   },
   {

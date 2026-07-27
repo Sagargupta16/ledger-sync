@@ -5,14 +5,15 @@ aggregation columns and the base filtered-transaction query builder.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func, literal, not_
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
 from ledger_sync.config.settings import settings
+from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
 from ledger_sync.db.models import AccountClassification, Transaction, TransactionType, User
 
 # ---------------------------------------------------------------------------
@@ -20,6 +21,40 @@ from ledger_sync.db.models import AccountClassification, Transaction, Transactio
 # ---------------------------------------------------------------------------
 
 _is_sqlite = "sqlite" in settings.database_url
+
+
+# ---------------------------------------------------------------------------
+# Query-parameter date normalisation
+# ---------------------------------------------------------------------------
+
+
+def as_naive(value: datetime) -> datetime:
+    """Drop the tzinfo so a value is comparable with the naive stored column.
+
+    ``Transaction.date`` is a naive ``DateTime`` holding local calendar
+    midnights, and FastAPI parses a bare ``YYYY-MM-DD`` query param to a naive
+    datetime but ``...Z`` to an aware one. Any handler that compares a
+    user-supplied bound against ``datetime.now(UTC)`` therefore raises
+    ``TypeError: can't compare offset-naive and offset-aware datetimes`` for one
+    of the two input shapes -- a 500, not a 422.
+
+    Normalising to naive (rather than to aware) is what matches the column: the
+    stored values have no zone, so attaching one to the bound would shift every
+    comparison by the offset.
+    """
+    return value.replace(tzinfo=None) if value.tzinfo is not None else value
+
+
+def inclusive_end(end: datetime) -> datetime:
+    """Extend a midnight end-bound to cover the whole of that day.
+
+    ``date <= end`` against a date-only bound (parsed to midnight) drops
+    same-day rows carrying a time component. A caller who passes an explicit
+    time is respected as-is.
+    """
+    if (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0):
+        return end + timedelta(days=1) - timedelta(microseconds=1)
+    return end
 
 
 def fmt_year_month(date_col: Any) -> Any:
@@ -118,7 +153,12 @@ def income_sum_col(subquery: Subquery, *, label: str = "total_income") -> Any:
     ).label(label)
 
 
-def expense_sum_col(subquery: Subquery, *, label: str = "total_expenses") -> Any:
+def expense_sum_col(
+    subquery: Subquery,
+    *,
+    label: str = "total_expenses",
+    loss_keys: set[str] | None = None,
+) -> Any:
     """Return a ``coalesce(sum(case(...)))`` column for EXPENSE rows.
 
     Parameters
@@ -127,12 +167,65 @@ def expense_sum_col(subquery: Subquery, *, label: str = "total_expenses") -> Any
         A SQLAlchemy subquery (the result of ``.subquery()``).
     label:
         SQL label applied to the resulting column expression.
+    loss_keys:
+        Normalised ``"category::subcategory"`` keys the user classified as
+        realised investment losses (``capital_loss_keys_for``). Rows matching one
+        are excluded from the sum: a realised loss is a negative investment
+        return, not consumption, so counting it here made the date-filtered
+        fallback paths disagree with ``monthly_summaries.total_expenses``, which
+        holds it in its own ``capital_losses`` bucket. The exclusion lives in this
+        one helper so every ``/totals``, ``/monthly-aggregation`` and yearly
+        caller inherits it instead of restating the predicate.
+
+        ``None`` or an empty set emits exactly the SQL this function emitted
+        before the parameter existed, which is the state for every user who has
+        classified nothing.
     """
+    is_expense: Any = subquery.c.type == TransactionType.EXPENSE
+    not_a_loss = capital_loss_sql_filter(
+        loss_keys or set(),
+        subquery.c.category,
+        subquery.c.subcategory,
+    )
+    if not_a_loss is not None:
+        is_expense = and_(is_expense, not_a_loss)
+    return func.coalesce(
+        func.sum(
+            case(
+                (is_expense, subquery.c.amount),
+                else_=0,
+            )
+        ),
+        0,
+    ).label(label)
+
+
+def capital_loss_sum_col(
+    subquery: Subquery,
+    *,
+    label: str = "capital_losses",
+    loss_keys: set[str] | None = None,
+) -> Any:
+    """Return a ``coalesce(sum(case(...)))`` column for classified realised losses.
+
+    The exact complement of ``expense_sum_col``: every EXPENSE row that helper
+    drops lands here, so ``income - expenses - capital_losses`` still reconciles
+    to the same net figure the un-split query produced. Pair the two whenever a
+    response reports both, and emit a constant 0 when nothing is classified so
+    the column always exists and callers need no branch.
+    """
+    not_a_loss = capital_loss_sql_filter(
+        loss_keys or set(),
+        subquery.c.category,
+        subquery.c.subcategory,
+    )
+    if not_a_loss is None:
+        return literal(0).label(label)
     return func.coalesce(
         func.sum(
             case(
                 (
-                    subquery.c.type == TransactionType.EXPENSE,
+                    and_(subquery.c.type == TransactionType.EXPENSE, not_(not_a_loss)),
                     subquery.c.amount,
                 ),
                 else_=0,
@@ -140,6 +233,17 @@ def expense_sum_col(subquery: Subquery, *, label: str = "total_expenses") -> Any
         ),
         0,
     ).label(label)
+
+
+def capital_loss_keys_for(user: User) -> set[str]:
+    """Return the user's ``capital_loss_categories`` preference as normalised keys.
+
+    Lazy-loads ``user.preferences``. Empty when unset, which means "classify
+    nothing" and leaves every aggregate behaving as it did before the preference
+    existed.
+    """
+    prefs = user.preferences
+    return capital_loss_keys(getattr(prefs, "capital_loss_categories", None) if prefs else None)
 
 
 # ---------------------------------------------------------------------------

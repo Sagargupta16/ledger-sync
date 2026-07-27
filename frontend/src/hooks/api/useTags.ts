@@ -13,9 +13,12 @@ export function useUpdateTransactionTags() {
     mutationFn: ({ transactionId, tags }: { transactionId: string; tags: string[] }) =>
       transactionsService.updateTransactionTags(transactionId, tags),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
-      queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
+      // Fire-and-forget: invalidateQueries resolves even if a refetch fails
+      // (query-core swallows it), and the tag write itself surfaces via the
+      // global MutationCache toast.
+      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      void queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
+      void queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
     },
   })
 }

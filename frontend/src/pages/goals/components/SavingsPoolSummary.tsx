@@ -4,7 +4,7 @@ import { PiggyBank } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrencyCompact } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
-import { GOAL_TYPE_COLORS } from '../constants'
+import { goalTypeColor } from '../constants'
 
 export default function SavingsPoolSummary({
   netSavings,
@@ -37,7 +37,7 @@ export default function SavingsPoolSummary({
           name: g.name,
           amount,
           pct: (amount / denom) * 100,
-          color: GOAL_TYPE_COLORS[g.goal_type],
+          color: goalTypeColor(g.goal_type),
         }
       })
     return { segments: segs, barTotal: denom }

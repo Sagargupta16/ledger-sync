@@ -85,10 +85,20 @@ class TrendsMixin(AnalyticsEngineBase):
         with the last-seen value, which scrambled subcategory totals across
         months (e.g. Cashbacks under the wrong subcategory heading).
         """
+        # Transfers are excluded because they are the same rupee twice; a
+        # classified realised loss is excluded because it is a negative
+        # investment return rather than spending. Without the second filter the
+        # loss stayed the user's top "expense category" on /category-breakdown
+        # and its percent_of_total was computed against a monthly expense total
+        # that included it, so the whole ranking disagreed with the
+        # monthly_summaries figure for the same month.
         transactions = [
             t
             for t in (all_transactions or self._user_transaction_query().all())
             if t.type != TransactionType.TRANSFER
+            and not (
+                t.type == TransactionType.EXPENSE and self._is_capital_loss(t)  # type: ignore[attr-defined]
+            )
         ]
 
         category_data: dict[tuple[str, str, str | None, str], list[float]] = defaultdict(

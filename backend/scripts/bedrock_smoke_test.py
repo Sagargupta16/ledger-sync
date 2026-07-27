@@ -34,7 +34,7 @@ def main() -> int:
             messages=[{"role": "user", "content": [{"text": "Reply with just OK."}]}],
             inferenceConfig={"maxTokens": 10},
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # broad on purpose -- report any failure readably
         print(f"FAILED: {type(exc).__name__}: {exc}")
         return 1
 

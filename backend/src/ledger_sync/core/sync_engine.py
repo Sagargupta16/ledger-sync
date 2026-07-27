@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from ledger_sync.core import rules
 from ledger_sync.core.analytics_engine import AnalyticsEngine
@@ -13,7 +13,11 @@ from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
 from ledger_sync.db.models import ImportLog, Transaction
 from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
-from ledger_sync.ingest.normalizer import DataNormalizer, NormalizationError
+from ledger_sync.ingest.normalizer import (
+    DataNormalizer,
+    NormalizationError,
+    format_transfer_category,
+)
 from ledger_sync.utils.logging import logger
 
 
@@ -61,10 +65,29 @@ class SyncEngine:
             raise ValueError(msg)
         return existing_import
 
+    def _existing_spellings(self, *columns: InstrumentedAttribute[str | None]) -> dict[str, str]:
+        """Map lowercased label -> the spelling already in this user's ledger.
+
+        First spelling seen per key wins, so re-uploads converge on stored data
+        instead of renaming history.
+        """
+        canonical: dict[str, str] = {}
+        if self.user_id is None:
+            return canonical
+        for column in columns:
+            stmt = (
+                select(column)
+                .where(Transaction.user_id == self.user_id, column.is_not(None))
+                .distinct()
+            )
+            for (name,) in self.session.execute(stmt):
+                canonical.setdefault(name.lower(), name)
+        return canonical
+
     def _canonicalize_account_casing(self, normalized_rows: list[dict[str, Any]]) -> None:
         """Fold case-variant account names onto one canonical spelling.
 
-        "CC: Axis Google Flex" and "CC: AXIS Google Flex" are the same real
+        "CC: Axis Google Flex" and "cc: axis google flex" are the same real
         account; letting both through creates two accounts everywhere
         downstream (balances, net worth, classifications). Canonical form is
         chosen per lowercased key: the spelling already stored in this user's
@@ -72,20 +95,25 @@ class SyncEngine:
         first spelling seen in this batch. Runs BEFORE hashing because the
         account name feeds the SHA-256 transaction_id.
 
-        Transfer rows keep ``category`` in sync ("Transfer: A → B" embeds the
-        account names) so the displayed label matches the folded accounts.
+        Transfer rows keep ``category`` in sync (the label embeds the account
+        names) so the displayed label matches the folded accounts.
+
+        NOTE: that label is currently load-bearing for transfer IDENTITY and
+        must not be collapsed to a bare "Transfer" constant here on its own.
+        ``reconciler_transfers.reconcile_transfers_batch`` never passes
+        ``to_account`` to the hasher, so the destination reaches the SHA-256
+        only through this category string. Replace it with a constant and two
+        same-day same-amount transfers out of one account to DIFFERENT
+        destinations hash identically -- the second is then silently dropped as
+        a batch duplicate (measured: 6 real transfers lost out of 1,217 on a
+        live 8,181-row workbook; 0 of 1,211 on another, so the loss is
+        workbook-specific, not a safe rounding error). De-polluting the
+        category taxonomy requires threading ``to_account`` into the transfer
+        hash first.
         """
-        # Seed with existing spellings from the user's ledger (all three legs).
-        canonical: dict[str, str] = {}
-        if self.user_id is not None:
-            for column in (Transaction.account, Transaction.from_account, Transaction.to_account):
-                stmt = (
-                    select(column)
-                    .where(Transaction.user_id == self.user_id, column.is_not(None))
-                    .distinct()
-                )
-                for (name,) in self.session.execute(stmt):
-                    canonical.setdefault(name.lower(), name)
+        canonical = self._existing_spellings(
+            Transaction.account, Transaction.from_account, Transaction.to_account
+        )
 
         def fold(name: str | None) -> str | None:
             if not name:
@@ -97,7 +125,35 @@ class SyncEngine:
             if row.get("is_transfer", False):
                 row["from_account"] = fold(row.get("from_account"))
                 row["to_account"] = fold(row.get("to_account"))
-                row["category"] = f"Transfer: {row['from_account']} → {row['to_account']}"
+                row["category"] = format_transfer_category(
+                    str(row["from_account"]), str(row["to_account"])
+                )
+
+    def _canonicalize_category_casing(self, normalized_rows: list[dict[str, Any]]) -> None:
+        """Fold case-variant category names onto one canonical spelling.
+
+        The account twin of this problem, for the category taxonomy.
+        ``DataNormalizer._standardize_category`` sees one label at a time and
+        (correctly) preserves user casing, so "GROCERIES" and "Groceries"
+        arrive as two labels and split every per-category total -- consumers
+        compare exactly (``Transaction.category == category`` in
+        ``api/calculations.py`` and ``api/transactions.py``).
+
+        Same canonical rule as accounts: the spelling already in this user's
+        ledger wins, else the first spelling in this batch. Runs BEFORE hashing
+        because ``category`` feeds the SHA-256 transaction_id.
+
+        Transfer rows are skipped -- their category is the generated
+        "Transfer: A -> B" label, already folded with the accounts it embeds.
+        """
+        canonical = self._existing_spellings(Transaction.category)
+
+        for row in normalized_rows:
+            if row.get("is_transfer", False):
+                continue
+            category = row.get("category")
+            if category:
+                row["category"] = canonical.setdefault(category.lower(), category)
 
     def _reconcile_and_log(
         self,
@@ -124,6 +180,7 @@ class SyncEngine:
                     rules.apply_rules_to_row(active_rules, row)
 
         self._canonicalize_account_casing(normalized_rows)
+        self._canonicalize_category_casing(normalized_rows)
 
         transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
         transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
@@ -256,7 +313,7 @@ class SyncEngine:
         logger.info(f"Starting import of {file_path}")
         import_time = datetime.now(UTC)
 
-        # Step 1: Load and validate — pick the right loader by extension
+        # Step 1: Load and validate -- pick the right loader by extension
         if file_path.suffix.lower() == ".csv":
             df, column_mapping, file_hash = self.csv_loader.load(file_path)
         else:

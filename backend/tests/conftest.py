@@ -16,7 +16,7 @@ from ledger_sync.db.models import Transaction, TransactionType, User, UserPrefer
 from ledger_sync.db.session import get_session
 
 # Fake bcrypt hash for test fixtures — not a real credential
-TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"  # noqa: S105
+TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
 
 @pytest.fixture

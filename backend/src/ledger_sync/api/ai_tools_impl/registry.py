@@ -77,7 +77,7 @@ def apply_date_range(
     return stmt
 
 
-def to_decimal(v: Decimal | float | int | None) -> float:
+def to_decimal(v: Decimal | float | None) -> float:
     if v is None:
         return 0.0
     return float(v)

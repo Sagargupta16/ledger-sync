@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig } from 'axios'
+import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios'
 import { API_BASE_URL } from '@/constants'
 import { useAuthStore, getAccessToken, getRefreshToken } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
@@ -20,9 +20,11 @@ import {
   generateDemoAnomalies,
   generateDemoBudgets,
   generateDemoGoals,
+  generateDemoDataHealth,
 } from '@/lib/demo/generateDerivedData'
 import {
   generateDemoAccountClassifications,
+  generateDemoAccountsByType,
   generateDemoCategoryDailySeries,
   generateDemoCategoryMonthlyHistory,
   generateDemoCohortSpending,
@@ -38,14 +40,21 @@ import {
   generateDemoSpendingRule,
   generateDemoTransferFlows,
 } from '@/lib/demo/demoComputedReads'
-import type { Transaction } from '@/types'
+import { generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
+import { generateDemoExportBlob } from '@/lib/demo/demoExport'
+import { generateDemoIncomeAnalysis } from '@/lib/demo/demoIncomeAnalysis'
+import type { AuthTokens, Transaction } from '@/types'
 
 /** V2 list endpoints are wrapped as { data, count }. */
 function wrap<T>(rows: T[]): { data: T[]; count: number } {
   return { data: rows, count: rows.length }
 }
 
-type DemoResolver = (txs: Transaction[], params: Record<string, unknown>) => unknown
+type DemoResolver = (
+  txs: Transaction[],
+  params: Record<string, unknown>,
+  url: string,
+) => unknown
 
 /**
  * Ordered demo-route table: first URL-substring match wins, so specific
@@ -55,6 +64,10 @@ type DemoResolver = (txs: Transaction[], params: Record<string, unknown>) => unk
  */
 const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/api/ai/tools', () => ({ tools: [] })],
+  // The rollup panels read `usage.today.total_tokens` and
+  // `limits.app_daily_messages` directly, so the catch-all's `[]` rendered
+  // "NaN / 10 left" and threw in the BYOK panel. Full shape or nothing.
+  ['/api/ai/usage', () => generateDemoAiUsage()],
   // Calculations
   ['/calculations/totals', (txs, params) => generateDemoTotals(txs, params)],
   ['/calculations/monthly-aggregation', (txs, params) => generateDemoMonthlyAggregation(txs, params)],
@@ -62,13 +75,19 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/calculations/category-breakdown', (txs, params) => generateDemoCategoryBreakdown(txs, params)],
   ['/calculations/quick-insights', (txs) => generateDemoQuickInsights(txs)],
   ['/calculations/data-date-range', (txs) => generateDemoDataDateRange(txs)],
+  ['/calculations/income-analysis', (txs, params) => generateDemoIncomeAnalysis(txs, params)],
   ['/calculations/income-facets', (txs) => generateDemoIncomeFacets(txs)],
   [
     '/calculations/category-monthly-history',
     (txs, params) =>
       generateDemoCategoryMonthlyHistory(
         txs,
-        Array.isArray(params.months) ? (params.months as string[]) : [],
+        // `calculations.getCategoryMonthlyHistory` sends `months.join(',')`, so
+        // the param is a comma-joined STRING here -- axios only expands arrays
+        // on the wire, and the demo adapter reads `config.params` before that.
+        // An `Array.isArray` test never matched, so every sparkline and every
+        // "/mo avg" on the demo Category Breakdown came back empty.
+        typeof params.months === 'string' ? params.months.split(',') : [],
         params.transaction_type === 'income' ? 'income' : 'expense',
       ),
   ],
@@ -87,8 +106,10 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   [
     '/analytics/v2/recurring-transactions',
     (_txs, params) => {
-      const rows = generateDemoRecurring()
-      return wrap(params.active_only ? rows.filter((r) => r.is_active) : rows)
+      let rows = generateDemoRecurring()
+      if (params.active_only) rows = rows.filter((r) => r.is_active)
+      if (params.pattern_kind) rows = rows.filter((r) => r.pattern_kind === params.pattern_kind)
+      return wrap(rows)
     },
   ],
   ['/analytics/v2/net-worth', (txs) => wrap(generateDemoNetWorth(txs))],
@@ -102,23 +123,37 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ],
   ['/analytics/v2/budgets', () => wrap(generateDemoBudgets())],
   ['/analytics/v2/goals', () => wrap(generateDemoGoals())],
+  // Bare object, not a { data, count } list -- and it must precede the catch-all
+  // below, whose empty-list shape fails assertDataHealth and hangs the page.
+  ['/analytics/v2/data-health', (txs) => generateDemoDataHealth(txs)],
   ['/analytics/v2/', () => ({ data: [], count: 0 })],
   ['/analytics/overview', (txs) => generateDemoOverview(txs)],
   ['/analytics/behavior', (txs) => generateDemoBehavior(txs)],
   ['/analytics/trends', (txs) => generateDemoTrends(txs)],
-  // Transactions -- facets and paginated search before the generic list.
+  // Transactions -- facets, export and paginated search before the generic list.
   ['/transactions/facets', (txs) => generateDemoFacets(txs)],
+  // CSV export answers a Blob, not JSON, and MUST stay above '/transactions':
+  // the generic route returns an array, `URL.createObjectURL` rejects it, and
+  // the page toasts "Export failed".
+  ['/transactions/export', (txs, params) => generateDemoExportBlob(txs, params)],
   ['/transactions/search', (txs, params) => generateDemoSearch(txs, params)],
   ['/saved-views', () => generateDemoSavedViews()],
   // Closed-accounts list must precede the generic prefix match below.
   ['/account-classifications/closed', () => []],
+  // Same ordering requirement: `/type/{type}` returns `{ accounts: [...] }`, a
+  // different shape from the name -> classification map the generic route serves.
+  [
+    '/account-classifications/type/',
+    (_txs, _params, url) =>
+      generateDemoAccountsByType(decodeURIComponent(url.split('/account-classifications/type/')[1] ?? '')),
+  ],
   ['/account-classifications', () => generateDemoAccountClassifications()],
   ['/transactions', (txs, params) => txs.slice(0, (params.limit as number) || txs.length)],
 ]
 
 function resolveDemoData(url: string, params: Record<string, unknown>, txs: Transaction[]): unknown {
   const route = DEMO_ROUTES.find(([prefix]) => url.includes(prefix))
-  return route ? route[1](txs, params) : []
+  return route ? route[1](txs, params, url) : []
 }
 
 export const apiClient = axios.create({
@@ -142,8 +177,8 @@ apiClient.interceptors.request.use(
 
     // For GET requests, return mock data via adapter override
     config.adapter = () => {
-      const url = config.url || ''
-      const params = config.params || {}
+      const url = config.url ?? ''
+      const params = (config.params ?? {}) as Record<string, unknown>
       const txs = getDemoTransactions()
 
       const data = resolveDemoData(url, params, txs)
@@ -152,7 +187,12 @@ apiClient.interceptors.request.use(
 
     return config
   },
-  (error) => Promise.reject(error),
+  // Re-throw instead of `Promise.reject(error)`: axios turns a throw inside a
+  // rejection handler into the same rejected promise with the same value, and
+  // rethrowing keeps a non-Error rejection intact rather than wrapping it.
+  (error: unknown) => {
+    throw error
+  },
 )
 
 // Request interceptor -- always attach the token if one exists.
@@ -166,8 +206,26 @@ apiClient.interceptors.request.use(
     }
     return config
   },
-  (error) => Promise.reject(error)
+  // Re-throw rather than `Promise.reject(error)` -- see the demo interceptor
+  // above; axios produces the identical rejected promise either way.
+  (error: unknown) => {
+    throw error
+  },
 )
+
+/**
+ * Swap in a fresh bearer token, keeping every other header.
+ *
+ * `AxiosHeaders.set()` rather than an object spread: by the time a response
+ * interceptor runs, `config.headers` is an `AxiosHeaders` instance, and header
+ * names are case-insensitive. Spreading it produces a plain object, so an
+ * existing `authorization` key would survive alongside the new `Authorization`
+ * one -- two entries for the same header, resolved by insertion order. `set()`
+ * matches case-insensitively and replaces in place.
+ */
+function withBearer(headers: AxiosRequestConfig['headers'], token: string): AxiosHeaders {
+  return AxiosHeaders.from(headers as never).set('Authorization', `Bearer ${token}`)
+}
 
 // --- Token refresh mutex ---
 // Prevents multiple concurrent 401s from each firing their own refresh request.
@@ -191,11 +249,19 @@ function processQueue(error: unknown, token: string | null) {
 // Response interceptor for error handling and token refresh
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
+  // `unknown` + a narrowing guard rather than the implicit `any` axios hands
+  // over. This handler is the auth backbone, and untyped it read
+  // `error.config`, `error.response.status` and the refresh payload's
+  // `access_token` off `any` -- so a refresh response missing `access_token`
+  // would have set the literal header `Bearer undefined` and put every
+  // subsequent request into a silent 401 loop with no error anywhere.
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error)) throw error
+
+    const originalRequest = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
 
     // If 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true
 
       // If a refresh is already in-flight, queue this request
@@ -203,7 +269,7 @@ apiClient.interceptors.response.use(
         return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         }).then((token) => {
-          originalRequest.headers = { ...originalRequest.headers, Authorization: `Bearer ${token}` }
+          originalRequest.headers = withBearer(originalRequest.headers, token)
           return apiClient(originalRequest)
         })
       }
@@ -211,13 +277,19 @@ apiClient.interceptors.response.use(
       const refreshTokenValue = getRefreshToken()
       if (refreshTokenValue) {
         isRefreshing = true
+        let freshAccessToken: string
         try {
           // Try to refresh the token
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+          const response = await axios.post<AuthTokens>(`${API_BASE_URL}/api/auth/refresh`, {
             refresh_token: refreshTokenValue,
           })
 
           const { access_token, refresh_token } = response.data
+          // Guard the field the whole session hangs on. Untyped, a malformed
+          // refresh response flowed straight into `Bearer undefined`; failing
+          // here instead routes to the catch below, which logs the user out
+          // cleanly rather than leaving them in a broken signed-in state.
+          if (!access_token) throw new Error('Token refresh returned no access token')
 
           // Update store with new tokens
           useAuthStore.getState().setTokens({
@@ -228,10 +300,7 @@ apiClient.interceptors.response.use(
 
           // Replay all queued requests with the new token
           processQueue(null, access_token)
-
-          // Retry the original request with new token
-          originalRequest.headers = { ...originalRequest.headers, Authorization: `Bearer ${access_token}` }
-          return apiClient(originalRequest)
+          freshAccessToken = access_token
         } catch (refreshError) {
           // Reject all queued requests
           processQueue(refreshError, null)
@@ -241,6 +310,14 @@ apiClient.interceptors.response.use(
         } finally {
           isRefreshing = false
         }
+
+        // Retry the original request with new token.
+        // Deliberately OUTSIDE the try above: the catch means "refresh failed"
+        // (reject the queue, log out). A retried request that fails for an
+        // unrelated reason -- 500, network drop -- must not be treated as a
+        // failed refresh, which is what `return await` inside the try would do.
+        originalRequest.headers = withBearer(originalRequest.headers, freshAccessToken)
+        return apiClient(originalRequest)
       } else {
         // No refresh token - logout
         useAuthStore.getState().logout()

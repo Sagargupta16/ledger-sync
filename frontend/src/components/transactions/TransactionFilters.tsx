@@ -9,6 +9,12 @@ import type { TagFacet } from '@/services/api/transactions'
 interface TransactionFiltersProps {
   onFilterChange: (filters: FilterValues) => void
   categories: string[]
+  /**
+   * Transfer routing labels, shown in their own `<optgroup>` below the real
+   * categories. Separate because there is one label per account pair, so on a
+   * mature ledger they outnumber real categories roughly 7 to 1.
+   */
+  transferCategories?: string[]
   accounts: string[]
   /**
    * Seeds the internal filter state on mount. The parent re-seeds by
@@ -37,6 +43,7 @@ const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
 export default function TransactionFilters({
   onFilterChange,
   categories,
+  transferCategories = [],
   accounts,
   initialValues,
   tagOptions = [],
@@ -198,6 +205,15 @@ export default function TransactionFilters({
                   options={[
                     { value: '', label: 'All Categories' },
                     ...categories.map((category) => ({ value: category, label: category })),
+                  ]}
+                  groups={[
+                    {
+                      label: 'Transfer routes',
+                      options: transferCategories.map((category) => ({
+                        value: category,
+                        label: category,
+                      })),
+                    },
                   ]}
                 />
               </div>

@@ -309,7 +309,7 @@ def _extract_content_blocks(response: dict[str, Any]) -> list[dict[str, Any]]:
 @user_limiter.limit("30/minute")
 @limiter.limit("60/minute")
 def bedrock_chat_proxy(
-    request: Request,  # slowapi requires a `request: Request` parameter  # noqa: ARG001
+    request: Request,  # unused in body; slowapi requires a `request: Request` parameter
     current_user: CurrentUser,
     payload: BedrockChatRequest,
     session: DatabaseSession,

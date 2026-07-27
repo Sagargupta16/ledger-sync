@@ -25,14 +25,21 @@ import { useAuthStore } from '@/store/authStore'
 
 const PREFERENCES_KEY = ['preferences']
 
-/** Invalidate preferences and all downstream queries that depend on them */
+/**
+ * Invalidate preferences and all downstream queries that depend on them.
+ *
+ * `invalidateQueries` swallows refetch rejections internally (query-core
+ * catches them unless `throwOnError` is passed), so the returned promise never
+ * rejects and each individual query surfaces its own error state. `void` marks
+ * that we intentionally do not await the refetch cascade.
+ */
 function invalidatePreferenceDependents(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
-  queryClient.invalidateQueries({ queryKey: ['analytics'] })
-  queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
-  queryClient.invalidateQueries({ queryKey: ['transactions'] })
-  queryClient.invalidateQueries({ queryKey: ['calculations'] })
-  queryClient.invalidateQueries({ queryKey: ['kpis'] })
+  void queryClient.invalidateQueries({ queryKey: PREFERENCES_KEY })
+  void queryClient.invalidateQueries({ queryKey: ['analytics'] })
+  void queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
+  void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+  void queryClient.invalidateQueries({ queryKey: ['calculations'] })
+  void queryClient.invalidateQueries({ queryKey: ['kpis'] })
 }
 
 /**

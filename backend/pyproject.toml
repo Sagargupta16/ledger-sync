@@ -75,23 +75,100 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+# Base families (unchanged): pycodestyle, pyflakes, isort, pep8-naming, pyupgrade.
+# Added families are ones the codebase is now clean against, so regressions fail CI:
+#   B    flake8-bugbear         -- catches raise-without-from (traceback loss), bad zip()
+#   S    flake8-bandit          -- security; hardcoded-secret and SQL-injection signal
+#   DTZ  flake8-datetimez       -- naive datetimes; a known recurring bug class here
+#                                  (FY is Apr-Mar and users are IST, so a UTC-vs-IST
+#                                  month/FY boundary slip is a real reporting defect)
+#   C4   flake8-comprehensions  ICN  import conventions
+#   PTH  flake8-use-pathlib     ISC  implicit str concat
+#   LOG  flake8-logging         PIE  misc lints
+#   TID  tidy imports           FA   future annotations
+#   INP  no implicit namespace  T20  no print/pprint
+#   Q    quotes                 SLOT __slots__
+#   YTT  sys.version checks     PYI  stub conventions
+#   RUF  ruff-specific          RET/SIM/TRY/EM/ARG/A/BLE/PERF/FBT/SLF are deliberately
+#                               NOT selected -- see the notes below.
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "W",
+    "UP",
+    "B",
+    "S",
+    "DTZ",
+    "C4",
+    "PTH",
+    "LOG",
+    "ISC",
+    "PIE",
+    "TID",
+    "FA",
+    "ICN",
+    "INP",
+    "T20",
+    "Q",
+    "SLOT",
+    "YTT",
+    "PYI",
+    "RUF",
+]
 
 [tool.ruff.lint.per-file-ignores]
-# Allow asserts in tests
+# S101 -- pytest's bare assert is the whole point of a test file.
 "tests/**/*.py" = ["S101"]
-# Migration files are auto-generated
-"**/migrations/**/*.py" = ["D100", "D103", "D104", "D400", "D415"]
-# FastAPI dependency injection uses Depends() in defaults - this is the standard pattern
-# Boolean params in Query() are also standard FastAPI patterns
-# PERF401 - conditional appends in loops are more readable than list.extend alternatives
-"src/ledger_sync/api/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003", "PERF401"]
-# CLI uses typer.Argument/Option in defaults - this is the standard pattern
-"src/ledger_sync/cli/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003"]
-# Core module has boolean parameter in sync_engine.import_file which is intentional
-# PERF401 - conditional appends in loops are more readable
-"src/ledger_sync/core/sync_engine.py" = ["FBT001", "FBT002"]
-"src/ledger_sync/core/analytics_engine.py" = ["PERF401"]
+# DTZ001: this suite tests the IST ledger clock, so NAIVE datetimes are the
+# expected values under test, not an oversight. Adding tzinfo to the assertions
+# would test the opposite of the contract (ledger_now returns naive IST so it
+# compares cleanly against the naive Transaction.date column).
+"tests/unit/test_ledger_clock.py" = ["S101", "DTZ001"]
+# Same reason: these assert the naive IST bounds that _get_time_range_dates
+# returns, so the expected values must be naive.
+"tests/integration/test_time_range_anchor_now.py" = ["S101", "DTZ001"]
+# The only test-tree hardcoded-secret findings are in this one file: throwaway
+# `password = "test-password-123"` literals and `token_type="access"` kwargs.
+# Audited 2026-07-26, no real credential. Kept file-scoped on purpose so a
+# genuine hardcoded key added to any OTHER test fixture still fails CI.
+"tests/unit/test_auth.py" = ["S105", "S106"]
+# Migration SQL is static DDL built from module-level constants and hardcoded
+# table lists, never from user input. The remaining S608 is a multi-line
+# f-string INSERT of default preference values whose diagnostic anchors to the
+# opening quote line, so it cannot carry an inline noqa without landing the
+# comment inside the SQL string itself.
+"**/migrations/**/*.py" = ["S608"]
+# token_type="access" / "refresh" are JWT type discriminators, and the OAuth
+# provider token endpoints are public Google/GitHub URLs -- not credentials.
+# Audited 2026-07-26: no real secret is hardcoded in src/.
+"src/ledger_sync/api/deps.py" = ["S106"]
+"src/ledger_sync/api/oauth.py" = ["S105"]
+"src/ledger_sync/core/auth/tokens.py" = ["S107"]
+"src/ledger_sync/schemas/auth.py" = ["S105"]
+"src/ledger_sync/services/auth_service.py" = ["S106"]
+# typer.Argument()/Option() in parameter defaults IS the typer API. B008 cannot
+# be satisfied here without abandoning the framework's declarative style.
+"src/ledger_sync/cli/**/*.py" = ["B008"]
+# RUF012: RecurrenceFrequency map is a module-level constant lookup that is
+# never mutated; annotating it ClassVar is a live-code change owned by another
+# agent's in-flight edit to this file, so it is deliberately deferred.
+"src/ledger_sync/core/analytics/recurring.py" = ["RUF012"]
+# DTZ001: normalizer.normalize_date() intentionally produces naive wall-clock
+# datetimes to match the naive DateTime columns. See the report accompanying
+# this change -- the UTC-vs-IST anchoring defect lives in the *callers* that
+# compare these to datetime.now(UTC), not in the parser. File is owned by
+# another agent's in-flight edit, so the ignore is scoped rather than inline.
+"src/ledger_sync/ingest/normalizer.py" = ["DTZ001"]
+# INP001: Vercel resolves the serverless entrypoint by file path (api/index.py,
+# routed from vercel.json). Adding api/__init__.py would make it a package and
+# is not what the platform imports, so the implicit namespace is required.
+"api/index.py" = ["INP001"]
+# Operator-run diagnostic script, not importable library code:
+#   INP001 -- scripts/ is deliberately not a package
+#   T201 -- printing to the terminal is the script's entire output contract
+"scripts/**/*.py" = ["INP001", "T201"]
 
 [tool.mypy]
 python_version = "3.13"

@@ -32,6 +32,17 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
 
+  // onConfirm may be async and the dialog must stay open until it settles, so
+  // the await-then-close sequence is unchanged. `void` at the call site only
+  // adapts it to the void-returning onClick prop -- no catch is attached, so a
+  // rejecting onConfirm behaves exactly as before. Every current caller already
+  // handles its own errors (Settings reset toasts; goals and subscriptions pass
+  // synchronous handlers).
+  const handleConfirm = useCallback(async () => {
+    await onConfirm()
+    handleClose()
+  }, [onConfirm, handleClose])
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return
@@ -81,10 +92,7 @@ export default function ConfirmDialog({
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  await onConfirm()
-                  handleClose()
-                }}
+                onClick={() => void handleConfirm()}
                 className={`px-4 py-2 rounded-lg transition-colors duration-150 ease-out text-sm font-medium ${confirmColors}`}
               >
                 {confirmLabel}

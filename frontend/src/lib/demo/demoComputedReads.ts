@@ -1,8 +1,8 @@
 import type {
   CohortSpendingData,
   DailySummary,
+  DataHealth,
   InvestmentHolding,
-  MerchantIntelligence,
   SpendingBucket,
   SpendingRuleResponse,
   TransferFlow,
@@ -10,9 +10,18 @@ import type {
 import type { IncomeFacetsData, QuickInsightsData } from '@/services/api/calculations'
 import type { SavedView } from '@/services/api/savedViews'
 import type { TransactionFacets } from '@/services/api/transactions'
+import {
+  checkIsInvestmentTransaction,
+  checkIsInvestmentWithdrawal,
+} from '@/components/analytics/health/healthScoreTypes'
+import { isInvestmentAccount } from '@/constants/accountTypes'
+import { toLocalDateKey } from '@/lib/dateUtils'
+import { shareOfIncomePercent } from '@/lib/savingsRate'
+import type { LabelKind, MerchantRow } from '@/pages/merchant-intelligence/types'
 import type { Transaction } from '@/types'
 
 import { isExpense, isIncome, isTransfer } from './demoHelpers'
+import { filterDemoTransactions } from './demoTxFilters'
 
 /**
  * Server-computed read endpoints, reproduced client-side from the demo
@@ -21,7 +30,13 @@ import { isExpense, isIncome, isTransfer } from './demoHelpers'
  */
 
 export function generateDemoFacets(txs: Transaction[]): TransactionFacets {
-  const categories = [...new Set(txs.map((t) => t.category))].sort((a, b) => a.localeCompare(b))
+  // Mirror the backend split: a category only ever seen on transfers is a
+  // routing label, not a spending category. Same rule, so demo mode and real
+  // mode cannot disagree about which list a category lands in.
+  const nonTransferCategories = new Set(txs.filter((t) => !isTransfer(t)).map((t) => t.category))
+  const allCategories = [...new Set(txs.map((t) => t.category))].sort((a, b) => a.localeCompare(b))
+  const categories = allCategories.filter((c) => nonTransferCategories.has(c))
+  const transferCategories = allCategories.filter((c) => !nonTransferCategories.has(c))
   const accounts = [...new Set(txs.map((t) => t.account))].sort((a, b) => a.localeCompare(b))
   const tagCounts = new Map<string, number>()
   for (const t of txs) {
@@ -29,6 +44,7 @@ export function generateDemoFacets(txs: Transaction[]): TransactionFacets {
   }
   return {
     categories,
+    transfer_categories: transferCategories,
     accounts,
     tags: [...tagCounts.entries()]
       .map(([name, count]) => ({ name, count }))
@@ -40,29 +56,18 @@ export function generateDemoFacets(txs: Transaction[]): TransactionFacets {
   }
 }
 
-/** Mirrors /api/transactions/search filtering closely enough for the demo. */
+/**
+ * Mirrors /api/transactions/search filtering closely enough for the demo.
+ *
+ * The filter predicate itself lives in `demoTxFilters` because `/export` takes
+ * the same params from the same page -- a rule applied here and not there would
+ * make the demo CSV disagree with the table it came from.
+ */
 export function generateDemoSearch(
   txs: Transaction[],
   params: Record<string, unknown>,
 ): { data: Transaction[]; total: number; limit: number; offset: number; has_more: boolean } {
-  let rows = txs
-  const q = typeof params.query === 'string' ? params.query.toLowerCase() : ''
-  if (q) {
-    rows = rows.filter(
-      (t) =>
-        t.note?.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q) ||
-        t.account.toLowerCase().includes(q),
-    )
-  }
-  if (params.category) rows = rows.filter((t) => t.category === params.category)
-  if (params.account) rows = rows.filter((t) => t.account === params.account)
-  if (params.type) rows = rows.filter((t) => t.type === params.type)
-  if (params.tag) rows = rows.filter((t) => (t.tags ?? []).includes(params.tag as string))
-  if (params.start_date) rows = rows.filter((t) => t.date >= (params.start_date as string))
-  if (params.end_date) rows = rows.filter((t) => t.date <= (params.end_date as string))
-  if (params.min_amount != null) rows = rows.filter((t) => t.amount >= Number(params.min_amount))
-  if (params.max_amount != null) rows = rows.filter((t) => t.amount <= Number(params.max_amount))
+  const rows = filterDemoTransactions(txs, params)
 
   const limit = Number(params.limit) || 100
   const offset = Number(params.offset) || 0
@@ -86,7 +91,10 @@ export function generateDemoDataDateRange(txs: Transaction[]): {
 
 /** Mirrors /api/calculations/income-facets: income buckets with count + sum. */
 export function generateDemoIncomeFacets(txs: Transaction[]): IncomeFacetsData {
-  const buckets = new Map<string, { category: string; subcategory: string; total: number; count: number }>()
+  const buckets = new Map<
+    string,
+    { category: string; subcategory: string; total: number; count: number }
+  >()
   for (const t of txs.filter(isIncome)) {
     const category = t.category || 'Uncategorized'
     const subcategory = t.subcategory || 'Other'
@@ -97,6 +105,59 @@ export function generateDemoIncomeFacets(txs: Transaction[]): IncomeFacetsData {
     buckets.set(key, bucket)
   }
   return { facets: [...buckets.values()] }
+}
+
+/**
+ * Notes the importer writes when the source file gave it nothing usable. These
+ * are counted as placeholders because they carry an amount and no description,
+ * which is what makes merchant and subscription detection miss the row.
+ */
+const PLACEHOLDER_NOTES = new Set(['', '-', 'na', 'n/a', 'unknown', 'miscellaneous', 'other'])
+
+/** Categories that mean "we did not work out where this belongs". */
+const CATCH_ALL_CATEGORIES = new Set(['Miscellaneous', 'Uncategorized', 'Other', 'Unknown'])
+
+/**
+ * Mirrors /api/analytics/v2/data-health.
+ *
+ * Every count is measured off the demo ledger rather than hardcoded, so the
+ * numbers stay consistent with the rows the rest of demo mode is showing. The
+ * import-log fields describe the one synthetic import that produced this ledger:
+ * it was generated in full just now, so nothing was skipped and nothing is stale.
+ */
+export function generateDemoDataHealth(txs: Transaction[]): DataHealth {
+  const now = new Date()
+  const today = toLocalDateKey(now)
+
+  // txs arrive sorted newest-first.
+  const latest = txs[0]?.date ?? null
+  const earliest = txs.at(-1)?.date ?? null
+
+  const placeholderNotes = txs.filter((t) =>
+    PLACEHOLDER_NOTES.has((t.note ?? '').trim().toLowerCase()),
+  ).length
+  const uncategorized = txs.filter((t) => CATCH_ALL_CATEGORIES.has(t.category)).length
+  const futureDated = txs.filter((t) => t.date > today).length
+
+  return {
+    last_import_at: now.toISOString(),
+    days_stale: 0,
+    last_import_file_name: 'demo-ledger.xlsx',
+    rows_processed: txs.length,
+    rows_inserted: txs.length,
+    rows_updated: 0,
+    rows_skipped: 0,
+    // Demo rollups are computed from the same in-memory rows on every read, so
+    // they cannot lag the import the way the server-side tables can.
+    rollups_calculated_at: now.toISOString(),
+    rollups_stale: false,
+    transaction_count: txs.length,
+    earliest_date: earliest,
+    latest_date: latest,
+    future_dated_count: futureDated,
+    placeholder_note_count: placeholderNotes,
+    uncategorized_count: uncategorized,
+  }
 }
 
 export function generateDemoQuickInsights(txs: Transaction[]): QuickInsightsData {
@@ -255,7 +316,25 @@ export function generateDemoTransferFlows(txs: Transaction[]): TransferFlow[] {
     .sort((a, b) => b.total - a.total)
 }
 
-export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantIntelligence[] {
+/**
+ * Mirror of the backend extractor's `label_kind` for a demo merchant label.
+ *
+ * `extract_merchant()` in `core/analytics/merchant_extract.py` returns
+ * `(label, kind)`, and the kind is decided by ONE thing: whether the note was
+ * REPLACED by a canonical brand name. A brand match rewrites "Amazon Fashion"
+ * to "Amazon"; a miss keeps the whole cleaned note as the descriptor.
+ *
+ * This generator groups by the raw narration (`t.note`), never by a canonical
+ * brand, so its labels are always the note itself -- which is precisely the
+ * backend's descriptor case. Returning `'descriptor'` unconditionally is
+ * therefore the faithful mirror, not a fallback: claiming `'brand'` for a row
+ * labelled "Amazon Fashion" would assert a fold that never happened, and
+ * inventing a client-side brand list would be a second, drifting source of
+ * truth for a decision the backend already owns.
+ */
+const DEMO_LABEL_KIND: LabelKind = 'descriptor'
+
+export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantRow[] {
   const byMerchant = new Map<string, Transaction[]>()
   for (const t of txs.filter(isExpense)) {
     const merchant = t.note ?? t.subcategory ?? t.category
@@ -265,7 +344,12 @@ export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantIn
   return [...byMerchant.entries()]
     .filter(([, rows]) => rows.length >= 3)
     .map(([merchant, rows]) => {
-      const sorted = rows.toSorted((a, b) => a.date.localeCompare(b.date))
+      // `[...rows].sort` rather than `rows.toSorted`: toSorted needs Firefox
+      // 115 but Vite's default `baseline-widely-available` target is
+      // firefox114, and the repo ships no core-js polyfill, so the method
+      // reaches Firefox 114 users undefined. Spread-then-sort is identical --
+      // new array, source untouched, and Array#sort is stable per ES2019.
+      const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
       const total = rows.reduce((s, t) => s + t.amount, 0)
       const months = new Set(rows.map((t) => t.date.slice(0, 7))).size
       const first = sorted[0].date
@@ -274,6 +358,7 @@ export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantIn
         (new Date(last).getTime() - new Date(first).getTime()) / 86_400_000
       return {
         merchant,
+        label_kind: DEMO_LABEL_KIND,
         category: rows[0].category,
         subcategory: rows[0].subcategory ?? null,
         total_spent: total,
@@ -375,6 +460,27 @@ const NEEDS_CATEGORIES = new Set([
   'EMI',
 ])
 
+/**
+ * Net change in the investment perimeter: allocations in, minus redemptions out.
+ *
+ * Reuses the app's existing perimeter predicates rather than adding a fourth
+ * definition of "is this an investment movement" -- the health panel already
+ * decides it this way, and `isInvestmentAccount` is the shared name classifier.
+ * Can be negative (a net-withdrawal window), which is a real outcome and is not
+ * clamped, matching the endpoint's signed `bucket_totals["savings"]`.
+ */
+function netInvestmentPerimeterFlow(rows: readonly Transaction[]): number {
+  let net = 0
+  for (const t of rows) {
+    if (checkIsInvestmentTransaction(t, isInvestmentAccount)) net += Math.abs(t.amount)
+    else if (checkIsInvestmentWithdrawal(t, isInvestmentAccount)) net -= Math.abs(t.amount)
+    // Income landing directly inside the perimeter (an EPF contribution, an RSU
+    // vest) never crosses it as a Transfer, so the endpoint counts it here too.
+    else if (isIncome(t) && isInvestmentAccount(t.account)) net += Math.abs(t.amount)
+  }
+  return net
+}
+
 /** 50/30/20 rule over the trailing window, computed from the demo ledger. */
 export function generateDemoSpendingRule(
   txs: Transaction[],
@@ -387,7 +493,15 @@ export function generateDemoSpendingRule(
   const income = rows.filter(isIncome).reduce((s, t) => s + t.amount, 0)
   const expenses = rows.filter(isExpense)
   const expenseTotal = expenses.reduce((s, t) => s + t.amount, 0)
-  const savings = income - expenseTotal
+  // Savings is the NET CHANGE IN THE INVESTMENT PERIMETER, not income minus
+  // expenses -- the distinction `/api/analytics/v2/spending-rule` is built
+  // around (`_compute_buckets` in `analytics_v2_impl/spending_rule.py`) and that
+  // BudgetPage's docstring states explicitly. This mock used `income -
+  // expenseTotal`, which is the definition the endpoint REJECTS: it reports
+  // money that merely stayed in a bank account as invested, and it makes the
+  // residual identically zero, so demo mode could never show an Unallocated
+  // figure at all.
+  const savings = netInvestmentPerimeterFlow(rows)
 
   const byCategory = new Map<string, Transaction[]>()
   for (const t of expenses) {
@@ -423,24 +537,44 @@ export function generateDemoSpendingRule(
     }
   })
 
-  const pct = (x: number) => (income > 0 ? (x / income) * 100 : 0)
-  const sorted = rows.length ? [...rows].sort((a, b) => a.date.localeCompare(b.date)) : []
+  // Income is the single denominator for all four buckets -- that is what makes
+  // the four shares sum to exactly 100 (`_pct_of_income` in
+  // `analytics_v2_impl/spending_rule.py`). Routed through the shared helper so
+  // the zero-income branch is decided in one place; the endpoint's 0.0 fallback
+  // is the one this mock has to reproduce.
+  const pct = (x: number) => shareOfIncomePercent(x, income)
+  // The residual: whatever income was neither spent nor moved into the
+  // investment perimeter (money that simply stayed in a bank account). The
+  // endpoint publishes it so the three buckets plus this add to income exactly;
+  // omitting it here made demo mode's cards silently fail to reconcile.
+  const unallocated = income - needs - wants - savings
+  // No `rows.length ?` guard needed: spreading an empty array and sorting it
+  // already yields [], and both readers below use optional chaining.
+  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return {
     period: {
-      start: sorted[0]?.date ?? new Date().toISOString().slice(0, 10),
-      end: sorted.at(-1)?.date ?? new Date().toISOString().slice(0, 10),
+      // The populated branch yields a stored `YYYY-MM-DD` (local calendar), so
+      // the empty-ledger fallback has to be the same shape. A UTC key here made
+      // the two branches disagree by a day for any user east of Greenwich.
+      start: sorted[0]?.date ?? toLocalDateKey(new Date()),
+      end: sorted.at(-1)?.date ?? toLocalDateKey(new Date()),
       months,
     },
     income_total: income,
     expense_total: expenseTotal,
     savings_amount: savings,
+    unallocated_amount: unallocated,
+    unallocated_pct_of_income: pct(unallocated),
     targets: { needs: 50, wants: 30, savings: 20 },
     buckets: {
       needs: { amount: needs, pct_of_income: pct(needs), score_delta: 50 - pct(needs) },
       wants: { amount: wants, pct_of_income: pct(wants), score_delta: 30 - pct(wants) },
       savings: { amount: savings, pct_of_income: pct(savings), score_delta: pct(savings) - 20 },
     },
-    categories: categories.toSorted((a, b) => b.total_amount - a.total_amount),
+    // Spread-then-sort, not `toSorted` -- see the note in
+    // `generateDemoMerchantIntelligence`: toSorted is firefox115+, past this
+    // repo's firefox114 build target, and nothing polyfills it.
+    categories: [...categories].sort((a, b) => b.total_amount - a.total_amount),
   }
 }
 
@@ -467,6 +601,24 @@ export function generateDemoAccountClassifications(): Record<string, string> {
     'Cashback Pool': 'Other Wallets',
     Cash: 'Cash',
     'Voucher Account': 'Other Wallets',
+  }
+}
+
+/**
+ * Accounts of one classification, matching `/account-classifications/type/{type}`.
+ *
+ * Derived from the map above rather than listed separately so the two can never
+ * disagree. Needed as its own demo route because the endpoint returns a bare
+ * `{ accounts: [...] }`, not the name -> classification map: callers such as the
+ * SIP projection page do `accounts.includes(name)` on it, which throws on
+ * `undefined` and takes the whole page to its error boundary.
+ */
+export function generateDemoAccountsByType(accountType: string): { accounts: string[] } {
+  const classifications = generateDemoAccountClassifications()
+  return {
+    accounts: Object.entries(classifications)
+      .filter(([, type]) => type === accountType)
+      .map(([name]) => name),
   }
 }
 

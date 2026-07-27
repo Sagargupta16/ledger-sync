@@ -22,7 +22,9 @@ export default function HomePage() {
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
-      navigate(ROUTES.DASHBOARD)
+      // navigate is typed `void | Promise<void>` but returns undefined under
+      // BrowserRouter (App.tsx); nothing waits on the transition.
+      void navigate(ROUTES.DASHBOARD)
     } else {
       setShowAuthModal(true)
     }

@@ -23,6 +23,22 @@ interface BarDatum {
  * day-of-month, or month-of-year. Three views share the same bar chart;
  * an insight strip below the chart calls out the highest/lowest bucket
  * with the absolute amount so users get a takeaway without hovering.
+ *
+ * SCOPE: whole-ledger, always. This reads the `cohort_spending` rollup, which
+ * stores one row per (user, dimension, bucket) with the divisor already baked
+ * in -- there is no date column to slice and `GET /api/analytics/v2/cohort-
+ * spending` accepts no date parameters, so a window simply cannot be applied
+ * here. The card sits on a page whose time filter narrows every other panel,
+ * and on the real ledger (7,338 rows, 6,961 after the rollup's own
+ * `is_deleted IS false` filter) the gap inverts the ranking rather than merely
+ * rescaling it: all-time the peak day is Sunday at ~2,286/day, but inside
+ * FY2024-25 alone Tuesday climbs to ~8,051 and takes the top slot while Sunday
+ * sits at ~2,754. The month-of-year runner-up flips the same way -- July
+ * all-time, January for FY2024-25. So the scope is stated in text the user
+ * reads rather than left to be inferred from a number that silently answers a
+ * different question. It takes no `dateRange` prop on purpose -- a prop that
+ * only relabelled the card while the bars stayed all-time would be worse than
+ * none (same call made for `TopMerchants`).
  */
 export default function CohortSpendingAnalysis() {
   const { data: cohort } = useCohortSpending()
@@ -87,9 +103,15 @@ export default function CohortSpendingAnalysis() {
       transition={{ delay: 0.1 }}
     >
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Calendar className="w-5 h-5 text-app-teal" />
           <h3 className="text-lg font-semibold text-foreground">Spending Patterns</h3>
+          {/* Scope pill, always visible. Sits ON the heading so the "All time"
+              qualifier is read together with the title rather than after the
+              bars have already been believed as period figures. */}
+          <span className="rounded-full border border-border bg-[var(--overlay-2)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-text-secondary">
+            All time
+          </span>
         </div>
         <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
           {([
@@ -111,30 +133,49 @@ export default function CohortSpendingAnalysis() {
       </div>
 
       <p className="text-xs text-text-tertiary mb-4">
-        {view === 'day-of-week' && 'Average spending by day of the week'}
-        {view === 'day-of-month' && 'Average spending by day of the month (highlights payday spending spikes)'}
-        {view === 'monthly' && 'Average monthly spending across years (highlights festival season Oct-Dec)'}
+        {viewDescription(view)}
+        {'. '}
+        {/* The one sentence that keeps this card honest next to panels the page
+            filter DOES narrow. Not a tooltip and not an icon: a reader comparing
+            this peak against the filtered cards above has to be told, in prose,
+            that the two cover different spans. */}
+        <span className="text-text-secondary">
+          Covers your full history regardless of the period selected above, because these averages
+          need every occurrence of a {viewLabel(view, 'singular').toLowerCase()} to divide by.
+        </span>
       </p>
 
       {hasData ? (
         <>
-          <div role="img" aria-label={viewAriaLabel(view)}>
-            <StandardBarChart
-              data={currentData}
-              dataKey="name"
-              height={260}
-              bars={[
-                {
-                  key: 'avg',
-                  label: 'Avg Spending',
-                  color: rawColors.app.teal,
-                  fillOpacity: 0.7,
-                  barSize: view === 'day-of-month' ? 14 : 30,
-                },
-              ]}
-              showLegend={false}
-            />
-          </div>
+          {/* No role="img" wrapper -- it would enclose the chart's sr-only data
+              table and ARIA presentational children would hide it again.
+              `ariaLabel` labels the chart's own wrapper instead. */}
+          <StandardBarChart
+            data={currentData}
+            dataKey="name"
+            height={260}
+            bars={[
+              {
+                key: 'avg',
+                label: 'Avg Spending',
+                color: rawColors.app.teal,
+                fillOpacity: 0.7,
+                barSize: view === 'day-of-month' ? 14 : 30,
+              },
+            ]}
+            showLegend={false}
+            ariaLabel={viewAriaLabel(view)}
+            rowHeaderLabel={viewLabel(view, 'singular')}
+            // Significance framing: without a baseline a reader sees only how
+            // tall each bar is, not which buckets are unusual. No `window` --
+            // these buckets are cyclical, not chronological, so a trailing slice
+            // would summarize an arbitrary arc of the week (BaselineOptions.window).
+            // This line is the MEDIAN over every bucket while the "% above avg"
+            // badge below is a MEAN over nonzero ones, so the two deliberately
+            // differ (2.4x apart on the 31-date view for the real ledger) -- hence
+            // the distinct `Typical ...` label rather than a shared "average".
+            baseline={{ label: `Typical ${viewLabel(view, 'singular').toLowerCase()}` }}
+          />
           {insights && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
@@ -177,14 +218,31 @@ export default function CohortSpendingAnalysis() {
   )
 }
 
+function viewDescription(view: ViewMode): string {
+  if (view === 'day-of-week') return 'Average spending by day of the week'
+  if (view === 'day-of-month') {
+    return 'Average spending by day of the month (highlights payday spending spikes)'
+  }
+  return 'Average monthly spending across years (highlights festival season Oct-Dec)'
+}
+
 function viewLabel(view: ViewMode, form: 'singular' | 'plural'): string {
   if (view === 'day-of-week') return form === 'singular' ? 'Day' : 'Days'
   if (view === 'day-of-month') return form === 'singular' ? 'Date' : 'Dates'
   return form === 'singular' ? 'Month' : 'Months'
 }
 
+/**
+ * Chart accessible name. Carries the all-time scope too: the visible pill and
+ * caption are the sighted reader's version of that caveat, so omitting it here
+ * would leave a screen-reader user with the unqualified claim.
+ */
 function viewAriaLabel(view: ViewMode): string {
-  if (view === 'day-of-week') return 'Bar chart of average spending by day of the week'
-  if (view === 'day-of-month') return 'Bar chart of average spending by day of the month'
-  return 'Bar chart of average spending by month of the year'
+  const dimension =
+    view === 'day-of-week'
+      ? 'day of the week'
+      : view === 'day-of-month'
+        ? 'day of the month'
+        : 'month of the year'
+  return `Bar chart of average spending by ${dimension}, covering all time regardless of the selected period`
 }

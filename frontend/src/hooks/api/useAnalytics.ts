@@ -11,7 +11,12 @@ const STABLE = { staleTime: Infinity, refetchOnWindowFocus: false } as const
 // ─── Query Option Factories ──────────────────────────────────────────────────
 // Exported so mutations / prefetches can reference them for cache invalidation.
 
-export const kpisOptions = (params?: { start_date?: string; end_date?: string }) =>
+// `time_range`, not a date window -- `GET /api/analytics/kpis` declares only
+// `time_range` (`get_kpis` in backend/src/ledger_sync/api/analytics.py). The old
+// `{ start_date, end_date }` params were silently dropped by FastAPI, so a
+// date-filtered KPI read answered with all-time figures under a type that said
+// otherwise. Key shape is unchanged: no caller passes params today.
+export const kpisOptions = (params?: { time_range?: TimeRange }) =>
   queryOptions({ queryKey: ['kpis', params], queryFn: () => analyticsService.getKPIs(params), ...STABLE })
 
 export const recentTransactionsOptions = (limit: number = 5) =>
@@ -26,14 +31,14 @@ export const behaviorOptions = (timeRange: TimeRange = 'all_time') =>
 export const trendsOptions = (timeRange: TimeRange = 'all_time') =>
   queryOptions({ queryKey: ['analytics', 'trends', timeRange], queryFn: () => analyticsService.getTrends(timeRange), ...STABLE })
 
-export const accountDistributionOptions = (timeRange: TimeRange = 'all_time') =>
-  queryOptions({ queryKey: ['analytics', 'account-distribution', timeRange], queryFn: () => analyticsService.getAccountDistributionChart(timeRange), ...STABLE })
-
-export const categoriesChartOptions = (timeRange: TimeRange = 'all_time', limit = 10) =>
-  queryOptions({ queryKey: ['analytics', 'categories-chart', timeRange, limit], queryFn: () => analyticsService.getCategoriesChart(timeRange, limit), ...STABLE })
-
-export const monthlyTrendsOptions = (timeRange: TimeRange = 'all_time') =>
-  queryOptions({ queryKey: ['analytics', 'monthly-trends', timeRange], queryFn: () => analyticsService.getMonthlyTrendsChart(timeRange), ...STABLE })
+// `accountDistributionOptions` / `categoriesChartOptions` / `monthlyTrendsOptions`
+// and their `useAccountDistribution` / `useCategoriesChart` / `useMonthlyTrends`
+// wrappers were removed along with the service methods they called -- zero call
+// sites anywhere under `src/`, and no `DEMO_ROUTES` entry, so unlike the
+// consumerless-but-serviceable `useKPIs` / `useOverview` / `useBehavior` (pinned
+// by `lib/demo/__tests__/seedReaderContract.test.tsx`) they could not have
+// served a page in demo mode either. The `/api/analytics/charts/*` endpoints are
+// still live; see the note at the bottom of `services/api/analytics.ts`.
 
 export const categoryBreakdownOptions = (params?: { start_date?: string; end_date?: string; transaction_type?: 'income' | 'expense' }) =>
   queryOptions({
@@ -94,14 +99,11 @@ export const incomeFacetsOptions = () =>
 
 // ─── Hook Wrappers ───────────────────────────────────────────────────────────
 
-export const useKPIs = (params?: { start_date?: string; end_date?: string }) => useQuery(kpisOptions(params))
+export const useKPIs = (params?: { time_range?: TimeRange }) => useQuery(kpisOptions(params))
 export const useRecentTransactions = (limit: number = 5) => useQuery(recentTransactionsOptions(limit))
 export const useOverview = (timeRange: TimeRange = 'all_time') => useQuery(overviewOptions(timeRange))
 export const useBehavior = (timeRange: TimeRange = 'all_time') => useQuery(behaviorOptions(timeRange))
 export const useTrends = (timeRange: TimeRange = 'all_time') => useQuery(trendsOptions(timeRange))
-export const useAccountDistribution = (timeRange: TimeRange = 'all_time') => useQuery(accountDistributionOptions(timeRange))
-export const useCategoriesChart = (timeRange: TimeRange = 'all_time', limit = 10) => useQuery(categoriesChartOptions(timeRange, limit))
-export const useMonthlyTrends = (timeRange: TimeRange = 'all_time') => useQuery(monthlyTrendsOptions(timeRange))
 export const useCategoryBreakdown = (params?: { start_date?: string; end_date?: string; transaction_type?: 'income' | 'expense' }) => useQuery(categoryBreakdownOptions(params))
 export const useAccountBalances = (params?: { start_date?: string; end_date?: string }) => useQuery(accountBalancesOptions(params))
 export const useMonthlyAggregation = (params?: { start_date?: string; end_date?: string }) => useQuery(monthlyAggregationOptions(params))

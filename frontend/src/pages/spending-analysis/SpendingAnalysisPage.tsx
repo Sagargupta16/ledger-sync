@@ -11,6 +11,7 @@ import {
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { SCROLL_FADE_UP } from '@/constants/animations'
@@ -23,14 +24,15 @@ import { useSpendingAnalysis } from './useSpendingAnalysis'
 export default function SpendingAnalysisPage() {
   const {
     categoryFilter, clearCategoryFilter,
-    timeFilterProps, dateRangeCompat, isLoading, isError, retry,
-    totalSpending, monthlyAvgSpending, savings,
+    timeFilterProps, dateRangeCompat, partialPeriod, noCompleteMonthBasis, isLoading, isError, retry,
+    totalSpending, monthlyAvgSpending, monthlyAvgSubtitle, monthlyAvgLineLabel, savings,
     categoryBreakdown, categoriesCount, subcategoriesCount,
     topCategory, topCategoryAmount,
     spendingBreakdown, spendingChartData,
     budgetRuleMetrics,
     needsTarget, wantsTarget, savingsTarget,
     monthlyTrendData, peakExpense,
+    rollingAvgPointCount, rollingAvgMonths,
   } = useSpendingAnalysis()
 
   if (isError) {
@@ -56,9 +58,23 @@ export default function SpendingAnalysisPage() {
 
       <FilterBanner value={categoryFilter} label="Category" onClear={clearCategoryFilter} />
 
+      {partialPeriod && (
+        <PartialPeriodNotice
+          label={partialPeriod.label}
+          daysElapsed={partialPeriod.daysElapsed}
+          daysTotal={partialPeriod.daysTotal}
+          treatment={
+            noCompleteMonthBasis
+              ? 'There is no completed month in this range, so the budget-rule shares, the monthly average and the expense trend cover the month so far -- read them as a running pace, not a result.'
+              : 'Total Spending includes it. The budget-rule shares, the monthly average and the expense trend cover completed months only, so a month with rent paid but salary pending cannot read as overspending.'
+          }
+        />
+      )}
+
       <SpendingMetricGrid
         totalSpending={totalSpending}
         monthlyAvgSpending={monthlyAvgSpending}
+        monthlyAvgSubtitle={monthlyAvgSubtitle}
         monthlyTrendData={monthlyTrendData}
         topCategory={topCategory}
         topCategoryAmount={topCategoryAmount}
@@ -80,6 +96,9 @@ export default function SpendingAnalysisPage() {
         monthlyTrendData={monthlyTrendData}
         peakExpense={peakExpense}
         monthlyAvgSpending={monthlyAvgSpending}
+        monthlyAvgLineLabel={monthlyAvgLineLabel}
+        rollingAvgPointCount={rollingAvgPointCount}
+        rollingAvgMonths={rollingAvgMonths}
       />
 
       <motion.div {...SCROLL_FADE_UP}>
@@ -89,7 +108,10 @@ export default function SpendingAnalysisPage() {
         <ParetoChart categoryBreakdown={categoryBreakdown} />
       </motion.div>
       <motion.div {...SCROLL_FADE_UP}>
-        <TopMerchants dateRange={dateRangeCompat} categoryFilter={categoryFilter} />
+        {/* No dateRange: the merchant rollup is whole-ledger, so the card
+            states its own all-time scope instead of taking a window it cannot
+            apply. */}
+        <TopMerchants categoryFilter={categoryFilter} />
       </motion.div>
       <motion.div {...SCROLL_FADE_UP}>
         <MultiCategoryTimeAnalysis dateRange={dateRangeCompat} />

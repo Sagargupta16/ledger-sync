@@ -3,36 +3,16 @@ import { rawColors } from '@/constants/colors'
 // ---------------------------------------------------------------------------
 // Frequency / cost helpers
 // ---------------------------------------------------------------------------
+//
+// The annualization table lives in `@/lib/recurrenceFrequency`, not here. The
+// local switch this replaced had no `daily` case, so a daily subscription hit
+// the `default: 12` arm and was costed as monthly -- 365/12 = ~30x too cheap.
 
 /** Frequency label to annual multiplier */
-export function getAnnualFactor(frequency: string | null): number {
-  switch (frequency?.toLowerCase()) {
-    case 'weekly':
-      return 52
-    case 'fortnightly':
-    case 'biweekly':
-      return 26
-    case 'monthly':
-      return 12
-    case 'bimonthly':
-      return 6
-    case 'quarterly':
-      return 4
-    case 'semiannual':
-      return 2
-    case 'yearly':
-    case 'annually':
-      return 1
-    default:
-      return 12
-  }
-}
+export { periodsPerYear as getAnnualFactor } from '@/lib/recurrenceFrequency'
 
 /** Convert any frequency amount to a monthly equivalent */
-export function toMonthlyAmount(amount: number, frequency: string | null): number {
-  const annualFactor = getAnnualFactor(frequency)
-  return (Math.abs(amount) * annualFactor) / 12
-}
+export { toMonthlyAmount } from '@/lib/recurrenceFrequency'
 
 /** Format a date string as a readable date */
 export function formatDate(dateStr: string | null): string {

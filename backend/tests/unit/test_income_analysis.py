@@ -74,11 +74,55 @@ def test_monthly_rolling_average() -> None:
     r = _compute_income_analysis(txns, [])
     md = r["monthly_data"]
     assert [m["income"] for m in md] == pytest.approx([100.0, 200.0, 300.0])
-    # 3-month trailing average: Jan=100, Feb=(100+200)/2=150, Mar=(100+200+300)/3=200
-    assert [round(m["income_avg_3m"]) for m in md] == [100, 150, 200]
+    # Jan and Feb have no full 3-month window behind them, so they abstain rather
+    # than dividing a short window by its own length: this used to report Jan=100
+    # (one month verbatim) and Feb=150 (a 2-month mean) under a "3m avg" legend.
+    # Only Mar has three months: (100+200+300)/3 = 200.
+    assert [m["income_avg_3m"] for m in md[:2]] == [None, None]
+    assert md[2]["income_avg_3m"] == pytest.approx(200.0)
     # growth: (300-100)/100*100 = 200%
     assert round(r["growth_rate"]) == 200
     assert r["peak_income"] == pytest.approx(300.0)
+
+
+def test_rolling_average_needs_a_full_window() -> None:
+    """A window shorter than ``ROLLING_AVG_MONTHS`` yields no average at all."""
+    txns = [
+        _inc("100", date=datetime(2024, 1, 5, tzinfo=UTC)),
+        _inc("200", date=datetime(2024, 2, 5, tzinfo=UTC)),
+    ]
+    r = _compute_income_analysis(txns, [])
+    assert [m["income_avg_3m"] for m in r["monthly_data"]] == [None, None]
+
+
+def test_rolling_average_window_slides_and_drops_the_oldest_month() -> None:
+    """Once the window is full it stays exactly ``ROLLING_AVG_MONTHS`` wide."""
+    txns = [
+        _inc("100", date=datetime(2024, 1, 5, tzinfo=UTC)),
+        _inc("200", date=datetime(2024, 2, 5, tzinfo=UTC)),
+        _inc("300", date=datetime(2024, 3, 5, tzinfo=UTC)),
+        _inc("600", date=datetime(2024, 4, 5, tzinfo=UTC)),
+    ]
+    md = _compute_income_analysis(txns, [])["monthly_data"]
+    # Apr = (200+300+600)/3 = 366.67 -- January must have fallen out of it.
+    assert md[3]["income_avg_3m"] == pytest.approx(1100.0 / 3)
+
+
+def test_rolling_average_survives_a_gap_month() -> None:
+    """Months are positional: absent months are not zero-filled.
+
+    The series only holds months that have income, so a March with no income
+    makes April's window Jan/Feb/Apr. Documented rather than desirable -- what
+    matters is that it stays a 3-element window, never a short one.
+    """
+    txns = [
+        _inc("100", date=datetime(2024, 1, 5, tzinfo=UTC)),
+        _inc("200", date=datetime(2024, 2, 5, tzinfo=UTC)),
+        _inc("300", date=datetime(2024, 4, 5, tzinfo=UTC)),
+    ]
+    md = _compute_income_analysis(txns, [])["monthly_data"]
+    assert [m["month"] for m in md] == ["2024-01", "2024-02", "2024-04"]
+    assert md[2]["income_avg_3m"] == pytest.approx(200.0)
 
 
 def test_empty_is_safe() -> None:

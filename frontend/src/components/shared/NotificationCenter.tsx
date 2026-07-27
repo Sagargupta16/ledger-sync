@@ -45,7 +45,12 @@ export default function NotificationCenter() {
   // Fetch data
   const { data: budgets = [] } = useBudgets({ active_only: true })
   const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
-  const { data: recurring = [] } = useRecurringTransactions({ active_only: true })
+  // "Upcoming Payment" only makes sense for something owed on a date, so
+  // habit rows are excluded -- nobody needs a reminder that lunch is due.
+  const { data: recurring = [] } = useRecurringTransactions({
+    active_only: true,
+    pattern_kind: 'commitment',
+  })
 
   // Build notifications
   const notifications = useMemo(() => {
@@ -60,7 +65,7 @@ export default function NotificationCenter() {
   const grouped = useMemo(() => {
     const map = new Map<NotificationType, Notification[]>()
     for (const n of notifications) {
-      const list = map.get(n.type) || []
+      const list = map.get(n.type) ?? []
       list.push(n)
       map.set(n.type, list)
     }

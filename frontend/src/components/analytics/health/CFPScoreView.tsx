@@ -4,6 +4,7 @@ import { rawColors } from '@/constants/colors'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
+import { cfpInputsFromAnalysis } from './healthScoreAnalysis'
 import type { AnalysisResult } from './healthScoreUtils'
 
 function getStatusColor(status: 'good' | 'warning' | 'poor'): string {
@@ -47,26 +48,12 @@ interface CFPScoreViewProps {
 }
 
 const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPScoreViewProps>) {
-  const { ratios } = useMemo(() => {
-    const totalMonths = analysisData.monthsAnalyzed
-    const totalIncome = analysisData.avgMonthlyIncome * totalMonths
-    const totalExpenses = analysisData.avgMonthlyExpense * totalMonths
-    const essentialRatio = analysisData.essentialToIncomeRatio / 100
-    const avgMonthlyEssential = analysisData.avgMonthlyExpense * essentialRatio
-
-    return computeCFPScore({
-      totalIncome,
-      totalExpenses,
-      avgMonthlyIncome: analysisData.avgMonthlyIncome,
-      avgMonthlyExpense: analysisData.avgMonthlyExpense,
-      avgMonthlyEssentialExpense: avgMonthlyEssential,
-      avgMonthlyDebt: analysisData.avgMonthlyDebt,
-      cumulativeNetSavings: analysisData.cumulativeNetSavings,
-      netInvestments: analysisData.totalInvestmentInflow - analysisData.totalInvestmentOutflow,
-      totalDebtOutstanding: analysisData.avgMonthlyDebt * totalMonths,
-      balances: analysisData.balances,
-    })
-  }, [analysisData])
+  // One mapping, shared with the composite-score call site, so the CFP savings
+  // rate is the analysis' pooled rate rather than a rate rebuilt from averages.
+  const { ratios } = useMemo(
+    () => computeCFPScore(cfpInputsFromAnalysis(analysisData)),
+    [analysisData],
+  )
 
   const radarData = ratios.map((r) => ({
     dimension: r.name.replace(' Ratio', '').replace(' Rate', ''),

@@ -8,6 +8,7 @@ import {
   getTaxSlabs,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear } from '@/lib/projectionCalculator'
+import { withIncomeClassificationDefaults } from '@/store/preferencesStore'
 import type { Transaction } from '@/types'
 import type {
   GrowthAssumptions,
@@ -54,8 +55,8 @@ export function classifyAndAccumulateIncome(
   epfTaxableFraction = 0,
 ): void {
   const incomeType = classifyIncomeType(tx, incomeClassification)
-  const note = tx.note?.toLowerCase() || ''
-  const subcategory = (tx.subcategory || '').toLowerCase()
+  const note = tx.note?.toLowerCase() ?? ''
+  const subcategory = (tx.subcategory ?? '').toLowerCase()
 
   const isEPF =
     note.includes('aws epf') ||
@@ -91,13 +92,25 @@ export function classifyAndAccumulateIncome(
   }
 }
 
-/** Group transactions by fiscal year, accumulating income/expense totals */
+/**
+ * Group transactions by fiscal year, accumulating income/expense totals.
+ *
+ * `incomeClassification` is resolved through `withIncomeClassificationDefaults`
+ * before use. `useTaxPlanning` builds it with `?? []` per field straight off the
+ * API payload, and the backend column default is the JSON string `"[]"`, so an
+ * unconfigured user arrives here with four empty lists. `classifyIncomeType`
+ * then matches nothing, `incomeType !== 'taxable'` skips every credit, and the
+ * whole page reports zero taxable income and zero tax. The resolver restores the
+ * shipped defaults for that all-empty case while still honouring a real
+ * (partition-driven) empty list when any sibling is populated.
+ */
 export function groupTransactionsByFY(
   transactions: Transaction[],
   fiscalYearStartMonth: number,
   incomeClassification: IncomeClassification,
   epfTaxableFraction = 0,
 ): Record<string, FYData> {
+  const resolvedClassification = withIncomeClassificationDefaults(incomeClassification)
   const grouped: Record<string, FYData> = {}
   for (const tx of transactions) {
     const fy = getFYFromDate(tx.date, fiscalYearStartMonth)
@@ -105,7 +118,7 @@ export function groupTransactionsByFY(
     grouped[fy].transactions.push(tx)
     if (tx.type === 'Income') {
       grouped[fy].income += tx.amount
-      classifyAndAccumulateIncome(tx, grouped[fy], incomeClassification, epfTaxableFraction)
+      classifyAndAccumulateIncome(tx, grouped[fy], resolvedClassification, epfTaxableFraction)
     } else if (tx.type === 'Expense') {
       grouped[fy].expense += tx.amount
     }

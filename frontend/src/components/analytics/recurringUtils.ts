@@ -1,4 +1,10 @@
 import { MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
+import {
+  normalizeFrequency,
+  recurrenceCadence,
+  toMonthlyAmount,
+  type RecurrenceFrequency,
+} from '@/lib/recurrenceFrequency'
 import type { RecurringTransaction as ApiRecurringTransaction } from '@/services/api/analyticsV2'
 
 export interface RecurringTransaction {
@@ -6,7 +12,14 @@ export interface RecurringTransaction {
   category: string
   subcategory?: string
   avgAmount: number
-  frequency: 'monthly' | 'quarterly' | 'yearly'
+  frequency: Frequency
+  /**
+   * `avgAmount` restated as a monthly cost via the shared frequency table.
+   * Any "monthly commitment" total must sum THIS, never re-derive it from
+   * `frequency` -- re-deriving per consumer is what produced the ~30x-cheap
+   * daily row in the first place.
+   */
+  monthlyAmount: number
   lastDate: string
   occurrences: number
   totalSpent: number
@@ -14,21 +27,17 @@ export interface RecurringTransaction {
   expectedNextDate: string
 }
 
-export type Frequency = 'monthly' | 'quarterly' | 'yearly'
-
-/** Map the backend's monthly-commitment weighting to one of the 3 display
- * frequencies. The backend detects more bands (weekly/biweekly/bimonthly/
- * semiannual); collapse them to the nearest display bucket so the commitment
- * math (monthly = full, quarterly = /3, yearly = /12) stays meaningful. */
-const API_FREQUENCY_TO_DISPLAY: Record<string, Frequency> = {
-  WEEKLY: 'monthly', // ~4.3x/mo -> treated as a monthly commitment line
-  BIWEEKLY: 'monthly',
-  MONTHLY: 'monthly',
-  BIMONTHLY: 'quarterly',
-  QUARTERLY: 'quarterly',
-  SEMIANNUAL: 'yearly',
-  YEARLY: 'yearly',
-}
+/**
+ * The canonical backend frequency set, not a display subset.
+ *
+ * This used to be `'monthly' | 'quarterly' | 'yearly'`, with a lookup table
+ * that collapsed the backend's other bands into those three. `daily` had no
+ * entry and no bucket it could honestly collapse into (it is ~30x a monthly
+ * charge), so it fell through to `'monthly'` and every daily cost was
+ * understated by 365/12. A 3-value type cannot represent the data, so the
+ * fix is the type, not another table row.
+ */
+export type Frequency = RecurrenceFrequency
 
 /** Adapt backend recurring rows to the component's display shape.
  *
@@ -41,7 +50,10 @@ export function adaptApiRecurring(rows: ApiRecurringTransaction[]): RecurringTra
   return rows
     .filter((r) => (r.type ?? '').toLowerCase() !== 'income')
     .map((r) => {
-      const freq = API_FREQUENCY_TO_DISPLAY[(r.frequency ?? '').toUpperCase()] ?? 'monthly'
+      // No `.toUpperCase()` here: casing is normalized inside the shared
+      // helper. Two files pre-normalizing differently (this one upper-cased,
+      // the subscription tracker lower-cased) is how the tables drifted.
+      const freq = normalizeFrequency(r.frequency) ?? 'monthly'
       const amount = Math.abs(r.expected_amount)
       return {
         pattern: r.name,
@@ -49,6 +61,7 @@ export function adaptApiRecurring(rows: ApiRecurringTransaction[]): RecurringTra
         subcategory: r.subcategory ?? undefined,
         avgAmount: amount,
         frequency: freq,
+        monthlyAmount: toMonthlyAmount(amount, freq),
         lastDate: r.last_occurrence ?? '',
         occurrences: r.occurrences,
         totalSpent: amount * r.occurrences,
@@ -57,6 +70,11 @@ export function adaptApiRecurring(rows: ApiRecurringTransaction[]): RecurringTra
       }
     })
     .sort((a, b) => b.avgAmount - a.avgAmount)
+}
+
+/** Sum the monthly-equivalent cost of a set of adapted recurring rows. */
+export function sumMonthlyCommitment(rows: RecurringTransaction[]): number {
+  return rows.reduce((sum, r) => sum + r.monthlyAmount, 0)
 }
 
 export function computeIntervals(sortedDates: string[]): number[] {
@@ -70,10 +88,34 @@ export function computeIntervals(sortedDates: string[]): number[] {
   return intervals
 }
 
+/**
+ * Interval bands mirroring the backend detector's `_FREQ_BANDS`
+ * (`core/analytics/recurring.py`), plus the `daily` band the backend covers via
+ * its lowest band start. Each entry is `[minDays, frequency]`; a band runs up to
+ * the next band's start, and `MAX_DETECTABLE_INTERVAL_DAYS` caps the last one
+ * (the backend's `_FREQ_MAX_DAYS`).
+ *
+ * The three hardcoded windows this replaced left gaps between them, so a stream
+ * at a 50-day cadence classified as nothing and was dropped entirely.
+ */
+const INTERVAL_BANDS: ReadonlyArray<readonly [number, Frequency]> = [
+  [1, 'daily'],
+  [4, 'weekly'],
+  [11, 'biweekly'],
+  [20, 'monthly'],
+  [50, 'bimonthly'],
+  [80, 'quarterly'],
+  [130, 'semiannual'],
+  [270, 'yearly'],
+]
+
+const MAX_DETECTABLE_INTERVAL_DAYS = 400
+
 export function classifyFrequency(avgInterval: number): Frequency | null {
-  if (avgInterval >= 25 && avgInterval <= 38) return 'monthly'
-  if (avgInterval >= 80 && avgInterval <= 105) return 'quarterly'
-  if (avgInterval >= 345 && avgInterval <= 385) return 'yearly'
+  if (avgInterval < INTERVAL_BANDS[0][0] || avgInterval >= MAX_DETECTABLE_INTERVAL_DAYS) return null
+  for (let i = INTERVAL_BANDS.length - 1; i >= 0; i--) {
+    if (avgInterval >= INTERVAL_BANDS[i][0]) return INTERVAL_BANDS[i][1]
+  }
   return null
 }
 
@@ -92,23 +134,53 @@ export function isConsistentAmount(amounts: number[]): boolean {
   return consistentAmounts.length >= amounts.length * 0.5
 }
 
+/**
+ * Step one period forward from `lastDate`.
+ *
+ * Driven by the shared cadence table. The `if monthly / else if quarterly /
+ * else +1 year` chain this replaced sent every other frequency -- daily
+ * included -- a full year into the future.
+ */
 export function computeExpectedNextDate(lastDate: Date, frequency: Frequency): Date {
   const expectedNext = new Date(lastDate)
-  if (frequency === 'monthly') {
-    expectedNext.setMonth(expectedNext.getMonth() + 1)
-  } else if (frequency === 'quarterly') {
-    expectedNext.setMonth(expectedNext.getMonth() + 3)
+  const cadence = recurrenceCadence(frequency)
+  if (!cadence) return expectedNext
+  if (cadence.unit === 'day') {
+    expectedNext.setDate(expectedNext.getDate() + cadence.stride)
   } else {
-    expectedNext.setFullYear(expectedNext.getFullYear() + 1)
+    expectedNext.setMonth(expectedNext.getMonth() + cadence.stride)
   }
   return expectedNext
 }
 
-export function checkIsActive(lastDate: Date, frequency: Frequency): boolean {
-  const today = new Date()
-  const daysSinceLast = Math.round((today.getTime() - lastDate.getTime()) / MS_PER_DAY)
-  const maxDaysMap: Record<Frequency, number> = { monthly: 45, quarterly: 120, yearly: 400 }
-  return daysSinceLast < maxDaysMap[frequency]
+/**
+ * Grace period, in days, before a pattern is called dormant.
+ *
+ * `Record<Frequency, number>` on purpose: adding a frequency to the shared enum
+ * will not compile until it has a threshold here. The monthly / quarterly /
+ * yearly values are the pre-existing ones, unchanged; the rest fill the holes
+ * that the old 3-key map left, where `maxDaysMap[frequency]` was `undefined`
+ * and `daysSinceLast < undefined` is always false -- every non-bucketed
+ * pattern read as inactive.
+ */
+const STALENESS_WINDOW_DAYS: Readonly<Record<Frequency, number>> = {
+  daily: 7,
+  weekly: 21,
+  biweekly: 35,
+  monthly: 45,
+  bimonthly: 90,
+  quarterly: 120,
+  semiannual: 240,
+  yearly: 400,
+}
+
+export function stalenessWindowDays(frequency: Frequency): number {
+  return STALENESS_WINDOW_DAYS[frequency]
+}
+
+export function checkIsActive(lastDate: Date, frequency: Frequency, now: Date = new Date()): boolean {
+  const daysSinceLast = Math.round((now.getTime() - lastDate.getTime()) / MS_PER_DAY)
+  return daysSinceLast < stalenessWindowDays(frequency)
 }
 
 export function detectPattern(
@@ -151,6 +223,7 @@ export function detectPattern(
     subcategory: data.subcategory,
     avgAmount,
     frequency,
+    monthlyAmount: toMonthlyAmount(avgAmount, frequency),
     lastDate: lastDateStr,
     occurrences: data.amounts.length,
     totalSpent: data.amounts.reduce((a, b) => a + b, 0),

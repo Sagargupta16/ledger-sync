@@ -7,6 +7,7 @@ preference-driven category lists maintained by ``AnalyticsEngineBase``.
 from __future__ import annotations
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.db.models import Transaction
 
 
@@ -54,6 +55,21 @@ class ClassificationMixin(AnalyticsEngineBase):
         """Check if transaction is investment income based on preferences."""
         item = f"{txn.category}::{txn.subcategory}"
         return item in self.investment_returns_categories
+
+    def _is_capital_loss(self, txn: Transaction) -> bool:
+        """Is this EXPENSE row a realised investment loss the user classified?
+
+        A realised loss has to be booked as an ``EXPENSE`` for a cashbook's cash
+        column to balance, but it bought no goods or services -- it is a negative
+        investment return. Summed as spending it inflates expense totals, the
+        essential/discretionary split and the anomaly baseline at once.
+
+        False for every row until the user populates
+        ``capital_loss_categories``, so no historical number moves on its own.
+        Detection (``looks_like_capital_loss``) only suggests candidates; it is
+        never consulted here.
+        """
+        return is_capital_loss(txn.category, txn.subcategory, self.capital_loss_keys)
 
     def _is_investment_account(self, account_name: str | None) -> bool:
         """Check if account name matches an investment-account pattern."""

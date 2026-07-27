@@ -100,12 +100,15 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       onSuccess: () => {
         toast.success('Account deleted successfully')
         handleClose()
+        // `void navigate(...)`: typed `void | Promise<void>` by react-router
+        // but returns undefined under BrowserRouter (App.tsx). Delete/logout
+        // failures are already surfaced by the onError toasts here.
         logout.mutate(undefined, {
           onSuccess: () => {
-            navigate('/')
+            void navigate('/')
           },
           onSettled: () => {
-            navigate('/')
+            void navigate('/')
           },
         })
       },
@@ -117,7 +120,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
     logout.mutate(undefined, {
       onSuccess: () => {
         handleClose()
-        navigate('/')
+        void navigate('/')
       },
     })
   }
@@ -159,7 +162,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             nameInput={nameInput}
             isPending={updateProfile.isPending}
             onStartEdit={() => {
-              setNameInput(user?.full_name || '')
+              setNameInput(user?.full_name ?? '')
               setIsEditingName(true)
             }}
             onCancelEdit={() => setIsEditingName(false)}

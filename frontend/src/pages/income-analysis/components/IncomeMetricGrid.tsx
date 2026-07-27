@@ -9,7 +9,8 @@ interface IncomeMetricGridProps {
   readonly totalIncome: number
   readonly primaryIncomeType: string
   readonly primaryShare: number
-  readonly growthRate: number
+  /** `undefined` when there is no completed-month pair to compare -- renders a dash. */
+  readonly growthRate: number | undefined
   readonly incomeSeries: readonly number[]
   readonly cashbacksTotal: number
   readonly cashbackShare: number
@@ -24,9 +25,11 @@ export default function IncomeMetricGrid({
   cashbacksTotal,
   cashbackShare,
 }: IncomeMetricGridProps) {
+  // An absent growth rate is a real state (nothing completed to compare against),
+  // not zero: it renders as a dash in a neutral colour rather than a confident 0%.
   let growthColor: 'green' | 'red' | 'blue' = 'blue'
-  if (growthRate > 0) growthColor = 'green'
-  else if (growthRate < 0) growthColor = 'red'
+  if (growthRate !== undefined && growthRate > 0) growthColor = 'green'
+  else if (growthRate !== undefined && growthRate < 0) growthColor = 'red'
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
@@ -45,10 +48,14 @@ export default function IncomeMetricGrid({
       />
       <MetricCard
         title="Growth Rate"
-        value={formatPercent(growthRate, true)}
-        subtitle="First vs latest month"
+        value={growthRate === undefined ? '--' : formatPercent(growthRate, true)}
+        subtitle={
+          growthRate === undefined
+            ? 'Needs two completed months'
+            : 'First vs latest month'
+        }
         trend={
-          incomeSeries.length >= 2 ? (
+          growthRate !== undefined && incomeSeries.length >= 2 ? (
             <Sparkline
               data={[...incomeSeries]}
               color={rawColors.app[growthColor === 'red' ? 'red' : 'green']}

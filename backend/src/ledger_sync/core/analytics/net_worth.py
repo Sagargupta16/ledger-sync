@@ -15,12 +15,27 @@ from ledger_sync.core._analytics_helpers import (
     compute_account_balances as _compute_account_balances,
 )
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
     AccountClassification,
+    AccountType,
     InvestmentHolding,
     NetWorthSnapshot,
     Transaction,
 )
+
+
+def _ist_day_start() -> datetime:
+    """Midnight opening the current IST day, as a naive datetime.
+
+    ``snapshot_date`` is the ledger-facing "as of" date the user reads on the
+    net-worth page, so its day has to be the IST day. Deriving the window from
+    ``datetime.now(UTC)`` was wrong for the first 5.5 hours of every IST day: at
+    01:00 IST the UTC window still covers yesterday, so the upsert found
+    yesterday's row and OVERWROTE it instead of inserting today's -- silently
+    destroying a history point and reporting the change against the wrong base.
+    """
+    return ledger_now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 class NetWorthMixin(AnalyticsEngineBase):
@@ -86,9 +101,13 @@ class NetWorthMixin(AnalyticsEngineBase):
         comparing against it yields a spurious change=0 (the bug that left 7/12
         stored snapshots showing 0 change despite net worth moving). Compare
         against the genuine prior day instead.
+
+        "Today" is the IST day, matching ``_upsert_net_worth_snapshot``. A UTC
+        day boundary is still on yesterday for the first 5.5 hours of every IST
+        day, which would let today's own row through as "previous" and hand back
+        change=0 -- the exact bug this method exists to avoid.
         """
-        now = datetime.now(UTC)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = _ist_day_start()
         prev_query = (
             self.db.query(NetWorthSnapshot)
             .filter(
@@ -123,10 +142,15 @@ class NetWorthMixin(AnalyticsEngineBase):
         net_worth_change: Decimal,
         net_worth_change_pct: float,
     ) -> None:
-        """Insert or update today's net-worth snapshot row."""
-        now = datetime.now(UTC)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        """Insert or update today's net-worth snapshot row.
+
+        "Today" is the IST day (see ``_ist_day_start``), so the row the user
+        reads as today's snapshot is keyed to their calendar day, and a
+        post-IST-midnight import cannot overwrite yesterday's.
+        """
+        snapshot_at = ledger_now()
+        today_start = _ist_day_start()
+        today_end = today_start.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         existing_snapshot = (
             self.db.query(NetWorthSnapshot)
@@ -159,7 +183,7 @@ class NetWorthMixin(AnalyticsEngineBase):
             self.db.add(
                 NetWorthSnapshot(
                     user_id=self.user_id,
-                    snapshot_date=now,
+                    snapshot_date=snapshot_at,
                     cash_and_bank=totals["cash_and_bank"],
                     investments=total_investments,
                     mutual_funds=totals["mutual_funds"],
@@ -175,7 +199,10 @@ class NetWorthMixin(AnalyticsEngineBase):
                     net_worth=net_worth,
                     net_worth_change=net_worth_change,
                     net_worth_change_pct=net_worth_change_pct,
-                    created_at=now,
+                    # Audit column: UTC, matching every other audit timestamp in
+                    # the schema. Only snapshot_date, which the user reads as a
+                    # date, moves onto the IST clock.
+                    created_at=datetime.now(UTC),
                     source="upload",
                 ),
             )
@@ -274,7 +301,7 @@ class NetWorthMixin(AnalyticsEngineBase):
         }
 
         for account, balance in account_balances.items():
-            account_type = classifications.get(account, "Other Wallets")
+            account_type = classifications.get(account, AccountType.OTHER_WALLETS.value)
             self._assign_balance_to_bucket(result, account, balance, account_type)
 
         return result
@@ -286,15 +313,29 @@ class NetWorthMixin(AnalyticsEngineBase):
         balance: Decimal,
         account_type: str,
     ) -> None:
-        """Assign a single account balance to the appropriate bucket."""
-        if account_type in ["Bank Accounts", "Cash"]:
+        """Assign a single account balance to the appropriate bucket.
+
+        *account_type* is an ``AccountType`` VALUE -- ``_calculate_net_worth_snapshot``
+        builds ``classifications`` from ``ac.account_type.value``, matching what the
+        API serializes. Comparisons therefore go through ``AccountType`` members
+        rather than bare strings: the old code also tested a ``"Loans"`` literal,
+        which no enum member serializes to (``AccountType.LOANS`` is
+        ``"Loans/Lended"``), so that half of the test was permanently dead. An enum
+        reference cannot drift from the vocabulary the same way -- renaming a value
+        updates every comparison at once, and a typo is an ``AttributeError`` at
+        import instead of a branch that silently never fires.
+
+        Anything unrecognised (including the ``"Other"`` fallback the API serves for
+        an unclassified account) lands in ``other_assets``.
+        """
+        if account_type in (AccountType.BANK_ACCOUNTS.value, AccountType.CASH.value):
             result["cash_and_bank"] += balance
-        elif account_type == "Credit Cards":
+        elif account_type == AccountType.CREDIT_CARDS.value:
             if balance < 0:  # Outstanding balance
                 result["credit_card_outstanding"] += abs(balance)
-        elif account_type == "Investments":
+        elif account_type == AccountType.INVESTMENTS.value:
             self._assign_investment_balance(result, account, balance)
-        elif account_type in ("Loans", "Loans/Lended"):
+        elif account_type == AccountType.LOANS.value:
             if balance < 0:
                 result["loans_payable"] += abs(balance)
             else:

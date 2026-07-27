@@ -3,6 +3,8 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics_helpers import (
     _get_sql_account_totals,
@@ -14,11 +16,22 @@ from ledger_sync.api.analytics_helpers import (
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core import calculator
 from ledger_sync.core.time_filter import TimeRange
-from ledger_sync.db.models import TransactionType
+from ledger_sync.db.models import TransactionType, User, UserPreferences
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 TIME_RANGE_FILTER_DESC = "Time range filter"
+
+
+def _load_preferences(db: Session, user: User) -> UserPreferences | None:
+    """Read a user's preferences row, or ``None`` when they have none yet.
+
+    Read-only counterpart to ``preferences_helpers._get_or_create_preferences``:
+    a GET must not write a defaults row as a side effect. Consumers treat
+    ``None`` as "use the shipped defaults", so a missing row is not an error.
+    """
+    stmt = select(UserPreferences).where(UserPreferences.user_id == user.id).limit(1)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 @router.get("/overview")
@@ -29,13 +42,20 @@ def get_overview(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get overview statistics: income, expenses, net change, best/worst month."""
+    """Get overview statistics: income, expenses, net change, best/worst month.
+
+    ``capital_losses`` is published as its own figure and is already netted out
+    of ``net_change`` by ``_get_sql_totals``, so this response reconciles with
+    ``/api/calculations/totals`` (``net_change == net_savings``) instead of
+    overstating the net position by the loss amount.
+    """
     totals = _get_sql_totals(db, current_user, time_range)
 
     if totals["transaction_count"] == 0:
         return {
             "total_income": 0,
             "total_expenses": 0,
+            "capital_losses": 0,
             "net_change": 0,
             "best_month": None,
             "worst_month": None,
@@ -57,6 +77,7 @@ def get_overview(
     return {
         "total_income": totals["total_income"],
         "total_expenses": totals["total_expenses"],
+        "capital_losses": totals["capital_losses"],
         "net_change": totals["net_change"],
         "best_month": best_worst["best_month"],
         "worst_month": best_worst["worst_month"],
@@ -136,7 +157,14 @@ def get_trends(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get spending and income trends over time."""
+    """Get spending and income trends over time.
+
+    ``consistency_score`` carries ``consistency_measurable``: the score function
+    returns a flat 100.0 when a coefficient of variation is undefined (one month
+    of history, or a zero mean), and 100 reads as the BEST possible result. A
+    client that renders the number without checking the flag tells a brand-new
+    user their spending is perfectly consistent.
+    """
     transactions = get_filtered_transactions(db, current_user, time_range)
 
     if not transactions:
@@ -144,12 +172,14 @@ def get_trends(
             "monthly_trends": [],
             "surplus_trend": [],
             "consistency_score": 0,
+            "consistency_measurable": False,
         }
 
     # Use calculator for metrics
     monthly_data = calculator.group_by_month(transactions)
     monthly_expenses = [data["expenses"] for data in monthly_data.values()]
     consistency_score = calculator.calculate_consistency_score(monthly_expenses)
+    consistency_measurable = calculator.is_measurable_consistency(monthly_expenses)
 
     # Format monthly trends
     monthly_trends = [
@@ -175,6 +205,7 @@ def get_trends(
         "monthly_trends": monthly_trends,
         "surplus_trend": surplus_trend,
         "consistency_score": consistency_score,
+        "consistency_measurable": consistency_measurable,
     }
 
 
@@ -301,7 +332,19 @@ def get_kpis(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get all KPI metrics in one call."""
+    """Get all KPI metrics in one call.
+
+    Two of these numbers have an undefined case that returns a plausible-looking
+    value rather than an error, so each ships with a companion flag:
+
+    * ``consistency_measurable`` -- ``consistency_score`` is a flat 100.0 (the
+      BEST possible reading) whenever a coefficient of variation is undefined.
+    * ``velocity_comparable`` -- ``spending_velocity`` is 0.0 when there is no
+      history outside the recent window, which reads as "spending is 100% down".
+
+    A client that renders either number without its flag reports a conclusion the
+    data does not support.
+    """
     transactions = get_filtered_transactions(db, current_user, time_range)
 
     if not transactions:
@@ -310,8 +353,10 @@ def get_kpis(
             "daily_spending_rate": 0,
             "monthly_burn_rate": 0,
             "spending_velocity": 0,
+            "velocity_comparable": False,
             "category_concentration": 0,
             "consistency_score": 0,
+            "consistency_measurable": False,
             "lifestyle_inflation": 0,
             "convenience_spending_pct": 0,
         }
@@ -332,10 +377,12 @@ def get_kpis(
         "monthly_burn_rate": calculator.calculate_monthly_burn_rate(transactions),
         "spending_velocity": spending_velocity["velocity_ratio"]
         * 100,  # Convert ratio to percentage
+        "velocity_comparable": spending_velocity["historical_daily"] > 0,
         "category_concentration": calculator.calculate_category_concentration(
             category_totals,
         ),
         "consistency_score": calculator.calculate_consistency_score(monthly_expenses),
+        "consistency_measurable": calculator.is_measurable_consistency(monthly_expenses),
         "lifestyle_inflation": calculator.calculate_lifestyle_inflation(transactions),
         "convenience_spending_pct": convenience_data["convenience_pct"],
     }
@@ -349,15 +396,23 @@ def get_income_expense_chart(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get data for income vs expense doughnut chart."""
+    """Get data for income vs expense doughnut chart.
+
+    A classified realised loss gets its own slice. Dropping it from "Expenses"
+    without adding it back left the chart short by the loss amount, so the two
+    slices no longer accounted for where the money went. The slice is omitted
+    entirely when nothing is classified, which is every user's default state.
+    """
     totals = _get_sql_totals(db, current_user, time_range)
 
-    return {
-        "data": [
-            {"name": "Income", "value": totals["total_income"]},
-            {"name": "Expenses", "value": totals["total_expenses"]},
-        ],
-    }
+    data: list[dict[str, Any]] = [
+        {"name": "Income", "value": totals["total_income"]},
+        {"name": "Expenses", "value": totals["total_expenses"]},
+    ]
+    if totals["capital_losses"]:
+        data.append({"name": "Capital Losses", "value": totals["capital_losses"]})
+
+    return {"data": data}
 
 
 @router.get("/charts/categories")
@@ -386,7 +441,12 @@ def get_monthly_trends_chart(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get data for monthly trends line chart."""
+    """Get data for monthly trends line chart.
+
+    ``net`` subtracts ``capital_losses`` as well as ``expenses``: the loss is not
+    consumption but the cash did leave, so a per-month ``income - expenses`` net
+    would sit above the user's real balance change by exactly the loss.
+    """
     monthly_data = _get_sql_monthly_data(db, current_user, time_range)
 
     # Format for line chart
@@ -395,7 +455,8 @@ def get_monthly_trends_chart(
             "month": month,
             "income": data["income"],
             "expenses": data["expenses"],
-            "net": data["income"] - data["expenses"],
+            "capital_losses": data["capital_losses"],
+            "net": data["income"] - data["expenses"] - data["capital_losses"],
         }
         for month, data in sorted(monthly_data.items())
     ]
@@ -428,7 +489,13 @@ def get_generated_insights(
         TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
     ] = TimeRange.ALL_TIME,
 ) -> dict[str, Any]:
-    """Get AI-generated insights from transaction data."""
+    """Get AI-generated insights from transaction data.
+
+    The user's preferences row is loaded so every amount in every insight string
+    carries THEIR display symbol. Constructing the engine with no argument
+    silently resolved to the shipped default, so a user on USD read
+    rupee-prefixed figures. The row is read, never created: this is a GET.
+    """
     from ledger_sync.core.insights import InsightEngine
 
     transactions = get_filtered_transactions(db, current_user, time_range)
@@ -436,7 +503,7 @@ def get_generated_insights(
     if not transactions:
         return {"insights": []}
 
-    engine = InsightEngine()
+    engine = InsightEngine(_load_preferences(db, current_user))
     insights = engine.generate_all_insights(transactions)
 
     return {"insights": insights}

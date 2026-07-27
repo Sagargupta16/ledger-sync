@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { savingsRatePercentOr } from '@/lib/savingsRate'
 import { ProgressBar } from '@/components/shared'
 import { hexToRgba, rawColors } from '@/constants/colors'
 
@@ -24,7 +25,10 @@ export default function TaxSummaryGrid({
     grossTaxableIncome > 0 ? (taxAlreadyPaid / grossTaxableIncome) * 100 : 0
 
   const netSavings = totalIncome - totalExpense
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
+  // Shared definition, not a local one: this tile sits beside the effective tax
+  // rate above, which is a genuinely different ratio (tax over gross taxable
+  // income) and stays hand-rolled on purpose.
+  const savingsRate = savingsRatePercentOr({ income: totalIncome, expense: totalExpense })
 
   return (
     <motion.div

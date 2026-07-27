@@ -1,3 +1,5 @@
+import { dropPartialMonth } from '@/lib/dateUtils'
+
 export function formatMonth(v: string) {
   // Build from local Y/M parts: `new Date('YYYY-MM-01')` parses as UTC midnight
   // and toLocaleDateString renders local, mislabeling the axis tick (prior
@@ -65,7 +67,7 @@ type MonthlyData = Record<string, { income: number; expense: number; net_savings
  * combined historical+forecast series the chart renders. Returns null when
  * there isn't enough data (needs >= 3 complete months).
  */
-export function buildForecast(monthlyData: MonthlyData): ForecastResult | null {
+export function buildForecast(monthlyData: MonthlyData, now: Date = new Date()): ForecastResult | null {
   if (!monthlyData) return null
 
   const months = Object.entries(monthlyData)
@@ -77,14 +79,14 @@ export function buildForecast(monthlyData: MonthlyData): ForecastResult | null {
 
   if (months.length < 3) return null
 
-  // Exclude incomplete current month
-  const today = new Date()
-  const currentMonth = today.toISOString().slice(0, 7)
-  const isIncomplete = today.getDate() < 25
-  const last = months.at(-1)
-  if (!last) return null
-  const historicalMonths = (last.month === currentMonth && isIncomplete)
-    ? months.slice(0, -1) : months
+  // Drop the in-progress month rather than extrapolating it: every figure below
+  // (trend base, growth rate, volatility, averages) compares months to each
+  // other, and scaling a 2-day month up by 15x amplifies noise instead of
+  // removing it. `dropPartialMonth` also encodes the repo rule that a month is
+  // partial only until its LAST calendar day, so the 31st stays complete --
+  // unlike the old `getDate() < 25` heuristic, which both deleted complete
+  // month-ends and let a 24-day month through as the projection base.
+  const historicalMonths = dropPartialMonth(months, 'month', now)
   const lastComplete = historicalMonths.at(-1)
   if (!lastComplete) return null
 
@@ -104,18 +106,19 @@ export function buildForecast(monthlyData: MonthlyData): ForecastResult | null {
   const variance = savingsValues.reduce((s, v) => s + (v - savingsAvg) ** 2, 0) / savingsValues.length
   const stdDev = Math.sqrt(variance)
 
-  // Generate 6-month forecast
-  const offset = (last.month === currentMonth && isIncomplete) ? 0 : 1
+  // Generate 12-month forecast. It always starts the month AFTER the last
+  // complete one, so when the in-progress month was dropped above the forecast
+  // covers it -- no gap, and no forecast point sharing a month with an actual.
   const forecast = []
   let projIncome = lastComplete.income
   let projExpense = lastComplete.expense
 
-  for (let i = offset; i <= offset + 11; i++) {
+  for (let i = 1; i <= 12; i++) {
     const ms = addMonths(lastComplete.month, i)
     projIncome = projIncome * (1 + incomeGrowth * 0.5)
     projExpense = projExpense * (1 + expenseGrowth * 0.5)
     const net = projIncome - projExpense
-    const monthsOut = i - offset + 1
+    const monthsOut = i
     // Confidence band widens over time
     const band = stdDev * 0.8 * Math.sqrt(monthsOut)
     forecast.push({

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { tooltipLabelString } from '@/lib/chartUtils'
 import { formatDate } from '@/lib/formatters'
 
 import type { useTrendsForecasts } from '../useTrendsForecasts'
@@ -47,7 +48,19 @@ export default function SavingsRateSection({
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <PiggyBank className="h-5 w-5 text-app-purple" />
         <h2 className="text-lg font-semibold text-foreground">Savings Rate Trend</h2>
-        <span className="text-sm text-text-tertiary">(% of income saved each month)</span>
+        {/*
+          The caption used to read "(% of income saved each month)". The series
+          is CUMULATIVE to date -- each point is every rupee earned and spent
+          from the start of the window up to that day, which is what the tooltip
+          and the ariaLabel below already say, what `dailySavingsData` computes,
+          and what three tests in `savingsRateCap.test.tsx` pin. A per-month
+          series would move on a single heavy month; this one converges, so
+          reading it as monthly makes a flattening line look like an unchanging
+          month. Label follows the maths, not the other way round.
+        */}
+        <span className="text-sm text-text-tertiary">
+          (running % of income saved, start of range to date)
+        </span>
       </div>
 
       {isLoading && <ChartSkeleton height="h-64" />}
@@ -67,28 +80,41 @@ export default function SavingsRateSection({
               })}
               dataKey="date"
             />
+            {/*
+              Domain is `auto` at BOTH ends, not `[0, 'auto']`. A cumulative
+              deficit is a real outcome (the live ledger has 6 such days) and a
+              floor of 0 clipped it flat onto the axis while the tooltip below
+              still reported the negative figure. Recharts then draws no
+              baseline of its own, so the zero reference line is what makes
+              "above water" readable at a glance.
+            */}
             <YAxis
               {...yAxisDefaults({ currency: false })}
               tickFormatter={(value: number) => `${Math.round(value)}%`}
-              domain={[0, 'auto']}
+              domain={['auto', 'auto']}
             />
             <Tooltip
               {...chartTooltipProps}
+              // Label is the `date` axis tick value at runtime; formatDate
+              // returns its input unchanged for anything not YYYY-MM-DD.
               labelFormatter={(label) =>
-                formatDate(String(label), {
+                formatDate(tooltipLabelString(label), {
                   month: 'long',
                   day: 'numeric',
                   year: 'numeric',
                 })
               }
-              formatter={(_value, _name, props) => {
-                const actual =
-                  (props.payload as { rawSavingsRate?: number } | undefined)?.rawSavingsRate ?? 0
+              // Reads the plotted value directly. It used to reach past it into
+              // `payload.rawSavingsRate` because the series itself was clamped
+              // at 0, which let the tooltip contradict the line it labelled.
+              formatter={(value) => {
+                const actual = typeof value === 'number' ? value : Number(value) || 0
                 const label =
                   actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
                 return [label, 'Cumulative Savings Rate']
               }}
             />
+            {referenceLine({ y: 0, variant: 'zero' })}
             {referenceLine({
               y: savingsGoalPercent,
               label: `Target: ${savingsGoalPercent}%`,

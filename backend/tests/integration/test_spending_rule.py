@@ -117,7 +117,11 @@ def test_rent_classified_as_needs(rule_client):
     body = client.get("/api/analytics/v2/spending-rule").json()
     assert body["buckets"]["needs"]["amount"] == 25000
     assert body["buckets"]["wants"]["amount"] == 0
-    assert body["savings_amount"] == 75000
+    # `savings_amount` is the NET amount moved into the investment perimeter,
+    # not (income - expense). No transfer here, so nothing was allocated; the
+    # 75,000 that went unspent is the explicit residual instead.
+    assert body["savings_amount"] == 0
+    assert body["unallocated_amount"] == 75000
 
 
 def test_dining_classified_as_needs_per_defaults(rule_client):
@@ -168,7 +172,10 @@ def test_transfer_to_ppf_classified_as_savings(rule_client):
     session.commit()
 
     body = client.get("/api/analytics/v2/spending-rule").json()
-    assert body["savings_amount"] == 100000
+    # The transfer crossed into the investment perimeter, so it -- and only it --
+    # is the savings figure. The other 87,500 of salary is unallocated.
+    assert body["savings_amount"] == 12500
+    assert body["unallocated_amount"] == 87500
     savings_cat_rows = [c for c in body["categories"] if c["bucket"] == "savings"]
     assert len(savings_cat_rows) == 1
     # Non-generic category "Investment" is preserved as-is (prettifier only
@@ -420,9 +427,23 @@ def test_scores_delta_signed_correctly(rule_client):
         category="Salary",
         txn_type=TransactionType.INCOME,
     )
+    # Savings is now measured as allocation into the investment perimeter, so
+    # beating the 20% floor takes an actual transfer -- 30% here.
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 6, tzinfo=UTC),
+        amount=30000,
+        category="Transfer",
+        txn_type=TransactionType.TRANSFER,
+        account="HDFC Savings",
+        to_account="Groww Stocks",
+    )
     session.commit()
 
     body = client.get("/api/analytics/v2/spending-rule").json()
+    # Needs 40% (under the 50 cap), Wants 20% (under 30), Savings 30% (over the
+    # 20 floor) -- all three on the good side, so all three deltas positive.
     assert body["buckets"]["needs"]["score_delta"] > 0
     assert body["buckets"]["wants"]["score_delta"] > 0
     assert body["buckets"]["savings"]["score_delta"] > 0
@@ -530,6 +551,10 @@ def test_response_shape_matches_frontend_contract(rule_client):
         "income_total",
         "expense_total",
         "savings_amount",
+        # Additive: the residual that makes needs + wants + savings +
+        # unallocated == income_total reconcile exactly.
+        "unallocated_amount",
+        "unallocated_pct_of_income",
         "targets",
         "buckets",
         "categories",
@@ -539,3 +564,87 @@ def test_response_shape_matches_frontend_contract(rule_client):
     assert set(body["buckets"].keys()) == {"needs", "wants", "savings"}
     for bucket in body["buckets"].values():
         assert set(bucket.keys()) == {"amount", "pct_of_income", "score_delta"}
+
+
+# ---------------------------------------------------------------------------
+# Date-bound parsing
+#
+# FastAPI parses a bare `YYYY-MM-DD` query param into a NAIVE datetime and a
+# `...Z` instant into an AWARE one. The handler compares the bounds against
+# `datetime.now(UTC)` to fill in defaults, so before the `as_naive()`
+# normalisation the naive shape raised
+# `TypeError: can't compare offset-naive and offset-aware datetimes` -- an
+# unhandled 500, not a 422. The frontend now sends exactly that shape
+# (`budgetUtils.toPeriodRange` emits local date keys), so both shapes are
+# pinned here.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("params", "label"),
+    [
+        ({"start_date": "2026-06-01"}, "date-only start, default end"),
+        ({"end_date": "2026-06-30"}, "date-only end, default start"),
+        ({"start_date": "2026-06-01", "end_date": "2026-06-30"}, "both date-only"),
+        ({"start_date": "2026-06-01T00:00:00Z"}, "aware start, default end"),
+        ({"end_date": "2026-06-30T00:00:00Z"}, "aware end, default start"),
+        (
+            {"start_date": "2026-06-01T00:00:00Z", "end_date": "2026-06-30T00:00:00Z"},
+            "both aware",
+        ),
+    ],
+)
+def test_every_date_bound_shape_returns_200(rule_client, params, label):
+    """Neither the naive nor the aware shape may reach the `now` comparison raw."""
+    client, session, user = rule_client
+    _add_txn(
+        session, user.id, date=datetime(2026, 6, 10, tzinfo=UTC), amount=25000, category="Rent"
+    )
+    session.commit()
+
+    r = client.get("/api/analytics/v2/spending-rule", params=params)
+    assert r.status_code == 200, f"{label}: {r.json()}"
+    assert r.json()["buckets"]["needs"]["amount"] == 25000, label
+
+
+def test_date_only_end_bound_includes_that_whole_day(rule_client):
+    """A `YYYY-MM-DD` end parses to midnight; `<=` would drop that day's rows.
+
+    `inclusive_end()` stretches it to 23:59:59.999999. The ingest normaliser
+    stores midnight-local so today's real rows land exactly on the boundary,
+    but a row carrying a time component must not fall off the end either.
+    """
+    client, session, user = rule_client
+    _add_txn(session, user.id, date=datetime(2026, 6, 30, tzinfo=UTC), amount=1000, category="Rent")
+    _add_txn(
+        session,
+        user.id,
+        date=datetime(2026, 6, 30, 18, 45, tzinfo=UTC),
+        amount=4000,
+        category="Groceries",
+    )
+    _add_txn(session, user.id, date=datetime(2026, 7, 1, tzinfo=UTC), amount=9000, category="Rent")
+    session.commit()
+
+    body = client.get(
+        "/api/analytics/v2/spending-rule",
+        params={"start_date": "2026-06-01", "end_date": "2026-06-30"},
+    ).json()
+    # Both June rows in, the July row out.
+    assert body["buckets"]["needs"]["amount"] == 5000
+
+
+def test_period_echoes_the_requested_end_not_the_internal_bound(rule_client):
+    """`period.end` reports what the caller asked for.
+
+    The widened `end_bound` is a query detail. Leaking it would make the UI
+    render "30 Jun 2026, 23:59:59.999999" as the range label.
+    """
+    client, _, _ = rule_client
+    body = client.get(
+        "/api/analytics/v2/spending-rule",
+        params={"start_date": "2026-06-01", "end_date": "2026-06-30"},
+    ).json()
+    assert body["period"]["end"] == "2026-06-30T00:00:00"
+    assert body["period"]["start"] == "2026-06-01T00:00:00"
+    assert body["period"]["months"] == 1

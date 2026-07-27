@@ -17,7 +17,7 @@ const ACCOUNT_CLASSIFICATIONS_KEY = ['account-classifications', 'all'] as const
 export function useAccountClassifications() {
   return useQuery({
     queryKey: ACCOUNT_CLASSIFICATIONS_KEY,
-    queryFn: accountClassificationsService.getAllClassifications,
+    queryFn: () => accountClassificationsService.getAllClassifications(),
     staleTime: Infinity,
     gcTime: 60 * 60 * 1000,
   })

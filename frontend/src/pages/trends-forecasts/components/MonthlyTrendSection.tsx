@@ -39,6 +39,9 @@ interface MonthlyTrendSectionProps {
   readonly peakIncome: number
   readonly peakExpenses: number
   readonly peakSavings: number
+  /** Count of months that have a real rolling average (not the data length). */
+  readonly rollingAvgPointCount: number
+  readonly rollingAvgMonths: number
   readonly activeLabel: string | null
   readonly onActiveLabelChange: (label: string | null) => void
 }
@@ -49,6 +52,8 @@ export default function MonthlyTrendSection({
   peakIncome,
   peakExpenses,
   peakSavings,
+  rollingAvgPointCount,
+  rollingAvgMonths,
   activeLabel,
   onActiveLabelChange,
 }: MonthlyTrendSectionProps) {
@@ -92,7 +97,7 @@ export default function MonthlyTrendSection({
         <div>
           <h2 className="text-lg font-semibold text-foreground">Income & Expense Trends</h2>
           <p className="text-sm text-text-tertiary">
-            Monthly breakdown with 3-month rolling averages
+            Monthly breakdown with {rollingAvgMonths}-month rolling averages
           </p>
         </div>
       </div>
@@ -108,7 +113,7 @@ export default function MonthlyTrendSection({
               </div>
               <ChartContainer
                 height={180}
-                ariaLabel={`Monthly ${label.toLowerCase()} with 3-month rolling average and peak reference line`}
+                ariaLabel={`Monthly ${label.toLowerCase()} with ${rollingAvgMonths}-month rolling average and peak reference line`}
               >
                 <AreaChart
                   data={data}
@@ -134,7 +139,10 @@ export default function MonthlyTrendSection({
                     }}
                     formatter={(value, name) => [
                       typeof value === 'number' ? formatCurrency(value) : '',
-                      formatTooltipName(name === undefined ? undefined : String(name)),
+                      formatTooltipName(
+                        name === undefined ? undefined : String(name),
+                        rollingAvgMonths,
+                      ),
                     ]}
                   />
                   {referenceLine({
@@ -167,9 +175,13 @@ export default function MonthlyTrendSection({
                     stroke={color}
                     strokeWidth={2}
                     strokeDasharray="6 3"
-                    dot={data.length === 1 ? { r: 3, fill: color } : false}
+                    // Keys off the AVERAGE point count, not `data.length`: the
+                    // leading months carry no average, so three complete months
+                    // (the default FY view) leave a single point, and recharts
+                    // strokes nothing for one point (`M x,y Z`).
+                    dot={rollingAvgPointCount === 1 ? { r: 3, fill: color } : false}
                     activeDot={{ ...ACTIVE_DOT, fill: color }}
-                    name={`${label} (3m avg)`}
+                    name={`${label} (${rollingAvgMonths}m avg)`}
                     isAnimationActive={shouldAnimate(data.length)}
                     animationDuration={600}
                     animationEasing="ease-out"

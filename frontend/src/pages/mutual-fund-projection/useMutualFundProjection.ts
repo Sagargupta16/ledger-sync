@@ -53,7 +53,7 @@ export function useMutualFundProjection() {
   }
 
   const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
-  const currentBalance = primaryAccount?.balance || 0
+  const currentBalance = primaryAccount?.balance ?? 0
 
   const sipTransfers = useMemo(() => {
     if (!primaryAccount) return []
@@ -101,9 +101,20 @@ export function useMutualFundProjection() {
     ],
   )
 
-  const realizedGains = currentBalance - totalHistoricalInvested
-  const realizedGainsPercent =
-    totalHistoricalInvested > 0 ? (realizedGains / totalHistoricalInvested) * 100 : 0
+  // `realizedGains = currentBalance - totalHistoricalInvested` used to live here
+  // and feed a "Realized Gain / +x% returns" card. currentBalance is itself the
+  // running sum of those same contributions (the backend derives account balances
+  // from flows -- there is no market value in the source data), so the difference
+  // was just the stray income/expense rows booked on the account: 1,311.43 on
+  // 911,000 invested, displayed as "+0.14% returns". Removed rather than relabelled.
+  //
+  // The gain/XIRR pair below is different: it is real once the user supplies a
+  // current value AND there is a contribution base to measure it against, so it
+  // stays and the page tells the user when it is only echoing the book balance
+  // back at them. Both conditions matter: with no contributions the percentage
+  // guard below returns 0, which would print a confident "+0.00% return" on an
+  // empty denominator.
+  const hasCurrentValueOverride = currentValueInput > 0 && totalHistoricalInvested > 0
 
   const overrideGains = effectiveCurrentValue - totalHistoricalInvested
   const overrideGainsPercent =
@@ -119,12 +130,7 @@ export function useMutualFundProjection() {
     [sipTransfers],
   )
 
-  const display = computeGainsDisplay(
-    realizedGains,
-    realizedGainsPercent,
-    overrideGainsPercent,
-    xirrPercent,
-  )
+  const display = computeGainsDisplay(overrideGainsPercent, xirrPercent)
   const currentValueLabel =
     currentValueInput > 0 ? 'Using your entered value' : 'Using portfolio balance'
   const effectiveValueLabel = currentValueInput > 0 ? 'Manual override' : 'From portfolio'
@@ -146,8 +152,7 @@ export function useMutualFundProjection() {
     effectiveCurrentValue,
     projection,
     chartData,
-    realizedGains,
-    realizedGainsPercent,
+    hasCurrentValueOverride,
     overrideGains,
     overrideGainsPercent,
     xirrPercent,

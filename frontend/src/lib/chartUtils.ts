@@ -61,6 +61,26 @@ export function downsampleTimeSeries<T extends Record<string, unknown>>(
 }
 
 /**
+ * Narrow a Recharts tooltip `label` down to the text it actually carries.
+ *
+ * Recharts declares `labelFormatter`'s first argument as `ReactNode`, but at
+ * runtime the value is the active tooltip-axis tick value -- `string | number`
+ * (`selectActiveLabel` -> `combineActiveLabel` -> `tooltipTicks[n].value`), and
+ * the formatter is only called at all when that value is non-nullish. Typing a
+ * call-site parameter as the declared `ReactNode` and then interpolating it
+ * would let an element/object reach a template literal and render the literal
+ * text `[object Object]` inside a tooltip, so scalars are passed through and
+ * anything else collapses to an empty string.
+ *
+ * @param label - Raw first argument handed to `labelFormatter`
+ */
+export function tooltipLabelString(label: unknown): string {
+  if (typeof label === 'string') return label
+  if (typeof label === 'number') return String(label)
+  return ''
+}
+
+/**
  * Recharts LabelList formatter for currency values on bar charts.
  * Shows abbreviated currency (e.g. "₹1.2L") for readability.
  */
@@ -78,3 +98,41 @@ export const barLabelStyle = {
   fontSize: 10,
   fontWeight: 500,
 } as const
+
+/** Rolling-average window shared by every monthly trend chart, in months. */
+export const ROLLING_AVG_MONTHS = 3
+
+/**
+ * Count the rolling-average points that actually exist on a series.
+ *
+ * A trailing average is `undefined`/`null` until a full window is behind it, so
+ * there are always fewer average points than data points. That count has to
+ * travel to the chart for two reasons: recharts strokes a polyline through
+ * DEFINED points only, so one point emits `M x,y Z` and paints nothing (probed
+ * against recharts 3.10), and the caption must not promise a line that cannot
+ * be drawn.
+ */
+export function countRollingAvgPoints<T>(
+  series: readonly T[],
+  avg: (row: T) => number | null | undefined,
+): number {
+  return series.filter((row) => avg(row) != null).length
+}
+
+/**
+ * What a caption may honestly claim about a rolling-average line, given how
+ * many average points actually exist.
+ *
+ * Exactly `windowMonths` complete months is the DEFAULT view on several pages,
+ * which is the single-invisible-point case -- so describe what is on screen
+ * rather than what the window label implies.
+ */
+export function rollingAvgCaption(pointCount: number, windowMonths: number): string {
+  if (pointCount === 0) {
+    return `A ${windowMonths}-month rolling average needs ${windowMonths} completed months, so none is drawn yet.`
+  }
+  if (pointCount === 1) {
+    return `Only one ${windowMonths}-month average exists so far, so it is marked as a point rather than a line.`
+  }
+  return `Rolling average uses a ${windowMonths}-month window and spans the last ${pointCount} months.`
+}

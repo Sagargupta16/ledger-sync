@@ -1,3 +1,4 @@
+import { RECURRENCE_FREQUENCIES, type RecurrenceFrequency } from '@/lib/recurrenceFrequency'
 import type { Suggestion } from './types'
 
 export const SUGGESTIONS: Suggestion[] = [
@@ -21,12 +22,26 @@ export const SUGGESTIONS: Suggestion[] = [
   { name: 'Mobile Recharge', type: 'Expense', frequency: 'monthly', category: 'Utilities' },
 ]
 
-export const FREQUENCY_OPTIONS = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'biweekly', label: 'Biweekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'bimonthly', label: 'Bimonthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'semiannual', label: 'Semi-annual' },
-  { value: 'yearly', label: 'Yearly' },
-]
+/**
+ * Display labels for the frequency picker.
+ *
+ * `Record<RecurrenceFrequency, string>` so a new backend frequency cannot ship
+ * without a label. The hand-written option list this replaced had no `daily`
+ * entry, which made a daily commitment unpickable even though the backend
+ * accepts it -- the same omission that made daily cost 12x instead of 365x.
+ */
+const FREQUENCY_LABELS: Readonly<Record<RecurrenceFrequency, string>> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  biweekly: 'Biweekly',
+  monthly: 'Monthly',
+  bimonthly: 'Bimonthly',
+  quarterly: 'Quarterly',
+  semiannual: 'Semi-annual',
+  yearly: 'Yearly',
+}
+
+export const FREQUENCY_OPTIONS = RECURRENCE_FREQUENCIES.map((value) => ({
+  value,
+  label: FREQUENCY_LABELS[value],
+}))

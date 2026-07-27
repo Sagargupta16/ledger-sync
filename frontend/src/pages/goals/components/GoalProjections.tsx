@@ -43,8 +43,21 @@ export default function GoalProjections({
         <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.teal }} />
         <span>
           Target: {goal.target_date ? new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No deadline'}
-          {projection.monthsRemaining > 0 && (
-            <span className="text-text-tertiary"> ({Math.ceil(projection.monthsRemaining)} months left)</span>
+          {/*
+            monthsRemaining is a WHOLE-month count, so a deadline days away is 0
+            and no per-month figure is quoted for it (there isn't one). Say which
+            near-term state it is instead of falling silent.
+          */}
+          {projection.deadlineState === 'scheduled' && (
+            <span className="text-text-tertiary">
+              {' '}({projection.monthsRemaining} {projection.monthsRemaining === 1 ? 'month' : 'months'} left)
+            </span>
+          )}
+          {projection.deadlineState === 'due_soon' && (
+            <span className="text-text-tertiary"> (due within a month)</span>
+          )}
+          {projection.deadlineState === 'past_due' && (
+            <span style={{ color: rawColors.app.red }}> (past due)</span>
           )}
         </span>
       </div>

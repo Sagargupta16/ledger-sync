@@ -30,6 +30,14 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
             {formatCurrency(anomaly.expected_value)}
           </span>
         </div>
+        {/*
+          `deviation_pct` is ALREADY a percent: the backend computes
+          `((actual - expected) / expected) * 100` (core/analytics/anomalies.py).
+          `formatPercent` only appends '%', it does not scale, so the value is
+          passed through as-is. The old `/ 100` rendered every deviation 100x
+          too small -- the owner's worst real outlier (expected 20, actual
+          35,000 = 174,900%) displayed as "1749.0%".
+        */}
         {anomaly.deviation_pct != null && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -37,7 +45,7 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
             }`}
           >
             {anomaly.deviation_pct > 0 ? '+' : ''}
-            {formatPercent(anomaly.deviation_pct / 100)}
+            {formatPercent(anomaly.deviation_pct)}
           </span>
         )}
       </div>

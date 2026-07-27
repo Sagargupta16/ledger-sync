@@ -68,6 +68,14 @@ class RecurringTransaction(Base):
     confidence_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
     occurrences_detected: Mapped[int] = mapped_column(Integer, default=0)
 
+    # "commitment" = a bill/salary you owe or are owed on a calendar date.
+    # "habit" = a repeated discretionary purchase (the daily lunch, the weekly
+    # fruit run). Both are genuinely periodic, so a gap-regularity score cannot
+    # separate them -- but only a commitment belongs in fixed-cost totals, the
+    # bill calendar or a missed-payment alert. Stored as a plain String rather
+    # than an Enum so a new kind needs no migration.
+    pattern_kind: Mapped[str] = mapped_column(String(16), default="commitment")
+
     # Tracking
     last_occurrence: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     next_expected: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

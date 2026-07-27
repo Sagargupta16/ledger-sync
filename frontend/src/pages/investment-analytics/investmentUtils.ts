@@ -1,4 +1,5 @@
 import { rawColors } from '@/constants/colors'
+import { addDaysToKey } from '@/lib/dateUtils'
 
 export const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
 export type InvestmentCategory = (typeof INVESTMENT_CATEGORIES)[number]
@@ -65,30 +66,148 @@ export function processInvestmentTransaction(
   byAccount: Record<string, number>,
   byCategory: Record<InvestmentCategory, number>,
 ) {
-  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account || '')) {
-    const toAccount = tx.to_account || ''
+  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account ?? '')) {
+    const toAccount = tx.to_account ?? ''
     byAccount[toAccount] = (byAccount[toAccount] || 0) + tx.amount
     const category = accountToCategory[toAccount] || 'Mutual Funds'
     byCategory[category] += tx.amount
   }
-  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account || '')) {
-    const fromAccount = tx.from_account || ''
+  if (tx.type === 'Transfer' && investmentAccounts.includes(tx.from_account ?? '')) {
+    const fromAccount = tx.from_account ?? ''
     byAccount[fromAccount] = (byAccount[fromAccount] || 0) - tx.amount
     const category = accountToCategory[fromAccount] || 'Mutual Funds'
     byCategory[category] -= tx.amount
   }
-  if (tx.type === 'Income' && investmentAccounts.includes(tx.account || '')) {
-    const account = tx.account || ''
+  if (tx.type === 'Income' && investmentAccounts.includes(tx.account ?? '')) {
+    const account = tx.account ?? ''
     byAccount[account] = (byAccount[account] || 0) + tx.amount
     const category = accountToCategory[account] || 'Mutual Funds'
     byCategory[category] += tx.amount
   }
-  if (tx.type === 'Expense' && investmentAccounts.includes(tx.account || '')) {
-    const account = tx.account || ''
+  if (tx.type === 'Expense' && investmentAccounts.includes(tx.account ?? '')) {
+    const account = tx.account ?? ''
     byAccount[account] = (byAccount[account] || 0) - tx.amount
     const category = accountToCategory[account] || 'Mutual Funds'
     byCategory[category] -= tx.amount
   }
+}
+
+/** One forward-filled day of the stacked growth chart. */
+export type GrowthPoint = Record<string, string | number>
+
+/** Minimal transaction shape the growth series needs. */
+export type GrowthTransaction = {
+  date: string
+  type: string
+  amount: number
+  to_account?: string | null
+  from_account?: string | null
+  account?: string | null
+}
+
+/**
+ * Build the forward-filled daily investment-value series for the stacked
+ * growth chart: one point per calendar day between the first and last
+ * investment transaction, each carrying a per-category total.
+ *
+ * Extracted from `useInvestmentAnalytics` so the running-balance rules below
+ * are testable without mounting the hook's three queries.
+ *
+ * Two rules that were previously wrong here:
+ *
+ * 1. A day's snapshot is applied with a KEY CHECK, not truthiness. Snapshots
+ *    are cloned from a map pre-seeded with every investment account, so every
+ *    account is always present -- meaning `snapshot[acc] || lastKnown[acc]`
+ *    could only ever discard a legitimate exact ZERO. A fully-redeemed holding
+ *    stayed plotted at its pre-redemption value forever, and the stacked total
+ *    drifted above `totalInvestmentValue`, the KPI on the same page.
+ *
+ * 2. Category totals are NOT clamped at zero. A running cumulative of
+ *    contributions minus withdrawals legitimately goes negative when an
+ *    account is drawn down past what this ledger recorded going in (a holding
+ *    opened before the ledger starts, or a transfer mis-classified upstream).
+ *    Clamping hid that at the exact moment the chart should show it, and made
+ *    the stack disagree with every other total on the page.
+ */
+export function buildDailyGrowthSeries(
+  transactions: readonly GrowthTransaction[],
+  investmentAccounts: readonly string[],
+  accountToCategory: Record<string, InvestmentCategory>,
+): GrowthPoint[] {
+  const accountSet = new Set(investmentAccounts)
+  const isInvestment = (name: string | null | undefined) => name != null && accountSet.has(name)
+
+  const investmentTransactions = transactions
+    .filter(
+      (tx) =>
+        (tx.type === 'Transfer' && (isInvestment(tx.to_account) || isInvestment(tx.from_account))) ||
+        ((tx.type === 'Income' || tx.type === 'Expense') && isInvestment(tx.account)),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  if (investmentTransactions.length === 0) return []
+
+  const running: Record<string, number> = {}
+  for (const acc of investmentAccounts) running[acc] = 0
+
+  const snapshotMap = new Map<string, Record<string, number>>()
+  let currentDay = ''
+
+  for (const tx of investmentTransactions) {
+    const dayKey = tx.date.substring(0, 10)
+    if (dayKey !== currentDay && currentDay !== '') {
+      snapshotMap.set(currentDay, { ...running })
+    }
+    currentDay = dayKey
+
+    if (tx.type === 'Transfer') {
+      if (isInvestment(tx.to_account)) running[tx.to_account as string] += tx.amount
+      if (isInvestment(tx.from_account)) running[tx.from_account as string] -= tx.amount
+    } else if (tx.type === 'Income' && isInvestment(tx.account)) {
+      running[tx.account as string] += tx.amount
+    } else if (tx.type === 'Expense' && isInvestment(tx.account)) {
+      running[tx.account as string] -= tx.amount
+    }
+  }
+  if (currentDay) snapshotMap.set(currentDay, { ...running })
+  if (snapshotMap.size === 0) return []
+
+  const days = [...snapshotMap.keys()]
+  const firstDay = days[0]
+  const lastDay = days.at(-1) as string
+
+  const lastKnown: Record<string, number> = {}
+  for (const acc of investmentAccounts) lastKnown[acc] = 0
+
+  const series: GrowthPoint[] = []
+  // Key-space day stepping: `new Date(key)` + `toISOString()` reintroduced the
+  // UTC/local mix this file used to have, which dropped or duplicated the
+  // boundary day for any user east of UTC.
+  for (let date = firstDay; date <= lastDay; date = addDaysToKey(date, 1)) {
+    const snapshot = snapshotMap.get(date)
+    if (snapshot) {
+      for (const account of investmentAccounts) {
+        // Key check, not truthiness -- see rule 1 above.
+        if (account in snapshot) lastKnown[account] = snapshot[account]
+      }
+    }
+
+    const categoryTotals: Record<InvestmentCategory, number> = {
+      'FD/Bonds': 0,
+      'Mutual Funds': 0,
+      'PPF/EPF': 0,
+      Stocks: 0,
+    }
+    for (const account of investmentAccounts) {
+      categoryTotals[accountToCategory[account] || 'Mutual Funds'] += lastKnown[account]
+    }
+
+    const point: GrowthPoint = { date, fullDate: date }
+    for (const cat of INVESTMENT_CATEGORIES) point[cat] = categoryTotals[cat]
+    series.push(point)
+  }
+
+  return series
 }
 
 type TransactionLike = {

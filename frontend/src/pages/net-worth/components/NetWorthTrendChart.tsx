@@ -20,6 +20,8 @@ import {
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { tooltipLabelString } from '@/lib/chartUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 
 import { CATEGORY_CONFIG } from '../netWorthUtils'
@@ -141,7 +143,14 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             />
           )
         }
-        const anchorDateIso = anchor?.date ?? new Date().toISOString().substring(0, 10)
+        // The fallback is currently unreachable -- `anchor` is null only when
+        // `filteredNetWorthData` is empty, which returned above, and the marker
+        // also needs `monthlyGrowth > 0` (three points minimum). It stays for the
+        // type, but as a LOCAL key: the x-axis is keyed on each point's local
+        // `YYYY-MM-DD`, and `toISOString()` converts to UTC first, so the moment
+        // this branch ever became live it would put the marker a day left of
+        // today for every user east of UTC between midnight and their offset.
+        const anchorDateIso = anchor?.date ?? getTodayKey()
         const showProjectionLine = showProjection && monthlyGrowth > 0
         return (
           <ChartContainer
@@ -183,9 +192,11 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               <Tooltip
                 {...chartTooltipProps}
                 formatter={currencyTooltipFormatter}
-                // recharts 3.10 widened labelFormatter's label to ReactNode.
+                // recharts 3.10 widened labelFormatter's label to ReactNode; at
+                // runtime it is the `date` axis tick value. formatDate returns
+                // its input unchanged for anything that is not YYYY-MM-DD.
                 labelFormatter={(label) =>
-                  formatDate(String(label), {
+                  formatDate(tooltipLabelString(label), {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',

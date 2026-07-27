@@ -8,6 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Scratch files written while characterising third-party behaviour are named
+    // *.tmp.test.tsx and gitignored. They deliberately assert what a library
+    // currently does, including its bugs, so they must never gate the suite.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.tmp.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

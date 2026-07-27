@@ -69,7 +69,7 @@ export default function AccountClassificationsSection({
                   <span className="text-sm text-foreground truncate">{name}</span>
                   {!balancesLoading && (
                     <span className="text-xs text-muted-foreground font-mono ml-auto pl-1 shrink-0">
-                      {formatCurrency(Math.abs(balanceData?.accounts[name]?.balance || 0))}
+                      {formatCurrency(Math.abs(balanceData?.accounts[name]?.balance ?? 0))}
                     </span>
                   )}
                 </motion.div>

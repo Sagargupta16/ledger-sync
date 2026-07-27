@@ -104,7 +104,7 @@ async def get_exchange_rates(
             "rates": rates,
             "fetched_at": _rate_cache["fetched_at"],
         }
-    except (httpx.HTTPError, ValueError, KeyError):
+    except (httpx.HTTPError, ValueError, KeyError) as err:
         logger.warning("Failed to fetch exchange rates for base=%s", base, exc_info=True)
         # Return stale cache if available
         if _rate_cache.get("rates") and _rate_cache.get("base") == base:
@@ -126,4 +126,4 @@ async def get_exchange_rates(
         raise HTTPException(
             status_code=502,
             detail=f"Unable to fetch exchange rates for base={base}",
-        )
+        ) from err

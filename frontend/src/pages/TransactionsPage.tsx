@@ -13,6 +13,7 @@ import Pagination from '@/components/transactions/Pagination'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
+import { getTodayKey } from '@/lib/dateUtils'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 
 /** Map component filter + sorting state to API query params */
@@ -64,6 +65,9 @@ export default function TransactionsPage() {
   const facetsQuery = useTransactionFacets()
   const facets = facetsQuery.data
   const categories = facets?.categories ?? []
+  // Transfer routing labels arrive separately so they can sit in their own
+  // dropdown group instead of burying the real categories.
+  const transferCategories = facets?.transfer_categories ?? []
   const accounts = facets?.accounts ?? []
   const typeCounts = {
     income: facets?.income_count ?? 0,
@@ -114,7 +118,9 @@ export default function TransactionsPage() {
       const url = globalThis.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`
+      // The filename should carry the day the user is looking at, not the UTC
+      // day: exporting at 02:00 IST previously stamped yesterday's date.
+      a.download = `transactions-${getTodayKey()}.csv`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -156,7 +162,10 @@ export default function TransactionsPage() {
           subtitle="Search, filter, and export every reconciled ledger entry."
           action={
             <Button
-              onClick={handleExportCSV}
+              // handleExportCSV wraps its body in try/catch with an
+              // "Export failed" toast, so it never rejects; `void` adapts the
+              // async handler to the void-returning onClick prop.
+              onClick={() => void handleExportCSV()}
               disabled={isExporting || filteredTransactions.length === 0}
               aria-disabled={isExporting || filteredTransactions.length === 0}
               title={filteredTransactions.length === 0 ? 'No transactions to export' : undefined}
@@ -223,6 +232,7 @@ export default function TransactionsPage() {
             key={filtersVersion}
             onFilterChange={handleFilterChange}
             categories={categories}
+            transferCategories={transferCategories}
             accounts={accounts}
             initialValues={filters}
             tagOptions={facets?.tags ?? []}

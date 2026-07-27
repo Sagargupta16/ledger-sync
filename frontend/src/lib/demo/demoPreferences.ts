@@ -1,4 +1,5 @@
 import type { UserPreferences } from '@/services/api/preferences'
+import { toLocalDateKey } from '@/lib/dateUtils'
 
 import { ESSENTIAL_CATEGORIES } from './demoHelpers'
 
@@ -75,7 +76,11 @@ function buildDemoRsuGrants(): Array<{
 }> {
   const now = new Date()
   const grantDate = new Date(now.getFullYear() - 1, now.getMonth() - 6, 15)
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  // Vest dates are local calendar days, so read them back from local components.
+  // `toISOString().slice(0, 10)` reprojects to UTC and in IST shifted a
+  // 15-of-the-month vest to the 14th, which changes which FY it lands in when
+  // the grant month is March or April.
+  const fmt = (d: Date) => toLocalDateKey(d)
 
   return [
     {
@@ -108,7 +113,7 @@ function buildDemoRsuGrants(): Array<{
 
 export function generateDemoPreferences(): UserPreferences {
   const now = new Date()
-  const earningStart = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString().slice(0, 10)
+  const earningStart = toLocalDateKey(new Date(now.getFullYear() - 2, now.getMonth(), 1))
 
   return {
     id: -1,

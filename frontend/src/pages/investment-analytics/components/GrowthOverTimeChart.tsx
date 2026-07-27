@@ -16,6 +16,7 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { tooltipLabelString } from '@/lib/chartUtils'
 import { formatDate } from '@/lib/formatters'
 
 import { CATEGORY_COLORS, INVESTMENT_CATEGORIES } from '../investmentUtils'
@@ -79,9 +80,11 @@ export function GrowthOverTimeChart({
               <Tooltip
                 {...chartTooltipProps}
                 formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
-                // recharts 3.10 widened labelFormatter's label to ReactNode.
+                // recharts 3.10 widened labelFormatter's label to ReactNode; at
+                // runtime it is the `date` axis tick value. formatDate returns
+                // its input unchanged for anything that is not YYYY-MM-DD.
                 labelFormatter={(label) =>
-                  formatDate(String(label), {
+                  formatDate(tooltipLabelString(label), {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric',

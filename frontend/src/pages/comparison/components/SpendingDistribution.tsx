@@ -5,9 +5,10 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Cell,
   CartesianGrid,
   LabelList,
+  Rectangle,
+  type BarShapeProps,
 } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
@@ -20,6 +21,24 @@ interface SpendingDistributionProps {
   periodB: PeriodSummary
   distributionA: Array<{ name: string; value: number }>
   distributionB: Array<{ name: string; value: number }>
+}
+
+/**
+ * Dim the side that spent less in this row so the eye lands on the winner.
+ *
+ * A `shape` render prop rather than `<Cell>` children -- Cell is deprecated and
+ * removed in Recharts 4.0. It cannot be a datum-carried `fillOpacity` either:
+ * both bars read the same row, and each needs the opposite opacity. The renderer
+ * reads `aWins` off `payload`, so the row and its paint can never come apart
+ * (Cell children were matched against the RENDERED bar list, which drops
+ * zero-width bars -- and a zero-spend category is exactly what this chart has).
+ */
+function renderSideShape(color: string, isPeriodA: boolean) {
+  return function SideShape(props: BarShapeProps) {
+    const aWins = Boolean((props.payload as { aWins?: boolean } | undefined)?.aWins)
+    const wins = isPeriodA ? aWins : !aWins
+    return <Rectangle {...props} fill={color} fillOpacity={wins ? 0.95 : 0.45} />
+  }
 }
 
 export function SpendingDistribution({
@@ -106,17 +125,11 @@ export function SpendingDistribution({
               name={periodA.label}
               stackId="stack"
               radius={[4, 0, 0, 4]}
+              shape={renderSideShape(rawColors.app.blue, true)}
               isAnimationActive={shouldAnimate(butterflyData.length)}
               animationDuration={600}
               animationEasing="ease-out"
             >
-              {butterflyData.map((entry) => (
-                <Cell
-                  key={`a-${entry.name}`}
-                  fill={rawColors.app.blue}
-                  fillOpacity={entry.aWins ? 0.95 : 0.45}
-                />
-              ))}
               <LabelList
                 dataKey="periodA"
                 position="left"
@@ -133,17 +146,11 @@ export function SpendingDistribution({
               name={periodB.label}
               stackId="stack"
               radius={[0, 4, 4, 0]}
+              shape={renderSideShape(rawColors.app.indigo, false)}
               isAnimationActive={shouldAnimate(butterflyData.length)}
               animationDuration={600}
               animationEasing="ease-out"
             >
-              {butterflyData.map((entry) => (
-                <Cell
-                  key={`b-${entry.name}`}
-                  fill={rawColors.app.indigo}
-                  fillOpacity={entry.aWins ? 0.45 : 0.95}
-                />
-              ))}
               <LabelList
                 dataKey="periodB"
                 position="right"

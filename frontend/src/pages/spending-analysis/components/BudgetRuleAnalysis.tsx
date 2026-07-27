@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { PiggyBank, ShieldCheck, Sparkles } from 'lucide-react'
-import { Cell, Pie, PieChart, Tooltip } from 'recharts'
+import { Pie, PieChart, Tooltip } from 'recharts'
 
 import EmptyState from '@/components/shared/EmptyState'
 import {
@@ -24,7 +24,8 @@ interface SpendingBreakdown {
 interface SpendingChartDatum {
   name: string
   value: number
-  color: string
+  /** Slice colour; Recharts reads it off the datum, replacing `<Cell fill>`. */
+  fill: string
 }
 
 interface BudgetRuleAnalysisProps {
@@ -73,11 +74,7 @@ export default function BudgetRuleAnalysis({
                     isAnimationActive={shouldAnimate(spendingChartData.length)}
                     animationDuration={600}
                     animationEasing="ease-out"
-                  >
-                    {spendingChartData.map((entry) => (
-                      <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                    ))}
-                  </Pie>
+                  />
                   <Tooltip {...chartTooltipProps} formatter={currencyTooltipFormatter} />
                   <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
                     <tspan x="50%" dy="-4" fill={rawColors.text.tertiary} fontSize="11">
@@ -96,7 +93,7 @@ export default function BudgetRuleAnalysis({
                 <div key={item.name} className="flex items-center gap-2">
                   <span
                     className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: item.color }}
+                    style={{ backgroundColor: item.fill }}
                     aria-hidden="true"
                   />
                   <span className="text-sm text-foreground">{item.name}</span>

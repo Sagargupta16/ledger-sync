@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
+import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -54,16 +55,22 @@ export default function InvestmentAnalyticsPage() {
         action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
       />
 
+      {/* portfolioData is already sorted by amount invested, descending. */}
       <PortfolioMetrics
         totalInvestmentValue={m.totalInvestmentValue}
         investmentAccountsCount={m.investmentAccounts.length}
         netInvestmentPL={m.netInvestmentPL}
         plPercent={m.plPercent}
-        portfolioXIRR={m.portfolioXIRR}
+        topHolding={m.portfolioData[0] ?? null}
         monthlyInvestmentTarget={m.monthlyInvestmentTarget}
         currentMonthInvestment={m.currentMonthInvestment}
         targetProgress={m.targetProgress}
         isLoading={m.isLoading}
+      />
+
+      <CostBasisOnlyNotice
+        metricLabel="Portfolio return and XIRR"
+        shownInstead="Every figure here is cost basis: what you contributed, where it went, and when."
       />
 
       <AssetAllocationChart isLoading={m.isLoading} assetAllocation={m.investmentTypeBreakdown} />

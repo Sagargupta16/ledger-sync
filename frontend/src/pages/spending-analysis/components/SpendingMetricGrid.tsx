@@ -8,6 +8,8 @@ import { formatCurrency } from '@/lib/formatters'
 interface SpendingMetricGridProps {
   readonly totalSpending: number
   readonly monthlyAvgSpending: number
+  /** States the divisor and, when the distribution is skewed, the typical month. */
+  readonly monthlyAvgSubtitle: string
   readonly monthlyTrendData: Array<{ expense: number }>
   readonly topCategory: string
   readonly topCategoryAmount: number
@@ -18,6 +20,7 @@ interface SpendingMetricGridProps {
 export default function SpendingMetricGrid({
   totalSpending,
   monthlyAvgSpending,
+  monthlyAvgSubtitle,
   monthlyTrendData,
   topCategory,
   topCategoryAmount,
@@ -37,7 +40,7 @@ export default function SpendingMetricGrid({
         value={formatCurrency(monthlyAvgSpending)}
         icon={Activity}
         color="orange"
-        subtitle="Average spending per month"
+        subtitle={monthlyAvgSubtitle}
         trend={
           monthlyTrendData.length >= 2 ? (
             <Sparkline

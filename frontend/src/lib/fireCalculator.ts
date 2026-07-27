@@ -8,6 +8,7 @@
  */
 
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 
 export interface FIREResult {
   fireNumber: number
@@ -160,7 +161,9 @@ export function computeFIRE(params: {
   const fatFIRE = computeFatFIRE(fireNumber)
   const baristaFIRE = computeBaristaFIRE(annualExpenses, baristaAnnualIncome, swr)
   const yearsToFIRE = computeYearsToFIRE(fireNumber, annualSavings, realReturn, currentPortfolio)
-  const currentSavingsRate = annualIncome > 0 ? (annualSavings / annualIncome) * 100 : 0
+  // Same definition the rest of the app reports, so the FIRE page cannot quote a
+  // savings rate that disagrees with the dashboard for the same window.
+  const currentSavingsRate = savingsRatePercentFromNet(annualSavings, annualIncome) ?? 0
 
   return { fireNumber, coastFIRE, leanFIRE, fatFIRE, baristaFIRE, yearsToFIRE, currentSavingsRate }
 }

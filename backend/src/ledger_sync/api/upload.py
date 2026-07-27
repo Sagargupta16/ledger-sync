@@ -42,7 +42,7 @@ router = APIRouter(prefix="", tags=["upload"])
 @user_limiter.limit("10/minute")
 @limiter.limit("50/minute")
 async def upload_transactions(
-    request: Request,  # required by slowapi  # noqa: ARG001
+    request: Request,  # required by slowapi
     payload: TransactionUploadRequest,
     current_user: CurrentUser,
     db: DatabaseSession,

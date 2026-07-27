@@ -5,7 +5,7 @@
  */
 
 import { usePreferencesStore, type IncomeClassification } from '@/store/preferencesStore'
-import { rawColors } from '@/constants/colors'
+import { onRawColorsRefresh, rawColors } from '@/constants/colors'
 
 // Income types now based on tax treatment classification
 export type IncomeType = 'taxable' | 'investmentReturns' | 'cashback' | 'other'
@@ -29,8 +29,8 @@ const matchesClassification = (
   transaction: Transaction,
   classificationList: string[]
 ): boolean => {
-  const category = transaction.category || ''
-  const subcategory = transaction.subcategory || ''
+  const category = transaction.category ?? ''
+  const subcategory = transaction.subcategory ?? ''
   const itemKey = `${category}::${subcategory}`
 
   // Exact match
@@ -48,7 +48,7 @@ export const classifyIncomeType = (
   transaction: Transaction,
   customClassification?: IncomeClassification
 ): IncomeType => {
-  const classification = customClassification || getPrefs().incomeClassification
+  const classification = customClassification ?? getPrefs().incomeClassification
 
   // Check each income type in order of specificity
   if (matchesClassification(transaction, classification.taxable)) return 'taxable'
@@ -66,8 +66,8 @@ export const classifySpendingType = (
   transaction: Transaction,
   customEssentialCategories?: string[]
 ): SpendingType => {
-  const essentialCategories = customEssentialCategories || getPrefs().essentialCategories
-  const category = transaction.category || ''
+  const essentialCategories = customEssentialCategories ?? getPrefs().essentialCategories
+  const category = transaction.category ?? ''
 
   // Check if category is in essential list (case-insensitive)
   const isEssential = essentialCategories.some(
@@ -84,7 +84,7 @@ export const getInvestmentType = (
   accountName: string,
   customMappings?: Record<string, string>
 ): string => {
-  const mappings = customMappings || getPrefs().investmentAccountMappings
+  const mappings = customMappings ?? getPrefs().investmentAccountMappings
   return mappings[accountName] || 'Other'
 }
 
@@ -106,7 +106,7 @@ export const calculateIncomeBreakdown = (
     .filter((t) => t.type === 'Income')
     .forEach((t) => {
       const incomeType = classifyIncomeType(t, incomeClassification)
-      breakdown[incomeType] += Math.abs(t.amount || 0)
+      breakdown[incomeType] += Math.abs(t.amount ?? 0)
     })
 
   return breakdown
@@ -124,7 +124,7 @@ export const calculateIncomeByCategoryBreakdown = (
     .filter((t) => t.type === 'Income')
     .forEach((t) => {
       const category = t.category || 'Other'
-      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount || 0)
+      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount ?? 0)
     })
 
   return breakdown
@@ -137,12 +137,12 @@ export const calculateCashbacksTotal = (
   transactions: Transaction[],
   incomeClassification?: IncomeClassification
 ): number => {
-  const classification = incomeClassification || getPrefs().incomeClassification
+  const classification = incomeClassification ?? getPrefs().incomeClassification
 
   return transactions
     .filter((t) => t.type === 'Income')
     .filter((t) => matchesClassification(t, classification.nonTaxable))
-    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount ?? 0), 0)
 }
 
 /**
@@ -152,12 +152,12 @@ export const calculateTaxableIncomeTotal = (
   transactions: Transaction[],
   incomeClassification?: IncomeClassification
 ): number => {
-  const classification = incomeClassification || getPrefs().incomeClassification
+  const classification = incomeClassification ?? getPrefs().incomeClassification
 
   return transactions
     .filter((t) => t.type === 'Income')
     .filter((t) => matchesClassification(t, classification.taxable))
-    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount ?? 0), 0)
 }
 
 /**
@@ -171,7 +171,7 @@ export const calculateExpenseByCategoryBreakdown = (
     .filter((t) => t.type === 'Expense')
     .forEach((t) => {
       const category = t.category || 'Other'
-      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount || 0)
+      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount ?? 0)
     })
   return breakdown
 }
@@ -190,7 +190,7 @@ export const calculateSpendingBreakdown = (
     .filter((t) => t.type === 'Expense')
     .forEach((t) => {
       const spendingType = classifySpendingType(t, essentialCategories)
-      const amount = Math.abs(t.amount || 0)
+      const amount = Math.abs(t.amount ?? 0)
       if (spendingType === 'essential') {
         essential += amount
       } else {
@@ -273,11 +273,19 @@ export const INCOME_TYPE_COLORS: Record<IncomeType, string> = {
 }
 
 /**
- * Colors for actual data income categories (for display charts)
+ * Colors for actual data income categories (for display charts).
+ *
+ * Keys are matched against the raw `category` string on a transaction, so they
+ * must spell the category exactly as the ledger does. The refund/cashback
+ * category exists in the wild under both spellings -- the preference defaults
+ * seed the singular "Refund & Cashbacks" while real imported data uses the
+ * plural "Refunds & Cashbacks" -- so both are listed. Without the plural key a
+ * genuine income source falls through to the muted default colour.
  */
 export const INCOME_CATEGORY_COLORS: Record<string, string> = {
   'Employment Income': rawColors.app.green,
   'Investment Income': rawColors.app.orange,
+  'Refunds & Cashbacks': rawColors.app.teal,
   'Refund & Cashbacks': rawColors.app.teal,
   'One-time Income': rawColors.app.purple,
   'Other Income': rawColors.text.tertiary,
@@ -285,9 +293,21 @@ export const INCOME_CATEGORY_COLORS: Record<string, string> = {
 }
 
 /**
- * Spending type colors for charts
+ * Spending type colors for charts.
+ *
+ * Recharts bakes colours into SVG presentation attributes, which cannot hold a
+ * `var()`, so these are resolved hex strings -- frozen at module load unless
+ * something rebuilds them. Rebuilt IN PLACE on theme toggle (never reassigned)
+ * so the exported object identity stays stable for importers while the hues
+ * follow the active theme.
  */
-export const SPENDING_TYPE_COLORS = {
-  essential: rawColors.app.blue,
-  discretionary: rawColors.app.orange,
+function buildSpendingTypeColors() {
+  return {
+    essential: rawColors.app.blue,
+    discretionary: rawColors.app.orange,
+  }
 }
+
+export const SPENDING_TYPE_COLORS = buildSpendingTypeColors()
+
+onRawColorsRefresh(() => Object.assign(SPENDING_TYPE_COLORS, buildSpendingTypeColors()))

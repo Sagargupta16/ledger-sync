@@ -116,7 +116,7 @@ export default function useGoalsState() {
 
   // Handlers
   const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
+    (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (guardDemoAction('Creating goals')) return
       if (!formData.name || !formData.target_amount || !formData.target_date) {

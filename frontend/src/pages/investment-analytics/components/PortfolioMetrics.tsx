@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { DollarSign, LineChart, Target, TrendingUp, Wallet } from 'lucide-react'
+import { DollarSign, PieChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
 import { hexToRgba, rawColors } from '@/constants/colors'
@@ -10,7 +10,11 @@ interface PortfolioMetricsProps {
   investmentAccountsCount: number
   netInvestmentPL: number
   plPercent: number
-  portfolioXIRR: number
+  /**
+   * Largest single holding by amount invested. Allocation mix is a cost-basis
+   * fact the statements DO support, unlike any rate of return.
+   */
+  topHolding: { name: string; value: number } | null
   monthlyInvestmentTarget: number
   currentMonthInvestment: number
   targetProgress: number
@@ -23,15 +27,15 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
     investmentAccountsCount,
     netInvestmentPL,
     plPercent,
-    portfolioXIRR,
+    topHolding,
     monthlyInvestmentTarget,
     currentMonthInvestment,
     targetProgress,
     isLoading,
   } = props
 
-  const xirrSign = portfolioXIRR >= 0 ? '+' : ''
-  const xirrValue = portfolioXIRR === 0 ? '-' : `${xirrSign}${portfolioXIRR.toFixed(1)}%`
+  const topHoldingShare =
+    topHolding && totalInvestmentValue > 0 ? (topHolding.value / totalInvestmentValue) * 100 : 0
 
   return (
     <div
@@ -60,17 +64,23 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
         color={netInvestmentPL >= 0 ? 'green' : 'red'}
         isLoading={isLoading}
       />
-      {/* "Cashflow XIRR": terminal value is book value (contributions net of
-          withdrawals) -- no market-price feed exists, so this measures the
-          cash-in/cash-out rate, not market performance. Label accordingly. */}
+      {/* Was "Cashflow XIRR". Its terminal value was the very book value those
+          contributions produced, so the solved rate described the arithmetic and
+          not the portfolio -- it printed a confident -2.9% p.a. on real data.
+          A rate of return needs a market value; allocation mix does not, so show
+          concentration instead. CostBasisOnlyNotice on the page carries the why. */}
       <MetricCard
-        title="Cashflow XIRR"
-        value={xirrValue}
-        subtitle={portfolioXIRR === 0 ? 'Needs dated flows' : 'Annualized, book value'}
-        icon={LineChart}
-        color={portfolioXIRR >= 0 ? 'green' : 'red'}
+        title="Largest Holding"
+        value={topHolding ? formatCurrency(topHolding.value) : '-'}
+        subtitle={
+          topHolding
+            ? `${topHolding.name} - ${formatPercent(topHoldingShare)} of invested`
+            : 'No holdings yet'
+        }
+        icon={PieChart}
+        color="teal"
         isLoading={isLoading}
-        titleInfo="Annualized return implied by the timing of your deposits and withdrawals (book value -- market gains aren't tracked)"
+        titleInfo="Biggest single investment account by amount contributed, and its share of total invested"
       />
       {monthlyInvestmentTarget > 0 && (
         <motion.div

@@ -137,7 +137,10 @@ def test_confirmed_pattern_with_date_trailer_updates_in_place(
     assert records[0].is_user_confirmed is True
     assert records[0].occurrences_detected == 4
     assert records[0].expected_amount == Decimal("150")
-    assert records[0].last_occurrence == datetime(2026, 4, 1)
+    # ``last_occurrence`` is a naive ``DateTime`` column, so the aware Apr-1
+    # input above comes back tz-stripped. Compare against the stored wall
+    # clock rather than re-attaching UTC, which would never be equal.
+    assert records[0].last_occurrence == datetime(2026, 4, 1, tzinfo=UTC).replace(tzinfo=None)
 
 
 def test_confirmed_pattern_exact_name_still_matches(session: Session, user: User) -> None:

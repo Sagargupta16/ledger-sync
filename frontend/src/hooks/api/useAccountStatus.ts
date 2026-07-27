@@ -17,7 +17,7 @@ const CLOSED_ACCOUNTS_KEY = ['account-classifications', 'closed'] as const
 export function useClosedAccounts() {
   return useQuery({
     queryKey: CLOSED_ACCOUNTS_KEY,
-    queryFn: accountClassificationsService.getClosedAccounts,
+    queryFn: () => accountClassificationsService.getClosedAccounts(),
     staleTime: Infinity,
     gcTime: 60 * 60 * 1000,
   })
@@ -29,9 +29,12 @@ export function useSetAccountStatus() {
     mutationFn: ({ accountName, isClosed }: { accountName: string; isClosed: boolean }) =>
       accountClassificationsService.setAccountStatus(accountName, isClosed),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLOSED_ACCOUNTS_KEY })
+      // `invalidateQueries` never rejects (query-core swallows refetch errors
+      // unless throwOnError is set), so `void` just documents fire-and-forget.
+      // A failed status write itself still toasts via the global MutationCache.
+      void queryClient.invalidateQueries({ queryKey: CLOSED_ACCOUNTS_KEY })
       // Recurring expectations flip server-side with the status change.
-      queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+      void queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
     },
   })
 }

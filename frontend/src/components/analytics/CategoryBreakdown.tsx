@@ -11,7 +11,7 @@ import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import Sparkline from '@/components/shared/Sparkline'
 import { Money } from '@/components/ui'
 
-import { averagePerActiveMonth, buildCategories, trailingMonthKeys } from './categoryBreakdownUtils'
+import { buildCategories, monthlyAvgLabel, trailingMonthKeys } from './categoryBreakdownUtils'
 
 interface CategoryBreakdownProps {
   readonly transactionType: 'income' | 'expense'
@@ -80,10 +80,12 @@ export default function CategoryBreakdown({
     [categoryData, colorMap, defaultColors, monthlyHistoryByCategory, categoryFilter],
   )
 
-  // Average spend per active month per category, derived from the trailing
-  // 12-month series already on each row -- powers the compact "X/mo avg" label.
-  const avgPerMonthByName = useMemo(
-    () => new Map(categories.map((cat) => [cat.name, averagePerActiveMonth(cat.monthlyHistory)])),
+  // Per-category monthly-average label, derived from the trailing 12-month
+  // series already on each row. `null` where there is nothing to average, so the
+  // clause is dropped rather than printed as a zero. The label carries its own
+  // divisor -- see `monthlyAvgLabel`.
+  const avgLabelByName = useMemo(
+    () => new Map(categories.map((cat) => [cat.name, monthlyAvgLabel(cat.monthlyHistory, formatCurrency)])),
     [categories],
   )
 
@@ -178,23 +180,22 @@ export default function CategoryBreakdown({
                     style={{ backgroundColor: cat.color }}
                   />
 
-                  {/* Name + compact meta (subcategory count, avg per active month).
-                      Reuses data already on the row -- no extra fetch. */}
+                  {/* Name + compact meta (subcategory count, monthly average
+                      with its divisor). Reuses data already on the row -- no
+                      extra fetch. */}
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-medium text-foreground truncate">
                       {cat.name}
                     </span>
-                    {(cat.subcategories.length > 0 || avgPerMonthByName.get(cat.name)) ? (
+                    {(cat.subcategories.length > 0 || avgLabelByName.get(cat.name)) ? (
                       <span className="block text-[11px] text-text-tertiary truncate">
                         {cat.subcategories.length > 0 && (
                           <>{cat.subcategories.length} {cat.subcategories.length === 1 ? 'subcategory' : 'subcategories'}</>
                         )}
-                        {cat.subcategories.length > 0 && (avgPerMonthByName.get(cat.name) ?? 0) > 0 && (
+                        {cat.subcategories.length > 0 && avgLabelByName.get(cat.name) && (
                           <span className="text-text-quaternary"> &middot; </span>
                         )}
-                        {(avgPerMonthByName.get(cat.name) ?? 0) > 0 && (
-                          <>{formatCurrency(avgPerMonthByName.get(cat.name) ?? 0)}/mo avg</>
-                        )}
+                        {avgLabelByName.get(cat.name)}
                       </span>
                     ) : null}
                   </span>

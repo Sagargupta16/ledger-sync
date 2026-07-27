@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { clampStartToEarningStart } from '../useAnalyticsTimeFilter'
+import {
+  clampStartToEarningStart,
+  hasNoCompleteMonthBasis,
+} from '../useAnalyticsTimeFilter'
 
 describe('clampStartToEarningStart', () => {
   it('returns startDate unchanged when useEarningStartDate is false', () => {
@@ -33,5 +36,22 @@ describe('clampStartToEarningStart', () => {
 
   it('truncates earning date with time component to YYYY-MM-DD', () => {
     expect(clampStartToEarningStart(null, '2024-02-01T00:00:00Z', true)).toBe('2024-02-01')
+  })
+})
+
+describe('hasNoCompleteMonthBasis', () => {
+  it('is true when the range itself holds no complete month', () => {
+    expect(hasNoCompleteMonthBasis(true, 42)).toBe(true)
+  })
+
+  it('is true when the range had a complete month but nothing survived narrowing', () => {
+    // The gap the range-level flag alone could not see: a user one month into
+    // their history on the default all-time view, or a category deep-link whose
+    // rows all sit in the month in progress.
+    expect(hasNoCompleteMonthBasis(false, 0)).toBe(true)
+  })
+
+  it('is false only when a complete month exists AND rows survived', () => {
+    expect(hasNoCompleteMonthBasis(false, 1)).toBe(false)
   })
 })

@@ -1,9 +1,16 @@
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { calculateXIRR } from '@/lib/xirr'
-import { MS_PER_YEAR } from '@/lib/dateUtils'
+import { addMonthsToKey, formatMonthKey, MS_PER_YEAR } from '@/lib/dateUtils'
 import type { Transaction } from '@/types'
 
 import type { ChartDataPoint, MutualFundAccount } from './types'
+
+/**
+ * X-axis label shape ("Aug 26"). Shared by the historical and projection
+ * halves so the two series land on one label vocabulary -- they used to build
+ * labels through separate `Date` paths and could disagree.
+ */
+const MF_MONTH_LABEL_OPTS: Intl.DateTimeFormatOptions = { month: 'short', year: '2-digit' }
 
 /** Calculate SIP future value with monthly compounding. */
 export function calculateSIPProjection(
@@ -85,9 +92,7 @@ export function buildHistoricalChartData(
   Array.from(monthlyInvested.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([monthKey, invested]) => {
-      const [year, month] = monthKey.split('-')
-      const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1)
-      const monthLabel = date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+      const monthLabel = formatMonthKey(monthKey, MF_MONTH_LABEL_OPTS)
 
       const proportionalValue = totalInvested > 0
         ? invested + (invested / totalInvested) * totalGains
@@ -117,7 +122,7 @@ export function buildHistoricalChartData(
 /** Build projection chart data from the last historical data point. */
 export function buildProjectionChartData(
   lastHistorical: ChartDataPoint,
-  lastDate: Date,
+  lastDateKey: string,
   activeMonthlySIP: number,
   expectedReturn: number,
   projectionYears: number,
@@ -130,9 +135,13 @@ export function buildProjectionChartData(
   const monthlyRate = expectedReturn / 12 / 100
 
   for (let i = 1; i <= projectionYears * 12; i++) {
-    const futureDate = new Date(lastDate)
-    futureDate.setMonth(lastDate.getMonth() + i)
-    const monthLabel = futureDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+    // `addMonthsToKey`, not `setMonth(getMonth() + i)`. When the last SIP falls
+    // on day 29-31, `setMonth` overflows odd offsets into the following month,
+    // so a 60-point 5-year horizon rendered only 35 distinct month labels --
+    // ~25 duplicated x-axis categories and ~25 calendar months with no point,
+    // making the compounding curve look like it stepped two months at a time.
+    // Key math also drops the UTC-parse/local-getter mix the old `Date` path had.
+    const monthLabel = formatMonthKey(addMonthsToKey(lastDateKey, i), MF_MONTH_LABEL_OPTS)
 
     projectedInvested += currentSIP
     projectedValue = (projectedValue + currentSIP) * (1 + monthlyRate)
@@ -159,7 +168,7 @@ export function detectMonthlySIPAmount(
   if (sipTransfers.length === 0) return 0
 
   const monthlySIPs = sipTransfers.filter((tx) => {
-    const note = (tx.note || '').toLowerCase()
+    const note = (tx.note ?? '').toLowerCase()
     return note.includes('monthly') || (!note.includes('lumpsum') && note.includes('sip'))
   })
 
@@ -175,7 +184,7 @@ export async function loadMutualFundAccountsData(
   const { accounts: investmentAccounts } =
     await accountClassificationsService.getAccountsByType('Investments')
   const accountsByName = (balanceData as { accounts?: Record<string, { balance: number }> })
-    ?.accounts || {}
+    ?.accounts ?? {}
 
   return Object.entries(accountsByName)
     .filter(([name]) => investmentAccounts.includes(name))
@@ -198,7 +207,7 @@ export function findPrimaryAccount(
       acc.name.toLowerCase().includes('grow') && acc.name.toLowerCase().includes('mutual'),
   )
 
-  return growAccount || mutualFundAccounts[0]
+  return growAccount ?? mutualFundAccounts[0]
 }
 
 /** Build combined historical + projection chart data. */
@@ -224,10 +233,9 @@ export function buildCombinedChartData(
   if (!lastHistorical) return historicalData
   const lastSipTransfer = sipTransfers.at(-1)
   if (!lastSipTransfer) return historicalData
-  const lastDate = new Date(lastSipTransfer.date)
   const projectionData = buildProjectionChartData(
     lastHistorical,
-    lastDate,
+    lastSipTransfer.date.slice(0, 10),
     activeMonthlySIP,
     expectedReturn,
     projectionYears,
@@ -273,21 +281,18 @@ export function filterSipTransfers(
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 }
 
-/** Pre-compute gain/loss display classes and prefixes. */
-export function computeGainsDisplay(
-  realizedGains: number,
-  realizedGainsPercent: number,
-  overrideGainsPercent: number,
-  xirrPercent: number,
-) {
+/**
+ * Pre-compute gain/loss display classes and prefixes.
+ *
+ * The `realizedGains` pair of arguments was dropped along with the "Realized
+ * Gain" card: its value was `currentBalance - totalHistoricalInvested`, and
+ * since the balance is itself the sum of those contributions the result was a
+ * rounding residue dressed up as a return.
+ */
+export function computeGainsDisplay(overrideGainsPercent: number, xirrPercent: number) {
   const positive = 'text-app-green'
   const negative = 'text-app-red'
   return {
-    gainsBgClass:
-      realizedGains >= 0 ? 'bg-app-green/20 shadow-app-green/30' : 'bg-app-red/20 shadow-app-red/30',
-    gainsIconClass: realizedGains >= 0 ? positive : negative,
-    gainsTextClass: realizedGains >= 0 ? 'text-app-green' : 'text-app-red',
-    gainsSignPrefix: realizedGainsPercent >= 0 ? '+' : '',
     totalReturnColorClass: overrideGainsPercent >= 0 ? positive : negative,
     totalReturnSignPrefix: overrideGainsPercent >= 0 ? '+' : '',
     xirrColorClass: xirrPercent >= 0 ? positive : negative,

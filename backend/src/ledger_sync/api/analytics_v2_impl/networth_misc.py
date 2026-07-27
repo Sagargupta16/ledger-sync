@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import (
     Anomaly,
     AnomalyType,
@@ -215,8 +216,14 @@ def get_anomalies(
                 "description": a.description,
                 "transaction_id": a.transaction_id,
                 "period_key": a.period_key,
-                "expected_value": float(a.expected_value) if a.expected_value else None,
-                "actual_value": float(a.actual_value) if a.actual_value else None,
+                # ``is not None``, not truthiness: 0 is a real detection value,
+                # not a missing one. "expected 0, actual 4,500" is the whole
+                # point of an unusual-category flag, and the truthiness test
+                # sent that expected_value as null -- which the anomaly
+                # review UI reads as "no comparison available" and hides the
+                # bar entirely, losing the most extreme cases first.
+                "expected_value": float(a.expected_value) if a.expected_value is not None else None,
+                "actual_value": float(a.actual_value) if a.actual_value is not None else None,
                 "deviation_pct": a.deviation_pct,
                 "detected_at": a.detected_at.isoformat() if a.detected_at else None,
                 "is_reviewed": a.is_reviewed,
@@ -391,11 +398,19 @@ def create_goal(
                 detail=f"Invalid target_date '{body.target_date}'; expected ISO 8601 (YYYY-MM-DD).",
             ) from exc
 
-    # Calculate monthly target if target date provided
+    # Calculate monthly target if target date provided.
+    #
+    # Anchored in IST and read ONCE: the target date the user picked is a ledger
+    # date, and two separate clock reads can straddle a month boundary and
+    # produce a months_remaining that is off by one. A UTC anchor was also wrong
+    # for the first 5.5 hours of every month -- a goal created at 01:30 IST on 1
+    # January against a 31 December target got 12 months instead of 11, so the
+    # monthly contribution came out ~8% too low for the whole goal.
     monthly_target: float = 0
     if parsed_target_date:
-        months_remaining = (parsed_target_date.year - datetime.now(UTC).year) * 12 + (
-            parsed_target_date.month - datetime.now(UTC).month
+        today = ledger_today()
+        months_remaining = (parsed_target_date.year - today.year) * 12 + (
+            parsed_target_date.month - today.month
         )
         if months_remaining > 0:
             monthly_target = body.target_amount / months_remaining

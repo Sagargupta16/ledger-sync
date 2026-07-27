@@ -27,7 +27,7 @@ from ledger_sync.db.base import Base
 from ledger_sync.db.models import User, UserPreferences
 from ledger_sync.db.session import get_session
 
-TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"  # noqa: S105
+TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
 
 def _make_app() -> tuple[FastAPI, Session, User]:

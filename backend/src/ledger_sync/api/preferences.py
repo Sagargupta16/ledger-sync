@@ -16,6 +16,7 @@ from ledger_sync.api.preferences_ai import router as ai_router
 from ledger_sync.api.preferences_helpers import (
     AnomalySettingsConfig,
     BudgetDefaultsConfig,
+    CapitalLossConfig,
     CreditCardLimitsConfig,
     DisplayPreferencesConfig,
     EarningStartDateConfig,
@@ -91,10 +92,27 @@ def reset_preferences(
     prefs.fiscal_year_start_month = 4
     prefs.essential_categories = json.dumps([])  # Empty - user configures after upload
     prefs.investment_account_mappings = json.dumps({})  # Empty - user configures after upload
+    # All FOUR income lists are emptied together, and that symmetry is
+    # load-bearing rather than incidental. They are a PARTITION written by one
+    # exclusive-assignment UI, so every reader decides the empty-means-unset
+    # fallback for the GROUP, not per field: core/analytics/base.py::
+    # _any_income_list_configured and store/preferencesStore.ts::
+    # withIncomeClassificationDefaults both fall back to the shipped defaults
+    # only while NO list holds a user choice. Seeding one list here and leaving
+    # its three siblings "[]" makes the group look configured, which strands
+    # taxable/investment/other permanently empty -- on a real ledger that books
+    # every salary row as unclassified income and reports zero taxable income on
+    # the Tax Planning page. It also trips the Settings auto-classify recovery,
+    # whose guard is an OR across all four lists.
     prefs.taxable_income_categories = json.dumps([])
     prefs.investment_returns_categories = json.dumps([])
     prefs.non_taxable_income_categories = json.dumps([])
     prefs.other_income_categories = json.dumps([])
+    # Emptied like every other data-dependent field. Unlike the four income
+    # lists above there is no shipped default to fall back to: an empty list
+    # means "classify nothing", so a reset leaves realised losses counted as
+    # expenses exactly as they were before this preference existed.
+    prefs.capital_loss_categories = json.dumps([])
     prefs.default_budget_alert_threshold = 80.0
     prefs.auto_create_budgets = False
     prefs.budget_rollover_enabled = False
@@ -191,6 +209,22 @@ def update_income_sources(
             "other_income_categories",
         },
     )
+
+
+@router.put("/capital-loss-categories")
+def update_capital_loss_categories(
+    current_user: CurrentUser,
+    config: CapitalLossConfig,
+    session: DatabaseSession,
+) -> UserPreferencesResponse:
+    """Declare which EXPENSE categories are really realised investment losses.
+
+    This is the ONLY way rows stop counting as spending. Detection never writes
+    here on the user's behalf -- it only suggests candidates -- because changing
+    the set changes historical expense totals, and that has to be the user's
+    call.
+    """
+    return _update_section(session, current_user, config, json_fields={"capital_loss_categories"})
 
 
 @router.put("/budget-defaults")

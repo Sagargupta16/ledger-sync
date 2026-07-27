@@ -189,6 +189,31 @@ export interface GrowthAssumptionsConfig {
   growth_assumptions: GrowthAssumptions
 }
 
+/**
+ * `/api/exchange-rates`.
+ *
+ * Three response variants from one handler, distinguished by these flags:
+ *  - live fetch: `fetched_at` set, no flags
+ *  - stale cache (upstream fetch failed): `stale: true`, `fetched_at` from the
+ *    last successful fetch
+ *  - hardcoded fallback: `fallback: true`, `fetched_at: null`, and
+ *    `fallback_as_of` carrying the date the baked-in table was captured
+ *
+ * `fallback_as_of` was missing from this interface, so nothing read it and
+ * `useExchangeRate` stamped fallback rates with `new Date()` -- presenting a
+ * table that could be months old as "fetched just now". Verified against the
+ * handler on 2026-07-27.
+ */
+export interface ExchangeRatesResponse {
+  base: string
+  rates: Record<string, number>
+  fetched_at: number | null
+  stale?: boolean
+  fallback?: boolean
+  /** ISO date (YYYY-MM-DD) the hardcoded table was captured. Only on fallback. */
+  fallback_as_of?: string
+}
+
 // Helper to create section-specific updaters
 function createSectionUpdater<T>(endpoint: string) {
   return async (config: T): Promise<UserPreferences> => {
@@ -254,14 +279,14 @@ export const preferencesService = {
     return response.data
   },
 
-  async getExchangeRates(base: string = 'INR'): Promise<{
-    base: string
-    rates: Record<string, number>
-    fetched_at: number | null
-    stale?: boolean
-    fallback?: boolean
-  }> {
-    const response = await apiClient.get('/api/exchange-rates', { params: { base } })
+  async getExchangeRates(base: string = 'INR'): Promise<ExchangeRatesResponse> {
+    // Generic on `get`, not just on the return type: without it `response.data`
+    // is `any`, so the declared shape was an unchecked assertion and a backend
+    // rename would have surfaced as `undefined` at the render site instead of
+    // an error here. Shape confirmed live on 2026-07-27 (29 currencies).
+    const response = await apiClient.get<ExchangeRatesResponse>('/api/exchange-rates', {
+      params: { base },
+    })
     return response.data
   },
 }

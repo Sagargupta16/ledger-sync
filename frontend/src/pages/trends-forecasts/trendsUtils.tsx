@@ -11,14 +11,22 @@ export function getDirectionIcon(direction: TrendDirection): React.ReactElement 
   return <Minus className="w-4 h-4" />
 }
 
-export function formatTooltipName(name: string | undefined): string {
+/**
+ * Human label for a series key in the trend tooltips.
+ *
+ * `windowMonths` is passed in rather than baked into the string so the tooltip
+ * cannot outlive a change to `ROLLING_AVG_MONTHS` -- the "3m avg" text used to
+ * be hardcoded here while the window came from a constant elsewhere.
+ */
+export function formatTooltipName(name: string | undefined, windowMonths: number): string {
+  const avg = `${windowMonths}m avg`
   if (name === 'income') return 'Income'
-  if (name === 'incomeAvg') return 'Income (3m avg)'
+  if (name === 'incomeAvg') return `Income (${avg})`
   if (name === 'expenses') return 'Spending'
-  if (name === 'expensesAvg') return 'Spending (3m avg)'
+  if (name === 'expensesAvg') return `Spending (${avg})`
   if (name === 'savings') return 'Savings'
-  if (name === 'savingsAvg') return 'Savings (3m avg)'
-  return name || ''
+  if (name === 'savingsAvg') return `Savings (${avg})`
+  return name ?? ''
 }
 
 export function getTrendDirection(change: number): TrendDirection {

@@ -139,7 +139,10 @@ export const useUpdateProfile = () => {
     mutationFn: authApi.updateProfile,
     onSuccess: (user) => {
       updateUser(user)
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
+      // Fire-and-forget: invalidateQueries resolves even when the refetch
+      // fails (query-core catches internally), and the profile-update failure
+      // itself is toasted by the global MutationCache onError.
+      void queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
     },
   })
 }

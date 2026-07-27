@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { Activity } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Cell, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 
 import {
   ChartContainer,
@@ -77,10 +77,14 @@ export default function ReturnsHoldingsChart({
         ariaLabel="Horizontal bar chart of investment accounts ranked by current balance."
       >
         <BarChart
-          data={displayedAccounts.map((account) => ({
+          data={displayedAccounts.map((account, index) => ({
             name: account.name,
             value: account.balance,
             transactions: account.transactions,
+            // Rank ramp: the top holding is solid, each row below it fades
+            // slightly. Carried on the datum because Recharts merges each row
+            // over its bar rectangle props, replacing the deprecated `<Cell>`.
+            fillOpacity: 1 - index * 0.05,
           }))}
           layout="vertical"
           margin={{ top: 8, right: 24, bottom: 8, left: 12 }}
@@ -107,15 +111,7 @@ export default function ReturnsHoldingsChart({
             isAnimationActive={shouldAnimate(accounts.length)}
             animationDuration={600}
             animationEasing="ease-out"
-          >
-            {displayedAccounts.map((account, index) => (
-              <Cell
-                key={account.name}
-                fill={rawColors.app.purple}
-                fillOpacity={1 - index * 0.05}
-              />
-            ))}
-          </Bar>
+          />
         </BarChart>
       </ChartContainer>
 

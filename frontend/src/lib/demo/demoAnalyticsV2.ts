@@ -9,6 +9,8 @@ import type {
   RecurringTransaction,
 } from '@/services/api/analyticsV2'
 import type { Transaction } from '@/types'
+import { toLocalDateKey } from '@/lib/dateUtils'
+import { savingsRatePercentOr, shareOfIncomePercent } from '@/lib/savingsRate'
 
 import { generateDemoMonthlyAggregation } from './demoCalculations'
 import {
@@ -96,9 +98,14 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
       },
       savings: {
         net: data.net_savings,
-        rate: data.income > 0 ? (data.net_savings / data.income) * 100 : 0,
+        // The demo payload must carry the same definition the backend rollup
+        // does, or the demo tour teaches a number the real app won't reproduce.
+        rate: savingsRatePercentOr({ income: data.income, expense: data.expense }),
       },
-      expense_ratio: data.income > 0 ? (data.expense / data.income) * 100 : 0,
+      // Deliberately the share-of-income helper, not a savings rate: the
+      // numerator is a single flow. Its complement to the rate above is only
+      // exact because transfers are excluded from both.
+      expense_ratio: shareOfIncomePercent(data.expense, data.income),
       total_transactions: data.transactions,
       last_calculated: now,
     }
@@ -114,7 +121,7 @@ function groupTransactionsByMonth(
   for (const tx of txs) {
     if (isTransfer(tx)) continue
     const mk = monthKey(tx.date)
-    const key = `${tx.category}|${tx.subcategory || ''}`
+    const key = `${tx.category}|${tx.subcategory ?? ''}`
     if (!grouped[mk]) grouped[mk] = {}
     if (!grouped[mk][key]) grouped[mk][key] = { total: 0, count: 0, amounts: [] }
     grouped[mk][key].total += tx.amount
@@ -171,28 +178,33 @@ export function generateDemoCategoryTrends(txs: Transaction[]): CategoryTrend[] 
 
 export function generateDemoRecurring(): RecurringTransaction[] {
   const now = new Date()
-  const nextMonth = (day: number) => {
-    const d = new Date(now.getFullYear(), now.getMonth() + 1, day)
-    return d.toISOString().slice(0, 10)
-  }
-  const lastMonth = (day: number) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, day)
-    return d.toISOString().slice(0, 10)
-  }
+  // Both helpers build the Date from LOCAL components, so the key has to be read
+  // back from local components too. `toISOString().slice(0, 10)` reprojects to
+  // UTC first, which in IST turned "the 1st" into the previous month's last day
+  // -- an `expected_day: 1` commitment then rendered as due on the 31st.
+  const nextMonth = (day: number) => toLocalDateKey(new Date(now.getFullYear(), now.getMonth() + 1, day))
+  const lastMonth = (day: number) => toLocalDateKey(new Date(now.getFullYear(), now.getMonth() - 1, day))
 
   return [
-    { id: 1, name: 'Salary Credit', category: 'Employment Income', subcategory: 'Salary', account: 'HDFC Salary', type: 'Income', frequency: 'monthly', expected_amount: 170000, variance: 4000, expected_day: 1, confidence: 98, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 2, name: 'EPF Employer Contribution', category: 'Employment Income', subcategory: 'EPF Contribution', account: 'EPF Account', type: 'Income', frequency: 'monthly', expected_amount: 4100, variance: 500, expected_day: 1, confidence: 95, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 3, name: 'Rent Payment', category: 'Housing', subcategory: 'Rent', account: 'HDFC Salary', type: 'Expense', frequency: 'monthly', expected_amount: 19500, variance: 0, expected_day: 5, confidence: 100, occurrences: 48, last_occurrence: lastMonth(5), next_expected: nextMonth(5), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 4, name: 'Domestic Help', category: 'Housing', subcategory: 'Domestic Help', account: 'Cash', type: 'Expense', frequency: 'monthly', expected_amount: 2900, variance: 500, expected_day: 1, confidence: 90, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 5, name: 'SIP Investment', category: 'Investment', subcategory: 'SIP', account: 'SBI Savings', type: 'Transfer', frequency: 'monthly', expected_amount: 17000, variance: 2500, expected_day: 10, confidence: 100, occurrences: 48, last_occurrence: lastMonth(10), next_expected: nextMonth(10), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 6, name: 'EPF Employee Contribution', category: 'Investment', subcategory: 'EPF', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 20400, variance: 2000, expected_day: 1, confidence: 95, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 7, name: 'OTT Subscriptions', category: 'Entertainment & Recreations', subcategory: 'OTT Subscriptions', account: 'Swiggy HDFC Credit Card', type: 'Expense', frequency: 'monthly', expected_amount: 649, variance: 150, expected_day: 1, confidence: 90, occurrences: 42, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 3, is_active: true, is_confirmed: true },
-    { id: 8, name: 'Mobile Recharge', category: 'Entertainment & Recreations', subcategory: 'Recharge', account: 'GPay UPI', type: 'Expense', frequency: 'monthly', expected_amount: 349, variance: 200, expected_day: 15, confidence: 85, occurrences: 44, last_occurrence: lastMonth(15), next_expected: nextMonth(15), times_missed: 2, is_active: true, is_confirmed: true },
-    { id: 9, name: 'Pluxee Meal Card Top-up', category: 'Transfer', subcategory: 'Meal Card', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 2200, variance: 0, expected_day: 3, confidence: 100, occurrences: 48, last_occurrence: lastMonth(3), next_expected: nextMonth(3), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 10, name: 'Family Monthly Transfer', category: 'Transfer', subcategory: 'Family Transfer', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 15000, variance: 5000, expected_day: 5, confidence: 90, occurrences: 48, last_occurrence: lastMonth(5), next_expected: nextMonth(5), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 11, name: 'Health Insurance Annual Premium', category: 'Healthcare', subcategory: 'Insurance', account: 'HDFC Salary', type: 'Expense', frequency: 'yearly', expected_amount: 19600, variance: 800, expected_day: 12, confidence: 95, occurrences: 4, last_occurrence: lastMonth(12), next_expected: nextMonth(12), times_missed: 0, is_active: true, is_confirmed: true },
-    { id: 12, name: 'AC EMI 12mo (No-Cost)', category: 'EMI', subcategory: 'Consumer Durable EMI', account: 'HDFC Salary', type: 'Expense', frequency: 'monthly', expected_amount: 4250, variance: 0, expected_day: 7, confidence: 100, occurrences: 12, last_occurrence: lastMonth(7), next_expected: null, times_missed: 0, is_active: false, is_confirmed: true },
+    { id: 1, name: 'Salary Credit', category: 'Employment Income', subcategory: 'Salary', account: 'HDFC Salary', type: 'Income', frequency: 'monthly', expected_amount: 170000, variance: 4000, expected_day: 1, confidence: 98, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 2, name: 'EPF Employer Contribution', category: 'Employment Income', subcategory: 'EPF Contribution', account: 'EPF Account', type: 'Income', frequency: 'monthly', expected_amount: 4100, variance: 500, expected_day: 1, confidence: 95, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 3, name: 'Rent Payment', category: 'Housing', subcategory: 'Rent', account: 'HDFC Salary', type: 'Expense', frequency: 'monthly', expected_amount: 19500, variance: 0, expected_day: 5, confidence: 100, occurrences: 48, last_occurrence: lastMonth(5), next_expected: nextMonth(5), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 4, name: 'Domestic Help', category: 'Housing', subcategory: 'Domestic Help', account: 'Cash', type: 'Expense', frequency: 'monthly', expected_amount: 2900, variance: 500, expected_day: 1, confidence: 90, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 5, name: 'SIP Investment', category: 'Investment', subcategory: 'SIP', account: 'SBI Savings', type: 'Transfer', frequency: 'monthly', expected_amount: 17000, variance: 2500, expected_day: 10, confidence: 100, occurrences: 48, last_occurrence: lastMonth(10), next_expected: nextMonth(10), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 6, name: 'EPF Employee Contribution', category: 'Investment', subcategory: 'EPF', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 20400, variance: 2000, expected_day: 1, confidence: 95, occurrences: 48, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 7, name: 'OTT Subscriptions', category: 'Entertainment & Recreations', subcategory: 'OTT Subscriptions', account: 'Swiggy HDFC Credit Card', type: 'Expense', frequency: 'monthly', expected_amount: 649, variance: 150, expected_day: 1, confidence: 90, occurrences: 42, last_occurrence: lastMonth(1), next_expected: nextMonth(1), times_missed: 3, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 8, name: 'Mobile Recharge', category: 'Entertainment & Recreations', subcategory: 'Recharge', account: 'GPay UPI', type: 'Expense', frequency: 'monthly', expected_amount: 349, variance: 200, expected_day: 15, confidence: 85, occurrences: 44, last_occurrence: lastMonth(15), next_expected: nextMonth(15), times_missed: 2, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 9, name: 'Pluxee Meal Card Top-up', category: 'Transfer', subcategory: 'Meal Card', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 2200, variance: 0, expected_day: 3, confidence: 100, occurrences: 48, last_occurrence: lastMonth(3), next_expected: nextMonth(3), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 10, name: 'Family Monthly Transfer', category: 'Transfer', subcategory: 'Family Transfer', account: 'HDFC Salary', type: 'Transfer', frequency: 'monthly', expected_amount: 15000, variance: 5000, expected_day: 5, confidence: 90, occurrences: 48, last_occurrence: lastMonth(5), next_expected: nextMonth(5), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 11, name: 'Health Insurance Annual Premium', category: 'Healthcare', subcategory: 'Insurance', account: 'HDFC Salary', type: 'Expense', frequency: 'yearly', expected_amount: 19600, variance: 800, expected_day: 12, confidence: 95, occurrences: 4, last_occurrence: lastMonth(12), next_expected: nextMonth(12), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: true },
+    { id: 12, name: 'AC EMI 12mo (No-Cost)', category: 'EMI', subcategory: 'Consumer Durable EMI', account: 'HDFC Salary', type: 'Expense', frequency: 'monthly', expected_amount: 4250, variance: 0, expected_day: 7, confidence: 100, occurrences: 12, last_occurrence: lastMonth(7), next_expected: null, times_missed: 0, is_active: false, pattern_kind: 'commitment', is_confirmed: true },
+    // Detected but unconfirmed: exercises the "Detected" section and its
+    // confirm affordance. Real ledgers are mostly this, not confirmed rows.
+    { id: 13, name: 'Gym Membership', category: 'Health & Fitness', subcategory: 'Gym', account: 'GPay UPI', type: 'Expense', frequency: 'monthly', expected_amount: 1500, variance: 0, expected_day: 8, confidence: 88, occurrences: 14, last_occurrence: lastMonth(8), next_expected: nextMonth(8), times_missed: 0, is_active: true, pattern_kind: 'commitment', is_confirmed: false },
+    // Habit rows: periodic but not owed. These must stay out of fixed-cost
+    // totals, the bill calendar, and upcoming-payment reminders.
+    { id: 14, name: 'Lunch - Office Cafe', category: 'Food & Dining', subcategory: 'Lunch', account: 'Pluxee Meal Card', type: 'Expense', frequency: 'weekly', expected_amount: 180, variance: 40, expected_day: null, confidence: 72, occurrences: 96, last_occurrence: lastMonth(26), next_expected: nextMonth(2), times_missed: 0, is_active: true, pattern_kind: 'habit', is_confirmed: false },
+    { id: 15, name: 'Fruits & Vegetables', category: 'Food & Dining', subcategory: 'Groceries', account: 'GPay UPI', type: 'Expense', frequency: 'weekly', expected_amount: 420, variance: 120, expected_day: null, confidence: 66, occurrences: 84, last_occurrence: lastMonth(24), next_expected: nextMonth(1), times_missed: 0, is_active: true, pattern_kind: 'habit', is_confirmed: false },
   ]
 }
 
@@ -324,7 +336,7 @@ export function generateDemoFYSummaries(txs: Transaction[]): FYSummary[] {
       investments_made: investments,
       savings: {
         net: income - expenses,
-        rate: income > 0 ? ((income - expenses) / income) * 100 : 0,
+        rate: savingsRatePercentOr({ income, expense: expenses }),
       },
       yoy: {
         income: prevIncome > 0 ? ((income - prevIncome) / prevIncome) * 100 : null,
@@ -411,7 +423,10 @@ export function generateDemoBudgets(): Budget[] {
 
 export function generateDemoGoals(): FinancialGoal[] {
   const now = new Date()
-  const toISO = (d: Date) => d.toISOString().slice(0, 10)
+  // Local key, not `toISOString().slice(0, 10)`: `new Date(now)` carries the
+  // local wall clock, and in IST a pre-05:30 "today" reprojected to yesterday --
+  // enough to make a goal look a day overdue on its own target date.
+  const toISO = (d: Date) => toLocalDateKey(d)
   const monthsAgo = (n: number) => {
     const d = new Date(now)
     d.setMonth(d.getMonth() - n)

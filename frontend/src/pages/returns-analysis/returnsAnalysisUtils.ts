@@ -1,15 +1,17 @@
 /**
  * Pure helpers for Returns Analysis -- keyword-based investment income/cost
- * classification, CAGR, and monthly P&L grouping. No React, no data fetching;
- * all functions are deterministic and unit-testable.
+ * classification and monthly P&L grouping. No React, no data fetching; all
+ * functions are deterministic and unit-testable.
+ *
+ * There is deliberately no CAGR/ROI helper here. `calculateCAGR` used to live in
+ * this file, and its only caller fed it monthly TOTAL INCOME (salary) as the
+ * begin/end values, so the "portfolio CAGR" it produced was a salary ratio. The
+ * statements this app ingests carry cost basis only -- no NAV, no unit price --
+ * so no rate of return is computable from them at all. Do not re-add one without
+ * a real market-value input.
  */
 
 import { formatMonthKey } from '@/lib/dateUtils'
-
-export const calculateCAGR = (endingValue: number, beginningValue: number, years: number): number => {
-  if (beginningValue <= 0 || years <= 0) return 0
-  return (Math.pow(endingValue / beginningValue, 1 / years) - 1) * 100
-}
 
 export function isInvestmentIncome(lower: string): boolean {
   return lower.includes('dividend') || lower.includes('divid') ||
@@ -34,20 +36,38 @@ export function isInvestmentLoss(lower: string): boolean {
 
 export type TxLike = { type: string; amount: number; category: string; note?: string; subcategory?: string }
 
-export function txText(tx: TxLike) { return `${tx.category} ${tx.note || ''} ${tx.subcategory || ''}`.toLowerCase() }
+export function txText(tx: TxLike) { return `${tx.category} ${tx.note ?? ''} ${tx.subcategory ?? ''}`.toLowerCase() }
+
+function matchesKeyword(tx: TxLike, type: string, test: (lower: string) => boolean, investOnly: boolean): boolean {
+  if (tx.type !== type) return false
+  const lower = txText(tx)
+  if (investOnly) {
+    const cat = tx.category.toLowerCase()
+    if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
+  }
+  return test(lower)
+}
 
 export function filterByKeyword(transactions: TxLike[], type: string, test: (lower: string) => boolean, investOnly = false): number {
   return transactions
-    .filter((tx) => {
-      if (tx.type !== type) return false
-      const lower = txText(tx)
-      if (investOnly) {
-        const cat = tx.category.toLowerCase()
-        if (!cat.includes('investment') && !cat.includes('stock') && !cat.includes('trading')) return false
-      }
-      return test(lower)
-    })
+    .filter((tx) => matchesKeyword(tx, type, test, investOnly))
     .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
+}
+
+/**
+ * How many transactions actually booked investment income or cost in the window.
+ *
+ * Replaces the removed CAGR/ROI tiles with something the ledger can prove: the
+ * P&L headline is a sum over N rows, and N tells the user whether that headline
+ * rests on one stray fee or a real trading history.
+ */
+export function countRealisedEvents(transactions: TxLike[]): number {
+  return transactions.filter(
+    (tx) =>
+      matchesKeyword(tx, 'Income', isInvestmentIncome, false) ||
+      matchesKeyword(tx, 'Expense', isBrokerFee, true) ||
+      matchesKeyword(tx, 'Expense', isInvestmentLoss, true),
+  ).length
 }
 
 export function computeInvestmentMetrics(transactions: TxLike[]) {

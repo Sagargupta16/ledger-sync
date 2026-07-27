@@ -14,6 +14,7 @@ export const ROUTES = {
   // Data Management
   UPLOAD: '/upload',
   SETTINGS: '/settings',
+  DATA_HEALTH: '/data-health',
 
   // Transactions
   TRANSACTIONS: '/transactions',
@@ -32,6 +33,7 @@ export const ROUTES = {
 
   // Spending Analysis
   SPENDING_ANALYSIS: '/spending',
+  MERCHANT_INTELLIGENCE: '/merchants',
   INCOME_ANALYSIS: '/income',
   INCOME_EXPENSE_FLOW: '/income-expense-flow',
   COMPARISON: '/comparison',

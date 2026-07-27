@@ -5,6 +5,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { getDateKey } from '@/lib/dateUtils'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 import { computePaidTax, groupTransactionsByFY } from '@/pages/tax-planning/taxPlanningUtils'
 
@@ -49,10 +50,10 @@ export function useIncomeExpenseFlow() {
     : 0
   const incomeClassification = useMemo(
     () => ({
-      taxable: preferences?.taxable_income_categories || [],
-      investmentReturns: preferences?.investment_returns_categories || [],
-      nonTaxable: preferences?.non_taxable_income_categories || [],
-      other: preferences?.other_income_categories || [],
+      taxable: preferences?.taxable_income_categories ?? [],
+      investmentReturns: preferences?.investment_returns_categories ?? [],
+      nonTaxable: preferences?.non_taxable_income_categories ?? [],
+      other: preferences?.other_income_categories ?? [],
     }),
     [preferences],
   )
@@ -133,7 +134,10 @@ export function useIncomeExpenseFlow() {
     const totalExpense = Object.values(expenseByCategory).reduce((a, b) => a + b, 0)
     const totalTax = Object.values(taxByCategory).reduce((a, b) => a + b, 0)
     const netSavings = totalIncome - totalExpense - totalTax
-    const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
+    // Tax is a third outflow here, so this is the from-net route: `netSavings`
+    // is already income minus expenses minus tax, and the shared module recovers
+    // the combined outflow rather than being handed one of the two pieces.
+    const savingsRate = savingsRatePercentFromNet(netSavings, totalIncome) ?? 0
 
     // Top-N + "Other" so every visible flow reconciles with the totals (and
     // therefore the KPI cards). A raw slice(0,10) silently dropped categories

@@ -25,6 +25,8 @@ from ledger_sync.api.calculations_helpers import (
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
+    capital_loss_keys_for,
+    capital_loss_sum_col,
     expense_sum_col,
     fmt_date,
     fmt_month,
@@ -117,6 +119,37 @@ def get_master_categories(
     return result
 
 
+def _totals_payload(
+    *,
+    total_income: float,
+    total_expenses: float,
+    capital_losses: float,
+    transaction_count: int,
+) -> dict[str, Any]:
+    """Shape the ``/totals`` response identically on the fast and fallback paths.
+
+    ``savings_rate`` is ``net_savings / total_income``, unchanged from before the
+    capital-loss split, so the rate and the net on the same payload always agree.
+    Redefining the rate to ``(income - expenses) / income`` while ``net_savings``
+    kept netting the loss off would publish two different "savings" answers under
+    one response, and would step a historical series upward the moment a user
+    classified a category, with no rename to signal it.
+
+    ``expense_ratio`` on ``/api/analytics/v2/monthly-summaries`` is the number
+    that answers "what share of income did I CONSUME"; it is named for that and
+    excludes the loss because ``total_expenses`` does.
+    """
+    net_savings = total_income - total_expenses - capital_losses
+    return {
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "capital_losses": capital_losses,
+        "net_savings": net_savings,
+        "savings_rate": (net_savings / total_income * 100) if total_income > 0 else 0,
+        "transaction_count": transaction_count,
+    }
+
+
 @router.get("/totals")
 def get_totals(
     current_user: CurrentUser,
@@ -128,6 +161,13 @@ def get_totals(
 
     Fast path: when no date filters are provided, reads from pre-computed
     monthly_summaries table instead of scanning all raw transactions.
+
+    A realised investment loss the user classified is held apart from
+    ``total_expenses`` (see ``core.expense_class``) and is reported as its own
+    ``capital_losses`` figure, so the money is republished rather than dropped.
+    It still lowers ``net_savings`` and therefore ``savings_rate``, because the
+    cash really left and net worth really fell -- see ``_totals_payload`` for why
+    the rate is NOT redefined as a consumption ratio under its existing name.
     """
     # Fast path: aggregate from monthly_summaries when no date filter
     if start_date is None and end_date is None:
@@ -135,45 +175,39 @@ def get_totals(
             db.query(
                 func.coalesce(func.sum(MonthlySummary.total_income), 0).label("total_income"),
                 func.coalesce(func.sum(MonthlySummary.total_expenses), 0).label("total_expenses"),
+                func.coalesce(func.sum(MonthlySummary.capital_losses), 0).label("capital_losses"),
                 func.coalesce(func.sum(MonthlySummary.total_transactions), 0).label("tx_count"),
             )
             .filter(MonthlySummary.user_id == current_user.id)
             .one()
         )
         if summaries.tx_count > 0:
-            total_income = float(summaries.total_income)
-            total_expenses = float(summaries.total_expenses)
-            net_savings = total_income - total_expenses
-            savings_rate = (net_savings / total_income * 100) if total_income > 0 else 0
-            return {
-                "total_income": total_income,
-                "total_expenses": total_expenses,
-                "net_savings": net_savings,
-                "savings_rate": savings_rate,
-                "transaction_count": summaries.tx_count,
-            }
+            return _totals_payload(
+                total_income=float(summaries.total_income),
+                total_expenses=float(summaries.total_expenses),
+                capital_losses=float(summaries.capital_losses),
+                transaction_count=summaries.tx_count,
+            )
 
     # Fallback: compute from raw transactions with date filters
+    loss_keys = capital_loss_keys_for(current_user)
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
 
     row = db.query(
         income_sum_col(base),
-        expense_sum_col(base),
+        expense_sum_col(base, loss_keys=loss_keys),
+        # expense_sum_col dropped these rows; report them under their own name
+        # rather than losing the amount entirely.
+        capital_loss_sum_col(base, loss_keys=loss_keys),
         func.count().label("transaction_count"),
     ).one()
 
-    total_income = float(row.total_income)
-    total_expenses = float(row.total_expenses)
-    net_savings = total_income - total_expenses
-    savings_rate = (net_savings / total_income * 100) if total_income > 0 else 0
-
-    return {
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "net_savings": net_savings,
-        "savings_rate": savings_rate,
-        "transaction_count": row.transaction_count,
-    }
+    return _totals_payload(
+        total_income=float(row.total_income),
+        total_expenses=float(row.total_expenses),
+        capital_losses=float(row.capital_losses),
+        transaction_count=row.transaction_count,
+    )
 
 
 @router.get("/monthly-aggregation")
@@ -200,6 +234,7 @@ def get_monthly_aggregation(
                 s.period_key: {
                     "income": float(s.total_income),
                     "expense": float(s.total_expenses),
+                    "capital_losses": float(s.capital_losses),
                     "net_savings": float(s.net_savings),
                     "transactions": s.total_transactions,
                     "income_count": s.income_count,
@@ -209,6 +244,7 @@ def get_monthly_aggregation(
             }
 
     # Fallback: compute from raw transactions with date filters
+    loss_keys = capital_loss_keys_for(current_user)
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
     income_count_col = func.sum(case((base.c.type == TransactionType.INCOME, 1), else_=0)).label(
@@ -222,7 +258,10 @@ def get_monthly_aggregation(
         db.query(
             month_col,
             income_sum_col(base, label="income"),
-            expense_sum_col(base, label="expense"),
+            expense_sum_col(base, label="expense", loss_keys=loss_keys),
+            # Classified realised losses are excluded from "expense" above, so
+            # report them under their own name rather than dropping the amount.
+            capital_loss_sum_col(base, loss_keys=loss_keys),
             func.count().label("transactions"),
             income_count_col,
             expense_count_col,
@@ -235,10 +274,12 @@ def get_monthly_aggregation(
     for row in rows:
         income = float(row.income)
         expense = float(row.expense)
+        capital_losses = float(row.capital_losses)
         monthly_data[row.month] = {
             "income": income,
             "expense": expense,
-            "net_savings": income - expense,
+            "capital_losses": capital_losses,
+            "net_savings": income - expense - capital_losses,
             "transactions": row.transactions,
             "income_count": int(row.income_count or 0),
             "expense_count": int(row.expense_count or 0),
@@ -255,6 +296,7 @@ def get_yearly_aggregation(
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
     """Calculate yearly income and expense aggregation."""
+    loss_keys = capital_loss_keys_for(current_user)
     base = build_transaction_query(db, current_user, start_date, end_date).subquery()
     year_col = fmt_year(base.c.date).label("year")
 
@@ -262,7 +304,8 @@ def get_yearly_aggregation(
         db.query(
             year_col,
             income_sum_col(base, label="income"),
-            expense_sum_col(base, label="expense"),
+            expense_sum_col(base, label="expense", loss_keys=loss_keys),
+            capital_loss_sum_col(base, loss_keys=loss_keys),
             func.count().label("transactions"),
         )
         .group_by(year_col)
@@ -287,10 +330,12 @@ def get_yearly_aggregation(
     for row in rows:
         income = float(row.income)
         expense = float(row.expense)
+        capital_losses = float(row.capital_losses)
         yearly_data[row.year] = {
             "income": income,
             "expense": expense,
-            "net_savings": income - expense,
+            "capital_losses": capital_losses,
+            "net_savings": income - expense - capital_losses,
             "transactions": row.transactions,
             "months": sorted(year_months.get(row.year, [])),
         }
@@ -309,22 +354,41 @@ def get_category_breakdown(
     """Calculate spending/income breakdown by category and subcategory.
 
     Fast path: reads from category_trends when no date filter.
+
+    ``transaction_type`` defaults to EXPENSE rather than "no filter", matching
+    ``/category-monthly-history`` and ``/category-daily-series``. Omitting it
+    used to mean "every type", which mixed TRANSFERS into a spending breakdown
+    -- and transfers are the majority of rupee volume on a real ledger, so the
+    top "categories" became self-transfers and every percentage was computed
+    against a grand total that double-counted money moving between the user's
+    own accounts. There is no legitimate caller wanting income, expenses and
+    transfers summed into one category ranking.
+
+    The two paths also disagreed on this. The fast path reads CategoryTrend,
+    which ``trends.py`` builds only from non-transfer rows, so an unfiltered
+    call returned transfer-free numbers there and transfer-polluted numbers from
+    the date-filtered fallback below -- the same request answered two different
+    ways depending on whether a date was supplied.
     """
-    tx_type = _resolve_transaction_type(transaction_type)
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
 
     # Fast path: aggregate from category_trends when no date filter
     if start_date is None and end_date is None:
-        ct_query = db.query(CategoryTrend).filter(CategoryTrend.user_id == current_user.id)
-        if tx_type:
-            ct_query = ct_query.filter(CategoryTrend.transaction_type == tx_type)
-        trends = ct_query.all()
+        trends = (
+            db.query(CategoryTrend)
+            .filter(
+                CategoryTrend.user_id == current_user.id,
+                CategoryTrend.transaction_type == tx_type,
+            )
+            .all()
+        )
         if trends:
             return _build_category_data_from_trends(trends)
 
     # Fallback: compute from raw transactions with date filters
-    query = build_transaction_query(db, current_user, start_date, end_date)
-    if tx_type:
-        query = query.filter(Transaction.type == tx_type)
+    query = build_transaction_query(db, current_user, start_date, end_date).filter(
+        Transaction.type == tx_type
+    )
 
     base = query.subquery()
     cat_col = func.coalesce(base.c.category, "Uncategorized")
@@ -630,6 +694,12 @@ def get_daily_net_worth(
     Transfers are deliberately excluded from the cashflow model here so
     movements between user-owned accounts (e.g. SIPs, EMI prepayments)
     don't double-count or vanish.
+
+    Unlike ``/totals`` and the aggregation endpoints, this one does NOT split
+    classified realised losses out of ``expense``: the series is cumulative net
+    worth, and a realised loss genuinely destroyed that cash. Excluding it would
+    make the curve drift permanently above the user's real balances. The split
+    only matters where a figure claims to measure consumption.
     """
     # Opening balance = cashflow before the window start. Computed only
     # when a start_date is supplied; otherwise it's zero and the series
@@ -701,17 +771,17 @@ def get_top_categories(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     transaction_type: OptionalTransactionType = None,
 ) -> list[dict[str, Any]]:
-    """Get top N categories by amount."""
-    query = build_transaction_query(db, current_user, start_date, end_date)
+    """Get top N categories by amount.
 
-    # Filter by type if specified
-    if transaction_type:
-        tx_type = (
-            TransactionType.INCOME
-            if transaction_type.lower() == "income"
-            else TransactionType.EXPENSE
-        )
-        query = query.filter(Transaction.type == tx_type)
+    Defaults to EXPENSE for the same reason as ``/category-breakdown``: with no
+    type filter this ranked transfers alongside spending, and since transfers
+    dominate rupee volume the "top categories" were the user's own account
+    moves, with every ``percentage`` divided by a transfer-inflated grand total.
+    """
+    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
+    query = build_transaction_query(db, current_user, start_date, end_date).filter(
+        Transaction.type == tx_type
+    )
 
     base = query.subquery()
     cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")

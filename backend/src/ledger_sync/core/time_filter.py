@@ -1,10 +1,31 @@
 """Time filtering utilities for transaction data."""
 
 import calendar
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import Transaction
+
+
+def _as_wall_clock(moment: datetime) -> datetime:
+    """Drop any offset, treating the value as the IST wall-clock time it denotes.
+
+    Rows loaded from the database are already naive, so this is a no-op for
+    them. Callers holding a freshly built object may carry an offset, and
+    comparing the two mixes raises ``TypeError`` -- hence normalizing here.
+
+    Dropping the offset rather than CONVERTING is deliberate: it is exactly what
+    the database driver does on write, so an in-memory filter and the equivalent
+    SQL filter agree on which period a boundary row belongs to. Converting would
+    push ``2024-12-31 23:59 UTC`` into 2025 in memory while SQL kept it in 2024.
+    """
+    return moment.replace(tzinfo=None) if moment.tzinfo is not None else moment
+
+
+def _tx_date(transaction: Transaction) -> datetime:
+    """A transaction's date as a naive IST wall-clock value."""
+    return _as_wall_clock(transaction.date)
 
 
 def _subtract_months(dt: datetime, months: int) -> datetime:
@@ -39,13 +60,19 @@ class TimeFilter:
         transactions: list[Transaction],
         time_range: TimeRange,
     ) -> list[Transaction]:
-        """Filter transactions by time range, anchored on ``now()``.
+        """Filter transactions by time range, anchored on the IST wall clock.
 
-        "This month", "Last 3 months", etc. are computed relative to the
-        current UTC time, not the user's most recent transaction. This
-        keeps semantics consistent with the analytics API and means stale
-        data legitimately yields empty filtered results instead of silently
-        showing months-old data under "This Month" labels.
+        "This month", "Last 3 months", etc. are computed relative to now, not
+        to the user's most recent transaction. This keeps semantics consistent
+        with the analytics API and means stale data legitimately yields empty
+        filtered results instead of silently showing months-old data under
+        "This Month" labels.
+
+        Anchored via ``ledger_clock`` rather than ``datetime.now(UTC)``, for two
+        reasons that both bite here: an aware bound cannot be compared against
+        the naive ``Transaction.date`` column at all (``TypeError``), and a UTC
+        anchor puts the month and financial-year boundary a period behind for
+        the 5.5 hours after IST midnight.
         """
         if time_range == TimeRange.ALL_TIME:
             return transactions
@@ -53,11 +80,11 @@ class TimeFilter:
         if not transactions:
             return []
 
-        now = datetime.now(UTC)
+        now = ledger_now()
 
         if time_range == TimeRange.THIS_MONTH:
             start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         if time_range == TimeRange.LAST_MONTH:
             first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -65,7 +92,7 @@ class TimeFilter:
             last_month_start = last_month_end.replace(
                 day=1, hour=0, minute=0, second=0, microsecond=0
             )
-            return [t for t in transactions if last_month_start <= t.date <= last_month_end]
+            return [t for t in transactions if last_month_start <= _tx_date(t) <= last_month_end]
 
         # Sliding ranges -- calendar-aligned: snap to the first of the month
         # N-1 months ago, so "Last 3 months" = current + 2 prior calendar
@@ -74,29 +101,30 @@ class TimeFilter:
 
         if time_range == TimeRange.LAST_3_MONTHS:
             start_date = _subtract_months(first_of_now, 2)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         if time_range == TimeRange.LAST_6_MONTHS:
             start_date = _subtract_months(first_of_now, 5)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         if time_range == TimeRange.LAST_12_MONTHS:
             start_date = _subtract_months(first_of_now, 11)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         if time_range == TimeRange.THIS_YEAR:
             start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         if time_range == TimeRange.LAST_YEAR:
             year = now.year - 1
-            start_date = datetime(year, 1, 1, tzinfo=UTC)
-            end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC)
-            return [t for t in transactions if start_date <= t.date <= end_date]
+            # Naive, like every other bound here and like the date column.
+            start_date = datetime(year, 1, 1)  # noqa: DTZ001
+            end_date = datetime(year, 12, 31, 23, 59, 59)  # noqa: DTZ001
+            return [t for t in transactions if start_date <= _tx_date(t) <= end_date]
 
         if time_range == TimeRange.LAST_DECADE:
             start_date = _subtract_months(first_of_now, 119)
-            return [t for t in transactions if t.date >= start_date]
+            return [t for t in transactions if _tx_date(t) >= start_date]
 
         return transactions
 
@@ -108,6 +136,9 @@ class TimeFilter:
     ) -> list[Transaction]:
         """Filter transactions by custom date range.
 
+        Bounds are normalized to naive IST alongside the transaction dates, so
+        an aware bound and a naive column no longer raise ``TypeError``.
+
         Args:
             transactions: List of transactions to filter
             start_date: Start date (inclusive)
@@ -117,7 +148,9 @@ class TimeFilter:
             Filtered list of transactions
 
         """
-        return [t for t in transactions if start_date <= t.date <= end_date]
+        start = _as_wall_clock(start_date)
+        end = _as_wall_clock(end_date)
+        return [t for t in transactions if start <= _tx_date(t) <= end]
 
     @staticmethod
     def filter_by_month_year(
@@ -136,7 +169,7 @@ class TimeFilter:
             Filtered list of transactions
 
         """
-        return [t for t in transactions if t.date.month == month and t.date.year == year]
+        return [t for t in transactions if _tx_date(t).month == month and _tx_date(t).year == year]
 
     @staticmethod
     def filter_by_year(transactions: list[Transaction], year: int) -> list[Transaction]:
@@ -150,7 +183,7 @@ class TimeFilter:
             Filtered list of transactions
 
         """
-        return [t for t in transactions if t.date.year == year]
+        return [t for t in transactions if _tx_date(t).year == year]
 
     @staticmethod
     def get_available_years(transactions: list[Transaction]) -> list[int]:
@@ -166,7 +199,7 @@ class TimeFilter:
         if not transactions:
             return []
 
-        return sorted({t.date.year for t in transactions})
+        return sorted({_tx_date(t).year for t in transactions})
 
     @staticmethod
     def get_available_months(transactions: list[Transaction], year: int) -> list[int]:
@@ -183,4 +216,4 @@ class TimeFilter:
         if not transactions:
             return []
 
-        return sorted({t.date.month for t in transactions if t.date.year == year})
+        return sorted({_tx_date(t).month for t in transactions if _tx_date(t).year == year})

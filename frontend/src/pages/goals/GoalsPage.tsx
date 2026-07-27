@@ -15,6 +15,7 @@ import GoalCard from './components/GoalCard'
 
 const DEFAULT_PROJECTION = {
   monthsRemaining: 0,
+  deadlineState: 'none' as const,
   requiredMonthlySavings: null,
   projectedDate: null,
   monthsToComplete: null,
