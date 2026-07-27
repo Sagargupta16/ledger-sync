@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAccountBalances, useMasterCategories } from '@/hooks/api/useAnalytics'
+import { useAccountBalances, useIncomeFacets, useMasterCategories } from '@/hooks/api/useAnalytics'
 import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { categorizationRulesService, type CategorizationRuleInput } from '@/services/api/categorizationRules'
@@ -16,9 +16,10 @@ import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/sala
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 import { sortVestings } from '@/lib/rsuVesting'
 import type { LocalPrefs, LocalPrefKey, LocalRule } from './types'
-import { ACCOUNT_TYPES } from './types'
+import { ACCOUNT_TYPES, INCOME_CLASSIFICATION_KEY_MAP } from './types'
+import type { IncomeFacet } from './helpers'
 import {
-  getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, buildInitialLocalPrefs,
+  auditIncomeClassification, getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, buildInitialLocalPrefs,
 } from './helpers'
 
 export function useSettingsState() {
@@ -49,6 +50,12 @@ export function useSettingsState() {
     isError: closedAccountsError,
     refetch: refetchClosedAccounts,
   } = useClosedAccounts()
+  const {
+    data: incomeFacetsData,
+    isLoading: incomeFacetsLoading,
+    isError: incomeFacetsError,
+    refetch: refetchIncomeFacets,
+  } = useIncomeFacets()
   const { guardDemoAction } = useDemoGuard()
 
   // Local state
@@ -129,22 +136,54 @@ export function useSettingsState() {
     [localPrefs],
   )
 
-  const allClassifiedIncome = useMemo(() => {
-    if (!localPrefs) return new Set<string>()
-    return new Set<string>([
-      ...localPrefs.taxable_income_categories,
-      ...localPrefs.investment_returns_categories,
-      ...localPrefs.non_taxable_income_categories,
-      ...localPrefs.other_income_categories,
-    ])
-  }, [localPrefs])
+  /**
+   * Every income bucket the user has, with its money impact.
+   *
+   * `/income-facets` carries the counts and sums but applies the
+   * excluded-accounts filter, while the section's own list is built from
+   * `/categories/master` (which does not). Anything in the list without a
+   * facet is added at zero so the audit covers exactly the rows the user can
+   * see, and so an excluded-account-only bucket is not mistaken for a dead
+   * (drifted-spelling) key.
+   */
+  const incomeFacets = useMemo<IncomeFacet[]>(() => {
+    const facets = incomeFacetsData?.facets ?? []
+    const seen = new Set(facets.map((f) => `${f.category}::${f.subcategory}`.toLowerCase()))
+    const padded: IncomeFacet[] = facets.map((f) => ({
+      category: f.category,
+      subcategory: f.subcategory,
+      count: f.count,
+      total: f.total,
+    }))
+    for (const [category, subs] of Object.entries(allIncomeCategories)) {
+      for (const subcategory of subs) {
+        if (seen.has(`${category}::${subcategory}`.toLowerCase())) continue
+        padded.push({ category, subcategory, count: 0, total: 0 })
+      }
+    }
+    return padded
+  }, [incomeFacetsData, allIncomeCategories])
 
-  const unclassifiedIncomeItems = useMemo(
+  /**
+   * Reconciles the four saved classification lists against those buckets.
+   * Replaces the old name-only "unclassified" count, which could not say how
+   * much money was sitting outside every bucket and never surfaced saved keys
+   * that match nothing.
+   */
+  const incomeAudit = useMemo(
     () =>
-      Object.entries(allIncomeCategories).flatMap(([cat, subs]) =>
-        subs.map((sub) => `${cat}::${sub}`).filter((item) => !allClassifiedIncome.has(item)),
+      auditIncomeClassification(
+        incomeFacets,
+        localPrefs
+          ? {
+              taxable: localPrefs.taxable_income_categories,
+              investment: localPrefs.investment_returns_categories,
+              non_taxable: localPrefs.non_taxable_income_categories,
+              other: localPrefs.other_income_categories,
+            }
+          : { taxable: [], investment: [], non_taxable: [], other: [] },
       ),
-    [allIncomeCategories, allClassifiedIncome],
+    [incomeFacets, localPrefs],
   )
 
   const unmappedInvestmentAccounts = useMemo(
@@ -276,8 +315,9 @@ export function useSettingsState() {
       refetchCategories(),
       refetchBalances(),
       refetchClosedAccounts(),
+      refetchIncomeFacets(),
     ])
-  }, [refetchPreferences, refetchCategories, refetchBalances, refetchClosedAccounts])
+  }, [refetchPreferences, refetchCategories, refetchBalances, refetchClosedAccounts, refetchIncomeFacets])
 
   // Categorization rule handlers
   const addRule = useCallback(() => {
@@ -339,6 +379,45 @@ export function useSettingsState() {
     },
     [],
   )
+
+  /**
+   * Apply every keyword suggestion the audit produced in one go.
+   *
+   * The first-run auto-classify effect above deliberately bails out once any
+   * list is non-empty (a configured list stays authoritative -- the backend
+   * honours it verbatim). This is the explicit, user-driven equivalent: it only
+   * ever ADDS buckets no list claims, so nothing already classified moves.
+   * Buckets with no keyword match (`suggested: null`) are left alone -- the
+   * user picks those from the per-row dropdown.
+   */
+  const applyIncomeSuggestions = useCallback(() => {
+    const suggestions = incomeAudit.unclassified.filter((item) => item.suggested !== null)
+    if (suggestions.length === 0) return
+    setLocalPrefs((prev) => {
+      if (!prev) return prev
+      const next = { ...prev }
+      for (const item of suggestions) {
+        if (!item.suggested) continue
+        const key = INCOME_CLASSIFICATION_KEY_MAP[item.suggested]
+        next[key] = [...next[key], item.key]
+      }
+      return next
+    })
+    setHasChanges(true)
+  }, [incomeAudit])
+
+  /** Drop a saved classification key that matches zero ledger rows. */
+  const removeIncomeKey = useCallback((key: string) => {
+    setLocalPrefs((prev) => {
+      if (!prev) return prev
+      const next = { ...prev }
+      for (const prefKey of Object.values(INCOME_CLASSIFICATION_KEY_MAP)) {
+        next[prefKey] = next[prefKey].filter((saved) => saved !== key)
+      }
+      return next
+    })
+    setHasChanges(true)
+  }, [])
 
   const updateSalaryStructure = useCallback((structure: Record<string, SalaryComponents>) => {
     setLocalSalaryStructure(structure)
@@ -449,12 +528,14 @@ export function useSettingsState() {
     categoriesLoading ||
     balancesLoading ||
     closedAccountsLoading ||
+    incomeFacetsLoading ||
     rulesLoading
   const loadError =
     preferencesError ||
     categoriesError ||
     balancesError ||
     closedAccountsError ||
+    incomeFacetsError ||
     classificationsError ||
     rulesError
 
@@ -467,7 +548,7 @@ export function useSettingsState() {
     accounts, allExpenseCategories, allIncomeCategories,
     investmentAccounts, creditCardAccounts, accountsByCategory,
     unclassifiedAccounts, excludedAccounts, fixedCategories,
-    unclassifiedIncomeItems, unmappedInvestmentAccounts,
+    incomeAudit, applyIncomeSuggestions, removeIncomeKey, unmappedInvestmentAccounts,
     updateLocalPref, setLocalPrefs, handleSave, handleReset,
     localSalaryStructure, updateSalaryStructure,
     localRsuGrants, updateRsuGrants,

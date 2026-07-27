@@ -218,6 +218,7 @@ Common status codes:
 | `GET` | `/api/calculations/insights` | Calculated insight metrics |
 | `GET` | `/api/calculations/category-monthly-history` | Monthly history for categories |
 | `GET` | `/api/calculations/data-date-range` | Earliest and latest active transaction dates |
+| `GET` | `/api/calculations/income-facets` | Income category and subcategory buckets with row counts and totals |
 | `GET` | `/api/calculations/income-analysis` | Income source analysis |
 | `GET` | `/api/calculations/category-daily-series` | Daily category series |
 | `GET` | `/api/calculations/quick-insights` | Dashboard quick-insight values |
