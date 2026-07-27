@@ -54,6 +54,17 @@ jobs:
       - name: Pytest
         run: uv run --no-sync --locked --no-build pytest tests/ -q
 
+      # Prove a fresh environment can build its database from migrations alone.
+      # Nothing else covers this: migrate.yml only applies new revisions to a
+      # Neon database that already carries the whole history, and init_db()'s
+      # create_all() masks migration gaps at runtime. A broken chain here means
+      # a new contributor cannot bootstrap at all.
+      - name: Alembic upgrade from an empty database
+        env:
+          LEDGER_SYNC_DATABASE_URL: sqlite:///./ci_migration_check.db
+          LEDGER_SYNC_JWT_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+        run: uv run --no-sync --locked --no-build alembic upgrade head
+
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main
     permissions:
