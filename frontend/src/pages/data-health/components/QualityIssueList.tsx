@@ -70,6 +70,8 @@ function IssueRow({
   // A flag issue has no meaningful row count or ledger share, so it shows a
   // verdict word and skips the bar rather than claiming to affect 0% of rows.
   const isFlag = issue.kind === 'flag'
+  const flagVerdict = isClean ? 'Up to date' : 'Out of date'
+  const valueText = isFlag ? flagVerdict : issue.count.toLocaleString(locale)
 
   return (
     <li className="space-y-2 py-3.5 first:pt-0 last:pb-0">
@@ -81,11 +83,7 @@ function IssueRow({
               {issue.label}
             </h3>
             <span className={`shrink-0 text-sm font-semibold ${isFlag ? '' : 'tabular-nums'} ${SEVERITY_TEXT[issue.severity]}`}>
-              {isFlag
-                ? isClean
-                  ? 'Up to date'
-                  : 'Out of date'
-                : issue.count.toLocaleString(locale)}
+              {valueText}
             </span>
           </div>
           <p className="mt-1 text-xs leading-5 text-text-tertiary">{issue.explanation}</p>

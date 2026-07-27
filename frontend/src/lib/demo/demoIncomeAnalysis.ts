@@ -89,6 +89,6 @@ export function generateDemoIncomeAnalysis(
     cashbacks_total: cashbacksTotal,
     peak_income: incomes.length > 0 ? Math.max(...incomes) : 0,
     growth_rate:
-      nonZero.length >= 2 && first ? ((nonZero[nonZero.length - 1] - first) / first) * 100 : 0,
+      nonZero.length >= 2 && first ? ((nonZero.at(-1)! - first) / first) * 100 : 0,
   }
 }

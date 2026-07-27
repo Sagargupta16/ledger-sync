@@ -28,9 +28,13 @@ export function QuickStat({
   const change = pctChange(valueB, valueA)
   const absDelta = valueB - valueA
   const isFlat = Math.abs(change) < 1
+  // Only the gain sign is added here: a count delta prints through `Math.round`,
+  // which already carries its own minus sign, so reusing getDeltaPrefix would
+  // render a negative count twice-signed.
+  const countDeltaPrefix = absDelta > 0 ? '+' : ''
   const deltaText = isCurrency
     ? `${getDeltaPrefix(absDelta)}${formatCurrencyShort(Math.abs(absDelta))}`
-    : `${absDelta > 0 ? '+' : ''}${Math.round(absDelta)}`
+    : `${countDeltaPrefix}${Math.round(absDelta)}`
 
   return (
     <div className="p-4 rounded-xl bg-[var(--overlay-2)]">

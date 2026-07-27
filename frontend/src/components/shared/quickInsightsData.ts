@@ -317,10 +317,10 @@ export function medianSpendingMonth(
   const byMonth = new Map(complete.map(([key, m]) => [key, Math.abs(m.expense ?? 0)]))
   const keys = [...byMonth.keys()].sort((a, b) => a.localeCompare(b))
   // Zero-fill the gaps the rollup left out entirely, so a month with no rows and
-  // a month with a 0 total are counted the same way.
-  const totals = monthKeysInclusive(keys[0], keys[keys.length - 1]).map(
-    (key) => byMonth.get(key) ?? 0,
-  )
+  // a month with a 0 total are counted the same way. Both ends of `keys` exist
+  // because the empty-`complete` guard above already returned, which is what
+  // makes the `.at(-1)` assertion safe.
+  const totals = monthKeysInclusive(keys[0], keys.at(-1)!).map((key) => byMonth.get(key) ?? 0)
   if (totals.length < 2) return null
   return computeMedian(totals)
 }
@@ -375,8 +375,13 @@ export function ageOfMoneyLabel(days: number): string {
  * percentage was of, so a wrong denominator was invisible to the reader.
  */
 export function recurringCoverageLabel(pct: number): string {
-  const load = pct > 50 ? 'High' : pct > 30 ? 'Moderate' : 'Low'
-  return `${load} fixed cost load vs typical recent month's income`
+  return `${fixedCostLoad(pct)} fixed cost load vs typical recent month's income`
+}
+
+function fixedCostLoad(pct: number): string {
+  if (pct > 50) return 'High'
+  if (pct > 30) return 'Moderate'
+  return 'Low'
 }
 
 export function incomeExpenseRatioLabel(ratio: number): string {

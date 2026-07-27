@@ -41,9 +41,11 @@ export default function DayCell({
   }
 
   const opacityClass = isCurrentMonth ? '' : 'opacity-30'
-  const selectionClass = isSelected
-    ? 'bg-app-blue/20 border border-app-blue/40'
-    : `${isCurrentMonth ? 'hover:bg-[var(--overlay-4)]' : ''} border border-transparent`
+  const selectionClass = (() => {
+    if (isSelected) return 'bg-app-blue/20 border border-app-blue/40'
+    const hoverClass = isCurrentMonth ? 'hover:bg-[var(--overlay-4)]' : ''
+    return `${hoverClass} border border-transparent`
+  })()
   const todayBorderClass = isToday && !isSelected ? 'ring-2 ring-app-blue/50' : ''
   const interactionClass = isCurrentMonth ? 'cursor-pointer' : 'cursor-default'
 
@@ -63,9 +65,12 @@ export default function DayCell({
     month: 'long',
     year: 'numeric',
   })
-  const ariaLabel = isCurrentMonth
-    ? `${dateLabel}, ${billLabel}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`
-    : `${dateLabel}, outside the current month`
+  const ariaLabel = (() => {
+    if (!isCurrentMonth) return `${dateLabel}, outside the current month`
+    const todaySuffix = isToday ? ', today' : ''
+    const selectedSuffix = isSelected ? ', selected' : ''
+    return `${dateLabel}, ${billLabel}${todaySuffix}${selectedSuffix}`
+  })()
 
   return (
     <button

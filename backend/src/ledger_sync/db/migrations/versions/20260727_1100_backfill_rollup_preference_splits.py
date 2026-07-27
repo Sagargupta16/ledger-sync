@@ -395,10 +395,15 @@ def _repair_monthly(
 
 def _repair_fiscal(
     bind: sa.Connection,
-    user_id: int,
     fiscal: dict[str, dict[str, Decimal]],
     stored_rows: list[sa.Row[Any]],
 ) -> None:
+    """Repair the FY income splits of *stored_rows*.
+
+    Takes no user id: unlike ``_repair_monthly`` this never queries for its own
+    rows, so re-stating the scope the caller already applied to *stored_rows*
+    could only drift from it.
+    """
     for stored in stored_rows:
         fresh = fiscal.get(stored.fiscal_year)
         if fresh is None or not _totals_match(stored, fresh, "total_income"):
@@ -471,7 +476,7 @@ def upgrade() -> None:
             fix_income=fix_income,
         )
         if fix_income:
-            _repair_fiscal(bind, user_id, fiscal, fy_rows)
+            _repair_fiscal(bind, fiscal, fy_rows)
 
 
 def downgrade() -> None:

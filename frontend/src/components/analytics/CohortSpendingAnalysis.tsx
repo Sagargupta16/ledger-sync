@@ -232,17 +232,17 @@ function viewLabel(view: ViewMode, form: 'singular' | 'plural'): string {
   return form === 'singular' ? 'Month' : 'Months'
 }
 
+const VIEW_DIMENSION: Record<ViewMode, string> = {
+  'day-of-week': 'day of the week',
+  'day-of-month': 'day of the month',
+  'monthly': 'month of the year',
+}
+
 /**
  * Chart accessible name. Carries the all-time scope too: the visible pill and
  * caption are the sighted reader's version of that caveat, so omitting it here
  * would leave a screen-reader user with the unqualified claim.
  */
 function viewAriaLabel(view: ViewMode): string {
-  const dimension =
-    view === 'day-of-week'
-      ? 'day of the week'
-      : view === 'day-of-month'
-        ? 'day of the month'
-        : 'month of the year'
-  return `Bar chart of average spending by ${dimension}, covering all time regardless of the selected period`
+  return `Bar chart of average spending by ${VIEW_DIMENSION[view]}, covering all time regardless of the selected period`
 }

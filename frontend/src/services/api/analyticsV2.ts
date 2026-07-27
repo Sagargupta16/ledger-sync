@@ -297,12 +297,21 @@ export interface FinancialGoal {
   target_amount: number
   current_amount: number
   progress_pct: number
-  start_date: string
+  /**
+   * Nullable on the wire, and `created_at` below with it -- the serializer
+   * derives both from the same column. `financial_goals.created_at` was created
+   * `nullable=True` in `20260203_1700_add_analytics_tables.py` and never
+   * altered (only `transactions.created_at` was, in the 20260302 migration), so
+   * any row written before the model-level default serializes as `null`.
+   * Declaring these non-null let `GoalCard` pass `null` straight into
+   * `parseLocalDate`, which threw on `.slice` and unmounted the whole card.
+   */
+  start_date: string | null
   target_date: string | null
   is_achieved: boolean
   achieved_date: string | null
   notes: string | null
-  created_at: string
+  created_at: string | null
   updated_at: string | null
 }
 

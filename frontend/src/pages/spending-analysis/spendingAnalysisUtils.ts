@@ -68,7 +68,7 @@ export function spanMonthKeys(
 ): string[] {
   if (rowMonths.length === 0) return []
   const cutoff = currentMonthKey(now)
-  const rowLast = rowMonths[rowMonths.length - 1]
+  const rowLast = rowMonths.at(-1)!
   const first = range.start_date?.slice(0, 7) ?? rowMonths[0]
   const last = range.end_date?.slice(0, 7) ?? (rowLast > cutoff ? cutoff : rowLast)
   const spanned = monthKeysBetween(first, last)

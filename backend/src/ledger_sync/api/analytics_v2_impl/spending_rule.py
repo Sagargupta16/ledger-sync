@@ -488,48 +488,38 @@ def _aggregate_txns(
 
         if t.type == TransactionType.INCOME:
             income_total += amt
-            if inside:
-                # Arrived already allocated (EPF contribution, RSU vest,
-                # reinvested dividend) -- it never crosses the perimeter as a
-                # TRANSFER, so this is the only place it can register.
-                _add_savings(category_rows, amt, _instrument_label(t.account), month_key)
-                bucket_totals["savings"] += amt
+            bucket_totals["savings"] += _book_income_savings(
+                category_rows, t, amt, inside=inside, month_key=month_key
+            )
             continue
 
         if t.type == TransactionType.TRANSFER:
-            direction = _transfer_direction(t.account or "", t.to_account, investment_accounts_set)
-            if direction == 0:
-                # Internal movement -- the same rupee on both legs. Counting it
-                # would inflate a bucket against an income denominator that
-                # never saw it.
-                continue
-            signed = amt * direction
-            bucket_totals["savings"] += signed
-            display_category, display_sub = _prettify_savings_label(
-                t.category, t.subcategory, t.to_account if direction > 0 else t.account
+            bucket_totals["savings"] += _book_transfer_savings(
+                category_rows,
+                t,
+                amt,
+                investment_accounts_set=investment_accounts_set,
+                month_key=month_key,
             )
-            _upsert_row(category_rows, display_category, "savings", signed, display_sub, month_key)
             continue
 
         if is_capital_loss(t.category, t.subcategory, capital_loss_key_set):
-            # A realised loss is a negative investment return, not consumption.
-            # It never reaches expense_total or an expense bucket; the only thing
-            # it moves is the perimeter, and only when it was booked there.
-            if inside:
-                _add_savings(category_rows, -amt, _instrument_label(t.account), month_key)
-                bucket_totals["savings"] -= amt
+            bucket_totals["savings"] += _book_capital_loss_savings(
+                category_rows, t, amt, inside=inside, month_key=month_key
+            )
             continue
 
         expense_total += amt
-        bucket = _classify_expense(t.category, t.subcategory, essential_set)
+        bucket, savings_delta = _book_consumption(
+            category_rows,
+            t,
+            amt,
+            inside=inside,
+            essential_set=essential_set,
+            month_key=month_key,
+        )
         bucket_totals[bucket] += amt
-        _upsert_row(category_rows, t.category, bucket, amt, t.subcategory, month_key)
-        if inside:
-            # Money left the holding: a brokerage fee or realised loss shrinks
-            # the perimeter as well as being spending. Opposite signs on the
-            # two entries, so no rupee is counted twice in one direction.
-            _add_savings(category_rows, -amt, _instrument_label(t.account), month_key)
-            bucket_totals["savings"] -= amt
+        bucket_totals["savings"] += savings_delta
 
     # Explicit residual: income that was neither spent nor invested. Stays
     # negative when spending + investing outran income -- a real outcome.
@@ -538,6 +528,95 @@ def _aggregate_txns(
     )
 
     return income_total, expense_total, bucket_totals, category_rows
+
+
+def _book_income_savings(
+    category_rows: dict[tuple[str, str], _CategoryRow],
+    t: Transaction,
+    amount: Decimal,
+    *,
+    inside: bool,
+    month_key: str,
+) -> Decimal:
+    """Savings delta an INCOME row books, writing its instrument row on the way.
+
+    Income credited ON a perimeter account arrived already allocated (EPF
+    contribution, RSU vest, reinvested dividend) -- it never crosses the
+    perimeter as a TRANSFER, so this is the only place it can register.
+    """
+    if not inside:
+        return Decimal(0)
+    _add_savings(category_rows, amount, _instrument_label(t.account), month_key)
+    return amount
+
+
+def _book_transfer_savings(
+    category_rows: dict[tuple[str, str], _CategoryRow],
+    t: Transaction,
+    amount: Decimal,
+    *,
+    investment_accounts_set: set[str],
+    month_key: str,
+) -> Decimal:
+    """Savings delta a TRANSFER row books, writing its relabelled row on the way.
+
+    Direction 0 is internal movement -- the same rupee on both legs. Counting it
+    would inflate a bucket against an income denominator that never saw it, so
+    such a leg books nothing at all.
+    """
+    direction = _transfer_direction(t.account or "", t.to_account, investment_accounts_set)
+    if direction == 0:
+        return Decimal(0)
+    signed = amount * direction
+    display_category, display_sub = _prettify_savings_label(
+        t.category, t.subcategory, t.to_account if direction > 0 else t.account
+    )
+    _upsert_row(category_rows, display_category, "savings", signed, display_sub, month_key)
+    return signed
+
+
+def _book_capital_loss_savings(
+    category_rows: dict[tuple[str, str], _CategoryRow],
+    t: Transaction,
+    amount: Decimal,
+    *,
+    inside: bool,
+    month_key: str,
+) -> Decimal:
+    """Savings delta a classified realised loss books.
+
+    A realised loss is a negative investment return, not consumption. It never
+    reaches expense_total or an expense bucket; the only thing it moves is the
+    perimeter, and only when it was booked there.
+    """
+    if not inside:
+        return Decimal(0)
+    _add_savings(category_rows, -amount, _instrument_label(t.account), month_key)
+    return -amount
+
+
+def _book_consumption(
+    category_rows: dict[tuple[str, str], _CategoryRow],
+    t: Transaction,
+    amount: Decimal,
+    *,
+    inside: bool,
+    essential_set: set[str],
+    month_key: str,
+) -> tuple[str, Decimal]:
+    """Expense bucket the row lands in, plus the savings delta it books.
+
+    A row booked ON a perimeter account is spending AND money leaving the
+    holding: a brokerage fee or realised loss shrinks the perimeter as well as
+    being spending. The two entries carry opposite signs, so no rupee is counted
+    twice in one direction.
+    """
+    bucket = _classify_expense(t.category, t.subcategory, essential_set)
+    _upsert_row(category_rows, t.category, bucket, amount, t.subcategory, month_key)
+    if not inside:
+        return bucket, Decimal(0)
+    _add_savings(category_rows, -amount, _instrument_label(t.account), month_key)
+    return bucket, -amount
 
 
 def _add_savings(
