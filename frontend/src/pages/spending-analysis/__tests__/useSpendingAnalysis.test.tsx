@@ -72,15 +72,25 @@ vi.mock('@/hooks/api/useTransactions', () => ({
   }),
 }))
 
+/**
+ * Both savings percentages are present and DIFFERENT, so a test can tell which
+ * one the page read. They are equal (20) in production defaults, which is
+ * exactly why the wrong-field bug was invisible.
+ */
+const PREFERENCES = {
+  fiscal_year_start_month: 4,
+  essential_categories: ['Housing'],
+  needs_target_percent: 50,
+  wants_target_percent: 30,
+  /** /budgets allocation floor -- scored against the investment perimeter. */
+  savings_target_percent: 35,
+  /** This page's floor -- scored against income minus expenses. */
+  savings_goal_percent: 20,
+}
+
 vi.mock('@/hooks/api/usePreferences', () => ({
   usePreferences: () => ({
-    data: {
-      fiscal_year_start_month: 4,
-      essential_categories: ['Housing'],
-      needs_target_percent: 50,
-      wants_target_percent: 30,
-      savings_target_percent: 20,
-    },
+    data: PREFERENCES,
     isPending: false,
     isError: false,
     isSuccess: true,
@@ -150,6 +160,80 @@ describe('useSpendingAnalysis -- in-progress month', () => {
     expect(result.current.partialPeriod).toBeNull()
     expect(result.current.monthlyAvgSpending).toBe(37500)
     expect(result.current.budgetRuleMetrics?.essentialPercent).toBeCloseTo(40, 6)
+  })
+})
+
+/**
+ * The savings floor on this page is the INCOME-MINUS-EXPENSES target, not the
+ * allocation target.
+ *
+ * This page's `savings` is `totalIncome - comparableSpending`. /budgets scores a
+ * different numerator -- the net change in the investment perimeter -- against
+ * `savings_target_percent`, and on the real ledger for FY2025-26 the two are
+ * 1,182,355.68 and 578,428.79, roughly 2x apart. Reading the allocation target
+ * here therefore applied a materially harder bar to the easier number, and with
+ * both columns defaulting to 20.0 the mismatch was invisible: the two pages
+ * could report "on track" and "under target" for the same user in the same
+ * period. `savings_goal_percent` is what the health score and the Trends
+ * goal line already score against income minus expenses.
+ */
+describe('useSpendingAnalysis -- which savings target', () => {
+  beforeEach(() => {
+    transactionsRef.current = TRANSACTIONS
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 6, 26))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('scores against savings_goal_percent, not savings_target_percent', () => {
+    const { result } = renderHook(() => useSpendingAnalysis(), { wrapper })
+    expect(result.current.savingsTarget).toBe(PREFERENCES.savings_goal_percent)
+    expect(result.current.savingsTarget).not.toBe(PREFERENCES.savings_target_percent)
+    expect(result.current.budgetRuleMetrics?.savingsTarget).toBe(
+      PREFERENCES.savings_goal_percent,
+    )
+  })
+
+  it('judges the leftover-income share against the leftover-income floor', () => {
+    const { result } = renderHook(() => useSpendingAnalysis(), { wrapper })
+    // 180,000 saved on 300,000 income = 60%, clear of the 20% goal. Against the
+    // 35% allocation floor it would also pass here, so the assertion that
+    // matters is WHICH number the verdict was measured against.
+    expect(result.current.budgetRuleMetrics?.savingsPercent).toBeCloseTo(60, 6)
+    expect(result.current.budgetRuleMetrics?.isUnderSaving).toBe(false)
+  })
+
+  it('keeps the needs and wants caps on the spending-rule triplet', () => {
+    const { result } = renderHook(() => useSpendingAnalysis(), { wrapper })
+    expect(result.current.needsTarget).toBe(PREFERENCES.needs_target_percent)
+    expect(result.current.wantsTarget).toBe(PREFERENCES.wants_target_percent)
+  })
+
+  it('flips the on-track verdict, so the field is not a cosmetic choice', () => {
+    // 100,000 income against 75,000 spend per month = a 25% leftover share.
+    // Against the 20% goal that clears the -5pt band (25 < 15 is false) and the
+    // card reads on track; against the 35% allocation floor it does not
+    // (25 < 30 is true) and the same period reads as undersaving. The two
+    // preferences are not interchangeable even where both are configured.
+    transactionsRef.current = [
+      tx('2026-04-05', 100000, 'Income', 'Employment Income'),
+      tx('2026-04-06', 50000, 'Expense', 'Housing'),
+      tx('2026-04-07', 25000, 'Expense', 'Shopping'),
+      tx('2026-05-05', 100000, 'Income', 'Employment Income'),
+      tx('2026-05-06', 50000, 'Expense', 'Housing'),
+      tx('2026-05-07', 25000, 'Expense', 'Shopping'),
+      tx('2026-06-05', 100000, 'Income', 'Employment Income'),
+      tx('2026-06-06', 50000, 'Expense', 'Housing'),
+      tx('2026-06-07', 25000, 'Expense', 'Shopping'),
+    ]
+    const { result } = renderHook(() => useSpendingAnalysis(), { wrapper })
+    expect(result.current.budgetRuleMetrics?.savingsPercent).toBeCloseTo(25, 6)
+    expect(result.current.budgetRuleMetrics?.isUnderSaving).toBe(false)
+    // The verdict the allocation floor would have produced on this same number.
+    expect(25 < PREFERENCES.savings_target_percent - 5).toBe(true)
   })
 })
 

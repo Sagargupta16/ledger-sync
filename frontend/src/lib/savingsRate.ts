@@ -84,6 +84,29 @@
  * is a real difference in meaning, not drift. Do NOT "reconcile" them by
  * changing one number to match the other: pick the one whose question the caller
  * is asking, and keep the field name that goes with it.
+ *
+ * TWO NUMERATORS NEED TWO TARGETS (decided 2026-07-27)
+ * ---------------------------------------------------
+ * A separate numerator is {@link investmentAllocationRatePercent} below -- money
+ * moved INTO instruments, which the /budgets Savings bucket reports. Keeping the
+ * numerators apart is only half the job: a TARGET scored against them has to be
+ * split the same way, because "20% of income" is a much harder bar on
+ * allocations than on income-minus-expenses. On the real ledger for FY2025-26 the
+ * perimeter change is 578,428.79 against 1,182,355.68 of leftover income,
+ * roughly 2x, so one 20% floor made /budgets read "under target" while
+ * /spending-analysis read "on track" for the same user in the same period.
+ *
+ * `user_preferences` therefore assigns one preference per numerator:
+ *
+ * - `savings_target_percent` -- the 50/30/20 Savings leg, scored ONLY against
+ *   the allocation numerator (`api/analytics_v2_impl/spending_rule.py`, /budgets).
+ * - `savings_goal_percent` -- scored ONLY against income minus expenses: the
+ *   /spending-analysis Savings card, the Financial Health "Spend Less Than
+ *   Income" metric, and the Trends cumulative-savings-rate goal line.
+ *
+ * Both default to 20.0, which is why the mismatch was silent. When adding a
+ * surface that scores a savings figure, pick the preference that matches your
+ * numerator; do not reach for whichever one is already imported.
  */
 
 import { isPartialMonth } from '@/lib/dateUtils'

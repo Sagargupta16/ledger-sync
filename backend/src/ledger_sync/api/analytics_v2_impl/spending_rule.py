@@ -679,6 +679,15 @@ def get_spending_rule_breakdown(
 
     needs_target = prefs.needs_target_percent if prefs else 50.0
     wants_target = prefs.wants_target_percent if prefs else 30.0
+    # ``savings_target_percent``, NOT ``savings_goal_percent``. This endpoint's
+    # savings figure is the net change in the investment perimeter (see
+    # ``savings_amount`` below), and that numerator gets the 50/30/20 leg.
+    # ``savings_goal_percent`` is the floor for income-minus-expenses and is
+    # scored on the Expense Analysis page, the health score, and the Trends goal
+    # line. Both columns default to 20.0 while 20% of income allocated into
+    # instruments is a far harder bar than 20% left unspent -- on the owner's
+    # ledger for FY2025-26 the two numerators are 578,428.79 and 1,182,355.68 --
+    # so swapping them silently changes the verdict rather than erroring.
     savings_target = prefs.savings_target_percent if prefs else 20.0
 
     # ─── query ──────────────────────────────────────────────────────────────

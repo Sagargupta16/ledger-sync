@@ -293,10 +293,39 @@ export function useSpendingAnalysis() {
     [spendingBreakdown, savings, totalIncome],
   )
 
-  // Spending rule targets from preferences (configurable Needs/Wants/Savings).
+  // Spending rule targets from preferences (configurable Needs/Wants).
   const needsTarget = preferences?.needs_target_percent ?? 50
   const wantsTarget = preferences?.wants_target_percent ?? 30
-  const savingsTarget = preferences?.savings_target_percent ?? 20
+  /**
+   * The savings floor comes from `savings_goal_percent`, NOT from
+   * `savings_target_percent` -- the two preferences score different numerators
+   * and this page computes the first one.
+   *
+   * `savings` here is `totalIncome - comparableSpending` (see above): income the
+   * user did not consume, wherever it ended up. `savings_target_percent` is the
+   * third leg of the 50/30/20 triplet and is scored on /budgets against the NET
+   * CHANGE IN THE INVESTMENT PERIMETER -- money actually moved into
+   * SIP/PPF/EPF/NPS/stocks. Those are not the same bar: 20% of income left over
+   * is far easier to clear than 20% of income allocated into instruments, and on
+   * the real ledger for FY2025-26 the two numerators are 1,182,355.68 and
+   * 578,428.79 (see `pages/budget/BudgetPage.tsx`). Reading one preference
+   * against both let /budgets report "under target" while this page reported "on
+   * track" for the same user in the same period.
+   *
+   * `savings_goal_percent` is the app's income-minus-expenses target already:
+   * the health score's "Spend Less Than Income" metric
+   * (`components/analytics/health/healthScoreScorers.ts`) and the Trends
+   * cumulative-savings-rate goal line
+   * (`pages/trends-forecasts/components/SavingsRateSection.tsx`) both score it
+   * against exactly this quantity. This page was the only
+   * income-minus-expenses surface reaching for the allocation target instead.
+   * Both columns default to 20.0, so no existing user's setting changes meaning.
+   *
+   * Consequence for the heading: needs + wants + this no longer necessarily sum
+   * to 100, so `BudgetRuleAnalysis` must not print them as a "50/30/20" triplet.
+   * See `lib/savingsRate.ts` for why the two numerators stay separate.
+   */
+  const savingsTarget = preferences?.savings_goal_percent ?? 20
 
   const budgetRuleMetrics = useMemo(() => {
     return computeBudgetRuleMetrics(spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget)

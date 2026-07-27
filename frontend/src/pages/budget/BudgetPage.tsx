@@ -152,7 +152,13 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
       // ledger for FY2025-26 the perimeter change is 578,428.79 while income
       // minus expenses is 1,182,355.68. Whatever stayed in the bank shows up as
       // Unallocated instead.
-      description: 'Net moved into investments',
+      //
+      // It also has to state WHICH target the floor is, because the Expense
+      // Analysis page shows a Savings card too, on the income-minus-expenses
+      // numerator against `savings_goal_percent`. This bucket is scored against
+      // `savings_target_percent` (the 50/30/20 leg). Same word, two bars: a
+      // reader comparing the two pages needs each card to say which is which.
+      description: 'Net moved into investments, vs Spending Rule target',
       icon: PiggyBank,
       kind: 'floor',
     },
