@@ -286,39 +286,17 @@ type BufferTransactions = ReadonlyArray<{ type: string; amount: number; date: st
 /**
  * Days of Buffering from a spendable position built by `computeLiquidPosition`.
  *
+ * Takes the position, never a pre-summed total: a bare number has already lost
+ * the asset/liability split, so it cannot exclude parked deposits
+ * (`PARKED_DEPOSIT_PATTERNS`) or subtract card debt via the sign rule. On real
+ * audit data that un-split total read 150 days where this path reads 146.
+ *
  * @returns Number of days the net pool covers, or null if insufficient data
  */
 export function computeDaysOfBuffering(
   liquid: LiquidPosition,
   transactions: BufferTransactions,
-  lookbackDays?: number,
-): number | null
-/**
- * @deprecated Pass a `LiquidPosition` instead. A bare total has already lost
- * the asset/liability split, so this branch cannot exclude parked deposits or
- * subtract card debt -- it can only take the caller's number at face value. On
- * real audit data the un-split total reads 150 days where the split-aware path
- * reads 146.
- *
- * TODO: remove this overload once `pages/DashboardPage.tsx` (the last consumer,
- * at its `computeDaysOfBuffering(liquidBalance, filteredTransactions)` call)
- * builds its pool with `computeLiquidPosition` and drops its local
- * `LIQUID_CLASSIFICATIONS` set.
- */
-export function computeDaysOfBuffering(
-  liquid: number,
-  transactions: BufferTransactions,
-  lookbackDays?: number,
-): number | null
-export function computeDaysOfBuffering(
-  liquid: number | LiquidPosition,
-  transactions: BufferTransactions,
   lookbackDays = 90,
 ): number | null {
-  const position: LiquidPosition =
-    typeof liquid === 'number'
-      ? { grossLiquid: liquid, liabilities: 0, netLiquid: Math.max(0, liquid) }
-      : liquid
-
-  return computeBufferBreakdown(position, transactions, lookbackDays)?.days ?? null
+  return computeBufferBreakdown(liquid, transactions, lookbackDays)?.days ?? null
 }
