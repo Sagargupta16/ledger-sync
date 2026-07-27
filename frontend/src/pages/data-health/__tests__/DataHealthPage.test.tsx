@@ -75,9 +75,9 @@ describe('DataHealthPage', () => {
     mocks.getDataHealth.mockResolvedValue(STALE)
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText(/Data ends Jul 04, 2026\. 22 days unimported\./)).toBeInTheDocument()
-    })
+    expect(
+      await screen.findByText(/Data ends Jul 04, 2026\. 22 days unimported\./),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Last import: Cashbook\.xlsx, 22 days ago\./)).toBeInTheDocument()
     // The call to action has to point at the upload route, not just complain.
     expect(screen.getByRole('link', { name: /upload latest file/i })).toHaveAttribute(
@@ -90,7 +90,7 @@ describe('DataHealthPage', () => {
     mocks.getDataHealth.mockResolvedValue(STALE)
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Data quality')).toBeInTheDocument())
+    expect(await screen.findByText('Data quality')).toBeInTheDocument()
     expect(screen.getByText('497')).toBeInTheDocument()
     expect(screen.getByText('659')).toBeInTheDocument()
     expect(screen.getByText('6')).toBeInTheDocument()
@@ -107,7 +107,7 @@ describe('DataHealthPage', () => {
     mocks.getDataHealth.mockRejectedValue(new Error('boom'))
     renderPage()
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument())
+    expect(await screen.findByRole('button', { name: /retry/i })).toBeInTheDocument()
     expect(screen.queryByText('Data quality')).not.toBeInTheDocument()
     expect(screen.queryByText(/no issues detected/i)).not.toBeInTheDocument()
   })
@@ -121,9 +121,7 @@ describe('DataHealthPage', () => {
     })
     renderPage()
 
-    await waitFor(() =>
-      expect(screen.getByText(/Data is current through Jul 26, 2026\./)).toBeInTheDocument(),
-    )
+    expect(await screen.findByText(/Data is current through Jul 26, 2026\./)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /upload latest file/i })).not.toBeInTheDocument()
   })
 
@@ -146,7 +144,7 @@ describe('DataHealthPage', () => {
     })
     renderPage()
 
-    await waitFor(() => expect(screen.getByText(/nothing imported yet/i)).toBeInTheDocument())
+    expect(await screen.findByText(/nothing imported yet/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /upload a statement/i })).toHaveAttribute(
       'href',
       '/upload',
@@ -166,9 +164,7 @@ describe('DataHealthPage', () => {
       mocks.getDataHealth.mockResolvedValue({ ...STALE, rollups_stale: true })
       renderPage()
 
-      await waitFor(() =>
-        expect(screen.getByText('Analytics behind import')).toBeInTheDocument(),
-      )
+      expect(await screen.findByText('Analytics behind import')).toBeInTheDocument()
       expect(screen.getByText('Out of date')).toBeInTheDocument()
       expect(screen.getByText(/from the previous import/i)).toBeInTheDocument()
     })
@@ -205,7 +201,7 @@ describe('DataHealthPage', () => {
       mocks.getDataHealth.mockResolvedValue({ ...STALE, rollups_stale: false })
       renderPage()
 
-      await waitFor(() => expect(screen.getByText('Data quality')).toBeInTheDocument())
+      expect(await screen.findByText('Data quality')).toBeInTheDocument()
       expect(screen.getByText('Up to date')).toBeInTheDocument()
       expect(
         screen.queryByRole('button', { name: /recompute analytics/i }),

@@ -11,7 +11,7 @@ React 19 and TypeScript 6 application for the Ledger Sync personal finance works
 - TanStack Query 5
 - Zustand 5
 - Recharts 3
-- Framer Motion 12
+- Motion 12 (`motion/react`)
 - Vitest and Testing Library
 
 ## Run Locally
@@ -34,21 +34,23 @@ The dev server runs at `http://localhost:5173` and proxies `/api` to `http://loc
 
 ## Router and Pages
 
-`src/App.tsx` defines 27 routed page components:
+`src/App.tsx` defines 29 routed page components:
 
 - 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 23 lazy workspace pages, prefetched during browser idle time.
-- 3 public routes and 24 protected workspace routes.
+- 25 lazy workspace pages, prefetched during browser idle time.
+- 3 public routes and 26 protected workspace routes.
 
 The protected workspace is organized into:
 
 ```text
-Core
+Top level
   Dashboard
   Overview
+  Transactions
 
 Analytics
   Expense Analysis
+  Merchants
   Income Analysis
   Cash Flow
   Comparison
@@ -70,13 +72,13 @@ Planning
   Financial Goals
   FIRE Calculator
   Anomaly Review
+  Data Health
 
 Tax
   Income Tax
   Indirect Tax (GST)
 
-Data
-  Transactions
+Utility bar (below the groups)
   Upload and Sync
   Settings
 
@@ -142,7 +144,7 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 
 ## Themes and Responsive Behavior
 
-- `themeStore` persists Light, Dark, or System mode.
+- `themeStore` persists Light or Dark mode. New users start on the OS `prefers-color-scheme` value.
 - `index.css` contains semantic color, surface, typography, chart, and control tokens.
 - Charts resolve theme colors through `rawColors`.
 - Wide shared tables can switch to mobile cards below `sm`.
@@ -151,7 +153,9 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 
 ## Tests
 
-The current frontend suite contains 287 tests in 23 files.
+The current frontend suite contains 1,401 tests in 118 files.
+
+Lint and test runs ignore `.claude/`. Local agent git worktrees are checked out there, and a second copy of this suite (or a second `tsconfig.json` root) otherwise inflates the test counts and fails `eslint .` across the whole tree. See `globalIgnores` in `eslint.config.js` and `exclude` in `vitest.config.ts`.
 
 ```bash
 pnpm test

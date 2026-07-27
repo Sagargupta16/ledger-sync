@@ -1,14 +1,14 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.22.0.
+Human-readable reference for Ledger Sync API version 2.23.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
-verified against that document on 2026-07-14.
+verified against that document on 2026-07-27.
 
 Current OpenAPI inventory:
 
-- 99 paths
-- 113 HTTP operations
+- 104 paths
+- 118 HTTP operations
 - Swagger UI at `/docs`
 - ReDoc at `/redoc`
 - Raw schema at `/openapi.json`
@@ -196,6 +196,7 @@ Common status codes:
 | `GET`, `POST` | `/api/analytics/v2/recurring-transactions` | List or create recurring entries |
 | `PATCH`, `DELETE` | `/api/analytics/v2/recurring-transactions/{item_id}` | Update or delete a recurring entry |
 | `GET` | `/api/analytics/v2/merchant-intelligence` | Merchant aggregates |
+| `GET` | `/api/analytics/v2/data-health` | Ledger coverage, last-import row counts, and rollup freshness |
 | `GET` | `/api/analytics/v2/spending-rule` | Needs, wants, and savings analysis |
 | `GET` | `/api/analytics/v2/net-worth` | Net worth history |
 | `GET` | `/api/analytics/v2/fy-summaries` | Fiscal-year rollups |

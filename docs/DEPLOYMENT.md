@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.22.0.
+Current for Ledger Sync 2.23.0.
 
 ## Production Topology
 
@@ -116,17 +116,25 @@ connect.
 
 The workflow runs on pushes to `main` that change:
 
-- `backend/alembic/**`
 - `backend/src/ledger_sync/db/migrations/**`
 - `backend/src/ledger_sync/db/models.py`
 - `backend/src/ledger_sync/db/_models/**`
 
 It can also be run manually.
 
-The current migration head is `tags_rules_views_2026`. Migrations from
-2026-02-03 onward intentionally have no automatic downgrade. Take a database
+The current migration head is `reconcile_create_all_2026`. Migrations from
+2026-03-02 onward intentionally have no automatic downgrade. Take a database
 backup before a destructive or high-risk migration and prefer a forward repair
 revision.
+
+`alembic upgrade head` must also succeed against an empty database, and CI
+proves it: the backend job runs the whole chain into a throwaway SQLite file,
+and `backend/tests/integration/test_migrations_from_scratch.py` compares the
+result against the ORM schema and re-runs the upgrade to confirm the guards are
+idempotent. Production only ever applies incremental revisions, and `init_db()`
+calls `create_all()` on startup, so a missing migration stays invisible there.
+Revision `reconcile_create_all_2026` exists for exactly that reason: twelve
+columns had reached every deployed database through `create_all()` alone.
 
 Because Vercel deployment and the migration workflow can run concurrently,
 schema changes must use an expand-and-contract sequence:
@@ -149,8 +157,10 @@ The Vercel project root must be `backend`.
 - routes every request to `api/index.py`
 - allows a 50 MB function bundle
 
-`api/index.py` wraps the FastAPI application with Mangum. Vercel installs the
-locked Python environment through uv.
+`api/index.py` imports the FastAPI ASGI `app` and also exposes a Mangum
+`handler`. Vercel's Python runtime serves the ASGI app directly, so the
+application lifespan runs in production and the Mangum shim only matters for an
+AWS Lambda target. Vercel installs the locked Python environment through uv.
 
 After changing Vercel environment values, redeploy the backend so the function
 receives the new configuration.
@@ -165,7 +175,7 @@ curl.exe --fail https://ledger-sync-api.vercel.app/api/auth/oauth/providers
 
 Expected behavior:
 
-- `/health` returns version `2.22.0`.
+- `/health` returns version `2.23.0`.
 - `/health/db` returns a connected database result.
 - `/api/auth/oauth/providers` returns HTTP 200 and a JSON array.
 - An empty provider array means no OAuth provider is configured.
@@ -185,9 +195,10 @@ Repository settings:
 
 The deployment workflow:
 
-1. Installs pnpm 11.10.0 from the root `packageManager` field.
-2. Uses Node.js 22.
-3. Installs the frozen frontend lockfile.
+1. Installs pnpm 11.17.0 from the root `packageManager` field.
+2. Uses Node.js 24.
+3. Installs the frozen frontend lockfile with dependency lifecycle scripts
+   disabled (`--frozen-lockfile --ignore-scripts`).
 4. Builds with `GITHUB_PAGES=true`.
 5. Copies `index.html` to `404.html`.
 6. Publishes `frontend/dist`.

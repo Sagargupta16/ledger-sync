@@ -64,7 +64,7 @@ describe('StaleAnalyticsAlert', () => {
     mocks.getDataHealth.mockResolvedValue(HEALTH)
     renderAlert()
 
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByText(/These figures are out of date\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /fix this/i })).toHaveAttribute('href', '/data-health')
   })
@@ -102,7 +102,7 @@ describe('StaleAnalyticsAlert', () => {
     mocks.getDataHealth.mockResolvedValue(HEALTH)
     const { unmount } = renderAlert()
 
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /dismiss out-of-date warning/i }))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
 
@@ -110,6 +110,6 @@ describe('StaleAnalyticsAlert', () => {
     // Silencing "your money figures are wrong" permanently is not on offer.
     unmount()
     renderAlert()
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
 })

@@ -62,8 +62,6 @@ DEFAULT_CURRENCY_SYMBOL = "₹"
 # generator cannot quietly invent a fifth value that no consumer can style.
 INSIGHT_SEVERITIES = frozenset({"info", "neutral", "positive", "warning"})
 
-MONTH_KEY_LENGTH = 7  # len("YYYY-MM")
-
 
 def month_key(moment: date) -> str:
     """The ``YYYY-MM`` bucket a date falls in, matching ``group_by_month``."""
@@ -76,7 +74,10 @@ def is_partial_month(key: str, today: date) -> bool:
     Past and future months are both complete for comparison purposes -- only
     the current one can be partial, and not on its last day.
     """
-    if key[:MONTH_KEY_LENGTH] != month_key(today):
+    # `startswith` rather than a slice comparison (S6659): a `YYYY-MM-DD` key and
+    # a `YYYY-MM` one both have to answer for the same month, and this states that
+    # without depending on the slice width matching `month_key`'s output length.
+    if not key.startswith(month_key(today)):
         return False
     return today.day < monthrange(today.year, today.month)[1]
 

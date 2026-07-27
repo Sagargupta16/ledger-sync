@@ -1,6 +1,14 @@
 import { rawColors } from '@/constants/colors'
 import { addDaysToKey } from '@/lib/dateUtils'
 
+import {
+  applyDaySnapshot,
+  buildDailyAccountSnapshots,
+  investmentAccountTest,
+  selectInvestmentTransactions,
+  type GrowthTransaction,
+} from './dailyAccountBalances'
+
 export const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
 export type InvestmentCategory = (typeof INVESTMENT_CATEGORIES)[number]
 
@@ -95,14 +103,33 @@ export function processInvestmentTransaction(
 /** One forward-filled day of the stacked growth chart. */
 export type GrowthPoint = Record<string, string | number>
 
-/** Minimal transaction shape the growth series needs. */
-export type GrowthTransaction = {
-  date: string
-  type: string
-  amount: number
-  to_account?: string | null
-  from_account?: string | null
-  account?: string | null
+export type { GrowthTransaction }
+
+/**
+ * Sum the forward-filled per-account balances into the four chart categories.
+ *
+ * Totals are NOT clamped at zero. A running cumulative of contributions minus
+ * withdrawals legitimately goes negative when an account is drawn down past what
+ * this ledger recorded going in (a holding opened before the ledger starts, or a
+ * transfer mis-classified upstream). Clamping hid that at the exact moment the
+ * chart should show it, and made the stack disagree with every other total on
+ * the page.
+ */
+function categoryTotalsFor(
+  lastKnown: Record<string, number>,
+  investmentAccounts: readonly string[],
+  accountToCategory: Record<string, InvestmentCategory>,
+): Record<InvestmentCategory, number> {
+  const categoryTotals: Record<InvestmentCategory, number> = {
+    'FD/Bonds': 0,
+    'Mutual Funds': 0,
+    'PPF/EPF': 0,
+    Stocks: 0,
+  }
+  for (const account of investmentAccounts) {
+    categoryTotals[accountToCategory[account] || 'Mutual Funds'] += lastKnown[account]
+  }
+  return categoryTotals
 }
 
 /**
@@ -110,66 +137,25 @@ export type GrowthTransaction = {
  * growth chart: one point per calendar day between the first and last
  * investment transaction, each carrying a per-category total.
  *
- * Extracted from `useInvestmentAnalytics` so the running-balance rules below
- * are testable without mounting the hook's three queries.
- *
- * Two rules that were previously wrong here:
- *
- * 1. A day's snapshot is applied with a KEY CHECK, not truthiness. Snapshots
- *    are cloned from a map pre-seeded with every investment account, so every
- *    account is always present -- meaning `snapshot[acc] || lastKnown[acc]`
- *    could only ever discard a legitimate exact ZERO. A fully-redeemed holding
- *    stayed plotted at its pre-redemption value forever, and the stacked total
- *    drifted above `totalInvestmentValue`, the KPI on the same page.
- *
- * 2. Category totals are NOT clamped at zero. A running cumulative of
- *    contributions minus withdrawals legitimately goes negative when an
- *    account is drawn down past what this ledger recorded going in (a holding
- *    opened before the ledger starts, or a transfer mis-classified upstream).
- *    Clamping hid that at the exact moment the chart should show it, and made
- *    the stack disagree with every other total on the page.
+ * Extracted from `useInvestmentAnalytics` so the running-balance rules are
+ * testable without mounting the hook's three queries. The per-account half of
+ * those rules, and the defects each guard exists to prevent, live in
+ * `./dailyAccountBalances`.
  */
 export function buildDailyGrowthSeries(
   transactions: readonly GrowthTransaction[],
   investmentAccounts: readonly string[],
   accountToCategory: Record<string, InvestmentCategory>,
 ): GrowthPoint[] {
-  const accountSet = new Set(investmentAccounts)
-  const isInvestment = (name: string | null | undefined) => name != null && accountSet.has(name)
-
-  const investmentTransactions = transactions
-    .filter(
-      (tx) =>
-        (tx.type === 'Transfer' && (isInvestment(tx.to_account) || isInvestment(tx.from_account))) ||
-        ((tx.type === 'Income' || tx.type === 'Expense') && isInvestment(tx.account)),
-    )
-    .sort((a, b) => a.date.localeCompare(b.date))
-
+  const isInvestment = investmentAccountTest(investmentAccounts)
+  const investmentTransactions = selectInvestmentTransactions(transactions, isInvestment)
   if (investmentTransactions.length === 0) return []
 
-  const running: Record<string, number> = {}
-  for (const acc of investmentAccounts) running[acc] = 0
-
-  const snapshotMap = new Map<string, Record<string, number>>()
-  let currentDay = ''
-
-  for (const tx of investmentTransactions) {
-    const dayKey = tx.date.substring(0, 10)
-    if (dayKey !== currentDay && currentDay !== '') {
-      snapshotMap.set(currentDay, { ...running })
-    }
-    currentDay = dayKey
-
-    if (tx.type === 'Transfer') {
-      if (isInvestment(tx.to_account)) running[tx.to_account as string] += tx.amount
-      if (isInvestment(tx.from_account)) running[tx.from_account as string] -= tx.amount
-    } else if (tx.type === 'Income' && isInvestment(tx.account)) {
-      running[tx.account as string] += tx.amount
-    } else if (tx.type === 'Expense' && isInvestment(tx.account)) {
-      running[tx.account as string] -= tx.amount
-    }
-  }
-  if (currentDay) snapshotMap.set(currentDay, { ...running })
+  const snapshotMap = buildDailyAccountSnapshots(
+    investmentTransactions,
+    investmentAccounts,
+    isInvestment,
+  )
   if (snapshotMap.size === 0) return []
 
   const days = [...snapshotMap.keys()]
@@ -185,23 +171,9 @@ export function buildDailyGrowthSeries(
   // boundary day for any user east of UTC.
   for (let date = firstDay; date <= lastDay; date = addDaysToKey(date, 1)) {
     const snapshot = snapshotMap.get(date)
-    if (snapshot) {
-      for (const account of investmentAccounts) {
-        // Key check, not truthiness -- see rule 1 above.
-        if (account in snapshot) lastKnown[account] = snapshot[account]
-      }
-    }
+    if (snapshot) applyDaySnapshot(lastKnown, snapshot, investmentAccounts)
 
-    const categoryTotals: Record<InvestmentCategory, number> = {
-      'FD/Bonds': 0,
-      'Mutual Funds': 0,
-      'PPF/EPF': 0,
-      Stocks: 0,
-    }
-    for (const account of investmentAccounts) {
-      categoryTotals[accountToCategory[account] || 'Mutual Funds'] += lastKnown[account]
-    }
-
+    const categoryTotals = categoryTotalsFor(lastKnown, investmentAccounts, accountToCategory)
     const point: GrowthPoint = { date, fullDate: date }
     for (const cat of INVESTMENT_CATEGORIES) point[cat] = categoryTotals[cat]
     series.push(point)

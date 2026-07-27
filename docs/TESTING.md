@@ -1,16 +1,16 @@
 # Testing Guide
 
-Testing reference for Ledger Sync 2.22.0.
+Testing reference for Ledger Sync 2.23.0.
 
-Verified on 2026-07-14:
+Verified on 2026-07-27:
 
 | Suite | Tests | Files |
 | --- | ---: | ---: |
-| Backend pytest | 328 | 35 |
-| Frontend Vitest | 287 | 23 |
-| Total | 615 | 58 |
+| Backend pytest | 818 | 63 |
+| Frontend Vitest | 1,401 | 118 |
+| Total | 2,219 | 181 |
 
-Backend files are split into 25 unit files and 10 integration files.
+Backend files are split into 40 unit files and 23 integration files.
 
 Counts are a point-in-time baseline, not a permanent assertion. Recalculate
 them when adding or removing tests.
@@ -55,8 +55,8 @@ changes, also run the application and exercise the affected workflow.
 backend/tests/
   conftest.py
   fixtures/
-  unit/             25 test files
-  integration/      10 test files
+  unit/             40 test files
+  integration/      23 test files
 ```
 
 Unit coverage includes:
@@ -346,7 +346,7 @@ programmatically verify:
 - Upload parse, conflict, force reupload, result summary, and cache refresh
 - Representative analytics, wealth, planning, and tax pages
 - Settings save and reset behavior
-- Light, dark, and system themes
+- Light and dark themes
 - Sidebar, More page, bottom navigation, safe areas, and no overlap
 - 404 and lazy-chunk failure states
 

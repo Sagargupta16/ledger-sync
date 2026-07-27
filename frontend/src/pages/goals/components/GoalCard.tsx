@@ -56,8 +56,11 @@ export default function GoalCard({
   // Derived from projection.monthsRemaining (already computed against "now" in the
   // hook) so we stay render-pure: elapsed = totalSpan - monthsRemaining.
   // Skip when the goal is open-ended (no deadline) or already achieved.
+  // `start_date` is nullable on the wire, and without one there is no timeline
+  // to measure elapsed time against, so there is no pace to show.
   const onPacePct = (() => {
-    if (!goal.target_date || projection.status === 'achieved') return undefined
+    if (!goal.target_date || !goal.start_date || projection.status === 'achieved')
+      return undefined
     const totalSpan = differenceInMonths(parseLocalDate(goal.target_date), parseLocalDate(goal.start_date))
     if (!Number.isFinite(totalSpan) || totalSpan <= 0) return undefined
     const elapsedFraction = (totalSpan - projection.monthsRemaining) / totalSpan

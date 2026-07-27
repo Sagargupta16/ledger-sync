@@ -13,7 +13,7 @@ FastAPI backend for OAuth authentication, JSON transaction ingestion, reconcilia
 | Migrations | Alembic |
 | Local database | SQLite |
 | Production database | Neon PostgreSQL 17 |
-| Serverless adapter | Mangum on Vercel |
+| Hosting | Vercel Python runtime, ASGI |
 | Tests | pytest |
 | Quality | Ruff and mypy |
 | Packaging | uv |
@@ -42,6 +42,7 @@ Local endpoints:
 - User-scoped transaction reconciliation, tags, saved views, and categorization rules.
 - On-demand calculations plus precomputed analytics rollups.
 - Preferences, account classifications, budgets, goals, recurring items, and anomaly review.
+- Ledger data-health diagnostics at `/api/analytics/v2/data-health` and income-classification facets at `/api/calculations/income-facets`.
 - Exchange-rate, instrument-rate, and stock-price proxies.
 - Fifteen read-only AI tools and AI usage accounting.
 - Bedrock Converse proxy for server-side Bedrock authentication.
@@ -73,7 +74,7 @@ The browser parses Excel and CSV files. The backend receives:
 Requirements:
 
 - JWT bearer authentication.
-- Exactly 64 hexadecimal characters in `file_hash`.
+- Exactly 64 characters in `file_hash`. The value is the SHA-256 hex digest of the raw file, but only its length is validated.
 - Between 1 and 100,000 rows.
 - Non-negative amounts and non-empty account and category values.
 - `force=true` only when intentionally reprocessing an already imported file.
@@ -95,6 +96,7 @@ src/ledger_sync/
     migrations/        Alembic environment and revisions
     models.py          Public model facade
     session.py         Engine and session configuration
+  cli/                 Typer CLI for file-based imports
   ingest/              CLI loaders, normalization, validation, hashing
   schemas/             Pydantic request and response models
   services/            Cross-cutting services
@@ -103,6 +105,8 @@ src/ledger_sync/
 ```
 
 `core/analytics_engine.py` is a compatibility facade. The active analytics implementation lives under `core/analytics/`.
+
+`core/ledger_clock.py` is the only source of "now" and "today". It returns naive IST wall-clock values that match the naive `Transaction.date` column, so month and financial-year windows do not slip a period between 18:30 and 24:00 UTC. Never anchor a user-facing window on `datetime.now(UTC)`.
 
 ## Security
 
@@ -149,7 +153,7 @@ uv run mypy src/
 uv run pytest tests/ -v
 ```
 
-The current backend suite contains 328 tests.
+The current backend suite contains 818 tests across 63 files.
 
 ## Migrations
 
@@ -158,10 +162,12 @@ uv run alembic revision --autogenerate -m "describe change"
 uv run alembic upgrade head
 ```
 
+`uv run alembic upgrade head` builds a working schema from an empty database, not only from an existing one. [tests/integration/test_migrations_from_scratch.py](tests/integration/test_migrations_from_scratch.py) guards that path: it upgrades a fresh SQLite file, compares the migrated tables and columns against the ORM metadata, and re-runs the upgrade to confirm the guards stay idempotent.
+
 Read [MIGRATION_NOTES.md](src/ledger_sync/db/migrations/MIGRATION_NOTES.md) before attempting a downgrade. Several recent revisions intentionally have no schema-reversing downgrade.
 
 ## Deployment
 
-Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Database migrations are applied by `.github/workflows/migrate.yml`.
+Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Vercel's Python runtime serves the FastAPI ASGI app directly, so the application lifespan runs in production; the Mangum `handler` in the same module is only for an AWS Lambda target. Database migrations are applied by `.github/workflows/migrate.yml`.
 
 See [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) and [docs/API.md](../docs/API.md).

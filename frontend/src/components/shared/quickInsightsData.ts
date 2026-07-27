@@ -1,6 +1,12 @@
 import type React from 'react'
 
-import { addMonthsToKey, daysInMonth, MS_PER_DAY, weekdayOf } from '@/lib/dateUtils'
+import {
+  addMonthsToKey,
+  daysInMonth,
+  monthKeysBetween,
+  MS_PER_DAY,
+  weekdayOf,
+} from '@/lib/dateUtils'
 import {
   meanRateSubtitle,
   meanVsTypicalSubtitle,
@@ -200,20 +206,13 @@ export function monthsCovered(startKey: string, endKey: string): number {
   if (end < start) return monthsCovered(end, start)
 
   let months = 0
-  let cursorYear = Number(start.slice(0, 4))
-  let cursorMonth = Number(start.slice(5, 7))
-  for (let guard = 0; guard < 1200; guard++) {
-    const monthKey = `${cursorYear}-${String(cursorMonth).padStart(2, '0')}`
-    if (monthKey > end.slice(0, 7)) break
+  // Shared month walk (`@/lib/dateUtils`), so the December wrap has one owner
+  // rather than a copy here and another in `spendingAnalysisUtils`.
+  for (const monthKey of monthKeysBetween(start, end)) {
     const total = daysInMonth(monthKey)
     const firstDay = monthKey === start.slice(0, 7) ? Number(start.slice(8, 10)) : 1
     const lastDay = monthKey === end.slice(0, 7) ? Number(end.slice(8, 10)) : total
     months += (lastDay - firstDay + 1) / total
-    cursorMonth += 1
-    if (cursorMonth > 12) {
-      cursorMonth = 1
-      cursorYear += 1
-    }
   }
   // A single day is a real fraction of a month, not zero and not a whole one.
   return Math.max(months, 1 / 31)
@@ -318,10 +317,10 @@ export function medianSpendingMonth(
   const byMonth = new Map(complete.map(([key, m]) => [key, Math.abs(m.expense ?? 0)]))
   const keys = [...byMonth.keys()].sort((a, b) => a.localeCompare(b))
   // Zero-fill the gaps the rollup left out entirely, so a month with no rows and
-  // a month with a 0 total are counted the same way.
-  const totals = monthKeysInclusive(keys[0], keys[keys.length - 1]).map(
-    (key) => byMonth.get(key) ?? 0,
-  )
+  // a month with a 0 total are counted the same way. Both ends of `keys` exist
+  // because the empty-`complete` guard above already returned, which is what
+  // makes the `.at(-1)` assertion safe.
+  const totals = monthKeysInclusive(keys[0], keys.at(-1)!).map((key) => byMonth.get(key) ?? 0)
   if (totals.length < 2) return null
   return computeMedian(totals)
 }
@@ -376,8 +375,13 @@ export function ageOfMoneyLabel(days: number): string {
  * percentage was of, so a wrong denominator was invisible to the reader.
  */
 export function recurringCoverageLabel(pct: number): string {
-  const load = pct > 50 ? 'High' : pct > 30 ? 'Moderate' : 'Low'
-  return `${load} fixed cost load vs typical recent month's income`
+  return `${fixedCostLoad(pct)} fixed cost load vs typical recent month's income`
+}
+
+function fixedCostLoad(pct: number): string {
+  if (pct > 50) return 'High'
+  if (pct > 30) return 'Moderate'
+  return 'Low'
 }
 
 export function incomeExpenseRatioLabel(ratio: number): string {

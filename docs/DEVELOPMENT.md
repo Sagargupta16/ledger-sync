@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.22.0.
+Current for Ledger Sync 2.23.0.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -18,7 +18,7 @@ details, also see:
 | Python | 3.13 or newer |
 | Python package manager | uv |
 | Node.js | 22 or newer |
-| JavaScript package manager | pnpm 11.10.0 |
+| JavaScript package manager | pnpm 11.17.0 |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
 
@@ -236,9 +236,9 @@ path.
 `App.tsx` currently defines:
 
 - 3 public routes
-- 24 protected workspace routes
+- 26 protected workspace routes
 - 4 eager page components
-- 23 lazy page components
+- 25 lazy page components
 
 Add a route constant, direct page import, nested route, and navigation entry
 for every new page. Do not add page-level barrel files.
@@ -285,7 +285,7 @@ Requirements:
 - Use `DataTable` with `mobileCards` for wide flat tables.
 - Use `Money` where amounts could be compressed.
 - Give every chart an accessible name.
-- Preserve Light, Dark, and System themes.
+- Preserve both the Light and Dark themes.
 - Verify 320 px phone, phone landscape, tablet, desktop, and wide desktop
   layouts in a real browser.
 - Do not hide required workflows on mobile.
@@ -359,7 +359,7 @@ pnpm.cmd run check
 
 ### Frontend does not start
 
-- Confirm Node.js 22 and pnpm 11.10.0.
+- Confirm Node.js 22 and pnpm 11.17.0.
 - Run `pnpm install --frozen-lockfile` inside `frontend`.
 - Run `pnpm run clean` if the Vite cache is stale.
 - Check whether port 5173 is already in use.

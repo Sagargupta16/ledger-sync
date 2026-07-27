@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 
 import { addMonths, computeGoalProjection, differenceInMonths } from '../helpers'
+import type { GoalDeadlineState } from '../types'
 
 /**
  * These guard the whole-month contract of `differenceInMonths`. The bug class
@@ -87,20 +88,22 @@ describe('addMonths', () => {
 })
 
 describe('computeGoalProjection -- required monthly savings near the deadline', () => {
-  it('does not inflate the required amount when the target is 1 day out', () => {
+  /**
+   * Sub-month and already-missed deadlines share one contract: no whole month
+   * remains, so no per-month figure is quoted at all. The fractional version
+   * divided by 1/30 and 3/30 on the two near cases and quoted up to 30x the
+   * target amount, and a missed deadline has no remaining months to spread over,
+   * so its negative span is floored at 0.
+   */
+  it.each<[string, string, GoalDeadlineState]>([
+    ['1 day out', '2026-07-28', 'due_soon'],
+    ['3 days out', '2026-07-30', 'due_soon'],
+    ['already past', '2026-05-01', 'past_due'],
+  ])('quotes no required amount when the target is %s', (_label, targetDate, deadlineState) => {
     const now = new Date(2026, 6, 27)
-    const projection = computeGoalProjection(makeGoal({ target_date: '2026-07-28' }), 0, null, now)
+    const projection = computeGoalProjection(makeGoal({ target_date: targetDate }), 0, null, now)
     expect(projection.monthsRemaining).toBe(0)
-    expect(projection.deadlineState).toBe('due_soon')
-    // The fractional version divided by 1/30 and quoted 30x the target amount.
-    expect(projection.requiredMonthlySavings).toBeNull()
-  })
-
-  it('does not inflate the required amount when the target is 3 days out', () => {
-    const now = new Date(2026, 6, 27)
-    const projection = computeGoalProjection(makeGoal({ target_date: '2026-07-30' }), 0, null, now)
-    expect(projection.monthsRemaining).toBe(0)
-    expect(projection.deadlineState).toBe('due_soon')
+    expect(projection.deadlineState).toBe(deadlineState)
     expect(projection.requiredMonthlySavings).toBeNull()
   })
 
@@ -126,16 +129,6 @@ describe('computeGoalProjection -- required monthly savings near the deadline', 
     expect(projection.monthsRemaining).toBe(1)
     expect(projection.deadlineState).toBe('scheduled')
     expect(projection.requiredMonthlySavings).toBe(TARGET_AMOUNT)
-  })
-
-  it('treats a target date in the past as past_due with no monthly figure', () => {
-    // A missed deadline has no remaining months to spread over, so no required
-    // monthly amount is quoted; the negative span is floored at 0.
-    const now = new Date(2026, 6, 27)
-    const projection = computeGoalProjection(makeGoal({ target_date: '2026-05-01' }), 0, null, now)
-    expect(projection.monthsRemaining).toBe(0)
-    expect(projection.deadlineState).toBe('past_due')
-    expect(projection.requiredMonthlySavings).toBeNull()
   })
 
   it('leaves an open-ended goal with no deadline pressure', () => {

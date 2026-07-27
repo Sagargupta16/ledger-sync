@@ -135,6 +135,73 @@ interface Gap {
 }
 
 /**
+ * Every figure the panel renders, derived in one place.
+ *
+ * Extracted from the component body, which had accumulated the card scan, four
+ * reduces, the gap tally and the ratio guard inline (cognitive complexity 18 vs
+ * the 15 allowed, S3776). Keeping the derivation pure also means the ratio and
+ * its disclosed coverage cannot drift apart: `overallUtilization` and
+ * `measured` are computed from the same pass, so a card can never be inside the
+ * numerator but outside the stated denominator.
+ */
+interface CardTotals {
+  readonly measured: readonly MeasuredCard[]
+  readonly unmeasuredCount: number
+  readonly gap: Gap
+  readonly totalBalance: number
+  readonly measuredBalance: number
+  readonly measuredLimit: number
+  /** null when no positive limit is known -- never a fabricated denominator. */
+  readonly overallUtilization: number | null
+  readonly isElevated: boolean
+}
+
+function summarizeCards(creditCards: readonly CreditCardAccount[]): CardTotals {
+  const measured = creditCards.filter((c): c is MeasuredCard => c.utilization !== null)
+  const unmeasured = creditCards.filter((c) => c.utilization === null)
+
+  // A limit of 0 WAS configured -- it is just unusable as a denominator. Copy has
+  // to distinguish that from "never set", or it tells the user to do a thing
+  // they already did.
+  const gap: Gap = {
+    noLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === null).length,
+    zeroLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === 0).length,
+    unavailable: unmeasured.filter((c) => c.balance === null).length,
+  }
+
+  const measuredBalance = measured.reduce((sum, c) => sum + c.balance, 0)
+  const measuredLimit = measured.reduce((sum, c) => sum + c.creditLimit, 0)
+  const overallUtilization = measuredLimit > 0 ? (measuredBalance / measuredLimit) * 100 : null
+
+  return {
+    measured,
+    unmeasuredCount: unmeasured.length,
+    gap,
+    totalBalance: creditCards.reduce((sum, c) => sum + (c.balance ?? 0), 0),
+    measuredBalance,
+    measuredLimit,
+    overallUtilization,
+    isElevated: overallUtilization !== null && overallUtilization > 50,
+  }
+}
+
+/**
+ * Header icon tone. Static class pairs -- Tailwind cannot scan an interpolated
+ * class name -- keyed by state rather than nested ternaries (S3358). Purple for
+ * an unrateable set: it is neither healthy nor not.
+ */
+const HEADER_TONE = {
+  unrateable: { bg: 'bg-app-purple/20', text: 'text-app-purple' },
+  elevated: { bg: 'bg-app-yellow/20', text: 'text-app-yellow' },
+  healthy: { bg: 'bg-app-green/20', text: 'text-app-green' },
+} as const
+
+function headerToneFor(overallUtilization: number | null, isElevated: boolean) {
+  if (overallUtilization === null) return HEADER_TONE.unrateable
+  return isElevated ? HEADER_TONE.elevated : HEADER_TONE.healthy
+}
+
+/**
  * Why no percentage exists, in the user's terms. "no limits set" was printed even
  * when the user HAD set a limit of 0, contradicting the per-card row right below
  * it and sending them to settings to redo work already done, so each reason is
@@ -304,22 +371,16 @@ export default function CreditCardHealth() {
 
   // Every aggregate needing a denominator is computed over measured cards only,
   // and the coverage is always disclosed next to the number.
-  const measured = creditCards.filter((c): c is MeasuredCard => c.utilization !== null)
-  const unmeasured = creditCards.filter((c) => c.utilization === null)
-  const unmeasuredCount = unmeasured.length
-  // A limit of 0 WAS configured -- it is just unusable as a denominator. Copy has
-  // to distinguish that from "never set", or it tells the user to do a thing
-  // they already did.
-  const gap: Gap = {
-    noLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === null).length,
-    zeroLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === 0).length,
-    unavailable: unmeasured.filter((c) => c.balance === null).length,
-  }
-  const totalBalance = creditCards.reduce((sum, c) => sum + (c.balance ?? 0), 0)
-  const measuredBalance = measured.reduce((sum, c) => sum + c.balance, 0)
-  const measuredLimit = measured.reduce((sum, c) => sum + c.creditLimit, 0)
-  const overallUtilization = measuredLimit > 0 ? (measuredBalance / measuredLimit) * 100 : null
-  const isElevated = overallUtilization !== null && overallUtilization > 50
+  const {
+    measured,
+    unmeasuredCount,
+    gap,
+    totalBalance,
+    measuredBalance,
+    measuredLimit,
+    overallUtilization,
+    isElevated,
+  } = summarizeCards(creditCards)
 
   if (isLoading) {
     return (
@@ -348,13 +409,7 @@ export default function CreditCardHealth() {
     )
   }
 
-  // Static class pairs -- Tailwind cannot scan an interpolated class name.
-  const headerTone =
-    overallUtilization === null
-      ? { bg: 'bg-app-purple/20', text: 'text-app-purple' }
-      : isElevated
-        ? { bg: 'bg-app-yellow/20', text: 'text-app-yellow' }
-        : { bg: 'bg-app-green/20', text: 'text-app-green' }
+  const headerTone = headerToneFor(overallUtilization, isElevated)
 
   const cardCountLabel = countLabel(creditCards.length)
   // The denominator's provenance travels with the number everywhere it appears.

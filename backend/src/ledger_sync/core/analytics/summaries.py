@@ -214,57 +214,89 @@ class SummariesMixin(AnalyticsEngineBase):
         ClassificationMixin, which will be present at runtime via MRO.
         """
         if txn.type == TransactionType.INCOME:
-            data["total_income"] += amount
-            data["income_count"] += 1
-            if self._is_salary_income(txn):  # type: ignore[attr-defined]
-                data["salary_income"] += amount
-            elif self._is_investment_income(txn):  # type: ignore[attr-defined]
-                data["investment_income"] += amount
-            else:
-                data["other_income"] += amount
+            self._accumulate_monthly_income(txn, data, amount)
 
         elif txn.type == TransactionType.EXPENSE:
-            # A realised capital loss the user has classified is a negative
-            # investment RETURN, not consumption. Counting it as an expense
-            # inflated four numbers at once -- total_expenses, the
-            # essential/discretionary split, savings_rate and expense_ratio --
-            # because nothing sat between the type check and the accumulator.
-            #
-            # It gets its OWN bucket rather than being netted into
-            # investment_income, because the API publishes salary + investment +
-            # other == total_income and a negative component would break that
-            # sum for every consumer. It is not added to total_income either: a
-            # loss is not negative income, and pushing it there would corrupt
-            # the savings-rate denominator the same way the mirror gains bug
-            # does. It stays out of expense_count too, which backs "how many
-            # things did I spend on".
-            #
-            # The money DID leave, so net_savings still subtracts it (see
-            # ``_calculate_monthly_summaries``): wealth fell, consumption did
-            # not.
-            if self._is_capital_loss(txn):  # type: ignore[attr-defined]
-                data["capital_losses"] += amount
-                return
-
-            data["total_expenses"] += amount
-            data["expense_count"] += 1
-            if txn.category in self.essential_categories:
-                data["essential_expenses"] += amount
-            else:
-                data["discretionary_expenses"] += amount
+            self._accumulate_monthly_expense(txn, data, amount)
 
         elif txn.type == TransactionType.TRANSFER:
-            data["transfer_count"] += 1
-            data["total_transfers_out"] += amount
-            data["total_transfers_in"] += amount
-            # Treat each leg independently (not elif): a transfer BETWEEN two
-            # investment accounts is internal rebalancing and must net to zero,
-            # not register as a fresh inflow. -amount for money INTO investments,
-            # +amount for money OUT, so investment->investment cancels.
-            if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
-                data["net_investment_flow"] -= amount
-            if self._is_investment_account(txn.from_account):  # type: ignore[attr-defined]
-                data["net_investment_flow"] += amount
+            self._accumulate_monthly_transfer(txn, data, amount)
+
+    def _accumulate_monthly_income(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Add an INCOME row to the monthly total and to exactly one bucket.
+
+        The buckets are checked in this order because they are not disjoint, and
+        ``other_income`` is the residual that keeps the API's published
+        salary + investment + other == total_income identity holding.
+        """
+        data["total_income"] += amount
+        data["income_count"] += 1
+        if self._is_salary_income(txn):  # type: ignore[attr-defined]
+            data["salary_income"] += amount
+        elif self._is_investment_income(txn):  # type: ignore[attr-defined]
+            data["investment_income"] += amount
+        else:
+            data["other_income"] += amount
+
+    def _accumulate_monthly_expense(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Add an EXPENSE row to monthly expenses, or to the realised-loss bucket."""
+        # A realised capital loss the user has classified is a negative
+        # investment RETURN, not consumption. Counting it as an expense
+        # inflated four numbers at once -- total_expenses, the
+        # essential/discretionary split, savings_rate and expense_ratio --
+        # because nothing sat between the type check and the accumulator.
+        #
+        # It gets its OWN bucket rather than being netted into
+        # investment_income, because the API publishes salary + investment +
+        # other == total_income and a negative component would break that
+        # sum for every consumer. It is not added to total_income either: a
+        # loss is not negative income, and pushing it there would corrupt
+        # the savings-rate denominator the same way the mirror gains bug
+        # does. It stays out of expense_count too, which backs "how many
+        # things did I spend on".
+        #
+        # The money DID leave, so net_savings still subtracts it (see
+        # ``_calculate_monthly_summaries``): wealth fell, consumption did
+        # not.
+        if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+            data["capital_losses"] += amount
+            return
+
+        data["total_expenses"] += amount
+        data["expense_count"] += 1
+        if txn.category in self.essential_categories:
+            data["essential_expenses"] += amount
+        else:
+            data["discretionary_expenses"] += amount
+
+    def _accumulate_monthly_transfer(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Add a TRANSFER row to the transfer counters and net investment flow."""
+        data["transfer_count"] += 1
+        data["total_transfers_out"] += amount
+        data["total_transfers_in"] += amount
+        # Treat each leg independently (not elif): a transfer BETWEEN two
+        # investment accounts is internal rebalancing and must net to zero,
+        # not register as a fresh inflow. -amount for money INTO investments,
+        # +amount for money OUT, so investment->investment cancels.
+        if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
+            data["net_investment_flow"] -= amount
+        if self._is_investment_account(txn.from_account):  # type: ignore[attr-defined]
+            data["net_investment_flow"] += amount
 
     def _calculate_daily_summaries(
         self,

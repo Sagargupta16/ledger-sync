@@ -19,24 +19,35 @@ interface ImportLedgerPanelProps {
  * skipped in particular is invisible everywhere else, yet those rows are missing
  * from every metric on every page.
  */
-export default function ImportLedgerPanel({ rows, fileName, importedAt }: ImportLedgerPanelProps) {
-  const locale = getActiveLocale()
+function OutcomeCell({ row }: { readonly row: ImportLedgerRow }) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
+      <p className="text-xs text-text-tertiary">{row.hint}</p>
+    </div>
+  )
+}
 
-  // No import has ever run, so there are no counts to explain. The freshness
-  // banner above already says so; a table of zeroes would just add noise.
-  if (rows.length === 0) return null
+function RowCountCell({ count, locale }: { readonly count: number; readonly locale: string }) {
+  return (
+    <span className="text-sm font-semibold tabular-nums text-foreground">
+      {count.toLocaleString(locale)}
+    </span>
+  )
+}
 
-  const columns: readonly DataTableColumn<ImportLedgerRow>[] = [
+/**
+ * `locale` stays a parameter rather than being read here: `getActiveLocale()`
+ * depends on user preferences, so resolving it at module scope would freeze the
+ * first value the module ever saw.
+ */
+function buildColumns(locale: string): readonly DataTableColumn<ImportLedgerRow>[] {
+  return [
     {
       key: 'label',
       header: 'Outcome',
       mobilePrimary: true,
-      cell: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">{row.label}</p>
-          <p className="text-xs text-text-tertiary">{row.hint}</p>
-        </div>
-      ),
+      cell: (row) => <OutcomeCell row={row} />,
     },
     {
       key: 'count',
@@ -44,13 +55,17 @@ export default function ImportLedgerPanel({ rows, fileName, importedAt }: Import
       align: 'right',
       widthClass: 'w-24',
       mobileLabel: 'Rows',
-      cell: (row) => (
-        <span className="text-sm font-semibold tabular-nums text-foreground">
-          {row.count.toLocaleString(locale)}
-        </span>
-      ),
+      cell: (row) => <RowCountCell count={row.count} locale={locale} />,
     },
   ]
+}
+
+export default function ImportLedgerPanel({ rows, fileName, importedAt }: ImportLedgerPanelProps) {
+  const locale = getActiveLocale()
+
+  // No import has ever run, so there are no counts to explain. The freshness
+  // banner above already says so; a table of zeroes would just add noise.
+  if (rows.length === 0) return null
 
   return (
     <section className="ledger-panel space-y-3 p-4">
@@ -64,7 +79,7 @@ export default function ImportLedgerPanel({ rows, fileName, importedAt }: Import
       </div>
 
       <DataTable
-        columns={columns}
+        columns={buildColumns(locale)}
         rows={rows}
         rowKey={(row) => row.id}
         ariaLabel="Row counts from the most recent import"

@@ -1,8 +1,8 @@
 # Ledger Sync Handbook
 
-User guide for Ledger Sync 2.22.0.
+User guide for Ledger Sync 2.23.0.
 
-Verified against the live frontend source on 2026-07-24. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
+Verified against the live frontend source on 2026-07-27. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
 
 ## Start Here
 
@@ -23,9 +23,9 @@ If the dialog says it could not reach the sign-in service, use Try again once. I
 
 The left sidebar contains:
 
-- Dashboard and Overview at the top.
-- Analytics, Wealth, Commitments, Planning, Tax, and Data groups.
-- Search, currency, theme, Upload, Settings, and sign-out controls.
+- Dashboard, Overview, and Transactions at the top.
+- Analytics, Wealth, Commitments, Planning, and Tax groups.
+- A utility bar with Upload and Sync and Settings, then search, currency, theme, and sign-out controls.
 - The current user profile at the bottom.
 
 The global workspace header shows the current page and provides Search, Ask AI, and notifications when available.
@@ -47,7 +47,7 @@ Use the sidebar Search control, the workspace header, or `Ctrl+K` to open the co
 
 ### Themes
 
-Light is the default. Settings and the sidebar theme control support Light, Dark, and System.
+Settings and the sidebar theme control switch between Light and Dark. Before you choose, the app follows your operating system setting.
 
 ### Data errors and recovery
 
@@ -435,7 +435,7 @@ The first four sections in this group start expanded; Investment Mappings starts
 
 ### Profile and Display
 
-8. **Display Preferences** - number format, display currency, default range, earning start date, and Light/Dark/System theme.
+8. **Display Preferences** - number format, display currency, default range, earning start date, and Light/Dark theme.
 9. **Notifications** - budget, anomaly, and upcoming-bill preferences.
 10. **Dashboard Widgets** - choose visible Quick Insights.
 11. **AI Assistant** - app Bedrock or BYOK mode, provider/model/key, and token limits.

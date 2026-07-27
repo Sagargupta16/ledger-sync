@@ -39,7 +39,7 @@ export function generateDemoAiUsage(now: Date = new Date()): UsageResponse {
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   )
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-  const nextReset = new Date(dayStart.getTime())
+  const nextReset = new Date(dayStart)
   nextReset.setUTCDate(nextReset.getUTCDate() + 1)
 
   return {

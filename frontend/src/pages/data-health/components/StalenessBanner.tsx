@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { CalendarClock, CircleCheck, TriangleAlert } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { ROUTES } from '@/constants'
@@ -41,6 +42,13 @@ const LEVEL_STYLES: Record<
   },
 }
 
+const LEVEL_ICON: Record<FreshnessLevel, LucideIcon> = {
+  fresh: CircleCheck,
+  aging: CalendarClock,
+  stale: CalendarClock,
+  critical: TriangleAlert,
+}
+
 const LEVEL_TITLE: Record<FreshnessLevel, string> = {
   fresh: 'Ledger is up to date',
   aging: 'Ledger is a few days behind',
@@ -58,7 +66,7 @@ const LEVEL_TITLE: Record<FreshnessLevel, string> = {
 export default function StalenessBanner({ freshness }: StalenessBannerProps) {
   const styles = LEVEL_STYLES[freshness.level]
   const isFresh = freshness.level === 'fresh'
-  const Icon = isFresh ? CircleCheck : (freshness.level === 'critical' ? TriangleAlert : CalendarClock)
+  const Icon = LEVEL_ICON[freshness.level]
 
   return (
     <motion.section

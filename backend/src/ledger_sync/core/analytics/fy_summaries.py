@@ -182,35 +182,59 @@ class FYSummariesMixin(AnalyticsEngineBase):
     ) -> None:
         """Mutate *data* with the FY-level classification for *txn*."""
         if txn.type == TransactionType.INCOME:
-            data["total_income"] += amount
-            if self._is_salary_income(txn):  # type: ignore[attr-defined]
-                data["salary_income"] += amount
-            elif self._is_bonus_income(txn):  # type: ignore[attr-defined]
-                data["bonus_income"] += amount
-            elif self._is_investment_income(txn):  # type: ignore[attr-defined]
-                data["investment_income"] += amount
-            else:
-                data["other_income"] += amount
+            self._accumulate_fy_income(txn, data, amount)
 
         elif txn.type == TransactionType.EXPENSE:
-            # Same exclusion as the monthly rollup: a classified realised loss
-            # is a negative investment return, not consumption, so it must not
-            # inflate FY expenses or the FY savings rate. Its own bucket keeps
-            # the loss visible and auditable.
-            #
-            # The tax_paid test below is skipped along with it, which is correct
-            # and load-bearing: the loss subcategory would otherwise be free to
-            # match ``_TAX_NOTE_RE`` on a note like "STCG loss adjustment" and
-            # book a capital LOSS as tax PAID, which then flows into the Tax
-            # Planning page as a credit the user never paid.
-            if self._is_capital_loss(txn):  # type: ignore[attr-defined]
-                data["capital_losses"] += amount
-                return
-
-            data["total_expenses"] += amount
-            if txn.category == "Taxes" or _TAX_NOTE_RE.search(txn.note or ""):
-                data["tax_paid"] += amount
+            self._accumulate_fy_expense(txn, data, amount)
 
         elif txn.type == TransactionType.TRANSFER:
             if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
                 data["investments_made"] += amount
+
+    def _accumulate_fy_income(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Add an INCOME row to the FY total and to exactly one income bucket.
+
+        The buckets are checked in this order because they are not disjoint: a
+        taxable row whose subcategory reads like both salary and a bonus must
+        land in salary, and ``other_income`` is the residual that keeps
+        salary + bonus + investment + other == total_income.
+        """
+        data["total_income"] += amount
+        if self._is_salary_income(txn):  # type: ignore[attr-defined]
+            data["salary_income"] += amount
+        elif self._is_bonus_income(txn):  # type: ignore[attr-defined]
+            data["bonus_income"] += amount
+        elif self._is_investment_income(txn):  # type: ignore[attr-defined]
+            data["investment_income"] += amount
+        else:
+            data["other_income"] += amount
+
+    def _accumulate_fy_expense(
+        self,
+        txn: Transaction,
+        data: dict[str, Any],
+        amount: Decimal,
+    ) -> None:
+        """Add an EXPENSE row to FY expenses, or to the realised-loss bucket."""
+        # Same exclusion as the monthly rollup: a classified realised loss
+        # is a negative investment return, not consumption, so it must not
+        # inflate FY expenses or the FY savings rate. Its own bucket keeps
+        # the loss visible and auditable.
+        #
+        # The tax_paid test below is skipped along with it, which is correct
+        # and load-bearing: the loss subcategory would otherwise be free to
+        # match ``_TAX_NOTE_RE`` on a note like "STCG loss adjustment" and
+        # book a capital LOSS as tax PAID, which then flows into the Tax
+        # Planning page as a credit the user never paid.
+        if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+            data["capital_losses"] += amount
+            return
+
+        data["total_expenses"] += amount
+        if txn.category == "Taxes" or _TAX_NOTE_RE.search(txn.note or ""):
+            data["tax_paid"] += amount

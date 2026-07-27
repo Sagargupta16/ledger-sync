@@ -1,9 +1,9 @@
 # System Architecture
 
-Architecture reference for Ledger Sync 2.22.0.
+Architecture reference for Ledger Sync 2.23.0.
 
 Verified against the application entry points, route tree, stores, API
-registration, model metadata, and deployment workflows on 2026-07-14.
+registration, model metadata, and deployment workflows on 2026-07-27.
 
 ## System Overview
 
@@ -24,7 +24,7 @@ Browser
   |     +-- responsive desktop and phone workspace
   |
   +-- HTTPS JSON API
-        +-- FastAPI on Vercel through Mangum
+        +-- FastAPI on Vercel (ASGI)
               +-- SQLAlchemy and Alembic
               +-- Neon PostgreSQL 17
               +-- Google and GitHub OAuth
@@ -68,7 +68,7 @@ Responsibilities:
 `main.py` creates the FastAPI app, shared `httpx` client, middleware, exception
 handlers, health checks, and router registration.
 
-The current OpenAPI schema contains 99 paths and 113 operations across:
+The current OpenAPI schema contains 104 paths and 118 operations across:
 
 - Authentication and OAuth
 - Upload and transactions
@@ -94,7 +94,9 @@ Key modules:
 | `reconciler_transfers.py` | Transfer-pair normalization and reconciliation |
 | `calculator.py` | Pure on-demand financial metrics |
 | `query_helpers.py` | Database-agnostic SQL and shared filters |
-| `time_filter.py` | Current-date anchored relative ranges |
+| `time_filter.py` | Relative ranges anchored on the IST ledger clock |
+| `ledger_clock.py` | Single source of naive IST `now`, `today`, month, and financial-year boundaries |
+| `expense_class.py` | Realised-capital-loss taxonomy that keeps trading losses out of consumption totals |
 | `rules.py` | Categorization rule matching |
 | `report_generator.py` | Monthly report construction |
 | `encryption.py` | AES-256-GCM BYOK key encryption and legacy migration |
@@ -115,6 +117,11 @@ anomalies.py
 cohort.py
 engine.py
 ```
+
+`merchant_extract.py` sits alongside them as a pure helper rather than a mixin.
+It owns merchant label extraction: brands are matched with an ambiguity guard,
+and a miss keeps the whole normalized note as a descriptor instead of the first
+word, so nothing is dropped and unrelated purchases are not over-merged.
 
 `core/analytics_engine.py` is a backwards-compatible facade that re-exports
 the composed `AnalyticsEngine`. New analytics behavior belongs in the domain
@@ -232,12 +239,12 @@ types/
 
 ### Routing and loading
 
-`App.tsx` defines 27 routed page components:
+`App.tsx` defines 29 routed page components:
 
 - 3 public routes
-- 24 protected workspace pages
+- 26 protected workspace pages
 - 4 eager page components
-- 23 lazy page components
+- 25 lazy page components
 
 Eager components:
 
@@ -331,7 +338,7 @@ Zustand stores:
 | `investmentAccountStore` | Local investment-account set |
 | `budgetStore` | Budget client state |
 | `demoStore` | Demo mode activation |
-| `themeStore` | Light, dark, system, and resolved theme |
+| `themeStore` | Light or dark mode plus the resolved theme; new users start from the OS preference |
 
 Stores should not duplicate API server state without a specific persistence or
 cross-page reason.
@@ -443,7 +450,7 @@ Frontend:
 | Layer | Hosted platform |
 | --- | --- |
 | Frontend | GitHub Pages |
-| Backend | Vercel serverless through Mangum |
+| Backend | Vercel serverless, ASGI |
 | Database | Neon PostgreSQL 17 |
 
 Frontend and backend deploy from `main`. A separate migration workflow runs
@@ -454,14 +461,15 @@ when migrations or model files change. See [DEPLOYMENT.md](DEPLOYMENT.md).
 CI has three gates:
 
 - Frontend shared workflow for install, lint, build, and Vitest
-- Backend Python 3.13 job for Ruff, format check, mypy, and pytest
+- Backend Python 3.13 job for Ruff, format check, mypy, pytest, and an
+  `alembic upgrade head` run against an empty database
 - Shared security scan workflow
 
 Current local suite baseline:
 
-- 328 backend tests
-- 287 frontend tests
-- 615 total tests
+- 818 backend tests
+- 1,401 frontend tests across 118 files
+- 2,219 total tests
 
 See [TESTING.md](TESTING.md) for commands and scope.
 
