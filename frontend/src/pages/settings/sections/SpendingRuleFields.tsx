@@ -1,5 +1,14 @@
 /**
  * Spending Rule (50/30/20) fields sub-component for Financial Settings.
+ *
+ * The Savings % here is NOT the same target as the "Savings Goal (%)" field
+ * above it in this section. This one is scored on the Budget Rule page against
+ * the net change in the investment perimeter -- money actually moved into
+ * SIP/PPF/EPF/NPS/stocks. Savings Goal is scored against income minus expenses,
+ * which on the real ledger is roughly twice as large for the same period, so
+ * clearing 20% here is a materially harder bar than clearing 20% there. Both
+ * fields are surfaced with their numerators stated rather than reconciled; see
+ * `lib/savingsRate.ts` for why the two definitions stay separate.
  */
 
 import type { LocalPrefs, LocalPrefKey } from '../types'
@@ -53,7 +62,7 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
         </div>
         <div>
           <label htmlFor="savings-percent" className="text-xs text-muted-foreground mb-1 block">
-            Savings %
+            Savings % (invested)
           </label>
           <input
             id="savings-percent"
@@ -72,6 +81,11 @@ export default function SpendingRuleFields({ localPrefs, updateLocalPref }: Read
       ) : (
         <p className="mt-1.5 text-xs text-app-yellow">Totals {sum}% (should be 100%)</p>
       )}
+      <FieldHint>
+        Scores the Budget Rule page. Savings % here means income moved into
+        investment accounts, not income left over -- a harder bar at the same
+        number. For the leftover-income target, use Savings Goal above.
+      </FieldHint>
     </div>
   )
 }

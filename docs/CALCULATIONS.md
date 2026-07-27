@@ -354,7 +354,31 @@ lifestyle_inflation =
 - Wants
 - Savings
 
-Targets default to 50, 30, and 20 percent but are user configurable.
+Targets default to 50, 30, and 20 percent but are user configurable via
+`needs_target_percent`, `wants_target_percent`, and `savings_target_percent`.
+
+### Which savings target applies where
+
+Two pages show a Savings card, on two different numerators, and each is scored
+against its own preference. They are not interchangeable.
+
+| Page | Savings numerator | Target preference |
+| --- | --- | --- |
+| Budget Rule (`/budgets`) | net change in the investment perimeter (allocations into SIP/PPF/EPF/NPS/stocks minus redemptions) | `savings_target_percent` |
+| Expense Analysis (`/spending-analysis`) | income minus expenses | `savings_goal_percent` |
+
+The same `savings_goal_percent` also drives the Financial Health savings metric
+and the Trends cumulative-savings-rate goal line, which score the same
+income-minus-expenses quantity.
+
+Both preferences default to 20.0, and a percentage of income at 20 is a much
+harder bar on the allocation numerator than on the leftover-income one: on the
+real ledger for FY2025-26 the two numerators are 578,428.79 and 1,182,355.68,
+roughly 2x apart. Sharing one preference across both therefore let one page
+report "under target" while the other reported "on track" for the same user in
+the same period. The numerators themselves are deliberately different and must
+not be reconciled -- see the "TWO RATES, TWO QUESTIONS" note in
+`frontend/src/lib/savingsRate.ts`.
 
 Classification combines:
 

@@ -186,6 +186,12 @@ It combines:
 
 Category deep links keep the selected category visible until cleared.
 
+The Savings card here is income minus expenses, scored against your Savings Goal
+in Settings. The Budget Rule page shows a Savings card too, but it counts only
+money you moved into investment accounts and scores it against the Spending
+Rule's Savings percentage. The two numbers answer different questions and will
+not match; each card names its own definition and target.
+
 ### Income Analysis
 
 **Route:** `/income`
@@ -326,6 +332,13 @@ The three buckets are:
 Each card shows target, actual, delta, and score. Category averages are grouped below each bucket. Choose 1 year, 2 years, 5 years, All Time, or Custom.
 
 Targets and category rules come from Settings.
+
+Savings on this page means the net change in your investment perimeter: money
+moved into SIP, PPF, EPF, NPS, or stock accounts, minus what came back out.
+Income that merely stayed in your bank appears as Unallocated, not as Savings.
+The floor it is scored against is the Spending Rule's Savings percentage. The
+Expense Analysis page scores income minus expenses against your Savings Goal
+instead, so expect the two Savings figures to differ.
 
 ### Financial Goals
 
