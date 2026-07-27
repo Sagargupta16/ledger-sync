@@ -18,14 +18,10 @@ import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { computeAgeOfMoney, computeDaysOfBuffering } from '@/lib/ageOfMoneyCalculator'
+import { computeAgeOfMoney, computeDaysOfBuffering, computeLiquidPosition } from '@/lib/ageOfMoneyCalculator'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
-
-/** Account types whose balances count as spendable for runway math. */
-const LIQUID_CLASSIFICATIONS = new Set(['Cash', 'Bank Accounts', 'Other Wallets'])
-
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -75,7 +71,9 @@ export default function DashboardPage() {
   // Feeding lifetime income-minus-expense here counted investments (PPF, MF,
   // stocks) as spendable and inflated the runway (~754 days vs the real
   // cash position on audit data). Balances come from account_balances and
-  // are filtered by the user's account classifications.
+  // are folded by `computeLiquidPosition`, which owns the classification set,
+  // the parked-deposit exclusion, and the negative-balance-is-a-liability rule.
+  // Summing a bare total here instead re-inflated the runway to 150 days.
   const balanceQuery = useAccountBalances()
   const balanceData = balanceQuery.data
   const classificationsQuery = useQuery({
@@ -88,17 +86,10 @@ export default function DashboardPage() {
     if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
       return null
     }
-    let liquidBalance = 0
-    for (const [name, acc] of Object.entries(balanceData.accounts)) {
-      const cls = accountClassifications[name]
-      // Unclassified accounts are excluded rather than guessed -- counting an
-      // unlabeled brokerage as cash would silently re-inflate the runway.
-      if (cls && LIQUID_CLASSIFICATIONS.has(cls)) {
-        const bal = Number(acc.balance)
-        if (Number.isFinite(bal)) liquidBalance += bal
-      }
-    }
-    return computeDaysOfBuffering(liquidBalance, filteredTransactions)
+    // Unclassified accounts are excluded rather than guessed -- counting an
+    // unlabeled brokerage as cash would silently re-inflate the runway.
+    const liquid = computeLiquidPosition(balanceData.accounts, accountClassifications)
+    return computeDaysOfBuffering(liquid, filteredTransactions)
   }, [filteredTransactions, balanceData, accountClassifications])
 
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])

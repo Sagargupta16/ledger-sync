@@ -52,7 +52,14 @@ export default function FinancialSettingsSection({
           <FieldHint>Default: April (India FY)</FieldHint>
         </div>
 
-        {/* Savings Goal */}
+        {/*
+          Savings Goal -- the floor on INCOME NOT CONSUMED. Distinct from the
+          Spending Rule's Savings % below, which is a floor on income MOVED INTO
+          INSTRUMENTS. Both are percentages of income named "savings" and both
+          default to 20, so each field states its numerator; without that, one
+          number silently sets two bars of very different difficulty. See
+          `lib/savingsRate.ts` for why the numerators stay separate.
+        */}
         <div>
           <FieldLegend>Savings Goal (%)</FieldLegend>
           <div className="flex items-center gap-3">
@@ -89,6 +96,11 @@ export default function FinancialSettingsSection({
               className="ledger-control min-h-11 w-16 rounded-lg border border-border px-2 py-2 text-center text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
             />
           </div>
+          <FieldHint>
+            Minimum share of income you want left after expenses, wherever it
+            ends up. Scores the Expense Analysis Savings card, the Financial
+            Health savings metric, and the Trends savings-rate goal line.
+          </FieldHint>
         </div>
 
         {/* Monthly Investment Target */}

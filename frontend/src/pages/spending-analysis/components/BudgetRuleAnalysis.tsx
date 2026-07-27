@@ -31,6 +31,13 @@ interface SpendingChartDatum {
 interface BudgetRuleAnalysisProps {
   readonly needsTarget: number
   readonly wantsTarget: number
+  /**
+   * Floor for the SAVINGS card, from `savings_goal_percent` -- the
+   * income-minus-expenses target. Not `savings_target_percent`, which is the
+   * /budgets allocation floor scored against money moved into instruments; see
+   * `useSpendingAnalysis` for the two numerators and why they keep separate
+   * targets.
+   */
   readonly savingsTarget: number
   readonly spendingChartData: SpendingChartDatum[]
   readonly spendingBreakdown: SpendingBreakdown | null
@@ -52,9 +59,25 @@ export default function BudgetRuleAnalysis({
       className="glass rounded-xl border border-border p-4 sm:p-6"
       {...SCROLL_FADE_UP}
     >
-      <h2 className="mb-4 text-lg font-semibold text-foreground">
-        {needsTarget}/{wantsTarget}/{savingsTarget} Budget Rule Analysis
+      {/*
+        The heading used to read `{needs}/{wants}/{savings} Budget Rule
+        Analysis`. It cannot: the Savings floor now comes from
+        `savings_goal_percent` while Needs/Wants come from the 50/30/20 triplet,
+        so the three numbers are no longer guaranteed to sum to 100 and printing
+        them slash-joined would advertise a rule they do not form. The two caps
+        stay in the heading because they ARE two legs of that triplet; the floor
+        moves into the caption next to the definition it is applied to.
+      */}
+      <h2 className="text-lg font-semibold text-foreground">
+        Budget Rule Analysis: Needs {needsTarget}% / Wants {wantsTarget}%
       </h2>
+      <p className="mb-4 mt-1 text-xs text-muted-foreground">
+        Needs and Wants are capped shares of income. The Savings floor of{' '}
+        {savingsTarget}% is your Savings Goal, applied to income left after
+        expenses. The Budget Rule page scores a separate target against money
+        actually moved into investments, so the two savings figures differ by
+        design.
+      </p>
 
       {spendingChartData.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
@@ -132,7 +155,11 @@ export default function BudgetRuleAnalysis({
           />
           <BudgetRuleCard
             title={`Savings (${savingsTarget}%)`}
-            subtitle="Income minus Expenses"
+            // Names the numerator AND the preference the floor comes from. The
+            // /budgets Savings card carries a different number under the same
+            // word, so "which target is this" has to be readable on the card
+            // rather than inferred from the page it sits on.
+            subtitle="Income minus Expenses, vs Savings Goal"
             icon={PiggyBank}
             value={savings}
             percent={budgetRuleMetrics?.savingsPercent ?? 0}
