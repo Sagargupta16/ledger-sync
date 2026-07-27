@@ -88,7 +88,7 @@ describe('demo income-analysis route', () => {
       end_date: `${secondMonth}-28`,
     })) as { monthly_data: MonthlyDatum[] }
 
-    expect(months.length).toBe(2)
+    expect(months).toHaveLength(2)
     expect(months.map((m) => m.income_avg_3m)).toEqual([null, null])
   })
 
@@ -203,7 +203,7 @@ describe('demo transactions/export route', () => {
     const text = await blob.text()
     const [header, ...rows] = text.trimEnd().split('\r\n')
     expect(header).toBe(DEMO_EXPORT_COLUMNS.join(','))
-    expect(rows.length).toBe(getDemoTransactions().length)
+    expect(rows).toHaveLength(getDemoTransactions().length)
   })
 
   it('resolves ahead of the generic /transactions route despite matching it too', async () => {

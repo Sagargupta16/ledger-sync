@@ -173,7 +173,7 @@ describe('analytics client param contract', () => {
 
     // One parsed call per `apiClient.get` in the file: if the parser silently
     // skips a method, that method's params go unchecked.
-    expect(calls.length).toBe(source.match(/apiClient\.get/g)?.length ?? 0)
+    expect(calls).toHaveLength(source.match(/apiClient\.get/g)?.length ?? 0)
     expect(calls.length).toBeGreaterThan(0)
     // And every one resolved a URL, otherwise the endpoint lookup below matches
     // nothing and passes for the wrong reason.
