@@ -45,7 +45,10 @@ export function useYearInReview() {
 
   const dataDateRange = useMemo(() => {
     if (transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    const dates = transactions.map((t) => t.date.substring(0, 10)).sort()
+    // Explicit comparator (S2871): the default `.sort()` coerces to string and
+    // compares code units, which is right for fixed-width date keys only by
+    // accident. Matches the ~15 other date sorts in this codebase.
+    const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
     return { minDate: dates[0], maxDate: dates[dates.length - 1] }
   }, [transactions])
 
@@ -72,7 +75,7 @@ export function useYearInReview() {
     const startStr = toLocalDateKey(startDate)
     const endStr = toLocalDateKey(endDate)
 
-    const summaryDates = dailySummaries.map((s) => s.date).sort()
+    const summaryDates = dailySummaries.map((s) => s.date).sort((a, b) => a.localeCompare(b))
     const hasCoverage =
       summaryDates.length > 0 &&
       summaryDates[0] <= startStr &&

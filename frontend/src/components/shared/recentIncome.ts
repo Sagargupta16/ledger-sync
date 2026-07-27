@@ -40,10 +40,16 @@ export function typicalMonthlyIncome(
   if (usable.length === 0) return null
   // The endpoint returns newest-first; sort so `slice` takes the newest window
   // regardless of the order the caller received.
+  //
+  // Explicit comparator, not a bare `.sort()`: the default coerces to string and
+  // compares UTF-16 code units, which happens to be right for fixed-width
+  // `YYYY-MM` keys but is right by accident, and Sonar flags it (S2871) because
+  // the next caller to pass a non-uniform key gets a silently wrong window.
+  // `localeCompare` is what the other ~15 date/period sorts in this codebase use.
   const window = new Set(
     usable
       .map((s) => s.period)
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
       .slice(-RECENT_INCOME_MONTHS),
   )
   return computeMedian(usable.filter((s) => window.has(s.period)).map((s) => s.income.total))
