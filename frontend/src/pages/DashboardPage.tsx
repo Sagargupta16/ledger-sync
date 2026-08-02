@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Wallet, CreditCard, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
+import MonthlyFlowChart from '@/components/analytics/MonthlyFlowChart'
 
 import PieLegend from '@/components/shared/PieLegend'
 import { capPieSlices } from '@/components/ui/pieSlices'
@@ -37,6 +38,8 @@ export default function DashboardPage() {
     incomeBreakdown, cashbacksTotal,
     incomeChartData,
     expenseChartData,
+    monthlyFlow,
+    partialMonthLabel,
     momChanges,
   } = useDashboardMetrics()
 
@@ -185,6 +188,9 @@ export default function DashboardPage() {
 
       {/* Financial Health Score */}
       <FinancialHealthScore transactions={filteredTransactions} />
+
+      {/* Income vs spending over time -- direction, which the pies below cannot show */}
+      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
 
       {/* Income Sources & Expense Sources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">

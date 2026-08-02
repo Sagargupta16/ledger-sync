@@ -14,6 +14,37 @@ class UploadResponse(BaseModel):
     file_name: str
 
 
+class ImportHistoryEntry(BaseModel):
+    """One past import, as shown in the Upload page's history list.
+
+    ``imported_at`` is serialized as an explicit UTC ISO-8601 string. The column
+    is a naive ``DateTime`` holding UTC values on both SQLite and Postgres, so
+    handing the naive value straight to the browser would be read as local time
+    and shift the displayed timestamp by the viewer's offset.
+
+    ``file_hash`` is included because it is the idempotency key: re-uploading a
+    file with a matching hash is what produces the 409 conflict prompt, so
+    surfacing it explains why a repeat upload was refused.
+    """
+
+    id: int
+    file_name: str
+    file_hash: str
+    imported_at: str
+    rows_processed: int
+    rows_inserted: int
+    rows_updated: int
+    rows_deleted: int
+    rows_skipped: int
+
+
+class ImportHistoryResponse(BaseModel):
+    """Most-recent-first page of import history."""
+
+    imports: list[ImportHistoryEntry]
+    total_count: int
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 

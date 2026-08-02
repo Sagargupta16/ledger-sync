@@ -8,16 +8,25 @@ stay in sync with the raw transactions. The explicit POST
 /api/analytics/v2/refresh endpoint remains available for manual re-syncs.
 """
 
+from datetime import UTC
+from typing import Annotated
+
 import anyio
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
+from sqlalchemy import desc, func, select
 from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.sync_engine import SyncEngine
+from ledger_sync.db.models import ImportLog
 from ledger_sync.ingest.normalizer import NormalizationError
-from ledger_sync.schemas.transactions import UploadResponse
+from ledger_sync.schemas.transactions import (
+    ImportHistoryEntry,
+    ImportHistoryResponse,
+    UploadResponse,
+)
 from ledger_sync.schemas.upload import TransactionUploadRequest
 from ledger_sync.utils.logging import logger
 
@@ -138,3 +147,58 @@ async def upload_transactions(
             status_code=500,
             detail="Failed to process data. Please try again.",
         ) from e
+
+
+@router.get("/api/upload/history")
+def get_import_history(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    limit: Annotated[int, Query(ge=1, le=100, description="Imports to return")] = 10,
+) -> ImportHistoryResponse:
+    """List this user's past imports, most recent first.
+
+    ``import_logs`` has always been written on every upload -- it is what makes
+    re-importing the same file idempotent -- but nothing ever showed it back to
+    the user, so there was no way to answer "did that import actually land, and
+    what did it change?" without opening the database. The Data Health page reads
+    only the single latest row; this returns the series.
+
+    ``total_count`` is the unpaginated total so the UI can say "showing 10 of N"
+    rather than implying the list is complete.
+
+    ``limit`` is a query parameter declared on the signature, matching how
+    FastAPI resolves it -- declaring it as a body model here would make the
+    browser's GET fail validation with a 422.
+    """
+    history_query = select(ImportLog).where(ImportLog.user_id == current_user.id)
+
+    total_count = (
+        db.execute(
+            select(func.count()).select_from(ImportLog).where(ImportLog.user_id == current_user.id),
+        ).scalar()
+        or 0
+    )
+
+    rows = (
+        db.execute(history_query.order_by(desc(ImportLog.imported_at)).limit(limit)).scalars().all()
+    )
+
+    return ImportHistoryResponse(
+        imports=[
+            ImportHistoryEntry(
+                id=row.id,
+                file_name=row.file_name,
+                file_hash=row.file_hash,
+                # Stored naive but holding UTC, so the tzinfo is attached before
+                # serializing. Without this the browser reads it as local time.
+                imported_at=row.imported_at.replace(tzinfo=UTC).isoformat(),
+                rows_processed=row.rows_processed,
+                rows_inserted=row.rows_inserted,
+                rows_updated=row.rows_updated,
+                rows_deleted=row.rows_deleted,
+                rows_skipped=row.rows_skipped,
+            )
+            for row in rows
+        ],
+        total_count=total_count,
+    )

@@ -51,30 +51,54 @@ describe('generateDemoTransactions', () => {
     expect(distinct).toEqual([...distinct].sort((a, b) => a - b))
   })
 
-  it('festival months (Oct/Nov) spend more than adjacent months on average', () => {
-    const monthlyExpense = new Map<string, number>()
-    for (const t of txs) {
-      if (t.type !== 'Expense') continue
-      const mk = monthKey(t.date)
-      monthlyExpense.set(mk, (monthlyExpense.get(mk) ?? 0) + t.amount)
-    }
+  it('festival months (Oct/Nov) spend more on the spiking categories', () => {
+    // Scoped to FESTIVAL_SPIKE_SUBCATS, the only spend `demoExpenses.amountFor`
+    // actually multiplies (by 1.35 when `ctx.festival`).
+    //
+    // This used to compare WHOLE-MONTH totals, which made it depend on today's
+    // date and fail on most anchors. The generator's one-off life events are
+    // placed by WINDOW OFFSET, not calendar month -- the gadget splurge at
+    // `m % 12 === 3` is 55k-95k, several times the entire festival boost. With a
+    // window starting in August that offset lands on November and the assertion
+    // passed for the wrong reason; starting in September it lands on December and
+    // the property inverted. Measured across eight anchor dates, whole-month
+    // festival averages swung between 77,329 and 117,808 while the underlying
+    // 1.35 boost never changed.
+    //
+    // Per-category means, not sums: the window holds 4 Octobers/Novembers but a
+    // varying number of other months, and festival months carry more rows.
+    const spikeSubcats = new Set([
+      'Clothing',
+      'Gifts',
+      'Groceries',
+      'Dining Out',
+      'Household Items',
+      'Devices',
+    ])
+
     let festivalTotal = 0
     let festivalCount = 0
     let otherTotal = 0
     let otherCount = 0
-    for (const [mk, total] of monthlyExpense) {
-      const month = Number(mk.slice(5, 7))
+    for (const t of txs) {
+      if (t.type !== 'Expense') continue
+      if (!t.subcategory || !spikeSubcats.has(t.subcategory)) continue
+      // Life-event splurges share the Devices subcategory but are not the
+      // seasonal baseline, so the biggest ones are excluded by amount.
+      if (t.amount > 50_000) continue
+      const month = Number(monthKey(t.date).slice(5, 7))
       if (month === 10 || month === 11) {
-        festivalTotal += total
+        festivalTotal += t.amount
         festivalCount++
       } else {
-        otherTotal += total
+        otherTotal += t.amount
         otherCount++
       }
     }
-    const festivalAvg = festivalTotal / festivalCount
-    const otherAvg = otherTotal / otherCount
-    expect(festivalAvg).toBeGreaterThan(otherAvg)
+
+    expect(festivalCount).toBeGreaterThan(0)
+    expect(otherCount).toBeGreaterThan(0)
+    expect(festivalTotal / festivalCount).toBeGreaterThan(otherTotal / otherCount)
   })
 
   it('keeps a plausible savings rate (income exceeds expenses by 20-60%)', () => {
