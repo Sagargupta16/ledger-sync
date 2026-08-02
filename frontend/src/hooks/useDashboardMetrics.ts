@@ -47,6 +47,17 @@ interface MoMChanges {
   label: string
 }
 
+/** One complete month of the income-vs-spending bar series. */
+export interface MonthlyFlowDatum {
+  /** `YYYY-MM`, kept for sorting and drill-through. */
+  month: string
+  /** Short display label, e.g. `Jul 26`. */
+  label: string
+  income: number
+  /** Absolute value -- the API returns expense as a negative. */
+  expense: number
+}
+
 export interface DashboardMetrics {
   // Time-filter state & setters
   viewMode: AnalyticsViewMode
@@ -90,6 +101,11 @@ export interface DashboardMetrics {
   // Sparklines
   incomeSparkline: number[]
   expenseSparkline: number[]
+
+  // Income-vs-spending bars, complete months only
+  monthlyFlow: MonthlyFlowDatum[]
+  /** The in-progress month excluded from `monthlyFlow`, when there is one. */
+  partialMonthLabel: string | null
 
   // Month-over-month changes
   momChanges: MoMChanges
@@ -247,6 +263,52 @@ export function useDashboardMetrics(): DashboardMetrics {
     return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense ?? 0))
   }, [monthlyData])
 
+  // ------ Income-vs-spending bars ------
+  //
+  // Complete months only, via the same `completeMonthKeys` the MoM deltas use --
+  // one definition of "finished month" for the whole page. The in-progress month
+  // pairs partial income (salary lands late) against near-full fixed costs, so
+  // charting it draws a spending cliff that is a calendar artifact. The panel
+  // names the excluded month instead of dropping a bar silently, matching the
+  // Trends page convention.
+  //
+  // `completeMonthKeys` also filters FUTURE keys, which matters here: this
+  // ledger holds a 2026-07-31 payroll row, and a "drop the last element"
+  // approach would have kept the partial month and discarded a real one.
+  const monthlyFlowAll = useMemo(() => {
+    if (!monthlyData) return []
+    return Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
+  }, [monthlyData])
+
+  const monthlyFlow = useMemo<MonthlyFlowDatum[]>(() => {
+    if (!monthlyData) return []
+    return completeMonthKeys(monthlyFlowAll).map((month) => {
+      const row = monthlyData[month]
+      const [y, m] = month.split('-')
+      return {
+        month,
+        label: new Date(Number(y), Number(m) - 1).toLocaleString('default', {
+          month: 'short',
+          year: '2-digit',
+        }),
+        income: row?.income ?? 0,
+        // The API returns expense as a negative; bars need magnitude.
+        expense: Math.abs(row?.expense ?? 0),
+      }
+    })
+  }, [monthlyData, monthlyFlowAll])
+
+  const partialMonthLabel = useMemo(() => {
+    const complete = new Set(completeMonthKeys(monthlyFlowAll))
+    const inProgress = monthlyFlowAll.find((key) => !complete.has(key))
+    if (!inProgress) return null
+    const [y, m] = inProgress.split('-')
+    return new Date(Number(y), Number(m) - 1).toLocaleString('default', {
+      month: 'long',
+      year: 'numeric',
+    })
+  }, [monthlyFlowAll])
+
   // ------ MoM changes ------
   const momChanges = useMemo<MoMChanges>(() => {
     const noChange: MoMChanges = {
@@ -321,6 +383,8 @@ export function useDashboardMetrics(): DashboardMetrics {
     expenseChartData,
     incomeSparkline,
     expenseSparkline,
+    monthlyFlow,
+    partialMonthLabel,
     momChanges,
   }
 }

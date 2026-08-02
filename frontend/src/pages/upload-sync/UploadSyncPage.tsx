@@ -1,5 +1,6 @@
 import { PageContainer, PageHeader } from '@/components/ui'
 
+import ImportHistory from './components/ImportHistory'
 import UploadDropzone from './components/UploadDropzone'
 import UploadFeedback from './components/UploadFeedback'
 import UploadFormatPreview from './components/UploadFormatPreview'
@@ -38,6 +39,7 @@ export default function UploadSyncPage() {
           onForceReupload={handleForceReupload}
           onRetryUpload={handleRetryUpload}
         />
+        <ImportHistory />
         <UploadFormatPreview />
       </div>
     </PageContainer>
