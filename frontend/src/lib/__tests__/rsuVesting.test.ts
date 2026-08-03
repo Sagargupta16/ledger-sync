@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { isVested, sortVestings, splitRsuTotals, vestingPrice } from '../rsuVesting'
+import {
+  isVested,
+  netVestingValue,
+  sortVestings,
+  splitRsuTotals,
+  vestingPrice,
+} from '../rsuVesting'
 import type { RsuGrant } from '@/types/salary'
 
 const TODAY = '2026-07-09'
@@ -82,5 +88,34 @@ describe('splitRsuTotals', () => {
     const totals = splitRsuTotals([], TODAY)
     expect(totals.vested.shares).toBe(0)
     expect(totals.upcoming.value).toBe(0)
+  })
+})
+
+describe('netVestingValue', () => {
+  it('values the shares actually received at the same per-share price', () => {
+    // 6 vested, 4.127 credited after sell-to-cover, priced at the vest-date close.
+    expect(netVestingValue({ date: '2025-08-15', quantity: 6, net_quantity: 4.127 }, 150)).toBe(
+      619.05,
+    )
+  })
+
+  it('returns null when no withholding was recorded', () => {
+    // NOT the gross value: a blank field means "unknown", and showing a
+    // "received" figure equal to the gross would imply the user confirmed it.
+    expect(netVestingValue({ date: '2025-08-15', quantity: 6 }, 150)).toBeNull()
+    expect(netVestingValue({ date: '2025-08-15', quantity: 6, net_quantity: null }, 150)).toBeNull()
+    expect(netVestingValue({ date: '2025-08-15', quantity: 6, net_quantity: 0 }, 150)).toBeNull()
+  })
+
+  it('is ignored by splitRsuTotals, which stays on the gross vest', () => {
+    // Indian RSU perquisite value is taxed on the FULL vest at vest-date FMV --
+    // the withheld shares ARE the tax payment -- so every tax-facing total must
+    // keep using `quantity`. This is the guard against net_quantity leaking into
+    // the projection and understating taxable income.
+    const withNet: RsuGrant = {
+      ...grant,
+      vestings: grant.vestings.map((v) => ({ ...v, net_quantity: 1 })),
+    }
+    expect(splitRsuTotals([withNet], TODAY)).toEqual(splitRsuTotals([grant], TODAY))
   })
 })

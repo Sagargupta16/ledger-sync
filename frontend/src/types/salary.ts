@@ -12,9 +12,17 @@ export interface SalaryComponents {
 /** A single vesting event within an RSU grant. */
 export interface RsuVesting {
   date: string // YYYY-MM-DD
+  /** Shares that vested, BEFORE any tax withholding. The tax basis. */
   quantity: number
   /** Stock price on the vest date (display currency). Set once a vesting is in the past. */
   price_at_vest?: number | null
+  /**
+   * Shares actually received after sell-to-cover withholding, when the employer
+   * withheld part of the vest to pay tax. Reporting only -- Indian perquisite
+   * value is taxed on the FULL vest, so `quantity` stays the basis for every
+   * projection. Fractional because brokers credit fractional residuals.
+   */
+  net_quantity?: number | null
 }
 
 /** An RSU grant with its vesting schedule. */

@@ -102,12 +102,31 @@ export function useRsuGrants(
     [localRsuGrants, updateGrant],
   )
 
+  /**
+   * Convert a foreign-currency stock price into the display currency.
+   *
+   * `onDate` converts at the rate published THEN, not now. Without it a vest-date
+   * close (a historical USD figure) was converted at today's USD/INR, mixing
+   * vintages: on a 2025-08-15 AMZN vest the rate was 87.46 against 95.34 on
+   * 2026-08-03, overstating that line by 9%. Indian RSU perquisite value is fixed
+   * at vesting and does not move with later FX, and these grants feed the tax
+   * projections, so the drift propagated into computed tax.
+   *
+   * A failed historical lookup returns the price unconverted rather than falling
+   * back to today's rate -- the caller then leaves `price_at_vest` unset and the
+   * row keeps showing "Current price", which is honest. Silently substituting
+   * today's rate is the bug being fixed.
+   */
   const convertPrice = useCallback(
-    async (price: number, currency: string): Promise<number> => {
+    async (price: number, currency: string, onDate?: string): Promise<number> => {
       if (!currency || currency === displayCurrency) return price
-      const rates = await preferencesService.getExchangeRates(currency)
-      const rate = rates.rates[displayCurrency]
-      return rate ? Math.round(price * rate * 100) / 100 : price
+      try {
+        const rates = await preferencesService.getExchangeRates(currency, onDate)
+        const rate = rates.rates[displayCurrency]
+        return rate ? Math.round(price * rate * 100) / 100 : price
+      } catch {
+        return price
+      }
     },
     [displayCurrency],
   )
@@ -155,7 +174,9 @@ export function useRsuGrants(
       for (const job of jobs) {
         try {
           const result = await preferencesService.getStockPrice(job.symbol, job.date)
-          const price = await convertPrice(result.price, result.currency)
+          // Same date for both legs: the close on the vest date converted at the
+          // FX rate published on the vest date.
+          const price = await convertPrice(result.price, result.currency, job.date)
           if (price > 0) fetched.set(`${job.grantId}|${job.date}`, price)
         } catch {
           /* falls back to current price in the UI */

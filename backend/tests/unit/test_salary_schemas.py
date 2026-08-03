@@ -88,6 +88,34 @@ class TestRsuGrant:
         with pytest.raises(ValidationError):
             RsuVesting(date=vest_date, quantity=6, price_at_vest=zero)
 
+    def test_net_quantity_defaults_to_none(self):
+        """Absent means "no withholding recorded", NOT "equal to the gross vest"."""
+        vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)
+        assert vesting.net_quantity is None
+
+    def test_net_quantity_accepts_a_fraction(self):
+        """Sell-to-cover credits fractional residuals: 6 vested, 4.127 received."""
+        vesting = RsuVesting(date=date(2025, 8, 15), quantity=6, net_quantity=Decimal("4.127"))
+        assert vesting.net_quantity == Decimal("4.127")
+
+    def test_net_quantity_may_equal_the_gross_vest(self):
+        """Legal: nothing was withheld on that vest."""
+        vesting = RsuVesting(date=date(2025, 8, 15), quantity=6, net_quantity=Decimal("6"))
+        assert vesting.net_quantity == Decimal("6")
+
+    def test_net_quantity_cannot_exceed_the_gross_vest(self):
+        """Withholding only reduces the count, so net > gross means transposed fields."""
+        vest_date = date(2025, 8, 15)
+        over_gross = Decimal("6.001")
+        with pytest.raises(ValidationError, match="cannot exceed"):
+            RsuVesting(date=vest_date, quantity=6, net_quantity=over_gross)
+
+    def test_net_quantity_rejects_zero(self):
+        vest_date = date(2025, 8, 15)
+        zero = Decimal("0")
+        with pytest.raises(ValidationError):
+            RsuVesting(date=vest_date, quantity=6, net_quantity=zero)
+
     def test_stock_price_must_be_positive(self):
         stock_price = Decimal("0")
         vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)

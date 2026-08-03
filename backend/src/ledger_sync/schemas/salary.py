@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SalaryComponents(BaseModel):
@@ -30,12 +30,36 @@ class RsuVesting(BaseModel):
     """A single vesting event within an RSU grant."""
 
     date: date
-    quantity: int = Field(gt=0)
+    quantity: int = Field(gt=0, description="Shares that vested, BEFORE any tax withholding.")
     price_at_vest: Decimal | None = Field(
         default=None,
         gt=0,
         description="Stock price on the vest date, locked in once the vesting has passed.",
     )
+    net_quantity: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Shares actually received after sell-to-cover withholding, when the "
+            "employer withheld some of the vest to pay tax. Reporting only: "
+            "perquisite value is taxed on the FULL vest, so `quantity` remains "
+            "the basis for every tax projection. Fractional because brokers "
+            "credit fractional residuals."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _net_cannot_exceed_gross(self) -> RsuVesting:
+        """Reject a net quantity above the gross vest.
+
+        Withholding only ever reduces the share count, so net > gross means the
+        two fields were transposed. Left unchecked it would render a "received"
+        line larger than the vest it came from.
+        """
+        if self.net_quantity is not None and self.net_quantity > self.quantity:
+            msg = f"net_quantity ({self.net_quantity}) cannot exceed quantity ({self.quantity})"
+            raise ValueError(msg)
+        return self
 
 
 class RsuGrant(BaseModel):

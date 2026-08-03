@@ -42,6 +42,24 @@ export function vestingPrice(grant: RsuGrant, v: RsuVesting, today: string = tod
   return Number(grant.stock_price) || 0
 }
 
+/**
+ * Value of the shares actually received, or `null` when nothing was withheld.
+ *
+ * Priced at the same per-share figure as the gross line so the two are directly
+ * comparable. Returns `null` rather than falling back to the gross value: a
+ * blank field means "no withholding recorded", and showing a "received" figure
+ * equal to the gross would imply the user had confirmed that.
+ *
+ * Deliberately NOT used by `splitRsuTotals`, `projectionCalculator`, or
+ * `tdsScheduleCalculator`. Indian RSU perquisite value is taxed on the FULL
+ * vest at vest-date FMV -- the withheld shares ARE the tax payment -- so
+ * `quantity` stays the basis everywhere tax is computed. This is reporting only.
+ */
+export function netVestingValue(v: RsuVesting, pricePerShare: number): number | null {
+  if (v.net_quantity == null || v.net_quantity <= 0) return null
+  return Number(v.net_quantity) * pricePerShare
+}
+
 export interface RsuSplitTotals {
   vested: { shares: number; value: number }
   upcoming: { shares: number; value: number }

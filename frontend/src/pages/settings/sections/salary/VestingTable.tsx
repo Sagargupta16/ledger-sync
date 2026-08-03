@@ -9,7 +9,7 @@ export type { VestingTableProps } from './vestingTableTypes'
 function GroupDividerRow({ label, count }: Readonly<{ label: string; count: number }>) {
   return (
     <tr>
-      <td colSpan={5} className="pb-1 pt-3">
+      <td colSpan={6} className="pb-1 pt-3">
         <span className="text-[11px] font-semibold uppercase text-muted-foreground">
           {label} ({count})
         </span>
@@ -82,7 +82,10 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
                 Date
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
-                Qty
+                Granted Qty
+              </th>
+              <th scope="col" className="py-2 pr-3 text-left font-medium" title="Shares credited after sell-to-cover tax withholding. Optional.">
+                Received
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
                 Est. Value
