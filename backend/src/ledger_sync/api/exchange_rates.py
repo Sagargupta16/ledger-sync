@@ -117,7 +117,12 @@ async def _fetch_rates(base: str, on_date: date | None = None) -> tuple[dict[str
 )
 async def get_exchange_rates(
     _current_user: CurrentUser,
-    base: str = "INR",
+    # Constrained at the boundary rather than sanitised at each use. `base` is
+    # echoed into two log lines and forwarded upstream, so an unbounded string
+    # was log-forgeable (a newline injects a fake log record). A currency code is
+    # exactly three letters, and rejecting anything else here means neither the
+    # logger nor frankfurter ever sees arbitrary input.
+    base: Annotated[str, Query(pattern=r"^[A-Za-z]{3}$")] = "INR",
     on_date: Annotated[
         date | None,
         Query(

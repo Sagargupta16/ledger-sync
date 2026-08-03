@@ -10,13 +10,16 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
+from ledger_sync.api.deps import get_current_user
 from ledger_sync.api.exchange_rates import (
     _FALLBACK_RATES,
     _fetch_rates,
     _rate_cache,
     get_exchange_rates,
 )
+from ledger_sync.api.main import app
 
 
 @pytest.fixture(autouse=True)
@@ -148,6 +151,7 @@ class TestHistoricalRates:
 
     def test_historical_failure_errors_instead_of_serving_todays_rate(self):
         """The fallback table is a present-day snapshot -- serving it IS the bug."""
+        call = get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 15))
         with (
             patch(
                 "ledger_sync.api.exchange_rates._fetch_rates",
@@ -156,16 +160,18 @@ class TestHistoricalRates:
             ),
             pytest.raises(HTTPException) as exc,
         ):
-            asyncio.run(
-                get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 15))
-            )
+            # Coroutine built before the raises block: `asyncio.run(f(...))` is two
+            # potentially-throwing calls, so a failure in the wrong one would still
+            # satisfy the assertion.
+            asyncio.run(call)
         assert exc.value.status_code == 502
 
     def test_future_date_rejected(self):
         # UTC, matching the handler's own `datetime.now(tz=UTC).date()` comparison.
         future = datetime.now(tz=UTC).date() + timedelta(days=1)
+        call = get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=future)
         with pytest.raises(HTTPException) as exc:
-            asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=future))
+            asyncio.run(call)
         assert exc.value.status_code == 400
 
 
@@ -192,3 +198,36 @@ class TestUpstreamRetry:
         assert calls["n"] == 2
         assert rates["INR"] == pytest.approx(87.46)
         assert priced_on == "2025-08-15"
+
+
+class TestBaseValidation:
+    """`base` is echoed into log lines and forwarded upstream.
+
+    It was an unbounded `str`, so a newline-bearing value could inject a fake
+    record into the log (SonarCloud S5145). Constrained at the boundary to a
+    three-letter currency code, so neither the logger nor frankfurter ever sees
+    arbitrary input.
+    """
+
+    @pytest.mark.parametrize("bad", ["USD\nWARNING injected", "USDD", "", "US1", "../etc"])
+    def test_non_currency_codes_are_rejected(self, bad):
+        client = TestClient(app)
+        app.dependency_overrides[get_current_user] = FakeUser
+        try:
+            assert client.get("/api/exchange-rates", params={"base": bad}).status_code == 422
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.parametrize("good", ["USD", "inr", "EuR"])
+    def test_three_letter_codes_are_accepted(self, good):
+        client = TestClient(app)
+        app.dependency_overrides[get_current_user] = FakeUser
+        try:
+            with patch(
+                "ledger_sync.api.exchange_rates._fetch_rates",
+                new_callable=AsyncMock,
+                return_value=({"INR": 1.0}, ""),
+            ):
+                assert client.get("/api/exchange-rates", params={"base": good}).status_code == 200
+        finally:
+            app.dependency_overrides.clear()

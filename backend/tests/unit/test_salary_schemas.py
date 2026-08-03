@@ -106,8 +106,9 @@ class TestRsuGrant:
     def test_net_quantity_cannot_exceed_the_gross_vest(self):
         """Withholding only reduces the count, so net > gross means transposed fields."""
         vest_date = date(2025, 8, 15)
+        over_gross = Decimal("6.001")
         with pytest.raises(ValidationError, match="cannot exceed"):
-            RsuVesting(date=vest_date, quantity=6, net_quantity=Decimal("6.001"))
+            RsuVesting(date=vest_date, quantity=6, net_quantity=over_gross)
 
     def test_net_quantity_rejects_zero(self):
         vest_date = date(2025, 8, 15)
