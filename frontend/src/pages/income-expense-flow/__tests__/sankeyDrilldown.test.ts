@@ -11,6 +11,7 @@ import {
   foldTopWithOther,
   isTaxCategory,
   SANKEY_TOP_N,
+  tdsAtSourceLabel,
   type DrillCrumb,
 } from '../sankeyDrilldown'
 
@@ -251,5 +252,27 @@ describe('isTaxCategory', () => {
     expect(isTaxCategory('Advance Tax')).toBe(true)
     expect(isTaxCategory('Taxi')).toBe(false)
     expect(isTaxCategory('Transportation')).toBe(false)
+  })
+})
+
+describe('tdsAtSourceLabel', () => {
+  // The at-source figure is slab-derived, not a ledger row. On a ledger with no
+  // explicit tax rows it is the entire Tax branch, so it has to say which regime
+  // produced it.
+  it('names the configured regime', () => {
+    expect(tdsAtSourceLabel('new')).toContain('new regime')
+    expect(tdsAtSourceLabel('old')).toContain('old regime')
+  })
+
+  it('still matches the tax-category pattern so the branch keeps grouping', () => {
+    expect(isTaxCategory(tdsAtSourceLabel('new'))).toBe(true)
+    expect(isTaxCategory(tdsAtSourceLabel('old'))).toBe(true)
+  })
+
+  it('falls back to the new regime for an unset or unknown value', () => {
+    // `preferred_tax_regime` defaults to "new"; anything unrecognised must not
+    // silently claim the old regime, whose slabs give a different answer.
+    expect(tdsAtSourceLabel('')).toContain('new regime')
+    expect(tdsAtSourceLabel('nonsense')).toContain('new regime')
   })
 })

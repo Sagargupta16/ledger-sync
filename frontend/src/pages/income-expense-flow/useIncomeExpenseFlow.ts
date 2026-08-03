@@ -18,6 +18,7 @@ import {
   countSubBuckets,
   foldTopWithOther,
   isTaxCategory,
+  tdsAtSourceLabel,
   type DrillCrumb,
   type FlowEntry,
 } from './sankeyDrilldown'
@@ -193,7 +194,11 @@ export function useIncomeExpenseFlow() {
           : null,
       }))
     if (tdsAtSource > 0) {
-      taxEntries.push({ name: 'TDS deducted at source (computed)', amount: tdsAtSource, drill: null })
+      taxEntries.push({
+        name: tdsAtSourceLabel(preferredRegime),
+        amount: tdsAtSource,
+        drill: null,
+      })
       taxEntries.sort((a, b) => b.amount - a.amount)
     }
     let taxDrill: DrillCrumb | null = null
