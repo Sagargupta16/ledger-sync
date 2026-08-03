@@ -207,11 +207,20 @@ export interface GrowthAssumptionsConfig {
 export interface ExchangeRatesResponse {
   base: string
   rates: Record<string, number>
-  fetched_at: number | null
+  fetched_at?: number | null
   stale?: boolean
   fallback?: boolean
   /** ISO date (YYYY-MM-DD) the hardcoded table was captured. Only on fallback. */
   fallback_as_of?: string
+  /** True when the response is a dated historical rate, not the latest. */
+  historical?: boolean
+  /**
+   * ISO date the rate was actually published. Precedes the requested date
+   * across a weekend or holiday. Only on historical responses.
+   */
+  as_of?: string
+  /** The date that was asked for. Only on historical responses. */
+  requested_date?: string
 }
 
 // Helper to create section-specific updaters
@@ -279,13 +288,24 @@ export const preferencesService = {
     return response.data
   },
 
-  async getExchangeRates(base: string = 'INR'): Promise<ExchangeRatesResponse> {
+  /**
+   * Exchange rates for `base`, latest or as published on `onDate`.
+   *
+   * `onDate` exists so a historical value is converted at the FX rate that
+   * applied then. Converting an RSU vest-date stock price at today's rate mixed
+   * vintages and overstated the vested line by the FX drift since (measured 9%
+   * on a 2025-08-15 AMZN vest: USD/INR 87.46 then vs 95.34 on 2026-08-03).
+   */
+  async getExchangeRates(
+    base: string = 'INR',
+    onDate?: string,
+  ): Promise<ExchangeRatesResponse> {
     // Generic on `get`, not just on the return type: without it `response.data`
     // is `any`, so the declared shape was an unchecked assertion and a backend
     // rename would have surfaced as `undefined` at the render site instead of
     // an error here. Shape confirmed live on 2026-07-27 (29 currencies).
     const response = await apiClient.get<ExchangeRatesResponse>('/api/exchange-rates', {
-      params: { base },
+      params: onDate ? { base, on_date: onDate } : { base },
     })
     return response.data
   },

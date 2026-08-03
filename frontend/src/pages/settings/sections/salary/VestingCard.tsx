@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/formatters'
-import { vestingPrice } from '@/lib/rsuVesting'
+import { netVestingValue, vestingPrice } from '@/lib/rsuVesting'
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '../../styles'
@@ -27,8 +27,10 @@ export default function VestingCard({
   const rowName = `${grant.stock_name || 'RSU'} vesting ${stateIdx + 1}`
   const dateId = `mobile-vesting-${grant.id}-${stateIdx}-date`
   const quantityId = `mobile-vesting-${grant.id}-${stateIdx}-quantity`
+  const netQuantityId = `mobile-vesting-${grant.id}-${stateIdx}-net-quantity`
   const headingId = `mobile-vesting-${grant.id}-${stateIdx}-heading`
   const valuationId = `mobile-vesting-${grant.id}-${stateIdx}-valuation`
+  const netValue = netVestingValue(vesting, price)
 
   return (
     <article
@@ -82,7 +84,7 @@ export default function VestingCard({
           className="space-y-1 text-xs font-medium text-text-secondary"
         >
           <span>
-            Quantity<span className="sr-only"> for {rowName}</span>
+            Granted qty<span className="sr-only"> for {rowName}</span>
           </span>
           <input
             id={quantityId}
@@ -96,6 +98,29 @@ export default function VestingCard({
               })
             }
             placeholder="0"
+            className={inputClass}
+          />
+        </label>
+        <label
+          htmlFor={netQuantityId}
+          className="space-y-1 text-xs font-medium text-text-secondary"
+        >
+          <span>
+            Received after tax<span className="sr-only"> for {rowName}</span>
+          </span>
+          <input
+            id={netQuantityId}
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.001"
+            value={vesting.net_quantity ?? ''}
+            onChange={(event) =>
+              onUpdateVesting(grant.id, stateIdx, {
+                net_quantity: event.target.value === '' ? null : Number(event.target.value),
+              })
+            }
+            placeholder="Optional"
             className={inputClass}
           />
         </label>
@@ -113,6 +138,11 @@ export default function VestingCard({
           <span id={valuationId} className="mt-0.5 block text-[11px] text-muted-foreground">
             {usesVestPrice ? `Vest-date price ${formatCurrency(price)}` : 'Current price'}
           </span>
+          {netValue !== null && (
+            <span className="mt-0.5 block text-[11px] text-app-green">
+              {formatCurrency(netValue)} received
+            </span>
+          )}
         </span>
       </div>
     </article>

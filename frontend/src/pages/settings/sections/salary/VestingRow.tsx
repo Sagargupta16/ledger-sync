@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/formatters'
-import { vestingPrice } from '@/lib/rsuVesting'
+import { netVestingValue, vestingPrice } from '@/lib/rsuVesting'
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '../../styles'
@@ -27,6 +27,10 @@ export default function VestingRow({
   const rowName = `${grant.stock_name || 'RSU'} vesting ${stateIdx + 1}`
   const dateId = `vesting-${grant.id}-${stateIdx}-date`
   const quantityId = `vesting-${grant.id}-${stateIdx}-quantity`
+  const netQuantityId = `vesting-${grant.id}-${stateIdx}-net-quantity`
+  // Only shown when the user recorded a post-withholding count. Priced at the
+  // same per-share figure as the gross line so the two are comparable.
+  const netValue = netVestingValue(vesting, price)
 
   return (
     <tr className="border-b border-border/50">
@@ -64,6 +68,27 @@ export default function VestingRow({
           className={`${inputClass} max-w-[100px]`}
         />
       </td>
+      <td className="py-2 pr-3">
+        <label htmlFor={netQuantityId} className="sr-only">
+          Shares received after tax for {rowName}
+        </label>
+        <input
+          id={netQuantityId}
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.001"
+          value={vesting.net_quantity ?? ''}
+          onChange={(event) =>
+            onUpdateVesting(grant.id, stateIdx, {
+              net_quantity: event.target.value === '' ? null : Number(event.target.value),
+            })
+          }
+          placeholder="--"
+          title="Shares credited after sell-to-cover withholding. Leave blank if none was withheld."
+          className={`${inputClass} max-w-[100px]`}
+        />
+      </td>
       <td className="py-2 pr-3 text-muted-foreground">
         <span className="ledger-figure block">
           {estimatedValue > 0 ? formatCurrency(estimatedValue) : '--'}
@@ -71,6 +96,11 @@ export default function VestingRow({
         <span className="block text-[11px] text-text-tertiary">
           {usesVestPrice ? `Vest-date ${formatCurrency(price)}` : 'Current price'}
         </span>
+        {netValue !== null && (
+          <span className="block text-[11px] text-app-green">
+            {formatCurrency(netValue)} received
+          </span>
+        )}
       </td>
       <td className="py-2 pr-3 text-muted-foreground">
         {fiscalYear ? `FY ${fiscalYear}` : '--'}
