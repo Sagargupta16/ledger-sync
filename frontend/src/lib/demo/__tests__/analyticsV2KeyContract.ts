@@ -10,6 +10,7 @@
 import { hashKey } from '@tanstack/react-query'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
+import { dataHealthKeys } from '@/hooks/api/useDataHealthQuery'
 
 const num = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined)
 const str = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
@@ -85,9 +86,21 @@ export const V2_ENDPOINTS: readonly V2Endpoint[] = [
   },
 ]
 
+/**
+ * `data-health` lives under the `analyticsV2` key prefix but is built by
+ * `dataHealthKeys` in its own hook file, not by `analyticsV2Keys`. It therefore
+ * belongs in the round-trip check (a prefetch can drift from it like any other)
+ * but NOT in `factorySegments()`, which enumerates `analyticsV2Keys` to assert
+ * exhaustiveness -- listing it there would fail that assertion in the opposite
+ * direction.
+ */
+const EXTERNAL_ENDPOINTS: readonly V2Endpoint[] = [
+  { segment: 'data-health', build: () => dataHealthKeys.summary() },
+]
+
 /** `null` when the key round-trips through its factory unchanged, else the reason. */
 export function factoryMismatch(key: readonly unknown[]): string | null {
-  const endpoint = V2_ENDPOINTS.find((e) => e.segment === key[1])
+  const endpoint = [...V2_ENDPOINTS, ...EXTERNAL_ENDPOINTS].find((e) => e.segment === key[1])
   if (!endpoint) return `unknown analyticsV2 endpoint '${String(key[1])}'`
   const rebuilt = endpoint.build(key.slice(2))
   if (hashKey(rebuilt) !== hashKey(key)) {

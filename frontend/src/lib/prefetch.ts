@@ -16,6 +16,28 @@ import { analyticsService } from '@/services/api/analytics'
 import { calculationsApi } from '@/services/api/calculations'
 import { analyticsV2Service } from '@/services/api/analyticsV2'
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
+import { dataHealthKeys } from '@/hooks/api/useDataHealthQuery'
+
+/**
+ * Params below are COPIED from their call sites, not invented.
+ *
+ * Every key factory in `analyticsV2Keys` folds its filter values into the key,
+ * and `staleTime` is Infinity, so a prefetch whose params differ by one field
+ * warms a slot no hook ever reads: the round-trip is paid for AND the page still
+ * spins. These constants exist so the pairing is visible in one place; if a call
+ * site changes its filters, the matching entry here has to change with it.
+ */
+const RECURRING_COMMITMENTS_ACTIVE = { active_only: true, pattern_kind: 'commitment' } as const
+/** Dashboard passes `min_confidence: 0` explicitly, which is a DIFFERENT key. */
+const RECURRING_DASHBOARD = {
+  active_only: true,
+  min_confidence: 0,
+  pattern_kind: 'commitment',
+} as const
+/** Recurring page shows inactive rows too. */
+const RECURRING_ALL = { active_only: false, min_confidence: 0 } as const
+/** Mirrors MIN_TRANSACTIONS / ROW_LIMIT in useMerchantIntel and TopMerchants. */
+const MERCHANTS = { min_transactions: 2, limit: 200 } as const
 
 /**
  * Prefetch all core data that pages need.
@@ -98,4 +120,59 @@ export function prefetchCoreData() {
     queryKey: analyticsV2Keys.investmentHoldings(),
     queryFn: () => analyticsV2Service.getInvestmentHoldings(),
   })
+
+  // Recurring commitments -- the chrome fetches these on EVERY page (sidebar
+  // badge, mobile tab bar, notification bell), so warming them removes a
+  // round-trip from the first paint of the whole workspace, not just one route.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.recurringTransactions(RECURRING_COMMITMENTS_ACTIVE),
+    queryFn: () => analyticsV2Service.getRecurringTransactions(RECURRING_COMMITMENTS_ACTIVE),
+  })
+
+  // Dashboard's Fixed Commitments widget -- same endpoint, different key.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.recurringTransactions(RECURRING_DASHBOARD),
+    queryFn: () => analyticsV2Service.getRecurringTransactions(RECURRING_DASHBOARD),
+  })
+
+  // Recurring page -- includes inactive rows.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.recurringTransactions(RECURRING_ALL),
+    queryFn: () => analyticsV2Service.getRecurringTransactions(RECURRING_ALL),
+  })
+
+  // Data health -- StaleAnalyticsAlert renders it in the global layout, so this
+  // one is also workspace-wide rather than page-local.
+  void queryClient.prefetchQuery({
+    queryKey: dataHealthKeys.summary(),
+    queryFn: () => analyticsV2Service.getDataHealth(),
+  })
+
+  // Merchants -- Merchants page and the Dashboard's TopMerchants card.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.merchantIntelligence(MERCHANTS),
+    queryFn: () => analyticsV2Service.getMerchantIntelligence(MERCHANTS),
+  })
+
+  // Goals -- Overview reads the default view, the Goals page includes achieved.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.goals(),
+    queryFn: () => analyticsV2Service.getGoals(),
+  })
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.goals({ include_achieved: true }),
+    queryFn: () => analyticsV2Service.getGoals({ include_achieved: true }),
+  })
+
+  // Net-worth snapshots -- Net Worth page.
+  void queryClient.prefetchQuery({
+    queryKey: analyticsV2Keys.netWorth(),
+    queryFn: () => analyticsV2Service.getNetWorthSnapshots(),
+  })
+
+  // Deliberately NOT prefetched: `spendingRule` (Budget page). Its key folds in
+  // a start/end date derived from the user's period picker and the ledger's own
+  // min/max dates, so there is no single correct range to warm -- a guess would
+  // fetch a range nothing reads. Same reasoning for the per-FY tax and
+  // category-history queries, which key on a user selection made after arrival.
 }

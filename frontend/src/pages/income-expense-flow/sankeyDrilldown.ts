@@ -61,6 +61,18 @@ const TAX_PATTERN = /\btax(es)?\b|\btds\b|income tax|advance tax|self assessment
 
 export const isTaxCategory = (name: string): boolean => TAX_PATTERN.test(name)
 
+/**
+ * Label for the computed at-source TDS entry in the Tax branch.
+ *
+ * Names the regime because this figure is slab-derived, not a ledger row, and
+ * the two regimes give materially different answers on the same income. On a
+ * ledger with no explicit tax rows -- the common case for a salaried filer whose
+ * statements record net pay -- this entry IS the whole Tax branch, so an
+ * unlabelled number reads as recorded fact.
+ */
+export const tdsAtSourceLabel = (preferredRegime: string): string =>
+  `TDS deducted at source (computed, ${preferredRegime === 'old' ? 'old' : 'new'} regime)`
+
 const INCOME_CYCLE = [
   rawColors.app.green,
   rawColors.app.green,
