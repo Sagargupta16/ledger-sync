@@ -22,11 +22,12 @@ export default function HeatmapCell({ cell, mode, modeMax, appearDelay = 0 }: Re
 
   // Focusable + labelled so keyboard/SR users get the per-day figure (and the
   // parent's onFocus delegation fires at all). Empty days read as "no activity".
-  const label = isFuture
-    ? `${cell.date}: future date`
-    : val !== 0
-      ? `${cell.date}: ${formatCurrency(Math.abs(val))} ${heatmapValueNoun(mode, val)}`
-      : `${cell.date}: no activity`
+  let label = `${cell.date}: no activity`
+  if (isFuture) {
+    label = `${cell.date}: future date`
+  } else if (val !== 0) {
+    label = `${cell.date}: ${formatCurrency(Math.abs(val))} ${heatmapValueNoun(mode, val)}`
+  }
 
   // A real <button> (not a div with role/tabIndex): natively focusable +
   // interactive, so keyboard/SR users get the per-day figure and the parent's
