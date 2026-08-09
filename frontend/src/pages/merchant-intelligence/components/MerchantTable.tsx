@@ -66,12 +66,12 @@ function buildColumns(trackedSpend: number): DataTableColumn<MerchantRow>[] {
       cell: (row) => (
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-medium text-foreground" title={row.merchant}>
+            <span className="font-medium text-foreground sm:truncate" title={row.merchant}>
               {row.merchant}
             </span>
             <KindBadge kind={row.label_kind} />
           </div>
-          <p className="truncate text-[11px] text-text-tertiary">
+          <p className="text-[11px] text-text-tertiary sm:truncate">
             {row.category}
             {row.subcategory ? ` / ${row.subcategory}` : ''}
           </p>

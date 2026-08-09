@@ -1,3 +1,4 @@
+import { getTodayKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
 import type { DayCell } from './DayOfWeekChart'
 import { getHeatmapSwatch, heatmapValueNoun } from '../heatmapUtils'
@@ -16,12 +17,14 @@ export default function HeatmapCell({ cell, mode, modeMax, appearDelay = 0 }: Re
   // sign and the label says which way the day went.
   const valMap = { expense: cell.expense, income: cell.income, net: cell.net }
   const val = valMap[mode]
+  const isFuture = cell.date > getTodayKey()
   const { color: bgColor } = getHeatmapSwatch(mode, val, modeMax)
 
   // Focusable + labelled so keyboard/SR users get the per-day figure (and the
   // parent's onFocus delegation fires at all). Empty days read as "no activity".
-  const label =
-    val !== 0
+  const label = isFuture
+    ? `${cell.date}: future date`
+    : val !== 0
       ? `${cell.date}: ${formatCurrency(Math.abs(val))} ${heatmapValueNoun(mode, val)}`
       : `${cell.date}: no activity`
 
@@ -34,10 +37,12 @@ export default function HeatmapCell({ cell, mode, modeMax, appearDelay = 0 }: Re
     <button
       type="button"
       data-cell-date={cell.date}
+      data-compact-control="true"
+      disabled={isFuture}
       aria-label={label}
       className="heatmap-cell-appear w-[13px] h-[13px] rounded-sm p-0 border-0 cursor-default transition-[outline-color] duration-150 hover:ring-1 hover:ring-[var(--hairline-5)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hairline-5)]"
       style={{
-        backgroundColor: bgColor,
+        backgroundColor: isFuture ? 'var(--overlay-2)' : bgColor,
         outline: cell.isToday ? `2px solid ${modeAccent[mode]}` : undefined,
         outlineOffset: cell.isToday ? '-1px' : undefined,
         animationDelay: `${appearDelay}ms`,

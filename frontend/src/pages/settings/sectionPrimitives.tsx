@@ -57,7 +57,7 @@ export function Section({
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-semibold text-foreground">{title}</h2>
           {description && (
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground sm:truncate sm:leading-normal">{description}</p>
           )}
         </div>
         <ChevronDown

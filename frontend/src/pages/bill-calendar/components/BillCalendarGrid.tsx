@@ -93,8 +93,8 @@ export default function BillCalendarGrid({
 
       {isLoading && (
         <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <div className="min-w-[21rem] space-y-2">
-            <div className="grid grid-cols-7 gap-1">
+          <div className="min-w-[20rem] space-y-2">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {DAY_NAMES.map((name) => (
                 <div
                   key={name}
@@ -106,7 +106,7 @@ export default function BillCalendarGrid({
             </div>
             {Array.from({ length: 5 }, (_, index) => `skeleton-row-${index}`).map(
               (rowId) => (
-                <div key={rowId} className="grid grid-cols-7 gap-1">
+                <div key={rowId} className="grid grid-cols-7 gap-0.5 sm:gap-1">
                   {Array.from({ length: 7 }, (_, index) => `${rowId}-col-${index}`).map(
                     (cellId) => (
                       <div
@@ -134,8 +134,8 @@ export default function BillCalendarGrid({
       {!isLoading && hasAnyData && (
         <>
           <div className="-mx-1 overflow-x-auto px-1 pb-1">
-            <div className="min-w-[21rem]">
-              <div className="mb-1 grid grid-cols-7 gap-1">
+            <div className="min-w-[20rem]">
+              <div className="mb-1 grid grid-cols-7 gap-0.5 sm:gap-1">
                 {DAY_NAMES.map((name) => (
                   <div
                     key={name}
@@ -146,7 +146,7 @@ export default function BillCalendarGrid({
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {calendarGrid.map((cell) => {
                   const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
                   const isToday = isSameDay(

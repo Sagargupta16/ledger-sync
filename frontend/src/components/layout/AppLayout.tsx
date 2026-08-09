@@ -8,7 +8,6 @@ import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { useDemoStore } from '@/store/demoStore'
-import { useThemeStore } from '@/store/themeStore'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 
 import Sidebar from './Sidebar/Sidebar'
@@ -27,21 +26,16 @@ const pageTransition = {
 export default function AppLayout() {
   const location = useLocation()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
-  // Resolved theme ('dark' | 'light'). Folded into the routed-content key below
-  // so a theme toggle remounts the page subtree, forcing Recharts/SVG to re-read
-  // the freshly re-resolved chart colors (rawColors is refreshed in applyTheme).
-  // Cached query data (staleTime: Infinity) is preserved, so the remount is cheap.
-  const resolvedTheme = useThemeStore((s) => s.resolved)
+  const pageTitle = PAGE_TITLES[location.pathname] ?? 'Page not found'
 
   // Fetch exchange rate when display currency changes (pushes to store for formatters)
   useExchangeRate()
 
   // Dynamic page title + scroll reset on navigation
   useEffect(() => {
-    const title = PAGE_TITLES[location.pathname]
-    document.title = title ? `${title} | Ledger Sync` : 'Ledger Sync'
+    document.title = `${pageTitle} | Ledger Sync`
     document.getElementById('main-content')?.scrollTo(0, 0)
-  }, [location.pathname])
+  }, [location.pathname, pageTitle])
 
   return (
     <div className="ledger-workspace relative flex h-dvh overflow-hidden bg-background">
@@ -58,7 +52,7 @@ export default function AppLayout() {
 
       <Sidebar />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <WorkspaceHeader title={PAGE_TITLES[location.pathname] ?? 'Ledger Sync'} />
+        <WorkspaceHeader title={pageTitle} />
         {/*
           Above the scroll container, not inside it: a warning that the numbers
           below are stale is worthless if the user has to scroll up to find it.
@@ -70,7 +64,7 @@ export default function AppLayout() {
         >
           <AnimatePresence mode="popLayout">
             <motion.div
-              key={`${location.pathname}:${resolvedTheme}`}
+              key={location.pathname}
               className="min-h-full"
               {...pageTransition}
             >

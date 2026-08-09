@@ -17,6 +17,7 @@ import type { ReactNode } from 'react'
 import { ResponsiveContainer } from 'recharts'
 
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useThemeStore } from '@/store/themeStore'
 
 type ResponsiveDimension = number | `${number}%`
 
@@ -55,10 +56,12 @@ export default function ChartContainer({
   ...rest
 }: Readonly<ChartContainerProps>) {
   const isMobile = useIsMobile()
+  const resolvedTheme = useThemeStore((state) => state.resolved)
   const resolvedHeight = resolveHeight(isMobile, height, mobileHeight)
 
   const container = (
     <ResponsiveContainer
+      key={resolvedTheme}
       width={width}
       height={resolvedHeight}
       minWidth={0}

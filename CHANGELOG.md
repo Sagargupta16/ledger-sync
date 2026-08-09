@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.24.0 - 2026-08-09
+
+A route-by-route frontend polish pass, plus the dashboard, import-history, prefetch, and RSU correctness work merged since 2.23.0.
+
+### Added
+
+- **Monthly income versus spending on Dashboard.** A grouped bar chart uses complete months only and explicitly names an excluded in-progress month.
+- **Import history on Upload and Sync.** `GET /api/upload/history` and a responsive table show recent imports, timestamps, and processed/new/updated/already-present row counts.
+- **Mobile table sorting.** Shared card-style tables retain sortable-column selection and ascending/descending controls when desktop headers are hidden.
+- **RSU sell-to-cover reporting.** Vestings can record the net shares received alongside the gross taxable quantity, with both values shown at the same per-share price.
+
+### Changed
+
+- **Full frontend visual pass.** Every public and protected route was reviewed at desktop and phone widths. Shared contrast tokens, page labels, KPI cards, category rows, controls, chart tables, settings sections, merchant rows, GST summaries, tax copy, recurring summaries, and calendar layouts now use a more consistent responsive hierarchy.
+- **Theme changes preserve page state.** Filters, tabs, searches, and forms remain mounted while chart containers alone redraw against the new resolved theme.
+- **Bill Calendar keeps 44px day targets.** The month grid fits common phone widths and becomes horizontally scrollable only on narrower screens.
+- **Cash Flow names the configured tax regime** on computed at-source TDS, and login prefetch now warms recurring, data-health, merchant, goals, and net-worth queries used by persistent navigation and common first visits.
+- Updated supported frontend and backend dependencies while retaining the compatible TypeScript and React Router lines documented in #231.
+
+### Fixed
+
+- **RSU vest-date values now use vest-date FX.** Historical stock prices are converted with the exchange rate published for the vest date instead of today’s rate; failed historical lookups no longer silently substitute a current fallback.
+- Theme toggles no longer reset route-local state, hidden accessible chart tables no longer widen layouts, and long recurring/bill summary values no longer truncate.
+- Mobile transaction pagination scrolls the actual workspace container, custom budget dates receive and restore focus, and comparison selectors expose real labels.
+- Future Year in Review heatmap dates are disabled and visually distinct; income rolling-average tooltips, category-row wrapping, merchant labels, and tax fallback contrast are corrected.
+
+### Security
+
+- Exchange-rate base currencies are restricted to three-letter codes before reaching upstream requests or log lines, preventing newline-based log injection.
+
 ## 2.23.0 - 2026-07-27
 
 Two waves in one release: the workspace UI rework that had been sitting unreleased, and a correctness pass over money math, API contracts, and static analysis. Two on-screen figures intentionally change value, both called out below.

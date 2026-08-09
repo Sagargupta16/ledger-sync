@@ -34,6 +34,7 @@ export default function CreateGoalForm({
         <h3 className="text-lg font-semibold text-foreground">Create New Goal</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
+            autoFocus
             type="text"
             placeholder="Goal name *"
             aria-label="Goal name"

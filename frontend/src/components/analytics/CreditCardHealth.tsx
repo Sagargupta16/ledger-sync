@@ -490,7 +490,7 @@ export default function CreditCardHealth() {
       </div>
 
       {/* Individual Cards */}
-      <div className="space-y-3 max-h-64 overflow-y-auto">
+      <div className="space-y-3">
         {creditCards.map((card) => (
           <CardRow key={card.name} card={card} />
         ))}

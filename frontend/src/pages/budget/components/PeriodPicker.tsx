@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { Calendar } from 'lucide-react'
@@ -60,10 +60,16 @@ export function PeriodPicker({
   maxDate,
 }: Props) {
   const [showCustom, setShowCustom] = useState(false)
-  const handleClose = useCallback(() => setShowCustom(false), [])
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const startInputRef = useRef<HTMLInputElement>(null)
+  const handleClose = useCallback(() => {
+    setShowCustom(false)
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }, [])
 
   useEffect(() => {
     if (!showCustom) return
+    requestAnimationFrame(() => startInputRef.current?.focus())
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose()
     }
@@ -78,7 +84,7 @@ export function PeriodPicker({
   return (
     <>
       <div
-        className="scrollbar-none flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1 sm:w-auto"
+        className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1 sm:w-auto sm:flex-nowrap"
         role="tablist"
         aria-label="Select period"
       >
@@ -108,6 +114,7 @@ export function PeriodPicker({
         ))}
 
         <motion.button
+          ref={triggerRef}
           role="tab"
           aria-selected={value === 'custom'}
           aria-haspopup="dialog"
@@ -168,6 +175,7 @@ export function PeriodPicker({
                 <label className="block text-xs font-medium text-muted-foreground">
                   <span className="block">From</span>
                   <input
+                    ref={startInputRef}
                     type="date"
                     value={customStart}
                     min={minAttr}

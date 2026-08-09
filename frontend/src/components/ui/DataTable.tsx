@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 
 import { motion } from 'motion/react'
 
@@ -108,6 +108,7 @@ export default function DataTable<T>({
   mobileCards = false,
 }: DataTableProps<T>) {
   const isMobile = useIsMobile()
+  const mobileSortId = useId()
   const [sortKey, setSortKey] = useState<string | null>(initialSort?.key ?? null)
   const [sortDir, setSortDir] = useState<SortDir>(initialSort?.dir ?? 'desc')
 
@@ -124,6 +125,11 @@ export default function DataTable<T>({
     return copy
   }, [rows, columns, sortKey, sortDir])
 
+  const defaultSortDirection = (key: string): SortDir => {
+    const col = columns.find((candidate) => candidate.key === key)
+    return col?.sortType === 'text' ? 'asc' : 'desc'
+  }
+
   const toggleSort = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -132,8 +138,7 @@ export default function DataTable<T>({
     setSortKey(key)
     // First click: text columns read most naturally A→Z (asc); numeric/date
     // columns default to largest-first (desc).
-    const col = columns.find((c) => c.key === key)
-    setSortDir(col?.sortType === 'text' ? 'asc' : 'desc')
+    setSortDir(defaultSortDirection(key))
   }
 
   if (rows.length === 0 && emptyState !== undefined) {
@@ -143,40 +148,84 @@ export default function DataTable<T>({
   const shouldAnimate = animateRows && sortedRows.length <= 200
 
   // Mobile card-stack: each row becomes a stacked label/value card so wide
-  // tables don't force horizontal scrolling on phones. One column may be the
-  // card title (mobilePrimary); the rest render as label/value rows.
+  // tables don't force horizontal scrolling on phones. Sorting remains
+  // available through a compact control because the desktop headers are gone.
   if (mobileCards && isMobile) {
     const labelFor = (col: DataTableColumn<T>) =>
       col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
+    const sortableColumns = columns.filter((col) => col.sortable === true)
+    const cardsClass = [
+      'm-0 list-none space-y-2 p-0',
+      maxHeightClass ? `${maxHeightClass} overflow-y-auto pr-1` : '',
+    ].join(' ').trim()
+
     return (
-      <ul className="m-0 list-none space-y-2 p-0" aria-label={ariaLabel}>
-        {sortedRows.map((row, i) => {
-          const primary = columns.find((c) => c.mobilePrimary)
-          const rest = columns.filter((c) => !c.mobilePrimary)
-          return (
-            <li
-              key={rowKey(row, i)}
-              className={`ledger-panel p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+      <div className="space-y-2">
+        {sortableColumns.length > 0 && (
+          <div className="ledger-control flex items-center gap-2 rounded-md border p-2">
+            <label htmlFor={mobileSortId} className="shrink-0 text-xs font-medium text-text-tertiary">
+              Sort by
+            </label>
+            <select
+              id={mobileSortId}
+              value={sortKey ?? ''}
+              onChange={(event) => {
+                const key = event.target.value
+                setSortKey(key)
+                setSortDir(defaultSortDirection(key))
+              }}
+              className="min-w-0 flex-1 rounded-md border border-border bg-surface-3 px-2 py-1.5 text-sm text-foreground"
             >
-              {primary && (
-                <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
-                  {primary.cell(row, i)}
-                </div>
+              {sortKey === null && (
+                <option value="" disabled>
+                  Choose field
+                </option>
               )}
-              <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
-                {rest.map((col) => (
-                  <div key={col.key} className="flex min-w-0 items-start justify-between gap-2">
-                    <dt className="min-w-0 break-words text-xs font-medium text-text-tertiary">{labelFor(col)}</dt>
-                    <dd className={`ledger-figure min-w-0 max-w-[75%] shrink-0 break-words text-right text-sm ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
-                      {col.cell(row, i)}
-                    </dd>
+              {sortableColumns.map((col) => (
+                <option key={col.key} value={col.key}>
+                  {typeof col.header === 'string' ? col.header : labelFor(col) || col.key}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))}
+              aria-label={`Change sort to ${sortDir === 'asc' ? 'descending' : 'ascending'}`}
+              className="min-h-11 rounded-md border border-border px-3 text-sm font-medium text-foreground"
+            >
+              {sortDir === 'asc' ? 'Asc' : 'Desc'}
+            </button>
+          </div>
+        )}
+        <ul className={cardsClass} aria-label={ariaLabel}>
+          {sortedRows.map((row, i) => {
+            const primary = columns.find((c) => c.mobilePrimary)
+            const rest = columns.filter((c) => !c.mobilePrimary)
+            return (
+              <li
+                key={rowKey(row, i)}
+                className={`ledger-panel p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+              >
+                {primary && (
+                  <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
+                    {primary.cell(row, i)}
                   </div>
-                ))}
-              </dl>
-            </li>
-          )
-        })}
-      </ul>
+                )}
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
+                  {rest.map((col) => (
+                    <div key={col.key} className="flex min-w-0 items-start justify-between gap-2">
+                      <dt className="min-w-0 break-words text-xs font-medium text-text-tertiary">{labelFor(col)}</dt>
+                      <dd className={`ledger-figure min-w-0 max-w-[75%] shrink-0 break-words text-right text-sm ${col.cellClassName?.(row, i) ?? ''}`.trim()}>
+                        {col.cell(row, i)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     )
   }
 
@@ -221,7 +270,7 @@ export default function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => toggleSort(col.key)}
-                    className={`inline-flex w-full select-none items-center gap-1 rounded ${justifyForAlign[col.align ?? 'left']} transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}
+                    className={`inline-flex min-h-6 w-full select-none items-center gap-1 rounded ${justifyForAlign[col.align ?? 'left']} transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}
                   >
                     {col.header}
                     <span

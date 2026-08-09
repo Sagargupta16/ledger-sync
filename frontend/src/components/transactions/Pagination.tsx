@@ -46,6 +46,12 @@ export default function Pagination({
           <span className="font-medium text-foreground">{totalItems}</span> transactions
         </div>
 
+        {/* Compact position label for narrow phones. */}
+        <div className="w-full text-center text-xs text-text-tertiary sm:hidden">
+          Page <span className="font-medium text-foreground">{currentPage}</span> of{' '}
+          <span className="font-medium text-foreground">{totalPages}</span>
+        </div>
+
         {/* Pagination controls */}
         <div className="flex items-center gap-2">
           <Button

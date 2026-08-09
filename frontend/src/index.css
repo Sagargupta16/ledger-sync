@@ -20,7 +20,7 @@
   --color-secondary: var(--color-app-indigo);
   --color-secondary-foreground: #ffffff;
   --color-muted: var(--color-surface-3);
-  --color-muted-foreground: #8e8e93;
+  --color-muted-foreground: #a4afbd;
   --color-accent: var(--color-surface-4);
   --color-accent-foreground: #f5f5f7;
   --color-destructive: var(--color-app-red);
@@ -92,9 +92,9 @@
   /* ===== TEXT COLORS ===== */
   /* Cool-cast neutrals matching the blue surfaces; contrast tiers preserved. */
   --color-text-primary: #f2f6fb;
-  --color-text-secondary: #93a1b3;
-  --color-text-tertiary: #7e8b9c;
-  --color-text-quaternary: #4a5462;
+  --color-text-secondary: #b0bac7;
+  --color-text-tertiary: #98a5b5;
+  --color-text-quaternary: #7f8b9a;
 
   /* ===== LEDGER INTERFACE TOKENS ===== */
   --ledger-control-bg: rgba(10, 14, 20, 0.42);
@@ -285,23 +285,23 @@
   /* Accent palette: darken a few that are too pale on white for AA contrast */
   --color-app-blue: #2563eb;
   --color-app-blue-vibrant: #1d4ed8;
-  --color-app-green: #158a50;
-  --color-app-green-vibrant: #117744;
-  --color-app-red: #d64b4b;
-  --color-app-red-vibrant: #c53f3f;
-  --color-app-orange: #c47a19;
-  --color-app-orange-vibrant: #ad6812;
+  --color-app-green: #117847;
+  --color-app-green-vibrant: #0d693d;
+  --color-app-red: #b83e3e;
+  --color-app-red-vibrant: #a93434;
+  --color-app-orange: #92590e;
+  --color-app-orange-vibrant: #7f4b08;
   --color-app-yellow: #ca9a04;
   --color-app-yellow-vibrant: #b8860b;
   --color-warning-text: #765600;
-  --color-app-teal: #128da4;
-  --color-app-teal-vibrant: #0e768b;
-  --color-app-purple: #6f5ac7;
-  --color-app-purple-vibrant: #5f48b5;
-  --color-app-pink: #e85d8a;
-  --color-app-pink-vibrant: #db2777;
-  --color-app-indigo: #5b63d6;
-  --color-app-indigo-vibrant: #4f46e5;
+  --color-app-teal: #0b6f82;
+  --color-app-teal-vibrant: #095f70;
+  --color-app-purple: #5d48b2;
+  --color-app-purple-vibrant: #4f3c9d;
+  --color-app-pink: #c83f73;
+  --color-app-pink-vibrant: #b83268;
+  --color-app-indigo: #484fb9;
+  --color-app-indigo-vibrant: #3e44a6;
 
   /* Text: near-black (blue-cast) down to a soft cool grey */
   --color-text-primary: #14181f;
@@ -1086,7 +1086,7 @@ input[type='number'] {
 
 /* Keep dense desktop controls while giving touch layouts a reliable hit area. */
 @media (max-width: 639px) {
-  #root button:not([role='switch']),
+  #root button:not([role='switch']):not([data-compact-control='true']),
   #root [role='button'],
   #root [role='tab'] {
     min-block-size: 44px;

@@ -103,7 +103,7 @@ export default function TransactionsPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleItemsPerPageChange = (items: number) => {

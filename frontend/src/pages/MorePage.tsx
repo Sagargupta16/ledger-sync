@@ -62,7 +62,7 @@ const SECTIONS: readonly MoreSection[] = [
     title: 'Analytics',
     items: [
       { to: ROUTES.SPENDING_ANALYSIS, label: 'Expense', icon: BarChart3, color: 'text-app-red' },
-      { to: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchants', icon: Store, color: 'text-app-orange' },
+      { to: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchant Intelligence', icon: Store, color: 'text-app-orange' },
       { to: ROUTES.INCOME_ANALYSIS, label: 'Income', icon: CircleDollarSign, color: 'text-app-green' },
       { to: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows, color: 'text-app-blue' },
       { to: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays, color: 'text-app-purple' },
@@ -88,7 +88,7 @@ const SECTIONS: readonly MoreSection[] = [
   {
     title: 'Planning',
     items: [
-      { to: ROUTES.BUDGETS, label: 'Budgets', icon: Wallet2, color: 'text-app-green' },
+      { to: ROUTES.BUDGETS, label: 'Budget Rule', icon: Wallet2, color: 'text-app-green' },
       { to: ROUTES.GOALS, label: 'Goals', icon: Goal, color: 'text-app-purple' },
       { to: ROUTES.FIRE_CALCULATOR, label: 'FIRE', icon: Flame, color: 'text-app-orange' },
       { to: ROUTES.ANOMALIES, label: 'Anomalies', icon: AlertTriangle, color: 'text-app-red' },

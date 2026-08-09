@@ -1,8 +1,8 @@
 # Ledger Sync Handbook
 
-User guide for Ledger Sync 2.23.0.
+User guide for Ledger Sync 2.24.0.
 
-Verified against the live frontend source on 2026-07-27. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
+Verified against the live frontend source on 2026-08-09. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
 
 ## Start Here
 
@@ -47,7 +47,7 @@ Use the sidebar Search control, the workspace header, or `Ctrl+K` to open the co
 
 ### Themes
 
-Settings and the sidebar theme control switch between Light and Dark. Before you choose, the app follows your operating system setting.
+Settings and the sidebar theme control switch between Light and Dark. Before you choose, the app follows your operating system setting. Switching themes keeps the current page, filters, tabs, searches, and form values in place while charts redraw with the resolved palette.
 
 ### Data errors and recovery
 
@@ -99,6 +99,10 @@ After selection:
 
 An already imported file produces a conflict prompt. Use Force Reupload only when the new copy is intended to replace or reconcile the earlier import.
 
+Import history below the upload area lists the most recent runs with local-time
+timestamps and processed, new, updated, and already-present row counts. It is
+account-scoped and is hidden in demo mode, where no server-side imports occur.
+
 There is no separate mapping or row-preview screen. The table below the drop zone is an expected-format example, not imported data.
 
 ## Transactions
@@ -146,6 +150,10 @@ Dashboard settings control which available items appear.
 The score summarizes spending, saving, borrowing, and planning signals. Treat it as a directional diagnostic, not a credit score or financial recommendation.
 
 ### Income and expense sources
+
+A grouped bar panel compares income and spending for each complete month in the
+selected period. The current in-progress month is excluded and named below the
+chart so partial income is not compared with near-complete fixed costs.
 
 The two source panels show the largest categories and group smaller slices into Other. Selecting a category opens the matching analysis page with that category applied.
 
@@ -400,7 +408,11 @@ It includes:
 - Multi-year projections.
 - Optional projected TDS schedule for the current FY.
 
-Vested RSUs use their stored vest-date price when available. Upcoming vestings use the configured appreciation assumption.
+Vested RSUs use their stored vest-date stock price converted at the exchange
+rate published for the vest date when available. Gross quantity remains the tax
+basis; an optional net quantity reports shares actually received after
+sell-to-cover withholding. Upcoming vestings use the configured appreciation
+assumption.
 
 Tax rules are versioned by fiscal year, but results remain estimates. Verify final filing values against official records.
 
@@ -419,9 +431,9 @@ Settings has 12 sections in four workflow groups.
 ### Money Setup
 
 1. **Financial Settings** - fiscal year, budget targets, fixed expenses, tax preferences, TDS schedule, EPF treatment, savings and payday settings.
-2. **Income and Salary Structure** - fiscal-year salary components, RSU grants and vestings, vest-date prices, and growth assumptions.
+2. **Income and Salary Structure** - fiscal-year salary components, RSU grants and vestings, vest-date prices, net shares received, and growth assumptions.
 
-Both start expanded.
+Financial Settings starts expanded; Income and Salary Structure starts collapsed.
 
 ### Categories and Classification
 
@@ -431,7 +443,7 @@ Both start expanded.
 6. **Categorization Rules** - ordered note/account matching rules with optional retroactive application.
 7. **Investment Mappings** - map investment accounts to the four analytics categories.
 
-The first four sections in this group start expanded; Investment Mappings starts collapsed.
+All five sections in this group start collapsed.
 
 ### Profile and Display
 

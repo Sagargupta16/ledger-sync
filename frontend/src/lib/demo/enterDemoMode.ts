@@ -44,5 +44,5 @@ export function enterDemoMode(queryClient: QueryClient, navigate: NavigateFuncti
   // react-router types NavigateFunction as `void | Promise<void>`; the app uses
   // BrowserRouter (App.tsx), where it returns undefined. Nothing here waits on
   // the transition, so `void` is fire-and-forget, not a hidden rejection.
-  void navigate(ROUTES.DASHBOARD)
+  void navigate(ROUTES.DASHBOARD, { replace: true })
 }

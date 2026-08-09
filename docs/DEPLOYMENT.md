@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.23.0.
+Current for Ledger Sync 2.24.0.
 
 ## Production Topology
 
@@ -175,7 +175,7 @@ curl.exe --fail https://ledger-sync-api.vercel.app/api/auth/oauth/providers
 
 Expected behavior:
 
-- `/health` returns version `2.23.0`.
+- `/health` returns version `2.24.0`.
 - `/health/db` returns a connected database result.
 - `/api/auth/oauth/providers` returns HTTP 200 and a JSON array.
 - An empty provider array means no OAuth provider is configured.

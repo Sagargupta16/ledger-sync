@@ -79,7 +79,7 @@ export const navigationSections: NavSection[] = [
       // Sits under Expense Analysis because it answers the next question that
       // page raises: the 12 categories say what kind of spend, this says who
       // was actually paid.
-      { path: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchants', icon: Store },
+      { path: ROUTES.MERCHANT_INTELLIGENCE, label: 'Merchant Intelligence', icon: Store },
       { path: ROUTES.INCOME_ANALYSIS, label: 'Income Analysis', icon: CircleDollarSign },
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
@@ -89,7 +89,7 @@ export const navigationSections: NavSection[] = [
   {
     title: 'Wealth',
     items: [
-      { path: ROUTES.NET_WORTH, label: 'Net Worth Tracker', icon: Wallet },
+      { path: ROUTES.NET_WORTH, label: 'Net Worth', icon: Wallet },
       { path: ROUTES.TRENDS_FORECASTS, label: 'Trends & Forecasts', icon: LineChart },
       { path: ROUTES.INVESTMENT_ANALYTICS, label: 'Investment Analytics', icon: TrendingUp },
       { path: ROUTES.MUTUAL_FUND_PROJECTION, label: 'Projections', icon: Target },
