@@ -82,6 +82,7 @@ export default function UploadDropzone({
           <div className="w-full shrink-0 lg:w-96">
             <div
               {...getRootProps({
+                role: 'button',
                 'aria-label': 'Upload an Excel or CSV transaction file',
                 'aria-busy': isBusy,
               })}

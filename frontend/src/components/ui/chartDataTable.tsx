@@ -47,32 +47,34 @@ export function chartDataTable<T>(
   keyOf: (row: T, index: number) => string,
 ) {
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.header} scope="col">
-              {col.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={keyOf(row, i)}>
-            {columns.map((col) =>
-              col.rowHeader ? (
-                <th key={col.header} scope="row">
-                  {col.value(row)}
-                </th>
-              ) : (
-                <td key={col.header}>{col.value(row)}</td>
-              ),
-            )}
+    <div className="sr-only overflow-hidden">
+      <table className="sr-only">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((col) => (
+              <th key={col.header} scope="col">
+                {col.header}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={keyOf(row, i)}>
+              {columns.map((col) =>
+                col.rowHeader ? (
+                  <th key={col.header} scope="row">
+                    {col.value(row)}
+                  </th>
+                ) : (
+                  <td key={col.header}>{col.value(row)}</td>
+                ),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

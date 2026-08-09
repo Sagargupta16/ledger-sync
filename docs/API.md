@@ -1,14 +1,14 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.23.0.
+Human-readable reference for Ledger Sync API version 2.24.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
-verified against that document on 2026-07-27.
+verified against that document on 2026-08-09.
 
 Current OpenAPI inventory:
 
-- 104 paths
-- 118 HTTP operations
+- 105 paths
+- 119 HTTP operations
 - Swagger UI at `/docs`
 - ReDoc at `/redoc`
 - Raw schema at `/openapi.json`
@@ -167,6 +167,7 @@ Common status codes:
 | `GET` | `/api/transactions/export` | Filtered CSV export |
 | `PUT` | `/api/transactions/{transaction_id}/tags` | Replace a transaction's tags |
 | `POST` | `/api/upload` | Reconcile browser-parsed transaction rows |
+| `GET` | `/api/upload/history` | Most-recent-first import history and row counts |
 | `GET`, `POST` | `/api/saved-views` | List or create saved filters |
 | `DELETE` | `/api/saved-views/{view_id}` | Delete a saved filter |
 | `GET`, `POST` | `/api/categorization-rules` | List or create rules |
@@ -268,7 +269,7 @@ Common status codes:
 | `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
 | `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
 | `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage |
-| `GET` | `/api/exchange-rates` | Currency rates by base currency |
+| `GET` | `/api/exchange-rates` | Latest or historical currency rates by base currency |
 | `GET` | `/api/rates/instruments` | EPF, PPF, and NPS reference rates |
 | `GET` | `/api/stock-price/{symbol}` | Latest or historical stock price |
 
@@ -333,6 +334,18 @@ hashes, reconciles the current user's ledger, and runs a full analytics
 refresh. A refresh failure is logged but does not roll back successfully
 persisted transactions. `POST /api/analytics/v2/refresh` remains available for
 a manual retry.
+
+`GET /api/upload/history?limit=10` returns the authenticated user's imports in
+most-recent-first order. `limit` accepts 1 through 100. Each row includes the
+file name and hash, an explicit-UTC import timestamp, and processed, inserted,
+updated, deleted, and skipped counts; `total_count` reports the full unpaginated
+history size.
+
+`GET /api/exchange-rates?base=USD` returns the latest rates. Adding
+`on_date=YYYY-MM-DD` requests the rate published for that historical date and
+returns both `requested_date` and the actual `as_of` publication date. Historical
+lookups bypass the latest-rate cache and present-day fallback table so a failed
+lookup cannot silently substitute today's FX for an RSU vest date.
 
 ## Transaction Contracts
 

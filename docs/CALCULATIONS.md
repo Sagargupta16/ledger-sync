@@ -1,9 +1,9 @@
 # Calculations and Data Processing
 
-Calculation reference for Ledger Sync 2.23.0.
+Calculation reference for Ledger Sync 2.24.0.
 
 Verified against the backend analytics engine and frontend calculator modules
-on 2026-07-27.
+on 2026-08-09.
 
 ## Calculation Boundaries
 
@@ -606,11 +606,20 @@ with base.
 
 ### RSU valuation
 
-Each vesting has a date, quantity, and optional `price_at_vest`.
+Each vesting has a date, gross `quantity`, optional `price_at_vest`, and optional
+`net_quantity` received after sell-to-cover withholding.
 
-- A completed vesting uses its locked vest-date price when available.
-- An upcoming vesting uses the grant's current price and projection
-  assumptions where applicable.
+- A completed vesting uses its locked vest-date stock price converted with the
+  exchange rate published for that vest date. A weekend or holiday uses the
+  upstream's preceding publication date.
+- Historical FX failures do not use the present-day fallback table. The locked
+  price remains unset, so the UI honestly falls back to the grant's current
+  price instead of presenting a mixed-date value as historical.
+- An upcoming vesting uses the grant's current price and projection assumptions
+  where applicable.
+- `net_quantity` is reporting-only. Perquisite value, projected taxable income,
+  and TDS continue to use the gross `quantity`; withheld shares are the tax
+  payment, not a reduction in the taxable vest.
 - Changing a completed vesting date clears the stale locked price in the UI so
   it can be fetched again.
 

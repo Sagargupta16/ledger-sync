@@ -18,7 +18,7 @@ export default function GSTSummaryCards({ data }: Readonly<Props>) {
       className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
     >
       <div className="glass rounded-2xl border border-border p-4 sm:p-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="p-2.5 sm:p-3 rounded-xl bg-app-red/20">
             <Receipt className="w-6 h-6 text-app-red" />
           </div>
@@ -33,7 +33,7 @@ export default function GSTSummaryCards({ data }: Readonly<Props>) {
       </div>
 
       <div className="glass rounded-2xl border border-border p-4 sm:p-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="p-2.5 sm:p-3 rounded-xl bg-app-indigo/20">
             <Percent className="w-6 h-6 text-app-indigo" />
           </div>
@@ -50,7 +50,7 @@ export default function GSTSummaryCards({ data }: Readonly<Props>) {
       </div>
 
       <div className="glass rounded-2xl border border-border p-4 sm:p-6 col-span-2 sm:col-span-1">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="p-2.5 sm:p-3 rounded-xl bg-app-purple/20">
             <BarChart3 className="w-6 h-6 text-app-purple" />
           </div>

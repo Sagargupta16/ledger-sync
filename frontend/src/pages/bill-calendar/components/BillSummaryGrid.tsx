@@ -30,7 +30,7 @@ export default function BillSummaryGrid({
     else nextBillPrimary = `In ${daysUntil} days`
   }
   const nextBillContext = nextBill
-    ? `${nextBill.name} -- ${formatCurrency(nextBill.amount)}`
+    ? `${nextBill.name} — ${formatCurrency(nextBill.amount)}`
     : 'Next Upcoming Bill'
 
   return (

@@ -1,6 +1,6 @@
 # Migration Notes
 
-Current for Ledger Sync 2.23.0.
+Current for Ledger Sync 2.24.0.
 
 ## Current Chain
 

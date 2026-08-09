@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Eye, Heart, PiggyBank, Upload } from 'lucide-react'
+import { ArrowRight, Eye, Heart, Landmark, Upload } from 'lucide-react'
 
 import ThemeToggle from '@/components/layout/Sidebar/ThemeToggle'
 import { AuthModal } from '@/components/shared/AuthModal'
@@ -32,6 +32,14 @@ export default function HomePage() {
 
   const handleTryDemo = () => enterDemoMode(queryClient, navigate)
 
+  const handleFinalCta = () => {
+    if (isAuthenticated) {
+      void navigate(ROUTES.UPLOAD)
+    } else {
+      setShowAuthModal(true)
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header
@@ -45,7 +53,7 @@ export default function HomePage() {
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link to="/" className="group flex min-h-11 items-center gap-3">
             <div className="flex size-8 items-center justify-center rounded-md bg-foreground text-background">
-              <PiggyBank className="size-4.5" aria-hidden="true" />
+              <Landmark className="size-4.5" aria-hidden="true" />
             </div>
             <div>
               <span className="block text-sm font-semibold leading-none">Ledger Sync</span>
@@ -106,7 +114,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={handleGetStarted}
+                onClick={handleFinalCta}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85"
               >
                 <Upload className="size-4" aria-hidden="true" />

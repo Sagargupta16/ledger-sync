@@ -63,7 +63,7 @@ The router contains 3 public routes and 26 protected workspace pages.
 | --- | --- |
 | Public | Home, demo entry, OAuth callback |
 | Top level | Dashboard, Overview, Transactions |
-| Analytics | Expense Analysis, Merchants, Income Analysis, Cash Flow, Comparison, Year in Review |
+| Analytics | Expense Analysis, Merchant Intelligence, Income Analysis, Cash Flow, Comparison, Year in Review |
 | Wealth | Net Worth, Trends and Forecasts, Investment Analytics, Projections, Returns Analysis |
 | Commitments | Recurring, Bill Calendar |
 | Planning | Budget Rule, Financial Goals, FIRE Calculator, Anomaly Review, Data Health |

@@ -113,7 +113,7 @@ export default function RegimeComparison({
               </span>
             )}
             {totalDeductions === 0 && (
-              <span className="text-text-quaternary"> (without deductions)</span>
+              <span className="text-muted-foreground"> (without deductions)</span>
             )}
           </p>
         </div>

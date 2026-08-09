@@ -80,7 +80,7 @@ export default function DayCell({
       aria-label={ariaLabel}
       aria-pressed={isCurrentMonth ? isSelected : undefined}
       className={`
-        group relative flex min-h-[60px] min-w-11 w-full flex-col items-center justify-start rounded-xl p-1.5
+        group relative flex min-h-[60px] min-w-11 w-full flex-col items-center justify-start rounded-lg p-1
         transition-colors duration-150 sm:min-h-[72px] sm:p-2
         ${interactionClass}
         ${opacityClass}

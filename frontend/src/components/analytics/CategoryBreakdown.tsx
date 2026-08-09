@@ -136,7 +136,7 @@ export default function CategoryBreakdown({
         {categories.map((cat) => (
           <motion.div
             key={cat.name}
-            className="h-full transition-opacity hover:opacity-80 cursor-pointer"
+            className="h-full"
             style={{
               backgroundColor: cat.color,
               width: `${cat.percent}%`,
@@ -145,12 +145,7 @@ export default function CategoryBreakdown({
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            onClick={() => toggleExpand(cat.name)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(cat.name) } }}
-            role="button"
-            tabIndex={0}
-            aria-label={`${cat.name}: ${formatCurrency(cat.total)} (${cat.percent.toFixed(1)}%)`}
-            title={`${cat.name}: ${formatCurrency(cat.total)} (${cat.percent.toFixed(1)}%)`}
+            aria-hidden="true"
           />
         ))}
       </div>
@@ -173,10 +168,10 @@ export default function CategoryBreakdown({
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
                 } ${isExpanded ? 'bg-[var(--overlay-2)] border border-[var(--hairline-2)]' : 'bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)]'}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] sm:gap-3">
                   {/* Color dot */}
                   <div
-                    className="w-3 h-3 rounded-full shrink-0"
+                    className="row-span-2 h-3 w-3 shrink-0 rounded-full sm:row-span-1"
                     style={{ backgroundColor: cat.color }}
                   />
 
@@ -184,11 +179,11 @@ export default function CategoryBreakdown({
                       with its divisor). Reuses data already on the row -- no
                       extra fetch. */}
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-foreground truncate">
+                    <span className="block text-sm font-medium text-foreground sm:truncate">
                       {cat.name}
                     </span>
                     {(cat.subcategories.length > 0 || avgLabelByName.get(cat.name)) ? (
-                      <span className="block text-[11px] text-text-tertiary truncate">
+                      <span className="block text-[11px] text-text-tertiary sm:truncate">
                         {cat.subcategories.length > 0 && (
                           <>{cat.subcategories.length} {cat.subcategories.length === 1 ? 'subcategory' : 'subcategories'}</>
                         )}
@@ -201,10 +196,15 @@ export default function CategoryBreakdown({
                   </span>
 
                   {/* Percentage + Amount */}
-                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                  <span className="col-start-2 row-start-2 shrink-0 text-xs tabular-nums text-muted-foreground sm:col-auto sm:row-auto">
                     {cat.percent.toFixed(1)}%
                   </span>
-                  <Money value={cat.total} width="lg" bold className="text-sm" />
+                  <Money
+                    value={cat.total}
+                    width="md"
+                    bold
+                    className="col-start-3 row-start-2 text-sm sm:col-auto sm:row-auto"
+                  />
 
 
                   {/* Expand chevron */}
@@ -212,7 +212,7 @@ export default function CategoryBreakdown({
                     <motion.div
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
-                      className="text-text-tertiary group-hover:text-foreground"
+                      className="col-start-3 row-start-1 text-text-tertiary group-hover:text-foreground sm:col-auto sm:row-auto"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </motion.div>

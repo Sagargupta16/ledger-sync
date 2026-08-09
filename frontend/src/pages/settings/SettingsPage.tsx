@@ -117,7 +117,7 @@ export default function SettingsPage() {
           }
         />
 
-        {/* Group: Money Setup -- essential first-run config, expanded by default */}
+        {/* Group: Money Setup -- keep the primary financial controls open and secondary details compact */}
         <GroupHeader>Money Setup</GroupHeader>
 
         {s.localPrefs && (
@@ -137,10 +137,10 @@ export default function SettingsPage() {
           updateRsuGrants={s.updateRsuGrants}
           localGrowthAssumptions={s.localGrowthAssumptions}
           updateGrowthAssumptions={s.updateGrowthAssumptions}
-          defaultCollapsed={false}
+          defaultCollapsed
         />
 
-        {/* Group: Categories & Classification -- essential first-run config, expanded by default */}
+        {/* Group: Categories & Classification -- collapsed until the user needs detailed setup */}
         <GroupHeader>Categories &amp; Classification</GroupHeader>
 
         <AccountClassificationsSection
@@ -154,7 +154,7 @@ export default function SettingsPage() {
           onDragEnd={handleDragEnd}
           onDropOnCategory={handleDropOnCategory}
           onAssignAccount={handleAssignAccount}
-          defaultCollapsed={false}
+          defaultCollapsed
         />
 
         {s.localPrefs && (
@@ -164,7 +164,7 @@ export default function SettingsPage() {
             localPrefs={s.localPrefs}
             fixedCategories={s.fixedCategories}
             updateLocalPref={s.updateLocalPref}
-            defaultCollapsed={false}
+            defaultCollapsed
           />
         )}
 
@@ -178,7 +178,7 @@ export default function SettingsPage() {
             removeIncomeKey={s.removeIncomeKey}
             setLocalPrefs={s.setLocalPrefs}
             setHasChanges={s.setHasChanges}
-            defaultCollapsed={false}
+            defaultCollapsed
           />
         )}
 

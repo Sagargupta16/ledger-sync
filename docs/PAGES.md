@@ -1,8 +1,8 @@
 # Pages Reference
 
-Developer-facing route and data-source catalog for Ledger Sync 2.23.0.
+Developer-facing route and data-source catalog for Ledger Sync 2.24.0.
 
-Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-07-27.
+Verified against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-08-09.
 
 ## Router Summary
 
@@ -38,12 +38,12 @@ The public Home route remains available to authenticated users. Its primary acti
 | Core | `/dashboard` | Dashboard |
 | Core | `/overview` | Overview |
 | Analytics | `/spending` | Expense Analysis |
-| Analytics | `/merchants` | Merchants |
+| Analytics | `/merchants` | Merchant Intelligence |
 | Analytics | `/income` | Income Analysis |
 | Analytics | `/income-expense-flow` | Cash Flow |
 | Analytics | `/comparison` | Comparison |
 | Analytics | `/year-in-review` | Year in Review |
-| Wealth | `/net-worth` | Net Worth Tracker |
+| Wealth | `/net-worth` | Net Worth |
 | Wealth | `/forecasts` | Trends and Forecasts |
 | Wealth | `/investments/analytics` | Investment Analytics |
 | Wealth | `/investments/sip-projection` | Projections |
@@ -102,8 +102,9 @@ Displays:
 - Age of Money and Days of Buffering. Buffering uses only accounts classified as Cash, Bank Accounts, or Other Wallets, then subtracts credit-card debt and overdrawn balances. See [CALCULATIONS.md](CALCULATIONS.md) for the definition.
 - Financial Health Score.
 - Income Sources and Expense Sources pies with drill-down links.
+- Grouped monthly income-versus-spending bars for complete months, with any excluded in-progress month disclosed below the chart.
 
-There is no trailing recent-trends chart. When the selected period contains no transactions, the page shows a full-page upload prompt.
+When the selected period contains no transactions, the page shows a full-page upload prompt.
 
 Primary sources:
 
@@ -153,7 +154,7 @@ Displays:
 
 Category deep links use the `category` query parameter. Calculations combine the filtered ledger with user preferences such as essential categories.
 
-### Merchants
+### Merchant Intelligence
 
 **Route:** `/merchants`
 
@@ -480,7 +481,7 @@ Displays:
 - Multi-year projection table.
 - Optional projected TDS schedule for the current FY.
 
-Tax math is client-side and uses versioned fiscal-year tax configuration. Vested RSU rows use a stored vest-date price when available; upcoming rows use the configured appreciation assumption.
+Tax math is client-side and uses versioned fiscal-year tax configuration. Vested RSU rows use a stored vest-date stock price converted at vest-date FX when available; optional net quantity reports sell-to-cover proceeds without changing the gross taxable quantity. Upcoming rows use the configured appreciation assumption.
 
 ### Indirect Tax (GST)
 
@@ -548,6 +549,10 @@ Flow:
 
 Rows upload immediately after successful parsing. There is no 50-row preview or column-remapping step. The page shows a static expected-format table.
 
+The account-scoped Import History section reads `GET /api/upload/history`, lists
+the most recent runs and row counts, and switches to mobile cards below `sm`.
+Demo mode omits the section because it has no server-side import log.
+
 ### Settings
 
 **Route:** `/settings`
@@ -569,7 +574,7 @@ Twelve sections:
 11. AI Assistant
 12. Advanced
 
-The first six sections start expanded. The remaining six start collapsed.
+Only Financial Settings starts expanded. The other eleven sections start collapsed to keep the initial desktop and phone scan compact.
 
 Settings are grouped under Money Setup, Categories and Classification, Profile and Display, and Advanced. Save persists staged preference changes. Reset restores default preferences but preserves account classifications.
 

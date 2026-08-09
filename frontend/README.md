@@ -50,7 +50,7 @@ Top level
 
 Analytics
   Expense Analysis
-  Merchants
+  Merchant Intelligence
   Income Analysis
   Cash Flow
   Comparison
@@ -146,14 +146,14 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 
 - `themeStore` persists Light or Dark mode. New users start on the OS `prefers-color-scheme` value.
 - `index.css` contains semantic color, surface, typography, chart, and control tokens.
-- Charts resolve theme colors through `rawColors`.
-- Wide shared tables can switch to mobile cards below `sm`.
+- Charts resolve theme colors through `rawColors` and remount their responsive container when the resolved theme changes; route-local filters, tabs, searches, and forms remain mounted.
+- Wide shared tables can switch to mobile cards below `sm`, with sortable tables exposing a compact mobile sort control.
 - Primary phone controls target at least 44px.
 - The service worker caches the application shell but excludes `/api/*`.
 
 ## Tests
 
-The current frontend suite contains 1,401 tests in 118 files.
+The current frontend suite contains 1,427 tests in 121 files.
 
 Lint and test runs ignore `.claude/`. Local agent git worktrees are checked out there, and a second copy of this suite (or a second `tsconfig.json` root) otherwise inflates the test counts and fails `eslint .` across the whole tree. See `globalIgnores` in `eslint.config.js` and `exclude` in `vitest.config.ts`.
 

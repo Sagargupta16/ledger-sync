@@ -1,6 +1,6 @@
 # System Architecture
 
-Architecture reference for Ledger Sync 2.23.0.
+Architecture reference for Ledger Sync 2.24.0.
 
 Verified against the application entry points, route tree, stores, API
 registration, model metadata, and deployment workflows on 2026-07-27.

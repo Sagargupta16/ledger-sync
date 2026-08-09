@@ -89,7 +89,9 @@ export default function IncomeTrendSection({
                 }}
                 formatter={(value, name) => [
                   currencyTooltipFormatter(value),
-                  name === 'incomeAvg' ? `Income (${rollingAvgMonths}m avg)` : 'Income',
+                  name === `Income (${rollingAvgMonths}m avg)`
+                    ? `Income (${rollingAvgMonths}m avg)`
+                    : 'Income',
                 ]}
                 itemSorter={(item) => -(item.value as number)}
               />

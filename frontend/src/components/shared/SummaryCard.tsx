@@ -46,19 +46,15 @@ export default function SummaryCard({
   return (
     <motion.div
       {...fadeUpWithDelay(delay)}
-      className={`glass rounded-2xl border border-border ${padding}`}
+      className={`glass h-full rounded-2xl border border-border ${padding}`}
     >
-      <div className="flex items-center gap-3">
-        <div className={`p-2.5 ${bgClass} rounded-xl ${shadowClass ?? ''}`}>
-          <Icon className={`w-5 h-5 ${colorClass}`} />
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <div className={`shrink-0 rounded-xl p-2.5 ${bgClass} ${shadowClass ?? ''}`}>
+          <Icon className={`h-5 w-5 ${colorClass}`} />
         </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          {/* title reveals the full amount when the truncate clips it */}
-          <p
-            className="text-lg sm:text-xl font-bold text-foreground truncate"
-            title={typeof value === 'string' ? value : undefined}
-          >
+        <div className="min-w-0 w-full">
+          <p className="break-words text-xs text-muted-foreground">{label}</p>
+          <p className="break-words text-lg font-bold leading-tight text-foreground sm:text-xl">
             {value}
           </p>
         </div>

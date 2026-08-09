@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 import { Calendar } from 'lucide-react'
 import type { CompareMode } from '../types'
 import { formatMonthLabel } from '../utils'
@@ -23,28 +25,30 @@ export function PeriodSelector({
   mode, label, monthOptions, yearOptions, fyOptions,
   month, year, fy, onMonth, onYear, onFy,
 }: Readonly<PeriodSelectorProps>) {
+  const selectId = useId()
+
   return (
     <div className="flex w-full sm:w-auto flex-col items-center gap-1.5">
       <div className="flex items-center gap-1.5">
         <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground font-medium">{label}</span>
+        <label htmlFor={selectId} className="text-xs text-muted-foreground font-medium">{label}</label>
       </div>
       {mode === 'month' && (
-        <select className={selectClass} value={month} onChange={(e) => onMonth(e.target.value)}>
+        <select id={selectId} className={selectClass} value={month} onChange={(e) => onMonth(e.target.value)}>
           {monthOptions.map((m) => (
             <option key={m} value={m}>{formatMonthLabel(m)}</option>
           ))}
         </select>
       )}
       {mode === 'year' && (
-        <select className={selectClass} value={year} onChange={(e) => onYear(Number(e.target.value))}>
+        <select id={selectId} className={selectClass} value={year} onChange={(e) => onYear(Number(e.target.value))}>
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
       )}
       {mode === 'fy' && (
-        <select className={selectClass} value={fy} onChange={(e) => onFy(e.target.value)}>
+        <select id={selectId} className={selectClass} value={fy} onChange={(e) => onFy(e.target.value)}>
           {fyOptions.map((f) => (
             <option key={f} value={f}>{f}</option>
           ))}
