@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.24.1 - 2026-09-02
+
+Security patch release: three high-severity Dependabot alerts closed across both workspaces, with no behavioral changes.
+
+### Security
+
+- **react-router 7.18.1 -> 7.18.3** (via `react-router-dom`) fixes an RSC-mode CSRF bypass that allowed action execution before the 400 response (Dependabot alert #110).
+- **fast-uri 4.1.1 -> 4.1.4**. The 4.1.1 the existing 3.x override mapped to was itself vulnerable to host confusion via a backslash authority introducer, so the override now maps everything below 4.1.2 to 4.1.4 (alert #107).
+- **cryptography 49.0.0 -> 50.0.1** closes a Bleichenbacher oracle in PKCS#7 EnvelopedData decryption exposed through distinguishable errors and timing (alert #109). `backend/requirements.txt` is regenerated from the lockfile, which also brings the boto3, fastapi, uvicorn, websockets, and wrapt pins the lockfile already carried.
+
+### Changed
+
+- CLAUDE.md records the toolchain traps that cost real debugging time (#235), and ImgBot re-optimized repository images (#234).
+
 ## 2.24.0 - 2026-08-09
 
 A route-by-route frontend polish pass, plus the dashboard, import-history, prefetch, and RSU correctness work merged since 2.23.0.

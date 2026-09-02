@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "2.24.0",
+  "version": "2.24.1",
   "type": "module",
   "packageManager": "pnpm@11.17.0",
   "scripts": {
@@ -26,7 +26,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-dropzone": "^19.1.1",
-    "react-router-dom": "^7.18.1",
+    "react-router-dom": "^7.18.3",
     "recharts": "^3.10.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
