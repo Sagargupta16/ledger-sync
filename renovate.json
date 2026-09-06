@@ -5,11 +5,11 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": [
-        "typescript"
+      "matchUpdateTypes": [
+        "major"
       ],
-      "allowedVersions": "<7",
-      "description": "Hold TypeScript below 7. typescript-eslint 8.69 declares peerDependencies typescript '>=4.8.4 <6.1.0' and hard-fails lint with 'typescript-eslint does not support TS 7.0', so the grouped major PR could never go green. Holding it here keeps the rest of the monthly majors mergeable. Remove this rule once typescript-eslint widens its peer range to accept 7."
+      "enabled": false,
+      "description": "Major updates are paused for this repo. TypeScript 7 is rejected by typescript-eslint (peer '>=4.8.4 <6.1.0'), and the newer typescript-eslint majors fail the frontend lint with @typescript-eslint/no-unsafe-call on types it can no longer resolve. Every narrower hold tried before this one just surfaced the next blocked major in the same grouped PR, so the monthly major stream was pure noise: it could not go green and it held nothing useful. Security updates are unaffected -- vulnerabilityAlerts runs on its own schedule and ignores packageRules. Minor and patch updates continue normally. Delete this rule once typescript-eslint accepts TS 7 and the frontend lint is clean against it."
     }
   ]
 }
