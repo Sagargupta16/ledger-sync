@@ -8,7 +8,6 @@ import { addDaysToKey } from '@/lib/dateUtils'
 import { DAYS, MONTHS_SHORT, modeAccent } from '../types'
 import type { useYearInReview } from '../useYearInReview'
 
-import type { DayCell } from './DayOfWeekChart'
 import HeatmapDayDetail from './HeatmapDayDetail'
 import HeatmapLegend from './HeatmapLegend'
 import HeatmapWeeks from './HeatmapWeeks'
@@ -27,16 +26,15 @@ const MODE_LABELS = {
 } as const
 
 function moveHeatmapFocus(
-  event: KeyboardEvent<HTMLElement>,
+  event: KeyboardEvent<HTMLButtonElement>,
   onMove: (date: string) => void,
 ) {
-  const currentCell = (event.target as HTMLElement).closest<HTMLButtonElement>(
-    'button[data-cell-date]',
-  )
-  if (!currentCell) return
+  const currentCell = event.currentTarget
+  const heatmap = currentCell.closest<HTMLElement>('[data-heatmap-grid]')
+  if (!heatmap) return
 
   const enabledCells = Array.from(
-    event.currentTarget.querySelectorAll<HTMLButtonElement>(
+    heatmap.querySelectorAll<HTMLButtonElement>(
       'button[data-cell-date]:not(:disabled)',
     ),
   )
@@ -133,41 +131,26 @@ export default function YearHeatmapSection({
 
               <section
                 className="flex gap-0.5"
+                data-heatmap-grid
                 aria-label={`${modeLabel} heatmap grid. Use arrow keys to move between days.`}
-                onKeyDown={(event) => moveHeatmapFocus(event, setKeyboardDate)}
-                onMouseOver={(event) => {
-                  const target = (event.target as HTMLElement).closest<HTMLElement>(
-                    '[data-cell-date]',
-                  )
-                  if (target) {
-                    setSelectedMonth(null)
-                    setKeyboardDate(target.dataset.cellDate ?? null)
-                    const found: DayCell | undefined = review.grid.find(
-                      (cell) => cell.date === target.dataset.cellDate,
-                    )
-                    review.setHoveredDay(found ?? null)
-                  }
-                }}
-                onFocus={(event) => {
-                  const target = event.target.closest<HTMLElement>(
-                    '[data-cell-date]',
-                  )
-                  if (target) {
-                    setSelectedMonth(null)
-                    const found: DayCell | undefined = review.grid.find(
-                      (cell) => cell.date === target.dataset.cellDate,
-                    )
-                    review.setHoveredDay(found ?? null)
-                  }
-                }}
-                onMouseLeave={() => review.setHoveredDay(null)}
-                onBlur={() => review.setHoveredDay(null)}
               >
                 <HeatmapWeeks
                   grid={review.grid}
                   mode={review.mode}
                   modeMax={review.modeMax}
                   keyboardDate={keyboardDate}
+                  onCellKeyDown={(event) => moveHeatmapFocus(event, setKeyboardDate)}
+                  onCellMouseEnter={(cell) => {
+                    setSelectedMonth(null)
+                    setKeyboardDate(cell.date)
+                    review.setHoveredDay(cell)
+                  }}
+                  onCellMouseLeave={() => review.setHoveredDay(null)}
+                  onCellFocus={(cell) => {
+                    setSelectedMonth(null)
+                    review.setHoveredDay(cell)
+                  }}
+                  onCellBlur={() => review.setHoveredDay(null)}
                 />
               </section>
             </div>

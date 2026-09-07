@@ -32,6 +32,12 @@ import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { formatTooltipName } from '../trendsUtils'
 import type { useTrendsForecasts } from '../useTrendsForecasts'
 
+const MAX_VISIBLE_LABELS = {
+  mobile: 4,
+  tablet: 8,
+  desktop: 6,
+} as const
+
 type MonthlyTrendData = ReturnType<typeof useTrendsForecasts>['monthlyTrendWithAvg']
 
 interface MonthlyTrendSectionProps {
@@ -86,8 +92,7 @@ export default function MonthlyTrendSection({
     },
   ] as const
   const animateCharts = shouldAnimate(data.length * series.length * 2)
-  const maxVisibleLabels =
-    dims.breakpoint === 'mobile' ? 4 : dims.breakpoint === 'tablet' ? 8 : 6
+  const maxVisibleLabels = MAX_VISIBLE_LABELS[dims.breakpoint]
   const xAxisInterval = Math.max(0, Math.ceil(data.length / maxVisibleLabels) - 1)
 
   return (

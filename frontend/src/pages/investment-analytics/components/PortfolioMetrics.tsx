@@ -38,6 +38,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
   const topHoldingShare =
     topHolding && totalInvestmentValue > 0 ? (topHolding.value / totalInvestmentValue) * 100 : 0
   const targetScale = Math.min(Math.max(targetProgress, 0), 100) / 100
+  const targetSemanticValue = Math.min(Math.max(Math.round(targetProgress), 0), 100)
 
   return (
     <div
@@ -112,13 +113,15 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
                 {targetProgress.toFixed(0)}%
               </span>
             </div>
-            <div
-              className="h-2 w-full overflow-hidden rounded-full bg-[var(--overlay-5)]"
-              role="progressbar"
+            <progress
+              className="sr-only"
               aria-label="Monthly investment target progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(targetProgress)}
+              value={targetSemanticValue}
+              max={100}
+            />
+            <div
+              aria-hidden="true"
+              className="h-2 w-full overflow-hidden rounded-full bg-[var(--overlay-5)]"
             >
               <motion.div
                 className="h-full w-full origin-left rounded-full"

@@ -55,7 +55,7 @@ export default function BillCalendarGrid({
   const [focusAnchor, setFocusAnchor] = useState<{ viewKey: string; day: number } | null>(null)
   const focusedDay =
     focusAnchor?.viewKey === viewKey ? focusAnchor.day : (selectedDay ?? defaultFocusDay)
-  const gridRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLFieldSetElement>(null)
 
   const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, day: number) => {
     let nextDay: number | null = null
@@ -181,13 +181,14 @@ export default function BillCalendarGrid({
                 ))}
               </div>
 
-              <div
+              <fieldset
                 ref={gridRef}
-                role="group"
                 className="grid grid-cols-7 gap-0.5 sm:gap-1"
-                aria-label={`${formatMonthYear(viewYear, viewMonth)} calendar`}
                 aria-describedby="bill-calendar-keyboard-help"
               >
+                <legend className="sr-only">
+                  {formatMonthYear(viewYear, viewMonth)} calendar
+                </legend>
                 {calendarGrid.map((cell) => {
                   const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
                   const isToday = isSameDay(
@@ -222,7 +223,7 @@ export default function BillCalendarGrid({
                     />
                   )
                 })}
-              </div>
+              </fieldset>
             </div>
           </div>
 

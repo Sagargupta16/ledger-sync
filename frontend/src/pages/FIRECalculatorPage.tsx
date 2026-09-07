@@ -50,6 +50,10 @@ function savingsRateSubtitle(rate: number): string {
   return 'Needs improvement'
 }
 
+function formatYearsToFIRE(years: number): string {
+  return years === Infinity ? 'N/A' : `${years.toFixed(1)} yrs`
+}
+
 export default function FIRECalculatorPage() {
   const monthlyQuery = useMonthlyAggregation()
   const totalsQuery = useTotals()
@@ -203,7 +207,7 @@ export default function FIRECalculatorPage() {
             {/* FIRE Metrics */}
             <motion.div variants={fadeUpItem} className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
-              <MetricCard title="Years to FIRE" value={fireResult.yearsToFIRE === Infinity ? 'N/A' : `${fireResult.yearsToFIRE.toFixed(1)} yrs`} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
+              <MetricCard title="Years to FIRE" value={formatYearsToFIRE(fireResult.yearsToFIRE)} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
               <MetricCard title="Coast FIRE" value={formatCurrency(fireResult.coastFIRE)} icon={Flame} color="teal" subtitle="Amount needed today" />
               <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
             </motion.div>

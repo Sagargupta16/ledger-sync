@@ -1,3 +1,5 @@
+import type { KeyboardEventHandler } from 'react'
+
 import { getTodayKey } from '@/lib/dateUtils'
 
 import type { DayCell } from './DayOfWeekChart'
@@ -9,6 +11,11 @@ interface Props {
   mode: HeatmapMode
   modeMax: number
   keyboardDate?: string | null
+  onCellKeyDown?: KeyboardEventHandler<HTMLButtonElement>
+  onCellMouseEnter?: (cell: DayCell) => void
+  onCellMouseLeave?: () => void
+  onCellFocus?: (cell: DayCell) => void
+  onCellBlur?: () => void
 }
 
 export default function HeatmapWeeks({
@@ -16,6 +23,11 @@ export default function HeatmapWeeks({
   mode,
   modeMax,
   keyboardDate,
+  onCellKeyDown,
+  onCellMouseEnter,
+  onCellMouseLeave,
+  onCellFocus,
+  onCellBlur,
 }: Readonly<Props>) {
   const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
   const todayKey = getTodayKey()
@@ -43,6 +55,11 @@ export default function HeatmapWeeks({
               mode={mode}
               modeMax={modeMax}
               isKeyboardAnchor={cell.date === keyboardAnchor?.date}
+              onKeyDown={onCellKeyDown}
+              onMouseEnter={() => onCellMouseEnter?.(cell)}
+              onMouseLeave={onCellMouseLeave}
+              onFocus={() => onCellFocus?.(cell)}
+              onBlur={onCellBlur}
             />
           )
         })}

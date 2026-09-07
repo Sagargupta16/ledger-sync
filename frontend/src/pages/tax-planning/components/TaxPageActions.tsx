@@ -34,11 +34,8 @@ export default function TaxPageActions({
   return (
     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {newRegimeAvailable && (
-        <div
-          className="grid grid-cols-2 overflow-hidden rounded-lg border border-border"
-          role="group"
-          aria-label="Tax regime"
-        >
+        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
+          <legend className="sr-only">Tax regime</legend>
           <Button
             type="button"
             onClick={() => setRegimeOverride('new')}
@@ -59,7 +56,7 @@ export default function TaxPageActions({
           >
             Old Regime
           </Button>
-        </div>
+        </fieldset>
       )}
 
       {isCurrentFY && hasSalaryData && (
@@ -75,11 +72,8 @@ export default function TaxPageActions({
         </Button>
       )}
 
-      <div
-        className="flex min-w-0 items-center justify-between gap-2 sm:justify-start"
-        role="group"
-        aria-label="Fiscal year"
-      >
+      <fieldset className="m-0 flex min-w-0 items-center justify-between gap-2 border-0 p-0 sm:justify-start">
+        <legend className="sr-only">Fiscal year</legend>
         <Button
           type="button"
           variant="secondary"
@@ -105,7 +99,7 @@ export default function TaxPageActions({
           aria-label="Next FY"
           className="px-2"
         />
-      </div>
+      </fieldset>
     </div>
   )
 }

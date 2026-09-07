@@ -17,7 +17,7 @@ import { useGSTAnalysis } from './useGSTAnalysis'
 
 function GSTAnalysisSkeleton() {
   return (
-    <div role="status" aria-busy="true" className="space-y-6">
+    <output aria-busy="true" className="block space-y-6">
       <span className="sr-only">Loading GST analysis</span>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {['gst-total', 'gst-rate', 'gst-category'].map((key) => (
@@ -45,7 +45,7 @@ function GSTAnalysisSkeleton() {
           <LoadingSkeleton className="h-64 w-full" />
         </div>
       </div>
-    </div>
+    </output>
   )
 }
 

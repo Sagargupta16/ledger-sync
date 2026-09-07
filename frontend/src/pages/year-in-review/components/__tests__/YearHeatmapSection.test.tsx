@@ -36,7 +36,7 @@ function makeReview(grid: DayCell[]) {
   } as unknown as React.ComponentProps<typeof YearHeatmapSection>['review']
 }
 
-describe('YearHeatmapSection keyboard navigation', () => {
+describe('YearHeatmapSection heatmap interactions', () => {
   it('moves by keyboard and restores one tab stop after a period change', async () => {
     const firstReview = makeReview([
       makeCell('2020-01-01', 3, 0),
@@ -71,5 +71,34 @@ describe('YearHeatmapSection keyboard navigation', () => {
     expect(
       container.querySelector('[data-cell-date="2021-01-01"]'),
     ).toHaveAttribute('tabindex', '0')
+  })
+
+  it('updates and clears day details from native cell interactions', () => {
+    const firstDayData = makeCell('2020-01-01', 3, 0)
+    const nextWeekData = makeCell('2020-01-08', 3, 1)
+    const review = makeReview([firstDayData, nextWeekData])
+    const { container } = render(<YearHeatmapSection review={review} />)
+
+    const firstDay = container.querySelector<HTMLButtonElement>(
+      '[data-cell-date="2020-01-01"]',
+    )
+    const nextWeek = container.querySelector<HTMLButtonElement>(
+      '[data-cell-date="2020-01-08"]',
+    )
+    expect(firstDay).not.toBeNull()
+    expect(nextWeek).not.toBeNull()
+
+    fireEvent.mouseEnter(nextWeek!)
+    expect(review.setHoveredDay).toHaveBeenLastCalledWith(nextWeekData)
+    expect(nextWeek).toHaveAttribute('tabindex', '0')
+
+    fireEvent.mouseLeave(nextWeek!)
+    expect(review.setHoveredDay).toHaveBeenLastCalledWith(null)
+
+    fireEvent.focus(firstDay!)
+    expect(review.setHoveredDay).toHaveBeenLastCalledWith(firstDayData)
+
+    fireEvent.blur(firstDay!)
+    expect(review.setHoveredDay).toHaveBeenLastCalledWith(null)
   })
 })

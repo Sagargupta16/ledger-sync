@@ -71,9 +71,8 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
         )}
       </div>
 
-      <div
+      <section
         className="hidden overflow-x-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:block"
-        tabIndex={0}
         aria-label={`Scrollable vesting schedule for ${grant.stock_name || 'RSU grant'}`}
       >
         <table
@@ -127,7 +126,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
             ))}
           </tbody>
         </table>
-      </div>
+      </section>
     </>
   )
 }

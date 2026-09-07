@@ -1,3 +1,9 @@
+import type {
+  FocusEventHandler,
+  KeyboardEventHandler,
+  MouseEventHandler,
+} from 'react'
+
 import { getTodayKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
 import type { DayCell } from './DayOfWeekChart'
@@ -9,6 +15,11 @@ interface Props {
   mode: HeatmapMode
   modeMax: number
   isKeyboardAnchor?: boolean
+  onKeyDown?: KeyboardEventHandler<HTMLButtonElement>
+  onMouseEnter?: MouseEventHandler<HTMLButtonElement>
+  onMouseLeave?: MouseEventHandler<HTMLButtonElement>
+  onFocus?: FocusEventHandler<HTMLButtonElement>
+  onBlur?: FocusEventHandler<HTMLButtonElement>
 }
 
 export default function HeatmapCell({
@@ -16,6 +27,11 @@ export default function HeatmapCell({
   mode,
   modeMax,
   isKeyboardAnchor = false,
+  onKeyDown,
+  onMouseEnter,
+  onMouseLeave,
+  onFocus,
+  onBlur,
 }: Readonly<Props>) {
   // Signed, so `net` keeps its direction: the swatch takes its hue from the
   // sign and the label says which way the day went.
@@ -24,8 +40,8 @@ export default function HeatmapCell({
   const isFuture = cell.date > getTodayKey()
   const { color: bgColor } = getHeatmapSwatch(mode, val, modeMax)
 
-  // Focusable + labelled so keyboard/SR users get the per-day figure (and the
-  // parent's onFocus delegation fires at all). Empty days read as "no activity".
+  // Focusable + labelled so keyboard/SR users get the per-day figure.
+  // Empty days read as "no activity".
   let label = `${cell.date}: no activity`
   if (isFuture) {
     label = `${cell.date}: future date`
@@ -33,9 +49,8 @@ export default function HeatmapCell({
     label = `${cell.date}: ${formatCurrency(Math.abs(val))} ${heatmapValueNoun(mode, val)}`
   }
 
-  // A real <button> (not a div with role/tabIndex): natively focusable +
-  // interactive, so keyboard/SR users get the per-day figure and the parent's
-  // onFocus delegation fires. type=button avoids implicit form submission.
+  // A real <button> (not a div with role/tabIndex) is natively interactive.
+  // type=button avoids implicit form submission.
   return (
     <button
       type="button"
@@ -44,6 +59,11 @@ export default function HeatmapCell({
       disabled={isFuture}
       tabIndex={isKeyboardAnchor ? 0 : -1}
       aria-label={label}
+      onKeyDown={onKeyDown}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onFocus={onFocus}
+      onBlur={onBlur}
       className="w-[13px] h-[13px] rounded-sm p-0 border-0 cursor-default transition-[outline-color] duration-150 hover:ring-1 hover:ring-[var(--hairline-5)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hairline-5)]"
       style={{
         backgroundColor: isFuture ? 'var(--overlay-2)' : bgColor,

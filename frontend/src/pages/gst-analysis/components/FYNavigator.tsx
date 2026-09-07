@@ -16,11 +16,8 @@ export default function FYNavigator({
   const selectedIndex = fiscalYears.indexOf(selectedFY)
 
   return (
-    <div
-      className="flex min-w-0 items-center justify-between gap-2 sm:justify-start"
-      role="group"
-      aria-label="Fiscal year"
-    >
+    <fieldset className="m-0 flex min-w-0 items-center justify-between gap-2 border-0 p-0 sm:justify-start">
+      <legend className="sr-only">Fiscal year</legend>
       <Button
         type="button"
         variant="outline"
@@ -46,6 +43,6 @@ export default function FYNavigator({
         aria-label="Next fiscal year"
         className="px-2.5 sm:px-1.5"
       />
-    </div>
+    </fieldset>
   )
 }

@@ -54,7 +54,6 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
       <section
         className="overflow-x-auto overscroll-x-contain rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         aria-label="Multi-year salary and tax projection"
-        tabIndex={0}
       >
         <table
           className="w-full min-w-max text-sm"

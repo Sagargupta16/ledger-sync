@@ -155,11 +155,11 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-sm bg-app-red/70" aria-hidden="true" />
-            Tax paid
+            {'Tax paid'}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-sm bg-app-orange/50" aria-hidden="true" />
-            Projected
+            {'Projected'}
           </span>
           <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
             <span className="h-0.5 w-4 shrink-0 bg-app-blue" aria-hidden="true" />

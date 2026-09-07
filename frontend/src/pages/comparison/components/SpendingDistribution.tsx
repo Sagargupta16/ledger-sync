@@ -99,13 +99,12 @@ export function SpendingDistribution({
         </div>
       </div>
       {dimensions.breakpoint === 'mobile' ? (
-        <div
+        <ul
           className="divide-y divide-border"
-          role="list"
           aria-label={`Spending by category for ${periodA.label} and ${periodB.label}`}
         >
           {butterflyData.map((datum) => (
-            <div key={datum.name} className="py-3 first:pt-0 last:pb-0" role="listitem">
+            <li key={datum.name} className="py-3 first:pt-0 last:pb-0">
               <p className="mb-2 truncate text-sm font-medium text-foreground" title={datum.name}>
                 {datum.name}
               </p>
@@ -139,9 +138,9 @@ export function SpendingDistribution({
                   </span>
                 </div>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
         <div style={{ height: Math.max(300, butterflyData.length * 32) }}>
           <ChartContainer ariaLabel={`Spending distribution butterfly chart -- ${periodA.label} bars extend left, ${periodB.label} bars extend right, one diverging row per category`}>

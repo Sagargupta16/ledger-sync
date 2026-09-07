@@ -105,11 +105,10 @@ export function PeriodPicker({
   return (
     <>
       <div className="w-full overflow-x-auto pb-1 sm:w-auto sm:pb-0">
-        <div
+        <fieldset
           className="flex w-max items-center gap-1 rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1"
-          role="group"
-          aria-label="Budget period"
         >
+          <legend className="sr-only">Budget period</legend>
           {OPTIONS.map(([v, label]) => (
             <motion.button
               key={v}
@@ -160,7 +159,7 @@ export function PeriodPicker({
             <Calendar className="relative z-10 h-3.5 w-3.5" aria-hidden="true" />
             <span className="relative z-10">Custom</span>
           </motion.button>
-        </div>
+        </fieldset>
       </div>
 
       <AnimatePresence>

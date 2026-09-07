@@ -13,6 +13,12 @@ import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
+const ACCOUNT_LAYOUT = {
+  mobile: { axisWidth: 78, nameLength: 12 },
+  tablet: { axisWidth: 120, nameLength: 20 },
+  desktop: { axisWidth: 150, nameLength: 28 },
+} as const
+
 export interface InvestmentAccount {
   readonly name: string
   readonly balance: number
@@ -54,8 +60,8 @@ export default function ReturnsHoldingsChart({
   accounts,
 }: Readonly<{ accounts: readonly InvestmentAccount[] }>) {
   const { breakpoint } = useChartDimensions()
-  const holdingsAxisWidth = breakpoint === 'mobile' ? 78 : breakpoint === 'tablet' ? 120 : 150
-  const accountNameLength = breakpoint === 'mobile' ? 12 : breakpoint === 'tablet' ? 20 : 28
+  const { axisWidth: holdingsAxisWidth, nameLength: accountNameLength } =
+    ACCOUNT_LAYOUT[breakpoint]
   const displayedAccounts = accounts.slice(0, 12)
   const formatAccountName = (name: string) =>
     name.length > accountNameLength ? `${name.slice(0, accountNameLength - 3)}...` : name
@@ -73,8 +79,10 @@ export default function ReturnsHoldingsChart({
           </h2>
           <p className="text-pretty text-xs text-text-tertiary">
             Investment accounts ranked by ledger balance. Top account:{' '}
-            <span className="font-medium text-foreground">{accounts[0].name}</span> (
-            <span className="ledger-figure">{formatCurrencyShort(accounts[0].balance)}</span>).
+            <span className="font-medium text-foreground">{accounts[0].name}</span>
+            {' ('}
+            <span className="ledger-figure">{formatCurrencyShort(accounts[0].balance)}</span>
+            {').'}
           </p>
         </div>
       </div>
