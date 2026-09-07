@@ -96,16 +96,16 @@ export default function BudgetTracker() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-green/20 rounded-xl">
-            <Target className="w-6 h-6 text-app-green" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-green/15">
+            <Target className="size-4 text-app-green" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Budget Tracker</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-base font-semibold">Budget tracker</h3>
+            <p className="text-xs text-muted-foreground">
               {budgets.length} budgets set • {overBudgetCount > 0 ? `${overBudgetCount} exceeded` : 'On track'}
             </p>
           </div>
@@ -124,20 +124,20 @@ export default function BudgetTracker() {
 
       {/* Summary */}
       {budgets.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <div className="p-3 rounded-xl bg-background/30 text-center">
+        <div className="mb-6 grid grid-cols-1 overflow-hidden rounded-md border border-[var(--hairline-1)] sm:grid-cols-3">
+          <div className="p-3 text-center sm:border-r sm:border-[var(--hairline-1)]">
             <p className="text-xs text-muted-foreground">Total Budget</p>
-            <p className="text-lg font-bold">{formatCurrency(totalBudget)}</p>
+            <p className="ledger-figure text-lg font-semibold">{formatCurrency(totalBudget)}</p>
           </div>
-          <div className="p-3 rounded-xl bg-background/30 text-center">
+          <div className="border-t border-[var(--hairline-1)] p-3 text-center sm:border-t-0 sm:border-r">
             <p className="text-xs text-muted-foreground">Total Spent</p>
-            <p className={`text-lg font-bold ${totalSpent > totalBudget ? 'text-app-red' : 'text-app-green'}`}>
+            <p className={`ledger-figure text-lg font-semibold ${totalSpent > totalBudget ? 'text-app-red' : 'text-app-green'}`}>
               {formatCurrency(totalSpent)}
             </p>
           </div>
-          <div className="p-3 rounded-xl bg-background/30 text-center">
+          <div className="border-t border-[var(--hairline-1)] p-3 text-center sm:border-t-0">
             <p className="text-xs text-muted-foreground">Remaining</p>
-            <p className={`text-lg font-bold ${totalBudget - totalSpent < 0 ? 'text-app-red' : 'text-app-green'}`}>
+            <p className={`ledger-figure text-lg font-semibold ${totalBudget - totalSpent < 0 ? 'text-app-red' : 'text-app-green'}`}>
               {formatCurrency(totalBudget - totalSpent)}
             </p>
           </div>
@@ -171,7 +171,7 @@ export default function BudgetTracker() {
           {budgetStatus.map((budget) => (
             <div
               key={budget.category}
-              className={`p-4 rounded-xl border transition-colors ${getStatusColor(budget.status)}`}
+              className={`rounded-md border p-4 ${getStatusColor(budget.status)}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export default function BudgetTracker() {
                         }
                       }}
                       aria-label={`Budget limit for ${budget.category}`}
-                      className="w-24 px-2 py-1 text-sm sm:min-h-8"
+                      className="w-24 px-2 py-1 text-sm lg:pointer-fine:min-h-8"
                       autoFocus
                     />
                   ) : (

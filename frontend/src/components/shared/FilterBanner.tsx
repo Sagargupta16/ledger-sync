@@ -27,7 +27,7 @@ export function FilterBanner({ value, label = 'Category', onClear }: FilterBanne
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-app-blue/10 border border-app-blue/30"
+          className="flex items-center gap-3 rounded-lg border border-app-blue/30 bg-app-blue/10 px-4 py-2.5"
           role="status"
         >
           <Filter className="w-4 h-4 text-app-blue shrink-0" aria-hidden />

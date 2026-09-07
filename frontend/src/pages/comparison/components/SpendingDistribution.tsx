@@ -10,6 +10,8 @@ import {
   Rectangle,
   type BarShapeProps,
 } from 'recharts'
+import ProgressBar from '@/components/shared/ProgressBar'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer, shouldAnimate, GRID_DEFAULTS } from '@/components/ui'
@@ -44,6 +46,7 @@ function renderSideShape(color: string, isPeriodA: boolean) {
 export function SpendingDistribution({
   periodA, periodB, distributionA, distributionB,
 }: Readonly<SpendingDistributionProps>) {
+  const dimensions = useChartDimensions()
   const axisColor = getChartAxisColor()
   if (distributionA.length === 0 && distributionB.length === 0) return null
 
@@ -79,13 +82,13 @@ export function SpendingDistribution({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 md:p-6"
     >
       <h2 className="text-lg font-semibold mb-1">Spending Distribution</h2>
       <p className="text-xs text-text-tertiary mb-2">
         Category-by-category comparison -- longer side = higher spend that period
       </p>
-      <div className="flex items-center justify-center gap-6 mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:flex sm:items-center sm:justify-center sm:gap-6">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
           <span className="text-xs text-muted-foreground">{periodA.label} (left)</span>
@@ -95,9 +98,54 @@ export function SpendingDistribution({
           <span className="text-xs text-muted-foreground">{periodB.label} (right)</span>
         </div>
       </div>
-      <div style={{ height: Math.max(300, butterflyData.length * 32) }}>
-        <ChartContainer ariaLabel={`Spending distribution butterfly chart -- ${periodA.label} bars extend left, ${periodB.label} bars extend right, one diverging row per category`}>
-          <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 50, bottom: 8, left: 50 }}>
+      {dimensions.breakpoint === 'mobile' ? (
+        <div
+          className="divide-y divide-border"
+          role="list"
+          aria-label={`Spending by category for ${periodA.label} and ${periodB.label}`}
+        >
+          {butterflyData.map((datum) => (
+            <div key={datum.name} className="py-3 first:pt-0 last:pb-0" role="listitem">
+              <p className="mb-2 truncate text-sm font-medium text-foreground" title={datum.name}>
+                {datum.name}
+              </p>
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-[1rem_minmax(0,1fr)_4.5rem] items-center gap-2">
+                  <span className="text-xs font-semibold text-app-blue" aria-hidden>A</span>
+                  <ProgressBar
+                    value={Math.abs(datum.periodA)}
+                    max={maxVal}
+                    color={rawColors.app.blue}
+                    height={8}
+                    className={datum.aWins ? '' : 'opacity-50'}
+                    ariaLabel={`${datum.name}, ${periodA.label}: ${formatCurrency(Math.abs(datum.periodA))}`}
+                  />
+                  <span className="truncate text-right text-xs tabular-nums text-text-secondary" title={formatCurrency(Math.abs(datum.periodA))}>
+                    {formatCurrencyShort(Math.abs(datum.periodA))}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[1rem_minmax(0,1fr)_4.5rem] items-center gap-2">
+                  <span className="text-xs font-semibold text-app-indigo" aria-hidden>B</span>
+                  <ProgressBar
+                    value={datum.periodB}
+                    max={maxVal}
+                    color={rawColors.app.indigo}
+                    height={8}
+                    className={datum.aWins ? 'opacity-50' : ''}
+                    ariaLabel={`${datum.name}, ${periodB.label}: ${formatCurrency(datum.periodB)}`}
+                  />
+                  <span className="truncate text-right text-xs tabular-nums text-text-secondary" title={formatCurrency(datum.periodB)}>
+                    {formatCurrencyShort(datum.periodB)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ height: Math.max(300, butterflyData.length * 32) }}>
+          <ChartContainer ariaLabel={`Spending distribution butterfly chart -- ${periodA.label} bars extend left, ${periodB.label} bars extend right, one diverging row per category`}>
+            <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 8, right: 50, bottom: 8, left: 50 }}>
             <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
             <XAxis
               type="number"
@@ -162,9 +210,10 @@ export function SpendingDistribution({
                 }}
               />
             </Bar>
-          </BarChart>
-        </ChartContainer>
-      </div>
+            </BarChart>
+          </ChartContainer>
+        </div>
+      )}
     </motion.div>
   )
 }

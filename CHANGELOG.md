@@ -6,6 +6,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## Unreleased
+
+### Added
+
+- A persisted Full/Reduced motion preference is available from both the sidebar and Display Preferences.
+- Inter and JetBrains Mono are self-hosted for consistent interface and financial metadata typography.
+
+### Changed
+
+- Desktop routes now use a framed ledger workspace with a measured grid, active scan lines, colored KPI rails, and clearer route transitions; mobile stays edge-to-edge.
+- Route, section, list, and chart motion now share a restrained token system with one owner for each entrance.
+- Primary actions use a consistent blue treatment, dark surfaces are flatter and closer to black, and static cards no longer imply click behavior.
+- Progress fills use transform-based animation, while sidebar utilities and safe-area spacing are more robust across desktop and mobile layouts.
+- Full mode keeps visible workspace motion running, while Reduced mode removes Motion and CSS animation immediately, shows every element in its final state, uses native scrolling, and preserves active route state.
+- Disclosure panels use position-only layout projection, route exits complete faster, and tablet page headers stack before controls can compress titles.
+- Dark and light control foregrounds meet AA contrast, print output resets ledger surfaces to white, and the PWA now ships only the required Latin and Latin Extended font files.
+
+### Fixed
+
+- Accessible chart data tables are no longer hidden by outer image roles, transaction pagination fits 320px screens, and merchant note labels remain visible without clipping the merchant name.
+- Reduced mode no longer pauses CSS reveals on their invisible first frame.
+
 ## 2.24.1 - 2026-09-02
 
 Security patch release: three high-severity Dependabot alerts closed across both workspaces, with no behavioral changes.

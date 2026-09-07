@@ -24,7 +24,7 @@ function tx(date: string, amount: number): Transaction {
     type: 'Expense',
     category: 'Test',
     account: 'Test',
-  } as Transaction
+  }
 }
 
 describe('computeWeekendSplit', () => {
@@ -76,7 +76,7 @@ describe('computeNetCashback', () => {
   it('subtracts shared cashback matched by destination substring', () => {
     const txns: Transaction[] = [
       cb('Credit Card Cashbacks', 1000),
-      { id: 's1', date: '2026-06-06', amount: 250, type: 'Transfer', category: 'X', account: 'A', to_account: 'Transfer: CC -> Cashback Shared' } as Transaction,
+      { id: 's1', date: '2026-06-06', amount: 250, type: 'Transfer', category: 'X', account: 'A', to_account: 'Transfer: CC -> Cashback Shared' },
     ]
     expect(computeNetCashback(txns).netCashback).toBe(750)
   })

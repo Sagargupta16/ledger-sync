@@ -73,7 +73,7 @@ export function buildForecast(monthlyData: MonthlyData, now: Date = new Date()):
   const months = Object.entries(monthlyData)
     .map(([month, data]) => ({
       month,
-      ...(data as { income: number; expense: number; net_savings: number }),
+      ...(data),
     }))
     .sort((a, b) => a.month.localeCompare(b.month))
 

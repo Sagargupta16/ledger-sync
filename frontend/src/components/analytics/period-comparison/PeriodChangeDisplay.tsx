@@ -67,11 +67,9 @@ export function SummaryCard({
 }: Readonly<SummaryCardProps>) {
   return (
     <div
-      className="p-4 rounded-2xl"
+      className="p-4 [&:nth-child(even)]:border-l [&:nth-child(n+3)]:border-t [&:nth-child(n+3)]:border-[var(--hairline-1)] md:[&:nth-child(n+3)]:border-t-0 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:border-[var(--hairline-1)]"
       style={{
         backgroundColor: `${color}14`,
-        borderWidth: 1,
-        borderColor: `${color}26`,
       }}
     >
       <p className="text-xs mb-1" style={{ color: rawColors.text.secondary }}>

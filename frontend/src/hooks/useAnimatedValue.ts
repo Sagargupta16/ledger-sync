@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { useMotionStore } from '@/store/motionStore'
+
 /**
  * Parse a formatted value string ("₹45,33,242.00", "$1,234.56", "55.5%") into
  * its numeric part plus everything needed to re-render intermediate frames in
@@ -104,6 +106,7 @@ export function formatLikeSample(n: number, parsed: ParsedValue): string {
  */
 export function useAnimatedValue(value: string | number, duration = 240): string {
   const stringValue = String(value)
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   // null = not animating; render the exact input. Set only from rAF frames.
   const [frameValue, setFrameValue] = useState<string | null>(null)
   const fromRef = useRef(0)
@@ -111,7 +114,6 @@ export function useAnimatedValue(value: string | number, duration = 240): string
 
   useEffect(() => {
     const parsed = parseFormattedValue(stringValue)
-    const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     if (!parsed || parsed.amount === 0 || reduceMotion) {
       fromRef.current = parsed?.amount ?? 0
       return
@@ -137,7 +139,7 @@ export function useAnimatedValue(value: string | number, duration = 240): string
       cancelAnimationFrame(frame.current)
       setFrameValue(null)
     }
-  }, [stringValue, duration])
+  }, [stringValue, duration, reduceMotion])
 
-  return frameValue ?? stringValue
+  return reduceMotion ? stringValue : (frameValue ?? stringValue)
 }

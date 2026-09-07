@@ -1,13 +1,22 @@
 import { useMemo } from 'react'
 
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Target, AlertTriangle } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronRight,
+  PiggyBank,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
 import MetricCard from '@/components/shared/MetricCard'
 import ProgressBar from '@/components/shared/ProgressBar'
 import EmptyState from '@/components/shared/EmptyState'
+import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { rawColors } from '@/constants/colors'
@@ -35,6 +44,13 @@ export default function OverviewPage() {
     filteredTotals, isLoading, isError, retry,
     incomeChartData, expenseChartData,
     momChanges,
+    viewMode, setViewMode,
+    currentYear, setCurrentYear,
+    currentMonth, setCurrentMonth,
+    currentFY, setCurrentFY,
+    fiscalYearStartMonth,
+    dataDateRange,
+    filteredTransactions,
   } = useDashboardMetrics()
 
   const budgetsQuery = useBudgets({ active_only: true })
@@ -82,14 +98,30 @@ export default function OverviewPage() {
     )
   }
 
-  const hasData = income > 0 || expenses > 0
-  if (!hasData) {
+  const periodSelector = (
+    <AnalyticsTimeFilter
+      viewMode={viewMode}
+      onViewModeChange={setViewMode}
+      currentYear={currentYear}
+      currentMonth={currentMonth}
+      currentFY={currentFY}
+      onYearChange={setCurrentYear}
+      onMonthChange={setCurrentMonth}
+      onFYChange={setCurrentFY}
+      minDate={dataDateRange.minDate}
+      maxDate={dataDateRange.maxDate}
+      fiscalYearStartMonth={fiscalYearStartMonth}
+    />
+  )
+
+  const hasTransactions = Boolean(dataDateRange.minDate && dataDateRange.maxDate)
+  if (!hasTransactions) {
     return (
       <PageContainer>
         <PageHeader title="Overview" subtitle="Your complete financial picture" />
         <EmptyState
           icon={Wallet}
-          title="No data yet"
+          title="No transactions yet"
           description="Upload a bank statement to see your complete financial picture here."
           actionLabel="Upload Data"
           actionHref={ROUTES.UPLOAD}
@@ -98,9 +130,30 @@ export default function OverviewPage() {
     )
   }
 
+  if (filteredTransactions.length === 0) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Overview"
+          subtitle="Your complete financial picture"
+          action={periodSelector}
+        />
+        <EmptyState
+          icon={Wallet}
+          title="No transactions in this period"
+          description="Choose another period or All Time to see your financial picture."
+        />
+      </PageContainer>
+    )
+  }
+
   return (
     <PageContainer>
-      <PageHeader title="Overview" subtitle="Your complete financial picture" />
+      <PageHeader
+        title="Overview"
+        subtitle="Your complete financial picture"
+        action={periodSelector}
+      />
 
       {/* Headline KPIs.
           The delta is the last two COMPLETE months (see `useDashboardMetrics`),
@@ -135,9 +188,14 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Where money goes / comes from */}
-        <div className="p-6 glass rounded-2xl border border-border">
-          <h2 className="text-lg font-semibold mb-4">This Period</h2>
-          <div className="grid grid-cols-2 gap-6">
+        <section className="ledger-panel p-4 sm:p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-foreground">Category leaders</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The largest income and spending sources in this period.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
             <div>
               <h3 className="text-sm font-medium text-app-green mb-2">Top Income</h3>
               <ul className="space-y-1.5">
@@ -161,19 +219,27 @@ export default function OverviewPage() {
               </ul>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Budgets at risk */}
         <button
           type="button"
           onClick={() => void navigate(ROUTES.BUDGETS)}
           aria-label="Open budget details"
-          className="p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40"
+          className="ledger-panel p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40 sm:p-5"
         >
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-app-orange" />
-            Budgets at Risk
-          </h2>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                <AlertTriangle className="size-4 text-app-orange" />
+                Budgets at risk
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Categories at or above their alert threshold this month. The selected period applies only to transaction data.
+              </p>
+            </div>
+            <ChevronRight className="mt-0.5 size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+          </div>
           {atRiskBudgets.length > 0 ? (
             <div className="space-y-3">
               {atRiskBudgets.map((b) => (
@@ -201,19 +267,27 @@ export default function OverviewPage() {
         type="button"
         onClick={() => void navigate(ROUTES.GOALS)}
         aria-label="Open financial goals"
-        className="w-full p-6 glass rounded-2xl border border-border text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40"
+        className="ledger-panel w-full p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40 sm:p-5"
       >
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Target className="w-5 h-5 text-app-purple" />
-          Goals Progress
-        </h2>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <Target className="size-4 text-app-purple" />
+              Goal progress
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Active goals ordered by current completion. The selected period applies only to transaction data.
+            </p>
+          </div>
+          <ChevronRight className="mt-0.5 size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+        </div>
         {activeGoals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {activeGoals.map((g) => (
               <div key={g.name}>
-                <div className="flex items-center justify-between gap-2 text-sm mb-1">
+                <div className="mb-1 flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                   <span className="truncate" title={g.name}>{g.name}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                  <span className="break-words text-xs tabular-nums text-muted-foreground sm:shrink-0 sm:text-sm">
                     {formatCurrency(g.current_amount)} / {formatCurrency(g.target_amount)}
                   </span>
                 </div>

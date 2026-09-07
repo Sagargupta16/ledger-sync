@@ -160,7 +160,7 @@ export default function MerchantTable({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 md:p-6"
     >
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold text-foreground">Every payee</h2>

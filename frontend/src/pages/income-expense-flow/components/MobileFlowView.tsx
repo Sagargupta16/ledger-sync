@@ -120,15 +120,15 @@ export default function MobileFlowView({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border p-4 text-center"
-        style={{
-          background: `linear-gradient(135deg, ${rawColors.app.indigo}22, ${rawColors.app.purple}22)`,
-        }}
+        className="rounded-lg border border-app-blue/20 bg-app-blue/10 p-4 text-center"
       >
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Total Income
         </p>
-        <p className="text-2xl font-bold text-foreground mt-1 break-all tabular-nums">
+        <p
+          className="mt-1 truncate text-2xl font-bold tabular-nums text-foreground"
+          title={formatCurrency(totalIncome)}
+        >
           {formatCurrency(totalIncome)}
         </p>
       </motion.div>
@@ -143,7 +143,7 @@ export default function MobileFlowView({
       )}
 
       {/* Savings vs Expenses (vs Tax when present) split */}
-      <div className={totalTax > 0 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-3'}>
+      <div className="grid grid-cols-2 gap-3">
         <SplitCard
           label="Savings"
           amount={Math.max(netSavings, 0)}
@@ -162,6 +162,7 @@ export default function MobileFlowView({
             amount={totalTax}
             percent={totalIncome > 0 ? totalTax / totalIncome : 0}
             color={rawColors.app.orange}
+            className="col-span-2"
           />
         )}
       </div>
@@ -207,12 +208,16 @@ function Section({
   children: React.ReactNode
 }>) {
   return (
-    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4">
-      <div className="flex items-baseline justify-between mb-3">
+    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-3 sm:p-4">
+      <div className="mb-3 flex min-w-0 items-baseline justify-between gap-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           {title}
         </h4>
-        <span className="text-sm font-semibold break-all" style={{ color: totalColor }}>
+        <span
+          className="max-w-[8rem] truncate text-sm font-semibold tabular-nums"
+          style={{ color: totalColor }}
+          title={formatCurrency(total)}
+        >
           {formatCurrency(total)}
         </span>
       </div>
@@ -250,14 +255,17 @@ function FlowRow({
       <div className="flex items-center gap-2">
         <div className="flex-1 h-2 rounded-full bg-[var(--overlay-2)] overflow-hidden">
           <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.max(barWidth * 100, 2)}%` }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: Math.min(Math.max(barWidth, 0.02), 1) }}
             transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="h-full rounded-full"
+            className="h-full w-full origin-left rounded-full"
             style={{ background: color }}
           />
         </div>
-        <span className="text-xs font-medium text-foreground shrink-0 tabular-nums break-all">
+        <span
+          className="max-w-[7rem] shrink-0 truncate text-xs font-medium tabular-nums text-foreground"
+          title={formatCurrency(amount)}
+        >
           {formatCurrency(amount)}
         </span>
       </div>
@@ -275,7 +283,7 @@ function FlowRow({
           type="button"
           onClick={onDrill}
           aria-label={`${label}: see breakdown`}
-          className="block w-full text-left -mx-2 px-2 py-1 rounded-lg hover:bg-[var(--overlay-2)] active:bg-[var(--overlay-2)] transition-colors"
+          className="-mx-2 block min-h-11 w-full rounded-lg px-2 py-1 text-left transition-colors hover:bg-[var(--overlay-2)] active:bg-[var(--overlay-2)]"
         >
           {row}
         </button>
@@ -306,8 +314,8 @@ function SplitShareBar({
   const expenseWidth = total > 0 ? (expenseShare / total) * 100 : 100
 
   return (
-    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4">
-      <div className="flex items-baseline justify-between mb-2">
+    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-3 sm:p-4">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Where each rupee goes
         </h4>
@@ -315,21 +323,25 @@ function SplitShareBar({
       </div>
       <div className="flex h-3 w-full rounded-full overflow-hidden bg-[var(--overlay-2)]">
         {savingsWidth > 0 && (
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${savingsWidth}%` }}
-            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="h-full"
-            style={{ background: rawColors.app.purple }}
-          />
+          <div className="h-full overflow-hidden" style={{ width: `${savingsWidth}%` }}>
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="h-full w-full origin-left"
+              style={{ background: rawColors.app.purple }}
+            />
+          </div>
         )}
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${expenseWidth}%` }}
-          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="h-full"
-          style={{ background: rawColors.app.red }}
-        />
+        <div className="h-full overflow-hidden" style={{ width: `${expenseWidth}%` }}>
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="h-full w-full origin-left"
+            style={{ background: rawColors.app.red }}
+          />
+        </div>
       </div>
       <div className="flex items-center justify-between mt-2 text-xs">
         <span className="flex items-center gap-1.5" style={{ color: rawColors.app.purple }}>
@@ -358,15 +370,17 @@ function SplitCard({
   amount,
   percent,
   color,
+  className = '',
 }: Readonly<{
   label: string
   amount: number
   percent: number
   color: string
+  className?: string
 }>) {
   return (
     <div
-      className="rounded-2xl border p-4 text-center"
+      className={`min-w-0 rounded-lg border p-3 text-center sm:p-4 ${className}`}
       style={{
         borderColor: `${color}33`,
         background: `${color}11`,
@@ -375,7 +389,12 @@ function SplitCard({
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color }}>
         {label}
       </p>
-      <p className="text-lg font-bold text-foreground mt-1 break-all tabular-nums">{formatCurrency(amount)}</p>
+      <p
+        className="mt-1 truncate text-base font-bold tabular-nums text-foreground min-[360px]:text-lg"
+        title={formatCurrency(amount)}
+      >
+        {formatCurrency(amount)}
+      </p>
       <p className="text-xs text-muted-foreground mt-0.5">{formatPercent(percent * 100)}</p>
     </div>
   )

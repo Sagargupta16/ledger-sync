@@ -13,7 +13,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'border border-foreground bg-foreground text-background shadow-sm hover:bg-foreground/90',
+    'border border-primary bg-primary text-primary-foreground hover:border-app-blue-vibrant hover:bg-app-blue-vibrant',
   secondary:
     'ledger-control border text-foreground hover:text-foreground',
   ghost:
@@ -21,13 +21,13 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger:
     'border border-app-red bg-app-red text-destructive-foreground shadow-sm hover:bg-app-red-vibrant',
   outline:
-    'ledger-control border text-foreground hover:text-foreground',
+    'border border-[var(--hairline-3)] bg-transparent text-foreground hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-2)]',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'min-h-11 min-w-11 px-2.5 py-1 text-xs rounded-md gap-1.5 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0',
-  md: 'min-h-11 min-w-11 px-3.5 py-1.5 text-sm rounded-md gap-2 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-0',
-  lg: 'min-h-11 min-w-11 px-4 py-2 text-sm rounded-lg gap-2 lg:pointer-fine:min-w-0',
+  sm: 'min-h-11 min-w-11 px-2.5 py-1 text-xs rounded-md gap-1.5 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8',
+  md: 'min-h-11 min-w-11 px-3.5 py-1.5 text-sm rounded-md gap-2 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-9',
+  lg: 'min-h-11 min-w-11 px-4 py-2 text-sm rounded-lg gap-2',
 }
 
 /**

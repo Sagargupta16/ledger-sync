@@ -4,7 +4,7 @@ export default function RecurringListSkeleton() {
       {Array.from({ length: 4 }, (_, index) => (
         <div
           key={index}
-          className="h-24 animate-pulse rounded-xl bg-[var(--overlay-2)] sm:h-20"
+          className="h-24 animate-pulse rounded-lg bg-[var(--overlay-2)] sm:h-20"
         />
       ))}
     </div>

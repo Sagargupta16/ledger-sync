@@ -1,17 +1,6 @@
 import { BarChart3 } from 'lucide-react'
 
-import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { formatCurrency } from '@/lib/formatters'
-
-/** Stat figure with the shared format-preserving count-up. */
-function AnimatedStat({ value, className }: Readonly<{ value: string; className: string }>) {
-  const animated = useAnimatedValue(value)
-  return (
-    <p className={`${className} tabular-nums`} title={value}>
-      {animated}
-    </p>
-  )
-}
 
 interface ReturnsAnalysisSectionProps {
   currentValueInput: number
@@ -54,12 +43,15 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
   } = props
 
   return (
-    <div className="mt-8 pt-6 border-t border-border">
-      <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-app-orange" />
+    <section className="mt-6 border-t border-border pt-5" aria-labelledby="returns-analysis-title">
+      <h3
+        id="returns-analysis-title"
+        className="mb-4 flex items-center gap-2 text-base font-semibold"
+      >
+        <BarChart3 className="size-5 text-app-orange" aria-hidden="true" />
         Returns Analysis
-      </h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      </h3>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label
             htmlFor="current-value"
@@ -74,7 +66,7 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
             value={currentValueInput || ''}
             placeholder={formatCurrency(currentBalance).replace('₹', '').trim()}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
-            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="0"
             step="1000"
           />
@@ -89,18 +81,22 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
         {hasCurrentValueOverride ? (
           <div className="flex flex-col justify-center">
             <p className="text-sm text-muted-foreground">Total Return</p>
-            <AnimatedStat
-              value={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
-              className={`text-2xl font-bold ${totalReturnColorClass}`}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p
+              className={`ledger-figure break-words text-2xl font-bold ${totalReturnColorClass}`}
+              aria-live="polite"
+              title={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
+            >
+              {totalReturnSignPrefix}
+              {overrideGainsPercent.toFixed(2)}%
+            </p>
+            <p className="ledger-figure mt-1 text-xs text-muted-foreground">
               {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}
             </p>
           </div>
         ) : (
           <div className="flex flex-col justify-center">
             <p className="text-sm text-muted-foreground">Total Return</p>
-            <p className="text-2xl font-bold text-text-quaternary">-</p>
+            <p className="text-2xl font-bold text-text-quaternary">Not available</p>
             <p className="text-xs text-muted-foreground mt-1">
               Enter a current value to compute
             </p>
@@ -110,18 +106,23 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
         {hasCurrentValueOverride ? (
           <div className="flex flex-col justify-center">
             <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-            <AnimatedStat
-              value={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
-              className={`text-2xl font-bold ${xirrColorClass}`}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Over {investmentDurationYears.toFixed(1)} years
+            <p
+              className={`ledger-figure break-words text-2xl font-bold ${xirrColorClass}`}
+              aria-live="polite"
+              title={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
+            >
+              {xirrSignPrefix}
+              {xirrPercent.toFixed(2)}% p.a.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Over{' '}
+              <span className="ledger-figure">{investmentDurationYears.toFixed(1)}</span> years
             </p>
           </div>
         ) : (
           <div className="flex flex-col justify-center">
             <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
-            <p className="text-2xl font-bold text-text-quaternary">-</p>
+            <p className="text-2xl font-bold text-text-quaternary">Not available</p>
             <p className="text-xs text-muted-foreground mt-1">
               Needs a current value, not just contributions
             </p>
@@ -130,13 +131,15 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
 
         <div className="flex flex-col justify-center">
           <p className="text-sm text-muted-foreground">Effective Value</p>
-          <AnimatedStat
-            value={formatCurrency(effectiveCurrentValue)}
-            className="text-2xl font-bold text-app-orange"
-          />
+          <p
+            className="ledger-figure break-words text-2xl font-bold text-app-orange"
+            aria-live="polite"
+          >
+            {formatCurrency(effectiveCurrentValue)}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">{effectiveValueLabel}</p>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

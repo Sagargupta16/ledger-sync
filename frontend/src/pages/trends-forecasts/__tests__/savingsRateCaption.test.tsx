@@ -67,7 +67,7 @@ describe('SavingsRateSection caption', () => {
     renderSection()
 
     expect(
-      screen.getByText('(running % of income saved, start of range to date)'),
+      screen.getByText('Running % of income saved from the start of the range to date'),
     ).toBeInTheDocument()
     expect(screen.queryByText('(% of income saved each month)')).not.toBeInTheDocument()
   })
@@ -91,6 +91,6 @@ describe('SavingsRateSection caption', () => {
         name: 'Cumulative savings rate over time as a percentage of income, with savings-goal target line',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/running % of income saved/)).toBeInTheDocument()
+    expect(screen.getByText(/running % of income saved/i)).toBeInTheDocument()
   })
 })

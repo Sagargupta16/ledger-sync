@@ -42,9 +42,14 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
   )
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-5">
-        <h3 className="text-sm font-medium text-muted-foreground mb-4">GST by Slab</h3>
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-foreground">Estimated GST by slab</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Share of estimated GST across applied tax rates
+          </p>
+        </div>
         <div className="h-[270px]">
           <ChartContainer
             width="100%"
@@ -78,7 +83,7 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
             return (
               <div
                 key={slab.slab}
-                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-[var(--overlay-2)] border border-border"
+                className="flex items-center gap-1.5 rounded-md border border-border bg-[var(--overlay-2)] px-2 py-1 text-xs"
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -95,8 +100,13 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
         </div>
       </motion.div>
 
-      <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-5">
-        <h3 className="text-sm font-medium text-muted-foreground mb-4">Monthly GST Trend</h3>
+      <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-foreground">Monthly estimated GST</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Month-by-month indirect tax estimate
+          </p>
+        </div>
         {data.monthlyTrend.length <= 1 ? (
           <ChartEmptyState
             height={270}

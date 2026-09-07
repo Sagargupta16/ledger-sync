@@ -126,7 +126,7 @@ function UploadingOverlay({ isUploading }: Readonly<UploadingOverlayProps>) {
   }
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/60 text-on-accent backdrop-blur-sm">
+    <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/60 text-on-accent">
       <div className="flex flex-col items-center gap-2">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent" />
         <p className="text-sm font-medium">Uploading...</p>
@@ -171,12 +171,12 @@ export default function DropZone({ onFileSelect, isUploading, compact }: Readonl
       <div
         {...getRootProps()}
         className={cn(
-          'relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-150 ease-out',
+          'relative cursor-pointer rounded-md border-2 border-dashed text-center transition-[background-color,border-color,transform] duration-150 ease-out',
           'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
           isDragActive && 'border-app-blue/50 bg-app-blue/5 scale-[1.01]',
           isUploading && 'cursor-not-allowed',
           selectedFile ? 'border-[var(--hairline-4)] bg-[var(--overlay-1)]' : 'border-[var(--hairline-3)]',
-          compact ? 'p-4' : 'p-12 rounded-2xl'
+          compact ? 'p-4' : 'p-8 sm:p-12'
         )}
       >
         <input {...getInputProps({ 'aria-label': 'Upload transaction file' })} />

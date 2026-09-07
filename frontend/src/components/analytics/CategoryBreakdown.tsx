@@ -6,6 +6,7 @@ import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import Sparkline from '@/components/shared/Sparkline'
@@ -105,7 +106,7 @@ export default function CategoryBreakdown({
 
   if (categories.length === 0) {
     return (
-      <div className="bg-[var(--overlay-2)] p-6 rounded-xl border border-border">
+      <div className="ledger-panel p-4 sm:p-5">
         <EmptyState
           icon={emptyIcon}
           title={emptyTitle}
@@ -119,7 +120,7 @@ export default function CategoryBreakdown({
   }
 
   return (
-    <div className="bg-[var(--overlay-2)] p-6 rounded-xl border border-border">
+    <div className="ledger-panel p-4 sm:p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
@@ -157,14 +158,14 @@ export default function CategoryBreakdown({
           const hasSubcategories = cat.subcategories.length > 0
 
           return (
-            <div key={cat.name}>
+            <motion.div key={cat.name} layout="position" className="relative">
               {/* Category row */}
               <button
                 type="button"
                 onClick={() => hasSubcategories && toggleExpand(cat.name)}
                 disabled={!hasSubcategories}
                 aria-expanded={hasSubcategories ? isExpanded : undefined}
-                className={`min-h-11 w-full text-left px-4 py-3 rounded-lg transition-all duration-150 group disabled:opacity-100 ${
+                className={`min-h-11 w-full text-left px-4 py-3 rounded-lg transition-[background-color,border-color] duration-150 group disabled:opacity-100 ${
                   hasSubcategories ? 'cursor-pointer' : 'cursor-default'
                 } ${isExpanded ? 'bg-[var(--overlay-2)] border border-[var(--hairline-2)]' : 'bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-2)] hover:border-[var(--hairline-3)]'}`}
               >
@@ -257,13 +258,10 @@ export default function CategoryBreakdown({
               </button>
 
               {/* Expanded subcategories */}
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {isExpanded && hasSubcategories && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    {...DISCLOSURE_TRANSITION}
                     className="overflow-hidden"
                   >
                     <div className="ml-3 mr-1 sm:ml-6 sm:mr-2 py-1 space-y-0.5">
@@ -285,10 +283,12 @@ export default function CategoryBreakdown({
                           {/* Subcategory bar */}
                           <div className="w-12 md:w-20 h-1 rounded-full bg-[var(--overlay-2)] overflow-hidden shrink-0">
                             <motion.div
-                              className="h-full rounded-full opacity-70"
+                              className="h-full w-full origin-left rounded-full opacity-70"
                               style={{ backgroundColor: cat.color }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${sub.percent}%` }}
+                              initial={{ scaleX: 0 }}
+                              animate={{
+                                scaleX: Math.min(Math.max(sub.percent, 0), 100) / 100,
+                              }}
                               transition={{ duration: 0.3, delay: si * 0.02 }}
                             />
                           </div>
@@ -303,7 +303,7 @@ export default function CategoryBreakdown({
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
           )
         })}
       </div>

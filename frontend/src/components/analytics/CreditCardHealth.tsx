@@ -62,11 +62,11 @@ const UTILIZATION_BANDS = [
 ] as const
 
 const STATUS_CLASS: Record<CreditCardAccount['status'], string> = {
-  low: 'text-app-green bg-app-green/20 border-app-green/30',
-  medium: 'text-app-blue bg-app-blue/20 border-app-blue/30',
-  high: 'text-app-yellow bg-app-yellow/20 border-app-yellow/30',
-  critical: 'text-app-red bg-app-red/20 border-app-red/30',
-  unknown: 'text-foreground bg-[var(--overlay-2)] border-[var(--hairline-2)]',
+  low: 'text-app-green',
+  medium: 'text-app-blue',
+  high: 'text-app-yellow',
+  critical: 'text-app-red',
+  unknown: 'text-muted-foreground',
 }
 
 const UTILIZATION_LEGEND = [
@@ -288,11 +288,11 @@ function CardRow({ card }: Readonly<{ card: CreditCardAccount }>) {
   const label = card.name.replace(' Credit Card', '')
 
   return (
-    <div className={`p-4 rounded-xl border ${STATUS_CLASS[card.status]}`}>
+    <div className={`border-t border-[var(--hairline-1)] py-4 first:border-t-0 ${STATUS_CLASS[card.status]}`}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex min-w-0 items-center gap-2">
           <StatusIcon status={card.status} />
-          <span className="font-medium text-sm truncate" title={label}>
+          <span className="truncate text-sm font-medium text-foreground" title={label}>
             {label}
           </span>
         </div>
@@ -384,7 +384,7 @@ export default function CreditCardHealth() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
+      <div className="ledger-panel animate-pulse p-4 sm:p-5">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -397,12 +397,12 @@ export default function CreditCardHealth() {
 
   if (creditCards.length === 0) {
     return (
-      <div className="glass rounded-2xl border border-border p-6">
+      <div className="ledger-panel p-4 sm:p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-app-purple/20 rounded-xl">
-            <CreditCard className="w-6 h-6 text-app-purple" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-purple/15">
+            <CreditCard className="size-4 text-app-purple" />
           </div>
-          <h3 className="text-lg font-semibold">Credit Card Health</h3>
+          <h3 className="text-base font-semibold">Credit Card Health</h3>
         </div>
         <p className="text-muted-foreground">No credit card accounts found in your transactions.</p>
       </div>
@@ -426,23 +426,23 @@ export default function CreditCardHealth() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
-      <div className="flex items-center gap-3 mb-6">
+      <div className="mb-5 flex items-center gap-3">
         {/* Purple, not green: an unrateable card set is neither healthy nor not. */}
-        <div className={`p-3 rounded-xl ${headerTone.bg}`}>
-          <CreditCard className={`w-6 h-6 ${headerTone.text}`} />
+        <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${headerTone.bg}`}>
+          <CreditCard className={`size-4 ${headerTone.text}`} />
         </div>
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold">Credit Card Health</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-base font-semibold">Credit Card Health</h3>
+          <p className="text-xs text-muted-foreground">
             {cardCountLabel} &bull; {coverageLabel}
           </p>
         </div>
       </div>
 
       {/* Overall utilization -- suppressed entirely when no limit is known */}
-      <div className="mb-6 p-4 rounded-xl bg-background/30 border border-border">
+      <div className="mb-2 border-y border-[var(--hairline-1)] py-4">
         {overallUtilization === null ? (
           <EmptyState
             icon={CircleHelp}
@@ -490,7 +490,7 @@ export default function CreditCardHealth() {
       </div>
 
       {/* Individual Cards */}
-      <div className="space-y-3">
+      <div>
         {creditCards.map((card) => (
           <CardRow key={card.name} card={card} />
         ))}
@@ -498,7 +498,7 @@ export default function CreditCardHealth() {
 
       {/* Coverage gap -- only when there is a measured ratio to qualify */}
       {measured.length > 0 && unmeasuredCount > 0 && (
-        <output className="mt-4 flex items-start gap-2.5 rounded-xl border border-app-blue/20 bg-app-blue/10 px-3 py-2.5 text-sm">
+        <output className="mt-4 flex items-start gap-2.5 border-l-2 border-app-blue bg-app-blue/10 px-3 py-2.5 text-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-app-blue" aria-hidden />
           <p className="min-w-0 text-foreground">
             {unmeasuredCount} of {creditCards.length} cannot be rated: {gapReason(gap)}. Those balances
@@ -515,7 +515,7 @@ export default function CreditCardHealth() {
 
       {/* Recommendations */}
       {measured.some((c) => c.status === 'critical' || c.status === 'high') && (
-        <div className="mt-4 p-4 rounded-xl bg-app-yellow/10 border border-app-yellow/20">
+        <div className="mt-4 border-l-2 border-app-yellow bg-app-yellow/10 p-4">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-5 h-5 text-app-yellow flex-shrink-0 mt-0.5" />
             <div>
@@ -530,9 +530,9 @@ export default function CreditCardHealth() {
       )}
 
       {/* Tips -- three cells crowd below ~360px, so wrap to 2-up on phones. */}
-      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 text-center">
+      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-md border border-[var(--hairline-1)] text-center sm:grid-cols-3">
         {UTILIZATION_LEGEND.map((tier) => (
-          <div key={tier.label} className={`p-2 rounded-lg ${tier.bg}`}>
+          <div key={tier.label} className={`border-r border-[var(--hairline-1)] p-2 last:border-r-0 ${tier.bg}`}>
             <p className={`text-xs font-medium ${tier.text}`}>{tier.range}</p>
             <p className="text-caption text-muted-foreground">{tier.label}</p>
           </div>

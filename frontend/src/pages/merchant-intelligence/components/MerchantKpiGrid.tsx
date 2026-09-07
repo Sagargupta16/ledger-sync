@@ -50,7 +50,7 @@ export default function MerchantKpiGrid({
     merchantCount > 0 ? `${vitalFewCount} of ${merchantCount}` : 'No data'
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5 lg:gap-6">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-5 lg:gap-6">
       <MetricCard
         title="Payees Tracked"
         value={merchantCount}

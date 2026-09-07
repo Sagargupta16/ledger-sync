@@ -37,7 +37,7 @@ function tx(date: string, amount: number, type: 'Income' | 'Expense'): Transacti
     type,
     category: type === 'Income' ? 'Employment Income' : 'Housing',
     account: 'SBI Savings',
-  } as unknown as Transaction
+  }
 }
 
 /**

@@ -18,6 +18,7 @@ import { motion } from 'motion/react'
 import type { ChatMessage as ChatMessageType } from '@/lib/chatAdapters'
 import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'
 import { Button } from '@/components/ui'
+import { useMotionStore } from '@/store/motionStore'
 
 import ChatMessage from './ChatMessage'
 
@@ -60,12 +61,16 @@ export default function ChatPanel({
   onMinimize,
 }: Readonly<Props>) {
   const [input, setInput] = useState('')
+  const motionMode = useMotionStore((state) => state.mode)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages])
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: motionMode === 'reduced' ? 'auto' : 'smooth',
+    })
+  }, [messages, motionMode])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -94,7 +99,7 @@ export default function ChatPanel({
       transition={{ duration: 0.2 }}
       role="dialog"
       aria-label="AI Assistant chat"
-      className="glass absolute bottom-16 right-0 flex max-h-[70dvh] w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border border-border shadow-[var(--glass-shadow-strong)] sm:max-h-[500px]"
+      className="absolute bottom-16 right-0 flex max-h-[70dvh] w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)] sm:max-h-[500px]"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
@@ -108,7 +113,7 @@ export default function ChatPanel({
             variant="ghost"
             size="sm"
             onClick={onClear}
-            className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
+            className="size-11 p-0 text-muted-foreground lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
             title="Clear chat"
             aria-label="Clear chat"
           >
@@ -119,7 +124,7 @@ export default function ChatPanel({
             variant="ghost"
             size="sm"
             onClick={onMinimize}
-            className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
+            className="size-11 p-0 text-muted-foreground lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
             title="Minimize"
             aria-label="Minimize chat"
           >
@@ -186,7 +191,7 @@ export default function ChatPanel({
             placeholder="Ask about your finances..."
             aria-label="Ask about your finances"
             rows={1}
-            className="flex-1 resize-none bg-[var(--overlay-2)] border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="flex-1 resize-none rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
           {isStreaming ? (
             <Button
@@ -196,7 +201,7 @@ export default function ChatPanel({
               onClick={onStop}
               title="Stop generating"
               aria-label="Stop generating"
-              className="size-11 shrink-0 rounded-xl bg-app-red/20 p-0 text-app-red hover:bg-app-red/30 hover:text-app-red sm:size-9 sm:min-h-9 sm:min-w-9"
+              className="size-11 shrink-0 rounded-lg bg-app-red/20 p-0 text-app-red hover:bg-app-red/30 hover:text-app-red lg:pointer-fine:size-9 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-9"
             >
               <Square className="size-4" aria-hidden="true" />
             </Button>
@@ -209,7 +214,7 @@ export default function ChatPanel({
               disabled={!input.trim()}
               title={input.trim() ? 'Send message' : 'Type a message first'}
               aria-label="Send message"
-              className="size-11 shrink-0 rounded-xl bg-primary/20 p-0 text-primary hover:bg-primary/30 hover:text-primary sm:size-9 sm:min-h-9 sm:min-w-9"
+              className="size-11 shrink-0 rounded-lg bg-primary/20 p-0 text-primary hover:bg-primary/30 hover:text-primary lg:pointer-fine:size-9 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-9"
             >
               <Send className="size-4" aria-hidden="true" />
             </Button>

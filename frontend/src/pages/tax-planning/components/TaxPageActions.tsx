@@ -32,15 +32,20 @@ export default function TaxPageActions({
   hasSalaryData,
 }: Readonly<Props>) {
   return (
-    <div className="flex items-center gap-4 flex-wrap">
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {newRegimeAvailable && (
-        <div className="flex rounded-lg border border-border overflow-hidden">
+        <div
+          className="grid grid-cols-2 overflow-hidden rounded-lg border border-border"
+          role="group"
+          aria-label="Tax regime"
+        >
           <Button
             type="button"
             onClick={() => setRegimeOverride('new')}
             variant={isNewRegime ? 'primary' : 'ghost'}
             size="sm"
-            className="rounded-none border-0"
+            aria-pressed={isNewRegime}
+            className="rounded-none border-0 px-3"
           >
             New Regime
           </Button>
@@ -49,7 +54,8 @@ export default function TaxPageActions({
             onClick={() => setRegimeOverride('old')}
             variant={isNewRegime ? 'ghost' : 'primary'}
             size="sm"
-            className="rounded-none border-0"
+            aria-pressed={!isNewRegime}
+            className="rounded-none border-0 px-3"
           >
             Old Regime
           </Button>
@@ -62,12 +68,18 @@ export default function TaxPageActions({
           onClick={() => setShowProjection(!showProjection)}
           variant={showProjection ? 'primary' : 'secondary'}
           size="sm"
+          aria-pressed={showProjection}
+          className="w-full sm:w-auto"
         >
           {showProjection ? 'Showing Projection' : 'Project from Salary'}
         </Button>
       )}
 
-      <div className="flex items-center gap-2">
+      <div
+        className="flex min-w-0 items-center justify-between gap-2 sm:justify-start"
+        role="group"
+        aria-label="Fiscal year"
+      >
         <Button
           type="button"
           variant="secondary"
@@ -79,7 +91,7 @@ export default function TaxPageActions({
           className="px-2"
         />
 
-        <span className="text-foreground font-medium min-w-28 text-center">
+        <span className="min-w-0 flex-1 text-center font-medium text-foreground sm:min-w-28 sm:flex-none">
           {selectedFY || 'Select FY'}
         </span>
 

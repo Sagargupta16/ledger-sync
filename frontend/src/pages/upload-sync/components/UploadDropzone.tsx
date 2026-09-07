@@ -1,7 +1,15 @@
+import { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 
 import { motion } from 'motion/react'
-import { CheckCircle2, FileSpreadsheet, RefreshCw, Sparkles, Upload } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileSpreadsheet,
+  RefreshCw,
+  Sparkles,
+  Upload,
+} from 'lucide-react'
 
 import { Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -13,6 +21,12 @@ const PHASE_LABELS: Record<NonNullable<UploadPhase>, string> = {
   processing: 'Uploading and processing transactions...',
   analytics: 'Computing analytics...',
 }
+
+const PROGRESS_STEPS: { phase: NonNullable<UploadPhase>; label: string }[] = [
+  { phase: 'parsing', label: 'Read file' },
+  { phase: 'processing', label: 'Sync rows' },
+  { phase: 'analytics', label: 'Refresh insights' },
+]
 
 const UPLOAD_FEATURES = [
   { icon: CheckCircle2, text: 'Auto-detect duplicates' },
@@ -33,9 +47,24 @@ export default function UploadDropzone({
   isBusy,
   onFileSelect,
 }: UploadDropzoneProps) {
+  const [rejectionMessage, setRejectionMessage] = useState<string | null>(null)
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: (acceptedFiles) => {
+    onDrop: (acceptedFiles, fileRejections) => {
+      if (fileRejections.length > 0) {
+        const tooManyFiles = fileRejections.some((rejection) =>
+          rejection.errors.some((error) => error.code === 'too-many-files'),
+        )
+        setRejectionMessage(
+          tooManyFiles
+            ? 'Choose one statement at a time.'
+            : 'Choose an .xlsx, .xls, or .csv transaction file.',
+        )
+        return
+      }
+
       if (acceptedFiles.length > 0) {
+        setRejectionMessage(null)
         void onFileSelect(acceptedFiles[0])
       }
     },
@@ -89,6 +118,7 @@ export default function UploadDropzone({
               className={cn(
                 'relative cursor-pointer rounded-lg border border-dashed p-5 text-center transition-colors duration-150 md:p-7',
                 'bg-[var(--overlay-2)] hover:border-primary hover:bg-primary/10',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
                 isDragActive && 'border-primary bg-primary/20',
                 isBusy && 'cursor-not-allowed opacity-50',
                 selectedFileName ? 'border-primary' : 'border-[var(--hairline-5)]',
@@ -99,9 +129,44 @@ export default function UploadDropzone({
               {isBusy && phase ? (
                 <div className="flex flex-col items-center gap-4">
                   <Spinner size="lg" label={PHASE_LABELS[phase]} />
-                  <p className="max-w-full truncate font-mono text-sm text-muted-foreground">
+                  <p
+                    className="max-w-full truncate font-mono text-sm text-muted-foreground"
+                    title={selectedFileName ?? undefined}
+                  >
                     {selectedFileName}
                   </p>
+                  <ol className="grid w-full grid-cols-3 gap-2 text-left">
+                    {PROGRESS_STEPS.map((step, index) => {
+                      const activeIndex = PROGRESS_STEPS.findIndex((item) => item.phase === phase)
+                      const isComplete = index < activeIndex
+                      const isCurrent = index === activeIndex
+                      return (
+                        <li
+                          key={step.phase}
+                          aria-current={isCurrent ? 'step' : undefined}
+                          className="min-w-0"
+                        >
+                          <span
+                            className={cn(
+                              'mb-1 block h-1 rounded-full',
+                              isComplete || isCurrent
+                                ? 'bg-primary'
+                                : 'bg-[var(--overlay-6)]',
+                            )}
+                            aria-hidden="true"
+                          />
+                          <span
+                            className={cn(
+                              'block text-[11px] leading-4',
+                              isCurrent ? 'font-medium text-foreground' : 'text-text-tertiary',
+                            )}
+                          >
+                            {step.label}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ol>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-4">
@@ -126,6 +191,15 @@ export default function UploadDropzone({
                 </div>
               )}
             </div>
+            {rejectionMessage && (
+              <p
+                role="alert"
+                className="mt-2 flex items-center gap-2 text-left text-xs text-app-red"
+              >
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                {rejectionMessage}
+              </p>
+            )}
           </div>
         </div>
       </div>

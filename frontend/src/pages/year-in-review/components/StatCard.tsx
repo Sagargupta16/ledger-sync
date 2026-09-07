@@ -16,10 +16,10 @@ export default function StatCard({ label, value, icon: Icon, color, footer }: Re
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass min-w-0 rounded-lg border border-border p-3 sm:p-4 md:p-5 lg:p-6"
+      className="ledger-panel min-w-0 p-3 sm:p-4 md:p-5 lg:p-6"
     >
       <div className="flex min-w-0 flex-col items-start gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-3">
-        <div className="shrink-0 rounded-lg p-2 sm:rounded-xl sm:p-2.5" style={{ backgroundColor: `${color}22` }}>
+        <div className="shrink-0 rounded-lg p-2 sm:p-2.5" style={{ backgroundColor: `${color}22` }}>
           <Icon className="size-4 sm:size-5" style={{ color }} />
         </div>
         <div className="min-w-0">

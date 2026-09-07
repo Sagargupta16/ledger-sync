@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNod
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button, Input, Select } from '@/components/ui'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import type { TagFacet } from '@/services/api/transactions'
@@ -106,7 +107,7 @@ export default function TransactionFilters({
   ).length
 
   return (
-    <div className="space-y-4">
+    <motion.div layout className="relative space-y-4">
       {/* Search Bar */}
       <div className="ledger-panel p-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -163,13 +164,11 @@ export default function TransactionFilters({
       </div>
 
       {/* Advanced Filters */}
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
         {showAdvanced && (
           <motion.div
             id="advanced-filters"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            {...DISCLOSURE_TRANSITION}
             className="ledger-panel space-y-4 overflow-hidden p-4 sm:p-5"
             role="region"
             aria-label="Advanced filters"
@@ -307,6 +306,6 @@ export default function TransactionFilters({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

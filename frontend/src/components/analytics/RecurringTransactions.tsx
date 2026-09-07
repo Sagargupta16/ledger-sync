@@ -34,7 +34,7 @@ export default function RecurringTransactions() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-border p-6 animate-pulse">
+      <div className="ledger-panel animate-pulse p-4 sm:p-5">
         <div className="h-8 bg-muted rounded w-1/3 mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -49,16 +49,16 @@ export default function RecurringTransactions() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-5 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-teal/20 rounded-xl">
-            <RefreshCw className="w-6 h-6 text-app-teal" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-teal/15">
+            <RefreshCw className="size-4 text-app-teal" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Recurring Transactions</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-base font-semibold">Recurring transactions</h3>
+            <p className="text-xs text-muted-foreground">
               {activeCount} active • {formatCurrency(monthlyCommitment)}/month commitment
             </p>
           </div>
@@ -73,18 +73,18 @@ export default function RecurringTransactions() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="max-h-96 space-y-2 overflow-y-auto">
           {recurringTransactions.map((item, index) => (
             <div
               key={`${item.pattern}-${index}`}
-              className={`p-4 rounded-xl border transition-colors ${
+              className={`rounded-md border p-4 ${
                 item.isActive
-                  ? 'bg-background/30 border-border hover:border-border-strong'
+                  ? 'border-border bg-[var(--overlay-1)]'
                   : 'bg-background/10 border-border opacity-60'
               }`}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{item.pattern}</span>
                     {item.isActive ? (
@@ -101,13 +101,13 @@ export default function RecurringTransactions() {
                     <span>{item.occurrences} occurrences</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-app-red">{formatCurrency(item.avgAmount)}</p>
+                <div className="sm:text-right">
+                  <p className="ledger-figure font-semibold text-app-red">{formatCurrency(item.avgAmount)}</p>
                   <p className="text-xs text-muted-foreground">Total: {formatCurrency(item.totalSpent)}</p>
                 </div>
               </div>
               {item.isActive && (
-                <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
+                <div className="mt-2 flex flex-col gap-1 border-t border-border pt-2 text-xs sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">
                     Last: {formatDate(item.lastDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                   </span>
@@ -123,13 +123,13 @@ export default function RecurringTransactions() {
 
       {/* Monthly Summary */}
       {recurringTransactions.length > 0 && (
-        <div className="mt-4 p-4 rounded-xl bg-app-teal/10 border border-app-teal/20">
-          <div className="flex items-center justify-between">
+        <div className="mt-4 border-t border-[var(--hairline-1)] pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-app-teal" />
               <span className="font-medium">Monthly Fixed Costs</span>
             </div>
-            <span className="text-xl font-bold text-app-teal">{formatCurrency(monthlyCommitment)}</span>
+            <span className="ledger-figure text-xl font-semibold text-app-teal">{formatCurrency(monthlyCommitment)}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             Based on {activeCount} active recurring expenses

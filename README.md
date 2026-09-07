@@ -51,6 +51,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Compact desktop workspace with grouped navigation, search, notifications, theme control, and AI access.
 - Phone bottom navigation plus a complete More page.
 - Light and dark themes. New users start on the operating system preference.
+- Persisted Full and Reduced motion modes available from the sidebar and Settings.
 - Mobile card layouts for wide data tables and 44px touch targets for primary controls.
 - Distinct loading, empty, and retryable error states across protected financial pages.
 - Installable PWA that never caches API responses.
@@ -139,7 +140,7 @@ uv run alembic upgrade head
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Motion 12 |
+| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Motion 13 |
 | Backend | Python 3.13+, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Database | SQLite for development, Neon PostgreSQL 17 for production |
 | State | TanStack Query 5, Zustand 5 |

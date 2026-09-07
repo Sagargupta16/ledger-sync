@@ -2,7 +2,8 @@ import { motion } from 'motion/react'
 import { DollarSign, PieChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
-import { hexToRgba, rawColors } from '@/constants/colors'
+import { DURATION, EASING } from '@/constants/animations'
+import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioMetricsProps {
@@ -36,10 +37,13 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
 
   const topHoldingShare =
     topHolding && totalInvestmentValue > 0 ? (topHolding.value / totalInvestmentValue) * 100 : 0
+  const targetScale = Math.min(Math.max(targetProgress, 0), 100) / 100
 
   return (
     <div
-      className={`grid grid-cols-2 ${monthlyInvestmentTarget > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 sm:gap-4 lg:gap-6`}
+      className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 ${
+        monthlyInvestmentTarget > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'
+      }`}
     >
       <MetricCard
         title="Total Investment Value"
@@ -83,50 +87,51 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
         titleInfo="Biggest single investment account by amount contributed, and its share of total invested"
       />
       {monthlyInvestmentTarget > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="relative col-span-2 lg:col-span-1 p-4 md:p-6 glass rounded-2xl overflow-hidden group border border-[var(--hairline-1)] border-t-[var(--hairline-3)] border-l-[var(--hairline-3)]"
+        <div
+          className="ledger-panel p-4 sm:col-span-2 sm:p-5 xl:col-span-1"
         >
-          <div
-            className="inline-flex p-3 rounded-2xl mb-4 bg-app-orange/15"
-            style={{ boxShadow: `0 8px 24px ${hexToRgba(rawColors.app.orange, 0.15)}` }}
-          >
-            <Target className="w-6 h-6 text-app-orange" />
+          <div className="mb-3 inline-flex rounded-md bg-app-orange/15 p-2">
+            <Target className="size-5 text-app-orange" aria-hidden="true" />
           </div>
-          <h3 className="text-kpi-label font-medium mb-1 text-muted-foreground">Monthly Target</h3>
-          <p className="text-kpi-value font-bold text-foreground">
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Monthly Target</h3>
+          <p className="ledger-figure break-words text-xl font-semibold text-foreground">
             {formatCurrency(monthlyInvestmentTarget)}
           </p>
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-text-tertiary">
+              <span className="ledger-figure text-text-tertiary">
                 {formatCurrency(currentMonthInvestment)} invested
               </span>
               <span
-                className={
+                className={`ledger-figure ${
                   targetProgress >= 100
                     ? 'text-app-green font-medium'
                     : 'text-app-orange font-medium'
-                }
+                }`}
               >
                 {targetProgress.toFixed(0)}%
               </span>
             </div>
-            <div className="w-full h-2 rounded-full bg-[var(--overlay-5)] overflow-hidden">
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-[var(--overlay-5)]"
+              role="progressbar"
+              aria-label="Monthly investment target progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(targetProgress)}
+            >
               <motion.div
-                className="h-full rounded-full"
+                className="h-full w-full origin-left rounded-full"
                 style={{
                   background: targetProgress >= 100 ? rawColors.app.green : rawColors.app.orange,
                 }}
-                initial={{ width: 0 }}
-                animate={{ width: `${targetProgress}%` }}
-                transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: targetScale }}
+                transition={{ duration: DURATION.default, ease: EASING.cinematic }}
               />
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   )

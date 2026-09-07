@@ -40,7 +40,7 @@ export default function MobileMonthlySummary({
             onClick={() => onSelectMonth(i)}
             aria-pressed={selectedMonth === i}
             aria-label={`${m}: ${amount} ${heatmapValueNoun(mode, val)}. Show monthly details`}
-            className="min-h-16 rounded-xl p-3 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary aria-pressed:ring-2 aria-pressed:ring-primary"
+            className="min-h-16 rounded-lg p-3 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary aria-pressed:ring-2 aria-pressed:ring-primary"
             style={{ backgroundColor: color }}
           >
             <div className="mb-1 text-xs text-muted-foreground">{m}</div>

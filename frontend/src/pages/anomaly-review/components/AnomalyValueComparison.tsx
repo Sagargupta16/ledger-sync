@@ -15,21 +15,8 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
   const actualColor = overBaseline ? rawColors.app.red : rawColors.app.green
 
   return (
-    <div className="mt-3 ml-0 sm:ml-11 space-y-1.5 max-w-md">
-      <div className="flex items-center justify-between gap-3">
-        <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2 flex-1">
-          <span className="text-xs text-text-tertiary">Expected</span>
-          <ProgressBar
-            value={Math.abs(anomaly.expected_value)}
-            max={scaleMax}
-            height={6}
-            color={rawColors.text.tertiary}
-            ariaLabel={`Expected ${formatCurrency(anomaly.expected_value)}`}
-          />
-          <span className="text-xs text-foreground tabular-nums text-right">
-            {formatCurrency(anomaly.expected_value)}
-          </span>
-        </div>
+    <div className="mt-3 max-w-md space-y-1.5 sm:ml-11">
+      <div className="flex justify-end">
         {/*
           `deviation_pct` is ALREADY a percent: the backend computes
           `((actual - expected) / expected) * 100` (core/analytics/anomalies.py).
@@ -49,7 +36,20 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
           </span>
         )}
       </div>
-      <div className="grid grid-cols-[64px_1fr_auto] items-center gap-2">
+      <div className="grid grid-cols-[3.75rem_minmax(2.5rem,1fr)_auto] items-center gap-2">
+        <span className="text-xs text-text-tertiary">Expected</span>
+        <ProgressBar
+          value={Math.abs(anomaly.expected_value)}
+          max={scaleMax}
+          height={6}
+          color={rawColors.text.tertiary}
+          ariaLabel={`Expected ${formatCurrency(anomaly.expected_value)}`}
+        />
+        <span className="text-right text-xs tabular-nums text-foreground">
+          {formatCurrency(anomaly.expected_value)}
+        </span>
+      </div>
+      <div className="grid grid-cols-[3.75rem_minmax(2.5rem,1fr)_auto] items-center gap-2">
         <span className="text-xs text-text-tertiary">Actual</span>
         <ProgressBar
           value={Math.abs(anomaly.actual_value)}
@@ -59,7 +59,7 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
           target={Math.abs(anomaly.expected_value)}
           ariaLabel={`Actual ${formatCurrency(anomaly.actual_value)}`}
         />
-        <span className="text-xs text-foreground font-medium tabular-nums text-right">
+        <span className="text-right text-xs font-medium tabular-nums text-foreground">
           {formatCurrency(anomaly.actual_value)}
         </span>
       </div>

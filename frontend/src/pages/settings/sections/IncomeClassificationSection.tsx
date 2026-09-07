@@ -89,7 +89,7 @@ export default function IncomeClassificationSection({
 
           {Object.entries(allIncomeCategories).map(([parentCat, subs]) => (
             <div key={parentCat}>
-              <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+              <h4 className="mb-2 text-xs font-medium uppercase text-muted-foreground">
                 {parentCat}
               </h4>
               <div className="space-y-1">
@@ -113,7 +113,7 @@ export default function IncomeClassificationSection({
                             e.target.value as IncomeClassificationType | 'unclassified',
                           )
                         }
-                         className="ledger-control min-h-11 w-40 rounded-lg border border-border px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none sm:min-h-10 sm:w-44"
+                         className="ledger-control min-h-11 w-40 rounded-lg border border-border px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none sm:w-44 lg:pointer-fine:min-h-10"
                       >
                         <option value="unclassified" className="bg-background">
                           Unclassified

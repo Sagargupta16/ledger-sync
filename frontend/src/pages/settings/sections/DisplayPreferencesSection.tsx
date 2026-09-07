@@ -6,7 +6,14 @@
  */
 
 import { useMemo } from 'react'
-import { Settings2, Sun, Moon, type LucideIcon } from 'lucide-react'
+import {
+  Accessibility,
+  Moon,
+  Settings2,
+  Sparkles,
+  Sun,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   BASE_CURRENCY,
   CURRENCIES,
@@ -15,6 +22,7 @@ import {
 } from '@/constants/currencies'
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 import { useThemeStore } from '@/store/themeStore'
+import { useMotionStore, type MotionMode } from '@/store/motionStore'
 import type { ThemeMode } from '@/lib/theme'
 import { TIME_RANGE_OPTIONS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
@@ -32,6 +40,26 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; Icon: LucideIcon }[] = [
   { value: 'dark', label: 'Dark', Icon: Moon },
 ]
 
+const MOTION_OPTIONS: {
+  value: MotionMode
+  label: string
+  description: string
+  Icon: LucideIcon
+}[] = [
+  {
+    value: 'full',
+    label: 'Full',
+    description: 'Reveals, transitions, and animated figures',
+    Icon: Sparkles,
+  },
+  {
+    value: 'reduced',
+    label: 'Reduced',
+    description: 'Immediate state changes with the same content',
+    Icon: Accessibility,
+  },
+]
+
 export default function DisplayPreferencesSection({
   index,
   localPrefs,
@@ -39,6 +67,8 @@ export default function DisplayPreferencesSection({
 }: Readonly<Props>) {
   const themeMode = useThemeStore((s) => s.mode)
   const setThemeMode = useThemeStore((s) => s.setMode)
+  const motionMode = useMotionStore((state) => state.mode)
+  const setMotionMode = useMotionStore((state) => state.setMode)
   // Shares the app-wide rates query by key, so this adds no request.
   const { ratedCodes } = useExchangeRate()
   const selected = localPrefs.display_currency ?? BASE_CURRENCY
@@ -139,7 +169,7 @@ export default function DisplayPreferencesSection({
             />
             <label
               htmlFor="use-earning-start-date"
-              className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-10"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-1 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             >
               <input
                 id="use-earning-start-date"
@@ -164,14 +194,14 @@ export default function DisplayPreferencesSection({
         </div>
 
         {/* Appearance -- applied immediately (not part of the staged Save). */}
-        <div className="lg:col-span-3">
+        <div className="md:col-span-2 lg:col-span-3">
           <FieldLegend>Appearance</FieldLegend>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Theme">
             {THEME_OPTIONS.map(({ value, label, Icon }) => (
               <label
                 key={value}
                 htmlFor={`theme-${value}`}
-                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors sm:min-h-10 ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)] has-[:focus-visible]:ring-offset-2 lg:pointer-fine:min-h-10 ${
                   themeMode === value
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
                     : 'bg-surface-hover border-border text-muted-foreground hover:text-foreground'
@@ -192,6 +222,45 @@ export default function DisplayPreferencesSection({
             ))}
           </div>
           <FieldHint>New users start on their device's light/dark preference.</FieldHint>
+        </div>
+
+        <div className="md:col-span-2 lg:col-span-3">
+          <FieldLegend>Motion</FieldLegend>
+          <div
+            className="grid gap-2 sm:grid-cols-2"
+            role="radiogroup"
+            aria-label="Motion"
+          >
+            {MOTION_OPTIONS.map(({ value, label, description, Icon }) => (
+              <label
+                key={value}
+                htmlFor={`motion-${value}`}
+                className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)] has-[:focus-visible]:ring-offset-2 ${
+                  motionMode === value
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border bg-surface-hover text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <input
+                  id={`motion-${value}`}
+                  type="radio"
+                  name="motion"
+                  value={value}
+                  checked={motionMode === value}
+                  onChange={() => setMotionMode(value)}
+                  className="sr-only"
+                />
+                <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="mt-0.5 block text-xs text-text-tertiary">
+                    {description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <FieldHint>Motion is stored on this device and applies immediately.</FieldHint>
         </div>
       </div>
     </Section>

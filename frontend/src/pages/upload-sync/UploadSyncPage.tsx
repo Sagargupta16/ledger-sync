@@ -10,6 +10,7 @@ export default function UploadSyncPage() {
   const {
     conflict,
     failure,
+    success,
     selectedFileName,
     phase,
     isBusy,
@@ -35,6 +36,7 @@ export default function UploadSyncPage() {
         <UploadFeedback
           conflict={conflict}
           failure={failure}
+          success={success}
           isBusy={isBusy}
           onForceReupload={handleForceReupload}
           onRetryUpload={handleRetryUpload}

@@ -10,7 +10,7 @@ interface SummaryCardProps {
   colorClass: string
   /** Tailwind class for the icon background tint (e.g. 'bg-app-green/15'). */
   bgClass: string
-  /** Optional Tailwind shadow class for the icon tile. */
+  /** Optional class for a legacy caller-specific icon treatment. */
   shadowClass?: string
   /** Stagger delay for the entrance animation. */
   delay: number
@@ -46,15 +46,15 @@ export default function SummaryCard({
   return (
     <motion.div
       {...fadeUpWithDelay(delay)}
-      className={`glass h-full rounded-2xl border border-border ${padding}`}
+      className={`ledger-panel h-full ${padding}`}
     >
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-        <div className={`shrink-0 rounded-xl p-2.5 ${bgClass} ${shadowClass ?? ''}`}>
-          <Icon className={`h-5 w-5 ${colorClass}`} />
+        <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${bgClass} ${shadowClass ?? ''}`}>
+          <Icon className={`size-4 ${colorClass}`} />
         </div>
         <div className="min-w-0 w-full">
           <p className="break-words text-xs text-muted-foreground">{label}</p>
-          <p className="break-words text-lg font-bold leading-tight text-foreground sm:text-xl">
+          <p className="ledger-figure break-words text-lg font-semibold leading-tight text-foreground sm:text-xl">
             {value}
           </p>
         </div>

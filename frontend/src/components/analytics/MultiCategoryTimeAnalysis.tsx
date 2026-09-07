@@ -59,7 +59,8 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   const { chartData, totalTransactions, granularity } = useMemo(() => {
     const rows = series?.data ?? []
     if (rows.length === 0) {
-      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
+      const granularity: Granularity = 'day'
+      return { chartData: [], totalTransactions: 0, granularity }
     }
 
     // Auto-pick granularity based on the actual data span so daily noise
@@ -132,16 +133,16 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
 
   return (
     <motion.div
-      className="glass p-6 rounded-xl border border-border"
+      className="ledger-panel p-4 sm:p-5"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
     >
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-xl font-semibold text-foreground">Multi-Category Time Analysis</h3>
+            <h3 className="text-base font-semibold text-foreground">Category trends</h3>
             <p className="text-xs text-muted-foreground mt-1">
               {totalTransactions} expense transactions
               <span className="text-text-quaternary"> · </span>
@@ -150,7 +151,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Granularity */}
             <Select
               value={granularityOverride}
@@ -183,13 +184,12 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
         </div>
 
         {/* Chart */}
-        <div role="img" aria-label="Line chart of spending over time for the top expense categories">
-          <TimeSeriesLineChart
-            chartData={chartData}
-            seriesKeys={topCategories}
-            colors={COLORS}
-          />
-        </div>
+        <TimeSeriesLineChart
+          chartData={chartData}
+          seriesKeys={topCategories}
+          colors={COLORS}
+          ariaLabel="Line chart of spending over time for the top expense categories"
+        />
       </div>
     </motion.div>
   )

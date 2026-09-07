@@ -1,3 +1,5 @@
+import type { FocusEventHandler, KeyboardEventHandler } from 'react'
+
 import { formatCurrency } from '@/lib/formatters'
 import { getBillDotColor } from '../billUtils'
 import type { PlacedBill } from '../types'
@@ -17,6 +19,9 @@ interface Props {
   bills: PlacedBill[]
   /** Largest single-bill amount in the viewed month; the dot-size reference. */
   maxBillAmount: number
+  tabIndex: number
+  onFocus: FocusEventHandler<HTMLButtonElement>
+  onKeyDown: KeyboardEventHandler<HTMLButtonElement>
   onClick: () => void
 }
 
@@ -29,6 +34,9 @@ export default function DayCell({
   isCurrentMonth,
   bills,
   maxBillAmount,
+  tabIndex,
+  onFocus,
+  onKeyDown,
   onClick,
 }: Readonly<Props>) {
   const hasBills = bills.length > 0
@@ -50,7 +58,7 @@ export default function DayCell({
   const interactionClass = isCurrentMonth ? 'cursor-pointer' : 'cursor-default'
 
   const dayNumberClass = (() => {
-    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-on-accent'
+    if (isToday) return 'w-7 h-7 flex items-center justify-center rounded-full bg-app-blue text-primary-foreground'
     if (isSelected) return 'text-app-blue'
     if (isCurrentMonth) return 'text-foreground'
     return 'text-text-quaternary'
@@ -76,11 +84,15 @@ export default function DayCell({
     <button
       type="button"
       onClick={onClick}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
       disabled={!isCurrentMonth}
+      tabIndex={tabIndex}
+      data-bill-calendar-day={isCurrentMonth ? day : undefined}
       aria-label={ariaLabel}
       aria-pressed={isCurrentMonth ? isSelected : undefined}
       className={`
-        group relative flex min-h-[60px] min-w-11 w-full flex-col items-center justify-start rounded-lg p-1
+        group relative flex min-h-[60px] min-w-11 w-full flex-col items-center justify-start rounded-md p-1
         transition-colors duration-150 sm:min-h-[72px] sm:p-2
         ${interactionClass}
         ${opacityClass}

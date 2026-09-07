@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Activity } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -33,7 +32,15 @@ function AccountTooltip({
   return (
     <div style={CHART_TOOLTIP_STYLE}>
       <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{account.name}</p>
-      <div style={{ color: rawColors.chart.textPrimary, fontSize: 14, fontWeight: 600 }}>
+      <div
+        style={{
+          color: rawColors.chart.textPrimary,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 14,
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 600,
+        }}
+      >
         {formatCurrency(account.value)}
       </div>
       <div style={{ color: rawColors.chart.textSubtle, fontSize: 11, marginTop: 2 }}>
@@ -47,34 +54,35 @@ export default function ReturnsHoldingsChart({
   accounts,
 }: Readonly<{ accounts: readonly InvestmentAccount[] }>) {
   const { breakpoint } = useChartDimensions()
-  const holdingsAxisWidth = breakpoint === 'mobile' ? 84 : 140
+  const holdingsAxisWidth = breakpoint === 'mobile' ? 78 : breakpoint === 'tablet' ? 120 : 150
+  const accountNameLength = breakpoint === 'mobile' ? 12 : breakpoint === 'tablet' ? 20 : 28
   const displayedAccounts = accounts.slice(0, 12)
+  const formatAccountName = (name: string) =>
+    name.length > accountNameLength ? `${name.slice(0, accountNameLength - 3)}...` : name
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 sm:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
       aria-labelledby="holdings-value-title"
     >
       <div className="mb-4 flex items-center gap-3">
         <Activity className="size-5 text-app-purple" aria-hidden="true" />
         <div>
           <h2 id="holdings-value-title" className="text-lg font-semibold text-foreground">
-            Holdings by Value
+            Investment Accounts by Book Value
           </h2>
           <p className="text-pretty text-xs text-text-tertiary">
-            Investment accounts ranked by current balance. Top holding:{' '}
+            Investment accounts ranked by ledger balance. Top account:{' '}
             <span className="font-medium text-foreground">{accounts[0].name}</span> (
-            {formatCurrencyShort(accounts[0].balance)}).
+            <span className="ledger-figure">{formatCurrencyShort(accounts[0].balance)}</span>).
           </p>
         </div>
       </div>
 
       <ChartContainer
-        height={Math.max(280, accounts.length * 36)}
-        mobileHeight={Math.max(240, Math.min(accounts.length, 12) * 32)}
-        ariaLabel="Horizontal bar chart of investment accounts ranked by current balance."
+        height={Math.max(280, displayedAccounts.length * 36)}
+        mobileHeight={Math.max(240, displayedAccounts.length * 32)}
+        ariaLabel="Horizontal bar chart of investment accounts ranked by ledger balance."
       >
         <BarChart
           data={displayedAccounts.map((account, index) => ({
@@ -87,18 +95,19 @@ export default function ReturnsHoldingsChart({
             fillOpacity: 1 - index * 0.05,
           }))}
           layout="vertical"
-          margin={{ top: 8, right: 24, bottom: 8, left: 12 }}
+          margin={{ top: 8, right: breakpoint === 'mobile' ? 12 : 24, bottom: 8, left: 4 }}
         >
           <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical />
           <XAxis
             type="number"
-            {...xAxisDefaults(accounts.length)}
+            {...xAxisDefaults(displayedAccounts.length)}
             tickFormatter={(value: number) => formatCurrencyShort(value)}
           />
           <YAxis
             type="category"
             dataKey="name"
             width={holdingsAxisWidth}
+            tickFormatter={formatAccountName}
             tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: rawColors.chart.axisLine }}
@@ -108,7 +117,7 @@ export default function ReturnsHoldingsChart({
             dataKey="value"
             fill={rawColors.app.purple}
             radius={[0, 4, 4, 0]}
-            isAnimationActive={shouldAnimate(accounts.length)}
+            isAnimationActive={shouldAnimate(displayedAccounts.length)}
             animationDuration={600}
             animationEasing="ease-out"
           />
@@ -120,6 +129,6 @@ export default function ReturnsHoldingsChart({
           Showing top 12 of {accounts.length} accounts
         </p>
       )}
-    </motion.section>
+    </section>
   )
 }

@@ -25,7 +25,7 @@ export function deriveAvailableMonths(monthlyData: MonthlyData | undefined): Mon
   return Object.entries(monthlyData)
     .map(([month, data]) => ({
       month,
-      ...(data as RawMonthData),
+      ...(data),
     }))
     .sort((a, b) => b.month.localeCompare(a.month))
 }
@@ -45,7 +45,7 @@ export function deriveYearlyData(monthlyData: MonthlyData | undefined): Record<n
 
   Object.entries(monthlyData).forEach(([month, data]) => {
     const year = Number.parseInt(month.slice(0, 4))
-    const d = data as RawMonthData
+    const d = data
     if (!yearly[year]) {
       yearly[year] = { income: 0, expense: 0, net_savings: 0, months: 0 }
     }

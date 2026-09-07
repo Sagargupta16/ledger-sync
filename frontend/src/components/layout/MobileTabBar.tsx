@@ -4,6 +4,7 @@ import { LayoutDashboard, Receipt, ArrowRightLeft, Grid3x3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
+import { SPRING } from '@/constants/animations'
 import { cn } from '@/lib/cn'
 import { useBudgets, useAnomalies } from '@/hooks/api/useAnalyticsV2'
 
@@ -75,7 +76,7 @@ export default function MobileTabBar() {
                     <motion.span
                       layoutId="mobile-tab-pill"
                       className="absolute inset-x-1.5 inset-y-1 rounded-md bg-[var(--overlay-4)]"
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      transition={SPRING.activePill}
                     />
                   )}
                   <span className="relative z-[1]">
@@ -85,7 +86,7 @@ export default function MobileTabBar() {
                     />
                     {badge > 0 && (
                       <span
-                        className="absolute -right-2 -top-1.5 h-4 min-w-[16px] rounded-full bg-app-red px-1 text-center text-[10px] font-semibold leading-4 text-on-accent tabular-nums"
+                        className="absolute -right-2 -top-1.5 h-4 min-w-[16px] rounded-full bg-app-red px-1 text-center text-[10px] font-semibold leading-4 text-destructive-foreground tabular-nums"
                         aria-label={`${badge} items need attention`}
                       >
                         {badge > 9 ? '9+' : badge}

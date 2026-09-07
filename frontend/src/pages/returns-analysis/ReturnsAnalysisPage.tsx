@@ -34,7 +34,7 @@ export default function ReturnsAnalysisPage() {
       <PageContainer className="md:space-y-6">
         <PageHeader
           title="Returns Analysis"
-          subtitle="Analyze your investment returns over time"
+          subtitle="Review realised investment cash income, losses, and account book values"
         />
         <ErrorState
           variant="card"
@@ -52,8 +52,12 @@ export default function ReturnsAnalysisPage() {
     <PageContainer className="md:space-y-6">
       <PageHeader
         title="Returns Analysis"
-        subtitle="Analyze your investment returns over time"
-        action={<AnalyticsTimeFilter {...timeFilterProps} />}
+        subtitle="Review realised investment cash income, losses, and account book values"
+        action={
+          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+            <AnalyticsTimeFilter {...timeFilterProps} />
+          </div>
+        }
       />
 
       <ReturnsSummary
@@ -70,21 +74,20 @@ export default function ReturnsAnalysisPage() {
 
       <ReturnsMonthlyChart data={monthlyComboData} />
 
-      {investmentAccounts.length > 0 && (
-        <>
-          <ReturnsBreakdown
-            investmentProfit={investmentProfit}
-            dividendIncome={dividendIncome}
-            interestIncome={interestIncome}
-            investmentLoss={investmentLoss}
-            brokerFees={brokerFees}
-            totalIncome={totalIncome}
-            totalExpenses={totalExpenses}
-            netProfitLoss={netProfitLoss}
-          />
-          <ReturnsHoldingsChart accounts={investmentAccounts} />
-        </>
+      {realisedEventCount > 0 && (
+        <ReturnsBreakdown
+          investmentProfit={investmentProfit}
+          dividendIncome={dividendIncome}
+          interestIncome={interestIncome}
+          investmentLoss={investmentLoss}
+          brokerFees={brokerFees}
+          totalIncome={totalIncome}
+          totalExpenses={totalExpenses}
+          netProfitLoss={netProfitLoss}
+        />
       )}
+
+      {investmentAccounts.length > 0 && <ReturnsHoldingsChart accounts={investmentAccounts} />}
     </PageContainer>
   )
 }

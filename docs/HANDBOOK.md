@@ -25,7 +25,7 @@ The left sidebar contains:
 
 - Dashboard, Overview, and Transactions at the top.
 - Analytics, Wealth, Commitments, Planning, and Tax groups.
-- A utility bar with Upload and Sync and Settings, then search, currency, theme, and sign-out controls.
+- A utility area with currency, theme, and motion controls, followed by Upload and Sync, Settings, and sign out.
 - The current user profile at the bottom.
 
 The global workspace header shows the current page and provides Search, Ask AI, and notifications when available.
@@ -48,6 +48,10 @@ Use the sidebar Search control, the workspace header, or `Ctrl+K` to open the co
 ### Themes
 
 Settings and the sidebar theme control switch between Light and Dark. Before you choose, the app follows your operating system setting. Switching themes keeps the current page, filters, tabs, searches, and form values in place while charts redraw with the resolved palette.
+
+### Motion
+
+The sidebar motion control and Display Preferences switch between Full and Reduced motion. The choice is stored on this device and applies immediately without resetting the current page, filters, or form values.
 
 ### Data errors and recovery
 
@@ -447,7 +451,7 @@ All five sections in this group start collapsed.
 
 ### Profile and Display
 
-8. **Display Preferences** - number format, display currency, default range, earning start date, and Light/Dark theme.
+8. **Display Preferences** - number format, display currency, default range, earning start date, Light/Dark theme, and Full/Reduced motion.
 9. **Notifications** - budget, anomaly, and upcoming-bill preferences.
 10. **Dashboard Widgets** - choose visible Quick Insights.
 11. **AI Assistant** - app Bedrock or BYOK mode, provider/model/key, and token limits.
@@ -460,7 +464,7 @@ These sections start collapsed.
 
 This section starts collapsed.
 
-The Save button is a solid foreground action with a Save icon and activates only when staged settings changed. Reset restores preference defaults but preserves account classifications.
+The Save button is a solid blue action with a Save icon and activates only when staged settings changed. Reset restores preference defaults but preserves account classifications.
 
 ## AI Assistant
 

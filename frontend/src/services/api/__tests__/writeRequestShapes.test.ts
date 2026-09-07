@@ -30,7 +30,7 @@ const WRITE_SOURCES = import.meta.glob('../*.ts', {
   query: '?raw',
   import: 'default',
   eager: true,
-}) as Record<string, string>
+})
 
 /**
  * Endpoints whose backend handler really does declare query parameters, so a

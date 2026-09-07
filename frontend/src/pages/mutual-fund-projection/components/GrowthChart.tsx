@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { Area, AreaChart, CartesianGrid, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -41,23 +40,23 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
   const lastHistorical = [...chartData].reverse().find((d) => d.isHistorical)
   const todayMonth = lastHistorical?.month
   const hasExpected = chartData.some((d) => d.expectedValue !== undefined)
+  const animateSeries = shouldAnimate(chartData.length * (hasExpected ? 3 : 2))
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8 }}
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
+      aria-labelledby="investment-growth-title"
     >
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Investment Growth Path</h3>
+          <h2 id="investment-growth-title" className="text-lg font-semibold">
+            Investment Growth Path
+          </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Blue: principal invested · Green: actual portfolio value · Orange:
-            expected at your assumed return
+            Historical contributions and portfolio value with the selected projection scenario
           </p>
         </div>
-        <fieldset className="m-0 flex flex-wrap gap-2 border-0 p-0">
+        <fieldset className="ledger-control m-0 grid w-full grid-cols-3 gap-1 rounded-md border p-1 sm:w-auto sm:grid-cols-6">
           <legend className="sr-only">Projection period presets</legend>
           {PRESETS.map((preset) => (
             <button
@@ -65,10 +64,10 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
               key={preset.years}
               onClick={() => onProjectionYearsChange(preset.years)}
               aria-pressed={projectionYears === preset.years}
-              className={`px-3 py-2.5 rounded-full border-2 font-semibold text-xs transition ${
+              className={`min-h-11 min-w-11 rounded px-3 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
                 projectionYears === preset.years
-                  ? 'border-primary bg-primary/20 text-primary'
-                  : 'border-border bg-transparent text-muted-foreground hover:border-primary/50'
+                  ? 'bg-app-blue/15 text-app-blue'
+                  : 'text-muted-foreground hover:bg-[var(--overlay-2)] hover:text-foreground'
               }`}
             >
               {preset.label}
@@ -99,7 +98,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                 dataKey="month"
                 interval="preserveStartEnd"
               />
-              <YAxis {...yAxisDefaults()} />
+              <YAxis {...yAxisDefaults({ width: 48 })} />
               <Tooltip {...chartTooltipProps} formatter={currencyTooltipFormatter} />
               <Legend {...LEGEND_DEFAULTS} />
               <Area
@@ -110,7 +109,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                 fill={areaGradientUrl('invested')}
                 strokeWidth={2}
                 dot={false}
-                isAnimationActive={shouldAnimate(chartData.length)}
+                isAnimationActive={animateSeries}
                 animationDuration={600}
                 animationEasing="ease-out"
               />
@@ -122,7 +121,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                 fill={areaGradientUrl('value')}
                 strokeWidth={2}
                 dot={false}
-                isAnimationActive={shouldAnimate(chartData.length)}
+                isAnimationActive={animateSeries}
                 animationDuration={600}
                 animationEasing="ease-out"
               />
@@ -136,7 +135,7 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
                   strokeDasharray="5 4"
                   dot={false}
                   connectNulls={false}
-                  isAnimationActive={shouldAnimate(chartData.length)}
+                  isAnimationActive={animateSeries}
                   animationDuration={600}
                   animationEasing="ease-out"
                 />
@@ -153,6 +152,6 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
           </ChartContainer>
         </div>
       )}
-    </motion.div>
+    </section>
   )
 }

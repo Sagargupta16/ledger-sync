@@ -15,6 +15,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { getTodayKey } from '@/lib/dateUtils'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
+import { isMotionReduced } from '@/store/motionStore'
 
 /** Map component filter + sorting state to API query params */
 function buildServerFilters(
@@ -74,6 +75,7 @@ export default function TransactionsPage() {
     expense: facets?.expense_count ?? 0,
     transfer: facets?.transfer_count ?? 0,
   }
+  const typeMixTotal = typeCounts.income + typeCounts.expense + typeCounts.transfer
 
   // Fetch filtered + sorted + paginated rows from the server. The response
   // carries the filtered total, so no separate count query is needed.
@@ -103,7 +105,10 @@ export default function TransactionsPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+    document.getElementById('main-content')?.scrollTo({
+      top: 0,
+      behavior: isMotionReduced() ? 'auto' : 'smooth',
+    })
   }
 
   const handleItemsPerPageChange = (items: number) => {
@@ -178,9 +183,9 @@ export default function TransactionsPage() {
           }
         />
 
-        <section className="ledger-panel">
-          <div className="grid grid-cols-2 divide-x divide-y divide-[var(--hairline-1)] lg:grid-cols-4 lg:divide-y-0">
-            <div className="flex min-h-24 items-center gap-3 p-4">
+        <section className="ledger-panel overflow-hidden">
+          <div className="grid grid-cols-3 lg:grid-cols-4">
+            <div className="col-span-3 flex min-h-24 items-center gap-3 border-b border-[var(--hairline-1)] p-4 lg:col-span-1 lg:border-r lg:border-b-0">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--overlay-3)]">
                 <Receipt className="size-4 text-foreground" />
               </span>
@@ -202,25 +207,28 @@ export default function TransactionsPage() {
               { label: 'Income', value: typeCounts.income, color: 'text-app-green' },
               { label: 'Expense', value: typeCounts.expense, color: 'text-app-red' },
               { label: 'Transfer', value: typeCounts.transfer, color: 'text-app-teal' },
-            ].map((item) => (
-              <div key={item.label} className="min-h-24 p-4">
+            ].map((item, index) => (
+              <div
+                key={item.label}
+                className={`min-h-20 p-4 lg:min-h-24 ${index < 2 ? 'border-r border-[var(--hairline-1)]' : ''}`}
+              >
                 <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className={`ledger-figure mt-3 text-xl font-semibold ${item.color}`}>
+                <p className={`ledger-figure mt-2 text-lg font-semibold sm:text-xl ${item.color}`}>
                   {item.value.toLocaleString('en-IN')}
                 </p>
               </div>
             ))}
           </div>
-          {typeCounts.income + typeCounts.expense + typeCounts.transfer > 0 && (
+          {typeMixTotal > 0 && (
             <div className="border-t border-[var(--hairline-1)] px-4 py-3">
               <div
                 className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--overlay-2)]"
                 role="img"
                 aria-label={`Transaction type mix: ${typeCounts.income} income, ${typeCounts.expense} expense, ${typeCounts.transfer} transfer`}
               >
-                <div className="bg-app-green" style={{ width: `${(typeCounts.income / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
-                <div className="bg-app-red" style={{ width: `${(typeCounts.expense / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
-                <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / (typeCounts.income + typeCounts.expense + typeCounts.transfer)) * 100}%` }} />
+                <div className="bg-app-green" style={{ width: `${(typeCounts.income / typeMixTotal) * 100}%` }} />
+                <div className="bg-app-red" style={{ width: `${(typeCounts.expense / typeMixTotal) * 100}%` }} />
+                <div className="bg-app-teal" style={{ width: `${(typeCounts.transfer / typeMixTotal) * 100}%` }} />
               </div>
             </div>
           )}

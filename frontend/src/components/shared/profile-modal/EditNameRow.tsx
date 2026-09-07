@@ -17,7 +17,7 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
     props
 
   return (
-    <div className="rounded-xl bg-[var(--overlay-2)] border border-border p-4">
+    <div className="rounded-lg border border-border bg-[var(--overlay-2)] p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Pencil size={14} className="text-muted-foreground" />

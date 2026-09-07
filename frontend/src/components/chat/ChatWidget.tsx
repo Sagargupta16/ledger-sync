@@ -91,7 +91,7 @@ export default function ChatWidget() {
         aria-expanded={isOpen}
         className={`flex size-11 items-center justify-center rounded-lg border shadow-sm transition-colors lg:hidden ${
           isConfigured
-            ? 'border-foreground bg-foreground text-background'
+            ? 'border-primary bg-primary text-primary-foreground'
             : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
         }`}
       >

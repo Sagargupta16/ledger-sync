@@ -91,7 +91,8 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   const { chartData, totalTransactions, granularity } = useMemo(() => {
     const rows = series?.data ?? []
     if (rows.length === 0) {
-      return { chartData: [], totalTransactions: 0, granularity: 'day' as Granularity }
+      const granularity: Granularity = 'day'
+      return { chartData: [], totalTransactions: 0, granularity }
     }
 
     // Auto-pick granularity to keep the chart legible across long ranges.
@@ -169,15 +170,20 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
 
   return (
     <motion.div
-      className="glass p-6 rounded-xl border border-border"
+      className="ledger-panel p-4 sm:p-5"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
     >
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-foreground">Enhanced Subcategory Analysis</h3>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Subcategory trend</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Compare the largest subcategories inside one spending category.
+            </p>
+          </div>
           <Button
             variant="secondary"
             size="sm"
@@ -192,14 +198,14 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
         </div>
 
         {/* Controls Row */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
             {/* Category Dropdown */}
             <Select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               options={categories.map((category) => ({ value: category, label: category }))}
-              className="min-w-50"
+              className="min-w-0 sm:min-w-50"
               aria-label="Category to analyze"
             />
 
@@ -230,15 +236,14 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
         </div>
 
         {/* Chart */}
-        <div role="img" aria-label={`Line chart of subcategory spending over time within ${selectedCategory}`}>
-          <TimeSeriesLineChart
-            chartData={chartData}
-            seriesKeys={subcategories}
-            colors={[...COLORS]}
-            legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-            emptyMessage={`No data available for ${selectedCategory}`}
-          />
-        </div>
+        <TimeSeriesLineChart
+          chartData={chartData}
+          seriesKeys={subcategories}
+          colors={[...COLORS]}
+          legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
+          emptyMessage={`No data available for ${selectedCategory}`}
+          ariaLabel={`Line chart of subcategory spending over time within ${selectedCategory}`}
+        />
       </div>
     </motion.div>
   )

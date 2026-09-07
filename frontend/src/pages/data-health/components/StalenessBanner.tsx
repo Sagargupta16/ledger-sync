@@ -74,7 +74,7 @@ export default function StalenessBanner({ freshness }: StalenessBannerProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
       aria-live="polite"
-      className={`flex flex-col gap-3 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 ${styles.container}`}
+      className={`flex flex-col gap-3 rounded-lg border px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 ${styles.container}`}
     >
       <Icon className={`size-6 shrink-0 ${styles.icon}`} aria-hidden />
       <div className="min-w-0 flex-1">

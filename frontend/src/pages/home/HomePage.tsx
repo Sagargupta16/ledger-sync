@@ -51,7 +51,10 @@ export default function HomePage() {
         }}
       >
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link to="/" className="group flex min-h-11 items-center gap-3">
+          <Link
+            to="/"
+            className="group flex min-h-11 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          >
             <div className="flex size-8 items-center justify-center rounded-md bg-foreground text-background">
               <Landmark className="size-4.5" aria-hidden="true" />
             </div>
@@ -68,7 +71,7 @@ export default function HomePage() {
             {isAuthenticated ? (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-3.5 text-sm font-medium text-background transition-opacity hover:opacity-85 sm:px-4"
+                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-app-blue-vibrant hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-4"
               >
                 <span className="hidden sm:inline">Open workspace</span>
                 <span className="sm:hidden">Open</span>
@@ -78,7 +81,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setShowAuthModal(true)}
-                className="inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
+                className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-app-blue-vibrant hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 Sign in
               </button>
@@ -115,7 +118,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleFinalCta}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-app-blue-vibrant hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <Upload className="size-4" aria-hidden="true" />
                 {isAuthenticated ? 'Upload your data' : 'Create free account'}
@@ -125,7 +128,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={handleTryDemo}
-                  className="ledger-control inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-medium text-foreground transition-colors"
+                  className="ledger-control inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-5 text-sm font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   <Eye className="size-4" aria-hidden="true" />
                   Explore demo

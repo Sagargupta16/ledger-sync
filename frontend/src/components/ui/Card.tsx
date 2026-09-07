@@ -11,7 +11,7 @@ interface CardProps {
 }
 
 /**
- * Frosted glass card component with restrained styling.
+ * Flat surface card component with restrained styling.
  * Provides consistent card appearance across the application.
  */
 export const Card = memo(function Card({
@@ -22,8 +22,8 @@ export const Card = memo(function Card({
   variant = 'default'
 }: CardProps) {
   const variantClasses = {
-    default: 'glass rounded-lg border border-[var(--glass-border)] p-4 sm:p-5',
-    interactive: 'glass rounded-lg border border-[var(--glass-border)] p-4 sm:p-5 transition-colors duration-150 hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)]'
+    default: 'rounded-lg border border-[var(--hairline-1)] bg-surface-1 p-4 sm:p-5',
+    interactive: 'rounded-lg border border-[var(--hairline-1)] bg-surface-1 p-4 sm:p-5 transition-colors duration-150 hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)]'
   }
 
   if (animate) {
@@ -108,7 +108,7 @@ export const StatCard = memo(function StatCard({
   delay = 0
 }: StatCardProps) {
   return (
-    <Card delay={delay} variant="interactive">
+    <Card delay={delay}>
       <div className="flex items-center gap-3">
         {icon && (
           <div

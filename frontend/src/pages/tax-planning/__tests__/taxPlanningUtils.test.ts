@@ -21,7 +21,7 @@ function epfTx(amount: number): Transaction {
     subcategory: 'EPF Contribution',
     account: 'EPF',
     note: '',
-  } as Transaction
+  }
 }
 
 /**
@@ -59,7 +59,7 @@ function salaryTx(amount: number): Transaction {
     subcategory: 'Salary',
     account: 'Bank: SBI',
     note: '',
-  } as Transaction
+  }
 }
 
 /**

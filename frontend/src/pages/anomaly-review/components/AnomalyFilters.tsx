@@ -40,7 +40,7 @@ export default function AnomalyFilters({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+      className="ledger-panel p-4"
     >
       <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
         <div className="w-full sm:w-56">
@@ -59,11 +59,12 @@ export default function AnomalyFilters({
             options={SEVERITY_OPTIONS}
           />
         </div>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground sm:min-h-0">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground lg:pointer-fine:min-h-8">
           <input
             type="checkbox"
             checked={includeReviewed}
             onChange={(event) => onIncludeReviewedChange(event.target.checked)}
+            aria-label="Include reviewed anomalies"
             className="rounded border-border-strong bg-surface-dropdown"
           />
           <span>Include Reviewed</span>

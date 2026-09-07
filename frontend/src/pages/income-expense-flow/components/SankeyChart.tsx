@@ -58,11 +58,11 @@ function DrillBreadcrumb({
     )
   }
   return (
-    <nav aria-label="Cash flow drill-down path" className="flex items-center gap-1 text-sm min-w-0">
+    <nav aria-label="Cash flow drill-down path" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
       <button
         type="button"
         onClick={() => drillTo(0)}
-        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        className="flex min-h-11 shrink-0 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-[var(--overlay-2)] hover:text-foreground"
       >
         All cash flow
       </button>
@@ -81,7 +81,7 @@ function DrillBreadcrumb({
               <button
                 type="button"
                 onClick={() => drillTo(i + 1)}
-                className="text-muted-foreground hover:text-foreground transition-colors truncate"
+                className="flex min-h-11 items-center truncate rounded-md px-2 text-muted-foreground transition-colors hover:bg-[var(--overlay-2)] hover:text-foreground"
               >
                 {crumb.label}
               </button>
@@ -92,7 +92,7 @@ function DrillBreadcrumb({
       <button
         type="button"
         onClick={drillBack}
-        className="ml-2 flex items-center gap-1 px-2 py-1 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)] transition-colors shrink-0"
+        className="ml-2 flex min-h-11 shrink-0 items-center gap-1 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-[var(--overlay-2)] hover:text-foreground"
         aria-label="Back one level"
       >
         <CornerUpLeft className="w-3 h-3" aria-hidden />
@@ -130,14 +130,13 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
 
   // Zoom navigation. Forward: the new view grows out of the clicked node
   // (transform-origin at its chart position), like zooming INTO it. Back: the
-  // parent view settles down from oversized, like zooming back OUT. The blur
-  // ramp sells the depth change; the spring keeps it snappy, not floaty.
+  // parent view settles down from oversized, like zooming back OUT.
   const zoomIn = drillDirection === 'in'
   const transformOrigin =
     zoomIn && zoomOrigin ? `${zoomOrigin.x}px ${zoomOrigin.y}px` : '50% 50%'
   const enterFrom = zoomIn
-    ? { opacity: 0, scale: 0.35, filter: 'blur(6px)' }
-    : { opacity: 0, scale: 1.45, filter: 'blur(6px)' }
+    ? { opacity: 0, scale: 0.9 }
+    : { opacity: 0, scale: 1.08 }
 
   const chartLabel = crumb
     ? `Sankey diagram showing the ${crumb.label} breakdown by subcategory.`
@@ -153,14 +152,14 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="glass rounded-2xl border border-border p-3 sm:p-6 lg:p-8"
+      className="ledger-panel p-3 sm:p-6 lg:p-8"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && depth > 0) drillBack()
       }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-8">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-purple/20 rounded-xl">
+          <div className="rounded-lg bg-app-purple/20 p-3">
             <ArrowRightLeft className="w-6 h-6 text-app-purple" />
           </div>
           <div>
@@ -204,23 +203,15 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
               animations kept the old chart mounted alongside the new one
               (AnimatePresence exit never completed under StrictMode), which
               doubled the diagram. The key remount also resets stale tooltip
-              active state. The outer div springs the height between levels so
-              the card doesn't jump-cut when a drill view is shorter. */}
-            <motion.div
-              initial={false}
-              animate={{ height: chartHeight }}
-              transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-              style={{ overflow: 'hidden' }}
-            >
+              active state. */}
+          <div style={{ height: chartHeight, overflow: 'hidden' }}>
             <motion.div
               key={viewKey}
               initial={enterFrom}
-              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', stiffness: 220, damping: 26, mass: 0.9 }}
               style={{ transformOrigin }}
             >
-              {/* Chart renders at final height immediately; the outer wrapper's
-                  height spring just reveals it (no per-frame Sankey relayout). */}
               <ChartContainer height={chartHeight} ariaLabel={chartLabel}>
                 <Sankey
                   key={viewKey}
@@ -250,34 +241,28 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                 </Sankey>
               </ChartContainer>
             </motion.div>
-            </motion.div>
+          </div>
 
           {depth === 0 && (
             <div className="mt-6 pt-6 border-t border-border flex flex-wrap justify-center gap-6">
               <div className="flex items-center gap-2">
                 <div
                   className="w-4 h-4 rounded"
-                  style={{
-                    background: `linear-gradient(to right, ${rawColors.app.green}, ${rawColors.app.greenVibrant})`,
-                  }}
+                  style={{ backgroundColor: rawColors.app.green }}
                 />
                 <span className="text-sm text-foreground">Income Sources</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="w-4 h-4 rounded"
-                  style={{
-                    background: `linear-gradient(to right, ${rawColors.app.indigo}, ${rawColors.app.purple})`,
-                  }}
+                  style={{ backgroundColor: rawColors.app.purple }}
                 />
                 <span className="text-sm text-foreground">Total Income / Savings</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="w-4 h-4 rounded"
-                  style={{
-                    background: `linear-gradient(to right, ${rawColors.app.red}, ${rawColors.app.redVibrant})`,
-                  }}
+                  style={{ backgroundColor: rawColors.app.red }}
                 />
                 <span className="text-sm text-foreground">Expense Categories</span>
               </div>

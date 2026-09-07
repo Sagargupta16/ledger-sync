@@ -135,7 +135,7 @@ export default function NotificationCenter() {
         size="sm"
         onClick={() => setIsOpen((v) => !v)}
         className={cn(
-          'relative size-11 p-0 text-text-tertiary sm:size-9 sm:min-h-9 sm:min-w-9',
+          'relative size-11 p-0 text-text-tertiary lg:pointer-fine:size-9 lg:pointer-fine:min-h-9 lg:pointer-fine:min-w-9',
           isOpen && 'bg-[var(--overlay-4)] text-foreground',
         )}
         title="Notifications"
@@ -145,7 +145,7 @@ export default function NotificationCenter() {
         <Bell size={18} aria-hidden="true" />
         {totalCount > 0 && (
           <span
-            className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-app-red px-0.5 text-[9px] font-bold text-on-accent"
+            className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-app-red px-0.5 text-[9px] font-bold text-destructive-foreground"
           >
             {totalCount > 9 ? '9+' : totalCount}
           </span>
@@ -164,7 +164,7 @@ export default function NotificationCenter() {
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className={cn(
               'absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg',
-              'glass-strong border border-border shadow-lg',
+              'border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)]',
             )}
           >
             {/* Header */}
@@ -197,7 +197,7 @@ export default function NotificationCenter() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="size-11 p-0 text-muted-foreground sm:size-8 sm:min-h-8 sm:min-w-8"
+                  className="size-11 p-0 text-muted-foreground lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
                   aria-label="Close notifications"
                 >
                   <X size={14} aria-hidden="true" />
@@ -231,7 +231,7 @@ export default function NotificationCenter() {
                         <div className={cn('p-1 rounded-md', config.bgClass)}>
                           <GroupIcon size={12} className={config.colorClass} />
                         </div>
-                        <span className="text-[11px] font-semibold text-muted-foreground">
+                        <span className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
                           {config.label}
                         </span>
                         <span
@@ -255,7 +255,7 @@ export default function NotificationCenter() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ duration: 0.2 }}
-                            className="group mx-2 mb-1 px-3 py-2.5 rounded-xl hover:bg-[var(--overlay-2)] transition-colors"
+                            className="group mx-2 mb-1 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] focus-within:border-[var(--hairline-2)]"
                           >
                             <div className="flex items-start gap-2.5">
                               <SeverityDot severity={item.severity} />
@@ -275,7 +275,7 @@ export default function NotificationCenter() {
                                   e.stopPropagation()
                                   handleDismiss(item.id)
                                 }}
-                                className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:size-8 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
                                 aria-label={`Dismiss: ${item.message}`}
                               >
                                 <X size={12} aria-hidden="true" />

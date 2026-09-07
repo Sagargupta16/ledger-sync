@@ -339,6 +339,7 @@ Zustand stores:
 | `budgetStore` | Budget client state |
 | `demoStore` | Demo mode activation |
 | `themeStore` | Light or dark mode plus the resolved theme; new users start from the OS preference |
+| `motionStore` | Device-local Full or Reduced motion preference, applied without remounting page state |
 
 Stores should not duplicate API server state without a specific persistence or
 cross-page reason.

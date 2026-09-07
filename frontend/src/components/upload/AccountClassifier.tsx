@@ -79,7 +79,7 @@ export default function AccountClassifier() {
         <h3 className="text-lg font-semibold">Account Configuration</h3>
       </div>
 
-      <div className="bg-[var(--overlay-2)] backdrop-blur-sm rounded-xl border border-border overflow-hidden">
+      <div className="overflow-hidden rounded-lg border border-border bg-[var(--overlay-2)]">
         <section
           className="overflow-x-auto"
           aria-label="Account classification matrix"

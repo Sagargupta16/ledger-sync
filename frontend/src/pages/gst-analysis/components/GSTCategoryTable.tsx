@@ -23,10 +23,13 @@ export default function GSTCategoryTable({ data }: Readonly<Props>) {
   return (
     <motion.div
       variants={fadeUpItem}
-      className="glass rounded-2xl border border-border overflow-hidden"
+      className="ledger-panel overflow-hidden"
     >
       <div className="px-5 py-4 border-b border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">GST by Category</h3>
+        <h3 className="text-base font-semibold text-foreground">Estimated GST by category</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Spending, applied rate, and estimated tax contribution
+        </p>
       </div>
       <DataTable<GSTCategoryBreakdown>
         columns={columns}

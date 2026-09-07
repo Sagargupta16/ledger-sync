@@ -66,7 +66,7 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
       {grants.map((grant) => (
         <div
           key={grant.id}
-          className="rounded-xl bg-[var(--overlay-1)] border border-border p-4 space-y-3"
+          className="space-y-3 border-t border-border pt-4"
         >
           <div className="flex items-start gap-3">
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">

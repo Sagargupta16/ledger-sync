@@ -31,6 +31,7 @@ import {
 import SidebarItem from './SidebarItem'
 import SidebarSection from './SidebarSection'
 import ThemeToggle from './ThemeToggle'
+import MotionToggle from './MotionToggle'
 
 function getInitials(name?: string | null, email?: string): string {
   const source = name?.trim() || email?.split('@')[0] || 'LS'
@@ -174,7 +175,7 @@ export default function Sidebar() {
         id="workspace-navigation"
         aria-label="Workspace navigation"
         className={cn(
-          'fixed top-0 z-40 h-dvh w-60 border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] transition-transform duration-200 ease-out lg:sticky',
+          'fixed top-0 z-40 h-dvh w-60 border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] transition-transform duration-200 ease-out lg:sticky lg:h-full',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
@@ -200,7 +201,7 @@ export default function Sidebar() {
 
           <nav
             aria-label="Main navigation"
-            className="min-h-0 flex-1 overflow-y-auto py-2 scrollbar-none"
+            className="sidebar-nav-scroll min-h-0 flex-1 overflow-y-auto py-2"
           >
             <div className="space-y-0.5 px-2">
               <SidebarItem
@@ -245,37 +246,40 @@ export default function Sidebar() {
           <div className="border-t border-[var(--hairline-2)]">
             <div className="flex items-center gap-1 px-2.5 py-2">
               <CurrencySwitcher />
-              <ThemeToggle />
               <div className="ml-auto flex items-center gap-1">
-                {utilityItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={closeMobile}
-                    className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground lg:size-9"
-                    title={item.label}
-                    aria-label={item.label}
-                  >
-                    <item.icon className="size-4" />
-                  </Link>
-                ))}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={
-                    isDemoMode
-                      ? () => exitDemoMode(queryClient, navigate)
-                      : handleLogout
-                  }
-                  disabled={logout.isPending}
-                  className="size-11 p-0 text-text-tertiary hover:bg-app-red/10 hover:text-app-red lg:size-9 lg:min-h-9 lg:min-w-9"
-                  title={isDemoMode ? 'Exit demo' : 'Sign out'}
-                  aria-label={isDemoMode ? 'Exit demo' : 'Sign out'}
-                >
-                  <LogOut className="size-4" aria-hidden="true" />
-                </Button>
+                <ThemeToggle />
+                <MotionToggle />
               </div>
+            </div>
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-1 px-2.5 pb-2">
+              {utilityItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={closeMobile}
+                  className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground lg:min-h-9"
+                  title={item.label}
+                >
+                  <item.icon className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{item.label.replace(' & Sync', '')}</span>
+                </Link>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={
+                  isDemoMode
+                    ? () => exitDemoMode(queryClient, navigate)
+                    : handleLogout
+                }
+                disabled={logout.isPending}
+                className="size-11 p-0 text-text-tertiary hover:bg-app-red/10 hover:text-app-red lg:size-9 lg:min-h-9 lg:min-w-9"
+                title={isDemoMode ? 'Exit demo' : 'Sign out'}
+                aria-label={isDemoMode ? 'Exit demo' : 'Sign out'}
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+              </Button>
             </div>
 
             <button

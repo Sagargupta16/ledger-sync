@@ -1,5 +1,3 @@
-import { motion } from 'motion/react'
-
 import type {
   RecurringTransaction,
   RecurringTransactionPatch,
@@ -37,17 +35,13 @@ export default function RecurringItemsSection({
         {description && <p className="text-xs text-text-tertiary">{description}</p>}
       </div>
       {items.map((item) => (
-        <motion.div
-          key={item.id}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <div key={item.id}>
           <RecurringCard
             item={item}
             onUpdate={(patch) => onUpdate(item.id, patch)}
             onDelete={() => onDelete(item.id, item.name)}
           />
-        </motion.div>
+        </div>
       ))}
     </section>
   )

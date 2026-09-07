@@ -28,7 +28,7 @@ export default function SpendingMetricGrid({
   subcategoriesCount,
 }: SpendingMetricGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       <MetricCard
         title="Total Spending"
         value={formatCurrency(totalSpending)}
@@ -48,6 +48,7 @@ export default function SpendingMetricGrid({
               color={rawColors.app.orange}
               height={40}
               showTooltip={false}
+              ariaLabel="Monthly spending trend"
             />
           ) : undefined
         }

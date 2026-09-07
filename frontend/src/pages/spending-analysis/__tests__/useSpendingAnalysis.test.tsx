@@ -39,7 +39,7 @@ function tx(
     type,
     category,
     account: 'SBI Savings',
-  } as unknown as Transaction
+  }
 }
 
 /**

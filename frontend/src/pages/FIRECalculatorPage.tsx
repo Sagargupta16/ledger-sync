@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type KeyboardEvent } from 'react'
 
 import { motion } from 'motion/react'
 import { Flame, Calculator } from 'lucide-react'
@@ -59,6 +59,19 @@ export default function FIRECalculatorPage() {
   const isLoading = queries.some((query) => query.isLoading)
   const hasError = queries.some((query) => query.isError)
   const [activeTab, setActiveTab] = useState<'fire' | 'retirement'>('fire')
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    let nextTab: 'fire' | 'retirement' | null = null
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      nextTab = activeTab === 'fire' ? 'retirement' : 'fire'
+    }
+    if (event.key === 'Home') nextTab = 'fire'
+    if (event.key === 'End') nextTab = 'retirement'
+    if (!nextTab) return
+
+    event.preventDefault()
+    setActiveTab(nextTab)
+    requestAnimationFrame(() => document.getElementById(`${nextTab}-tab`)?.focus())
+  }
 
   // FIRE inputs with defaults from transaction data. The distinct-month count
   // is the number of keys in the monthly rollup (one per YYYY-MM) -- no need to
@@ -138,7 +151,9 @@ export default function FIRECalculatorPage() {
                   id="fire-tab"
                   aria-selected={activeTab === 'fire'}
                   aria-controls="fire-panel"
+                  tabIndex={activeTab === 'fire' ? 0 : -1}
                   onClick={() => setActiveTab('fire')}
+                  onKeyDown={handleTabKeyDown}
                   variant={activeTab === 'fire' ? 'secondary' : 'ghost'}
                   size="sm"
                   icon={<Flame className="w-4 h-4" />}
@@ -152,7 +167,9 @@ export default function FIRECalculatorPage() {
                   id="retirement-tab"
                   aria-selected={activeTab === 'retirement'}
                   aria-controls="retirement-panel"
+                  tabIndex={activeTab === 'retirement' ? 0 : -1}
                   onClick={() => setActiveTab('retirement')}
+                  onKeyDown={handleTabKeyDown}
                   variant={activeTab === 'retirement' ? 'secondary' : 'ghost'}
                   size="sm"
                   icon={<Calculator className="w-4 h-4" />}
@@ -184,7 +201,7 @@ export default function FIRECalculatorPage() {
           fire: (
           <div role="tabpanel" id="fire-panel" aria-labelledby="fire-tab" className="space-y-6 md:space-y-8">
             {/* FIRE Metrics */}
-            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <motion.div variants={fadeUpItem} className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
               <MetricCard title="Years to FIRE" value={fireResult.yearsToFIRE === Infinity ? 'N/A' : `${fireResult.yearsToFIRE.toFixed(1)} yrs`} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
               <MetricCard title="Coast FIRE" value={formatCurrency(fireResult.coastFIRE)} icon={Flame} color="teal" subtitle="Amount needed today" />
@@ -194,33 +211,35 @@ export default function FIRECalculatorPage() {
             {/* FIRE Variants -- one shared INR axis so the tiers are directly
                 comparable (Fat = 2x Standard, Lean < Standard) at a glance,
                 instead of four isolated number tiles. */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
+            <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
               <h3 className="text-lg font-semibold mb-4">FIRE Variants</h3>
-              <StandardBarChart
-                data={[
-                  { tier: 'Lean', corpus: fireResult.leanFIRE, color: rawColors.app.green },
-                  { tier: 'Barista', corpus: fireResult.baristaFIRE, color: rawColors.app.teal },
-                  { tier: 'Standard', corpus: fireResult.fireNumber, color: rawColors.app.blue },
-                  { tier: 'Fat', corpus: fireResult.fatFIRE, color: rawColors.app.purple },
-                ]}
-                layout="vertical"
-                yCategoryKey="tier"
-                dataKey="tier"
-                yWidth={72}
-                height={200}
-                bars={[
-                  {
-                    key: 'corpus',
-                    color: rawColors.app.blue,
-                    getCellColor: (row) => (row as { color: string }).color,
-                  },
-                ]}
-                showLegend={false}
-                tooltipFormatter={(v) => formatCurrency(v)}
-                xTickFormatter={(v) => formatCurrencyShort(v as number)}
-                ariaLabel="Horizontal bar chart comparing the corpus needed for Lean, Barista, Standard and Fat FIRE"
-              />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-3 text-xs text-text-tertiary">
+              <div className="-mx-4 sm:mx-0">
+                <StandardBarChart
+                  data={[
+                    { tier: 'Lean', corpus: fireResult.leanFIRE, color: rawColors.app.green },
+                    { tier: 'Barista', corpus: fireResult.baristaFIRE, color: rawColors.app.teal },
+                    { tier: 'Standard', corpus: fireResult.fireNumber, color: rawColors.app.blue },
+                    { tier: 'Fat', corpus: fireResult.fatFIRE, color: rawColors.app.purple },
+                  ]}
+                  layout="vertical"
+                  yCategoryKey="tier"
+                  dataKey="tier"
+                  yWidth={72}
+                  height={200}
+                  bars={[
+                    {
+                      key: 'corpus',
+                      color: rawColors.app.blue,
+                      getCellColor: (row) => (row as { color: string }).color,
+                    },
+                  ]}
+                  showLegend={false}
+                  tooltipFormatter={(v) => formatCurrency(v)}
+                  xTickFormatter={(v) => formatCurrencyShort(v as number)}
+                  ariaLabel="Horizontal bar chart comparing the corpus needed for Lean, Barista, Standard and Fat FIRE"
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-text-tertiary min-[375px]:grid-cols-2 lg:grid-cols-4">
                 <p><span className="text-app-green font-medium">Lean</span> · essentials only (60%)</p>
                 <p>
                   <span className="text-app-teal font-medium">Barista</span> ·{' '}
@@ -234,7 +253,7 @@ export default function FIRECalculatorPage() {
             </motion.div>
 
             {/* FIRE Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
+            <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 sm:gap-6">
                 <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" valueText={`${swr} percent`} onChange={setSwr} />
@@ -262,7 +281,7 @@ export default function FIRECalculatorPage() {
           retirement: (
           <div role="tabpanel" id="retirement-panel" aria-labelledby="retirement-tab" className="space-y-6 md:space-y-8">
             {/* Retirement Metrics */}
-            <motion.div variants={fadeUpItem} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <motion.div variants={fadeUpItem} className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
               <MetricCard title="Required Corpus" value={formatCurrency(retirementResult.requiredCorpus)} icon={Calculator} color="blue" subtitle={`In ${retirementYears} years`} />
               <MetricCard title="Monthly SIP Needed" value={formatCurrency(retirementResult.monthlySIP)} icon={Calculator} color="green" subtitle={`At ${expectedReturn}% return`} />
               <MetricCard title="Future Monthly Expense" value={formatCurrency(retirementResult.monthlyExpenseAtRetirement)} icon={Calculator} color="red" subtitle={`At ${inflation}% inflation`} />
@@ -271,34 +290,30 @@ export default function FIRECalculatorPage() {
 
             {/* Projection Chart */}
             {retirementResult.projectionData.length > 0 && (
-              <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
+              <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
                 <h3 className="text-lg font-semibold mb-4">Corpus Growth Projection</h3>
-                <div
-                  role="img"
-                  aria-label={`Projected retirement corpus growth over ${retirementYears} years, comparing total corpus against amount contributed`}
-                >
-                  <StandardAreaChart
-                    data={retirementResult.projectionData}
-                    dataKey="year"
-                    height={320}
-                    xTickFormatter={(v) => `Yr ${v}`}
-                    tooltipFormatter={currencyTooltipFormatter}
-                    areas={[
-                      { key: 'corpus', color: rawColors.app.blue, label: 'Total Corpus' },
-                      {
-                        key: 'contributed',
-                        color: rawColors.app.green,
-                        label: 'Contributed',
-                        strokeDasharray: '4 4',
-                      },
-                    ]}
-                  />
-                </div>
+                <StandardAreaChart
+                  data={retirementResult.projectionData}
+                  dataKey="year"
+                  height={320}
+                  xTickFormatter={(v) => `Yr ${v}`}
+                  tooltipFormatter={currencyTooltipFormatter}
+                  ariaLabel={`Projected retirement corpus growth over ${retirementYears} years, comparing total corpus against amount contributed`}
+                  areas={[
+                    { key: 'corpus', color: rawColors.app.blue, label: 'Total Corpus' },
+                    {
+                      key: 'contributed',
+                      color: rawColors.app.green,
+                      label: 'Contributed',
+                      strokeDasharray: '4 4',
+                    },
+                  ]}
+                />
               </motion.div>
             )}
 
             {/* Retirement Sliders */}
-            <motion.div variants={fadeUpItem} className="glass rounded-2xl border border-border p-4 sm:p-6">
+            <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
               <h3 className="text-lg font-semibold mb-4">Adjust Assumptions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 sm:gap-6">
                 <SliderInput id="ret-inflation" label="Inflation Rate" value={inflation} min={3} max={10} step={0.5} unit="%" valueText={`${inflation} percent`} onChange={setInflation} />

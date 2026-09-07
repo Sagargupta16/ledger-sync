@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { Button, Input } from '@/components/ui'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatDate } from '@/lib/formatters'
 
@@ -60,17 +61,18 @@ export default function AnomalyCard({
 
   return (
     <motion.div
+      layout="position"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={`ledger-panel p-4 sm:p-5 ${anomaly.is_reviewed ? 'opacity-60' : ''}`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${severity.bg}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className={`shrink-0 rounded-lg p-2 ${severity.bg}`}>
             <AnomalyIcon icon={typeIcon} className={`w-4 h-4 ${severity.text}`} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-foreground">
                 {anomalyTypeLabel(anomaly.anomaly_type)}
               </span>
@@ -86,10 +88,12 @@ export default function AnomalyCard({
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{anomaly.description}</p>
+            <p className="mt-1 break-words text-sm text-muted-foreground">
+              {anomaly.description}
+            </p>
           </div>
         </div>
-        <span className="text-xs text-text-tertiary whitespace-nowrap">
+        <span className="self-end whitespace-nowrap text-xs text-text-tertiary sm:self-auto">
           {formatDate(anomaly.detected_at, DETECTED_AT_OPTIONS)}
         </span>
       </div>
@@ -103,7 +107,7 @@ export default function AnomalyCard({
       )}
 
       {!anomaly.is_reviewed && (
-        <div className="mt-4 ml-0 sm:ml-11 space-y-2">
+        <div className="relative mt-4 ml-0 space-y-2 sm:ml-11">
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
@@ -139,18 +143,15 @@ export default function AnomalyCard({
                 )
               }
               onClick={() => onToggleNote(anomaly.id)}
+              aria-expanded={isExpanded}
             >
               Add Note
             </Button>
           </div>
 
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {isExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
+              <motion.div {...DISCLOSURE_TRANSITION}>
                 <Input
                   type="text"
                   value={noteText}

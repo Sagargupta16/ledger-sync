@@ -56,7 +56,7 @@ export default function BudgetRuleAnalysis({
 }: BudgetRuleAnalysisProps) {
   return (
     <motion.section
-      className="glass rounded-xl border border-border p-4 sm:p-6"
+      className="ledger-panel p-4 sm:p-6"
       {...SCROLL_FADE_UP}
     >
       {/*

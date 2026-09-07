@@ -118,7 +118,7 @@ export function budgetNotifications(budgets: Budget[]): Notification[] {
       const severity: Notification['severity'] = getSeverityFromPct(pct)
       return {
         id: `budget-${b.id}`,
-        type: 'budget' as NotificationType,
+        type: 'budget',
         title: 'Budget Alert',
         message:
           pct >= BUDGET_EXCEEDED_PCT
@@ -146,7 +146,7 @@ export function anomalyNotifications(anomalies: Anomaly[]): Notification[] {
       const label = getAnomalyLabel(a.anomaly_type, amount)
       return {
         id: `anomaly-${a.id}`,
-        type: 'anomaly' as NotificationType,
+        type: 'anomaly',
         title: 'Anomaly Detected',
         message: a.description || label,
         timestamp: a.detected_at,

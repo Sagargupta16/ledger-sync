@@ -52,7 +52,7 @@ function buildCategoryColumns({
       key: 'bars',
       header: `${periodA.label} vs ${periodB.label}`,
       widthClass: 'w-[42%]',
-      mobileLabel: `${periodA.label} vs ${periodB.label}`,
+      mobileLabel: 'Period comparison',
       cell: (delta) => (
         <div className="space-y-1">
           <ProgressBar
@@ -79,7 +79,7 @@ function buildCategoryColumns({
       align: 'right',
       sortable: true,
       widthClass: 'w-24',
-      mobileLabel: `${periodA.label} / ${periodB.label}`,
+      mobileLabel: 'Values',
       sortValue: (delta) => delta.periodB,
       cell: (delta) => (
         <div className="leading-tight">
@@ -132,7 +132,7 @@ export function CategorySection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 md:p-6"
     >
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">

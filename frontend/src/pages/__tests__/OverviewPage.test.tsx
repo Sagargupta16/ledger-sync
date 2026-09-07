@@ -19,7 +19,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,7 +29,9 @@ import {
   totalsOptions,
 } from '@/hooks/api/useAnalytics'
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
+import type { Budget, FinancialGoal } from '@/services/api/analyticsV2'
 import type { MonthlyAggregation, TotalsData } from '@/services/api/calculations'
+import type { Transaction } from '@/types'
 
 import OverviewPage from '../OverviewPage'
 
@@ -67,6 +69,53 @@ const TOTALS: TotalsData = {
   transaction_count: 6,
 }
 
+const EMPTY_TOTALS: TotalsData = {
+  total_income: 0,
+  total_expenses: 0,
+  net_savings: 0,
+  savings_rate: 0,
+  transaction_count: 0,
+}
+
+const LEDGER_TRANSACTION: Transaction = {
+  id: 'txn-1',
+  date: '2026-06-15',
+  amount: 120_000,
+  type: 'Income',
+  category: 'Salary',
+  account: 'Checking',
+}
+
+const AT_RISK_BUDGET: Budget = {
+  id: 1,
+  category: 'Food',
+  subcategory: null,
+  monthly_limit: 10_000,
+  current_spent: 9_000,
+  remaining: 1_000,
+  usage_pct: 90,
+  alert_threshold: 80,
+  avg_actual: 8_500,
+  months_over: 1,
+  months_under: 5,
+}
+
+const ACTIVE_GOAL: FinancialGoal = {
+  id: 1,
+  name: 'Emergency fund',
+  goal_type: 'savings',
+  target_amount: 600_000,
+  current_amount: 300_000,
+  progress_pct: 50,
+  start_date: '2026-01-01',
+  target_date: '2026-12-31',
+  is_achieved: false,
+  achieved_date: null,
+  notes: null,
+  created_at: '2026-01-01T00:00:00',
+  updated_at: '2026-06-15T00:00:00',
+}
+
 /**
  * `all_time` is the default view mode, so the hook asks for an open date range.
  * Seeded through the shared key factories: `staleTime: Infinity` means a key
@@ -75,21 +124,37 @@ const TOTALS: TotalsData = {
  */
 const ALL_TIME = { start_date: undefined, end_date: undefined }
 
-function renderOverview(monthly: MonthlyAggregation) {
+interface OverviewFixture {
+  totals?: TotalsData
+  transactions?: Transaction[]
+  budgets?: Budget[]
+  goals?: FinancialGoal[]
+}
+
+function renderOverview(
+  monthly: MonthlyAggregation,
+  {
+    totals = TOTALS,
+    transactions = [LEDGER_TRANSACTION],
+    budgets = [],
+    goals = [],
+  }: OverviewFixture = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  qc.setQueryData(totalsOptions(ALL_TIME).queryKey, TOTALS)
+  qc.setQueryData(totalsOptions(ALL_TIME).queryKey, totals)
   qc.setQueryData(monthlyAggregationOptions(ALL_TIME).queryKey, monthly)
   qc.setQueryData(recentTransactionsOptions(5).queryKey, [])
-  qc.setQueryData(['transactions', undefined], [])
-  qc.setQueryData(analyticsV2Keys.budgets({ active_only: true }), [])
-  qc.setQueryData(analyticsV2Keys.goals(), [])
-  return render(
+  qc.setQueryData(['transactions', undefined], transactions)
+  qc.setQueryData(analyticsV2Keys.budgets({ active_only: true }), budgets)
+  qc.setQueryData(analyticsV2Keys.goals(), goals)
+  const view = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
         <OverviewPage />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return { ...view, queryClient: qc }
 }
 
 describe('OverviewPage KPI delta label', () => {
@@ -132,5 +197,68 @@ describe('OverviewPage KPI delta label', () => {
 
     expect(screen.getByText('+20%')).toBeInTheDocument()
     expect(screen.getByText('+25%')).toBeInTheDocument()
+  })
+})
+
+describe('OverviewPage empty states and period semantics', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 6, 26))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps the selector available so an empty period can recover to All Time', async () => {
+    const julyToDate = { start_date: '2026-07-01', end_date: '2026-07-26' }
+    const { queryClient } = renderOverview(THROUGH_JUNE)
+    queryClient.setQueryData(totalsOptions(julyToDate).queryKey, EMPTY_TOTALS)
+    queryClient.setQueryData(monthlyAggregationOptions(julyToDate).queryKey, {})
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Monthly' }))
+
+    expect(await screen.findByRole('heading', { name: 'No transactions in this period' }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('tablist', { name: 'Time range' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Upload Data' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'All Time' }))
+
+    expect(await screen.findByRole('heading', { name: 'Category leaders' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'No transactions in this period' }))
+      .not.toBeInTheDocument()
+  })
+
+  it('reserves the upload prompt for a globally empty ledger', () => {
+    renderOverview({}, { totals: EMPTY_TOTALS, transactions: [] })
+
+    expect(screen.getByRole('heading', { name: 'No transactions yet' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Upload Data' })).toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Time range' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'No transactions in this period' }))
+      .not.toBeInTheDocument()
+  })
+
+  it('states that budgets and goals remain current when transaction periods change', () => {
+    const yearToDate = { start_date: '2026-01-01', end_date: '2026-07-26' }
+    const { queryClient } = renderOverview(THROUGH_JUNE, {
+      budgets: [AT_RISK_BUDGET],
+      goals: [ACTIVE_GOAL],
+    })
+    queryClient.setQueryData(totalsOptions(yearToDate).queryKey, TOTALS)
+    queryClient.setQueryData(monthlyAggregationOptions(yearToDate).queryKey, THROUGH_JUNE)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Yearly' }))
+
+    expect(screen.getByRole('tab', { name: 'Yearly' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(
+      'Categories at or above their alert threshold this month. The selected period applies only to transaction data.',
+    )).toBeInTheDocument()
+    expect(screen.getByText(
+      'Active goals ordered by current completion. The selected period applies only to transaction data.',
+    )).toBeInTheDocument()
+    expect(screen.getByText('Food')).toBeInTheDocument()
+    expect(screen.getByText('Emergency fund')).toBeInTheDocument()
   })
 })

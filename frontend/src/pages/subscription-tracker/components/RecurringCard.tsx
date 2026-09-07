@@ -12,6 +12,7 @@ import {
   Receipt,
   ShoppingBag,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button, Input, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
@@ -49,14 +50,21 @@ export function RecurringCard({
 
   const saveEdit = () => {
     const amt = Number(editAmt)
-    if (!editName.trim() || Number.isNaN(amt) || amt <= 0) return
+    if (!editName.trim()) {
+      toast.error('Name is required')
+      return
+    }
+    if (Number.isNaN(amt) || amt <= 0) {
+      toast.error('Enter a valid amount')
+      return
+    }
     onUpdate({ pattern_name: editName.trim(), frequency: editFreq, expected_amount: amt })
     setEditing(false)
   }
 
   if (editing) {
     return (
-      <div className="glass space-y-3 rounded-xl border border-app-blue/30 p-4">
+      <div className="ledger-panel space-y-3 border-app-blue/30 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <Input
@@ -112,8 +120,8 @@ export function RecurringCard({
   }
 
   return (
-    <div className={`glass rounded-xl border p-4 transition-colors duration-200 ${
-      item.is_active ? 'border-border hover:border-[var(--hairline-5)]' : 'border-[var(--hairline-1)] opacity-50'
+    <div className={`ledger-panel p-4 ${
+      item.is_active ? '' : 'border-[var(--hairline-1)] opacity-70'
     }`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3 sm:items-center">
@@ -172,7 +180,7 @@ export function RecurringCard({
               {formatCurrency(monthly)}/mo
             </p>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex w-full items-center justify-between gap-0.5 sm:w-auto sm:justify-start">
             {!item.is_confirmed && !isHabit && (
               <Button
                 type="button"

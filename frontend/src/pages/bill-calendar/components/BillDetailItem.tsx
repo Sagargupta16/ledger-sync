@@ -16,7 +16,7 @@ export default function BillDetailItem({ bill }: Readonly<Props>) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--overlay-2)] hover:bg-[var(--overlay-2)] transition-colors"
+      className="flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] py-3 last:border-b-0"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -37,7 +37,7 @@ export default function BillDetailItem({ bill }: Readonly<Props>) {
         </div>
       </div>
       <p
-        className={`text-sm font-semibold whitespace-nowrap ${bill.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}
+        className={`whitespace-nowrap text-sm font-semibold tabular-nums ${bill.type === 'Income' ? 'text-app-green' : 'text-app-red'}`}
       >
         {bill.type === 'Income' ? '+' : '-'}
         {formatCurrency(bill.amount)}

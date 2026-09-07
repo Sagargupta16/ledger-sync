@@ -83,7 +83,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
                     variant="ghost"
                     size="md"
                     onClick={() => {
-                      onApply(view.filters as FilterValues)
+                      onApply(view.filters)
                       setOpen(false)
                     }}
                     className="min-w-0 flex-1 justify-start truncate px-3 text-sm"

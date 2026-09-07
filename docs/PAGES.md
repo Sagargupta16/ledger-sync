@@ -578,6 +578,8 @@ Only Financial Settings starts expanded. The other eleven sections start collaps
 
 Settings are grouped under Money Setup, Categories and Classification, Profile and Display, and Advanced. Save persists staged preference changes. Reset restores default preferences but preserves account classifications.
 
+Display Preferences includes a device-local Full/Reduced motion choice. It applies immediately and does not remount the active page or discard staged settings.
+
 AI configuration endpoints are under `/api/preferences/ai-config`.
 
 ## Mobile
@@ -609,6 +611,8 @@ The page includes sign-out and exposes every route that is not a dedicated botto
 ### Themes
 
 `themeStore` persists Light or Dark mode. A user with no stored choice gets the operating system `prefers-color-scheme` value, resolved once before first paint.
+
+`motionStore` persists Full or Reduced motion. The preference is resolved before first paint and shared with Motion so page state remains mounted when it changes.
 
 ### Demo mode
 

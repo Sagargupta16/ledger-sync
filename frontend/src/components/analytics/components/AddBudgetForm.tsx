@@ -20,7 +20,7 @@ export default function AddBudgetForm({
   onCancel,
 }: Readonly<AddBudgetFormProps>) {
   return (
-    <div className="mb-4 p-4 rounded-xl bg-background/50 border border-border">
+    <div className="mb-4 border-y border-[var(--hairline-1)] py-4">
       <h4 className="text-sm font-medium mb-3">Add New Budget</h4>
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="min-w-0 flex-1">

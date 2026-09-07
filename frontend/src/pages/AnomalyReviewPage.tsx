@@ -24,7 +24,7 @@ export default function AnomalyReviewPage() {
         action={
           <Link
             to={ROUTES.SETTINGS}
-            className="ledger-control inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:min-h-9"
+            className="ledger-control inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground lg:pointer-fine:min-h-9"
             title="Tune sensitivity, threshold, and which anomaly types are active"
           >
             <Settings2 className="w-3.5 h-3.5" />

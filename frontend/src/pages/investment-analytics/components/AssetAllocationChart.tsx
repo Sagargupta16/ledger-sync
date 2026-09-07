@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { PieChart } from 'lucide-react'
 
 import StandardPieChart from '@/components/analytics/StandardPieChart'
@@ -17,16 +16,13 @@ export function AssetAllocationChart({
   const total = assetAllocation.reduce((sum, item) => sum + item.value, 0)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.4 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <PieChart className="w-5 h-5 text-app-blue" />
-          <h3 className="text-lg font-semibold text-foreground">Asset Allocation</h3>
+    <section className="ledger-panel p-4 sm:p-5" aria-labelledby="asset-allocation-title">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <PieChart className="size-5 text-app-blue" aria-hidden="true" />
+          <h2 id="asset-allocation-title" className="text-base font-semibold text-foreground">
+            Asset Allocation
+          </h2>
         </div>
         {!isLoading && assetAllocation.length > 0 && (
           <p className="text-xs text-text-tertiary">
@@ -52,6 +48,6 @@ export function AssetAllocationChart({
           ariaLabel="Donut chart breaking down portfolio value by asset class."
         />
       )}
-    </motion.div>
+    </section>
   )
 }

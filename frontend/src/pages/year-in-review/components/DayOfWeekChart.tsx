@@ -60,10 +60,10 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2"
         >
           <div className="px-3 py-2 rounded-lg bg-app-red/10 border border-app-red/20">
-            <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
+            <p className="text-xs uppercase tracking-wide text-text-quaternary font-semibold">
               Biggest Day
             </p>
             <p className="text-sm font-semibold text-foreground mt-0.5">
@@ -72,7 +72,7 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
             </p>
           </div>
           <div className="px-3 py-2 rounded-lg bg-[var(--overlay-2)] border border-border">
-            <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
+            <p className="text-xs uppercase tracking-wide text-text-quaternary font-semibold">
               Weekend vs Weekday
             </p>
             <p className="text-sm font-semibold text-foreground mt-0.5">

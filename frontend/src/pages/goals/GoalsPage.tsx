@@ -1,8 +1,7 @@
-import { motion, AnimatePresence } from 'motion/react'
-import { Target, Plus, Trophy, Clock } from 'lucide-react'
+import { AnimatePresence } from 'motion/react'
+import { Target, Plus, Trophy, Clock, X } from 'lucide-react'
 import { Button, PageContainer, PageHeader, StatCard } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { staggerContainer, fadeUpItem } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
@@ -49,29 +48,54 @@ export default function GoalsPage() {
           <Button
             type="button"
             onClick={() => state.setShowCreateForm(!state.showCreateForm)}
-            icon={<Plus className="w-4 h-4" />}
+            variant={state.showCreateForm ? 'secondary' : 'primary'}
+            icon={
+              state.showCreateForm ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )
+            }
+            aria-expanded={state.showCreateForm}
           >
-            Create Goal
+            {state.showCreateForm ? 'Close form' : 'Create Goal'}
           </Button>
         }
       />
 
-      {/* Summary Cards */}
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
-        <motion.div variants={fadeUpItem}>
-          <StatCard title="Total Goals" value={String(state.summary.total)} icon={<Target className="w-5 h-5" />} iconColor={rawColors.app.blue} />
-        </motion.div>
-        <motion.div variants={fadeUpItem}>
-          <StatCard title="Achieved" value={String(state.summary.achieved)} icon={<Trophy className="w-5 h-5" />} iconColor={rawColors.app.green} />
-        </motion.div>
-        <motion.div variants={fadeUpItem}>
-          <StatCard title="In Progress" value={String(state.summary.inProgress)} icon={<Clock className="w-5 h-5" />} iconColor={rawColors.app.orange} />
-        </motion.div>
-      </motion.div>
+      <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-5 md:grid-cols-3">
+        <StatCard
+          title="Total Goals"
+          value={String(state.summary.total)}
+          icon={<Target className="h-5 w-5" />}
+          iconColor={rawColors.app.blue}
+          delay={0}
+        />
+        <StatCard
+          title="Achieved"
+          value={String(state.summary.achieved)}
+          icon={<Trophy className="h-5 w-5" />}
+          iconColor={rawColors.app.green}
+          delay={0.04}
+        />
+        <div className="min-[375px]:col-span-2 md:col-span-1">
+          <StatCard
+            title="In Progress"
+            value={String(state.summary.inProgress)}
+            icon={<Clock className="h-5 w-5" />}
+            iconColor={rawColors.app.orange}
+            delay={0.08}
+          />
+        </div>
+      </div>
 
       {/* Achieved vs in-progress completion strip (reuses summary counts) */}
       {state.summary.total > 0 && (
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3"
+          role="img"
+          aria-label={`${state.summary.achieved} of ${state.summary.total} goals achieved`}
+        >
           <div className="flex-1 h-2 rounded-full overflow-hidden bg-[var(--overlay-3)] flex">
             {state.summary.achieved > 0 && (
               <div
@@ -133,7 +157,7 @@ export default function GoalsPage() {
         />
       )}
       {state.goals.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {state.sortedGoals.map((goal) => (
             <GoalCard
               key={goal.id}

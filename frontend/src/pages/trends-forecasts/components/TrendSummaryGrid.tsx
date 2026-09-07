@@ -16,7 +16,7 @@ export default function TrendSummaryGrid({
   isLoading,
 }: TrendSummaryGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-6">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
       <TrendCard
         metrics={metrics.spending}
         icon={CreditCard}
@@ -24,7 +24,6 @@ export default function TrendSummaryGrid({
         iconColorClass="text-app-red"
         label="Spending Trend"
         isPositiveGood={false}
-        delay={0}
         isLoading={isLoading}
       />
       <TrendCard
@@ -34,7 +33,6 @@ export default function TrendSummaryGrid({
         iconColorClass="text-app-green"
         label="Income Trend"
         isPositiveGood
-        delay={0.04}
         isLoading={isLoading}
       />
       <TrendCard
@@ -44,12 +42,12 @@ export default function TrendSummaryGrid({
         iconColorClass="text-app-purple"
         label="Savings Trend"
         isPositiveGood
-        delay={0.08}
         isLoading={isLoading}
         valueClassName={metrics.savings.current >= 0 ? 'text-foreground' : 'text-app-red'}
         averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-app-red'}
         secondStatLabel="Best Month"
         secondStatClassName="text-app-green"
+        className="sm:col-span-2 lg:col-span-1"
       />
     </div>
   )

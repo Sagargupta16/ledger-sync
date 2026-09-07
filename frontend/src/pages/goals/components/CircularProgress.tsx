@@ -11,7 +11,7 @@ export default function CircularProgress({
   const offset = circumference - (Math.min(progress, 100) / 100) * circumference
 
   return (
-    <svg width={size} height={size} className="transform -rotate-90">
+    <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
       <circle
         cx={size / 2}
         cy={size / 2}

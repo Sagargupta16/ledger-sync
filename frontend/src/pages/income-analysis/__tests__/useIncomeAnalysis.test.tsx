@@ -75,10 +75,12 @@ vi.mock('@/hooks/api/usePreferences', () => ({
 
 vi.mock('@/services/api/calculations', () => ({
   calculationsApi: {
-    getIncomeAnalysis: vi.fn(async () => ({ data: incomeResponseRef.current })),
-    getDataDateRange: vi.fn(async () => ({
-      data: { min_date: '2026-04-01', max_date: '2026-07-26' },
-    })),
+    getIncomeAnalysis: vi.fn(() => Promise.resolve({ data: incomeResponseRef.current })),
+    getDataDateRange: vi.fn(() =>
+      Promise.resolve({
+        data: { min_date: '2026-04-01', max_date: '2026-07-26' },
+      }),
+    ),
   },
 }))
 

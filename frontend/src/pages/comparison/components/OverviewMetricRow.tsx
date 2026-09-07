@@ -47,8 +47,8 @@ export function OverviewMetricRow({
       {/* Paired bars: A (faded) above B (solid), sharing one axis so the
           smaller period is never hidden behind the larger. */}
       <div className="space-y-1.5">
-        <div className="flex items-center gap-3">
-          <span className="text-caption text-text-tertiary w-20 truncate" title={labelA}>{labelA}</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="w-14 truncate text-caption text-text-tertiary sm:w-20" title={labelA}>{labelA}</span>
           <div className="flex-1">
             <ProgressBar
               value={Math.abs(valueA)}
@@ -59,10 +59,10 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelA}: ${fmtVal(valueA)}`}
             />
           </div>
-          <span className="text-caption font-medium text-text-secondary tabular-nums w-24 truncate text-right" title={fmtVal(valueA)}>{fmtVal(valueA)}</span>
+          <span className="w-20 truncate text-right text-caption font-medium tabular-nums text-text-secondary sm:w-24" title={fmtVal(valueA)}>{fmtVal(valueA)}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-caption text-text-tertiary w-20 truncate" title={labelB}>{labelB}</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="w-14 truncate text-caption text-text-tertiary sm:w-20" title={labelB}>{labelB}</span>
           <div className="flex-1">
             <ProgressBar
               value={Math.abs(valueB)}
@@ -72,7 +72,7 @@ export function OverviewMetricRow({
               ariaLabel={`${label} ${labelB}: ${fmtVal(valueB)}`}
             />
           </div>
-          <span className="text-xs font-semibold text-foreground tabular-nums w-24 truncate text-right" title={fmtVal(valueB)}>{fmtVal(valueB)}</span>
+          <span className="w-20 truncate text-right text-xs font-semibold tabular-nums text-foreground sm:w-24" title={fmtVal(valueB)}>{fmtVal(valueB)}</span>
         </div>
       </div>
     </div>

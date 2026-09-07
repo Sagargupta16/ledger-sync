@@ -44,13 +44,13 @@ export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyB
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="lg:col-span-2 glass rounded-2xl border border-border p-4 sm:p-6"
+      className="ledger-panel p-4 sm:p-6 lg:col-span-2"
     >
       <h2 className="text-lg font-semibold mb-4">Monthly Breakdown</h2>
       <p className="text-xs text-text-tertiary mb-4">Income, spending, and net cash flow each month</p>
       <div className="h-60 sm:h-72">
         {monthlyBarData.every((d) => d.Spending === 0 && d.Earning === 0) ? (
-          <ChartEmptyState height={288} />
+          <ChartEmptyState height={dims.breakpoint === 'mobile' ? 240 : 288} />
         ) : (
           <ChartContainer ariaLabel="Monthly breakdown -- income and spending bars with a net cash flow line per month, against a break-even baseline">
             <ComposedChart data={monthlyBarData} barGap={4}>

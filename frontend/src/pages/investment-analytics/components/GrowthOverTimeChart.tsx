@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { LineChart } from 'lucide-react'
 import { Area, AreaChart, Brush, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -31,16 +30,15 @@ export function GrowthOverTimeChart({
   filteredGrowthData,
 }: Readonly<GrowthOverTimeChartProps>) {
   const dims = useChartDimensions()
+  const animateSeries = shouldAnimate(filteredGrowthData.length * INVESTMENT_CATEGORIES.length)
+
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.5 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
-    >
-      <div className="flex items-center gap-3 mb-6">
-        <LineChart className="w-5 h-5 text-app-purple" />
-        <h3 className="text-lg font-semibold text-foreground">Investment Growth Over Time</h3>
+    <section className="ledger-panel p-4 sm:p-5" aria-labelledby="investment-growth-title">
+      <div className="mb-4 flex items-center gap-2.5">
+        <LineChart className="size-5 text-app-purple" aria-hidden="true" />
+        <h2 id="investment-growth-title" className="text-base font-semibold text-foreground">
+          Investment Growth Over Time
+        </h2>
       </div>
       {isLoading && <ChartSkeleton />}
       {!isLoading &&
@@ -76,7 +74,7 @@ export function GrowthOverTimeChart({
                 })}
                 dataKey="date"
               />
-              <YAxis {...yAxisDefaults()} />
+              <YAxis {...yAxisDefaults({ width: dims.breakpoint === 'mobile' ? 48 : 60 })} />
               <Tooltip
                 {...chartTooltipProps}
                 formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
@@ -103,7 +101,7 @@ export function GrowthOverTimeChart({
                   dot={false}
                   fillOpacity={1}
                   fill={`url(#color-${category.replaceAll(/[\s/]/g, '-')})`}
-                  isAnimationActive={shouldAnimate(filteredGrowthData.length)}
+                  isAnimationActive={animateSeries}
                   animationDuration={600}
                   animationEasing="ease-out"
                 />
@@ -127,6 +125,6 @@ export function GrowthOverTimeChart({
             </AreaChart>
           </ChartContainer>
         ))}
-    </motion.div>
+    </section>
   )
 }

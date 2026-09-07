@@ -10,7 +10,7 @@ export default function SidebarSection({
   return (
     <div className="mt-4">
       <div className="mb-1 px-3">
-        <span className="text-[11px] font-medium text-text-secondary">
+        <span className="ledger-meta text-text-tertiary">
           {title}
         </span>
       </div>

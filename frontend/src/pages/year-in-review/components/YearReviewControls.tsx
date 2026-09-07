@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from 'react'
+
 import { motion } from 'motion/react'
 import { DollarSign, TrendingDown, TrendingUp } from 'lucide-react'
 
@@ -18,6 +20,28 @@ const MODE_OPTIONS = [
   ['income', 'Earning', TrendingUp],
   ['net', 'Savings', DollarSign],
 ] as const
+
+function handleModeKeyDown(
+  event: KeyboardEvent<HTMLButtonElement>,
+  mode: HeatmapMode,
+  setMode: (nextMode: HeatmapMode) => void,
+) {
+  const currentIndex = MODE_OPTIONS.findIndex(([value]) => value === mode)
+  let nextIndex: number
+
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % MODE_OPTIONS.length
+  else if (event.key === 'ArrowLeft') {
+    nextIndex = (currentIndex - 1 + MODE_OPTIONS.length) % MODE_OPTIONS.length
+  } else if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = MODE_OPTIONS.length - 1
+  else return
+
+  event.preventDefault()
+  setMode(MODE_OPTIONS[nextIndex][0])
+  const tabs =
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+  tabs?.[nextIndex]?.focus()
+}
 
 export default function YearReviewControls({
   review,
@@ -50,9 +74,11 @@ export default function YearReviewControls({
             type="button"
             role="tab"
             aria-selected={review.mode === value}
+            tabIndex={review.mode === value ? 0 : -1}
             variant="ghost"
             size="sm"
-            onClick={() => review.setMode(value as HeatmapMode)}
+            onClick={() => review.setMode(value)}
+            onKeyDown={(event) => handleModeKeyDown(event, value, review.setMode)}
             className={`relative flex-1 overflow-hidden px-2.5 sm:flex-none sm:px-3 ${
               review.mode === value
                 ? 'text-foreground hover:text-foreground'

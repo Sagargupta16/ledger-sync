@@ -4,6 +4,7 @@ import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
 } from '@/components/ui/chartDefaults'
+import { chartDataTable } from '@/components/ui/chartDataTable'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface TimeSeriesLineChartProps {
@@ -33,40 +34,61 @@ export default function TimeSeriesLineChart({
   const animate = shouldAnimate(chartData.length)
 
   return (
-    <ChartContainer height={height} ariaLabel={ariaLabel}>
-      <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
-        <CartesianGrid {...GRID_DEFAULTS} />
-        <XAxis
-          dataKey="displayPeriod"
-          {...xAxisDefaults(chartData.length, { angle: -45, dateFormatter: true })}
-          height={80}
-        />
-        <YAxis {...yAxisDefaults()} />
-        <Tooltip
-          {...chartTooltipProps}
-          // `displayPeriod` is already a formatted bucket label ("Wk 12 '24",
-          // "Jan 24"), not a parseable date — re-wrapping it in new Date()
-          // rendered a literal "Invalid Date" on week/month-bucketed views.
-          formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
-          itemSorter={(item) => -(item.value as number)}
-        />
-        <Legend {...LEGEND_DEFAULTS} formatter={legendFormatter} />
-        {seriesKeys.map((key, index) => (
-          <Line
-            key={key}
-            type="monotone"
-            dataKey={key}
-            stroke={colors[index % colors.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ ...ACTIVE_DOT, fill: colors[index % colors.length] }}
-            connectNulls
-            isAnimationActive={animate}
-            animationDuration={600}
-            animationEasing="ease-out"
+    <>
+      <ChartContainer height={height} ariaLabel={ariaLabel}>
+        <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+          <CartesianGrid {...GRID_DEFAULTS} />
+          <XAxis
+            dataKey="displayPeriod"
+            {...xAxisDefaults(chartData.length, { angle: -45, dateFormatter: true })}
+            height={80}
           />
-        ))}
-      </LineChart>
-    </ChartContainer>
+          <YAxis {...yAxisDefaults()} />
+          <Tooltip
+            {...chartTooltipProps}
+            // `displayPeriod` is already a formatted bucket label ("Wk 12 '24",
+            // "Jan 24"), not a parseable date, so reformatting it would show
+            // "Invalid Date" on week and month buckets.
+            formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
+            itemSorter={(item) => -(item.value as number)}
+          />
+          <Legend {...LEGEND_DEFAULTS} formatter={legendFormatter} />
+          {seriesKeys.map((key, index) => (
+            <Line
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke={colors[index % colors.length]}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ ...ACTIVE_DOT, fill: colors[index % colors.length] }}
+              connectNulls
+              isAnimationActive={animate}
+              animationDuration={600}
+              animationEasing="ease-out"
+            />
+          ))}
+        </LineChart>
+      </ChartContainer>
+      {chartDataTable(
+        chartData,
+        [
+          {
+            header: 'Period',
+            rowHeader: true,
+            value: (row) => String(row.displayPeriod ?? ''),
+          },
+          ...seriesKeys.map((key) => ({
+            header: legendFormatter?.(key) ?? key,
+            value: (row: Record<string, number | string>) => {
+              const value = row[key]
+              return typeof value === 'number' ? formatCurrency(value) : String(value ?? '')
+            },
+          })),
+        ],
+        ariaLabel ?? 'Line chart data',
+        (row, index) => `${String(row.displayPeriod ?? 'row')}-${index}`,
+      )}
+    </>
   )
 }

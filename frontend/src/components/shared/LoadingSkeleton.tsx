@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * Single shimmer bar. Decorative -- the surrounding skeleton container owns the
+ * Single pulsing bar. Decorative -- the surrounding skeleton container owns the
  * loading announcement, so individual bars are `aria-hidden` to avoid a
  * screen reader reading "Loading" once per bar.
  */
@@ -23,9 +23,9 @@ function SkeletonStatus({ children, className = '' }: Readonly<{ children: React
 
 export function MetricCardSkeleton() {
   return (
-    <SkeletonStatus className="glass rounded-2xl p-6">
+    <SkeletonStatus className="ledger-panel p-4 sm:p-5">
       <div className="flex items-center gap-3">
-        <LoadingSkeleton className="w-12 h-12 rounded-xl" />
+        <LoadingSkeleton className="h-12 w-12 rounded-lg" />
         <div className="flex-1 space-y-2">
           <LoadingSkeleton className="h-4 w-24" />
           <LoadingSkeleton className="h-8 w-32" />
@@ -37,7 +37,7 @@ export function MetricCardSkeleton() {
 
 export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>) {
   return (
-    <SkeletonStatus className={`glass rounded-2xl p-6 ${height}`}>
+    <SkeletonStatus className={`ledger-panel p-4 sm:p-5 ${height}`}>
       <div className="space-y-4 h-full">
         <div className="flex items-center gap-3">
           <LoadingSkeleton className="w-5 h-5 rounded" />
@@ -62,7 +62,7 @@ export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4
   return (
     <SkeletonStatus className={`grid ${cols} gap-4`}>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="glass rounded-2xl p-4 space-y-3">
+        <div key={i} className="ledger-panel space-y-3 p-4">
           <div className="flex items-center gap-2">
             <LoadingSkeleton className="w-8 h-8 rounded-lg" />
             <LoadingSkeleton className="h-3 w-20" />
@@ -83,7 +83,7 @@ export function PageSkeleton() {
           <LoadingSkeleton className="h-7 w-48" />
           <LoadingSkeleton className="h-4 w-72" />
         </div>
-        <LoadingSkeleton className="h-10 w-32 rounded-xl" />
+        <LoadingSkeleton className="h-10 w-32 rounded-lg" />
       </div>
       <CardGridSkeleton />
       <ChartSkeleton />
@@ -94,7 +94,7 @@ export function PageSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
-    <SkeletonStatus className="glass rounded-2xl overflow-hidden">
+    <SkeletonStatus className="ledger-panel overflow-hidden">
       <div className="bg-[var(--overlay-2)] p-4 border-b border-border">
         <div className="flex gap-4">
           <LoadingSkeleton className="h-4 w-24" />

@@ -75,9 +75,13 @@ export default function RegimeComparison({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid border-y border-border sm:grid-cols-2">
         <div
-          className={`p-4 rounded-xl border ${newIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-[var(--overlay-2)]'}`}
+          className={`border-b p-4 sm:border-b-0 sm:border-r ${
+            newIsBetter
+              ? 'border-app-green/30 bg-app-green/5'
+              : 'border-border bg-[var(--overlay-1)]'
+          }`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">New Regime</span>
@@ -93,7 +97,9 @@ export default function RegimeComparison({
           </p>
         </div>
         <div
-          className={`p-4 rounded-xl border ${oldIsBetter ? 'border-app-green/30 bg-app-green/5' : 'border-border bg-[var(--overlay-2)]'}`}
+          className={`p-4 ${
+            oldIsBetter ? 'bg-app-green/5' : 'bg-[var(--overlay-1)]'
+          }`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Old Regime</span>
@@ -119,7 +125,7 @@ export default function RegimeComparison({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-[var(--overlay-1)] p-4">
+      <div className="border-y border-border py-3">
         <Button
           type="button"
           onClick={() => setShowDeductions(!showDeductions)}
@@ -132,18 +138,19 @@ export default function RegimeComparison({
               <ChevronRight className="w-4 h-4" />
             )
           }
-          className="w-full justify-start px-0"
+          aria-expanded={showDeductions}
+          className="w-full justify-start whitespace-normal px-0 text-left"
         >
           Enter your deductions to compare accurately
           {totalDeductions > 0 && (
-            <span className="ml-auto text-xs text-app-green font-semibold">
+            <span className="ml-2 text-xs font-semibold text-app-green">
               Total: {formatCurrency(totalDeductions)}
             </span>
           )}
         </Button>
 
         {showDeductions && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <DeductionInput
               label="Sec 80C"
               sublabel="PPF, ELSS, LIC (max 1.5L)"
@@ -183,7 +190,7 @@ export default function RegimeComparison({
         )}
       </div>
 
-      <div className="p-4 rounded-xl bg-app-purple/5 border border-app-purple/20">
+      <div className="rounded-r-md border-l-2 border-app-purple/40 bg-app-purple/5 px-4 py-3">
         <p className="text-sm">
           <span className="font-semibold text-app-purple">{betterRegime}</span>
           {' saves you '}

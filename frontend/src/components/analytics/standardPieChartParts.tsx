@@ -47,7 +47,7 @@ export function slicePayload(entry: { readonly payload?: unknown }): PieSliceDat
 }
 
 /**
- * Per-sector paint: brighten the hovered wedge, fade the rest, and show a
+ * Per-sector paint: keep the hovered wedge opaque, fade the rest, and show a
  * pointer only where a click actually goes somewhere.
  *
  * Returned as a `shape` render prop rather than as `<Cell>` children. Beyond
@@ -68,11 +68,9 @@ export function renderPieSectorShape(activeName: string | null, hasClickHandler:
       <Sector
         {...props}
         style={{
-          filter: isActive ? 'brightness(1.18)' : 'brightness(1.05)',
           cursor: clickable ? 'pointer' : 'default',
-          transition: 'opacity 200ms ease, filter 200ms ease',
+          transition: 'opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
           opacity: isDimmed ? 0.4 : 1,
-          transformOrigin: '50% 50%',
         }}
       />
     )

@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 
 import { motion } from 'motion/react'
 import { Flame } from 'lucide-react'
+
+import { addDaysToKey } from '@/lib/dateUtils'
 
 import { DAYS, MONTHS_SHORT, modeAccent } from '../types'
 import type { useYearInReview } from '../useYearInReview'
@@ -24,11 +26,51 @@ const MODE_LABELS = {
   net: 'Savings',
 } as const
 
+function moveHeatmapFocus(
+  event: KeyboardEvent<HTMLElement>,
+  onMove: (date: string) => void,
+) {
+  const currentCell = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    'button[data-cell-date]',
+  )
+  if (!currentCell) return
+
+  const enabledCells = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>(
+      'button[data-cell-date]:not(:disabled)',
+    ),
+  )
+  let nextCell: HTMLButtonElement | undefined
+  let dayDelta = 0
+
+  if (event.key === 'ArrowRight') dayDelta = 7
+  else if (event.key === 'ArrowLeft') dayDelta = -7
+  else if (event.key === 'ArrowDown') dayDelta = 1
+  else if (event.key === 'ArrowUp') dayDelta = -1
+  else if (event.key === 'Home') nextCell = enabledCells[0]
+  else if (event.key === 'End') nextCell = enabledCells.at(-1)
+  else return
+
+  if (dayDelta !== 0 && currentCell.dataset.cellDate) {
+    const targetDate = addDaysToKey(currentCell.dataset.cellDate, dayDelta)
+    nextCell = enabledCells.find((cell) => cell.dataset.cellDate === targetDate)
+  }
+  if (!nextCell) return
+
+  event.preventDefault()
+  const nextDate = nextCell.dataset.cellDate
+  if (!nextDate) return
+
+  onMove(nextDate)
+  nextCell.focus()
+}
+
 export default function YearHeatmapSection({
   review,
 }: YearHeatmapSectionProps) {
   const modeLabel = MODE_LABELS[review.mode]
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const [keyboardDate, setKeyboardDate] = useState<string | null>(null)
   const monthlyDetail =
     selectedMonth == null
       ? null
@@ -45,7 +87,7 @@ export default function YearHeatmapSection({
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+      className="ledger-panel p-4 sm:p-6"
     >
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -91,13 +133,15 @@ export default function YearHeatmapSection({
 
               <section
                 className="flex gap-0.5"
-                aria-label={`${modeLabel} heatmap grid`}
+                aria-label={`${modeLabel} heatmap grid. Use arrow keys to move between days.`}
+                onKeyDown={(event) => moveHeatmapFocus(event, setKeyboardDate)}
                 onMouseOver={(event) => {
                   const target = (event.target as HTMLElement).closest<HTMLElement>(
                     '[data-cell-date]',
                   )
                   if (target) {
                     setSelectedMonth(null)
+                    setKeyboardDate(target.dataset.cellDate ?? null)
                     const found: DayCell | undefined = review.grid.find(
                       (cell) => cell.date === target.dataset.cellDate,
                     )
@@ -105,7 +149,7 @@ export default function YearHeatmapSection({
                   }
                 }}
                 onFocus={(event) => {
-                  const target = (event.target as HTMLElement).closest<HTMLElement>(
+                  const target = event.target.closest<HTMLElement>(
                     '[data-cell-date]',
                   )
                   if (target) {
@@ -123,6 +167,7 @@ export default function YearHeatmapSection({
                   grid={review.grid}
                   mode={review.mode}
                   modeMax={review.modeMax}
+                  keyboardDate={keyboardDate}
                 />
               </section>
             </div>

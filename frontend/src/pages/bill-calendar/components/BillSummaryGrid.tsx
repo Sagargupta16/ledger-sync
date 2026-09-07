@@ -41,7 +41,6 @@ export default function BillSummaryGrid({
         value={formatCurrency(summary.totalDue)}
         colorClass="text-app-red"
         bgClass="bg-app-red/20"
-        shadowClass="shadow-app-red/30"
         delay={0}
         compact
       />
@@ -51,7 +50,6 @@ export default function BillSummaryGrid({
         value={String(summary.billCount)}
         colorClass="text-app-blue"
         bgClass="bg-app-blue/20"
-        shadowClass="shadow-app-blue/30"
         delay={0.04}
         compact
       />
@@ -62,7 +60,6 @@ export default function BillSummaryGrid({
           value={nextBillPrimary}
           colorClass="text-app-orange"
           bgClass="bg-app-orange/20"
-          shadowClass="shadow-app-orange/30"
           delay={0.08}
           compact
         />

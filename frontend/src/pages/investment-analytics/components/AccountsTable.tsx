@@ -1,5 +1,3 @@
-import { motion } from 'motion/react'
-
 import { ProgressBar } from '@/components/shared'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
@@ -34,7 +32,9 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
       sortable: true,
       sortValue: (row) => row.value,
       mobileLabel: 'Value',
-      cell: (row) => <span className="text-app-green">{formatCurrency(row.value)}</span>,
+      cell: (row) => (
+        <span className="ledger-figure text-app-green">{formatCurrency(row.value)}</span>
+      ),
     },
     {
       key: 'percentage',
@@ -55,7 +55,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
               className="w-16 sm:w-20 shrink-0"
               ariaLabel={`${row.name} allocation share`}
             />
-            <span className="text-app-purple tabular-nums">{formatPercent(pct)}</span>
+            <span className="ledger-figure text-app-purple">{formatPercent(pct)}</span>
           </div>
         )
       },
@@ -75,13 +75,13 @@ export function AccountsTable({
   const cappedCount = portfolioData.length
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5 [&_thead_button]:min-h-11"
+      aria-labelledby="investment-accounts-title"
     >
-      <h3 className="text-lg font-semibold text-foreground mb-4">Investment Accounts</h3>
+      <h2 id="investment-accounts-title" className="mb-4 text-base font-semibold text-foreground">
+        Investment Accounts
+      </h2>
       <DataTable<PortfolioRow>
         columns={columns}
         rows={portfolioData}
@@ -96,6 +96,6 @@ export function AccountsTable({
           not shown.
         </p>
       )}
-    </motion.div>
+    </section>
   )
 }

@@ -79,7 +79,7 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
   // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
   // active theme on a live toggle, mirroring the pre-paint script in index.html.
   // Values match the --color-background tokens in index.css.
-  const bar = resolved === 'light' ? '#eaf0f7' : '#0a0f16'
+  const bar = resolved === 'light' ? '#eaf0f7' : '#0b1012'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar)
   document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
 

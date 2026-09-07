@@ -21,7 +21,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
-      className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4"
     >
       <div className="ledger-panel p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">

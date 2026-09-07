@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { motion } from 'motion/react'
 import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
@@ -67,6 +66,11 @@ interface AccountCategoryTableProps {
   readonly isLoading: boolean
 }
 
+interface CategoryAccumulator {
+  readonly elements: React.ReactNode[]
+  readonly categoryTotals: Record<string, { balance: number; transactions: number }>
+}
+
 export function AccountCategoryTable({
   accounts,
   filterFn,
@@ -117,7 +121,7 @@ export function AccountCategoryTable({
       className="overflow-x-auto"
       aria-label="Accounts by category"
     >
-      <table className="w-full">
+      <table className="w-full table-fixed sm:table-auto">
         <caption className="sr-only">
           Accounts grouped by category with balances, allocation percentages, and transaction
           counts
@@ -126,14 +130,14 @@ export function AccountCategoryTable({
           <tr className="border-b border-border">
             <th
               scope="col"
-              className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground"
+              className="w-[58%] px-2 py-3 text-left text-sm font-semibold text-muted-foreground sm:w-auto sm:px-4"
             >
               Account
             </th>
             <th
               scope="col"
               aria-sort={ariaSort(sortKey, 'balance', sortDir)}
-              className="text-right py-1 px-2 text-sm font-semibold text-muted-foreground"
+              className="w-[42%] px-1 py-1 text-right text-sm font-semibold text-muted-foreground sm:w-auto sm:px-2"
             >
               <button
                 type="button"
@@ -180,7 +184,7 @@ export function AccountCategoryTable({
                 if (catA !== catB) return catA.localeCompare(catB)
                 return Math.abs(b[1].balance) - Math.abs(a[1].balance)
               })
-              .reduce(
+              .reduce<CategoryAccumulator>(
                 (acc, [accountName, accountData], index, array) => {
                   const currentCategory = getAccountType(accountName)
                   const prevCategory = index > 0 ? getAccountType(array[index - 1][0]) : null
@@ -209,18 +213,18 @@ export function AccountCategoryTable({
                     acc.elements.push(
                       <tr
                         key={`header-${currentCategory}`}
-                        className="bg-[var(--overlay-2)] hover:bg-[var(--overlay-5)] transition-colors"
+                        className="bg-[var(--overlay-2)]"
                       >
                         <th
                           scope="row"
-                          className="py-2 px-4 text-left text-sm font-semibold text-primary"
+                          className="px-2 py-2 text-left text-sm font-semibold text-primary sm:px-4"
                         >
                           <button
                             type="button"
                             onClick={() => onToggleCategory(currentCategory)}
                             aria-expanded={expandedCategories.has(currentCategory)}
                             aria-label={`${expandedCategories.has(currentCategory) ? 'Collapse' : 'Expand'} ${currentCategory} accounts`}
-                            className="flex min-h-11 w-full items-center gap-2 rounded bg-transparent border-none p-0 text-left font-inherit text-inherit cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                            className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded border-none bg-transparent p-0 text-left font-inherit text-inherit hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                           >
                             {expandedCategories.has(currentCategory) ? (
                               <ChevronDown className="size-4 shrink-0" aria-hidden />
@@ -229,7 +233,7 @@ export function AccountCategoryTable({
                             )}
                             <span className="min-w-0 break-words">
                               {currentCategory}
-                              <span className="ml-1 text-xs text-text-tertiary font-normal">
+                              <span className="ml-1 whitespace-nowrap text-xs font-normal text-text-tertiary">
                                 ({categoryAccounts.length})
                               </span>
                             </span>
@@ -242,7 +246,7 @@ export function AccountCategoryTable({
                             {catTransactions} transactions
                           </span>
                         </th>
-                        <td className="py-2 px-4 text-right text-sm">
+                        <td className="px-2 py-2 text-right text-sm sm:px-4">
                           <Money value={catBalance} className={headerBalanceColorClass} />
                         </td>
                         <td className="hidden sm:table-cell py-2 px-4 text-right text-sm font-medium text-muted-foreground/70">
@@ -259,15 +263,13 @@ export function AccountCategoryTable({
                     const accountBalance = Math.abs(accountData.balance)
                     const accountAllocation = allocationRatio(accountBalance, total)
                     acc.elements.push(
-                      <motion.tr
+                      <tr
                         key={accountName}
-                        className="border-b border-border hover:bg-[var(--overlay-5)] transition-colors"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        className="border-b border-border"
                       >
                         <th
                           scope="row"
-                          className="py-3 pl-10 pr-4 text-left text-foreground font-medium"
+                          className="py-3 pl-8 pr-2 text-left font-medium text-foreground sm:pl-10 sm:pr-4"
                         >
                           <span className="inline-flex max-w-full items-center gap-2 break-words">
                             {accountName}
@@ -285,7 +287,7 @@ export function AccountCategoryTable({
                             {accountData.transactions} transactions
                           </span>
                         </th>
-                        <td className="py-3 px-4 text-right">
+                        <td className="px-2 py-3 text-right sm:px-4">
                           <Money value={accountBalance} bold className={balanceColorClass} />
                         </td>
                         <td className="hidden sm:table-cell py-3 px-4 text-right text-muted-foreground">
@@ -298,18 +300,15 @@ export function AccountCategoryTable({
                         <td className="hidden sm:table-cell py-3 px-4 text-right text-muted-foreground tabular-nums">
                           {accountData.transactions}
                         </td>
-                      </motion.tr>,
+                      </tr>,
                     )
                   }
 
                   return acc
                 },
                 {
-                  elements: [] as React.ReactNode[],
-                  categoryTotals: {} as Record<
-                    string,
-                    { balance: number; transactions: number }
-                  >,
+                  elements: [],
+                  categoryTotals: {},
                 },
               ).elements
           }

@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { PiggyBank } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -38,29 +37,21 @@ export default function SavingsRateSection({
   const dims = useChartDimensions()
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-20px' }}
-      transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
-    >
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <PiggyBank className="h-5 w-5 text-app-purple" />
-        <h2 className="text-lg font-semibold text-foreground">Savings Rate Trend</h2>
-        {/*
-          The caption used to read "(% of income saved each month)". The series
-          is CUMULATIVE to date -- each point is every rupee earned and spent
-          from the start of the window up to that day, which is what the tooltip
-          and the ariaLabel below already say, what `dailySavingsData` computes,
-          and what three tests in `savingsRateCap.test.tsx` pin. A per-month
-          series would move on a single heavy month; this one converges, so
-          reading it as monthly makes a flattening line look like an unchanging
-          month. Label follows the maths, not the other way round.
-        */}
-        <span className="text-sm text-text-tertiary">
-          (running % of income saved, start of range to date)
-        </span>
+    <section className="ledger-panel p-4 sm:p-5" aria-labelledby="savings-rate-trend-title">
+      <div className="mb-4 flex items-start gap-2.5">
+        <PiggyBank className="mt-0.5 size-5 shrink-0 text-app-purple" aria-hidden="true" />
+        <div>
+          <h2 id="savings-rate-trend-title" className="text-base font-semibold text-foreground">
+            Savings Rate Trend
+          </h2>
+          {/*
+            The series is cumulative: each point includes income and spending
+            from the start of the selected range through that date.
+          */}
+          <p className="text-sm text-text-tertiary">
+            Running % of income saved from the start of the range to date
+          </p>
+        </div>
       </div>
 
       {isLoading && <ChartSkeleton height="h-64" />}
@@ -89,7 +80,10 @@ export default function SavingsRateSection({
               "above water" readable at a glance.
             */}
             <YAxis
-              {...yAxisDefaults({ currency: false })}
+              {...yAxisDefaults({
+                currency: false,
+                width: dims.breakpoint === 'mobile' ? 44 : 60,
+              })}
               tickFormatter={(value: number) => `${Math.round(value)}%`}
               domain={['auto', 'auto']}
             />
@@ -135,6 +129,6 @@ export default function SavingsRateSection({
         </ChartContainer>
       )}
       {!isLoading && data.length === 0 && <ChartEmptyState height={250} />}
-    </motion.section>
+    </section>
   )
 }

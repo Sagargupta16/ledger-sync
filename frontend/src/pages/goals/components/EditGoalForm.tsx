@@ -1,9 +1,11 @@
 import { useState } from 'react'
 
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { Button, Input } from '@/components/ui'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 
 export default function EditGoalForm({
@@ -37,66 +39,60 @@ export default function EditGoalForm({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      className="overflow-hidden"
-    >
-      <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
-        <div>
-          <label htmlFor={`edit-name-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Goal Name</label>
-          <input
+    <AnimatePresence mode="popLayout" propagate>
+      <motion.div
+        {...DISCLOSURE_TRANSITION}
+        className="overflow-hidden"
+      >
+        <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+          <Input
             id={`edit-name-${goal.id}`}
+            label="Goal name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             autoFocus
           />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor={`edit-amount-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Target Amount</label>
-            <input
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
               id={`edit-amount-${goal.id}`}
+              label="Target amount"
               type="number"
               inputMode="decimal"
               min={0}
               step="any"
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             />
-          </div>
-          <div>
-            <label htmlFor={`edit-date-${goal.id}`} className="text-xs text-text-tertiary mb-1 block">Target Date</label>
-            <input
+            <Input
               id={`edit-date-${goal.id}`}
+              label="Target date"
               type="date"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-dropdown/80 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-app-purple/50"
             />
           </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={handleSave}
+              size="sm"
+              icon={<Save className="h-3.5 w-3.5" />}
+            >
+              Save Changes
+            </Button>
+            <Button
+              type="button"
+              onClick={onCancel}
+              variant="secondary"
+              size="sm"
+              icon={<X className="h-3.5 w-3.5" />}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-foreground bg-foreground px-3 py-2 text-xs font-medium text-background transition-colors hover:bg-foreground/90 sm:min-h-0"
-          >
-            <Save className="w-3.5 h-3.5" /> Save Changes
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-lg text-xs text-muted-foreground bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] transition-colors"
-          >
-            <X className="w-3.5 h-3.5" /> Cancel
-          </button>
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

@@ -41,7 +41,7 @@ export default function MerchantConcentration({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 md:p-6"
     >
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-foreground">Who the concentration is</h2>
@@ -63,7 +63,7 @@ export default function MerchantConcentration({
                 <p className="min-w-0 truncate text-sm text-foreground">
                   <span className="mr-1.5 tabular-nums text-text-tertiary">{index + 1}.</span>
                   {row.merchant}
-                  {isNote && <span className="ml-1.5 text-[11px] text-text-tertiary">(note)</span>}
+                  {isNote && <span className="ml-1.5 text-xs text-text-tertiary">(note)</span>}
                 </p>
                 <Money value={row.total_spent} width="sm" />
               </div>
@@ -82,11 +82,11 @@ export default function MerchantConcentration({
                     ariaLabel={`${row.merchant} share of tracked spend`}
                   />
                 </div>
-                <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-text-tertiary">
+                <span className="w-14 shrink-0 text-right text-xs tabular-nums text-text-tertiary">
                   {formatPercent(share)}
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-text-tertiary">
+              <p className="mt-0.5 text-xs text-text-tertiary">
                 {row.transaction_count} payments across {row.months_active ?? 1} months
               </p>
             </li>

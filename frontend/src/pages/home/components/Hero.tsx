@@ -47,7 +47,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             <button
               type="button"
               onClick={onGetStarted}
-              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85"
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-app-blue-vibrant hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               <Target className="size-4" aria-hidden="true" />
               {isAuthenticated ? 'Open dashboard' : 'Get started free'}
@@ -57,7 +57,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
               <button
                 type="button"
                 onClick={onTryDemo}
-                className="ledger-control inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md border px-5 text-sm font-medium text-foreground transition-colors"
+                className="ledger-control inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md border px-5 text-sm font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <Eye className="size-4" aria-hidden="true" />
                 Explore demo
@@ -65,7 +65,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
             )}
             <a
               href="#features"
-              className="inline-flex min-h-11 items-center justify-center whitespace-nowrap px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
             >
               See capabilities
             </a>

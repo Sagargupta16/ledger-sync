@@ -12,7 +12,7 @@ import TrendSummaryGrid from './components/TrendSummaryGrid'
 import { useTrendsForecasts } from './useTrendsForecasts'
 
 const PAGE_TITLE = 'Trends & Forecasts'
-const PAGE_SUBTITLE = 'Analyze patterns and predict future trends'
+const PAGE_SUBTITLE = 'Compare completed-month income, spending, and savings patterns'
 
 export default function TrendsForecastsPage() {
   const trends = useTrendsForecasts()
@@ -33,7 +33,11 @@ export default function TrendsForecastsPage() {
       <PageHeader
         title={PAGE_TITLE}
         subtitle={PAGE_SUBTITLE}
-        action={<AnalyticsTimeFilter {...trends.timeFilterProps} />}
+        action={
+          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+            <AnalyticsTimeFilter {...trends.timeFilterProps} />
+          </div>
+        }
       />
 
       {trends.partialMonth && (
@@ -47,7 +51,7 @@ export default function TrendsForecastsPage() {
 
       <TrendSummaryGrid metrics={trends.metrics} isLoading={trends.isLoading} />
       {!trends.isLoading && trends.averageMonthCount > 0 && (
-        <p className="text-sm text-text-tertiary">
+        <p className="max-w-3xl text-sm leading-relaxed text-text-tertiary">
           Averages and trends cover{' '}
           <span className="font-medium text-foreground tabular-nums">
             {trends.averageMonthCount}

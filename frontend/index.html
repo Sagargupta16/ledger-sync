@@ -31,8 +31,10 @@
             resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
           }
           document.documentElement.dataset.theme = resolved;
+          document.documentElement.dataset.motion =
+            localStorage.getItem('ledger-sync-motion') === 'reduced' ? 'reduced' : 'full';
           // Keep the mobile browser chrome in step with the selected theme.
-          var bar = resolved === 'light' ? '#eaf0f7' : '#0a0f16';
+          var bar = resolved === 'light' ? '#eaf0f7' : '#0b1012';
           var setMeta = function (name, content) {
             var el = document.querySelector('meta[name="' + name + '"]');
             if (el) el.setAttribute('content', content);
@@ -42,6 +44,7 @@
         } catch (error) {
           console.warn('Unable to restore the saved theme; using light mode.', error);
           document.documentElement.dataset.theme = 'light';
+          document.documentElement.dataset.motion = 'full';
         }
       })();
     </script>

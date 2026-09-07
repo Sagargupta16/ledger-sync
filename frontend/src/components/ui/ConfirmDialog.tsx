@@ -6,8 +6,12 @@
  * Closes on overlay click or Escape key.
  */
 
-import { useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { useCallback, useEffect } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+
+import { DURATION, EASING } from '@/constants/animations'
+
+import Button from './Button'
 
 interface ConfirmDialogProps {
   readonly open: boolean
@@ -53,10 +57,10 @@ export default function ConfirmDialog({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, handleClose])
 
-  const confirmColors =
-    variant === 'danger'
-      ? 'bg-app-red/90 hover:bg-app-red text-on-accent'
-      : 'bg-app-orange/90 hover:bg-app-orange text-on-accent'
+  const warningClasses =
+    variant === 'warning'
+      ? 'border-app-orange bg-app-orange/90 text-on-orange hover:border-app-orange hover:bg-app-orange'
+      : undefined
 
   return (
     <AnimatePresence>
@@ -65,6 +69,7 @@ export default function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: DURATION.quick, ease: EASING.cinematic }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
           onClick={handleClose}
         >
@@ -76,27 +81,28 @@ export default function ConfirmDialog({
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            transition={{ duration: DURATION.quick, ease: EASING.cinematic }}
             className="w-full max-w-md rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-6 shadow-[var(--glass-shadow-strong)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="confirm-dialog-title" className="text-lg font-semibold text-foreground mb-2">{title}</h3>
             <p id="confirm-dialog-desc" className="text-sm text-muted-foreground mb-6">{description}</p>
             <div className="flex justify-end gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={handleClose}
-                className="px-4 py-2 bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-foreground rounded-lg hover:bg-[var(--overlay-5)] transition-colors duration-150 ease-out text-sm"
               >
                 {cancelLabel}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={variant === 'danger' ? 'danger' : 'primary'}
+                size="lg"
                 onClick={() => void handleConfirm()}
-                className={`px-4 py-2 rounded-lg transition-colors duration-150 ease-out text-sm font-medium ${confirmColors}`}
+                className={warningClasses}
               >
                 {confirmLabel}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

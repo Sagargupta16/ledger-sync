@@ -90,7 +90,7 @@ export default function NotificationsSection({
             id="notify-days"
             value={localPrefs.notify_days_ahead ?? 7}
             onChange={(e) => updateLocalPref('notify_days_ahead', Number(e.target.value))}
-            className="ledger-control min-h-11 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
+            className="ledger-control min-h-11 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none lg:pointer-fine:min-h-10"
           >
             {DAYS_AHEAD_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value} className="bg-background">

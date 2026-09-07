@@ -60,7 +60,7 @@ export default function StaleAnalyticsAlert() {
               anchors, so a button-styled Link has to opt in the way
               CreditCardHealth's does -- this one measured 32px at 375px.
             */
-            className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-app-red/50 px-2.5 text-xs font-medium text-app-red transition-colors duration-150 hover:bg-app-red/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:min-h-8"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-app-red/50 px-2.5 text-xs font-medium text-app-red transition-colors duration-150 hover:bg-app-red/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8"
           >
             Fix this
           </Link>

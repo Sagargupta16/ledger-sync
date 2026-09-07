@@ -1,5 +1,4 @@
 import type { LucideIcon } from 'lucide-react'
-import { motion } from 'motion/react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
 import { formatCurrency } from '@/lib/formatters'
@@ -82,16 +81,13 @@ export function BucketCard({
       : `${deltaSign}${scoreDelta.toFixed(0)} pts vs target`
 
   return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      whileTap={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-      className="h-full glass rounded-2xl border border-border p-5 flex flex-col gap-3"
+    <div
+      className="ledger-panel flex h-full flex-col gap-3 p-4 sm:p-5"
       aria-label={`${title} bucket, ${pctOfIncome.toFixed(1)} percent of income, ${deltaLabel}`}
     >
       {/* Top row: icon + title + description */}
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-[var(--overlay-3)]" aria-hidden="true">
+        <div className="rounded-md bg-[var(--overlay-3)] p-2" aria-hidden="true">
           <Icon className="w-5 h-5 text-foreground" />
         </div>
         <div className="min-w-0">
@@ -104,7 +100,7 @@ export function BucketCard({
       </div>
 
       {/* Big amount -- KPI hero scale, matches MetricCard hero */}
-      <div className="text-2xl font-semibold tabular-nums text-foreground">
+      <div className="ledger-figure text-xl font-semibold text-foreground sm:text-2xl">
         {formatCurrency(amount)}
       </div>
 
@@ -131,9 +127,9 @@ export function BucketCard({
       </div>
 
       {/* Footer: target + delta */}
-      <div className="text-xs text-muted-foreground pt-1 border-t border-border">
+      <div className="border-t border-[var(--hairline-1)] pt-2 text-xs text-muted-foreground">
         {targetLabel} · <span className={STATUS_COLORS[status]}>{deltaLabel}</span>
       </div>
-    </motion.div>
+    </div>
   )
 }

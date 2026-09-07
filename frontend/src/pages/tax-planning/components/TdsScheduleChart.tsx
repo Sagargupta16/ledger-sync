@@ -54,7 +54,7 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
   const expectedRest = totalTds - paidSoFar
 
   return (
-    <div className="rounded-2xl border border-border bg-[var(--overlay-1)] p-4 sm:p-6">
+    <div className="ledger-panel p-4 sm:p-6">
       <div className="flex items-start gap-3 mb-4">
         <div className="p-2 rounded-lg bg-app-blue/10">
           <Receipt className="w-4 h-4 text-app-blue" />
@@ -90,7 +90,7 @@ export default function TdsScheduleChart({ schedule, monthsPaid }: Props) {
             dataKey="monthlyTds"
             radius={BAR_RADIUS}
             isAnimationActive={shouldAnimate(schedule.length)}
-            animationDuration={600}
+          animationDuration={450}
             animationEasing="ease-out"
           />
         </BarChart>

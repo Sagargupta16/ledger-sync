@@ -47,7 +47,7 @@ export default function DashboardWidgetsSection({
              <label
                key={widget.key}
                htmlFor={controlId}
-               className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+               className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)] ${
                  isVisible ? 'hover:bg-[var(--overlay-2)]' : 'opacity-50 hover:opacity-75'
                }`}
              >
@@ -77,7 +77,7 @@ export default function DashboardWidgetsSection({
          id="show-all-dashboard-widgets"
          type="button"
          onClick={showAll}
-         className="mt-2 min-h-11 rounded-md px-2 text-xs text-primary hover:underline sm:min-h-10"
+         className="mt-2 min-h-11 rounded-md px-2 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
       >
         Show all widgets
       </button>

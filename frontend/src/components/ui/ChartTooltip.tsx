@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
+import { isMotionReduced } from '@/store/motionStore'
 
 /**
  * Shared chart tooltip styling for Recharts.
@@ -18,8 +19,7 @@ import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
   backgroundColor: CHART_SURFACE.tooltipBg,
   border: `1px solid ${CHART_SURFACE.tooltipBorder}`,
-  borderRadius: '10px',
-  backdropFilter: 'blur(12px)',
+  borderRadius: '8px',
   color: CHART_TEXT.primary,
   padding: '12px 16px',
   boxShadow: `0 8px 24px ${CHART_SURFACE.tooltipShadow}`,
@@ -58,8 +58,11 @@ export const chartTooltipProps = {
   itemStyle: CHART_TOOLTIP_ITEM_STYLE,
   wrapperStyle: CHART_TOOLTIP_WRAPPER_STYLE,
   cursor: CHART_CURSOR_STYLE,
-  // Recharts animates the tooltip's reposition when this is on.
-  isAnimationActive: true,
+  // Object spread evaluates the getter on render, keeping every chart aligned
+  // with the persisted motion setting without duplicating store subscriptions.
+  get isAnimationActive() {
+    return !isMotionReduced()
+  },
   animationDuration: 200,
   animationEasing: 'ease-out' as const,
 } as const

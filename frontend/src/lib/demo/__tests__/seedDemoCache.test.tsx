@@ -215,7 +215,7 @@ describe('demo mode interceptor vs seeds', () => {
     await expect(calculationsApi.getMasterCategories()).resolves.toMatchObject({ data: [] })
   })
 
-  it('serves the seeded budgets/goals keys without a pending first render', async () => {
+  it('serves the seeded budgets/goals keys without a pending first render', () => {
     useDemoStore.getState().enterDemo()
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
     seedDemoCache(qc)

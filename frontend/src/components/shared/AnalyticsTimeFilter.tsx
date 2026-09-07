@@ -191,7 +191,7 @@ export default function AnalyticsTimeFilter({
           <motion.button
             onClick={handlePrevious}
             disabled={!canGoPrev}
-            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
+            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary lg:pointer-fine:size-9"
             whileTap={canGoPrev ? { scale: 0.95 } : undefined}
             title={canGoPrev ? 'Previous period' : 'Already at your earliest data'}
             aria-label="Previous period"
@@ -210,7 +210,7 @@ export default function AnalyticsTimeFilter({
           <motion.button
             onClick={handleNext}
             disabled={!canGoNext}
-            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary sm:size-9"
+            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary lg:pointer-fine:size-9"
             whileTap={canGoNext ? { scale: 0.95 } : undefined}
             title={canGoNext ? 'Next period' : 'Already at your latest data'}
             aria-label="Next period"
@@ -229,7 +229,7 @@ export default function AnalyticsTimeFilter({
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative min-h-11 flex-1 whitespace-nowrap rounded-md px-2 py-2.5 text-sm transition-colors duration-150 ease-out sm:min-h-8 sm:flex-none sm:px-3 sm:py-1.5 ${
+            className={`relative min-h-11 min-w-11 flex-1 whitespace-nowrap rounded-md px-2 py-2.5 text-sm transition-colors duration-150 ease-out sm:flex-none sm:px-3 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 lg:pointer-fine:py-1.5 ${
               viewMode === mode.value
                 ? 'text-foreground font-medium'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'

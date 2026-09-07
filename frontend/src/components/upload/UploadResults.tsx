@@ -17,7 +17,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full bg-[var(--overlay-2)] border border-border rounded-2xl p-6 space-y-6"
+      className="ledger-panel w-full space-y-5 p-4 sm:p-5"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -37,7 +37,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 overflow-hidden rounded-md border border-[var(--hairline-1)] md:grid-cols-4">
         <StatCard
           icon={CheckCircle}
           label="Inserted"
@@ -99,13 +99,13 @@ function StatCard({ icon: Icon, label, value, color, bgColor }: Readonly<StatCar
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-      className="flex items-center gap-3 p-4 bg-[var(--overlay-2)] border border-border rounded-xl transition-colors duration-150"
+      className="flex min-w-0 items-center gap-3 border-r border-b border-[var(--hairline-1)] p-3 even:border-r-0 md:border-b-0 md:even:border-r md:last:border-r-0"
     >
-      <div className={`p-2 rounded-lg ${bgColor}`}>
-        <Icon className={`w-5 h-5 ${color}`} />
+      <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${bgColor}`}>
+        <Icon className={`size-4 ${color}`} />
       </div>
-      <div>
-        <p className="text-2xl font-bold">{value}</p>
+      <div className="min-w-0">
+        <p className="ledger-figure text-xl font-semibold">{value}</p>
         <p className="text-xs text-text-tertiary">{label}</p>
       </div>
     </motion.div>
