@@ -1,8 +1,6 @@
 import { Shield, X } from 'lucide-react'
 
 import { Button } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
-
 interface ProfileHeaderProps {
   initials: string
   displayName: string
@@ -16,32 +14,21 @@ export function ProfileHeader(props: Readonly<ProfileHeaderProps>) {
   const { initials, displayName, email, providerLabel, memberSince, onClose } = props
 
   return (
-    <div
-      className="relative px-6 pt-6 pb-5"
-      style={{
-        background: `linear-gradient(135deg, ${rawColors.app.purple}20, ${rawColors.app.indigo}12, transparent)`,
-      }}
-    >
+    <div className="relative border-b border-[var(--hairline-1)] bg-[var(--overlay-1)] px-6 pt-6 pb-5">
       <Button
         type="button"
         variant="ghost"
         size="sm"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-4 top-4 size-11 p-0 sm:size-8 sm:min-h-8 sm:min-w-8"
+        className="absolute right-4 top-4 size-11 p-0 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
       >
         <X size={16} className="text-text-tertiary" aria-hidden="true" />
       </Button>
 
       <div className="flex items-center gap-4">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
-          style={{
-            background: `linear-gradient(135deg, ${rawColors.app.purple}, ${rawColors.app.pink})`,
-            boxShadow: `0 8px 24px ${rawColors.app.purple}40`,
-          }}
-        >
-          <span className="text-foreground font-bold text-xl">{initials}</span>
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-md border border-app-blue/30 bg-app-blue/15">
+          <span className="ledger-figure text-lg font-semibold text-app-blue">{initials}</span>
         </div>
 
         <div className="min-w-0 flex-1">

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
 import { ROUTES } from '@/constants'
 import { enterDemoMode } from '@/lib/demo'
+import { Spinner } from '@/components/ui'
 
 /**
  * /demo entry point — enables direct-link sharing.
@@ -35,11 +36,11 @@ export default function DemoEntryPage() {
   }, [isAuthenticated, queryClient, navigate])
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background" aria-label="Entering demo mode">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-app-blue/30 border-t-app-blue rounded-full animate-spin" />
-        <span className="text-sm text-muted-foreground">Loading demo...</span>
-      </div>
-    </div>
+    <main
+      className="flex min-h-dvh items-center justify-center bg-background px-4"
+      aria-label="Entering demo mode"
+    >
+      <Spinner size="lg" label="Preparing demo workspace" />
+    </main>
   )
 }

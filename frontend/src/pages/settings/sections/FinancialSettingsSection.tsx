@@ -33,7 +33,7 @@ export default function FinancialSettingsSection({
       description="Savings goals, investment targets, tax regime, and spending rules"
       defaultCollapsed={defaultCollapsed}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Fiscal Year */}
         <div>
           <FieldLabel htmlFor="fiscal-year">Fiscal Year Starts In</FieldLabel>
@@ -93,7 +93,7 @@ export default function FinancialSettingsSection({
                   Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
                 )
               }}
-              className="ledger-control min-h-11 w-16 rounded-lg border border-border px-2 py-2 text-center text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
+              className="ledger-control min-h-11 w-16 rounded-lg border border-border px-2 py-2 text-center text-sm text-foreground focus:border-primary focus:outline-none lg:pointer-fine:min-h-10"
             />
           </div>
           <FieldHint>
@@ -158,7 +158,7 @@ export default function FinancialSettingsSection({
               <label
                 key={regime}
                 htmlFor={`tax-regime-${regime}`}
-                className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors sm:min-h-10 ${
+                className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)] has-[:focus-visible]:ring-offset-2 lg:pointer-fine:min-h-10 ${
                   (localPrefs.preferred_tax_regime ?? 'new') === regime
                     ? 'bg-primary/15 border-primary text-foreground font-medium'
                     : 'bg-[var(--overlay-2)] border-border text-muted-foreground hover:text-foreground'

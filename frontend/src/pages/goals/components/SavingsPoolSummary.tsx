@@ -49,33 +49,38 @@ export default function SavingsPoolSummary({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex items-center gap-3 mb-4">
         <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl"
+          className="flex h-9 w-9 items-center justify-center rounded-md"
           style={{ backgroundColor: `${rawColors.app.purple}20` }}
         >
           <PiggyBank className="w-5 h-5" style={{ color: rawColors.app.purple }} />
         </div>
-        <h3 className="text-lg font-semibold text-foreground">Savings Pool</h3>
+        <h3 className="text-base font-semibold text-foreground">Savings Pool</h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div>
-          <p className="text-xs text-text-tertiary mb-1">Total Net Savings</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrencyCompact(netSavings)}</p>
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs leading-4 text-text-tertiary">Total Net Savings</p>
+          <p className="ledger-figure whitespace-nowrap text-xs font-bold text-foreground min-[360px]:text-base sm:text-xl">
+            {formatCurrencyCompact(netSavings)}
+          </p>
         </div>
-        <div>
-          <p className="text-xs text-text-tertiary mb-1">Total Allocated</p>
-          <p className="text-xl font-bold tabular-nums" style={{ color: rawColors.app.blue }}>
+        <div className="min-w-0">
+          <p className="mb-1 text-xs leading-4 text-text-tertiary">Total Allocated</p>
+          <p
+            className="ledger-figure whitespace-nowrap text-xs font-bold min-[360px]:text-base sm:text-xl"
+            style={{ color: rawColors.app.blue }}
+          >
             {formatCurrencyCompact(totalAllocated)}
           </p>
         </div>
-        <div>
-          <p className="text-xs text-text-tertiary mb-1">Unallocated</p>
+        <div className="min-w-0">
+          <p className="mb-1 text-xs leading-4 text-text-tertiary">Unallocated</p>
           <p
-            className="text-xl font-bold tabular-nums"
+            className="ledger-figure whitespace-nowrap text-xs font-bold min-[360px]:text-base sm:text-xl"
             style={{ color: unallocated >= 0 ? rawColors.app.green : rawColors.app.red }}
           >
             {formatCurrencyCompact(unallocated)}
@@ -88,24 +93,34 @@ export default function SavingsPoolSummary({
         <div>
           <div className="w-full h-3 bg-[var(--overlay-2)] rounded-full overflow-hidden flex">
             {segments.map((seg) => (
-              <motion.div
+              <div
                 key={seg.id}
-                initial={{ width: 0 }}
-                animate={{ width: `${seg.pct}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="h-full first:rounded-l-full last:rounded-r-full"
-                style={{ backgroundColor: seg.color }}
+                className="h-full overflow-hidden first:rounded-l-full last:rounded-r-full"
+                style={{ width: `${seg.pct}%` }}
                 title={`${seg.name}: ${formatCurrencyCompact(seg.amount)}`}
-              />
+              >
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="h-full w-full origin-left"
+                  style={{ backgroundColor: seg.color }}
+                />
+              </div>
             ))}
             {unallocatedPct > 0 && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${unallocatedPct}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="h-full first:rounded-l-full last:rounded-r-full bg-[var(--overlay-5)]"
+              <div
+                className="h-full overflow-hidden first:rounded-l-full last:rounded-r-full"
+                style={{ width: `${unallocatedPct}%` }}
                 title={`Unallocated: ${formatCurrencyCompact(unallocated)}`}
-              />
+              >
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="h-full w-full origin-left bg-[var(--overlay-5)]"
+                />
+              </div>
             )}
           </div>
           {overAllocated && (

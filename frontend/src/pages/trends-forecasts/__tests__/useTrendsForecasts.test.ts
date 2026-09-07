@@ -58,7 +58,7 @@ function tx(date: string, amount: number, type: 'Income' | 'Expense'): Transacti
     type,
     category: type === 'Income' ? 'Employment Income' : 'Housing',
     account: 'Bank A',
-  } as unknown as Transaction
+  }
 }
 
 /** Replace the mocked API payloads for the next `renderHook`. */

@@ -16,26 +16,30 @@ export default function QuickAddSuggestions({
 
   if (compact) {
     return (
-      <section className="flex flex-wrap items-center gap-2" aria-label="Quick add recurring items">
-        <span className="text-xs text-text-tertiary">Quick add:</span>
-        {suggestions.map((suggestion) => (
-          <Button
-            key={suggestion.name}
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onSelect(suggestion)}
-            className="bg-[var(--overlay-2)] text-[11px] text-muted-foreground hover:bg-[var(--overlay-5)] hover:text-foreground"
-          >
-            + {suggestion.name}
-          </Button>
-        ))}
+      <section className="space-y-2" aria-label="Quick add recurring items">
+        <span className="text-xs font-medium text-text-tertiary">Quick add</span>
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="flex w-max gap-2">
+            {suggestions.map((suggestion) => (
+              <Button
+                key={suggestion.name}
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onSelect(suggestion)}
+                className="bg-[var(--overlay-2)] text-[11px] text-muted-foreground hover:bg-[var(--overlay-5)] hover:text-foreground"
+              >
+                + {suggestion.name}
+              </Button>
+            ))}
+          </div>
+        </div>
       </section>
     )
   }
 
   return (
-    <section className="glass space-y-3 rounded-xl border border-border p-4 sm:p-6">
+    <section className="ledger-panel space-y-3 p-4 sm:p-5">
       <h2 className="text-sm font-medium text-foreground">
         Quick Add -- common recurring transactions
       </h2>

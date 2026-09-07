@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
 import { Button, Input } from '@/components/ui'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 
 interface DangerActionRowProps {
   expanded: boolean
@@ -45,7 +46,7 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
   const panelId = `profile-action-${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
 
   return (
-    <div className={`rounded-xl border ${toneBorder} ${toneBg} p-4`}>
+    <motion.div layout="position" className={`relative rounded-lg border ${toneBorder} ${toneBg} p-4`}>
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -64,14 +65,11 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
         )}
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
         {expanded && (
           <motion.div
             id={panelId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            {...DISCLOSURE_TRANSITION}
             className="overflow-hidden"
           >
             <div className="pt-3 space-y-3">
@@ -118,6 +116,6 @@ export function DangerActionRow(props: Readonly<DangerActionRowProps>) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

@@ -5,6 +5,7 @@
 import { useId, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import { sectionVariants } from './styles'
 
 // ---------------------------------------------------------------------------
@@ -37,11 +38,12 @@ export function Section({
 
   return (
     <motion.div
+      layout="position"
       custom={index}
       initial="hidden"
       animate="visible"
       variants={sectionVariants}
-      className="glass rounded-2xl border border-border overflow-hidden"
+      className="ledger-panel relative overflow-hidden"
     >
       <button
         id={`${panelId}-trigger`}
@@ -49,13 +51,13 @@ export function Section({
         onClick={() => setExpanded((p) => !p)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex items-center gap-3 w-full px-6 py-5 text-left hover:bg-[var(--overlay-2)] transition-colors"
+        className="flex min-h-16 w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--overlay-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:px-5"
       >
-        <div className="p-2 rounded-xl bg-primary/10">
-          <Icon className="w-5 h-5 text-primary" />
+        <div className="rounded-md bg-primary/10 p-2">
+          <Icon className="size-5 text-primary" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
           {description && (
             <p className="mt-0.5 text-xs leading-5 text-muted-foreground sm:truncate sm:leading-normal">{description}</p>
           )}
@@ -64,19 +66,16 @@ export function Section({
           className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`}
         />
       </button>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {expanded && (
           <motion.div
             id={panelId}
             role="region"
             aria-labelledby={`${panelId}-trigger`}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+            {...DISCLOSURE_TRANSITION}
             className="overflow-hidden"
           >
-            <div className="px-6 pb-6 space-y-4">{children}</div>
+            <div className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -96,7 +95,7 @@ export function Section({
  */
 export function GroupHeader({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <h2 className="text-overline uppercase tracking-wider text-text-tertiary font-semibold px-1 pt-2 first:pt-0">
+    <h2 className="px-1 pt-2 text-overline font-semibold uppercase text-text-tertiary first:pt-0">
       {children}
     </h2>
   )
@@ -125,17 +124,20 @@ export function Toggle({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      // Track stays 24x44px visually; a ::before pseudo expands the tap target
-      // to the 44px min on touch without changing the switch's proportions.
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-        checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
-      }`}
+      className="relative inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-foreground shadow-lg transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0'
+        aria-hidden="true"
+        className={`pointer-events-none inline-flex h-6 w-11 rounded-full border-2 border-transparent transition-colors ${
+          checked ? 'bg-primary' : 'bg-[var(--overlay-6)]'
         }`}
-      />
+      >
+        <span
+          className={`block size-5 transform rounded-full bg-foreground shadow-lg transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-0'
+          }`}
+        />
+      </span>
     </button>
   )
 }

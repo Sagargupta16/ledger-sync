@@ -49,9 +49,9 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-semibold text-foreground">Salary Structure</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
           <Button
             id="previous-salary-financial-year"
             type="button"
@@ -113,7 +113,7 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
             ))}
           </div>
 
-          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 flex items-center justify-between">
+          <div className="flex items-center justify-between border-y border-primary/20 bg-primary/5 py-4">
             <div>
               <p className="text-xs text-muted-foreground">Total Annual CTC (excl. RSUs)</p>
               <p className="text-lg font-semibold text-foreground">{formatCurrency(annualCTC)}</p>

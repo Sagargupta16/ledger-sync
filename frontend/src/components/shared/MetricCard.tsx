@@ -5,6 +5,7 @@ import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { CARD_HOVER, TAP_FEEDBACK } from '@/constants/animations'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { cn } from '@/lib/cn'
@@ -70,12 +71,13 @@ export default function MetricCard({
 
   const content = (
     <motion.div
-      whileHover={{ y: -3 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      whileHover={isInteractive ? CARD_HOVER : undefined}
+      whileTap={isInteractive ? TAP_FEEDBACK : undefined}
       className={cn(
-        'metric-card ledger-panel group relative min-h-28 overflow-hidden p-4 text-left transition-colors duration-150',
+        'metric-card ledger-panel group relative min-h-28 overflow-hidden border-t-2 p-4 text-left transition-colors duration-150',
         isInteractive && 'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
       )}
+      style={{ borderTopColor: colors.text }}
     >
       {trend && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 opacity-20">
@@ -86,7 +88,7 @@ export default function MetricCard({
       <div className="relative flex h-full flex-col justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
-            className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[var(--hairline-1)]"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[var(--hairline-1)] transition-transform duration-200 group-hover:scale-110"
             style={{ background: colors.bg }}
           >
             <Icon className="size-3.5" style={{ color: colors.text }} />
@@ -137,7 +139,7 @@ export default function MetricCard({
 
   if (href) {
     return (
-      <Link to={href} className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <Link to={href} className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
         {content}
       </Link>
     )
@@ -148,7 +150,7 @@ export default function MetricCard({
       <button
         type="button"
         onClick={onClick}
-        className="block w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        className="group block w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         {content}
       </button>

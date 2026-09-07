@@ -49,7 +49,7 @@ export function useInvestmentAnalytics() {
   const accountToCategory = useMemo(() => {
     const mapping: Record<string, InvestmentCategory> = {}
     Object.entries(investmentMappings).forEach(([accountName, rawType]) => {
-      mapping[accountName] = mapToCategory(rawType as string)
+      mapping[accountName] = mapToCategory(rawType)
     })
     return mapping
   }, [investmentMappings])
@@ -57,7 +57,7 @@ export function useInvestmentAnalytics() {
   const filteredInvestmentTotals = useMemo(() => {
     if (!transactions.length || !investmentAccounts.length) {
       return {
-        byAccount: {} as Record<string, number>,
+        byAccount: {},
         byCategory: {} as Record<InvestmentCategory, number>,
         total: 0,
       }

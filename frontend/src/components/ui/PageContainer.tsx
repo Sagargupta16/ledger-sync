@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react'
 
-import { motion } from 'motion/react'
-
-import { PAGE_ENTER } from '@/constants/animations'
 import { cn } from '@/lib/cn'
 
 /**
@@ -30,8 +27,8 @@ import { cn } from '@/lib/cn'
  * narrower -- Settings / Upload -- pass `5xl` so they can adopt this scaffold
  * without widening their content column.
  *
- * The inner wrapper carries the shared page-entrance motion (PAGE_ENTER), so
- * every page fades up on navigation without per-page wiring.
+ * Route entrance motion is owned by AppLayout so navigation animates exactly
+ * once. PageContainer stays responsible only for geometry and rhythm.
  */
 type MaxWidth = '7xl' | '5xl' | '4xl'
 
@@ -51,13 +48,10 @@ interface PageContainerProps {
 
 export default function PageContainer({ children, className, maxWidth = '7xl' }: PageContainerProps) {
   return (
-    <div className="min-h-full px-[max(1rem,env(safe-area-inset-left))] py-5 md:px-[max(1.5rem,env(safe-area-inset-left))] md:py-6 lg:px-[max(2rem,env(safe-area-inset-left))]">
-      <motion.div
-        {...PAGE_ENTER}
-        className={cn(MAX_WIDTH_CLASSES[maxWidth], 'mx-auto space-y-5 md:space-y-6', className)}
-      >
+    <div className="min-h-full py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:py-6 md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))] lg:pl-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
+      <div className={cn(MAX_WIDTH_CLASSES[maxWidth], 'mx-auto space-y-5 md:space-y-6', className)}>
         {children}
-      </motion.div>
+      </div>
     </div>
   )
 }

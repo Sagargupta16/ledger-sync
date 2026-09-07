@@ -44,7 +44,7 @@ export default function IncomeCategorySection({
 }: IncomeCategorySectionProps) {
   return (
     <motion.section
-      className="glass rounded-xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 md:p-6"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}

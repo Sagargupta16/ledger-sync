@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { pctChange } from '../utils'
@@ -15,7 +14,7 @@ interface KpiCardProps {
 }
 
 export function KpiCard({
-  title, valueA, valueB, labelA, color, invertChange, isPercent,
+  title, valueA, valueB, labelA, labelB, color, invertChange, isPercent,
 }: Readonly<KpiCardProps>) {
   const change = isPercent ? valueB - valueA : pctChange(valueB, valueA)
   const isPositive = change >= 0
@@ -36,16 +35,19 @@ export function KpiCard({
   })()
 
   return (
-    <motion.div
-      className="glass rounded-2xl border border-border p-6"
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 1 }}
-    >
+    <div className="ledger-panel min-w-0 p-4 sm:p-6">
       <p className="text-kpi-label text-muted-foreground mb-1">{title}</p>
-      <div className="flex items-end gap-2 mb-3">
-        <span className="text-kpi-value font-bold" style={{ color }}>{fmtVal(valueB)}</span>
+      <div className="mb-3 min-w-0">
+        <span
+          className="block truncate text-kpi-value font-bold"
+          style={{ color }}
+          title={fmtVal(valueB)}
+        >
+          <span className="sr-only">{labelB}: </span>
+          {fmtVal(valueB)}
+        </span>
       </div>
-      <div className="text-kpi-label text-muted-foreground mb-2">
+      <div className="mb-2 truncate text-kpi-label text-muted-foreground" title={`${labelA}: ${fmtVal(valueA)}`}>
         <span className="opacity-60">{labelA}:</span> {fmtVal(valueA)}
       </div>
       <div className={`flex items-center gap-1 text-sm font-medium ${changeColorClass}`}>
@@ -54,6 +56,6 @@ export function KpiCard({
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}
         </span>
       </div>
-    </motion.div>
+    </div>
   )
 }

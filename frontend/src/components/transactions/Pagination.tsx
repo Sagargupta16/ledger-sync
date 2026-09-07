@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, Select } from '@/components/ui'
+import { cn } from '@/lib/cn'
 
 interface PaginationProps {
   currentPage: number
@@ -21,10 +22,10 @@ export default function Pagination({
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
+    <div className="ledger-panel p-3 sm:p-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Items per page */}
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-center gap-2 sm:w-auto">
           <span className="text-sm text-text-tertiary">Show</span>
           <Select
             value={itemsPerPage}
@@ -87,10 +88,13 @@ export default function Pagination({
                   size="sm"
                   onClick={() => onPageChange(pageNum)}
                   aria-current={currentPage === pageNum ? 'page' : undefined}
-                  className={`px-3 ${currentPage === pageNum
+                  className={cn(
+                    'px-3',
+                    Math.abs(pageNum - currentPage) > 1 && 'hidden min-[400px]:inline-flex',
+                    currentPage === pageNum
                       ? 'bg-app-blue/20 text-app-blue'
-                      : 'text-muted-foreground'
-                    }`}
+                      : 'text-muted-foreground',
+                  )}
                 >
                   {pageNum}
                 </Button>

@@ -32,7 +32,7 @@ export default function PartialPeriodNotice({
   if (daysElapsed >= daysTotal) return null
 
   return (
-    <output className="flex items-start gap-2.5 rounded-xl border border-warning/20 bg-warning/10 px-3 py-2.5 text-sm">
+    <output className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2.5 text-sm">
       <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
       <p className="text-foreground">
         <span className="font-medium">{label}</span> is still in progress -{' '}

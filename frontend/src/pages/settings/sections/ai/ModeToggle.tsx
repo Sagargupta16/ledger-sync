@@ -69,7 +69,7 @@ function ModeCard(props: Readonly<ModeCardProps>) {
       onClick={onClick}
       disabled={disabled}
       aria-pressed={selected}
-      className={`text-left border rounded-xl p-3 transition-colors ${
+      className={`min-h-11 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
         selected
           ? 'border-primary bg-primary/5'
           : 'border-border bg-[var(--overlay-1)] hover:border-[var(--hairline-5)] hover:bg-[var(--overlay-2)]'
@@ -105,7 +105,7 @@ export function AppModePanel({
   usage,
 }: Readonly<{ usage: UsageResponse | undefined }>) {
   return (
-    <div className="border border-border rounded-xl p-4 space-y-2 bg-[var(--overlay-1)]">
+    <div className="space-y-2 border-y border-border py-4">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">Today's usage</span>
         <AppMessageBadge usage={usage} />

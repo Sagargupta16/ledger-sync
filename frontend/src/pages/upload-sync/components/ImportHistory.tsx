@@ -47,7 +47,11 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
   {
     key: 'file_name',
     header: 'File',
-    cell: (row) => row.file_name,
+    cell: (row) => (
+      <span className="block max-w-72 break-words" title={row.file_name}>
+        {row.file_name}
+      </span>
+    ),
     sortValue: (row) => row.file_name,
   },
   {
@@ -121,7 +125,7 @@ export default function ImportHistory() {
           <button
             type="button"
             onClick={() => void query.refetch()}
-            className="text-primary hover:underline"
+            className="min-h-11 rounded-md px-2 text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             Try again
           </button>

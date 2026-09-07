@@ -1,3 +1,5 @@
+import { useRef, useState, type KeyboardEvent } from 'react'
+
 import { motion } from 'motion/react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -47,12 +49,40 @@ export default function BillCalendarGrid({
   onToday,
   onSelectDay,
 }: BillCalendarGridProps) {
+  const daysInView = calendarGrid.filter((cell) => cell.isCurrentMonth).length
+  const defaultFocusDay = isCurrentViewToday ? now.getDate() : 1
+  const viewKey = `${viewYear}-${viewMonth}`
+  const [focusAnchor, setFocusAnchor] = useState<{ viewKey: string; day: number } | null>(null)
+  const focusedDay =
+    focusAnchor?.viewKey === viewKey ? focusAnchor.day : (selectedDay ?? defaultFocusDay)
+  const gridRef = useRef<HTMLFieldSetElement>(null)
+
+  const handleDayKeyDown = (event: KeyboardEvent<HTMLButtonElement>, day: number) => {
+    let nextDay: number | null = null
+    if (event.key === 'ArrowLeft') nextDay = day - 1
+    if (event.key === 'ArrowRight') nextDay = day + 1
+    if (event.key === 'ArrowUp') nextDay = day - 7
+    if (event.key === 'ArrowDown') nextDay = day + 7
+    if (event.key === 'Home') nextDay = 1
+    if (event.key === 'End') nextDay = daysInView
+    if (nextDay === null) return
+
+    event.preventDefault()
+    const clampedDay = Math.min(daysInView, Math.max(1, nextDay))
+    setFocusAnchor({ viewKey, day: clampedDay })
+    requestAnimationFrame(() => {
+      gridRef.current
+        ?.querySelector<HTMLButtonElement>(`[data-bill-calendar-day="${clampedDay}"]`)
+        ?.focus()
+    })
+  }
+
   return (
     <motion.section
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+      className="-mx-4 border-y border-[var(--glass-border)] bg-surface-1 py-4 sm:mx-0 sm:rounded-lg sm:border sm:p-5 sm:shadow-[var(--glass-shadow)]"
       {...SCROLL_FADE_UP}
     >
-      <div className="mb-6 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2 px-4 sm:px-0">
         <Button
           type="button"
           variant="ghost"
@@ -92,7 +122,7 @@ export default function BillCalendarGrid({
       </div>
 
       {isLoading && (
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div className="overflow-x-auto pb-1">
           <div className="min-w-[20rem] space-y-2">
             <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {DAY_NAMES.map((name) => (
@@ -111,7 +141,7 @@ export default function BillCalendarGrid({
                     (cellId) => (
                       <div
                         key={cellId}
-                        className="min-h-[60px] min-w-11 animate-pulse rounded-xl bg-[var(--overlay-2)] sm:min-h-[72px]"
+                        className="min-h-[60px] min-w-11 animate-pulse rounded-md bg-[var(--overlay-2)] sm:min-h-[72px]"
                       />
                     ),
                   )}
@@ -123,17 +153,22 @@ export default function BillCalendarGrid({
       )}
 
       {!isLoading && !hasAnyData && (
-        <EmptyState
-          icon={CalendarDays}
-          title="No recurring transactions found"
-          description="Once recurring payment patterns are detected from your transactions, they will appear on the calendar. You can also add manual subscriptions from the Subscription Tracker page."
-          variant="card"
-        />
+        <div className="px-4 sm:px-0">
+          <EmptyState
+            icon={CalendarDays}
+            title="No recurring transactions found"
+            description="Once recurring payment patterns are detected from your transactions, they will appear on the calendar. You can also add manual subscriptions from the Subscription Tracker page."
+            variant="card"
+          />
+        </div>
       )}
 
       {!isLoading && hasAnyData && (
         <>
-          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <p id="bill-calendar-keyboard-help" className="sr-only">
+            Use the arrow keys to move between days. Press Enter or Space to select a day.
+          </p>
+          <div className="overflow-x-auto pb-1">
             <div className="min-w-[20rem]">
               <div className="mb-1 grid grid-cols-7 gap-0.5 sm:gap-1">
                 {DAY_NAMES.map((name) => (
@@ -146,7 +181,14 @@ export default function BillCalendarGrid({
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+              <fieldset
+                ref={gridRef}
+                className="grid grid-cols-7 gap-0.5 sm:gap-1"
+                aria-describedby="bill-calendar-keyboard-help"
+              >
+                <legend className="sr-only">
+                  {formatMonthYear(viewYear, viewMonth)} calendar
+                </legend>
                 {calendarGrid.map((cell) => {
                   const bills = cell.isCurrentMonth ? (billMap.get(cell.day) ?? []) : []
                   const isToday = isSameDay(
@@ -170,17 +212,24 @@ export default function BillCalendarGrid({
                       isCurrentMonth={cell.isCurrentMonth}
                       bills={bills}
                       maxBillAmount={maxBillAmount}
+                      tabIndex={
+                        cell.isCurrentMonth && cell.day === focusedDay ? 0 : -1
+                      }
+                      onFocus={() => setFocusAnchor({ viewKey, day: cell.day })}
+                      onKeyDown={(event) => handleDayKeyDown(event, cell.day)}
                       onClick={() =>
                         onSelectDay(selectedDay === cell.day ? null : cell.day)
                       }
                     />
                   )
                 })}
-              </div>
+              </fieldset>
             </div>
           </div>
 
-          <BillCalendarLegend />
+          <div className="px-4 sm:px-0">
+            <BillCalendarLegend />
+          </div>
         </>
       )}
     </motion.section>

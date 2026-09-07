@@ -3,6 +3,7 @@ import { Save, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 
 import ErrorState from '@/components/shared/ErrorState'
+import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { Button, CollapsibleSection } from '@/components/ui'
 import { usePreferences, useUpdateAnomalySettings } from '@/hooks/api/usePreferences'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
@@ -26,7 +27,7 @@ export default function AnomalyDetectionPanel() {
   const localPrefs = useMemo<LocalPrefs | null>(
     () =>
       preferencesQuery.data
-        ? ({ ...preferencesQuery.data, ...edits } as unknown as LocalPrefs)
+        ? { ...preferencesQuery.data, ...edits }
         : null,
     [preferencesQuery.data, edits],
   )
@@ -62,6 +63,16 @@ export default function AnomalyDetectionPanel() {
           onRetry={() => void preferencesQuery.refetch()}
         />
       </CollapsibleSection>
+    )
+  }
+
+  if (preferencesQuery.isPending) {
+    return (
+      <div className="ledger-panel space-y-3 p-4" aria-busy="true">
+        <span className="sr-only">Loading anomaly detection settings</span>
+        <LoadingSkeleton className="h-5 w-48" />
+        <LoadingSkeleton className="h-10 w-full" />
+      </div>
     )
   }
 

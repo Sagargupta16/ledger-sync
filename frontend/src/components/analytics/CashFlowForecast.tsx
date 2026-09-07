@@ -19,13 +19,13 @@ export default function CashFlowForecast() {
   const forecastData = useMemo(() => buildForecast(monthlyData), [monthlyData])
 
   if (isLoading) {
-    return <div className="glass rounded-2xl p-6 animate-pulse"><div className="h-8 bg-[var(--overlay-2)] rounded w-1/3 mb-4" /><div className="h-64 bg-[var(--overlay-2)] rounded" /></div>
+    return <div className="ledger-panel animate-pulse p-4 sm:p-5"><div className="mb-4 h-8 w-1/3 rounded bg-[var(--overlay-2)]" /><div className="h-64 rounded bg-[var(--overlay-2)]" /></div>
   }
 
   if (!forecastData) {
     return (
-      <div className="glass rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-2">Cash Flow Forecast</h3>
+      <div className="ledger-panel p-4 sm:p-5">
+        <h3 className="mb-2 text-base font-semibold text-foreground">Cash Flow Forecast</h3>
         <ChartEmptyState message="Need at least 3 months of data for forecasting." />
       </div>
     )
@@ -34,24 +34,27 @@ export default function CashFlowForecast() {
   const { insights } = forecastData
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {/* ── Header ────────────────────────────────────────────────── */}
-      <div className="glass rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="ledger-panel overflow-hidden"
+    >
+      <div className="p-4 sm:p-5">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-xl ${insights.trend === 'positive' ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
+            <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${insights.trend === 'positive' ? 'bg-app-green/10' : 'bg-app-red/10'}`}>
               {insights.trend === 'positive'
-                ? <TrendingUp className="w-6 h-6 text-app-green" />
-                : <TrendingDown className="w-6 h-6 text-app-red" />}
+                ? <TrendingUp className="size-4 text-app-green" />
+                : <TrendingDown className="size-4 text-app-red" />}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Future Cash Flow Forecast</h3>
-              <p className="text-xs text-text-tertiary">Projected income, expenses & net savings</p>
+              <h3 className="text-base font-semibold text-foreground">Future cash flow</h3>
+              <p className="text-xs text-text-tertiary">Projected income, spending, and net savings</p>
             </div>
           </div>
           {insights.monthsUntilNegative && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-app-orange/10 border border-app-orange/20 text-app-orange text-xs font-medium">
-              <AlertTriangle className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-2 rounded-md border border-app-orange/20 bg-app-orange/10 px-3 py-1.5 text-xs font-medium text-app-orange">
+              <AlertTriangle className="size-3.5" />
               Deficit in {insights.monthsUntilNegative}mo
             </div>
           )}
@@ -139,30 +142,29 @@ export default function CashFlowForecast() {
         </div>
       </div>
 
-      {/* ── Insight Cards ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Income</p>
-          <p className="text-xl font-bold text-app-green">{formatCurrencyShort(insights.avgIncome)}</p>
-          <p className="text-xs text-text-tertiary mt-1">
+      <div className="grid grid-cols-1 border-t border-[var(--hairline-1)] sm:grid-cols-3">
+        <div className="p-4 sm:border-r sm:border-[var(--hairline-1)]">
+          <p className="ledger-meta mb-1 text-text-quaternary">Avg monthly income</p>
+          <p className="ledger-figure text-xl font-semibold text-app-green">{formatCurrencyShort(insights.avgIncome)}</p>
+          <p className="mt-1 text-xs text-text-tertiary">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">Avg Monthly Expenses</p>
-          <p className="text-xl font-bold text-app-red">{formatCurrencyShort(insights.avgExpense)}</p>
-          <p className="text-xs text-text-tertiary mt-1">
+        <div className="border-t border-[var(--hairline-1)] p-4 sm:border-t-0 sm:border-r">
+          <p className="ledger-meta mb-1 text-text-quaternary">Avg monthly spending</p>
+          <p className="ledger-figure text-xl font-semibold text-app-red">{formatCurrencyShort(insights.avgExpense)}</p>
+          <p className="mt-1 text-xs text-text-tertiary">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
           </p>
         </div>
-        <div className="bg-[var(--overlay-2)] border border-border rounded-xl p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-text-quaternary mb-1">1-Year Projected Savings</p>
-          <p className={`text-xl font-bold ${insights.projectedSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
+        <div className="border-t border-[var(--hairline-1)] p-4 sm:border-t-0">
+          <p className="ledger-meta mb-1 text-text-quaternary">1-year projected savings</p>
+          <p className={`ledger-figure text-xl font-semibold ${insights.projectedSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
             {insights.projectedSavings >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedSavings)}
           </p>
-          <p className="text-xs text-text-tertiary mt-1">Based on current trends</p>
+          <p className="mt-1 text-xs text-text-tertiary">Based on current trends</p>
         </div>
       </div>
-    </motion.div>
+    </motion.section>
   )
 }

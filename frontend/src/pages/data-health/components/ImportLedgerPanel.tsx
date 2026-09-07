@@ -68,7 +68,7 @@ export default function ImportLedgerPanel({ rows, fileName, importedAt }: Import
   if (rows.length === 0) return null
 
   return (
-    <section className="ledger-panel space-y-3 p-4">
+    <section className="space-y-3 sm:rounded-lg sm:border sm:border-[var(--glass-border)] sm:bg-surface-1 sm:p-4 sm:shadow-[var(--glass-shadow)]">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <FileClock className="size-4 shrink-0 self-center text-app-blue" aria-hidden />
         <h2 className="text-sm font-semibold text-foreground">Last import</h2>

@@ -58,7 +58,7 @@ export function buildMonthlyHistoryByCategory(
     if (tx.type !== wantedType) continue
     const category = tx.category
     if (!category) continue
-    const monthKey = (tx.date as string).substring(0, 7)
+    const monthKey = (tx.date).substring(0, 7)
     const idx = monthIndex.get(monthKey)
     if (idx === undefined) continue
     const series = buckets.get(category) ?? Array.from({ length: 12 }, () => 0)

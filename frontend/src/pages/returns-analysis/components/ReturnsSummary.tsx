@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
@@ -42,22 +41,20 @@ export default function ReturnsSummary({
   ]
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 sm:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
       aria-labelledby="returns-summary-title"
     >
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-4 flex items-center gap-3">
         <div
-          className={`shrink-0 rounded-2xl p-4 ${
+          className={`shrink-0 rounded-md p-3 ${
             netProfitLoss >= 0 ? 'bg-app-green/10' : 'bg-app-red/10'
           }`}
         >
           {netProfitLoss >= 0 ? (
-            <TrendingUp className="size-8 text-app-green" aria-hidden="true" />
+            <TrendingUp className="size-6 text-app-green" aria-hidden="true" />
           ) : (
-            <TrendingDown className="size-8 text-app-red" aria-hidden="true" />
+            <TrendingDown className="size-6 text-app-red" aria-hidden="true" />
           )}
         </div>
         <div className="min-w-0">
@@ -65,7 +62,7 @@ export default function ReturnsSummary({
             Net Investment P&amp;L
           </h2>
           <p
-            className={`ledger-figure text-xl font-bold sm:text-4xl ${
+            className={`ledger-figure break-words text-2xl font-bold sm:text-4xl ${
               netProfitLoss >= 0 ? 'text-app-green' : 'text-app-red'
             }`}
           >
@@ -75,21 +72,16 @@ export default function ReturnsSummary({
         </div>
       </div>
 
-      {/* 3 cards: on phones the third would orphan in a 2-col grid, so it spans
-          both columns. sm+ lays all three out in one row. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 divide-y divide-border border-t border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-border bg-[var(--overlay-2)] p-3 last:col-span-2 sm:last:col-span-1"
-          >
-            <p className="text-[10px] font-semibold uppercase text-text-quaternary">{stat.label}</p>
-            <p className={`ledger-figure text-base font-bold sm:text-lg ${stat.color}`}>
+          <div key={stat.label} className="min-w-0 py-3 sm:px-4 sm:first:pl-0 sm:last:pr-0">
+            <dt className="text-xs font-medium text-text-tertiary">{stat.label}</dt>
+            <dd className={`ledger-figure break-words text-lg font-bold ${stat.color}`}>
               {stat.value}
-            </p>
+            </dd>
           </div>
         ))}
-      </div>
-    </motion.section>
+      </dl>
+    </section>
   )
 }

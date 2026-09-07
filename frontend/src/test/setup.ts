@@ -37,5 +37,5 @@ if (globalThis.window !== undefined && !globalThis.window.matchMedia) {
       addListener: () => {},
       removeListener: () => {},
       dispatchEvent: () => false,
-    }) as unknown as MediaQueryList
+    })
 }

@@ -26,21 +26,21 @@ export function ChartStatsFooter(props: Readonly<ChartStatsFooterProps>) {
   ]
 
   return (
-    <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <section className="border-y border-border px-1 py-4" aria-label="Projection totals">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label}>
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <dt className="text-xs text-muted-foreground">{stat.label}</dt>
             {isLoading ? (
               <LoadingSkeleton className="h-6 w-24 mt-1" />
             ) : (
-              <p className={`text-xl font-bold tabular-nums ${stat.color}`}>
+              <dd className={`ledger-figure break-words text-lg font-bold sm:text-xl ${stat.color}`}>
                 {formatCurrency(stat.value)}
-              </p>
+              </dd>
             )}
           </div>
         ))}
-      </div>
-    </div>
+      </dl>
+    </section>
   )
 }

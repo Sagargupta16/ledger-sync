@@ -38,21 +38,21 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
   const rateGrowth = totalGrowthPct(rates)
 
   return (
-    <div className="glass rounded-2xl border border-border p-4 md:p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 bg-app-purple/20 rounded-xl">
-          <TrendingUp className="w-5 h-5 text-app-purple" aria-hidden />
+    <div className="ledger-panel p-4 md:p-6">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="rounded-md bg-app-purple/15 p-2.5">
+          <TrendingUp className="size-5 text-app-purple" aria-hidden />
         </div>
-        <div>
-          <h3 className="text-lg font-semibold">Multi-Year Projection</h3>
-          <p className="text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold">Multi-year projection</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {projections.length} year outlook based on salary structure and growth assumptions
           </p>
         </div>
       </div>
 
       <section
-        className="overflow-x-auto"
+        className="overflow-x-auto overscroll-x-contain rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         aria-label="Multi-year salary and tax projection"
       >
         <table

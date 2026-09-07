@@ -15,6 +15,13 @@ export interface ChartDataTableColumn<T> {
   value: (row: T) => string
 }
 
+export function chartCellText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number') return value.toLocaleString()
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return ''
+}
+
 /**
  * Visually-hidden `<table>` mirroring a chart's data.
  *

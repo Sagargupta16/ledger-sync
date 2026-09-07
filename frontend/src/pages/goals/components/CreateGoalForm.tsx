@@ -1,4 +1,7 @@
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
+
+import { Button, Input, Select } from '@/components/ui'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 
 import { GOAL_TYPE_OPTIONS } from '../constants'
 
@@ -24,82 +27,77 @@ export default function CreateGoalForm({
   onCancel,
 }: Readonly<CreateGoalFormProps>) {
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      className="overflow-hidden"
-    >
-      <form onSubmit={onSubmit} className="glass rounded-2xl border border-border p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Create New Goal</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            autoFocus
+    <AnimatePresence mode="popLayout" propagate>
+      <motion.div
+        {...DISCLOSURE_TRANSITION}
+        className="overflow-hidden"
+      >
+        <form onSubmit={onSubmit} className="ledger-panel space-y-4 p-4 sm:p-5">
+          <h3 className="text-lg font-semibold text-foreground">Create New Goal</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              autoFocus
+              id="create-goal-name"
+              label="Goal name"
+              type="text"
+              placeholder="e.g. Emergency fund"
+              required
+              value={formData.name}
+              onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
+            />
+            <Select
+              id="create-goal-type"
+              label="Goal type"
+              value={formData.goal_type}
+              onChange={(e) => onFormDataChange({ ...formData, goal_type: e.target.value })}
+              options={[...GOAL_TYPE_OPTIONS]}
+            />
+            <Input
+              id="create-goal-amount"
+              label="Target amount"
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="any"
+              placeholder="0"
+              required
+              value={formData.target_amount}
+              onChange={(e) => onFormDataChange({ ...formData, target_amount: e.target.value })}
+            />
+            <Input
+              id="create-goal-date"
+              label="Target date"
+              type="date"
+              required
+              value={formData.target_date}
+              onChange={(e) => onFormDataChange({ ...formData, target_date: e.target.value })}
+            />
+          </div>
+          <Input
+            id="create-goal-notes"
+            label="Notes (optional)"
             type="text"
-            placeholder="Goal name *"
-            aria-label="Goal name"
-            value={formData.name}
-            onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
-            className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
+            placeholder="What this goal is for"
+            value={formData.notes}
+            onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })}
           />
-          <select
-            value={formData.goal_type}
-            aria-label="Goal type"
-            onChange={(e) => onFormDataChange({ ...formData, goal_type: e.target.value })}
-            className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
-          >
-            {/* Options come from the shared vocabulary. Hardcoding them here was
-                a third copy of the same six labels, and the surface most likely to
-                drift: this is where a new goal_type value enters the database. */}
-            {GOAL_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            placeholder="Target amount *"
-            aria-label="Target amount"
-            value={formData.target_amount}
-            onChange={(e) => onFormDataChange({ ...formData, target_amount: e.target.value })}
-            className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
-          />
-          <input
-            type="date"
-            aria-label="Target date"
-            value={formData.target_date}
-            onChange={(e) => onFormDataChange({ ...formData, target_date: e.target.value })}
-            className="px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
-          />
-        </div>
-        <input
-          type="text"
-          placeholder="Notes (optional)"
-          aria-label="Notes"
-          value={formData.notes}
-          onChange={(e) => onFormDataChange({ ...formData, notes: e.target.value })}
-          className="w-full px-4 py-2.5 bg-surface-dropdown/80 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-app-purple/50"
-        />
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="min-h-9 rounded-md border border-foreground bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-          >
-            {isPending ? 'Creating...' : 'Create Goal'}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-5 py-2 rounded-xl text-sm text-muted-foreground bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </motion.div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              isLoading={isPending}
+            >
+              {isPending ? 'Creating...' : 'Create Goal'}
+            </Button>
+            <Button
+              type="button"
+              onClick={onCancel}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </motion.div>
+    </AnimatePresence>
   )
 }

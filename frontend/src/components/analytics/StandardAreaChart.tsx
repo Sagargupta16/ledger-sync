@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/chartDefaults'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
 
 interface AreaConfig {
   key: string
@@ -91,79 +92,105 @@ export default function StandardAreaChart({
   const animate = shouldAnimate(data.length)
   const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
   const yDefaults = yAxisDefaults()
+  const rows = data as readonly Record<string, unknown>[]
+  const formatValue = tooltipFormatter ?? formatCurrency
 
   return (
-    <ChartContainer height={height} ariaLabel={ariaLabel}>
-      <AreaChart
-        data={data}
-        margin={{ top: 8, right: 12, bottom: xAngle ? 20 : 8, left: 4 }}
-      >
-        <defs>
-          {areas.map((area) =>
-            (area.showFill ?? true) && areaGradient(area.key, area.color, area.fillOpacity ?? 0.3),
-          )}
-        </defs>
-        <CartesianGrid {...GRID_DEFAULTS} />
-        <XAxis
-          dataKey={dataKey}
-          {...xDefaults}
-          {...(xTickFormatter && { tickFormatter: xTickFormatter })}
-        />
-        <YAxis {...yDefaults} />
-        <Tooltip
-          {...chartTooltipProps}
-          formatter={(value) => (tooltipFormatter ?? formatCurrency)(typeof value === 'number' ? value : 0)}
-          {...(tooltipLabelFormatter && { labelFormatter: tooltipLabelFormatter as never })}
-        />
-        {showLegend && areas.length > 1 && (
-          <Legend {...LEGEND_DEFAULTS} />
-        )}
-        {referenceLines?.map((ref) => (
-          <ReferenceLine
-            key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
-            y={ref.y}
-            x={ref.x}
-            stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
-            strokeDasharray={ref.strokeDasharray ?? '6 4'}
-            label={ref.label ? {
-              value: ref.label,
-              fill: CHART_TEXT.subtle,
-              fontSize: 11,
-              position: 'insideTopRight',
-            } : undefined}
-          />
-        ))}
-        {areas.map((area) => (
-          <Area
-            key={area.key}
-            type={area.type ?? 'monotone'}
-            dataKey={area.key}
-            name={area.label ?? area.key}
-            stroke={area.color}
-            strokeWidth={area.strokeWidth ?? 2}
-            strokeDasharray={area.strokeDasharray}
-            fill={(area.showFill ?? true) ? areaGradientUrl(area.key) : 'transparent'}
-            fillOpacity={1}
-            dot={false}
-            activeDot={{ ...ACTIVE_DOT, fill: area.color }}
-            connectNulls
-            isAnimationActive={animate}
-            animationDuration={600}
-            animationEasing="ease-out"
-            stackId={stacked ? 'stack' : area.stackId}
-          />
-        ))}
-        {showBrush && data.length > 4 && (
-          <Brush
-            {...BRUSH_DEFAULTS}
+    <>
+      <ChartContainer height={height} ariaLabel={ariaLabel}>
+        <AreaChart
+          data={data}
+          margin={{ top: 8, right: 12, bottom: xAngle ? 20 : 8, left: 4 }}
+        >
+          <defs>
+            {areas.map((area) =>
+              (area.showFill ?? true) && areaGradient(area.key, area.color, area.fillOpacity ?? 0.3),
+            )}
+          </defs>
+          <CartesianGrid {...GRID_DEFAULTS} />
+          <XAxis
             dataKey={dataKey}
-            tickFormatter={xTickFormatter}
-            // Default to showing the most recent ~quarter of the data so the
-            // chart still reads at full fidelity on first paint.
-            startIndex={Math.max(0, data.length - Math.ceil(data.length / 4))}
+            {...xDefaults}
+            {...(xTickFormatter && { tickFormatter: xTickFormatter })}
           />
-        )}
-      </AreaChart>
-    </ChartContainer>
+          <YAxis {...yDefaults} />
+          <Tooltip
+            {...chartTooltipProps}
+            formatter={(value) => formatValue(typeof value === 'number' ? value : 0)}
+            {...(tooltipLabelFormatter && { labelFormatter: tooltipLabelFormatter as never })}
+          />
+          {showLegend && areas.length > 1 && (
+            <Legend {...LEGEND_DEFAULTS} />
+          )}
+          {referenceLines?.map((ref) => (
+            <ReferenceLine
+              key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
+              y={ref.y}
+              x={ref.x}
+              stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
+              strokeDasharray={ref.strokeDasharray ?? '6 4'}
+              label={ref.label ? {
+                value: ref.label,
+                fill: CHART_TEXT.subtle,
+                fontSize: 11,
+                position: 'insideTopRight',
+              } : undefined}
+            />
+          ))}
+          {areas.map((area) => (
+            <Area
+              key={area.key}
+              type={area.type ?? 'monotone'}
+              dataKey={area.key}
+              name={area.label ?? area.key}
+              stroke={area.color}
+              strokeWidth={area.strokeWidth ?? 2}
+              strokeDasharray={area.strokeDasharray}
+              fill={(area.showFill ?? true) ? areaGradientUrl(area.key) : 'transparent'}
+              fillOpacity={1}
+              dot={false}
+              activeDot={{ ...ACTIVE_DOT, fill: area.color }}
+              connectNulls
+              isAnimationActive={animate}
+              animationDuration={600}
+              animationEasing="ease-out"
+              stackId={stacked ? 'stack' : area.stackId}
+            />
+          ))}
+          {showBrush && data.length > 4 && (
+            <Brush
+              {...BRUSH_DEFAULTS}
+              dataKey={dataKey}
+              tickFormatter={xTickFormatter}
+              // Default to showing the most recent ~quarter of the data so the
+              // chart still reads at full fidelity on first paint.
+              startIndex={Math.max(0, data.length - Math.ceil(data.length / 4))}
+            />
+          )}
+        </AreaChart>
+      </ChartContainer>
+      {chartDataTable(
+        rows,
+        [
+          {
+            header: 'Period',
+            rowHeader: true,
+            value: (row) => {
+              const label = chartCellText(row[dataKey])
+              return xTickFormatter ? xTickFormatter(label) : label
+            },
+          },
+          ...areas.map((area) => ({
+            header: area.label ?? area.key,
+            value: (row: Record<string, unknown>) => {
+              const value = row[area.key]
+              return typeof value === 'number' ? formatValue(value) : chartCellText(value)
+            },
+          })),
+        ],
+        ariaLabel ?? 'Area chart data',
+        (row, index) => `${chartCellText(row[dataKey]) || 'row'}-${index}`,
+      )}
+    </>
   )
 }

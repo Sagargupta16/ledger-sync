@@ -79,7 +79,7 @@ function IssueRow({
         <Icon className={`mt-0.5 size-4 shrink-0 ${SEVERITY_TEXT[issue.severity]}`} aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            <h3 className="min-w-0 flex-1 break-words text-sm font-medium leading-5 text-foreground">
               {issue.label}
             </h3>
             <span className={`shrink-0 text-sm font-semibold ${isFlag ? '' : 'tabular-nums'} ${SEVERITY_TEXT[issue.severity]}`}>
@@ -117,7 +117,7 @@ function IssueRow({
               type="button"
               onClick={() => onAction(issue.id)}
               disabled={isPending}
-              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--hairline-2)] px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 sm:min-h-8"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--hairline-2)] px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 lg:pointer-fine:min-h-8"
             >
               {isPending ? 'Recomputing...' : issue.actionLabel}
             </button>
@@ -162,7 +162,7 @@ export default function QualityIssueList({
         </span>
         <Link
           to={ROUTES.SETTINGS}
-          className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-[var(--hairline-2)] px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:min-h-8"
+          className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-[var(--hairline-2)] px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8"
         >
           Categorization rules
         </Link>

@@ -44,8 +44,7 @@ export default function RecurringSummarySection({
           value={formatCurrencyCompact(summary.monthlyExpense)}
           colorClass="text-app-red"
           bgClass="bg-app-red/20"
-          shadowClass="shadow-app-red/30"
-          delay={0.1}
+          delay={0}
           compact
         />
         <SummaryCard
@@ -54,8 +53,7 @@ export default function RecurringSummarySection({
           value={formatCurrencyCompact(summary.monthlyIncome)}
           colorClass="text-app-green"
           bgClass="bg-app-green/20"
-          shadowClass="shadow-app-green/30"
-          delay={0.2}
+          delay={0.04}
           compact
         />
         <SummaryCard
@@ -64,10 +62,7 @@ export default function RecurringSummarySection({
           value={formatCurrencyCompact(summary.netMonthly)}
           colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
           bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
-          shadowClass={
-            summary.netMonthly >= 0 ? 'shadow-app-green/30' : 'shadow-app-red/30'
-          }
-          delay={0.3}
+          delay={0.08}
           compact
         />
         <SummaryCard
@@ -76,8 +71,7 @@ export default function RecurringSummarySection({
           value={`${summary.count}`}
           colorClass="text-app-blue"
           bgClass="bg-app-blue/20"
-          shadowClass="shadow-app-blue/30"
-          delay={0.4}
+          delay={0.12}
           compact
         />
         {summary.deactivatedCount > 0 && (
@@ -87,15 +81,14 @@ export default function RecurringSummarySection({
             value={formatCurrencyCompact(summary.deactivatedExpenseSavings)}
             colorClass="text-app-purple"
             bgClass="bg-app-purple/20"
-            shadowClass="shadow-app-purple/30"
-            delay={0.5}
+            delay={0.16}
             compact
           />
         )}
       </div>
 
       {hasActiveItems && totalMix > 0 && (
-        <section className="glass space-y-3 rounded-xl border border-border p-4">
+        <section className="ledger-panel space-y-3 p-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-medium text-foreground">Recurring mix</h2>
             {summary.monthlyIncome > 0 && (
@@ -121,11 +114,11 @@ export default function RecurringSummarySection({
             aria-label={`${formatCurrency(summary.monthlyIncome)} recurring income and ${formatCurrency(summary.monthlyExpense)} recurring expenses per month`}
           >
             <span
-              className="h-full bg-app-green transition-[width] duration-500"
+              className="h-full bg-app-green"
               style={{ width: `${incomeShare}%` }}
             />
             <span
-              className="h-full bg-app-red transition-[width] duration-500"
+              className="h-full bg-app-red"
               style={{ width: `${expenseShare}%` }}
             />
           </div>

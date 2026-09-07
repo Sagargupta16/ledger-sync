@@ -30,17 +30,17 @@ import CFPScoreView from './health/CFPScoreView'
 
 const LoadingSkeleton = memo(function LoadingSkeleton() {
   return (
-    <div className="glass rounded-2xl border border-border p-6 animate-pulse">
-      <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-      <div className="h-32 bg-muted rounded" />
+    <div className="ledger-panel animate-pulse p-4 sm:p-5">
+      <div className="mb-4 h-8 w-1/3 rounded bg-muted" />
+      <div className="h-32 rounded bg-muted" />
     </div>
   )
 })
 
 const EmptyState = memo(function EmptyState() {
   return (
-    <div className="glass rounded-2xl border border-border p-6">
-      <h3 className="text-lg font-semibold mb-2">Financial Health</h3>
+    <div className="ledger-panel p-4 sm:p-5">
+      <h3 className="mb-2 text-base font-semibold">Financial Health</h3>
       <p className="text-muted-foreground">Need more transaction data to calculate health score.</p>
     </div>
   )
@@ -105,7 +105,7 @@ function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
   const color = TIER_COLORS[metric.status] ?? rawColors.app.red
 
   return (
-    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-2.5">
+    <div className="min-w-0 border-b border-[var(--hairline-1)] py-2.5">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-medium text-foreground truncate">{metric.name}</span>
         <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round(metric.score)}</span>

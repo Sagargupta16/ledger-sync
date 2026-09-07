@@ -65,4 +65,19 @@ describe('TransactionFilters debounced search', () => {
 
     expect(lastCall(onFilterChange)).toEqual({ type: 'Expense', query: 'uber' })
   })
+
+  it('pops the closing disclosure out of layout while its exit remains visible', () => {
+    render(
+      <TransactionFilters onFilterChange={vi.fn()} categories={CATEGORIES} accounts={ACCOUNTS} />,
+    )
+
+    fireEvent.click(screen.getByLabelText(/show filters/i))
+    const panel = screen.getByRole('region', { name: /advanced filters/i })
+    panel.style.width = '320px'
+    panel.style.height = '120px'
+
+    fireEvent.click(screen.getByLabelText(/hide filters/i))
+
+    expect(panel).toHaveAttribute('data-motion-pop-id')
+  })
 })

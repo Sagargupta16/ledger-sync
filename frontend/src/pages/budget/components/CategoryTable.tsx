@@ -93,7 +93,7 @@ export function CategoryTable({ rows, months }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="glass rounded-2xl border border-border p-8 text-center text-muted-foreground">
+      <div className="ledger-panel p-8 text-center text-muted-foreground">
         No transactions in this period.
       </div>
     )
@@ -126,7 +126,7 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
 
   const visible = useMemo(() => buildBucketRows(rows, months), [rows, months])
   const rollupRow = useMemo(
-    () => visible.find((r) => (r as CategoryRowWithMeta)._isOther) as CategoryRowWithMeta | undefined,
+    () => visible.find((row) => row._isOther),
     [visible],
   )
   const bucketTotal = rows.reduce((sum, r) => sum + r.total_amount, 0)
@@ -134,7 +134,7 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
 
   return (
     <section
-      className="h-full glass rounded-2xl border border-border overflow-hidden flex flex-col"
+      className="ledger-panel flex h-full flex-col overflow-hidden"
       aria-label={`${meta.label} category breakdown`}
     >
       {/* Column header: bucket label + count on left, monthly avg on right */}
@@ -157,15 +157,14 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
       ) : (
         <div className="p-2 flex flex-col gap-0.5">
           {visible.map((row) => {
-            const rowMeta = row as CategoryRowWithMeta
-            const key = rowMeta._isOther ? '__other__' : `${row.category}::${row.subcategory ?? ''}`
+            const key = row._isOther ? '__other__' : `${row.category}::${row.subcategory ?? ''}`
             return (
               <CategoryRow
                 key={key}
-                row={rowMeta}
-                isOther={!!rowMeta._isOther}
+                row={row}
+                isOther={!!row._isOther}
                 expanded={expandedOther}
-                onToggle={rowMeta._isOther ? () => setExpandedOther((v) => !v) : undefined}
+                onToggle={row._isOther ? () => setExpandedOther((v) => !v) : undefined}
               />
             )
           })}
@@ -178,7 +177,7 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
                   key={`${r.category}::${r.subcategory ?? ''}`}
                   className="flex items-baseline gap-2"
                 >
-                  <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
+                  <span className="min-w-0 flex-1 break-words text-xs text-foreground/70">
                     {r.category}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground tabular-nums whitespace-nowrap">
@@ -206,9 +205,8 @@ interface RowProps {
  * monthly-average amount right-aligned. Amount NEVER truncates.
  *
  * Layout follows `CategoryBreakdown.tsx:167-201` -- flex row with flex-1/min-w-0
- * name block and shrink-0/text-right amount. The subcategory line is a second
- * <div> inside the flex-1 block, so truncation happens on both name and subs
- * without ever compressing the amount cell.
+ * name block and shrink-0/text-right amount. Names wrap inside the flexible
+ * column without ever compressing the amount cell.
  */
 function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
   const subLine =
@@ -221,7 +219,11 @@ function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
       : null
 
   const inner = (
-    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[var(--overlay-2)] transition-colors">
+    <div
+      className={`flex min-h-11 items-center gap-2 rounded-md px-3 py-2 ${
+        isOther ? 'transition-colors hover:bg-[var(--overlay-2)]' : ''
+      }`}
+    >
       {isOther && (
         <ChevronRight
           className={`w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform ${
@@ -233,7 +235,7 @@ function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
 
       <div className="flex-1 min-w-0">
         <div
-          className={`text-sm font-medium truncate ${
+          className={`break-words text-sm font-medium leading-5 ${
             isOther ? 'italic text-muted-foreground' : 'text-foreground'
           }`}
         >
@@ -241,7 +243,7 @@ function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
         </div>
         {subLine && (
           <div
-            className="text-[11px] leading-tight text-muted-foreground truncate mt-0.5"
+            className="mt-0.5 line-clamp-2 break-words text-[11px] leading-4 text-muted-foreground"
             title={row.top_subs
               .map((s) => `${s.name} ${formatCurrency(s.amount)}`)
               .join('  ·  ')}
@@ -266,7 +268,7 @@ function CategoryRow({ row, isOther, expanded, onToggle }: RowProps) {
         onClick={onToggle}
         aria-expanded={expanded}
         aria-label={`${expanded ? 'Collapse' : 'Expand'} ${row.category}`}
-        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/50 rounded-lg"
+        className="w-full rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         {inner}
       </button>

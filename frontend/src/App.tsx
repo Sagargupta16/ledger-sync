@@ -14,6 +14,7 @@ import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
+import { useMotionStore } from '@/store/motionStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
 
@@ -134,17 +135,23 @@ function toRelativePath(absolutePath: string): string {
 // Simple 404 page shown for unmatched routes
 function NotFoundPage() {
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-4">
-      <div className="text-center space-y-4">
-        <h1 className="text-6xl font-bold text-foreground">404</h1>
-        <p className="text-xl text-muted-foreground">Page not found</p>
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <section className="ledger-panel w-full max-w-md p-6 text-center sm:p-8">
+        <p className="ledger-meta text-primary">Navigation error</p>
+        <p className="mt-4 font-mono text-4xl font-semibold tabular-nums text-foreground">
+          404
+        </p>
+        <h1 className="mt-3 text-xl font-semibold text-foreground">Page not found</h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-text-tertiary">
+          This workspace route does not exist or may have moved.
+        </p>
         <Link
           to={ROUTES.DASHBOARD}
-          className="inline-block rounded-md border border-foreground bg-foreground px-6 py-3 text-background transition-colors hover:bg-foreground/90"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md border border-primary bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:border-app-blue-vibrant hover:bg-app-blue-vibrant focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
-          Go to Dashboard
+          Return to dashboard
         </Link>
-      </div>
+      </section>
     </div>
   )
 }
@@ -159,6 +166,16 @@ function ThemeWatcher() {
   useEffect(() => {
     syncResolved()
   }, [syncResolved])
+
+  return null
+}
+
+function MotionWatcher() {
+  const syncMode = useMotionStore((state) => state.syncMode)
+
+  useEffect(() => {
+    syncMode()
+  }, [syncMode])
 
   return null
 }
@@ -198,7 +215,7 @@ function LandingPage() {
 
 /** Extracted style object for the Toaster component (avoids recreating on every render).
  *  Uses CSS tokens so toasts flip with the light/dark theme instead of always
- *  rendering as a dark glass chip (which was unreadable in light mode). */
+ *  rendering as a dark overlay chip (which was unreadable in light mode). */
 const TOASTER_STYLE: React.CSSProperties = {
   background: 'var(--color-popover)',
   border: '1px solid var(--glass-border-strong)',
@@ -213,14 +230,16 @@ const TOASTER_OPTIONS = {
 
 function App() {
   const resolvedTheme = useThemeStore((state) => state.resolved)
+  const motionMode = useMotionStore((state) => state.mode)
 
   return (
     <ErrorBoundary>
       <ThemeWatcher />
-      {/* reducedMotion="user" keeps motion full for everyone EXCEPT users whose
-          OS requests reduced motion (WCAG 2.3.3) -- library-level, so individual
-          components don't each need a prefers-reduced-motion gate. */}
-      <MotionConfig reducedMotion="user">
+      <MotionWatcher />
+      <MotionConfig
+        reducedMotion={motionMode === 'reduced' ? 'always' : 'never'}
+        skipAnimations={motionMode === 'reduced'}
+      >
       <QueryClientProvider client={queryClient}>
         <AuthInitializer>
           <PreferencesProvider>

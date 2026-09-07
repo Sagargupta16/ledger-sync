@@ -1,14 +1,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useMotionStore } from '@/store/motionStore'
 import ChatPanel from '../ChatPanel'
 
 // jsdom doesn't implement Element.scrollTo; the panel calls it on message
 // changes. Stub it so the effect is a no-op in tests. Assigned unconditionally
 // rather than via `proto.scrollTo || fallback`, which detached the method from
 // its receiver -- a `this`-binding hazard the moment jsdom does implement it.
-Element.prototype.scrollTo = () => {}
+const scrollToMock = vi.fn()
+Element.prototype.scrollTo = scrollToMock
+
+beforeEach(() => {
+  scrollToMock.mockClear()
+  useMotionStore.getState().setMode('full')
+})
+
+afterEach(() => {
+  useMotionStore.getState().setMode('full')
+})
 
 function renderPanel(onSend = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -50,6 +61,23 @@ describe('ChatPanel empty state', () => {
     expect(screen.getByLabelText('Send message')).toHaveAttribute(
       'title',
       'Type a message first',
+    )
+  })
+
+  it('uses native scrolling when reduced motion is active', () => {
+    useMotionStore.getState().setMode('reduced')
+    renderPanel()
+
+    expect(scrollToMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ behavior: 'auto' }),
+    )
+  })
+
+  it('uses smooth scrolling in full motion mode', () => {
+    renderPanel()
+
+    expect(scrollToMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ behavior: 'smooth' }),
     )
   })
 })

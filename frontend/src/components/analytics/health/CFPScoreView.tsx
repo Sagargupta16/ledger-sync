@@ -18,9 +18,7 @@ function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
   return (
     <motion.div
       variants={fadeUpItem}
-      whileHover={{ y: -2 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className="p-3 rounded-xl border border-border bg-[var(--overlay-1)]"
+      className="min-w-0 border-b border-[var(--hairline-1)] py-3"
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-foreground">{ratio.name}</span>
@@ -28,10 +26,10 @@ function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
       </div>
       <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
         <motion.div
-          className="h-full rounded-full"
+          className="h-full w-full origin-left rounded-full"
           style={{ backgroundColor: color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${ratio.score}%` }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: Math.min(Math.max(ratio.score, 0), 100) / 100 }}
           transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
         />
       </div>

@@ -13,7 +13,8 @@ export default function FeasibilityWarning({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-start gap-3 rounded-xl border px-4 py-3"
+      className="flex items-start gap-3 rounded-lg border px-4 py-3"
+      role="alert"
       style={{
         borderColor: `${rawColors.app.orange}40`,
         backgroundColor: `${rawColors.app.orange}08`,

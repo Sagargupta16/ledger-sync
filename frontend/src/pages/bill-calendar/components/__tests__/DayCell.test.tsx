@@ -10,6 +10,9 @@ const BASE_PROPS = {
   maxBillAmount: 0,
   isToday: false,
   isSelected: false,
+  tabIndex: 0,
+  onFocus: vi.fn(),
+  onKeyDown: vi.fn(),
 }
 
 describe('DayCell', () => {

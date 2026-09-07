@@ -52,7 +52,7 @@ export default function CreditCardLimitsSubsection({
                       [card]: Number.isFinite(n) ? Math.max(0, n) : 0,
                     })
                   }}
-                   className="ledger-control min-h-11 w-32 rounded-lg border border-border px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none sm:min-h-10"
+                   className="ledger-control min-h-11 w-32 rounded-lg border border-border px-2 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none lg:pointer-fine:min-h-10"
                 />
               </div>
             </div>

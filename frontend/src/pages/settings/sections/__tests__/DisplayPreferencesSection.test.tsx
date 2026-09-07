@@ -56,7 +56,7 @@ function wrapper({ children }: { children: ReactNode }) {
 /** Minimal but real `LocalPrefs`, built by the same helper the page uses. */
 function prefs(displayCurrency: string): LocalPrefs {
   return {
-    ...(buildInitialLocalPrefs({ display_currency: displayCurrency }) as Record<string, unknown>),
+    ...(buildInitialLocalPrefs({ display_currency: displayCurrency })),
   } as unknown as LocalPrefs
 }
 
@@ -76,7 +76,7 @@ function renderSection(displayCurrency = 'INR') {
 /** The section renders collapsed; open it so the form is in the tree. */
 async function openSection(): Promise<HTMLSelectElement> {
   fireEvent.click(screen.getByRole('button', { name: /Display & Preferences/i }))
-  return (await screen.findByLabelText('Display Currency')) as HTMLSelectElement
+  return (await screen.findByLabelText('Display Currency'))
 }
 
 const optionCodes = (select: HTMLSelectElement) =>

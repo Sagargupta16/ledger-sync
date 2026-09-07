@@ -6,7 +6,7 @@ import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import { Money, PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
@@ -171,43 +171,49 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
-      className="space-y-8"
+      className="space-y-6"
     >
-      {/* Header stat: income + expenses + period summary */}
       <motion.div variants={fadeUpItem}>
-        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm text-muted-foreground">
-          <div>
-            Period: <span className="font-medium text-foreground">{formatDateShort(data.period.start)}</span>{' '}
-            → <span className="font-medium text-foreground">{formatDateShort(data.period.end)}</span>{' '}
-            ({data.period.months} {data.period.months === 1 ? 'month' : 'months'})
+        <dl className="ledger-band grid-cols-2 lg:grid-cols-4">
+          <div className="ledger-cell col-span-2 p-3 lg:col-span-1">
+            <dt className="ledger-meta text-text-tertiary">Period</dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">
+              {formatDateShort(data.period.start)} to {formatDateShort(data.period.end)}
+            </dd>
+            <dd className="mt-0.5 text-xs text-text-tertiary">
+              {data.period.months} {data.period.months === 1 ? 'month' : 'months'}
+            </dd>
           </div>
-          <div>
-            Income: <span className="font-medium text-foreground">{formatCurrency(data.income_total)}</span>
-            {'  ·  '}
-            Expenses: <span className="font-medium text-foreground">{formatCurrency(data.expense_total)}</span>
+          <div className="ledger-cell p-3">
+            <dt className="ledger-meta text-text-tertiary">Income</dt>
+            <dd className="ledger-figure mt-1 whitespace-nowrap text-sm font-semibold text-foreground">
+              {formatCurrency(data.income_total)}
+            </dd>
           </div>
-        </div>
+          <div className="ledger-cell p-3">
+            <dt className="ledger-meta text-text-tertiary">Expenses</dt>
+            <dd className="ledger-figure mt-1 whitespace-nowrap text-sm font-semibold text-foreground">
+              {formatCurrency(data.expense_total)}
+            </dd>
+          </div>
+          {hasIncome && (
+            <div className="ledger-cell col-span-2 p-3 lg:col-span-1">
+              <dt className="ledger-meta text-text-tertiary">Unallocated</dt>
+              <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="ledger-figure whitespace-nowrap text-sm font-semibold text-foreground">
+                  {formatCurrency(data.unallocated_amount)}
+                </span>
+                <span className="text-xs text-text-tertiary">
+                  {formatPercent(data.unallocated_pct_of_income)} of income
+                </span>
+              </dd>
+              <dd className="mt-0.5 text-xs text-text-tertiary">
+                Stayed in cash: neither spent nor invested
+              </dd>
+            </div>
+          )}
+        </dl>
       </motion.div>
-
-      {/* The residual. Without it the three cards below visibly fail to add to
-          100% of income and the user has no name for the gap -- whatever was
-          neither spent nor moved into the investment perimeter. */}
-      {hasIncome && (
-        <motion.div variants={fadeUpItem}>
-          <div className="flex flex-wrap items-baseline justify-between gap-2 glass rounded-2xl border border-border px-4 py-3 text-sm">
-            <div className="text-muted-foreground">
-              <span className="font-medium text-foreground">Unallocated</span>
-              {' -- income that stayed put: neither spent nor invested'}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <Money value={data.unallocated_amount} width="md" bold />
-              <span className="text-muted-foreground">
-                {formatPercent(data.unallocated_pct_of_income)} of income
-              </span>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {!hasIncome && (
         <motion.div variants={fadeUpItem}>
@@ -223,7 +229,7 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
       {/* Three-card row */}
       <motion.div
         variants={fadeUpItem}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        className="grid grid-cols-1 gap-4 md:grid-cols-3"
       >
         {cards.map((card) => (
           <BucketCard

@@ -48,12 +48,16 @@ export default function SettingsPage() {
   if (s.isLoading) {
     return (
       <PageContainer maxWidth="5xl" className="space-y-4">
-        {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
-          <div
-            key={id}
-            className="glass rounded-2xl border border-border h-24 animate-pulse opacity-30"
-          />
-        ))}
+        <PageHeader title="Settings" subtitle="Configure your financial preferences" />
+        <div role="status" aria-live="polite" aria-label="Loading settings" className="space-y-3">
+          {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'].map((id) => (
+            <div
+              key={id}
+              className="ledger-panel h-20 animate-pulse opacity-30"
+              aria-hidden="true"
+            />
+          ))}
+        </div>
       </PageContainer>
     )
   }
@@ -84,7 +88,7 @@ export default function SettingsPage() {
           title="Settings"
           subtitle="Configure your financial preferences"
           action={
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {s.hasChanges && (
                 <span className="flex items-center gap-1.5 text-sm text-warning-text">
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
@@ -267,7 +271,7 @@ export default function SettingsPage() {
               transition={{ duration: 0.18 }}
               className="fixed inset-x-0 z-40 flex justify-start bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] pl-4 pr-24 sm:justify-center sm:px-4 lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
             >
-              <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-[var(--glass-shadow-strong)] backdrop-blur-lg">
+              <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-sm">
                 <span role="status" aria-live="polite" className="sr-only">
                   Unsaved changes
                 </span>

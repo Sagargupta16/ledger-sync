@@ -97,15 +97,15 @@ export default function CohortSpendingAnalysis() {
 
   return (
     <motion.div
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <Calendar className="w-5 h-5 text-app-teal" />
-          <h3 className="text-lg font-semibold text-foreground">Spending Patterns</h3>
+          <Calendar className="size-4 text-app-teal" />
+          <h3 className="text-base font-semibold text-foreground">Spending patterns</h3>
           {/* Scope pill, always visible. Sits ON the heading so the "All time"
               qualifier is read together with the title rather than after the
               bars have already been believed as period figures. */}
@@ -113,7 +113,7 @@ export default function CohortSpendingAnalysis() {
             All time
           </span>
         </div>
-        <div className="flex gap-1 p-0.5 rounded-lg bg-muted/20">
+        <div className="ledger-control flex rounded-md border p-1">
           {([
             ['day-of-week', 'By Day'],
             ['day-of-month', 'By Date'],
@@ -124,7 +124,7 @@ export default function CohortSpendingAnalysis() {
               type="button"
               onClick={() => setView(key)}
               aria-pressed={view === key}
-              className={`px-2.5 py-2.5 min-h-11 rounded-md text-xs font-medium transition-colors ${view === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`min-h-11 rounded px-2.5 py-2 text-xs font-medium transition-colors ${view === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}
             </button>
@@ -181,9 +181,9 @@ export default function CohortSpendingAnalysis() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="grid grid-cols-2 gap-3 mt-4"
+              className="mt-4 grid grid-cols-1 border-t border-[var(--hairline-1)] sm:grid-cols-2"
             >
-              <div className="px-3 py-2.5 rounded-lg bg-app-teal/10 border border-app-teal/25 flex items-start gap-2.5">
+              <div className="flex items-start gap-2.5 py-3 sm:border-r sm:border-[var(--hairline-1)] sm:pr-4">
                 <TrendingUp className="w-4 h-4 text-app-teal mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
@@ -200,7 +200,7 @@ export default function CohortSpendingAnalysis() {
                   </p>
                 </div>
               </div>
-              <div className="px-3 py-2.5 rounded-lg bg-[var(--overlay-2)] border border-border">
+              <div className="border-t border-[var(--hairline-1)] py-3 sm:border-t-0 sm:pl-4">
                 <p className="text-[10px] uppercase tracking-widest text-text-quaternary font-semibold">
                   Quietest {viewLabel(view, 'singular')}
                 </p>

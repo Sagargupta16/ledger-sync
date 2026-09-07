@@ -56,7 +56,7 @@ export interface DataTableProps<T> {
   readonly maxHeightClass?: string
   /**
    * Below the `sm` breakpoint (640px), render each row as a stacked label/value
-   * card instead of a horizontally-scrolling table. Far more readable on phones
+   * row instead of a horizontally-scrolling table. Far more readable on phones
    * for wide tables. Columns use `mobileLabel` / `mobilePrimary` to lay out.
    */
   readonly mobileCards?: boolean
@@ -147,7 +147,7 @@ export default function DataTable<T>({
 
   const shouldAnimate = animateRows && sortedRows.length <= 200
 
-  // Mobile card-stack: each row becomes a stacked label/value card so wide
+  // Mobile row-stack: each row becomes a stacked label/value group so wide
   // tables don't force horizontal scrolling on phones. Sorting remains
   // available through a compact control because the desktop headers are gone.
   if (mobileCards && isMobile) {
@@ -155,7 +155,7 @@ export default function DataTable<T>({
       col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')
     const sortableColumns = columns.filter((col) => col.sortable === true)
     const cardsClass = [
-      'm-0 list-none space-y-2 p-0',
+      'm-0 list-none divide-y divide-[var(--hairline-1)] border-y border-[var(--hairline-1)] p-0',
       maxHeightClass ? `${maxHeightClass} overflow-y-auto pr-1` : '',
     ].join(' ').trim()
 
@@ -204,7 +204,7 @@ export default function DataTable<T>({
             return (
               <li
                 key={rowKey(row, i)}
-                className={`ledger-panel p-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
+                className={`py-3 ${rowClassName?.(row, i) ?? ''}`.trim()}
               >
                 {primary && (
                   <div className={`mb-2 font-medium ${primary.cellClassName?.(row, i) ?? ''}`.trim()}>
@@ -270,7 +270,7 @@ export default function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => toggleSort(col.key)}
-                    className={`inline-flex min-h-6 w-full select-none items-center gap-1 rounded ${justifyForAlign[col.align ?? 'left']} transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}
+                    className={`inline-flex min-h-11 min-w-11 w-full select-none items-center gap-1 rounded ${justifyForAlign[col.align ?? 'left']} transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0`}
                   >
                     {col.header}
                     <span

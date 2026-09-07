@@ -15,7 +15,7 @@ export default function DayOfWeekSection({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+      className="ledger-panel p-4 sm:p-6"
     >
       <h2 className="mb-4 text-lg font-semibold">Spending by Day of Week</h2>
       <DayOfWeekChart grid={grid} />

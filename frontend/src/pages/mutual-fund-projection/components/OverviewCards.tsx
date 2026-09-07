@@ -1,5 +1,6 @@
-import { motion } from 'motion/react'
-import { Calculator, CalendarRange, Percent, TrendingUp } from 'lucide-react'
+import type { ReactNode } from 'react'
+
+import { Calculator, CalendarRange, Percent, TrendingUp, type LucideIcon } from 'lucide-react'
 
 import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency } from '@/lib/formatters'
@@ -13,6 +14,47 @@ interface OverviewCardsProps {
   totalHistoricalInvested: number
   /** Months spanned by the contribution history. A duration, not a return. */
   investmentDurationYears: number
+}
+
+interface OverviewCardProps {
+  readonly icon: LucideIcon
+  readonly iconClassName: string
+  readonly iconBackgroundClassName: string
+  readonly label: string
+  readonly value: string
+  readonly detail?: ReactNode
+  readonly valueClassName?: string
+}
+
+function OverviewCard({
+  icon: Icon,
+  iconClassName,
+  iconBackgroundClassName,
+  label,
+  value,
+  detail,
+  valueClassName = 'text-foreground',
+}: OverviewCardProps) {
+  return (
+    <article className="ledger-panel p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className={`shrink-0 rounded-md p-2 ${iconBackgroundClassName}`}>
+          <Icon className={`size-5 ${iconClassName}`} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className={`ledger-figure break-words text-xl font-semibold ${valueClassName}`}>
+            {value}
+          </p>
+          {detail && (
+            <p className="mt-1 break-words text-xs leading-relaxed text-text-tertiary">
+              {detail}
+            </p>
+          )}
+        </div>
+      </div>
+    </article>
+  )
 }
 
 export function OverviewCards(props: Readonly<OverviewCardsProps>) {
@@ -37,61 +79,35 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
   const avgPerMonth = durationMonths > 0 ? totalHistoricalInvested / durationMonths : 0
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-2xl border border-border p-4 sm:p-6"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-3 bg-app-purple/20 rounded-xl shrink-0">
-            <TrendingUp className="w-6 h-6 text-app-purple" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-kpi-label text-muted-foreground">Current Balance</p>
-            <p className="text-kpi-value font-bold truncate">{currentBalanceDisplay}</p>
-            {primaryAccountName && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">{primaryAccountName}</p>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass rounded-2xl border border-border p-4 sm:p-6"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-3 bg-app-green/20 rounded-xl shrink-0">
-            <Calculator className="w-6 h-6 text-app-green" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-kpi-label text-muted-foreground">Monthly SIP</p>
-            <p className="text-kpi-value font-bold truncate">{monthlySipDisplay}</p>
-            <p className="text-xs text-muted-foreground mt-1">{transactionCount} transactions</p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-4 sm:p-6"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-3 bg-app-blue/20 rounded-xl shrink-0">
-            <Percent className="w-6 h-6 text-app-blue" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-kpi-label text-muted-foreground">Total Invested</p>
-            <p className="text-kpi-value font-bold truncate">{totalInvestedDisplay}</p>
-            <p className="text-xs text-muted-foreground mt-1">Actual contributions</p>
-          </div>
-        </div>
-      </motion.div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <OverviewCard
+        icon={TrendingUp}
+        iconClassName="text-app-purple"
+        iconBackgroundClassName="bg-app-purple/15"
+        label="Current Balance"
+        value={currentBalanceDisplay}
+        detail={primaryAccountName ?? undefined}
+      />
+      <OverviewCard
+        icon={Calculator}
+        iconClassName="text-app-green"
+        iconBackgroundClassName="bg-app-green/15"
+        label="Monthly SIP"
+        value={monthlySipDisplay}
+        detail={
+          <>
+            <span className="ledger-figure">{transactionCount}</span> transactions
+          </>
+        }
+      />
+      <OverviewCard
+        icon={Percent}
+        iconClassName="text-app-blue"
+        iconBackgroundClassName="bg-app-blue/15"
+        label="Total Invested"
+        value={totalInvestedDisplay}
+        detail="Actual contributions"
+      />
 
       {/* Was "Realized Gain": current balance minus contributions. Both sides of
           that subtraction are the same cash flows, so the difference was only the
@@ -99,27 +115,19 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
           real contributions, printed as "+0.14% returns". Nothing was realised
           and no gain was measured. Contribution span is a fact the ledger holds.
           A real gain needs the Current Value input further down the page. */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass rounded-2xl border border-border p-4 sm:p-6"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-3 bg-app-teal/20 rounded-xl shrink-0">
-            <CalendarRange className="w-6 h-6 text-app-teal" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-kpi-label text-muted-foreground">Contributing Since</p>
-            <p className="text-kpi-value font-bold truncate text-app-teal">
-              {durationMonths} mo
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 truncate">
-              {formatCurrency(avgPerMonth)} avg / month
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      <OverviewCard
+        icon={CalendarRange}
+        iconClassName="text-app-teal"
+        iconBackgroundClassName="bg-app-teal/15"
+        label="Contributing Since"
+        value={`${durationMonths} mo`}
+        valueClassName="text-app-teal"
+        detail={
+          <>
+            <span className="ledger-figure">{formatCurrency(avgPerMonth)}</span> avg / month
+          </>
+        }
+      />
     </div>
   )
 }

@@ -39,7 +39,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           aria-selected={viewMode === 'monthly'}
           onClick={() => onViewModeChange('monthly')}
           className={cn(
-            'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out sm:min-h-9',
+            'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out lg:pointer-fine:min-h-9',
             viewMode === 'monthly'
               ? 'bg-[var(--overlay-5)] text-foreground font-medium'
               : 'text-muted-foreground hover:text-foreground'
@@ -53,7 +53,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
           aria-selected={viewMode === 'yearly'}
           onClick={() => onViewModeChange('yearly')}
           className={cn(
-            'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out sm:min-h-9',
+            'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out lg:pointer-fine:min-h-9',
             viewMode === 'yearly'
               ? 'bg-[var(--overlay-5)] text-foreground font-medium'
               : 'text-muted-foreground hover:text-foreground'
@@ -68,7 +68,7 @@ export const PeriodNavigator = memo(function PeriodNavigator({
             aria-selected={viewMode === 'all_time'}
             onClick={() => onViewModeChange('all_time')}
             className={cn(
-              'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out sm:min-h-9',
+              'min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ease-out lg:pointer-fine:min-h-9',
               viewMode === 'all_time'
                 ? 'bg-[var(--overlay-5)] text-foreground font-medium'
                 : 'text-muted-foreground hover:text-foreground'

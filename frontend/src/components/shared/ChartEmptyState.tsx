@@ -17,11 +17,11 @@ export default function ChartEmptyState({
   return (
     <output
       aria-label="No data available for this chart"
-      className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border"
+      className="flex flex-col items-center justify-center gap-3 rounded-md border border-[var(--hairline-1)]"
       style={{ height }}
     >
       <motion.span
-        className="p-3 rounded-xl bg-[var(--overlay-2)]"
+        className="rounded-md bg-[var(--overlay-2)] p-3"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}

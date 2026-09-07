@@ -143,7 +143,7 @@ export default function PeriodComparison() {
 
   if (isLoading) {
     return (
-      <div className="glass rounded-2xl border border-border p-6">
+      <div className="ledger-panel p-4 sm:p-5">
         <div className="h-8 skeleton w-1/3 mb-4" />
         <div className="h-64 skeleton" />
       </div>
@@ -152,8 +152,8 @@ export default function PeriodComparison() {
 
   if (availableMonths.length < 2) {
     return (
-      <div className="glass rounded-2xl border border-border p-6">
-        <h3 className="text-lg font-semibold mb-2">Period Comparison</h3>
+      <div className="ledger-panel p-4 sm:p-5">
+        <h3 className="mb-2 text-base font-semibold">Period comparison</h3>
         <p style={{ color: rawColors.text.secondary }}>
           Need at least 2 months of data for comparison.
         </p>
@@ -166,26 +166,25 @@ export default function PeriodComparison() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div
-            className="p-3 rounded-2xl"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md"
             style={{
               backgroundColor: `${rawColors.app.indigo}26`,
-              boxShadow: `0 8px 24px ${rawColors.app.indigo}26`,
             }}
           >
             <Zap
-              className="w-6 h-6"
+              className="size-4"
               style={{ color: rawColors.app.indigo }}
               aria-hidden
             />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Quick Comparisons</h3>
-            <p className="text-sm" style={{ color: rawColors.text.secondary }}>
+            <h3 className="text-base font-semibold text-foreground">Quick comparison</h3>
+            <p className="text-xs" style={{ color: rawColors.text.secondary }}>
               Compare {compareMode === 'months' ? 'monthly' : 'yearly'} performance
             </p>
           </div>
@@ -222,7 +221,7 @@ export default function PeriodComparison() {
       )}
 
       {comparisonMetrics && comparisonMetrics.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+        <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-md border border-[var(--hairline-1)] md:grid-cols-4">
           <SummaryCard
             label="Income"
             color={rawColors.app.green}

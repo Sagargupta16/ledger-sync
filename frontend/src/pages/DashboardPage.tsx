@@ -171,9 +171,9 @@ export default function DashboardPage() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Ledger snapshot</h2>
+          <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Key movements and operating signals for the selected period.
+            The selected period's money flow, liquidity, and recurring load.
           </p>
         </div>
         <QuickInsights

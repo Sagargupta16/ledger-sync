@@ -37,14 +37,14 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
   } = props
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 rounded-2xl glass-thin">
-      <div className="flex bg-[var(--overlay-2)] rounded-xl p-1" role="tablist" aria-label="Compare mode">
+    <div className="mb-6 flex flex-col items-start gap-3 border-y border-[var(--hairline-1)] py-4 sm:flex-row sm:items-center">
+      <div className="ledger-control flex rounded-md border p-1" role="tablist" aria-label="Compare mode">
         <button
           type="button"
           role="tab"
           aria-selected={compareMode === 'months'}
           onClick={() => setCompareMode('months')}
-          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:min-h-9"
+          className="min-h-11 rounded px-4 py-2 text-sm font-medium transition-colors lg:pointer-fine:min-h-9"
           style={{
             backgroundColor: compareMode === 'months' ? rawColors.app.blue : 'transparent',
             color: compareMode === 'months' ? rawColors.onAccent : rawColors.text.secondary,
@@ -57,7 +57,7 @@ export function PeriodSelectors(props: Readonly<PeriodSelectorsProps>) {
           role="tab"
           aria-selected={compareMode === 'years'}
           onClick={() => setCompareMode('years')}
-          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:min-h-9"
+          className="min-h-11 rounded px-4 py-2 text-sm font-medium transition-colors lg:pointer-fine:min-h-9"
           style={{
             backgroundColor: compareMode === 'years' ? rawColors.app.blue : 'transparent',
             color: compareMode === 'years' ? rawColors.onAccent : rawColors.text.secondary,

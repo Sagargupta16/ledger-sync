@@ -58,7 +58,7 @@ vi.mock('@/hooks/api/useTransactions', () => ({
 
 vi.mock('@/services/api/accountClassifications', () => ({
   accountClassificationsService: {
-    getAccountsByType: async () => ({ accounts: [MF_ACCOUNT] }),
+    getAccountsByType: () => Promise.resolve({ accounts: [MF_ACCOUNT] }),
   },
 }))
 

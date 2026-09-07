@@ -79,7 +79,7 @@ export default function ErrorState({
     >
       {/* Icon */}
       <div
-        className={`mb-4 flex items-center justify-center rounded-xl border border-error/20 bg-error/10 ${
+        className={`mb-4 flex items-center justify-center rounded-lg border border-error/20 bg-error/10 ${
           isCompact ? 'w-12 h-12' : 'w-16 h-16'
         }`}
       >
@@ -125,7 +125,7 @@ export default function ErrorState({
 
   if (isCard) {
     return (
-      <div className="glass rounded-2xl border border-error/20 shadow-[var(--glass-shadow)]">
+      <div className="ledger-panel border-error/20">
         {content}
       </div>
     )

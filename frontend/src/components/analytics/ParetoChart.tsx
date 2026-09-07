@@ -184,14 +184,14 @@ export default function ParetoChart({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 rounded-xl bg-app-orange/15">
-          <TrendingDown className="w-5 h-5 text-app-orange" />
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-orange/15">
+          <TrendingDown className="size-4 text-app-orange" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
           <p className="text-xs text-text-tertiary">{summary}</p>
         </div>
       </div>

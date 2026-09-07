@@ -1,5 +1,3 @@
-import { motion } from 'motion/react'
-
 interface ProjectionParametersProps {
   sipInputValue: number
   expectedReturn: number
@@ -32,14 +30,14 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
   } = props
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4 }}
-      className="glass rounded-2xl border border-border p-4 sm:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
+      aria-labelledby="projection-parameters-title"
     >
-      <h3 className="text-lg font-semibold mb-4">Projection Parameters</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <h2 id="projection-parameters-title" className="mb-4 text-lg font-semibold">
+        Projection Parameters
+      </h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label
             htmlFor="monthly-sip"
@@ -56,7 +54,7 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
               onMonthlySIPChange(Number(e.target.value))
               onUserModifiedSIP()
             }}
-            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="0"
             step="1000"
           />
@@ -78,7 +76,7 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
             inputMode="decimal"
             value={expectedReturn}
             onChange={(e) => onExpectedReturnChange(Number(e.target.value))}
-            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="0"
             max="50"
             step="0.5"
@@ -98,7 +96,7 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
             inputMode="decimal"
             value={projectionYears}
             onChange={(e) => onProjectionYearsChange(Number(e.target.value))}
-            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="1"
             max="40"
           />
@@ -117,7 +115,7 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
             inputMode="decimal"
             value={sipGrowthRate}
             onChange={(e) => onSipGrowthRateChange(Number(e.target.value))}
-            className="w-full bg-[var(--overlay-2)] border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-app-blue/50 focus:border-app-blue/30 transition-colors"
+            className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="0"
             max="20"
             step="1"
@@ -127,6 +125,6 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
       </div>
 
       {children}
-    </motion.div>
+    </section>
   )
 }

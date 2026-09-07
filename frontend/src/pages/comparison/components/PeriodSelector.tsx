@@ -19,7 +19,7 @@ interface PeriodSelectorProps {
 }
 
 const selectClass =
-  'ledger-control w-full min-h-11 rounded-md border px-3 py-2.5 text-sm text-foreground tabular-nums cursor-pointer transition-colors sm:w-auto sm:min-h-9 sm:py-2'
+  'ledger-control w-full min-h-11 rounded-md border px-3 py-2.5 text-sm text-foreground tabular-nums cursor-pointer transition-colors sm:w-auto lg:pointer-fine:min-h-9 lg:pointer-fine:py-2'
 
 export function PeriodSelector({
   mode, label, monthOptions, yearOptions, fyOptions,

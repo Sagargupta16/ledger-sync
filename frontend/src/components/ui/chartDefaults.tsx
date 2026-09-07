@@ -17,6 +17,7 @@ import { CHART_TEXT, CHART_SURFACE, getChartAxisColor } from '@/constants/chartC
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
 import { getSmartInterval } from '@/lib/chartUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
+import { isMotionReduced } from '@/store/motionStore'
 
 // ─── CartesianGrid defaults ─────────────────────────────────────────────────
 
@@ -109,9 +110,9 @@ export const BAR_RADIUS_SM: [number, number, number, number] = [3, 3, 0, 0]
 
 // ─── Animation helper ───────────────────────────────────────────────────────
 
-/** Check if animations should be enabled based on data size */
+/** Check if animations should be enabled based on data size and motion preference. */
 export function shouldAnimate(dataLength: number): boolean {
-  return dataLength < CHART_ANIMATION_THRESHOLD
+  return !isMotionReduced() && dataLength < CHART_ANIMATION_THRESHOLD
 }
 
 // ─── Active dot (hover glow) ────────────────────────────────────────────────

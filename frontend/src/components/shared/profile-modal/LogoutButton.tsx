@@ -15,7 +15,7 @@ export function LogoutButton({ isPending, onLogout }: Readonly<LogoutButtonProps
         size="lg"
         onClick={onLogout}
         disabled={isPending}
-        className="w-full rounded-xl bg-app-red/10 text-app-red hover:bg-app-red/15 hover:text-app-red"
+        className="w-full rounded-lg bg-app-red/10 text-app-red hover:bg-app-red/15 hover:text-app-red"
       >
         <LogOut size={16} aria-hidden="true" />
         <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>

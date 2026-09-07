@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
+import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import { cn } from '@/lib/cn'
 
 interface CollapsibleSectionProps {
@@ -28,12 +29,12 @@ export default function CollapsibleSection({
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
 
   return (
-    <div className="bg-[var(--overlay-2)] rounded-2xl border border-border">
+    <motion.div layout className="ledger-panel relative overflow-hidden">
       {/* Header button */}
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex items-center gap-3 w-full px-6 py-4 text-left hover:bg-[var(--overlay-3)] transition-colors duration-150 rounded-2xl"
+        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-[var(--overlay-2)] sm:px-5"
       >
         <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
         <span className="text-base font-semibold text-foreground flex-1">{title}</span>
@@ -51,19 +52,16 @@ export default function CollapsibleSection({
       </button>
 
       {/* Collapsible content */}
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {expanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            {...DISCLOSURE_TRANSITION}
             className="overflow-hidden"
           >
-            <div className="px-6 pb-6">{children}</div>
+            <div className="border-t border-[var(--hairline-1)] px-4 py-4 sm:px-5">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

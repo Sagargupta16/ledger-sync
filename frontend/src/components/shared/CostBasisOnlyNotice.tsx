@@ -26,7 +26,7 @@ export default function CostBasisOnlyNotice({
   shownInstead,
 }: CostBasisOnlyNoticeProps) {
   return (
-    <output className="flex items-start gap-2.5 rounded-xl border border-info/20 bg-info/10 px-3 py-2.5 text-sm">
+    <output className="flex items-start gap-2.5 rounded-lg border border-info/20 bg-info/10 px-3 py-2.5 text-sm">
       <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden />
       <p className="text-foreground">
         <span className="font-medium">{metricLabel}</span> needs today&apos;s market value, which

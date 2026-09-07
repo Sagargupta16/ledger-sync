@@ -105,17 +105,17 @@ export default function EffectiveTaxRateChart({
   return (
     <motion.div
       variants={fadeUpItem}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-app-orange/20 rounded-xl">
-            <TrendingUp className="w-5 h-5 text-app-orange" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-orange/15">
+            <TrendingUp className="size-4 text-app-orange" />
           </div>
           <div>
-      <h3 className="text-lg font-semibold">Effective Tax Rate - New vs Old Regime</h3>
+            <h3 className="text-base font-semibold">Effective tax rate</h3>
             <p className="text-xs text-muted-foreground">
-              Compare both regimes side-by-side (without deductions for Old Regime)
+              New versus old regime, before old-regime deductions
             </p>
           </div>
         </div>
@@ -249,17 +249,17 @@ export default function EffectiveTaxRateChart({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Range:</span>
-          <div className="flex rounded-lg border border-border overflow-hidden">
+          <div className="ledger-control flex overflow-hidden rounded-md border p-1">
             {RANGE_OPTIONS.map(({ label, value }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setMaxIncome(value)}
                 aria-pressed={maxIncome === value}
-                className={`min-h-11 px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-8 ${
+                className={`min-h-11 min-w-11 rounded px-2.5 py-1 text-xs font-medium transition-colors lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 ${
                   maxIncome === value
-                    ? 'bg-app-orange/20 text-app-orange'
-                    : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {label}

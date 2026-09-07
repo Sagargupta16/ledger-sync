@@ -21,6 +21,11 @@ export interface UploadFailure {
   readonly force: boolean
 }
 
+export interface UploadSuccess {
+  readonly fileName: string
+  readonly summary: string
+}
+
 function getUploadErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError
   if (axiosError.code === 'ECONNABORTED') {
@@ -44,6 +49,7 @@ function isDuplicateUpload(message: string): boolean {
 export function useUploadSync() {
   const [conflict, setConflict] = useState<UploadConflict | null>(null)
   const [failure, setFailure] = useState<UploadFailure | null>(null)
+  const [success, setSuccess] = useState<UploadSuccess | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const [phase, setPhase] = useState<UploadPhase>(null)
   const uploadMutation = useUpload()
@@ -74,13 +80,16 @@ export function useUploadSync() {
       if (deleted > 0) parts.push(`${deleted} deleted`)
       if (unchanged > 0) parts.push(`${unchanged} skipped (duplicates)`)
 
+      const summary = force
+        ? parts.join(', ')
+        : `${parsed.rows.length} rows parsed. ${parts.join(', ')}.`
+
       setPhase(null)
       setSelectedFileName(null)
       setConflict(null)
+      setSuccess({ fileName: parsed.fileName, summary })
       toast.success(force ? 'Reupload Successful!' : 'Upload Successful!', {
-        description: force
-          ? parts.join(', ')
-          : `${parsed.rows.length} rows parsed. ${parts.join(', ')}.`,
+        description: summary,
         duration: 5000,
       })
     } catch (error) {
@@ -90,7 +99,7 @@ export function useUploadSync() {
       if (!force && isDuplicateUpload(rawMessage)) {
         setConflict({ parsed })
         toast.error('File Already Uploaded', {
-          description: 'This file has been uploaded before. Click "Force Reupload" to proceed anyway.',
+          description: 'This file has been uploaded before. Choose "Sync changes" to continue.',
           duration: 5000,
         })
         return
@@ -111,6 +120,7 @@ export function useUploadSync() {
 
     setConflict(null)
     setFailure(null)
+    setSuccess(null)
     setSelectedFileName(file.name)
     setPhase('parsing')
 
@@ -149,6 +159,7 @@ export function useUploadSync() {
   return {
     conflict,
     failure,
+    success,
     selectedFileName,
     phase,
     isBusy: phase !== null,

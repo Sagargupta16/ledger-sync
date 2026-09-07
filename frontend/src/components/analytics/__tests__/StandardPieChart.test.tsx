@@ -160,11 +160,10 @@ describe('StandardPieChart sector shape', () => {
     return el.props.style
   }
 
-  it('brightens the hovered wedge and fades the others', () => {
+  it('keeps the hovered wedge opaque and fades the others', () => {
     const hovered = styleOf('Rent', false, { name: 'Rent', value: 1 })
     const other = styleOf('Rent', false, { name: 'Food', value: 1 })
 
-    expect(hovered.filter).toBe('brightness(1.18)')
     expect(hovered.opacity).toBe(1)
     expect(other.opacity).toBe(0.4)
   })

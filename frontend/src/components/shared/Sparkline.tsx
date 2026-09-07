@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 
-import { motion, useMotionValue, useTransform, animate } from 'motion/react'
+import { motion } from 'motion/react'
 
 import { rawColors } from '@/constants/colors'
 import { formatCurrencyShort } from '@/lib/formatters'
+import { useMotionStore } from '@/store/motionStore'
 
 import CompactSparkline from './SparklineCompact'
 import { buildDefaultGeometry } from './sparklineUtils'
@@ -29,7 +30,7 @@ interface SparklineProps {
 }
 
 /**
- * Sparkline with animated SVG path, hover tooltip, and end-dot indicator.
+ * Sparkline with an opacity reveal, hover tooltip, and end-dot indicator.
  *
  * Pass ``variant="compact"`` for inline-list use cases (category rows,
  * table cells) -- a stripped-down static form with no animation/hover.
@@ -64,13 +65,14 @@ export default function Sparkline({
       color={color}
       height={height}
       showTooltip={showTooltip}
+      ariaLabel={ariaLabel}
     />
   )
 }
 
 /**
- * Default rich sparkline -- animated path, hover tooltip, gradient fill,
- * average reference line, glow on the active dot. Used in cards and
+ * Default rich sparkline -- opacity entrance, hover tooltip, area fill,
+ * average reference line, and an active-point ring. Used in cards and
  * dashboards. Hooks live in this dedicated component so the exported
  * dispatcher above doesn't violate rules-of-hooks.
  */
@@ -79,33 +81,22 @@ function DefaultSparkline({
   color,
   height,
   showTooltip,
+  ariaLabel,
 }: Readonly<{
   data: number[]
   color: string
   height: number
   showTooltip: boolean
+  ariaLabel?: string
 }>) {
   const width = 200
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
 
   const { linePath, areaPath, points, avgY } = useMemo(
     () => buildDefaultGeometry(data, width, height),
     [data, height],
   )
-
-  const progress = useMotionValue(0)
-
-  useEffect(() => {
-    if (linePath) {
-      progress.set(0)
-      const ctrl = animate(progress, 1, { duration: 1, ease: [0.25, 0.46, 0.45, 0.94] })
-      return () => ctrl.stop()
-    }
-    progress.set(1)
-  }, [linePath, progress])
-
-  const dashOffset = useTransform(progress, [0, 1], [1, 0])
-  const areaOpacity = useTransform(progress, [0.3, 1], [0, 0.15])
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
@@ -125,9 +116,6 @@ function DefaultSparkline({
   const lastPoint = points.at(-1)
   if (!lastPoint) return null
   const hoverPoint = hoverIndex === null ? null : points[hoverIndex]
-  const colorKey = color.replace('#', '')
-  const gradId = `spark-grad-${colorKey}`
-  const glowId = `spark-glow-${colorKey}`
 
   return (
     <div className="relative group">
@@ -136,26 +124,18 @@ function DefaultSparkline({
         className="w-full cursor-crosshair select-none"
         style={{ height }}
         preserveAspectRatio="none"
+        role="img"
+        aria-label={ariaLabel ?? 'Trend'}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-          {/* Glow filter for active hover dot */}
-          <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation={3} result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Gradient fill */}
-        <motion.path d={areaPath} fill={`url(#${gradId})`} style={{ opacity: areaOpacity }} />
+        <motion.path
+          d={areaPath}
+          fill={color}
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 0.12 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
 
         {/* Average reference line */}
         <line
@@ -176,16 +156,15 @@ function DefaultSparkline({
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          pathLength={1}
-          style={{ pathLength: dashOffset }}
-          strokeDasharray="1"
-          strokeDashoffset="0"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
         />
 
         {/* End dot */}
         <circle cx={lastPoint.x} cy={lastPoint.y} r={3} fill={color} />
 
-        {/* Hover crosshair + glowing active dot */}
+        {/* Hover crosshair + active-point ring */}
         {hoverPoint && (
           <>
             <line
@@ -197,14 +176,14 @@ function DefaultSparkline({
               strokeWidth={1}
               strokeDasharray="3 3"
             />
-            {/* Outer glow ring */}
             <circle
               cx={hoverPoint.x}
               cy={hoverPoint.y}
               r={6}
-              fill={color}
-              opacity={0.25}
-              filter={`url(#${glowId})`}
+              fill="none"
+              stroke={color}
+              strokeOpacity={0.4}
+              strokeWidth={2}
             />
             {/* Inner dot -- ring matches the page background so the dot reads
                 as cut out in BOTH themes (was a hardcoded black ring that

@@ -8,11 +8,11 @@ interface Props {
 
 export default function TaxTip({ title, amount, description }: Readonly<Props>) {
   return (
-    <div className="p-3 rounded-xl bg-[var(--overlay-2)] border border-border">
-      <div className="flex items-center justify-between mb-1">
+    <div className="rounded-lg border border-border bg-[var(--overlay-2)] p-3">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium text-foreground">{title}</span>
         {amount !== null && (
-          <span className="text-xs font-semibold text-app-green">
+          <span className="whitespace-nowrap text-xs font-semibold text-app-green">
             up to {formatCurrency(amount)}
           </span>
         )}

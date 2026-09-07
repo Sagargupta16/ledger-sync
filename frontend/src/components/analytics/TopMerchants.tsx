@@ -93,42 +93,42 @@ export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-app-orange/20 p-3">
-            <Store className="h-6 w-6 text-app-orange" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-orange/15">
+            <Store className="size-4 text-app-orange" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold">Top Merchants</h3>
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <h3 className="text-base font-semibold">Top merchants</h3>
+            <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="ledger-control flex rounded-md border p-1">
           <button
             type="button"
             onClick={() => setViewMode('amount')}
             aria-pressed={viewMode === 'amount'}
-            className={`min-h-11 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+            className={`min-h-11 rounded px-3 py-2 text-sm transition-colors ${
               viewMode === 'amount'
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-background/50 hover:bg-background/70'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            By Amount
+            Amount
           </button>
           <button
             type="button"
             onClick={() => setViewMode('frequency')}
             aria-pressed={viewMode === 'frequency'}
-            className={`min-h-11 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+            className={`min-h-11 rounded px-3 py-2 text-sm transition-colors ${
               viewMode === 'frequency'
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-background/50 hover:bg-background/70'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            By Frequency
+            Frequency
           </button>
         </div>
       </div>
@@ -147,26 +147,26 @@ export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
             return (
               <div
                 key={`${merchant.merchant}-${merchant.label_kind ?? 'unclassified'}`}
-                className="relative flex items-center gap-3 overflow-hidden rounded-xl bg-background/30 p-3 transition-colors hover:bg-background/50"
+                className="relative flex items-center gap-3 overflow-hidden rounded-md bg-[var(--overlay-1)] p-3"
               >
                 {/* Proportional bar behind the row content */}
                 <div
                   aria-hidden
-                  className="absolute inset-y-0 left-0 rounded-xl opacity-15"
+                  className="absolute inset-y-0 left-0 opacity-15"
                   style={{ width: `${barWidth}%`, backgroundColor: COLORS[index % COLORS.length] }}
                 />
                 <div
-                  className="relative flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-foreground"
+                  className="relative flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-bold text-foreground"
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 >
                   {index + 1}
                 </div>
                 <div className="relative min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {merchant.merchant}
+                  <p className="flex min-w-0 items-baseline font-medium">
+                    <span className="truncate">{merchant.merchant}</span>
                     {isNote && (
                       <span
-                        className="ml-1.5 text-[11px] font-normal text-text-tertiary"
+                        className="ml-1.5 shrink-0 text-[11px] font-normal text-text-tertiary"
                         title="Raw transaction note, so this describes what was bought rather than who was paid."
                       >
                         (note)
@@ -186,19 +186,19 @@ export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
       )}
 
       {merchants.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 text-center sm:grid-cols-3">
-          <div>
-            <p className="text-2xl font-bold text-app-orange">{merchants.length}</p>
+        <div className="mt-4 grid grid-cols-1 border-t border-[var(--hairline-1)] text-center sm:grid-cols-3">
+          <div className="py-4 sm:border-r sm:border-[var(--hairline-1)]">
+            <p className="ledger-figure text-xl font-semibold text-app-orange">{merchants.length}</p>
             <p className="text-xs text-muted-foreground">Payees Shown</p>
           </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums break-all">
+          <div className="border-t border-[var(--hairline-1)] py-4 sm:border-t-0 sm:border-r">
+            <p className="ledger-figure break-all text-xl font-semibold">
               {formatCurrency(totalAtTop)}
             </p>
             <p className="text-xs text-muted-foreground">Total at Top {merchants.length}</p>
           </div>
-          <div>
-            <p className="text-2xl font-bold tabular-nums">{visitsAtTop}</p>
+          <div className="border-t border-[var(--hairline-1)] py-4 sm:border-t-0">
+            <p className="ledger-figure text-xl font-semibold">{visitsAtTop}</p>
             <p className="text-xs text-muted-foreground">Payments</p>
           </div>
         </div>

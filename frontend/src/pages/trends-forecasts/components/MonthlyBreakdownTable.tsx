@@ -1,7 +1,7 @@
-import { motion } from 'motion/react'
 import { TrendingUp } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -16,6 +16,7 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
   {
     key: 'month',
     header: 'Month',
+    mobilePrimary: true,
     cell: (row) => <span className="font-medium text-foreground">{row.month}</span>,
   },
   {
@@ -23,14 +24,18 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
     header: 'Income',
     align: 'right',
     sortable: true,
-    cell: (row) => <span className="text-app-green">{formatCurrency(row.income)}</span>,
+    cell: (row) => (
+      <span className="ledger-figure text-app-green">{formatCurrency(row.income)}</span>
+    ),
   },
   {
     key: 'expenses',
     header: 'Spending',
     align: 'right',
     sortable: true,
-    cell: (row) => <span className="text-app-red">{formatCurrency(row.expenses)}</span>,
+    cell: (row) => (
+      <span className="ledger-figure text-app-red">{formatCurrency(row.expenses)}</span>
+    ),
   },
   {
     key: 'surplus',
@@ -38,7 +43,11 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
     align: 'right',
     sortable: true,
     cell: (row) => (
-      <span className={`font-bold ${row.surplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
+      <span
+        className={`ledger-figure font-bold ${
+          row.surplus >= 0 ? 'text-app-purple' : 'text-app-red'
+        }`}
+      >
         {formatCurrency(row.surplus)}
       </span>
     ),
@@ -49,7 +58,11 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
     align: 'right',
     sortable: true,
     cell: (row) => (
-      <span className={row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'}>
+      <span
+        className={`ledger-figure ${
+          row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'
+        }`}
+      >
         {row.rawSavingsRate.toFixed(1)}%
       </span>
     ),
@@ -58,21 +71,21 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
 
 export default function MonthlyBreakdownTable({ isLoading, chartData }: Readonly<Props>) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
-      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5 [&_thead_button]:min-h-11"
+      aria-labelledby="monthly-breakdown-title"
     >
-      <h3 className="text-lg font-semibold text-foreground mb-4">Month-on-Month Breakdown</h3>
-      {isLoading && <div className="text-center py-8 text-muted-foreground">Loading data...</div>}
+      <h2 id="monthly-breakdown-title" className="mb-4 text-base font-semibold text-foreground">
+        Month-on-Month Breakdown
+      </h2>
+      {isLoading && <TableSkeleton rows={5} />}
       {!isLoading && chartData.length > 0 && (
         <DataTable<MonthlyTrendRow>
           columns={COLUMNS}
           rows={chartData}
           rowKey={(row) => row.month}
           ariaLabel="Month on month breakdown"
+          mobileCards
         />
       )}
       {!isLoading && chartData.length === 0 && (
@@ -83,6 +96,6 @@ export default function MonthlyBreakdownTable({ isLoading, chartData }: Readonly
           variant="compact"
         />
       )}
-    </motion.div>
+    </section>
   )
 }

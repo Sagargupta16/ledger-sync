@@ -95,7 +95,7 @@ export default function ExpenseCategoriesSection({
                       aria-label={`Mark ${cat} as essential`}
                       aria-pressed={isEssential}
                       onClick={() => toggleEssentialCategory(cat)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       <span
                         className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${
@@ -114,7 +114,7 @@ export default function ExpenseCategoriesSection({
                       aria-label={`Mark ${cat} as a fixed monthly expense`}
                       aria-pressed={isFixed}
                       onClick={() => toggleFixedCategory(cat)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      className="flex min-h-11 min-w-11 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       <span
                         className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors text-xs font-bold ${

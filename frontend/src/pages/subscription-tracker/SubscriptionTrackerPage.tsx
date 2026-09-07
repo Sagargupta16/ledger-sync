@@ -157,7 +157,7 @@ export default function SubscriptionTrackerPage() {
       <RecurringSummarySection
         isLoading={isLoading}
         summary={summary}
-        hasActiveItems={active.length > 0}
+        hasActiveItems={active.length > 0 || detected.length > 0}
       />
 
       {!showForm && !isLoading && (

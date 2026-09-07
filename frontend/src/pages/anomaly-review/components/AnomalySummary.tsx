@@ -1,8 +1,6 @@
 import { AlertCircle, AlertTriangle, ListFilter } from 'lucide-react'
-import { motion } from 'motion/react'
 
 import { StatCard } from '@/components/ui'
-import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 
 import { SEVERITY_STYLES } from '../constants'
@@ -21,40 +19,33 @@ export default function AnomalySummary({ summary }: Readonly<Props>) {
 
   return (
     <>
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5"
-      >
-        <motion.div variants={fadeUpItem}>
-          <StatCard
-            title="High Severity"
-            value={String(high)}
-            icon={<AlertTriangle className="w-5 h-5" />}
-            iconColor={SEVERITY_STYLES.high.iconColor}
-          />
-        </motion.div>
-        <motion.div variants={fadeUpItem}>
-          <StatCard
-            title="Medium Severity"
-            value={String(medium)}
-            icon={<AlertCircle className="w-5 h-5" />}
-            iconColor={SEVERITY_STYLES.medium.iconColor}
-          />
-        </motion.div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
+        <StatCard
+          title="High Severity"
+          value={String(high)}
+          icon={<AlertTriangle className="w-5 h-5" />}
+          iconColor={SEVERITY_STYLES.high.iconColor}
+        />
+        <StatCard
+          title="Medium Severity"
+          value={String(medium)}
+          icon={<AlertCircle className="w-5 h-5" />}
+          iconColor={SEVERITY_STYLES.medium.iconColor}
+          delay={0.04}
+        />
         {/* Replaces the old "Low Severity" tile, which was structurally pinned to
             zero -- no detector writes that grade. Total is the number the user can
             act on: it says how much is in the list they are looking at. */}
-        <motion.div variants={fadeUpItem}>
+        <div className="col-span-2 md:col-span-1">
           <StatCard
             title="Total Detected"
             value={String(total)}
             icon={<ListFilter className="w-5 h-5" />}
             iconColor={rawColors.chart.neutral}
+            delay={0.08}
           />
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {total > 0 && (
         <div

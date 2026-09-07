@@ -116,12 +116,12 @@ function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
   return (
     <Link
       to={item.to}
-      className="ledger-panel flex min-h-24 flex-col items-center justify-center gap-2 p-3 transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+      className="ledger-panel flex min-h-24 flex-col items-center justify-center gap-2 p-3 transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] md:min-h-16 md:flex-row md:justify-start"
     >
       <div className="flex size-10 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
-        <item.icon className={`size-5 ${item.color}`} />
+        <item.icon className={`size-5 ${item.color}`} aria-hidden="true" />
       </div>
-      <span className="text-center text-xs leading-tight text-foreground">
+      <span className="min-w-0 text-center text-xs leading-tight text-foreground md:text-left">
         {item.label}
       </span>
     </Link>
@@ -142,7 +142,7 @@ export default function MorePage() {
 
   return (
     <PageContainer>
-        <PageHeader title="More" subtitle="All workspace tools, grouped by workflow" />
+      <PageHeader title="More" subtitle="All workspace tools, grouped by workflow" />
 
       {SECTIONS.map((section, sIdx) => (
         <motion.section
@@ -155,7 +155,7 @@ export default function MorePage() {
           <h2 className="px-1 text-overline font-semibold uppercase text-text-tertiary">
             {section.title}
           </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {section.items.map((item) => (
               <MoreTile key={item.to} item={item} />
             ))}
@@ -167,10 +167,13 @@ export default function MorePage() {
         type="button"
         onClick={handleSignOut}
         disabled={logout.isPending}
-        className="ledger-control mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border p-3 text-app-red transition-colors hover:bg-app-red/5 active:scale-[0.98] disabled:opacity-50"
+        aria-busy={logout.isPending}
+        className="ledger-control mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border p-3 text-app-red transition-colors hover:bg-app-red/5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
       >
-        <LogOut className="size-4" />
-        <span className="text-sm font-medium">Sign out</span>
+        <LogOut className="size-4" aria-hidden="true" />
+        <span className="text-sm font-medium">
+          {logout.isPending ? 'Signing out...' : 'Sign out'}
+        </span>
       </button>
     </PageContainer>
   )

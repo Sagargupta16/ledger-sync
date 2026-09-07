@@ -22,7 +22,8 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
 import { buildYearlyTaxData } from '../taxPlanningUtils'
 import type { TaxPlanningModel } from '../useTaxPlanning'
@@ -32,6 +33,8 @@ interface Props {
 }
 
 export default function TaxYearChart({ planning }: Readonly<Props>) {
+  const isMobile = useIsMobile()
+
   if (planning.fyList.length === 0) return null
 
   const yearlyTaxData = buildYearlyTaxData(
@@ -44,23 +47,27 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
     planning.salaryIsNetOfTds,
   )
   const hasTaxData = yearlyTaxData.some((row) => row.paidTax !== 0 || row.projected !== 0)
+  const cumulativeTaxMax = Math.max(0, ...yearlyTaxData.map((row) => row.cumulative))
+  const cumulativeScaleShort = `${formatCurrencyShort(0)}-${formatCurrencyShort(cumulativeTaxMax)}`
+  const chartAriaLabel = isMobile
+    ? `Tax per fiscal year -- paid versus projected. Cumulative tax uses the right scale from ${formatCurrency(0)} to ${formatCurrency(cumulativeTaxMax)}.`
+    : 'Tax per fiscal year -- paid versus projected, with a cumulative total trend line'
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+      transition={{ delay: 0.12, duration: 0.2 }}
+      className="ledger-panel p-4 md:p-6"
     >
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 bg-app-blue/10 rounded-xl">
-          <TrendingUp className="w-5 h-5 text-app-blue" />
+      <div className="mb-4 flex items-start gap-3">
+        <div className="rounded-md bg-app-blue/10 p-2.5">
+          <TrendingUp className="size-5 text-app-blue" aria-hidden="true" />
         </div>
-        <div>
-          <h3 className="text-lg font-semibold">Tax Per Year</h3>
-          <p className="text-xs text-muted-foreground">
-            Paid (red) vs projected (orange) bars on the left axis; cumulative total (blue) on the
-            right axis
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold">Tax per year</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Annual liability and cumulative total
           </p>
         </div>
       </div>
@@ -69,14 +76,27 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
         <ChartEmptyState height={280} message="No tax liability found across years" />
       ) : (
         <ChartContainer
-          height={300}
-          ariaLabel="Tax per fiscal year -- paid versus projected, with a cumulative total trend line"
+          height={isMobile ? 270 : 300}
+          ariaLabel={chartAriaLabel}
         >
           <BarChart data={yearlyTaxData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis {...xAxisDefaults(yearlyTaxData.length)} dataKey="fy" />
-            <YAxis {...yAxisDefaults()} yAxisId="left" />
-            <YAxis {...yAxisDefaults()} yAxisId="right" orientation="right" />
+            <YAxis
+              {...yAxisDefaults()}
+              yAxisId="left"
+              tickFormatter={(value: number) => formatCurrencyShort(value)}
+              width={isMobile ? 40 : 44}
+            />
+            <YAxis
+              {...yAxisDefaults()}
+              yAxisId="right"
+              orientation="right"
+              tickFormatter={(value: number) => formatCurrencyShort(value)}
+              width={isMobile ? 0 : 44}
+              hide={isMobile}
+              domain={isMobile ? [0, cumulativeTaxMax] : undefined}
+            />
             <Tooltip
               {...chartTooltipProps}
               formatter={(value, name) => {
@@ -99,7 +119,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
               fillOpacity={0.7}
               maxBarSize={40}
               isAnimationActive={shouldAnimate(yearlyTaxData.length)}
-              animationDuration={600}
+              animationDuration={450}
               animationEasing="ease-out"
             />
             <Bar
@@ -112,7 +132,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
               radius={BAR_RADIUS}
               maxBarSize={40}
               isAnimationActive={shouldAnimate(yearlyTaxData.length)}
-              animationDuration={600}
+              animationDuration={450}
               animationEasing="ease-out"
             />
             <Line
@@ -126,10 +146,28 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
               dot={false}
               activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
               isAnimationActive={shouldAnimate(yearlyTaxData.length)}
-              animationDuration={600}
+              animationDuration={450}
             />
           </BarChart>
         </ChartContainer>
+      )}
+      {hasTaxData && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-app-red/70" aria-hidden="true" />
+            {'Tax paid'}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-app-orange/50" aria-hidden="true" />
+            {'Projected'}
+          </span>
+          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+            <span className="h-0.5 w-4 shrink-0 bg-app-blue" aria-hidden="true" />
+            <span className="min-w-0 truncate">
+              Cumulative{isMobile ? `: ${cumulativeScaleShort}` : ''}
+            </span>
+          </span>
+        </div>
       )}
     </motion.div>
   )

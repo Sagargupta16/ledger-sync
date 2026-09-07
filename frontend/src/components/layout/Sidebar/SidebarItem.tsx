@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
+import { SPRING } from '@/constants/animations'
 import { cn } from '@/lib/cn'
 
 interface SidebarItemProps {
@@ -43,7 +44,7 @@ export default function SidebarItem({
             <motion.span
               layoutId="sidebar-active-pill"
               className="absolute inset-0 rounded-md bg-[var(--overlay-4)]"
-              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              transition={SPRING.activePill}
               aria-hidden
             />
           )}

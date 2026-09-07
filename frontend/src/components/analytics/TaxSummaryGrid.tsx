@@ -34,14 +34,16 @@ export default function TaxSummaryGrid({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 }}
-      className="glass rounded-2xl border border-border p-6"
+      transition={{ delay: 0.2 }}
+      className="ledger-panel overflow-hidden"
     >
-      <h3 className="text-lg font-semibold text-foreground mb-6">Tax Summary for {selectedFY}</h3>
-      <div className={`grid grid-cols-1 ${isProjecting ? '' : 'sm:grid-cols-2'} gap-4`}>
-        <div className="p-4 bg-[var(--overlay-2)] rounded-lg border border-border">
+      <div className="border-b border-[var(--hairline-1)] p-4 sm:px-5">
+        <h3 className="text-base font-semibold text-foreground">Tax summary for {selectedFY}</h3>
+      </div>
+      <div className={`grid grid-cols-1 ${isProjecting ? '' : 'sm:grid-cols-2'}`}>
+        <div className="p-4 sm:p-5">
           <p className="text-sm text-muted-foreground mb-2">Effective Tax Rate</p>
-          <p className="text-2xl font-bold text-primary">{formatPercent(effectiveTaxRate)}</p>
+          <p className="ledger-figure text-xl font-semibold text-primary">{formatPercent(effectiveTaxRate)}</p>
           {/* Qualitative bands frame whether the rate is light/moderate/heavy
               against the new-regime ceiling (~30% slab + cess). The fill shows
               where this FY lands; the tick marks the 30% top-slab threshold. */}
@@ -64,9 +66,9 @@ export default function TaxSummaryGrid({
           </p>
         </div>
         {!isProjecting && (
-          <div className="p-4 bg-[var(--overlay-2)] rounded-lg border border-border">
+          <div className="border-t border-[var(--hairline-1)] p-4 sm:border-t-0 sm:border-l sm:p-5">
             <p className="text-sm text-muted-foreground mb-2">Net Savings</p>
-            <p className="text-2xl font-bold text-app-purple">{formatCurrency(netSavings)}</p>
+            <p className="ledger-figure text-xl font-semibold text-app-purple">{formatCurrency(netSavings)}</p>
             {/* Savings rate = kept / earned. Bands echo the common 20% / 30%
                 personal-finance guideposts so the bar reads as good/great. */}
             <ProgressBar

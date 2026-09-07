@@ -47,4 +47,23 @@ describe('HeatmapCell in net mode', () => {
     renderCell(cell('2026-01-04', 0, 0))
     expect(screen.getByRole('button').getAttribute('aria-label')).toBe('2026-01-04: no activity')
   })
+
+  it('only enters the tab order when selected as the keyboard anchor', () => {
+    const day = cell('2026-01-05', 0, 0)
+    const { rerender } = render(
+      <HeatmapCell cell={day} mode="net" modeMax={50_000} />,
+    )
+
+    expect(screen.getByRole('button')).toHaveAttribute('tabindex', '-1')
+
+    rerender(
+      <HeatmapCell
+        cell={day}
+        mode="net"
+        modeMax={50_000}
+        isKeyboardAnchor
+      />,
+    )
+    expect(screen.getByRole('button')).toHaveAttribute('tabindex', '0')
+  })
 })

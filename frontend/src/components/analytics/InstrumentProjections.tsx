@@ -172,16 +172,22 @@ export default function InstrumentProjections() {
   const [tab, setTab] = useState<Instrument>('ppf')
 
   return (
-    <motion.div
-      className="ledger-panel p-4 sm:p-5"
+    <motion.section
+      className="border-t border-[var(--hairline-2)] pt-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
+      aria-labelledby="instrument-projections-title"
     >
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Landmark className="w-5 h-5 text-app-blue" />
-          <h3 className="min-w-0 text-base font-semibold text-foreground sm:text-lg">Instrument Maturity Projections</h3>
+          <h2
+            id="instrument-projections-title"
+            className="min-w-0 text-base font-semibold text-foreground sm:text-lg"
+          >
+            Instrument Maturity Projections
+          </h2>
           <StaleDataBadge
             isFallback={isFallback}
             reason="Couldn't fetch the latest instrument rates -- using compiled-in defaults until the next refresh."
@@ -194,7 +200,7 @@ export default function InstrumentProjections() {
               type="button"
               onClick={() => setTab(key)}
               aria-pressed={tab === key}
-              className={`min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-8 ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors lg:pointer-fine:min-h-8 ${tab === key ? 'bg-[var(--overlay-5)] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {label}
             </button>
@@ -205,6 +211,6 @@ export default function InstrumentProjections() {
       {tab === 'ppf' && <PPFTab initialBalance={ppfBalance} rates={rates} />}
       {tab === 'epf' && <EPFTab initialBalance={epfBalance} rates={rates} />}
       {tab === 'nps' && <NPSTab rates={rates} />}
-    </motion.div>
+    </motion.section>
   )
 }

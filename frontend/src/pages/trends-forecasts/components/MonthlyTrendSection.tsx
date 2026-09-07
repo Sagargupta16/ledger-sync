@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { LineChart as LineChartIcon } from 'lucide-react'
 import {
   Area,
@@ -23,13 +22,21 @@ import {
   referenceLine,
   shouldAnimate,
   xAxisDefaults,
+  yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
 import { formatTooltipName } from '../trendsUtils'
 import type { useTrendsForecasts } from '../useTrendsForecasts'
+
+const MAX_VISIBLE_LABELS = {
+  mobile: 4,
+  tablet: 8,
+  desktop: 6,
+} as const
 
 type MonthlyTrendData = ReturnType<typeof useTrendsForecasts>['monthlyTrendWithAvg']
 
@@ -57,6 +64,7 @@ export default function MonthlyTrendSection({
   activeLabel,
   onActiveLabelChange,
 }: MonthlyTrendSectionProps) {
+  const dims = useChartDimensions()
   const series = [
     {
       id: 'trendIncome',
@@ -83,19 +91,21 @@ export default function MonthlyTrendSection({
       peak: peakSavings,
     },
   ] as const
+  const animateCharts = shouldAnimate(data.length * series.length * 2)
+  const maxVisibleLabels = MAX_VISIBLE_LABELS[dims.breakpoint]
+  const xAxisInterval = Math.max(0, Math.ceil(data.length / maxVisibleLabels) - 1)
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-20px' }}
-      transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
-    >
-      <div className="mb-6 flex items-center gap-3">
-        <LineChartIcon className="h-5 w-5 text-app-blue" />
+    <section className="ledger-panel p-4 sm:p-5" aria-labelledby="income-expense-trends-title">
+      <div className="mb-4 flex items-start gap-2.5">
+        <LineChartIcon className="mt-0.5 size-5 shrink-0 text-app-blue" aria-hidden="true" />
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Income & Expense Trends</h2>
+          <h2
+            id="income-expense-trends-title"
+            className="text-base font-semibold text-foreground"
+          >
+            Income & Expense Trends
+          </h2>
           <p className="text-sm text-text-tertiary">
             Monthly breakdown with {rollingAvgMonths}-month rolling averages
           </p>
@@ -104,11 +114,18 @@ export default function MonthlyTrendSection({
 
       {isLoading && <ChartSkeleton height="h-80" />}
       {!isLoading && data.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 divide-y divide-[var(--hairline-1)] lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {series.map(({ id, color, label, dataKey, avgKey, peak }) => (
-            <div key={id} className="glass-thin rounded-xl border border-border p-4">
+            <div
+              key={id}
+              className="min-w-0 py-4 first:pt-0 last:pb-0 lg:px-4 lg:py-0 lg:first:pl-0 lg:last:pr-0"
+            >
               <div className="mb-3 flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                  aria-hidden="true"
+                />
                 <span className="text-sm font-medium text-foreground">{label}</span>
               </div>
               <ChartContainer
@@ -124,8 +141,12 @@ export default function MonthlyTrendSection({
                 >
                   <defs>{areaGradient(id, color, 0.4, 0.02)}</defs>
                   <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis {...xAxisDefaults(data.length)} dataKey="label" />
-                  <YAxis hide />
+                  <XAxis
+                    {...xAxisDefaults(data.length)}
+                    dataKey="label"
+                    interval={xAxisInterval}
+                  />
+                  <YAxis {...yAxisDefaults({ width: 46 })} />
                   <Tooltip
                     {...chartTooltipProps}
                     labelFormatter={(
@@ -165,7 +186,7 @@ export default function MonthlyTrendSection({
                     strokeWidth={2}
                     dot={data.length === 1 ? { r: 3, fill: color } : false}
                     activeDot={{ ...ACTIVE_DOT, fill: color }}
-                    isAnimationActive={shouldAnimate(data.length)}
+                    isAnimationActive={animateCharts}
                     animationDuration={600}
                     animationEasing="ease-out"
                   />
@@ -182,7 +203,7 @@ export default function MonthlyTrendSection({
                     dot={rollingAvgPointCount === 1 ? { r: 3, fill: color } : false}
                     activeDot={{ ...ACTIVE_DOT, fill: color }}
                     name={`${label} (${rollingAvgMonths}m avg)`}
-                    isAnimationActive={shouldAnimate(data.length)}
+                    isAnimationActive={animateCharts}
                     animationDuration={600}
                     animationEasing="ease-out"
                   />
@@ -202,6 +223,6 @@ export default function MonthlyTrendSection({
           variant="chart"
         />
       )}
-    </motion.section>
+    </section>
   )
 }

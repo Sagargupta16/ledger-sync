@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
 import { shouldAnimate } from '@/components/ui/chartDefaults'
 import { rawColors } from '@/constants/colors'
 
@@ -55,35 +56,54 @@ export default function StandardRadarChart<T>({
   ariaLabel,
 }: StandardRadarChartProps<T>) {
   const animate = shouldAnimate(data.length)
+  const rows = data as readonly Record<string, unknown>[]
 
   return (
-    <ChartContainer height={height} ariaLabel={ariaLabel}>
-      <RadarChart data={data as unknown as Array<Record<string, unknown>>}>
-        <PolarGrid stroke={rawColors.chart.axisLine} strokeDasharray="3 3" />
-        <PolarAngleAxis
-          dataKey={categoryKey}
-          tick={{ fill: rawColors.chart.textSubtle, fontSize: labelFontSize }}
-        />
-        <PolarRadiusAxis
-          angle={30}
-          domain={radiusDomain}
-          tick={showRadiusTicks ? { fill: rawColors.chart.textDim, fontSize: 9 } : false}
-          axisLine={false}
-        />
-        <Radar
-          name={name ?? dataKey}
-          dataKey={dataKey}
-          stroke={color}
-          fill={color}
-          fillOpacity={fillOpacity}
-          strokeWidth={2}
-          dot={{ r: dotRadius, fill: color, strokeWidth: 0 }}
-          isAnimationActive={animate}
-          animationDuration={600}
-          animationEasing="ease-out"
-        />
-        <Tooltip {...chartTooltipProps} />
-      </RadarChart>
-    </ChartContainer>
+    <>
+      <ChartContainer height={height} ariaLabel={ariaLabel}>
+        <RadarChart data={data as unknown as Array<Record<string, unknown>>}>
+          <PolarGrid stroke={rawColors.chart.axisLine} strokeDasharray="3 3" />
+          <PolarAngleAxis
+            dataKey={categoryKey}
+            tick={{ fill: rawColors.chart.textSubtle, fontSize: labelFontSize }}
+          />
+          <PolarRadiusAxis
+            angle={30}
+            domain={radiusDomain}
+            tick={showRadiusTicks ? { fill: rawColors.chart.textDim, fontSize: 9 } : false}
+            axisLine={false}
+          />
+          <Radar
+            name={name ?? dataKey}
+            dataKey={dataKey}
+            stroke={color}
+            fill={color}
+            fillOpacity={fillOpacity}
+            strokeWidth={2}
+            dot={{ r: dotRadius, fill: color, strokeWidth: 0 }}
+            isAnimationActive={animate}
+            animationDuration={600}
+            animationEasing="ease-out"
+          />
+          <Tooltip {...chartTooltipProps} />
+        </RadarChart>
+      </ChartContainer>
+      {chartDataTable(
+        rows,
+        [
+          {
+            header: 'Dimension',
+            rowHeader: true,
+            value: (row) => chartCellText(row[categoryKey]),
+          },
+          {
+            header: name ?? dataKey,
+            value: (row) => chartCellText(row[dataKey]),
+          },
+        ],
+        ariaLabel ?? 'Radar chart data',
+        (row, index) => `${chartCellText(row[categoryKey]) || 'row'}-${index}`,
+      )}
+    </>
   )
 }

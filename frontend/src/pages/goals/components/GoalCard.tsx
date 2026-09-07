@@ -4,7 +4,7 @@ import { Pencil, Trash2, Edit3 } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 import { parseLocalDate } from '@/lib/dateUtils'
-import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { Button, ConfirmDialog } from '@/components/ui'
 import { ProgressBar } from '@/components/shared'
 import { rawColors } from '@/constants/colors'
 import { goalTypeColor, goalTypeLabel } from '../constants'
@@ -71,34 +71,14 @@ export default function GoalCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6 hover:scale-[1.01] transition-all duration-200"
+      className="ledger-panel p-4 sm:p-5"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className="text-lg font-semibold text-foreground truncate">{goal.name}</h4>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                type="button"
-                onClick={onStartEditDetails}
-                title="Edit goal"
-                aria-label="Edit goal"
-                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-5)] transition-colors"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                title="Delete goal"
-                aria-label={`Delete goal: ${goal.name}`}
-                className="flex items-center justify-center min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-lg text-text-tertiary hover:text-app-red hover:bg-app-red/10 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
+          <h4 className="break-words text-lg font-semibold leading-tight text-foreground">
+            {goal.name}
+          </h4>
           <span
             className="inline-block mt-1 px-2.5 py-0.5 text-xs rounded-full font-medium"
             style={{ backgroundColor: `${color}20`, color }}
@@ -116,17 +96,24 @@ export default function GoalCard({
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
         <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Target</p>
-          <p className="text-sm font-medium text-foreground break-all">{formatCurrency(goal.target_amount)}</p>
+          <p className="ledger-figure whitespace-nowrap text-sm font-medium text-foreground">
+            <span className="sm:hidden">{formatCurrencyCompact(goal.target_amount)}</span>
+            <span className="hidden sm:inline">{formatCurrency(goal.target_amount)}</span>
+          </p>
         </div>
         <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Allocated</p>
-          <p className="text-sm font-medium break-all" style={{ color }}>
-            {formatCurrency(effectiveAmount)}
+          <p className="ledger-figure whitespace-nowrap text-sm font-medium" style={{ color }}>
+            <span className="sm:hidden">{formatCurrencyCompact(effectiveAmount)}</span>
+            <span className="hidden sm:inline">{formatCurrency(effectiveAmount)}</span>
           </p>
         </div>
         <div className="min-w-0">
           <p className="text-xs text-text-tertiary">Remaining</p>
-          <p className="text-sm font-medium text-foreground break-all">{formatCurrency(remaining)}</p>
+          <p className="ledger-figure whitespace-nowrap text-sm font-medium text-foreground">
+            <span className="sm:hidden">{formatCurrencyCompact(remaining)}</span>
+            <span className="hidden sm:inline">{formatCurrency(remaining)}</span>
+          </p>
         </div>
       </div>
 
@@ -159,18 +146,42 @@ export default function GoalCard({
       <GoalProjections goal={goal} projection={projection} avgMonthlySavings={avgMonthlySavings} />
 
       {/* Footer with Update Progress button */}
-      <div className="flex items-center justify-between mt-4">
-        <button
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <Button
           type="button"
           onClick={onStartEdit}
-          className="flex items-center gap-1.5 px-3 py-2.5 min-h-11 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors bg-[var(--overlay-2)] border border-border hover:bg-[var(--overlay-5)] text-text-secondary hover:text-foreground"
+          variant="secondary"
+          size="sm"
+          icon={<Pencil className="h-3.5 w-3.5" />}
         >
-          <Pencil className="w-3.5 h-3.5" /> Update Progress
-        </button>
-        <span className="text-xs text-text-tertiary">
-          Remaining: {formatCurrencyCompact(remaining)}
-        </span>
+          Update Progress
+        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            onClick={onStartEditDetails}
+            title="Edit goal"
+            aria-label="Edit goal"
+            variant="ghost"
+            size="sm"
+            icon={<Edit3 className="h-3.5 w-3.5" />}
+            className="text-text-tertiary hover:text-foreground"
+          />
+          <Button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            title="Delete goal"
+            aria-label={`Delete goal: ${goal.name}`}
+            variant="ghost"
+            size="sm"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            className="text-text-tertiary hover:bg-app-red/10 hover:text-app-red"
+          />
+        </div>
       </div>
+      <span className="mt-2 block text-xs text-text-tertiary">
+        Remaining: {formatCurrencyCompact(remaining)}
+      </span>
 
       {goal.notes && <p className="mt-3 text-xs text-text-tertiary italic">{goal.notes}</p>}
 

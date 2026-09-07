@@ -98,7 +98,7 @@ export default function MerchantFilters({
         Recurring only
       </button>
 
-      <div className="min-w-0 flex-1 sm:max-w-xs">
+      <div className="min-w-0 basis-full sm:max-w-xs sm:flex-1 sm:basis-auto">
         <Input
           type="search"
           value={search}

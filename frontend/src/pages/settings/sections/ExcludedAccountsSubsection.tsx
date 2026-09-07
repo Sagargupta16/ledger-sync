@@ -49,7 +49,7 @@ export default function ExcludedAccountsSubsection({
                <label
                  key={account}
                  htmlFor={controlId}
-                 className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--overlay-2)]"
+                 className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--overlay-2)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--focus-ring)]"
                >
                  <input
                    id={controlId}

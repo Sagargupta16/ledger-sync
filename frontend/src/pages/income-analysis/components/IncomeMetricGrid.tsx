@@ -32,7 +32,7 @@ export default function IncomeMetricGrid({
   else if (growthRate !== undefined && growthRate < 0) growthColor = 'red'
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       <MetricCard
         title="Total Income"
         value={formatCurrency(totalIncome)}
@@ -61,6 +61,7 @@ export default function IncomeMetricGrid({
               color={rawColors.app[growthColor === 'red' ? 'red' : 'green']}
               height={36}
               showTooltip={false}
+              ariaLabel="Income growth trend"
             />
           ) : undefined
         }

@@ -64,7 +64,7 @@ export default function CategorizationRulesSection({
       {rules.map((rule) => (
         <div
           key={rule.localId}
-          className="rounded-xl bg-[var(--overlay-1)] border border-border p-4 space-y-3"
+          className="space-y-3 border-t border-border py-4"
         >
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="w-full sm:w-36">

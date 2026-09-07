@@ -47,7 +47,7 @@ export default function AccountClassificationsSection({
     >
       {/* Unassigned accounts highlight */}
       {unclassifiedAccounts.length > 0 && (
-        <div className="bg-app-yellow/10 border border-app-yellow/30 rounded-xl p-4">
+        <div className="rounded-lg border border-app-yellow/30 bg-app-yellow/10 p-4">
           <p className="mb-1 text-sm font-medium text-warning-text">
             {unclassifiedAccounts.length}{' '}Unassigned Account{unclassifiedAccounts.length !== 1 && 's'}
           </p>
@@ -62,8 +62,8 @@ export default function AccountClassificationsSection({
                   onDragStart={() => onDragStart(name)}
                   onDragEnd={onDragEnd}
                   whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 1 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--overlay-5)] border border-border rounded-full cursor-move hover:bg-[var(--overlay-6)] transition-colors min-w-0 flex-1"
+                  whileTap={{ scale: 0.97 }}
+                  className="flex min-w-0 flex-1 cursor-move items-center gap-1.5 rounded-md border border-border bg-[var(--overlay-5)] px-3 py-1.5 transition-colors hover:bg-[var(--overlay-6)]"
                 >
                   <GripVertical className="w-3 h-3 text-foreground/40 shrink-0" />
                   <span className="text-sm text-foreground truncate">{name}</span>
@@ -105,7 +105,7 @@ export default function AccountClassificationsSection({
             aria-label={`Drop zone for ${category} accounts`}
             onDragOver={handleDragOver}
             onDrop={() => onDropOnCategory(category)}
-            className={`rounded-xl border-2 border-dashed p-3 transition-all min-h-[140px] ${
+            className={`min-h-[140px] rounded-lg border-2 border-dashed p-3 transition-[background-color,border-color] ${
               dragType === 'account'
                 ? 'border-primary/50 bg-primary/5'
                 : 'border-border bg-[var(--overlay-1)]'
@@ -128,8 +128,8 @@ export default function AccountClassificationsSection({
                     onDragStart={() => onDragStart(name)}
                     onDragEnd={onDragEnd}
                     whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 1 }}
-                    className="flex min-w-0 cursor-move items-center gap-1 rounded-full border border-border bg-[var(--overlay-5)] px-2.5 py-1 transition-colors hover:bg-[var(--overlay-6)]"
+                    whileTap={{ scale: 0.97 }}
+                    className="flex min-w-0 cursor-move items-center gap-1 rounded-md border border-border bg-[var(--overlay-5)] px-2.5 py-1 transition-colors hover:bg-[var(--overlay-6)]"
                   >
                     <GripVertical className="h-2.5 w-2.5 shrink-0 text-foreground/30" />
                     <span className="truncate text-xs text-foreground">{name}</span>

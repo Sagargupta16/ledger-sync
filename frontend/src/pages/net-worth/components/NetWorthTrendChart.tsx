@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import { BarChart3, Sparkles, TrendingUp } from 'lucide-react'
 import { Area, AreaChart, Brush, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -72,20 +71,23 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   const hasNegativeNetWorth = chartData.some((d) => typeof d.netWorth === 'number' && d.netWorth < 0)
   const stackedAllowed = !hasNegativeNetWorth
   const effectiveStacked = showStacked && stackedAllowed
+  const animatedPointCount =
+    filteredNetWorthData.length * (effectiveStacked ? Math.max(allCategories.length, 1) : 1)
+  const animateSeries = shouldAnimate(animatedPointCount)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4 }}
-      className="glass rounded-2xl border border-border p-4 md:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
+      aria-labelledby="net-worth-trend-title"
     >
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="w-5 h-5 text-app-blue" />
-          <h3 className="text-lg font-semibold text-foreground">Net Worth Trend</h3>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <BarChart3 className="size-5 text-app-blue" aria-hidden="true" />
+          <h2 id="net-worth-trend-title" className="text-base font-semibold text-foreground">
+            Net Worth Trend
+          </h2>
         </div>
-        <fieldset className="m-0 flex flex-wrap items-center gap-2 border-0 p-0">
+        <fieldset className="m-0 grid w-full grid-cols-2 gap-2 border-0 p-0 sm:flex sm:w-auto">
           <legend className="sr-only">Net worth chart view options</legend>
           <button
             type="button"
@@ -97,10 +99,10 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 ? 'Need positive monthly growth to project'
                 : `Project forward at your average monthly saving (book value; market gains not tracked)`
             }
-            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
               showProjection
-                ? 'bg-app-blue/20 text-foreground border border-app-blue/40'
-                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
+                ? 'border-app-blue/40 bg-app-blue/15 text-foreground'
+                : 'border-border bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <Sparkles className="w-4 h-4" aria-hidden />
@@ -112,10 +114,10 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
             disabled={!stackedAllowed}
             aria-pressed={effectiveStacked}
             title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
-            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               effectiveStacked
-                ? 'bg-primary text-on-accent'
-                : 'bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)] border border-border'
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'
             }`}
           >
             {effectiveStacked ? (
@@ -188,7 +190,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 })}
                 dataKey="date"
               />
-              <YAxis {...yAxisDefaults()} />
+              <YAxis {...yAxisDefaults({ width: dims.breakpoint === 'mobile' ? 48 : 60 })} />
               <Tooltip
                 {...chartTooltipProps}
                 formatter={currencyTooltipFormatter}
@@ -258,7 +260,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                         fillOpacity={1}
                         fill={`url(#color-${cat.replaceAll(/\s+/g, '')})`}
                         name={config.label}
-                        isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
+                        isAnimationActive={animateSeries}
                         animationDuration={600}
                         animationEasing="ease-out"
                       />
@@ -277,7 +279,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     fillOpacity={1}
                     fill={areaGradientUrl('netWorth')}
                     name="Net Worth"
-                    isAnimationActive={shouldAnimate(filteredNetWorthData.length)}
+                    isAnimationActive={animateSeries}
                     animationDuration={600}
                     animationEasing="ease-out"
                   />
@@ -345,6 +347,6 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           </ChartContainer>
         )
       })()}
-    </motion.div>
+    </section>
   )
 }

@@ -66,7 +66,7 @@ export default function ExpenseTrendSection({
 
   return (
     <motion.section
-      className="glass rounded-xl border border-border p-4 md:p-6"
+      className="ledger-panel p-4 md:p-6"
       {...SCROLL_FADE_UP}
     >
       <div className="space-y-4">

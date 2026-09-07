@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { motion } from 'motion/react'
 import { Activity } from 'lucide-react'
 import {
   Bar,
@@ -79,6 +78,8 @@ function ComboTooltip({
               color: rawColors.chart.textPrimary,
               fontSize: 12,
               fontWeight: 600,
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
               marginLeft: 'auto',
             }}
           >
@@ -108,16 +109,14 @@ export default function ReturnsMonthlyChart({
       })),
     [data],
   )
+  const animateSeries = shouldAnimate(data.length * 2)
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15 }}
-      className="glass rounded-2xl p-4 sm:p-6"
+    <section
+      className="ledger-panel p-4 sm:p-5"
       aria-labelledby="monthly-returns-title"
     >
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <Activity className="size-5 text-app-blue" aria-hidden="true" />
         <div>
           <h2 id="monthly-returns-title" className="text-lg font-semibold text-foreground">
@@ -130,7 +129,10 @@ export default function ReturnsMonthlyChart({
       </div>
 
       {data.length === 0 ? (
-        <ChartEmptyState height={360} />
+        <ChartEmptyState
+          height={280}
+          message="No realised investment activity in the selected period"
+        />
       ) : (
         <ChartContainer
           height={360}
@@ -139,14 +141,14 @@ export default function ReturnsMonthlyChart({
           <ComposedChart data={bars} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis {...xAxisDefaults(data.length)} dataKey="month" />
-            <YAxis {...yAxisDefaults()} />
+            <YAxis {...yAxisDefaults({ width: 48 })} />
             <Tooltip content={ComboTooltip as never} cursor={chartTooltipProps.cursor} />
             <ReferenceLine y={0} stroke={rawColors.chart.referenceLine} />
             <Bar
               dataKey="net"
               name="net"
               radius={[3, 3, 0, 0]}
-              isAnimationActive={shouldAnimate(data.length)}
+              isAnimationActive={animateSeries}
               animationDuration={600}
               animationEasing="ease-out"
             />
@@ -159,7 +161,7 @@ export default function ReturnsMonthlyChart({
               strokeDasharray="6 3"
               dot={data.length === 1 ? { r: 3, fill: rawColors.app.blue } : false}
               activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-              isAnimationActive={shouldAnimate(data.length)}
+              isAnimationActive={animateSeries}
               animationDuration={600}
             />
             {data.length > 6 && (
@@ -172,6 +174,6 @@ export default function ReturnsMonthlyChart({
           </ComposedChart>
         </ChartContainer>
       )}
-    </motion.section>
+    </section>
   )
 }

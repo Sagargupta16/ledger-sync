@@ -21,17 +21,17 @@ export default function MutualFundProjectionPage() {
     return (
       <PageErrorState
         title="Projections"
-        subtitle="SIP returns and instrument maturity projections"
+        subtitle="Model SIP contributions and instrument maturities"
         onRetry={m.retry}
       />
     )
   }
 
   return (
-    <PageContainer className="md:space-y-6">
+    <PageContainer>
       <PageHeader
         title="Projections"
-        subtitle="SIP returns and instrument maturity projections"
+        subtitle="Model SIP contributions and instrument maturities"
       />
 
       <OverviewCards

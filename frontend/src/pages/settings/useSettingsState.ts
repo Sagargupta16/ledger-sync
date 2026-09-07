@@ -347,7 +347,7 @@ export function useSettingsState() {
   const updateRule = useCallback(
     (localId: string, field: keyof LocalRule, value: string | boolean) => {
       setRules((prev) =>
-        prev.map((r) => (r.localId === localId ? ({ ...r, [field]: value } as LocalRule) : r)),
+        prev.map((r) => (r.localId === localId ? ({ ...r, [field]: value }) : r)),
       )
       setHasChanges(true)
     },

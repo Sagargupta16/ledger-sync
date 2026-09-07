@@ -36,7 +36,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           className={cn(
             'ledger-control min-h-11 w-full rounded-md px-3 py-2 lg:pointer-fine:min-h-10',
             'border border-[var(--hairline-2)] text-foreground placeholder:text-text-quaternary',
-            'transition-all duration-150 ease-out',
+            'transition-[color,background-color,border-color] duration-150 ease-out',
             'focus:outline-none',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-10',
@@ -105,7 +105,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         className={cn(
           'ledger-control min-h-11 w-full rounded-md px-3 py-2 lg:pointer-fine:min-h-10',
           'border border-[var(--hairline-2)] text-foreground',
-          'transition-all duration-150 ease-out',
+          'transition-[color,background-color,border-color] duration-150 ease-out',
           'focus:outline-none',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           error && 'border-app-red/50 focus:border-app-red/50 focus:shadow-[0_0_0_1px_var(--focus-ring-error),0_0_0_4px_var(--focus-ring-error-soft)]',

@@ -20,7 +20,7 @@ export default function InvestmentAnalyticsPage() {
     return (
       <PageErrorState
         title="Investment Analytics"
-        subtitle="Monitor your investment portfolio performance"
+        subtitle="Review cost-basis contributions, allocation, and investment activity"
         onRetry={m.retry}
       />
     )
@@ -33,16 +33,17 @@ export default function InvestmentAnalyticsPage() {
       <PageContainer>
         <PageHeader
           title="Investment Analytics"
-          subtitle="Monitor your investment portfolio performance"
+          subtitle="Review cost-basis contributions, allocation, and investment activity"
         />
-        <EmptyState
-          icon={TrendingUp}
-          title="No investment accounts classified"
-          description="Classify your accounts as Investments in Settings to track portfolio value, allocation, and growth over time."
-          actionLabel="Go to Settings"
-          actionHref="/settings"
-          variant="card"
-        />
+        <section className="ledger-panel" aria-label="Investment analytics setup">
+          <EmptyState
+            icon={TrendingUp}
+            title="No investment accounts classified"
+            description="Classify your accounts as Investments in Settings to track contribution value, allocation, and growth over time."
+            actionLabel="Go to Settings"
+            actionHref="/settings"
+          />
+        </section>
       </PageContainer>
     )
   }
@@ -51,8 +52,12 @@ export default function InvestmentAnalyticsPage() {
     <PageContainer>
       <PageHeader
         title="Investment Analytics"
-        subtitle="Monitor your investment portfolio performance"
-        action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
+        subtitle="Review cost-basis contributions, allocation, and investment activity"
+        action={
+          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+            <AnalyticsTimeFilter {...m.timeFilterProps} />
+          </div>
+        }
       />
 
       {/* portfolioData is already sorted by amount invested, descending. */}

@@ -39,7 +39,7 @@ export default function IncomeClassificationAudit({
   return (
     <div className="space-y-3">
       {audit.unclassified.length > 0 && (
-        <div className="rounded-xl border border-app-yellow/30 bg-app-yellow/10 p-4">
+        <div className="rounded-lg border border-app-yellow/30 bg-app-yellow/10 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-sm font-medium text-warning-text">
@@ -112,7 +112,7 @@ export default function IncomeClassificationAudit({
       )}
 
       {audit.deadKeys.length > 0 && (
-        <div className="rounded-xl border border-border bg-[var(--overlay-1)] p-4">
+        <div className="border-y border-border py-4">
           <p className="text-sm font-medium text-foreground">
             {audit.deadKeys.length}{' '}saved{' '}
             {audit.deadKeys.length === 1 ? 'category matches' : 'categories match'} no transactions

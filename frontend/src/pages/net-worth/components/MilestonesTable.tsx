@@ -63,7 +63,9 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       cell: (row) => (
         <div>
           <div className="font-semibold text-foreground">{row.label}</div>
-          <div className="text-xs text-muted-foreground">{formatCurrency(row.value)}</div>
+          <div className="ledger-figure text-xs text-muted-foreground">
+            {formatCurrency(row.value)}
+          </div>
         </div>
       ),
     },
@@ -160,35 +162,45 @@ export default function MilestonesTable({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-6 text-sm flex-wrap">
-        <span className="text-muted-foreground">
-          Current:{' '}
-          <span className="text-foreground font-semibold">{formatCurrency(currentNetWorth)}</span>
-        </span>
-        <span className="text-muted-foreground">
-          Avg growth:{' '}
-          <span
-            className={hasGrowth ? 'text-app-green font-semibold' : 'text-app-red font-semibold'}
+    <div className="space-y-4 [&_thead_button]:min-h-11">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-[var(--hairline-1)] py-3 text-sm sm:grid-cols-4">
+        <div>
+          <dt className="text-xs text-text-tertiary">Latest trend</dt>
+          <dd className="ledger-figure break-words font-semibold text-foreground">
+            {formatCurrency(currentNetWorth)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-text-tertiary">Average growth</dt>
+          <dd
+            className={`ledger-figure break-words font-semibold ${
+              hasGrowth ? 'text-app-green' : 'text-app-red'
+            }`}
           >
-            {hasGrowth ? `+${formatCurrency(Math.round(monthlyGrowth))}/mo` : 'stalled'}
-          </span>
-          {!hasGrowth && (
-            <span className="text-xs text-text-tertiary"> (need positive growth to project)</span>
-          )}
-        </span>
-        <span className="text-muted-foreground">
-          Reached:{' '}
-          <span className="text-foreground font-semibold">{reachedCount}</span>
-        </span>
-        <span className="text-muted-foreground">
-          Stable:{' '}
-          <span className="text-app-green font-semibold">{stableCount}</span>
-          {reachedCount > 0 && (
-            <span className="text-xs text-text-tertiary"> of {reachedCount} reached</span>
-          )}
-        </span>
-      </div>
+            {hasGrowth ? `+${formatCurrency(Math.round(monthlyGrowth))}/mo` : 'Stalled'}
+            {!hasGrowth && (
+              <span className="mt-0.5 block text-xs font-normal text-text-quaternary">
+                Positive growth is needed to project.
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-text-tertiary">Reached</dt>
+          <dd className="ledger-figure font-semibold text-foreground">{reachedCount}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-text-tertiary">Stable</dt>
+          <dd className="ledger-figure font-semibold text-app-green">
+            {stableCount}
+            {reachedCount > 0 && (
+              <span className="ml-1 text-xs font-normal text-text-tertiary">
+                of {reachedCount}
+              </span>
+            )}
+          </dd>
+        </div>
+      </dl>
 
       <DataTable<MilestoneRow>
         columns={columns}
@@ -203,7 +215,7 @@ export default function MilestonesTable({
         mobileCards
       />
 
-      <p className="text-xs text-muted-foreground">
+      <p className="max-w-4xl text-xs leading-relaxed text-muted-foreground">
         <span className="text-app-green">Stable</span> means your net worth never dropped below
         that threshold after the crossing.{' '}
         <span className="text-app-yellow">Reached</span> means you crossed it but later dipped

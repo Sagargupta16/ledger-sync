@@ -42,21 +42,21 @@ export default function TaxSummaryCards({
   prevTaxAlreadyPaid,
 }: Readonly<TaxSummaryCardsProps>) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="ledger-panel p-4 sm:p-5"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-green/20 rounded-xl">
-            <TrendingUp className="w-6 h-6 text-app-green" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-green/15">
+            <TrendingUp className="size-4 text-app-green" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-kpi-label text-muted-foreground">Salaried Income</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-kpi-hero font-bold">
+              <p className="ledger-figure text-kpi-hero font-semibold">
                 {isLoading ? '...' : formatCurrency(netTaxableIncome)}
               </p>
               {!isLoading && <YoyBadge current={netTaxableIncome} previous={prevNetTaxableIncome} />}
@@ -72,16 +72,16 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="ledger-panel p-4 sm:p-5"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-app-blue/20 rounded-xl">
-            <IndianRupee className="w-6 h-6 text-app-blue" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-blue/15">
+            <IndianRupee className="size-4 text-app-blue" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-kpi-label text-muted-foreground">Taxable Income</p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-kpi-hero font-bold">
+              <p className="ledger-figure text-kpi-hero font-semibold">
                 {isLoading ? '...' : formatCurrency(grossTaxableIncome)}
               </p>
               {!isLoading && <YoyBadge current={grossTaxableIncome} previous={prevGrossTaxableIncome} />}
@@ -95,18 +95,18 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass rounded-2xl border border-border p-6"
+        className="ledger-panel p-4 sm:p-5"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-primary/20 rounded-xl">
-            <Calculator className="w-6 h-6 text-primary" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
+            <Calculator className="size-4 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-kpi-label text-muted-foreground">
               {isProjecting ? 'Estimated Tax' : 'Tax Already Paid'}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-kpi-hero font-bold">
+              <p className="ledger-figure text-kpi-hero font-semibold">
                 {isLoading ? '...' : formatCurrency(taxAlreadyPaid)}
               </p>
               {!isLoading && <YoyBadge current={taxAlreadyPaid} previous={prevTaxAlreadyPaid} />}

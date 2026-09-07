@@ -37,7 +37,7 @@ export function QuickStat({
     : `${countDeltaPrefix}${Math.round(absDelta)}`
 
   return (
-    <div className="p-4 rounded-xl bg-[var(--overlay-2)]">
+    <div className="min-w-0 p-3 sm:p-4">
       <p className="text-xs text-muted-foreground mb-2">{label}</p>
       <div className="flex items-baseline justify-between">
         <div>

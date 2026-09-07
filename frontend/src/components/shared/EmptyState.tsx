@@ -118,7 +118,7 @@ export default function EmptyState({
     >
       {/* Icon */}
       <div
-        className={`mb-4 flex items-center justify-center rounded-xl border border-[var(--hairline-2)] bg-[var(--overlay-3)] ${
+        className={`mb-4 flex items-center justify-center rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] ${
           getSizeClass(isCompact, 'w-12 h-12', 'w-16 h-16')
         }`}
       >
@@ -153,7 +153,7 @@ export default function EmptyState({
 
   if (variant === 'card') {
     return (
-      <div className="glass rounded-2xl border border-[var(--glass-border)]">
+      <div className="ledger-panel">
         {content}
       </div>
     )

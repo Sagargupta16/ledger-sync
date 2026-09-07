@@ -17,7 +17,6 @@ import {
   overlayVariants,
   panelVariants,
   type PaletteResult,
-  type TransactionResult,
 } from './command-palette/paletteData'
 
 export default function CommandPalette() {
@@ -115,7 +114,7 @@ export default function CommandPalette() {
     }
 
     for (const transaction of txMatches.slice(0, 5)) {
-      items.push({ kind: 'transaction', transaction } as TransactionResult)
+      items.push({ kind: 'transaction', transaction })
     }
 
     return items

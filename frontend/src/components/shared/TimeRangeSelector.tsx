@@ -1,5 +1,7 @@
 import { motion } from 'motion/react'
 
+import { SPRING, TAP_FEEDBACK } from '@/constants/animations'
+
 export type TimeRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
 
 interface TimeRangeSelectorProps {
@@ -23,14 +25,14 @@ export default function TimeRangeSelector({ value, onChange }: Readonly<TimeRang
               ? 'text-foreground font-medium'
               : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'
           }`}
-          whileTap={{ scale: 0.97 }}
+          whileTap={TAP_FEEDBACK}
         >
           {value === range && (
             <motion.div
               layoutId="activeTab"
               className="absolute inset-0 bg-[var(--overlay-5)] rounded-md"
               initial={false}
-              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              transition={SPRING.activePill}
             />
           )}
           <span className="relative z-10">{range}</span>

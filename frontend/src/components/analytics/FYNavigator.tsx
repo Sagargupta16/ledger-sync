@@ -36,7 +36,7 @@ export default function FYNavigator({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl border border-border p-6"
+      className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex items-center justify-between gap-2">
         <Button
@@ -46,7 +46,7 @@ export default function FYNavigator({
           onClick={onGoBack}
           disabled={!canGoBack}
           aria-label="Previous fiscal year"
-          className="shrink-0 rounded-xl p-3 disabled:opacity-30"
+          className="shrink-0 rounded-md p-3 disabled:opacity-30"
         >
           <ChevronLeft className="size-5" aria-hidden="true" />
         </Button>
@@ -54,7 +54,7 @@ export default function FYNavigator({
         <div className="text-center flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{selectedFY || 'Select FY'}</h2>
+              <h2 className="ledger-figure text-xl font-semibold text-foreground sm:text-2xl">{selectedFY || 'Select FY'}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {isNewRegime
                   ? 'New Tax Regime (2025-26 onwards)'
@@ -94,7 +94,7 @@ export default function FYNavigator({
           onClick={onGoForward}
           disabled={!canGoForward}
           aria-label="Next fiscal year"
-          className="shrink-0 rounded-xl p-3 disabled:opacity-30"
+          className="shrink-0 rounded-md p-3 disabled:opacity-30"
         >
           <ChevronRight className="size-5" aria-hidden="true" />
         </Button>
