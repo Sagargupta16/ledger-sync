@@ -11,8 +11,10 @@
  */
 
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
+import { useAuthStore } from '@/store/authStore'
+import { DEMO_USER } from '../enterDemoMode'
 import { QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query'
 
 import { analyticsV2Keys, useBudgets, useGoals, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
@@ -96,7 +98,7 @@ describe('seedDemoCache query keys', () => {
     // notification-center budget badges start empty, and the ledger is read by
     // most pages on mount.
     expect(hashes.has(hashKey(analyticsV2Keys.budgets({ active_only: true })))).toBe(true)
-    expect(hashes.has(hashKey(analyticsV2Keys.goals()))).toBe(true)
+    expect(hashes.has(hashKey([...analyticsV2Keys.goals(), 'demo']))).toBe(true)
     expect(hashes.has(hashKey(['transactions', undefined]))).toBe(true)
   })
 })
@@ -105,17 +107,24 @@ describe('prefetchCoreData query keys', () => {
   it('warms analyticsV2 keys the hooks can actually read', async () => {
     // Same drift class as the seed, but it costs a real round-trip on every
     // login and every upload, so it gets the same detector pointed at it.
-    useDemoStore.getState().enterDemo()
+    useDemoStore.getState().exitDemo()
+    useAuthStore.getState().login(
+      { ...DEMO_USER, id: 101, email: 'prefetch@example.invalid', auth_provider: 'google' },
+      { access_token: 'synthetic-access', refresh_token: 'synthetic-refresh', token_type: 'bearer' },
+    )
+    const prefetch = vi.spyOn(queryClient, 'prefetchQuery').mockResolvedValue(undefined)
     try {
       prefetchCoreData()
-      const drift = queryClient
-        .getQueryCache()
-        .getAll()
-        .map((query) => query.queryKey as unknown[])
+      const keys = prefetch.mock.calls.map(([options]) => options.queryKey)
+      const drift = keys
         .filter((key) => key[0] === 'analyticsV2')
       expect(drift.length).toBeGreaterThan(0)
       expect(drift.map(factoryMismatch).filter((reason) => reason !== null)).toEqual([])
+      expect(keys).toHaveLength(3)
+      expect(keys.some((key) => key[0] === 'transactions')).toBe(false)
     } finally {
+      prefetch.mockRestore()
+      useAuthStore.getState().logout()
       await queryClient.cancelQueries()
       queryClient.clear()
     }

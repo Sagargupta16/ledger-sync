@@ -39,6 +39,8 @@ from collections import defaultdict
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "account_case_fold_2026"
 down_revision: str | None = "partial_tx_indexes_2026"
 branch_labels: str | None = None
@@ -213,5 +215,6 @@ def upgrade() -> None:
     _fold_classifications(bind, canonical)
 
 
+@irreversible
 def downgrade() -> None:
     """No downgrade -- restore from a database backup."""

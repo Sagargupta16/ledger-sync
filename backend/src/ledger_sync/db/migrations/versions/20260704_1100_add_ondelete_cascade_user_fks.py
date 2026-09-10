@@ -34,6 +34,8 @@ pre-migration DB backup before running this version.
 from alembic import op
 from sqlalchemy import inspect
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "cascade_user_fks_2026"
 down_revision: str | None = "token_version_2026"
 branch_labels: str | None = None
@@ -187,30 +189,17 @@ def _upgrade_sqlite() -> None:
 
 
 def _upgrade_postgres() -> None:
-    """Postgres: direct DDL. Discover existing constraint name via
-    information_schema, drop, then create new with ondelete.
-    """
-    from sqlalchemy import text
-
+    """Replace visible constraints without matching another PostgreSQL schema."""
     conn = op.get_bind()
     for table, column, ref_table, ref_col, new_name in _FKS_TO_CASCADE:
-        result = conn.execute(
-            text(
-                """
-                SELECT tc.constraint_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu
-                  ON tc.constraint_name = kcu.constraint_name
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-                  AND tc.table_name = :table
-                  AND kcu.column_name = :column
-                LIMIT 1
-                """
-            ),
-            {"table": table, "column": column},
-        ).fetchone()
-        if result:
-            op.drop_constraint(result[0], table, type_="foreignkey")
+        inspector = inspect(conn)
+        if column not in {item["name"] for item in inspector.get_columns(table)}:
+            # import_logs.user_id is added by reconcile_create_all_2026 on a
+            # fresh database; its migration also installs the cascading FK.
+            continue
+        for foreign_key in inspector.get_foreign_keys(table):
+            if foreign_key["constrained_columns"] == [column]:
+                op.drop_constraint(foreign_key["name"], table, type_="foreignkey")
         op.create_foreign_key(
             new_name,
             table,
@@ -221,6 +210,7 @@ def _upgrade_postgres() -> None:
         )
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

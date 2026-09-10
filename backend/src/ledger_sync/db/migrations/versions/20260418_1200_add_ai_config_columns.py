@@ -11,6 +11,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "a1b2c3d4e5f7"
 down_revision: str | None = "f1a2b3c4d5e6"
 branch_labels: str | Sequence[str] | None = None
@@ -23,6 +25,7 @@ def upgrade() -> None:
     op.add_column("user_preferences", sa.Column("ai_api_key_encrypted", sa.Text(), nullable=True))
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

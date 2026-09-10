@@ -315,6 +315,23 @@ export interface FinancialGoal {
   updated_at: string | null
 }
 
+export interface CreateGoalRequest {
+  name: string
+  goal_type: string
+  target_amount: number
+  target_date: string | null
+  notes?: string | null
+}
+
+export interface UpdateGoalRequest {
+  name?: string
+  goal_type?: string
+  target_amount?: number
+  current_amount?: number
+  target_date?: string | null
+  notes?: string | null
+}
+
 export interface DailySummary {
   date: string
   income: number
@@ -669,14 +686,18 @@ export const analyticsV2Service = {
     return getWrapped<FinancialGoal>('/api/analytics/v2/goals', params)
   },
 
-  async createGoal(data: {
-    name: string
-    goal_type: string
-    target_amount: number
-    target_date: string
-    notes?: string
-  }) {
+  async createGoal(data: CreateGoalRequest) {
     const response = await apiClient.post<CreateGoalResult>('/api/analytics/v2/goals', data)
+    return response.data
+  },
+
+  async updateGoal(goalId: number, data: UpdateGoalRequest) {
+    const response = await apiClient.patch<FinancialGoal>(`/api/analytics/v2/goals/${goalId}`, data)
+    return response.data
+  },
+
+  async deleteGoal(goalId: number) {
+    const response = await apiClient.delete<{ success: boolean }>(`/api/analytics/v2/goals/${goalId}`)
     return response.data
   },
 

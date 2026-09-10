@@ -28,10 +28,12 @@ describe('getTaxConfig', () => {
     expect(cfg.fyStartYear).toBe(2023)
   })
 
-  it('old regime standard deduction bumps to 75k from FY 2024-25', () => {
+  it('keeps the old regime deduction at 50k when the new regime rises to 75k', () => {
     expect(getTaxConfig(2023).oldRegime.standardDeduction).toBe(50_000)
-    expect(getTaxConfig(2024).oldRegime.standardDeduction).toBe(75_000)
-    expect(getTaxConfig(2025).oldRegime.standardDeduction).toBe(75_000)
+    expect(getTaxConfig(2024).oldRegime.standardDeduction).toBe(50_000)
+    expect(getTaxConfig(2025).oldRegime.standardDeduction).toBe(50_000)
+    expect(getTaxConfig(2024).newRegime.standardDeduction).toBe(75_000)
+    expect(getTaxConfig(2025).newRegime.standardDeduction).toBe(75_000)
   })
 
   it('every FY has cess 4% and professional tax 200/mo (current policy)', () => {

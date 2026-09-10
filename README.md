@@ -24,16 +24,18 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Accepts `.xlsx`, `.xls`, and `.csv` statements.
 - Parses files in the browser with SheetJS.
 - Sends validated JSON rows to the API instead of uploading the source file.
+- Reviews the date range, accounts, and row counts before replacing the complete ledger snapshot.
 - Uses deterministic SHA-256 transaction IDs plus occurrence counters so repeated imports remain idempotent without collapsing legitimate duplicate rows.
-- Soft-deletes rows no longer present in the latest import and refreshes analytics after reconciliation.
+- Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again.
 
 ### Financial workspace
 
 - Dashboard and fixed Overview for quick financial status.
 - Server-paginated transaction ledger with search, filters, tags, saved views, sorting, and CSV export.
 - Expense, income, cash flow, period comparison, year review, forecasting, and net worth analysis.
-- Investment analytics, SIP projections, XIRR/CAGR returns, and instrument projections.
+- Investment contributions and realised cash flows, book-value holdings, SIP projections, and instrument calculators.
 - 50/30/20 budget analysis, goals, recurring commitments, bill calendar, and anomaly review.
+- Account-backed goals with explicit review before recovering older browser-only edits.
 - Merchant intelligence derived from transaction notes, with spend concentration and recurring detection.
 - Data health reporting: ledger coverage, last-import row counts, and whether analytics rollups are current.
 - Indian income tax, RSU vesting, projected TDS, GST estimation, and FIRE planning.
@@ -41,9 +43,9 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 ### AI assistant
 
 - Fifteen read-only, user-scoped financial tools.
-- App-provided Bedrock mode with a daily message limit.
-- BYOK configuration for supported providers with configurable token limits.
-- AES-256-GCM encrypted key storage. Current ciphertexts use HKDF-SHA256 with `LEDGER_SYNC_ENCRYPTION_KEY`; legacy PBKDF2 ciphertexts remain readable during migration.
+- App-provided Bedrock mode with a shared-funding daily limit and database-backed usage reservations.
+- BYOK configuration for supported providers. Bedrock token budgets are enforced by the proxy; browser-direct OpenAI/Anthropic limits are informational.
+- AES-256-GCM encrypted key storage. Current v3 envelopes use HKDF-SHA256 with `LEDGER_SYNC_ENCRYPTION_KEY`; authenticated legacy ciphertexts remain readable and can be rewrapped.
 - Financial data is fetched through tools when needed instead of being copied into a large prompt.
 
 ### Responsive UI
@@ -149,21 +151,58 @@ uv run alembic upgrade head
 
 ## Architecture
 
-<p align="center">
-  <img src="docs/images/system-overview.svg" alt="Ledger Sync system architecture" width="100%"/>
-</p>
-
-The web import path is:
-
-```text
-Excel or CSV
-  -> browser parser and validation
-  -> authenticated JSON upload
-  -> normalization and reconciliation
-  -> PostgreSQL or SQLite
-  -> analytics refresh
-  -> TanStack Query cache invalidation
+```mermaid
+flowchart LR
+  pages["GitHub Pages<br/>Static app and PWA"]
+  browser["Browser<br/>React, Query, Zustand"]
+  api["Vercel ASGI<br/>FastAPI"]
+  db[("Neon PostgreSQL<br/>Ledger and derived data")]
+  oauth["Google / GitHub<br/>OAuth with S256 PKCE"]
+  direct["OpenAI / Anthropic<br/>User-key chat"]
+  bedrock["AWS Bedrock<br/>App or personal funding"]
+  pages --> browser
+  browser -->|"Bearer JSON requests<br/>Explicit CORS allowlist"| api
+  api --> db
+  browser -->|"Authorization redirect"| oauth
+  api -->|"Code and verifier exchange"| oauth
+  browser --->|"Direct BYOK requests"| direct
+  api -->|"Bounded chat proxy"| bedrock
+  classDef store fill:#eef6ff,stroke:#35618f,color:#142d47
+  classDef external fill:#f5f3ff,stroke:#7563a5,color:#30204c
+  class db store
+  class oauth,direct,bedrock external
 ```
+
+OAuth uses a secret held in the initiating browser tab and a one-use database
+record. It works across the GitHub Pages frontend and Vercel API without
+third-party cookies. Changing accounts or leaving a session aborts outstanding
+requests and clears user-scoped caches and stores.
+
+Older sign-in clients receive a versioned restart path that loads the frontend
+and begins a fresh PKCE attempt. An already-open legacy callback gets an
+explicit refresh/sign-in message; its old state is not accepted.
+
+The web import path makes the two persistence boundaries explicit:
+
+```mermaid
+flowchart TB
+  file["Excel or CSV"] --> review["Browser validation and snapshot review"]
+  review -->|"Confirm complete INR ledger"| validate["API validates every row"]
+  validate --> ledger["Commit 1<br/>Ledger reconciliation and import log"]
+  ledger --> analytics["Commit 2<br/>Analytics rollups"]
+  analytics -->|"Ready"| cache["Invalidate affected workspace queries"]
+  analytics -->|"Refresh failed; ledger is saved"| retry["Retry analytics only"]
+  retry --> analytics
+```
+
+The snapshot covers the user's entire ledger: rows missing from the confirmed
+snapshot are soft-deleted, including rows from other dates or accounts. Invalid
+rows reject the batch before reconciliation. Local development uses SQLite
+and Vite's API proxy; PostgreSQL migration verification uses a native PostgreSQL
+instance.
+
+The [static overview image](docs/images/system-overview.svg) remains available
+as a companion illustration.
 
 See [docs/architecture.md](docs/architecture.md) for component and data-flow details.
 
@@ -177,7 +216,12 @@ The hosted installation uses:
 | Backend | Vercel serverless, ASGI |
 | Database | Neon PostgreSQL 17 with PgBouncer |
 
-Frontend and backend deployments run from `main`. Database migrations run through the dedicated GitHub Actions workflow when migration or model files change. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before changing production configuration.
+On `main`, CI checks gate database migrations. GitHub Pages then waits for a
+healthy backend reporting the frontend release version and a connected database.
+PostgreSQL migration checks use a native instance. Vercel's Git
+deployment is a separate platform path, so schema-compatible backend releases
+still need coordination. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before
+changing production configuration.
 
 ## Documentation
 

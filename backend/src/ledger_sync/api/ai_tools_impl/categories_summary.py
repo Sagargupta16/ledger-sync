@@ -30,6 +30,14 @@ from .registry import (
     register,
     to_decimal,
 )
+from .schemas import (
+    CategorySpendingArguments,
+    ListCategoriesArguments,
+    MonthlySummaryArguments,
+    RecentMonthsArguments,
+    RecurringArguments,
+    ToolArguments,
+)
 
 
 def _exec_get_monthly_summary(user: User, db: Session, args: dict[str, Any]) -> Any:
@@ -58,11 +66,7 @@ register(
     ToolSpec(
         name="get_monthly_summary",
         description="Get income, expenses, and savings for a single month (YYYY-MM).",
-        schema={
-            "type": "object",
-            "properties": {"period": {"type": "string", "description": "Month in YYYY-MM."}},
-            "required": ["period"],
-        },
+        arguments_model=MonthlySummaryArguments,
         execute=_exec_get_monthly_summary,
     )
 )
@@ -72,9 +76,12 @@ def _exec_list_categories(user: User, db: Session, args: dict[str, Any]) -> Any:
     start = parse_date(args.get("start_date"))
     end = parse_date(args.get("end_date"))
     txn_type = args.get("type", "Expense")
-    limit = min(
-        int(args.get("limit", LIST_CATEGORIES_DEFAULT_LIMIT)),
-        LIST_CATEGORIES_MAX_LIMIT,
+    limit = max(
+        1,
+        min(
+            int(args.get("limit", LIST_CATEGORIES_DEFAULT_LIMIT)),
+            LIST_CATEGORIES_MAX_LIMIT,
+        ),
     )
 
     stmt = (
@@ -117,20 +124,7 @@ register(
             "Rank spending (or income) by category for a date range. Use for "
             "'what did I spend the most on', 'top categories last month'."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "start_date": {"type": "string"},
-                "end_date": {"type": "string"},
-                "type": {"type": "string", "enum": ["Income", "Expense"], "default": "Expense"},
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": LIST_CATEGORIES_MAX_LIMIT,
-                    "default": LIST_CATEGORIES_DEFAULT_LIMIT,
-                },
-            },
-        },
+        arguments_model=ListCategoriesArguments,
         execute=_exec_list_categories,
     )
 )
@@ -166,15 +160,7 @@ register(
     ToolSpec(
         name="get_category_spending",
         description="Total spent in a category over a date range.",
-        schema={
-            "type": "object",
-            "properties": {
-                "category": {"type": "string"},
-                "start_date": {"type": "string"},
-                "end_date": {"type": "string"},
-            },
-            "required": ["category"],
-        },
+        arguments_model=CategorySpendingArguments,
         execute=_exec_get_category_spending,
     )
 )
@@ -216,7 +202,7 @@ register(
     ToolSpec(
         name="get_net_worth",
         description="Current net worth snapshot with asset/liability breakdown.",
-        schema={"type": "object", "properties": {}, "required": []},
+        arguments_model=ToolArguments,
         execute=_exec_get_net_worth,
     )
 )
@@ -253,12 +239,7 @@ register(
     ToolSpec(
         name="list_recurring",
         description="List recurring bills and subscriptions.",
-        schema={
-            "type": "object",
-            "properties": {
-                "active_only": {"type": "boolean", "default": True},
-            },
-        },
+        arguments_model=RecurringArguments,
         execute=_exec_list_recurring,
     )
 )
@@ -296,16 +277,19 @@ register(
     ToolSpec(
         name="list_goals",
         description="List the user's financial goals with progress.",
-        schema={"type": "object", "properties": {}, "required": []},
+        arguments_model=ToolArguments,
         execute=_exec_list_goals,
     )
 )
 
 
 def _exec_list_recent_months(user: User, db: Session, args: dict[str, Any]) -> Any:
-    limit = min(
-        int(args.get("limit", LIST_RECENT_MONTHS_DEFAULT_LIMIT)),
-        LIST_RECENT_MONTHS_MAX_LIMIT,
+    limit = max(
+        1,
+        min(
+            int(args.get("limit", LIST_RECENT_MONTHS_DEFAULT_LIMIT)),
+            LIST_RECENT_MONTHS_MAX_LIMIT,
+        ),
     )
     rows = (
         db.execute(
@@ -336,17 +320,7 @@ register(
     ToolSpec(
         name="list_recent_months",
         description="Return the most recent months' income/expense summaries.",
-        schema={
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": LIST_RECENT_MONTHS_MAX_LIMIT,
-                    "default": LIST_RECENT_MONTHS_DEFAULT_LIMIT,
-                },
-            },
-        },
+        arguments_model=RecentMonthsArguments,
         execute=_exec_list_recent_months,
     )
 )

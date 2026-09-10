@@ -21,8 +21,10 @@ export interface GoalProjection {
   monthsDelta: number | null // positive = ahead of schedule
 }
 
-export type GoalOverride = {
+export type GoalDetails = {
   name: string
+  goal_type: string
   target_amount: number
-  target_date: string
+  target_date: string | null
+  notes: string | null
 }

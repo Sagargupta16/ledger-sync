@@ -56,6 +56,8 @@ import json
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "cashback_key_drift_2026"
 down_revision: str | None = "recurring_pattern_kind_2026"
 branch_labels: str | None = None
@@ -156,5 +158,6 @@ def upgrade() -> None:
         )
 
 
+@irreversible
 def downgrade() -> None:
     """No downgrade -- restore from a database backup."""

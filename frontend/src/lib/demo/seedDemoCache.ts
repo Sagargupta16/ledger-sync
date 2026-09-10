@@ -81,5 +81,5 @@ export function seedDemoCache(qc: QueryClient): void {
   // renders a skeleton until both settle. Every other v2 param combination is
   // served by DEMO_ROUTES.
   qc.setQueryData(analyticsV2Keys.budgets({ active_only: true }), generateDemoBudgets())
-  qc.setQueryData(analyticsV2Keys.goals(), generateDemoGoals())
+  qc.setQueryData([...analyticsV2Keys.goals(), 'demo'], generateDemoGoals())
 }

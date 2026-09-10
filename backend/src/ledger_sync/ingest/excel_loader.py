@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ledger_sync.ingest.validator import ExcelValidator, ValidationError
+from ledger_sync.schemas.upload import MAX_UPLOAD_ROWS
 from ledger_sync.utils.logging import logger
 
 
@@ -54,6 +55,7 @@ class ExcelLoader:
 
         """
         logger.info(f"Loading Excel file: {file_path}")
+        self.validator.validate_file_exists(file_path)
 
         # Calculate file hash for idempotency
         file_hash = self.calculate_file_hash(file_path)
@@ -61,7 +63,9 @@ class ExcelLoader:
 
         try:
             # Load Excel file
-            df = pd.read_excel(file_path, sheet_name=sheet_name, engine="openpyxl")
+            df = pd.read_excel(
+                file_path, sheet_name=sheet_name, engine="openpyxl", nrows=MAX_UPLOAD_ROWS + 1
+            )
             logger.info(f"Loaded {len(df)} rows from Excel")
 
         except (ValueError, OSError, KeyError) as e:

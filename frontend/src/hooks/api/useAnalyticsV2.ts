@@ -7,6 +7,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { analyticsV2Service } from '@/services/api/analyticsV2'
+import { useAuthStore } from '@/store/authStore'
+import { useDemoStore } from '@/store/demoStore'
+import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 
 // Data only changes on upload. Keep cached indefinitely for instant navigations.
 const STABLE_STALE_TIME = Infinity
@@ -15,6 +18,7 @@ import type {
   Budget,
   CategoryTrend,
   CohortSpendingData,
+  CreateGoalRequest,
   DailySummary,
   FinancialGoal,
   FYSummary,
@@ -25,6 +29,7 @@ import type {
   RecurringTransaction,
   SpendingRuleResponse,
   TransferFlow,
+  UpdateGoalRequest,
 } from '@/services/api/analyticsV2'
 
 /**
@@ -161,10 +166,16 @@ export interface RecurringTransactionPatch {
 
 export function useUpdateRecurringTransaction() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   return useMutation({
-    mutationFn: ({ id, ...body }: RecurringTransactionPatch) =>
-      analyticsV2Service.updateRecurringTransaction(id, body),
-    onSuccess: () => {
+    mutationKey: [...analyticsV2Keys.all, 'recurring-transactions', 'update', getSessionGeneration()],
+    mutationFn: ({ id, ...body }: RecurringTransactionPatch) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.updateRecurringTransaction(id, body)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       // `void`: every `invalidateQueries` in this file is fire-and-forget, the
       // same convention as useAuth / usePreferences / useAccountStatus. It never
       // rejects (query-core swallows refetch errors unless throwOnError is set),
@@ -176,7 +187,9 @@ export function useUpdateRecurringTransaction() {
 
 export function useCreateRecurringTransaction() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   return useMutation({
+    mutationKey: [...analyticsV2Keys.all, 'recurring-transactions', 'create', getSessionGeneration()],
     mutationFn: (body: {
       name: string
       type: string
@@ -184,8 +197,13 @@ export function useCreateRecurringTransaction() {
       amount: number
       category?: string
       expected_day?: number
-    }) => analyticsV2Service.createRecurringTransaction(body),
-    onSuccess: () => {
+    }) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.createRecurringTransaction(body)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       void queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
     },
   })
@@ -193,9 +211,16 @@ export function useCreateRecurringTransaction() {
 
 export function useDeleteRecurringTransaction() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   return useMutation({
-    mutationFn: (id: number) => analyticsV2Service.deleteRecurringTransaction(id),
-    onSuccess: () => {
+    mutationKey: [...analyticsV2Keys.all, 'recurring-transactions', 'delete', getSessionGeneration()],
+    mutationFn: (id: number) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.deleteRecurringTransaction(id)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       void queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
     },
   })
@@ -239,11 +264,17 @@ export function useAnomalies(params?: ServiceParams<'getAnomalies'>) {
 
 export function useReviewAnomaly() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: ({ anomalyId, data }: { anomalyId: number; data: { dismiss: boolean; notes?: string } }) =>
-      analyticsV2Service.reviewAnomaly(anomalyId, data),
-    onSuccess: () => {
+    mutationKey: [...analyticsV2Keys.all, 'anomalies', 'review', getSessionGeneration()],
+    mutationFn: ({ anomalyId, data }: { anomalyId: number; data: { dismiss: boolean; notes?: string } }) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.reviewAnomaly(anomalyId, data)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       void queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'anomalies'] })
     },
   })
@@ -260,15 +291,22 @@ export function useBudgets(params?: ServiceParams<'getBudgets'>) {
 
 export function useCreateBudget() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
+    mutationKey: [...analyticsV2Keys.all, 'budgets', 'create', getSessionGeneration()],
     mutationFn: (data: {
       category: string
       subcategory?: string
       monthly_limit: number
       alert_threshold?: number
-    }) => analyticsV2Service.createBudget(data),
-    onSuccess: () => {
+    }) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.createBudget(data)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       void queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'budgets'] })
     },
   })
@@ -276,26 +314,67 @@ export function useCreateBudget() {
 
 // Goals
 export function useGoals(params?: ServiceParams<'getGoals'>) {
+  const userId = useAuthStore((state) => state.user?.id)
+  const isDemoMode = useDemoStore((state) => state.isDemoMode)
+
   return useQuery<FinancialGoal[], Error>({
-    queryKey: analyticsV2Keys.goals(params),
+    queryKey: [...analyticsV2Keys.goals(params), isDemoMode ? 'demo' : userId],
     queryFn: () => analyticsV2Service.getGoals(params),
     staleTime: STABLE_STALE_TIME,
+    enabled: isDemoMode || userId != null,
   })
 }
 
 export function useCreateGoal() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: (data: {
-      name: string
-      goal_type: string
-      target_amount: number
-      target_date: string
-      notes?: string
-    }) => analyticsV2Service.createGoal(data),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
+    mutationKey: [...analyticsV2Keys.all, 'goals', 'create', getSessionGeneration()],
+    mutationFn: (data: CreateGoalRequest) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.createGoal(data)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      return queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
+    },
+  })
+}
+
+export function useUpdateGoal() {
+  const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
+
+  return useMutation({
+    mutationKey: [...analyticsV2Keys.all, 'goals', 'update', getSessionGeneration()],
+    mutationFn: ({ goalId, data }: { goalId: number; data: UpdateGoalRequest }) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.updateGoal(goalId, data)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      return queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
+    },
+  })
+}
+
+export function useDeleteGoal() {
+  const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
+
+  return useMutation({
+    mutationKey: [...analyticsV2Keys.all, 'goals', 'delete', getSessionGeneration()],
+    mutationFn: (goalId: number) => {
+      assertCurrentSession(sessionSignal)
+      return analyticsV2Service.deleteGoal(goalId)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      return queryClient.invalidateQueries({ queryKey: [...analyticsV2Keys.all, 'goals'] })
     },
   })
 }

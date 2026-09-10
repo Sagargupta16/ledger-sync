@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
+import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import { uploadService } from '@/services/api/upload'
 
 import {
@@ -26,20 +27,25 @@ import {
 /**
  * Rebuild the pre-aggregated tables from the raw transactions.
  *
- * The one fix for `rollups_stale`, and the only place in the app that offers it
- * outside the upload flow. An import that succeeds while its refresh fails is
- * not an error the user ever sees -- `upload.py` deliberately keeps the upload
- * green so committed rows are never rejected by a Neon statement timeout -- so
- * without a button here the only recovery is to re-upload the whole workbook.
+ * This is also available from the upload result when the ledger is saved but
+ * its analytics refresh fails. Either entry point retries only the rollups,
+ * preserving the already committed ledger.
  *
  * Invalidates all of `analyticsV2Keys.all` on success: every page reads these
  * rollups, so the numbers they hold in cache are exactly what just changed.
  */
 function useRecomputeAnalytics() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   return useMutation({
-    mutationFn: () => uploadService.refreshAnalytics(),
-    onSuccess: async () => {
+    mutationKey: [...analyticsV2Keys.all, 'refresh', getSessionGeneration()],
+    mutationFn: () => {
+      assertCurrentSession(sessionSignal)
+      return uploadService.refreshAnalytics()
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: async (_data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       await queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
     },
   })

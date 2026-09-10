@@ -3,7 +3,7 @@
 from collections.abc import Generator
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Connection, Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from ledger_sync.config.settings import settings
@@ -54,13 +54,13 @@ else:
     _stmt_timeout_ms = settings.db_statement_timeout_seconds * 1000
     _idle_tx_timeout_ms = settings.db_idle_transaction_timeout_seconds * 1000
 
-    @event.listens_for(engine, "connect")
-    def _set_pg_timeout(dbapi_connection: Any, _connection_record: Any) -> None:
-        """Set timeouts per-connection (compatible with Neon pooler)."""
-        cursor = dbapi_connection.cursor()
-        cursor.execute(f"SET statement_timeout = {_stmt_timeout_ms}")
-        cursor.execute(f"SET idle_in_transaction_session_timeout = {_idle_tx_timeout_ms}")
-        cursor.close()
+    @event.listens_for(engine, "begin")
+    def _set_pg_timeout(connection: Connection) -> None:
+        """Apply timeouts to each transaction assigned by the Neon pooler."""
+        connection.exec_driver_sql(f"SET LOCAL statement_timeout = {_stmt_timeout_ms}")
+        connection.exec_driver_sql(
+            f"SET LOCAL idle_in_transaction_session_timeout = {_idle_tx_timeout_ms}"
+        )
 
 
 # Create session factory

@@ -1,6 +1,7 @@
 """Pydantic schemas for transaction-related API requests and responses."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,8 @@ class UploadResponse(BaseModel):
     message: str
     stats: dict[str, int]
     file_name: str
+    analytics_status: Literal["ready", "failed"] = "ready"
+    analytics_message: str | None = None
 
 
 class ImportHistoryEntry(BaseModel):

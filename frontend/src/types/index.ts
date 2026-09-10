@@ -12,6 +12,8 @@ export interface UploadResponse {
   message: string
   stats: UploadStats
   file_name: string
+  analytics_status?: 'ready' | 'failed'
+  analytics_message?: string | null
 }
 
 // Transaction types
@@ -117,18 +119,28 @@ export interface AuthTokens {
 }
 
 // OAuth types
+export type OAuthProvider = 'google' | 'github'
+
 export interface OAuthProviderConfig {
-  provider: string
+  provider: OAuthProvider
   client_id: string
   authorize_url: string
   scope: string
   redirect_uri: string
+  flow_version: 2
+}
+
+export interface OAuthAuthorization extends OAuthProviderConfig {
   state: string
+  code_challenge: string
+  code_challenge_method: 'S256'
+  expires_in: number
 }
 
 export interface OAuthCallbackRequest {
   code: string
-  state?: string
+  state: string
+  code_verifier: string
 }
 
 export interface MonthlyAggregation {

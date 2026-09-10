@@ -10,6 +10,7 @@ import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
 
 import MultiYearProjectionTable from './components/MultiYearProjectionTable'
+import TaxEstimateBasis from './components/TaxEstimateBasis'
 import TaxOverviewSections from './components/TaxOverviewSections'
 import TaxPageActions from './components/TaxPageActions'
 import TaxRegimeComparisonSection from './components/TaxRegimeComparisonSection'
@@ -87,6 +88,7 @@ export default function TaxPlanningPage() {
           variants={staggerContainer}
           className="space-y-6 md:space-y-8"
         >
+          <TaxEstimateBasis planning={planning} />
           <TaxOverviewSections planning={planning} />
           <TaxSavingSuggestions planning={planning} />
           <TaxYearChart planning={planning} />

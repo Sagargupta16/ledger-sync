@@ -34,7 +34,9 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
           onClick={() => onChange('app_bedrock')}
           icon={<Zap className="w-4 h-4" />}
           title="Use the app's shared key (free, limited)"
-          subtitle={`Up to ${appLimit} messages per day. No setup. Model picked by the app.`}
+          subtitle={appLimit > 0
+            ? `Up to ${appLimit} AI calls per day. No setup. Model picked by the app.`
+            : 'No setup. Model picked by the app. Service rate limits apply.'}
         />
         <ModeCard
           id="ai-mode-byok"
@@ -43,7 +45,7 @@ export function ModeToggle({ mode, onChange, appLimit, pending }: Readonly<ModeT
           onClick={() => onChange('byok')}
           icon={<Key className="w-4 h-4" />}
           title="Bring your own key (BYOK)"
-          subtitle="Unlimited usage with your own OpenAI, Anthropic, or Bedrock key. You pay your provider."
+          subtitle="Use your own OpenAI, Anthropic, or Bedrock key. Your provider charges and service limits apply."
         />
       </div>
     </fieldset>
@@ -91,12 +93,15 @@ export function AppMessageBadge({
   if (!usage) return null
   const used = usage.messages_today
   const cap = usage.limits.app_daily_messages
+  if (cap <= 0) {
+    return <span className="text-xs text-muted-foreground">No daily app quota</span>
+  }
   const remaining = Math.max(cap - used, 0)
-  const ratio = cap > 0 ? used / cap : 0
+  const ratio = used / cap
   const tone = usageTone(ratio)
   return (
     <span className={`text-xs font-mono ${tone}`}>
-      {remaining} / {cap} left
+      {remaining} / {cap} calls left
     </span>
   )
 }
@@ -111,8 +116,9 @@ export function AppModePanel({
         <AppMessageBadge usage={usage} />
       </div>
       <FieldHint>
-        App mode uses a shared AWS Bedrock key and is rate-limited so it stays free. Switch to
-        "Bring your own key" above for unlimited usage with your own provider.
+        App mode uses the shared Bedrock key and the app's model. Tool-assisted messages can
+        use more than one AI call. The daily quota resets at midnight UTC. A personal key
+        uses your provider account and its billing.
       </FieldHint>
     </div>
   )

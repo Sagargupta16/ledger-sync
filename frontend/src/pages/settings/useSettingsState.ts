@@ -2,25 +2,44 @@
  * Custom hook encapsulating all Settings page state, derived data, and effects.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAccountBalances, useIncomeFacets, useMasterCategories } from '@/hooks/api/useAnalytics'
+import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { categorizationRulesService, type CategorizationRuleInput } from '@/services/api/categorizationRules'
 import { preferencesService } from '@/services/api/preferences'
-import { usePreferences, useUpdatePreferences, useResetPreferences } from '@/hooks/api/usePreferences'
+import {
+  usePreferences, useResetPreferences, invalidatePreferenceDependents, refreshPreferences,
+} from '@/hooks/api/usePreferences'
 import { toast } from 'sonner'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 import { sortVestings } from '@/lib/rsuVesting'
+import { assertCurrentSession, getSessionSignal, isCurrentSession } from '@/lib/session'
+import { getApiErrorMessage } from '@/lib/errorUtils'
 import type { LocalPrefs, LocalPrefKey, LocalRule } from './types'
 import { ACCOUNT_TYPES, INCOME_CLASSIFICATION_KEY_MAP } from './types'
 import type { IncomeFacet } from './helpers'
 import {
   auditIncomeClassification, getDefaultClassifications, getDefaultIncomeClassifications, getDefaultInvestmentMappings, normalizeArray, getStoredWidgets, buildInitialLocalPrefs,
 } from './helpers'
+
+const RULES_KEY = ['categorization-rules'] as const
+
+async function settleWrites(writes: Promise<unknown>[]): Promise<void> {
+  const results = await Promise.allSettled(writes)
+  const failure = results.find((result) => result.status === 'rejected')
+  if (failure?.status === 'rejected') throw failure.reason
+}
+
+function createdRuleIdUpdater(localId: string, id: number) {
+  return (current: LocalRule[]) => current.map((item) =>
+    item.localId === localId ? { ...item, id } : item,
+  )
+}
 
 export function useSettingsState() {
   // Data hooks
@@ -30,8 +49,13 @@ export function useSettingsState() {
     isError: preferencesError,
     refetch: refetchPreferences,
   } = usePreferences()
-  const updatePreferences = useUpdatePreferences()
   const resetPreferences = useResetPreferences()
+  const classificationsQuery = useAccountClassifications()
+  const rulesQuery = useQuery({
+    queryKey: RULES_KEY,
+    queryFn: () => categorizationRulesService.getRules(),
+    staleTime: Infinity,
+  })
   const {
     data: masterCategories,
     isLoading: categoriesLoading,
@@ -60,11 +84,15 @@ export function useSettingsState() {
 
   // Local state
   const [classifications, setClassifications] = useState<Record<string, string>>({})
-  const [classificationsLoading, setClassificationsLoading] = useState(true)
-  const [classificationsError, setClassificationsError] = useState(false)
+  const classificationsInitialized = useRef(false)
+  const rulesInitialized = useRef(false)
+  const saveInProgress = useRef(false)
   const [localPrefs, setLocalPrefs] = useState<LocalPrefs | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [dragType, setDragType] = useState<'account' | null>(null)
@@ -73,9 +101,6 @@ export function useSettingsState() {
   const [localRsuGrants, setLocalRsuGrants] = useState<RsuGrant[]>([])
   const [localGrowthAssumptions, setLocalGrowthAssumptions] = useState<GrowthAssumptions>({ ...DEFAULT_GROWTH_ASSUMPTIONS })
   const [rules, setRules] = useState<LocalRule[]>([])
-  const [rulesLoading, setRulesLoading] = useState(true)
-  const [rulesError, setRulesError] = useState(false)
-  const [reloadToken, setReloadToken] = useState(0)
   const [applyingRules, setApplyingRules] = useState(false)
   const queryClient = useQueryClient()
 
@@ -253,75 +278,38 @@ export function useSettingsState() {
     setHasChanges(true)
   }, [localPrefs, investmentAccounts])
 
-  // Load account classifications. The default guesses use balance sign as a
-  // second-pass signal (see getDefaultClassifications); user-saved
-  // classifications from the server still win via the spread below.
+  // Keep editable copies when a background refetch arrives during an edit.
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setClassificationsLoading(true)
-      setClassificationsError(false)
-      try {
-        const data = await accountClassificationsService.getAllClassifications()
-        if (cancelled) return
-        const accountStats = balanceData?.accounts as
-          | Record<string, { balance: number; transactions: number }>
-          | undefined
-        setClassifications({ ...getDefaultClassifications(accounts, accountStats), ...data })
-      } catch {
-        if (!cancelled) setClassificationsError(true)
-      } finally {
-        if (!cancelled) setClassificationsLoading(false)
-      }
-    }
-    // `load` catches its own failure into classificationsError, so it never
-    // rejects; `void` marks the intentional fire-and-forget in the effect.
-    void load()
-    return () => { cancelled = true }
-  }, [accounts, balanceData, reloadToken])
+    if (!classificationsQuery.data || !balanceData) return
+    if (classificationsInitialized.current && (hasChanges || isSaving)) return
+    classificationsInitialized.current = true
+    const accountStats = balanceData.accounts as
+      | Record<string, { balance: number; transactions: number }>
+      | undefined
+    setClassifications({
+      ...getDefaultClassifications(accounts, accountStats),
+      ...classificationsQuery.data,
+    })
+  }, [classificationsQuery.data, accounts, balanceData, hasChanges, isSaving])
 
-  // Load categorization rules
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setRulesLoading(true)
-      setRulesError(false)
-      try {
-        const data = await categorizationRulesService.getRules()
-        if (cancelled) return
-        setRules(
-          data.map((r) => ({
-            localId: String(r.id),
-            id: r.id,
-            match_field: r.match_field,
-            pattern: r.pattern,
-            category: r.category,
-            subcategory: r.subcategory,
-            is_active: r.is_active,
-          })),
-        )
-      } catch {
-        if (!cancelled) setRulesError(true)
-      } finally {
-        if (!cancelled) setRulesLoading(false)
-      }
-    }
-    // `load` catches its own failure into rulesError, so it never rejects;
-    // `void` marks the intentional fire-and-forget in the effect.
-    void load()
-    return () => { cancelled = true }
-  }, [reloadToken])
+    if (!rulesQuery.data) return
+    if (rulesInitialized.current && (hasChanges || isSaving)) return
+    rulesInitialized.current = true
+    setRules(rulesQuery.data.map((rule) => ({ ...rule, localId: String(rule.id) })))
+  }, [rulesQuery.data, hasChanges, isSaving])
 
   const retrySettings = useCallback(async () => {
-    setReloadToken((current) => current + 1)
     await Promise.all([
       refetchPreferences(),
       refetchCategories(),
       refetchBalances(),
       refetchClosedAccounts(),
       refetchIncomeFacets(),
+      classificationsQuery.refetch(),
+      rulesQuery.refetch(),
     ])
-  }, [refetchPreferences, refetchCategories, refetchBalances, refetchClosedAccounts, refetchIncomeFacets])
+  }, [refetchPreferences, refetchCategories, refetchBalances, refetchClosedAccounts, refetchIncomeFacets, classificationsQuery, rulesQuery])
 
   // Categorization rule handlers
   const addRule = useCallback(() => {
@@ -355,29 +343,21 @@ export function useSettingsState() {
   )
 
   const handleApplyRules = useCallback(async () => {
+    if (saveInProgress.current || applyingRules) return
     if (guardDemoAction('Applying rules')) return
+    const signal = getSessionSignal()
     setApplyingRules(true)
     try {
       const res = await categorizationRulesService.applyRules()
+      assertCurrentSession(signal)
       toast.success(`Updated ${res.updated} of ${res.matched} matching transactions`)
-      // Retro apply changes categories AND transaction ids, so everything
-      // that reads transactions or baked-in analytics must refetch.
-      // `void`: invalidateQueries never rejects (query-core swallows refetch
-      // errors), and each refetched query renders its own error state. The
-      // applyRules call above is the failure path that matters, and it is
-      // already awaited inside try/catch -> toast.error below.
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      void queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
-      void queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
-      void queryClient.invalidateQueries({ queryKey: ['analytics'] })
-      void queryClient.invalidateQueries({ queryKey: ['analyticsV2'] })
-      void queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      void invalidatePreferenceDependents(queryClient, false)
     } catch {
-      toast.error('Failed to apply rules')
+      if (isCurrentSession(signal)) toast.error('Failed to apply rules')
     } finally {
       setApplyingRules(false)
     }
-  }, [guardDemoAction, queryClient])
+  }, [guardDemoAction, queryClient, applyingRules])
 
   // Core updater
   const updateLocalPref = useCallback(
@@ -444,30 +424,46 @@ export function useSettingsState() {
 
   // Save / Reset
   const handleSave = useCallback(async () => {
+    if (!localPrefs || saveInProgress.current || applyingRules) return
     if (guardDemoAction('Saving settings')) return
+    const hasIncompleteRule = rules.some((rule) => !rule.pattern.trim() || !rule.category.trim())
+    if (hasIncompleteRule) {
+      setSaveError('Add a pattern and category to every rule, or remove the unfinished rule.')
+      return
+    }
+
+    const signal = getSessionSignal()
+    saveInProgress.current = true
     setIsSaving(true)
+    setSaveError(null)
+    setSavedAt(null)
     try {
       const original = await accountClassificationsService.getAllClassifications()
+      assertCurrentSession(signal)
       const changed = Object.entries(classifications).filter(
         ([name, type]) => original[name] !== type,
       )
-      await Promise.all(
+      await settleWrites(
         changed.map(([name, type]) => accountClassificationsService.setClassification(name, type)),
       )
-      if (localPrefs) await updatePreferences.mutateAsync(localPrefs)
-      await Promise.all([
-        preferencesService.updateSalaryStructure({ salary_structure: localSalaryStructure }),
-        preferencesService.updateRsuGrants({ rsu_grants: localRsuGrants }),
-        preferencesService.updateGrowthAssumptions({ growth_assumptions: localGrowthAssumptions }),
-      ])
+      assertCurrentSession(signal)
+      // The existing endpoint accepts all of these fields in one transaction.
+      // Publish to the cache only after classifications and rules also settle.
+      await preferencesService.updatePreferences({
+        ...localPrefs,
+        salary_structure: localSalaryStructure,
+        rsu_grants: localRsuGrants,
+        growth_assumptions: localGrowthAssumptions,
+      })
+      assertCurrentSession(signal)
 
       // Sync categorization rules: diff local rows against the server list.
       const serverRules = await categorizationRulesService.getRules()
+      assertCurrentSession(signal)
       const serverById = new Map(serverRules.map((r) => [r.id, r]))
       const localIds = new Set(rules.filter((r) => r.id !== undefined).map((r) => r.id))
       const ruleOps: Promise<unknown>[] = []
       rules.forEach((rule, idx) => {
-        if (!rule.pattern.trim() || !rule.category.trim()) return
         const input: CategorizationRuleInput = {
           match_field: rule.match_field,
           pattern: rule.pattern,
@@ -477,7 +473,12 @@ export function useSettingsState() {
           sort_order: idx,
         }
         if (rule.id === undefined) {
-          ruleOps.push(categorizationRulesService.createRule(input))
+          ruleOps.push(categorizationRulesService.createRule(input).then((created) => {
+            assertCurrentSession(signal)
+            // Preserve successful creates if another write fails, so retrying
+            // the retained draft updates this rule instead of creating it twice.
+            setRules(createdRuleIdUpdater(rule.localId, created.id))
+          }))
           return
         }
         const server = serverById.get(rule.id)
@@ -494,9 +495,21 @@ export function useSettingsState() {
       for (const server of serverRules) {
         if (!localIds.has(server.id)) ruleOps.push(categorizationRulesService.deleteRule(server.id))
       }
-      await Promise.all(ruleOps)
-      // Refresh local rules so new rows pick up their server ids
-      const refreshed = await categorizationRulesService.getRules()
+      await settleWrites(ruleOps)
+      assertCurrentSession(signal)
+      const [savedPreferences, refreshed] = await Promise.all([
+        refreshPreferences(queryClient, signal),
+        categorizationRulesService.getRules(),
+      ])
+      assertCurrentSession(signal)
+      queryClient.setQueryData(RULES_KEY, refreshed)
+      queryClient.setQueryData(['account-classifications', 'all'], classifications)
+      setLocalPrefs(buildInitialLocalPrefs(savedPreferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
+      setLocalSalaryStructure(savedPreferences.salary_structure)
+      setLocalRsuGrants(savedPreferences.rsu_grants.map((grant) => ({
+        ...grant, vestings: sortVestings(grant.vestings),
+      })))
+      setLocalGrowthAssumptions({ ...DEFAULT_GROWTH_ASSUMPTIONS, ...savedPreferences.growth_assumptions })
       setRules(
         refreshed.map((r) => ({
           localId: String(r.id),
@@ -510,46 +523,70 @@ export function useSettingsState() {
       )
 
       setHasChanges(false)
-      toast.success('Settings saved successfully')
-    } catch {
-      toast.error('Failed to save settings')
+      setSavedAt(new Date())
+      toast.success('Settings saved')
+    } catch (error) {
+      if (isCurrentSession(signal)) {
+        setHasChanges(true)
+        setSaveError(`${getApiErrorMessage(error)} Your edits are kept here. Retry to finish saving.`)
+        toast.error('Settings could not be fully saved')
+      }
     } finally {
+      if (isCurrentSession(signal)) {
+        // Some writes may have succeeded even on failure. Refresh readers
+        // without replacing the editable draft.
+        void invalidatePreferenceDependents(queryClient)
+      }
+      saveInProgress.current = false
       setIsSaving(false)
     }
-  }, [classifications, localPrefs, updatePreferences, guardDemoAction, localSalaryStructure, localRsuGrants, localGrowthAssumptions, rules])
+  }, [classifications, localPrefs, guardDemoAction, localSalaryStructure, localRsuGrants, localGrowthAssumptions, rules, queryClient, applyingRules])
 
   const handleReset = useCallback(async () => {
+    if (saveInProgress.current || applyingRules) return
     if (guardDemoAction('Resetting settings')) return
+    const signal = getSessionSignal()
+    saveInProgress.current = true
+    setIsResetting(true)
+    setSaveError(null)
     try {
       await resetPreferences.mutateAsync()
+      assertCurrentSession(signal)
       setLocalPrefs(null)
       setHasChanges(false)
+      setSavedAt(new Date())
       toast.success('Settings reset to defaults')
     } catch {
-      toast.error('Failed to reset settings')
+      if (isCurrentSession(signal)) {
+        setSaveError('Could not reset settings. Your current edits are kept here.')
+        toast.error('Failed to reset settings')
+      }
+    } finally {
+      saveInProgress.current = false
+      setIsResetting(false)
     }
-  }, [resetPreferences, guardDemoAction])
+  }, [resetPreferences, guardDemoAction, applyingRules])
 
   const isLoading =
     preferencesLoading ||
-    classificationsLoading ||
+    classificationsQuery.isLoading ||
     categoriesLoading ||
     balancesLoading ||
     closedAccountsLoading ||
     incomeFacetsLoading ||
-    rulesLoading
+    rulesQuery.isLoading
   const loadError =
-    preferencesError ||
-    categoriesError ||
-    balancesError ||
-    closedAccountsError ||
-    incomeFacetsError ||
-    classificationsError ||
-    rulesError
+    (preferencesError && !preferences) ||
+    (categoriesError && !masterCategories) ||
+    (balancesError && !balanceData) ||
+    (closedAccountsError && closedAccounts.length === 0 && !localPrefs) ||
+    (incomeFacetsError && !incomeFacetsData) ||
+    (classificationsQuery.isError && !classificationsQuery.data) ||
+    (rulesQuery.isError && !rulesQuery.data)
 
   return {
     isLoading, loadError, retrySettings, balancesLoading, balanceData, closedAccounts,
-    localPrefs, hasChanges, isSaving, showResetConfirm, setShowResetConfirm,
+    localPrefs, hasChanges, isSaving, isResetting, saveError, savedAt, showResetConfirm, setShowResetConfirm,
     classifications, setClassifications, setHasChanges,
     draggedItem, setDraggedItem, dragType, setDragType,
     visibleWidgets, setVisibleWidgets,

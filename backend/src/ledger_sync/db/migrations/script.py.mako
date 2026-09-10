@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from ledger_sync.db.migrations.safety import irreversible
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
@@ -22,5 +23,6 @@ def upgrade() -> None:
     ${upgrades if upgrades else "pass"}
 
 
+@irreversible
 def downgrade() -> None:
     ${downgrades if downgrades else "pass"}

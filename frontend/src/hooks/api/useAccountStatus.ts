@@ -9,8 +9,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
+import { invalidatePreferenceDependents } from '@/hooks/api/usePreferences'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
+import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 
 const CLOSED_ACCOUNTS_KEY = ['account-classifications', 'closed'] as const
 
@@ -25,16 +26,18 @@ export function useClosedAccounts() {
 
 export function useSetAccountStatus() {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   return useMutation({
-    mutationFn: ({ accountName, isClosed }: { accountName: string; isClosed: boolean }) =>
-      accountClassificationsService.setAccountStatus(accountName, isClosed),
-    onSuccess: () => {
-      // `invalidateQueries` never rejects (query-core swallows refetch errors
-      // unless throwOnError is set), so `void` just documents fire-and-forget.
-      // A failed status write itself still toasts via the global MutationCache.
-      void queryClient.invalidateQueries({ queryKey: CLOSED_ACCOUNTS_KEY })
-      // Recurring expectations flip server-side with the status change.
-      void queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+    mutationKey: ['account-classifications', 'status', getSessionGeneration()],
+    mutationFn: ({ accountName, isClosed }: { accountName: string; isClosed: boolean }) => {
+      assertCurrentSession(sessionSignal)
+      return accountClassificationsService.setAccountStatus(accountName, isClosed)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (signal && isCurrentSession(signal)) {
+        void invalidatePreferenceDependents(queryClient, false)
+      }
     },
   })
 }

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
+import { useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 
@@ -9,14 +10,20 @@ import { FileParseError, parseFile, type ParseResult } from '@/lib/fileParser'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { uploadService } from '@/services/api/upload'
 
-export type UploadPhase = 'parsing' | 'processing' | 'analytics' | null
+export type UploadPhase = 'parsing' | 'review' | 'processing' | 'analytics' | null
+
+export interface UploadReview {
+  readonly parsed: ParseResult
+  readonly force: boolean
+}
 
 export interface UploadConflict {
   readonly parsed: ParseResult
 }
 
 export interface UploadFailure {
-  readonly parsed: ParseResult
+  readonly parsed: ParseResult | null
+  readonly fileName: string
   readonly message: string
   readonly force: boolean
 }
@@ -24,12 +31,14 @@ export interface UploadFailure {
 export interface UploadSuccess {
   readonly fileName: string
   readonly summary: string
+  readonly analyticsStatus: 'ready' | 'failed' | 'unknown'
+  readonly analyticsMessage: string | null
 }
 
 function getUploadErrorMessage(error: unknown): string {
   const axiosError = error as AxiosError
   if (axiosError.code === 'ECONNABORTED') {
-    return 'Request timed out. The server may be busy -- please try again.'
+    return 'The request timed out. Check import history before retrying; the server may have saved your ledger.'
   }
   if (axiosError.code === 'ERR_NETWORK') {
     return 'Could not reach the server. Check your internet connection and try again.'
@@ -47,16 +56,22 @@ function isDuplicateUpload(message: string): boolean {
 }
 
 export function useUploadSync() {
+  const [review, setReview] = useState<UploadReview | null>(null)
   const [conflict, setConflict] = useState<UploadConflict | null>(null)
   const [failure, setFailure] = useState<UploadFailure | null>(null)
   const [success, setSuccess] = useState<UploadSuccess | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const [phase, setPhase] = useState<UploadPhase>(null)
   const uploadMutation = useUpload()
+  const queryClient = useQueryClient()
+  const busy = useRef(false)
   const { guardDemoAction } = useDemoGuard()
 
   const uploadParsedFile = async (parsed: ParseResult, force: boolean) => {
+    if (busy.current) return
+    busy.current = true
     setFailure(null)
+    setReview(null)
     setPhase('processing')
 
     try {
@@ -67,18 +82,11 @@ export function useUploadSync() {
         force,
       })
 
-      setPhase('analytics')
-      try {
-        await uploadService.refreshAnalytics()
-      } catch {
-        toast.warning('Analytics refresh failed -- dashboard may show stale data until next upload.')
-      }
-
       const { inserted, updated, deleted, unchanged } = result.stats
       const parts = [`${inserted} inserted`]
       if (updated > 0) parts.push(`${updated} updated`)
-      if (deleted > 0) parts.push(`${deleted} deleted`)
-      if (unchanged > 0) parts.push(`${unchanged} skipped (duplicates)`)
+      if (deleted > 0) parts.push(`${deleted} removed`)
+      if (unchanged > 0) parts.push(`${unchanged} unchanged or paired transfer rows`)
 
       const summary = force
         ? parts.join(', ')
@@ -87,8 +95,13 @@ export function useUploadSync() {
       setPhase(null)
       setSelectedFileName(null)
       setConflict(null)
-      setSuccess({ fileName: parsed.fileName, summary })
-      toast.success(force ? 'Reupload Successful!' : 'Upload Successful!', {
+      setSuccess({
+        fileName: parsed.fileName,
+        summary,
+        analyticsStatus: result.analytics_status ?? 'unknown',
+        analyticsMessage: result.analytics_message ?? null,
+      })
+      toast.success('Ledger saved', {
         description: summary,
         duration: 5000,
       })
@@ -107,17 +120,21 @@ export function useUploadSync() {
 
       const message = getUploadErrorMessage(error)
       setSelectedFileName(null)
-      setFailure({ parsed, message, force })
+      setFailure({ parsed, fileName: parsed.fileName, message, force })
       toast.error(force ? 'Reupload Failed' : 'Upload Failed', {
         description: message,
         duration: 6000,
       })
+    } finally {
+      busy.current = false
     }
   }
 
   const handleFileSelect = async (file: File) => {
-    if (guardDemoAction('File upload')) return
+    if (busy.current || guardDemoAction('File upload')) return
 
+    busy.current = true
+    setReview(null)
     setConflict(null)
     setFailure(null)
     setSuccess(null)
@@ -134,37 +151,77 @@ export function useUploadSync() {
         ? error.message
         : 'Could not read file. Ensure it is a valid .xlsx, .xls, or .csv file.'
       toast.error('Parse Error', { description: message, duration: 6000 })
+      setFailure({ parsed: null, fileName: file.name, message, force: false })
       return
+    } finally {
+      busy.current = false
     }
 
-    await uploadParsedFile(parsed, false)
+    setReview({ parsed, force: false })
+    setPhase('review')
   }
 
-  const handleForceReupload = async () => {
+  const handleForceReupload = () => {
     if (!conflict) return
     const { parsed } = conflict
     setConflict(null)
     setSelectedFileName(parsed.fileName)
-    await uploadParsedFile(parsed, true)
+    setReview({ parsed, force: true })
+    setPhase('review')
   }
 
   const handleRetryUpload = async () => {
-    if (!failure) return
+    if (!failure?.parsed) return
     const { parsed, force } = failure
     setFailure(null)
     setSelectedFileName(parsed.fileName)
     await uploadParsedFile(parsed, force)
   }
 
+  const handleConfirmUpload = async () => {
+    if (review) await uploadParsedFile(review.parsed, review.force)
+  }
+
+  const handleCancelReview = () => {
+    setReview(null)
+    setSelectedFileName(null)
+    setPhase(null)
+  }
+
+  const handleRetryAnalytics = async () => {
+    if (!success || busy.current) return
+    busy.current = true
+    setPhase('analytics')
+    try {
+      await uploadService.refreshAnalytics()
+      await queryClient.invalidateQueries()
+      setSuccess({ ...success, analyticsStatus: 'ready', analyticsMessage: null })
+      toast.success('Insights refreshed')
+    } catch (error) {
+      setSuccess({
+        ...success,
+        analyticsStatus: 'failed',
+        analyticsMessage: getUploadErrorMessage(error),
+      })
+    } finally {
+      busy.current = false
+      setPhase(null)
+    }
+  }
+
   return {
+    review,
     conflict,
     failure,
     success,
     selectedFileName,
     phase,
-    isBusy: phase !== null,
+    isBusy: phase !== null && phase !== 'review',
     handleFileSelect,
     handleForceReupload,
     handleRetryUpload,
+    handleConfirmUpload,
+    handleCancelReview,
+    handleRetryAnalytics,
   }
 }

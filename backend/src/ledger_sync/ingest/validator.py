@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from ledger_sync.config.settings import settings
+from ledger_sync.schemas.upload import MAX_UPLOAD_ROWS
 
 
 class ValidationError(Exception):
@@ -50,6 +51,10 @@ class ExcelValidator:
             msg = f"File must be Excel (.xlsx, .xls) or CSV (.csv) format: {file_path}"
             raise ValidationError(msg)
 
+        if file_path.stat().st_size > settings.max_upload_size_bytes:
+            msg = f"File exceeds the {settings.max_upload_size_bytes // (1024 * 1024)} MB limit"
+            raise ValidationError(msg)
+
     def validate_columns(self, df: pd.DataFrame) -> dict[str, str]:
         """Validate that required columns exist.
 
@@ -91,12 +96,11 @@ class ExcelValidator:
 
         return column_mapping
 
-    def validate_data_types(self, df: pd.DataFrame, column_mapping: dict[str, str]) -> None:
+    def validate_data_types(self, df: pd.DataFrame) -> None:
         """Validate basic data types.
 
         Args:
             df: DataFrame to validate
-            column_mapping: Column name mapping
 
         Raises:
             ValidationError: If data types are invalid
@@ -107,15 +111,12 @@ class ExcelValidator:
             msg = "Excel file contains no data rows"
             raise ValidationError(msg)
 
-        # Validate amount column is numeric
-        amount_col = column_mapping["amount"]
-        if not pd.api.types.is_numeric_dtype(df[amount_col]):
-            # Try to convert
-            try:
-                pd.to_numeric(df[amount_col], errors="coerce")
-            except (ValueError, TypeError) as e:
-                msg = f"Amount column '{amount_col}' must contain numeric values: {e}"
-                raise ValidationError(msg) from e
+        if len(df) > MAX_UPLOAD_ROWS:
+            msg = f"Snapshot exceeds the {MAX_UPLOAD_ROWS:,} row limit"
+            raise ValidationError(msg)
+
+        # Row normalization validates dates and Decimal amounts without coercing
+        # bad cells to NaN or discarding rows from a replacement snapshot.
 
     def validate(self, file_path: Path, df: pd.DataFrame) -> dict[str, str]:
         """Run all validations.
@@ -133,6 +134,6 @@ class ExcelValidator:
         """
         self.validate_file_exists(file_path)
         column_mapping = self.validate_columns(df)
-        self.validate_data_types(df, column_mapping)
+        self.validate_data_types(df)
 
         return column_mapping

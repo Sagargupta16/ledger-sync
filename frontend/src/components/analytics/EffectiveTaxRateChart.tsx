@@ -11,7 +11,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { calculateTax, getTaxSlabs } from '@/lib/taxCalculator'
+import { calculateTax, getStandardDeduction, getTaxSlabs } from '@/lib/taxCalculator'
 import type { TaxSlab } from '@/lib/taxCalculator'
 import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
@@ -24,7 +24,6 @@ interface EffectiveTaxRateChartProps {
   taxSlabs?: TaxSlab[]
   isNewRegime?: boolean
   fyYear: number
-  standardDeduction: number
   currentIncome?: number
 }
 
@@ -38,7 +37,7 @@ const RANGE_OPTIONS = [
 
 export default function EffectiveTaxRateChart({
   fyYear,
-  standardDeduction,
+  isNewRegime = true,
   currentIncome = 0,
 }: Readonly<EffectiveTaxRateChartProps>) {
   const [maxIncome, setMaxIncome] = useState(5000000)
@@ -49,6 +48,8 @@ export default function EffectiveTaxRateChart({
     const step = maxIncome / points
     const newSlabs = getTaxSlabs(fyYear, 'new')
     const oldSlabs = getTaxSlabs(fyYear, 'old')
+    const newDeduction = getStandardDeduction(fyYear, 'new')
+    const oldDeduction = getStandardDeduction(fyYear, 'old')
 
     const data: Array<{
       income: number
@@ -64,10 +65,10 @@ export default function EffectiveTaxRateChart({
       }
 
       const newResult = calculateTax(
-        income, newSlabs, standardDeduction, false, 12, true, fyYear,
+        income, newSlabs, newDeduction, false, 12, true, fyYear,
       )
       const oldResult = calculateTax(
-        income, oldSlabs, standardDeduction, false, 12, false, fyYear,
+        income, oldSlabs, oldDeduction, false, 12, false, fyYear,
       )
 
       data.push({
@@ -78,7 +79,7 @@ export default function EffectiveTaxRateChart({
     }
 
     return data
-  }, [maxIncome, fyYear, standardDeduction])
+  }, [maxIncome, fyYear])
 
   // Find crossover point where old regime becomes better
   const crossoverIncome = useMemo(() => {
@@ -92,15 +93,16 @@ export default function EffectiveTaxRateChart({
 
   const currentPoint = useMemo(() => {
     if (currentIncome <= 0) return null
-    const newSlabs = getTaxSlabs(fyYear, 'new')
+    const regime = isNewRegime ? 'new' : 'old'
+    const slabs = getTaxSlabs(fyYear, regime)
     const result = calculateTax(
-      currentIncome, newSlabs, standardDeduction, false, 12, true, fyYear,
+      currentIncome, slabs, getStandardDeduction(fyYear, regime), false, 12, isNewRegime, fyYear,
     )
     return {
       income: currentIncome,
       effectiveRate: Math.round(((result.totalTax / currentIncome) * 100) * 100) / 100,
     }
-  }, [currentIncome, fyYear, standardDeduction])
+  }, [currentIncome, fyYear, isNewRegime])
 
   return (
     <motion.div
@@ -115,7 +117,7 @@ export default function EffectiveTaxRateChart({
           <div>
             <h3 className="text-base font-semibold">Effective tax rate</h3>
             <p className="text-xs text-muted-foreground">
-              New versus old regime, before old-regime deductions
+              Includes each regime's standard deduction, before additional deductions
             </p>
           </div>
         </div>
@@ -225,7 +227,7 @@ export default function EffectiveTaxRateChart({
 
       {/* Legend + Range selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:w-auto">
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.app.orange }} />
             <span>New Regime</span>
@@ -243,11 +245,11 @@ export default function EffectiveTaxRateChart({
           {currentPoint && (
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
-              <span>You ({currentPoint.effectiveRate}%)</span>
+              <span>You, {isNewRegime ? 'new' : 'old'} ({currentPoint.effectiveRate}%)</span>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="text-xs text-muted-foreground">Range:</span>
           <div className="ledger-control flex overflow-hidden rounded-md border p-1">
             {RANGE_OPTIONS.map(({ label, value }) => (

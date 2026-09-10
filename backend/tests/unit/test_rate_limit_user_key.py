@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from ledger_sync.api.rate_limit import _user_key_func
+import pytest
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+from ledger_sync.api import rate_limit
+from ledger_sync.api.rate_limit import _user_key_func, limiter, user_limiter
 from ledger_sync.core.auth.tokens import create_tokens
 
 # Synthetic test IPs -- never leave the test suite. Documented for reviewers so
@@ -62,3 +70,49 @@ def test_user_key_func_case_insensitive_bearer_prefix():
 
     assert _user_key_func(req_lower) == "user:99"
     assert _user_key_func(req_upper) == "user:99"
+
+
+@user_limiter.limit("2/minute")
+@limiter.limit("3/minute")
+def _limited_endpoint(request: Request) -> dict[str, bool]:
+    return {"ok": True}
+
+
+def _limited_app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
+    monkeypatch.setattr(
+        rate_limit,
+        "decode_token",
+        lambda value: SimpleNamespace(sub=value, type="access"),
+    )
+    limiter.reset()
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.get("/limited")(_limited_endpoint)
+    return app
+
+
+def test_stacked_limits_enforce_ip_across_distinct_users(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = TestClient(_limited_app(monkeypatch))
+    statuses = [
+        client.get("/limited", headers={"Authorization": f"Bearer {identity}"}).status_code
+        for identity in ("one", "two", "one", "two")
+    ]
+
+    assert statuses == [200, 200, 200, 429]
+
+
+def test_stacked_limits_enforce_user_across_distinct_ips(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _limited_app(monkeypatch)
+    first = TestClient(app, client=("192.0.2.1", 40001))
+    second = TestClient(app, client=("192.0.2.2", 40002))
+    auth = {"Authorization": "Bearer one"}
+
+    assert first.get("/limited", headers=auth).status_code == 200
+    assert second.get("/limited", headers=auth).status_code == 200
+    assert second.get("/limited", headers=auth).status_code == 429
+    assert first.get("/limited", headers={"Authorization": "Bearer two"}).status_code == 200

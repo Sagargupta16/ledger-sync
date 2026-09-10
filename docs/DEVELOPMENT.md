@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.24.0.
+Current for Ledger Sync 2.24.1.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -207,10 +207,23 @@ uv run alembic current
 
 `db/models.py` is a compatibility facade, not the place to define a model.
 
-Migrations from 2026-02-03 onward intentionally do not provide automatic
-downgrades. Do not rely on `alembic downgrade -1`. Use a backup, a forward
-repair migration, or both. See the
+Unsupported historical downgrades fail before any step in the rollback plan
+changes the schema or version marker. New revision templates use the same
+backup/forward-recovery guard. Use a verified backup or a forward repair rather
+than relying on `alembic downgrade -1`. See the
 [migration notes](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md).
+
+Run `uv run pytest tests/integration/test_migrations_from_scratch.py` for SQLite
+bootstrap and constraint behavior. Set `LEDGER_SYNC_TEST_POSTGRES_URL` to a local
+disposable PostgreSQL database named `ledger_sync_test*` to run the same checks
+on PostgreSQL. CI starts an isolated native PostgreSQL cluster using installed
+runner binaries and gates releases on it, without containers.
+
+Keep real imports in ignored `imports/` or `private/` directories and database
+backups in `backups/`. Environment variants, CSV/TSV imports, SQL dumps, and key
+files are ignored. Only synthetic files under `tests/fixtures/` or `examples/`
+and explicit `.env*.example`, `.env*.template`, or `.env*.sample` templates are
+eligible for source control.
 
 Use `fmt_year_month`, `fmt_year`, `fmt_month`, and `fmt_date` from
 `core/query_helpers.py` instead of raw SQLite `strftime` calls. Production

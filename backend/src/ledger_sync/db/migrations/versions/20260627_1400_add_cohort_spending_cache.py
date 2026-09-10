@@ -15,6 +15,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 # revision identifiers, used by Alembic.
 revision: str = "cohort_spending_2026"
 down_revision: str | None = "salary_tds_2026"
@@ -45,6 +47,7 @@ def upgrade() -> None:
     )
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

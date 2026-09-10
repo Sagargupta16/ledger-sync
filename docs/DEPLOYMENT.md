@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.24.0.
+Current for Ledger Sync 2.24.1.
 
 ## Production Topology
 
@@ -17,8 +17,11 @@ Browser
   -> Neon PostgreSQL 17
 ```
 
-The frontend and backend deploy from `main`. Database schema changes run
-through a separate GitHub Actions migration workflow.
+Production releases use `main`. CI gates the migration workflow, then the
+GitHub Pages workflow, for the same commit. Pages waits for a healthy backend
+reporting the frontend release version and a connected database before publishing.
+Vercel's external GitHub integration must be configured or promoted separately
+after migrations.
 
 ## Deployment Sources
 
@@ -108,36 +111,52 @@ Requirements:
 The application normalizes `postgresql://` and
 `postgresql+psycopg2://` URLs to the psycopg 3 driver.
 
-The production database URL must also exist as the
-`LEDGER_SYNC_DATABASE_URL` GitHub Actions secret so the migration workflow can
-connect.
+The `LEDGER_SYNC_DATABASE_URL` GitHub Actions secret must use Neon's direct
+connection endpoint for migrations. The Vercel value with the same name uses
+the pooler for application traffic. Do not expose either value in logs.
 
 ### Migration workflow
 
-The workflow runs on pushes to `main` that change:
+`ci.yml` runs the frontend, backend, security, and PostgreSQL migration checks.
+On `main`, only a successful set of checks calls `migrate.yml`, which uses the
+`production` environment and Python 3.13. Only a successful migration calls
+`deploy-frontend.yml`. Run the **CI** workflow manually on `main` to repeat the
+same gated release path; the two reusable workflows have no independent push
+or manual triggers.
 
-- `backend/src/ledger_sync/db/migrations/**`
-- `backend/src/ledger_sync/db/models.py`
-- `backend/src/ledger_sync/db/_models/**`
+Main CI runs and migration jobs serialize without canceling an active release.
+Protect the `production` environment in GitHub if a reviewer approval is
+required; declaring an environment in YAML does not configure its protection.
+No production settings are provisioned by these workflows.
 
-It can also be run manually.
+CI tests `alembic upgrade head` from an empty SQLite database and an isolated
+native PostgreSQL cluster using the runner's installed binaries. It logs the
+server version, binds only loopback, and stops only the cluster it created.
+It does not use containers or alter a pre-existing database service.
+The migration tests compare table and column coverage, primary keys,
+unique constraints, foreign keys and cascade rules, and check constraints
+against the ORM. They exercise duplicate OAuth identities, invalid amounts,
+data preservation, idempotency, and rejection of unsupported rollback plans.
+Six simultaneous PostgreSQL connections also verify that only one worker can
+reserve the remaining daily message, daily token, or monthly token allowance.
+Use `uv run alembic heads` to identify the current revision rather than a
+hardcoded revision in a runbook.
 
-The current migration head is `reconcile_create_all_2026`. Migrations from
-2026-03-02 onward intentionally have no automatic downgrade. Take a database
-backup before a destructive or high-risk migration and prefer a forward repair
-revision.
+`identity_constraints_2026` follows `ai_usage_reservations_2026`. It adds SQLite's
+missing OAuth uniqueness index, removes obsolete global uniqueness rules that
+block different users' data, and installs the budget/goal positive-amount
+checks. Duplicate identities or nonpositive existing amounts stop the revision
+before it changes schema or data. Resolve ownership and invalid values
+explicitly from a verified backup, then retry. It never merges accounts or
+rewrites financial amounts automatically.
 
-`alembic upgrade head` must also succeed against an empty database, and CI
-proves it: the backend job runs the whole chain into a throwaway SQLite file,
-and `backend/tests/integration/test_migrations_from_scratch.py` compares the
-result against the ORM schema and re-runs the upgrade to confirm the guards are
-idempotent. Production only ever applies incremental revisions, and `init_db()`
-calls `create_all()` on startup, so a missing migration stays invisible there.
-Revision `reconcile_create_all_2026` exists for exactly that reason: twelve
-columns had reached every deployed database through `create_all()` alone.
+`create_all()` creates missing tables but cannot retrofit columns or
+constraints onto existing ones. Alembic remains the schema authority.
 
-Because Vercel deployment and the migration workflow can run concurrently,
-schema changes must use an expand-and-contract sequence:
+Vercel's GitHub integration is outside this job graph. For a schema release,
+configure production promotion to wait for this commit's CI and migrations, or
+promote the validated backend deployment manually. Until that external gate is
+configured, use backward-compatible expand-and-contract changes:
 
 1. Add backward-compatible schema.
 2. Deploy code that can use both old and new states.
@@ -146,6 +165,28 @@ schema changes must use an expand-and-contract sequence:
 
 See [DATABASE.md](DATABASE.md) and the
 [migration notes](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md).
+
+### AI configuration and encryption rollout
+
+Apply `ai_usage_reservations_2026` and subsequent revisions before promoting
+the new backend. Reservations enforce message and token budgets across workers
+through database row locks. Shared per-minute account and IP rates additionally
+require distributed SlowAPI storage; process-local storage cannot enforce a
+global limit across Vercel instances. Configure and verify that storage before
+claiming global per-minute enforcement.
+
+Drain old workers before allowing new workers to write v3 encrypted API keys.
+Old code cannot read the new envelope. Retain previous encryption key material
+until every stored value has been successfully rewrapped and verified. Normal
+key reveal and Bedrock use can rewrap authenticated legacy values; controlled
+rotation uses `rewrap_api_key(previous_keys=...)`. A code rollback after v3
+writes must retain a reader that understands v3, or restore a coordinated
+application and database backup.
+
+Clients may omit `api_key`, or send null, for a model/region-only settings save.
+This preserves a key only when the provider is unchanged and the stored key is
+usable. A provider change requires a new key; a concurrent replacement returns
+409 and requires reloading settings. Explicit key removal uses DELETE.
 
 ## Vercel Backend
 
@@ -175,14 +216,15 @@ curl.exe --fail https://ledger-sync-api.vercel.app/api/auth/oauth/providers
 
 Expected behavior:
 
-- `/health` returns version `2.24.0`.
+- `/health` returns the release version from `ledger_sync.__version__`.
 - `/health/db` returns a connected database result.
 - `/api/auth/oauth/providers` returns HTTP 200 and a JSON array.
 - An empty provider array means no OAuth provider is configured.
 
-The scheduled keepalive workflow calls `/health` every 30 minutes. It is a
-best-effort wake-up request and does not fail the workflow for a transient
-backend response.
+The scheduled keepalive calls `/health/db` every 30 minutes, which executes a
+database query. It retries failures twice, then fails with an Actions error
+annotation. Neon may still suspend between checks; this does not guarantee a
+warm database or replace application monitoring.
 
 ## GitHub Pages Frontend
 
@@ -193,7 +235,7 @@ Repository settings:
 | Pages source | GitHub Actions |
 | Actions variable `VITE_API_BASE_URL` | Vercel backend origin |
 
-The deployment workflow:
+After CI and database migrations pass for the same commit, the deployment workflow:
 
 1. Installs pnpm 11.17.0 from the root `packageManager` field.
 2. Uses Node.js 24.
@@ -201,7 +243,13 @@ The deployment workflow:
    disabled (`--frozen-lockfile --ignore-scripts`).
 4. Builds with `GITHUB_PAGES=true`.
 5. Copies `index.html` to `404.html`.
-6. Publishes `frontend/dist`.
+6. Waits up to ten minutes for `/health` to report the frontend package version
+   and for `/health/db` to report a connected database.
+7. Publishes `frontend/dist`.
+
+If the backend is not ready, the workflow fails before publishing and the
+previous Pages deployment remains active. This is a release-version and health
+check, not a commit identity check; verify the intended Vercel commit separately.
 
 The `404.html` copy allows direct navigation to React Router paths on GitHub
 Pages. `BrowserRouter` uses `import.meta.env.BASE_URL`, so every route remains
@@ -227,15 +275,17 @@ exchanging the authorization code.
 
 1. Push a feature branch.
 2. Open a pull request to `main`.
-3. Wait for frontend, backend, and security checks to pass.
+3. Wait for frontend, backend, security, and PostgreSQL migration checks to pass.
 4. Review any schema or environment changes.
 5. Merge only when required checks are green.
 
 After merge:
 
-- GitHub Actions builds and deploys the frontend.
-- Vercel deploys the backend through its GitHub integration.
-- The migration workflow runs only when a watched schema path changed.
+- Main CI validates the merged commit, then applies any pending migrations.
+- Promote the Vercel backend after CI and migrations pass. Automatic Vercel
+  deployment needs the separately configured protection described above.
+- GitHub Pages publishes that same commit only after the backend readiness
+  check succeeds.
 
 Do not push release changes directly to `main`.
 
@@ -297,7 +347,8 @@ a backend redeploy.
 
 ### Frontend
 
-Redeploy a previously known-good commit through the GitHub Pages workflow.
+Revert the frontend change through a reviewed pull request, then let CI run the
+normal migration and Pages sequence. A code revert does not revert the database.
 
 ### Backend
 
@@ -306,9 +357,16 @@ a new pull request.
 
 ### Database
 
-Do not assume `alembic downgrade` is available. Restore the pre-migration
-backup or ship a tested forward repair migration. Coordinate code rollback with
-the schema state so the previous backend remains compatible.
+Unsupported historical downgrades raise an error. Alembic preflights the entire
+rollback plan before applying its first step, including when an earlier step
+would otherwise be reversible. The version marker is not moved to imply a
+recovery that did not happen.
+
+Restore a verified pre-migration backup into an isolated database first, validate
+its data and schema, then coordinate the application and database cutover.
+Alternatively, ship a tested forward repair. Do not use `alembic stamp` to hide
+a failed migration, and do not delete conflicting users or change financial
+amounts merely to make a constraint pass.
 
 ## Security Checks
 

@@ -147,6 +147,8 @@ describe('getTaxSlabs / getStandardDeduction / getFYFromDate', () => {
     expect(getStandardDeduction(2025)).toBe(75_000)
     expect(getStandardDeduction(2024)).toBe(75_000)
     expect(getStandardDeduction(2023)).toBe(50_000)
+    expect(getStandardDeduction(2024, 'old')).toBe(50_000)
+    expect(getStandardDeduction(2025, 'old')).toBe(50_000)
   })
 
   it('dispatches slabs by regime and FY', () => {

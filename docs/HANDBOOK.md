@@ -1,8 +1,8 @@
 # Ledger Sync Handbook
 
-User guide for Ledger Sync 2.24.0.
+User guide for the current Ledger Sync workspace.
 
-Verified against the live frontend source on 2026-08-09. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
+Checked against the frontend source on 2026-09-09. For exact routes and data sources, see [PAGES.md](PAGES.md). For formulas, see [CALCULATIONS.md](CALCULATIONS.md). For request contracts, see [API.md](API.md).
 
 ## Start Here
 
@@ -15,7 +15,17 @@ Open the public Home page and choose one of these paths:
 
 Google and GitHub buttons appear only when the backend reports those providers as configured.
 
-If the dialog says it could not reach the sign-in service, use Try again once. If it keeps failing, check the backend and database health endpoints described in [DEPLOYMENT.md](DEPLOYMENT.md#sign-in-service-unavailable).
+Finish sign-in in the same browser tab where you started it. Attempts expire
+after ten minutes and work once. If the callback says the attempt expired or
+does not match, choose **Sign in again** to start a fresh attempt. **Return
+home** leaves the recovery screen without signing in.
+
+After a sign-in update, an older open tab may ask you to refresh and choose
+Sign in again. The restart path begins a fresh attempt in the current app;
+the previous code and state cannot be reused. A cached PWA shell may need
+that refresh after its update.
+
+If the dialog says it could not reach the sign-in service, use Try again once. If it keeps failing, check the backend and database health endpoints described in [DEPLOYMENT.md](DEPLOYMENT.md#sign-in-incident-runbook).
 
 ## Workspace Layout
 
@@ -61,7 +71,7 @@ Financial pages distinguish loading, empty, and failed requests. A failed reques
 
 1. Sign in with Google or GitHub.
 2. Open Upload and Sync.
-3. Import an Excel or CSV statement.
+3. Review and confirm an Excel or CSV export containing your complete ledger.
 4. Review Transactions, tags, and saved views.
 5. Configure accounts, income buckets, expense categories, and investment mappings in Settings.
 6. Use Dashboard and Overview for status.
@@ -89,25 +99,37 @@ Expected row fields:
 - Type
 - Amount
 - Note, optional
-- Currency, optional and defaults to INR
+- Currency, optional and defaults to INR; other source currencies are rejected
 
 Supported transaction types are Income, Expense, Transfer-In, and Transfer-Out.
 
 After selection:
 
-1. The page shows Parsing.
-2. Valid rows are sent as JSON.
-3. The backend reconciles new, changed, unchanged, and missing rows.
-4. Analytics are recomputed.
-5. The workspace cache refreshes.
+1. The page parses and validates the complete file.
+2. Review the source row counts, date range, currency, and accounts.
+3. Confirm that this export contains your complete ledger, including all dates and accounts you want to retain.
+4. The backend validates every row and saves reconciliation and import history together.
+5. Analytics refresh separately, and the workspace reloads affected data.
 
-An already imported file produces a conflict prompt. Use Force Reupload only when the new copy is intended to replace or reconcile the earlier import.
+This is a full snapshot replacement. Existing rows missing from the selected
+file are soft-deleted, even if they belong to another account or an earlier
+date. Use a complete export instead of a statement containing only a new month.
+An invalid row rejects the batch before ledger changes.
+
+An already imported file produces a conflict prompt. Force Reupload returns
+to review and still requires confirmation of the complete snapshot.
+
+If the ledger is saved but analytics fail, use **Retry insights refresh** to refresh
+insights without uploading again. If the upload times out, check Import History
+before retrying because the save may already have completed.
 
 Import history below the upload area lists the most recent runs with local-time
 timestamps and processed, new, updated, and already-present row counts. It is
 account-scoped and is hidden in demo mode, where no server-side imports occur.
 
-There is no separate mapping or row-preview screen. The table below the drop zone is an expected-format example, not imported data.
+The review summarizes the selected snapshot; it is not a row editor or
+column-remapping screen. The table below the drop zone remains an
+expected-format example, not imported data.
 
 ## Transactions
 
@@ -285,7 +307,11 @@ Settings map accounts into four display categories:
 - PPF and EPF
 - Stocks
 
-The page shows total value, portfolio asset count, net investment P and L, cashflow XIRR, an optional monthly target, allocation, growth, and an account table.
+The page shows book-value contributions, portfolio asset count, recorded
+investment P and L, the largest holding, an optional monthly target,
+allocation, growth, and an account table. These are cost-basis figures. The page explains why portfolio
+return and XIRR require market valuations that the imported statements do not
+contain.
 
 ### Projections
 
@@ -299,13 +325,20 @@ Adjust:
 - Expected return
 - Projection period
 
-The page combines detected contribution history with projected invested value and growth. It also includes PPF, EPF, and NPS calculators using configured instrument rates.
+The page combines detected contribution history with projected invested value
+and growth. Enter a current market value to compute the historical Total
+Return and XIRR tiles; without it, those tiles ask for a valuation. It also
+includes PPF, EPF, and NPS calculators using configured instrument rates.
 
 ### Returns Analysis
 
 **Route:** `/investments/returns`
 
-Review monthly net investment, estimated CAGR, account ranking, and winner or weak-account context. Return calculations depend on imported cash flows and available balances, not live market data.
+Review realised investment income, booked costs, net investment P and L, event
+counts, monthly cash flows, and book-value holdings. Dividends, interest, booked
+profit or loss, and broker costs come from the ledger. CAGR and monthly ROI are
+not inferred from salary or contributions; actual returns require market
+valuations.
 
 ## Commitments
 
@@ -358,11 +391,29 @@ instead, so expect the two Savings figures to differ.
 
 Create Goal expands an inline form below the summary area. Each goal shows target, current progress, deadline, feasibility, and a savings projection based on average monthly savings.
 
-Current behavior to note:
+Signed-in goal creation, editing, progress, allocation, and deletion are saved
+to your account. Progress and allocations use the stored current amount.
+Deletion requires confirmation, and a failed save keeps the form available
+for retry.
 
-- Goal creation is persisted through the backend.
-- Edit, progress, allocation, and delete interactions currently use browser-local overrides.
-- Clearing browser storage can remove those local overrides.
+In demo mode, these actions change only the current Goals page visit. Leaving
+and reopening the page restores the sample goals.
+
+If older browser-saved goal values are found, signed-in users can review them
+beside the current account's saved values. Select the fields to recover and
+confirm that they belong to this account before saving. The review warns when
+values might belong to demo goals. Recovered progress replaces the current
+amount with the selected browser value. You can keep the account's current
+values instead. A goal previously hidden only in this browser stays visible
+until you choose what to do; permanent deletion requires a separate
+confirmation.
+
+Recovery never applies older values automatically or changes the original
+browser data. The app checks the current goal and browser values again before
+saving. If they changed, review the updated comparison. A failed save keeps
+the original data and your selections available for retry. Confirmed choices
+are remembered for this account. If browser storage cannot remember a
+successful choice, the app reports that separately from the saved change.
 
 ### FIRE Calculator
 
@@ -418,6 +469,12 @@ basis; an optional net quantity reports shares actually received after
 sell-to-cover withholding. Upcoming vestings use the configured appreciation
 assumption.
 
+The estimate identifies its recorded-income or salary-projection basis,
+deductions, and fiscal-year rules. The old-regime standard deduction is INR
+50,000; the new-regime standard deduction is INR 75,000 from FY 2024-25.
+Comparisons apply each regime's own deduction. If an exact year has no
+configuration, the page identifies its latest-known-rules fallback.
+
 Tax rules are versioned by fiscal year, but results remain estimates. Verify final filing values against official records.
 
 ### Indirect Tax (GST)
@@ -466,6 +523,11 @@ This section starts collapsed.
 
 The Save button is a solid blue action with a Save icon and activates only when staged settings changed. Reset restores preference defaults but preserves account classifications.
 
+Save waits for the affected sections before reloading settings. If a section
+fails, the draft stays available for retry; another section may already have
+saved successfully. Changing accounts or signing out clears the previous
+account's data and page drafts. Theme and motion remain device preferences.
+
 ## AI Assistant
 
 The assistant is available from the workspace header or floating chat control when configured.
@@ -488,22 +550,49 @@ It can use 15 read-only tools for:
 
 The prompt contains currency, date, fiscal-year, and tool guidance. The assistant fetches actual numbers through tools and should state when no data is found.
 
-OpenAI and Anthropic BYOK calls are browser-direct. Bedrock calls always pass through the backend and use the server's Bedrock credential, including a BYOK configuration that selects Bedrock.
+OpenAI and Anthropic BYOK calls go directly from the browser to the selected
+provider with your key. Bedrock calls pass through the backend. A usable
+personal Bedrock bearer key uses your funding and selected model; app mode
+uses the app's model and shared allowance. Incomplete Bedrock BYOK settings
+stop the request. Add a personal key or explicitly select App Bedrock mode.
+
+When the provider stays the same, leave the key field blank to save only a
+model or region change using the stored key. Changing provider requires a new
+key. A conflicting save offers **Reload saved configuration** and keeps your
+draft. App mode preserves your personal configuration for a later switch back.
+
+The shared allowance counts model requests, including follow-up tool rounds,
+so one question can use more than one unit. Bedrock reserves token budget
+before a request and settles recorded usage afterward. An uncertain provider
+failure can continue to count against the budget. Browser-direct usage
+tracking does not replace spending limits at your provider.
+
+Token budgets are available in both app and BYOK modes. Zero blocks Bedrock
+calls; a blank field removes that personal cap. Pending reserved tokens are
+shown separately and still count against the budget.
+
+Tool results sent back to the model can contain your financial data. The tools
+are read-only and scoped to your account.
 
 ## Demo Mode
 
 Demo mode seeds deterministic sample transactions and analytics in the browser.
 
-- Read-only analysis pages work without real API calls.
-- Mutations are blocked with a sign-in explanation.
+- Supported analysis reads use generated data.
+- Server mutations are blocked with a sign-in explanation.
+- Goals can be edited locally for the current page visit.
 - Demo state lasts for the browser session.
-- Exiting demo clears the seeded query cache.
+- Exiting demo cancels pending work and clears the seeded query cache and user stores.
+- Sign-in can contact the authentication service while demo mode is active.
 
 ## Time and Currency
 
 The shared analytics filter provides All Time, FY, Yearly, and Monthly modes on supported pages. Year in Review provides only FY and Yearly.
 
 Changing display currency changes formatting and converted display values. It does not rewrite imported ledger rows.
+
+New imports require INR source amounts. Display conversion does not make a
+foreign-currency statement a valid INR ledger snapshot.
 
 ## Current Limitations
 
@@ -512,4 +601,4 @@ Changing display currency changes formatting and converted display values. It do
 - No transaction split/edit/delete UI.
 - No invoice-level GST extraction.
 - No live mutual-fund NAV feed.
-- Goal edits and progress overrides are not fully server-persisted.
+- Imported cost-basis data does not provide a live portfolio valuation.

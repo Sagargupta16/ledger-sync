@@ -1,10 +1,6 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { Pencil, Trash2, Edit3 } from 'lucide-react'
-import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
+import { motion } from 'motion/react'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 import { parseLocalDate } from '@/lib/dateUtils'
-import { Button, ConfirmDialog } from '@/components/ui'
 import { ProgressBar } from '@/components/shared'
 import { rawColors } from '@/constants/colors'
 import { goalTypeColor, goalTypeLabel } from '../constants'
@@ -12,37 +8,18 @@ import type { GoalProjection } from '../types'
 import { differenceInMonths } from '../helpers'
 import CircularProgress from './CircularProgress'
 import GoalProjections from './GoalProjections'
-import UpdateProgressForm from './UpdateProgressForm'
-import EditGoalForm from './EditGoalForm'
+import GoalCardActions, { type GoalCardActionsProps } from './GoalCardActions'
 
 export default function GoalCard({
   goal,
   effectiveAmount,
   projection,
   avgMonthlySavings,
-  isEditing,
-  isEditingDetails,
-  onStartEdit,
-  onStartEditDetails,
-  onSaveAllocation,
-  onSaveDetails,
-  onCancelEdit,
-  onDelete,
-}: Readonly<{
-  goal: FinancialGoal
-  effectiveAmount: number
+  ...actions
+}: Readonly<GoalCardActionsProps & {
   projection: GoalProjection
   avgMonthlySavings: number | null
-  isEditing: boolean
-  isEditingDetails: boolean
-  onStartEdit: () => void
-  onStartEditDetails: () => void
-  onSaveAllocation: (goalId: number, amount: number) => void
-  onSaveDetails: (goalId: number, updates: { name: string; target_amount: number; target_date: string }) => void
-  onCancelEdit: () => void
-  onDelete: (goalId: number) => void
 }>) {
-  const [confirmDelete, setConfirmDelete] = useState(false)
   // Accessor, not a direct index: an unmapped `goal_type` used to make this
   // `undefined`, which the chip below interpolated into the literal CSS value
   // "undefined20" and the browser dropped.
@@ -145,75 +122,8 @@ export default function GoalCard({
       {/* Smart Projections */}
       <GoalProjections goal={goal} projection={projection} avgMonthlySavings={avgMonthlySavings} />
 
-      {/* Footer with Update Progress button */}
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <Button
-          type="button"
-          onClick={onStartEdit}
-          variant="secondary"
-          size="sm"
-          icon={<Pencil className="h-3.5 w-3.5" />}
-        >
-          Update Progress
-        </Button>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            onClick={onStartEditDetails}
-            title="Edit goal"
-            aria-label="Edit goal"
-            variant="ghost"
-            size="sm"
-            icon={<Edit3 className="h-3.5 w-3.5" />}
-            className="text-text-tertiary hover:text-foreground"
-          />
-          <Button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            title="Delete goal"
-            aria-label={`Delete goal: ${goal.name}`}
-            variant="ghost"
-            size="sm"
-            icon={<Trash2 className="h-3.5 w-3.5" />}
-            className="text-text-tertiary hover:bg-app-red/10 hover:text-app-red"
-          />
-        </div>
-      </div>
-      <span className="mt-2 block text-xs text-text-tertiary">
-        Remaining: {formatCurrencyCompact(remaining)}
-      </span>
-
-      {goal.notes && <p className="mt-3 text-xs text-text-tertiary italic">{goal.notes}</p>}
-
-      {/* Inline Edit Forms */}
-      <AnimatePresence>
-        {isEditing && (
-          <UpdateProgressForm
-            goalId={goal.id}
-            currentAmount={effectiveAmount}
-            targetAmount={goal.target_amount}
-            onSave={onSaveAllocation}
-            onCancel={onCancelEdit}
-          />
-        )}
-        {isEditingDetails && (
-          <EditGoalForm
-            goal={goal}
-            onSave={onSaveDetails}
-            onCancel={onCancelEdit}
-          />
-        )}
-      </AnimatePresence>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete this goal?"
-        description={`"${goal.name}" will be permanently removed. This can't be undone.`}
-        confirmLabel="Delete"
-        variant="danger"
-        onConfirm={() => onDelete(goal.id)}
-      />
+      {goal.notes && <p className="mt-3 break-words text-sm text-text-tertiary italic">{goal.notes}</p>}
+      <GoalCardActions goal={goal} effectiveAmount={effectiveAmount} {...actions} />
     </motion.div>
   )
 }

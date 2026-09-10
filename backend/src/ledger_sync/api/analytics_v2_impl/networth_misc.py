@@ -19,6 +19,8 @@ from ledger_sync.db.models import (
     FYSummary,
     NetWorthSnapshot,
 )
+from ledger_sync.schemas.goals import CreateGoalRequest, UpdateGoalRequest
+from ledger_sync.services.goal_service import new_goal, serialize_goal, update_goal
 
 router = APIRouter()
 
@@ -28,14 +30,6 @@ class CreateBudgetRequest(BaseModel):
     monthly_limit: float
     subcategory: str | None = None
     alert_threshold: float = 80.0
-
-
-class CreateGoalRequest(BaseModel):
-    name: str
-    target_amount: float
-    goal_type: str = "savings"
-    notes: str | None = None
-    target_date: str | None = None
 
 
 class ReviewAnomalyRequest(BaseModel):
@@ -355,78 +349,59 @@ def get_financial_goals(
     goals = query.order_by(desc(FinancialGoal.created_at)).all()
 
     return {
-        "data": [
-            {
-                "id": g.id,
-                "name": g.name,
-                "goal_type": g.goal_type,
-                "target_amount": float(g.target_amount),
-                "current_amount": float(g.current_amount),
-                "progress_pct": g.progress_pct,
-                "start_date": g.created_at.isoformat() if g.created_at else None,
-                "target_date": g.target_date.isoformat() if g.target_date else None,
-                "is_achieved": g.status == GoalStatus.COMPLETED if g.status else False,
-                "achieved_date": g.completed_at.isoformat() if g.completed_at else None,
-                "notes": g.description,
-                "created_at": g.created_at.isoformat() if g.created_at else None,
-                "updated_at": None,
-            }
-            for g in goals
-        ],
+        "data": [serialize_goal(goal) for goal in goals],
         "count": len(goals),
     }
 
 
-@router.post("/goals", responses={400: {"description": "Invalid target_date (not ISO 8601)"}})
+@router.post("/goals")
 def create_goal(
     current_user: CurrentUser,
     db: DatabaseSession,
     body: CreateGoalRequest,
 ) -> dict[str, Any]:
     """Create a new financial goal."""
-    from ledger_sync.db.models import GoalStatus
-
-    # Parse target_date string to datetime if provided. A malformed string would
-    # otherwise raise ValueError and escape as a raw 500 -- map it to a 400.
-    parsed_target_date = None
-    if body.target_date:
-        try:
-            parsed_target_date = datetime.fromisoformat(body.target_date)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid target_date '{body.target_date}'; expected ISO 8601 (YYYY-MM-DD).",
-            ) from exc
-
-    # Calculate monthly target if target date provided.
-    #
-    # Anchored in IST and read ONCE: the target date the user picked is a ledger
-    # date, and two separate clock reads can straddle a month boundary and
-    # produce a months_remaining that is off by one. A UTC anchor was also wrong
-    # for the first 5.5 hours of every month -- a goal created at 01:30 IST on 1
-    # January against a 31 December target got 12 months instead of 11, so the
-    # monthly contribution came out ~8% too low for the whole goal.
-    monthly_target: float = 0
-    if parsed_target_date:
-        today = ledger_today()
-        months_remaining = (parsed_target_date.year - today.year) * 12 + (
-            parsed_target_date.month - today.month
-        )
-        if months_remaining > 0:
-            monthly_target = body.target_amount / months_remaining
-
-    goal = FinancialGoal(
-        user_id=current_user.id,
-        name=body.name,
-        description=body.notes,
-        goal_type=body.goal_type,
-        target_amount=body.target_amount,
-        target_date=parsed_target_date,
-        monthly_target=monthly_target,
-        status=GoalStatus.ACTIVE,
-        created_at=datetime.now(UTC),
-    )
+    goal = new_goal(current_user.id, body, ledger_today())
     db.add(goal)
     db.commit()
 
     return {"success": True, "goal_id": goal.id}
+
+
+@router.patch("/goals/{goal_id}", responses={404: {"description": "Goal not found"}})
+def update_financial_goal(
+    goal_id: int,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    body: UpdateGoalRequest,
+) -> dict[str, Any]:
+    """Persist goal details or its total allocation for the authenticated owner."""
+    goal = (
+        db.query(FinancialGoal)
+        .filter(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id)
+        .with_for_update()
+        .first()
+    )
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    update_goal(goal, body, ledger_today())
+    db.commit()
+    return serialize_goal(goal)
+
+
+@router.delete("/goals/{goal_id}", responses={404: {"description": "Goal not found"}})
+def delete_financial_goal(
+    goal_id: int,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, bool]:
+    """Delete only the owner's goal, leaving ledger transactions untouched."""
+    deleted = (
+        db.query(FinancialGoal)
+        .filter(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    db.commit()
+    return {"success": True}

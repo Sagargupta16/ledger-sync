@@ -23,7 +23,7 @@
  */
 
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query'
 
@@ -160,6 +160,10 @@ function claimedHashes(): Set<string> {
   }
   return claimed
 }
+
+beforeEach(() => {
+  useDemoStore.getState().enterDemo()
+})
 
 afterEach(() => {
   useDemoStore.getState().exitDemo()

@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ledger_sync.api.ai_tools_impl import REGISTRY  # triggers tool registration
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -27,8 +27,10 @@ router = APIRouter(prefix="/api/ai/tools", tags=["ai-tools"])
 
 
 class ToolExecuteRequest(BaseModel):
-    name: str = Field(min_length=1)
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    arguments: dict[str, Any] = Field(default_factory=dict, max_length=20)
 
 
 def tool_specs() -> list[dict[str, Any]]:
@@ -51,6 +53,7 @@ def list_tools(_current_user: CurrentUser) -> dict[str, Any]:
     responses={
         404: {"description": "Unknown tool"},
         400: {"description": "Tool execution failed"},
+        422: {"description": "Tool arguments do not match the declared schema"},
     },
 )
 def execute_tool(
@@ -63,9 +66,16 @@ def execute_tool(
     if spec is None:
         raise HTTPException(404, f"Unknown tool: {request.name}")
     try:
-        result = spec.execute(current_user, session, request.arguments)
+        arguments = spec.validate_arguments(request.arguments)
+    except ValidationError as exc:
+        raise HTTPException(
+            422,
+            detail=exc.errors(include_input=False, include_url=False, include_context=False),
+        ) from exc
+    try:
+        result = spec.execute(current_user, session, arguments)
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(400, f"Tool {request.name} failed: {exc}") from exc
+        raise HTTPException(400, f"Tool {request.name} could not be completed") from exc
     return {"name": request.name, "result": result}

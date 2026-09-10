@@ -85,6 +85,8 @@ from typing import Any
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "rollup_split_backfill_2026"
 down_revision: str | None = "cashback_key_drift_2026"
 branch_labels: str | None = None
@@ -487,5 +489,6 @@ def upgrade() -> None:
             _repair_fiscal(bind, fiscal, fy_rows)
 
 
+@irreversible
 def downgrade() -> None:
     """No downgrade -- restore from a database backup."""

@@ -54,3 +54,40 @@ def test_upload_request_rejects_empty_rows() -> None:
             file_hash="a" * 64,
             rows=[],
         )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"date": "2026-02-30"},
+        {"date": "2026-01-15 garbage"},
+        {"amount": "100abc"},
+        {"amount": float("inf")},
+        {"amount": float("nan")},
+        {"amount": 10_000_000_000_000},
+        {"currency": "USD"},
+        {"account": " "},
+        {"account": "a" * 256},
+        {"category": "a" * 256},
+        {"subcategory": "a" * 256},
+        {"note": "a" * 10_001},
+        {"type": "unknown"},
+    ],
+)
+def test_invalid_row_is_rejected_at_request_boundary(changes: dict) -> None:
+    row = _row() | changes
+    with pytest.raises(ValidationError):
+        TransactionRow(**row)
+
+
+def test_upload_rejects_non_hex_hash_and_oversized_filename() -> None:
+    for changes in ({"file_hash": "z" * 64}, {"file_name": "a" * 501}):
+        payload = {"file_name": "test.csv", "file_hash": "a" * 64, "rows": [_row()]} | changes
+        with pytest.raises(ValidationError):
+            TransactionUploadRequest(**payload)
+
+
+def test_row_preserves_decimal_digits_for_backend_rounding() -> None:
+    row = TransactionRow(**(_row() | {"amount": "10.075", "currency": "inr"}))
+    assert str(row.amount) == "10.075"
+    assert row.currency == "INR"

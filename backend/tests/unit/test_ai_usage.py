@@ -2,18 +2,29 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from threading import Barrier
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from ledger_sync.api.ai_usage import record_usage
+from ledger_sync.api.ai_usage import (
+    check_token_limits,
+    complete_usage,
+    count_app_messages_today,
+    record_usage,
+    release_usage,
+    reserve_usage,
+)
 from ledger_sync.api.ai_usage import router as usage_router
 from ledger_sync.api.deps import get_current_user
+from ledger_sync.config.settings import settings
 from ledger_sync.core.ai_pricing import estimate_cost_usd
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import AIUsageLog, User, UserPreferences
@@ -157,3 +168,158 @@ def test_log_usage_rejects_negative_tokens() -> None:
     )
     # Pydantic validator rejects negatives (ge=0) -> 422
     assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"provider": "bedrock"},
+        {"funding_source": "app"},
+        {"input_tokens": True},
+        {"output_tokens": 1_000_001},
+        {"input_tokens": "100"},
+    ],
+)
+def test_browser_usage_cannot_forge_server_funding_or_invalid_counters(fields: dict) -> None:
+    app, session, _user = _make_app()
+    body = {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "input_tokens": 100,
+        "output_tokens": 50,
+        **fields,
+    }
+    response = TestClient(app).post("/api/ai/usage/log", json=body)
+
+    assert response.status_code == 422
+    assert session.query(AIUsageLog).count() == 0
+
+
+@pytest.mark.parametrize("limit_field", ["ai_daily_token_limit", "ai_monthly_token_limit"])
+def test_zero_budget_blocks_without_prior_usage(limit_field: str) -> None:
+    _app, session, user = _make_app()
+    session.add(UserPreferences(user_id=user.id, **{limit_field: 0}))
+    session.commit()
+
+    with pytest.raises(HTTPException) as error:
+        check_token_limits(session, user.id)
+
+    assert error.value.status_code == 429
+    with pytest.raises(HTTPException):
+        reserve_usage(session, user.id, "synthetic-model", 1, funding_source="personal")
+    assert session.query(AIUsageLog).count() == 0
+
+
+def test_reservation_blocks_pending_tokens_then_settles_once() -> None:
+    app, session, user = _make_app()
+    session.add(UserPreferences(user_id=user.id, ai_daily_token_limit=100))
+    session.commit()
+    user_id = user.id
+    previous_updated_at = user.updated_at
+
+    reservation_id = reserve_usage(
+        session, user_id, "synthetic-model", 100, funding_source="personal"
+    )
+    usage = TestClient(app).get("/api/ai/usage").json()["today"]
+    assert session.get(User, user_id).updated_at == previous_updated_at
+    assert usage["reserved_tokens"] == 100
+    assert usage["call_count"] == 0
+    with pytest.raises(HTTPException):
+        reserve_usage(session, user_id, "synthetic-model", 1, funding_source="personal")
+
+    complete_usage(session, user_id, reservation_id, input_tokens=20, output_tokens=10)
+    complete_usage(session, user_id, reservation_id, input_tokens=90, output_tokens=90)
+    reserve_usage(session, user_id, "synthetic-model", 70, funding_source="personal")
+    with pytest.raises(HTTPException):
+        reserve_usage(session, user_id, "synthetic-model", 1, funding_source="personal")
+
+    completed = session.get(AIUsageLog, reservation_id)
+    assert completed is not None
+    assert completed.input_tokens + completed.output_tokens == 30
+    assert completed.status == "completed"
+    assert completed.reserved_tokens == 0
+
+
+def test_personal_bedrock_calls_do_not_consume_shared_quota(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
+    _app, session, user = _make_app()
+    user_id = user.id
+    record_usage(session, user_id, "bedrock", "synthetic-model", 20, 10, funding_source="personal")
+    reserve_usage(session, user_id, "synthetic-model", 100, funding_source="personal")
+
+    assert count_app_messages_today(session, user_id) == 0
+    shared = reserve_usage(session, user_id, "synthetic-model", 100, funding_source="app")
+    assert count_app_messages_today(session, user_id) == 1
+    with pytest.raises(HTTPException):
+        reserve_usage(session, user_id, "synthetic-model", 100, funding_source="app")
+
+    release_usage(session, user_id, shared)
+    assert count_app_messages_today(session, user_id) == 0
+    reserve_usage(session, user_id, "synthetic-model", 100, funding_source="app")
+
+
+def test_another_user_cannot_settle_or_release_a_reservation() -> None:
+    _app, session, user = _make_app()
+    other = User(email="other@example.test", hashed_password=TEST_BCRYPT_HASH, is_active=True)
+    session.add(other)
+    session.commit()
+    reservation_id = reserve_usage(
+        session, user.id, "synthetic-model", 100, funding_source="personal"
+    )
+
+    complete_usage(session, other.id, reservation_id, input_tokens=1, output_tokens=1)
+    release_usage(session, other.id, reservation_id)
+
+    entry = session.get(AIUsageLog, reservation_id)
+    assert entry is not None
+    assert entry.status == "reserved"
+    assert entry.reserved_tokens == 100
+
+
+@pytest.mark.parametrize("cap", ["messages", "tokens"])
+def test_concurrent_reservations_serialize_across_database_connections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cap: str
+) -> None:
+    """Separate engines model workers sharing one database, not a Python lock."""
+    database_url = f"sqlite:///{(tmp_path / 'ai-quota.sqlite').as_posix()}"
+    engine = create_engine(database_url)
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(settings, "ai_daily_message_limit", 1 if cap == "messages" else 100)
+    with Session(engine) as session:
+        user = User(email="quota@example.test", hashed_password=TEST_BCRYPT_HASH, is_active=True)
+        session.add(user)
+        session.flush()
+        user_id = user.id
+        session.add(
+            UserPreferences(
+                user_id=user_id,
+                ai_daily_token_limit=100 if cap == "tokens" else None,
+            )
+        )
+        session.commit()
+
+    start = Barrier(6)
+
+    def reserve_from_worker(_index: int) -> int:
+        worker_engine = create_engine(database_url, connect_args={"timeout": 10})
+        try:
+            with Session(worker_engine) as session:
+                start.wait(timeout=10)
+                try:
+                    reserve_usage(session, user_id, "synthetic-model", 100, funding_source="app")
+                except HTTPException as exc:
+                    return exc.status_code
+                return 200
+        finally:
+            worker_engine.dispose()
+
+    with ThreadPoolExecutor(max_workers=6) as workers:
+        results = list(workers.map(reserve_from_worker, range(6)))
+
+    assert results.count(200) == 1
+    assert results.count(429) == 5
+    with Session(engine) as session:
+        assert session.query(AIUsageLog).count() == 1
+    engine.dispose()

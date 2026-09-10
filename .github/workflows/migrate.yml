@@ -1,27 +1,30 @@
 name: Run Database Migrations
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/src/ledger_sync/db/migrations/**'
-      - 'backend/src/ledger_sync/db/models.py'
-      - 'backend/src/ledger_sync/db/_models/**'
+  workflow_call:
+    secrets:
+      LEDGER_SYNC_DATABASE_URL:
+        required: true
 
-  workflow_dispatch: # Allow manual trigger
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-migrations
+  cancel-in-progress: false
 
 jobs:
   migrate:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: '3.14'
-
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.13"
 
       - name: Install dependencies
         working-directory: backend
@@ -32,4 +35,9 @@ jobs:
         env:
           LEDGER_SYNC_DATABASE_URL: ${{ secrets.LEDGER_SYNC_DATABASE_URL }}
           PYTHONPATH: src
-        run: uv run --no-sync --locked --no-build alembic upgrade head
+        run: |
+          if [ -z "$LEDGER_SYNC_DATABASE_URL" ]; then
+            echo "::error::The production migration database URL is not configured."
+            exit 1
+          fi
+          uv run --no-sync --locked --no-build alembic upgrade head

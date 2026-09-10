@@ -5,12 +5,15 @@ import { rawColors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import { useAuthStore } from '@/store/authStore'
+import { useDemoStore } from '@/store/demoStore'
 
 import useGoalsState from './useGoalsState'
 import SavingsPoolSummary from './components/SavingsPoolSummary'
 import FeasibilityWarning from './components/FeasibilityWarning'
 import CreateGoalForm from './components/CreateGoalForm'
 import GoalCard from './components/GoalCard'
+import LegacyGoalRecovery from './components/LegacyGoalRecovery'
 
 const DEFAULT_PROJECTION = {
   monthsRemaining: 0,
@@ -25,6 +28,13 @@ const DEFAULT_PROJECTION = {
 }
 
 export default function GoalsPage() {
+  const userId = useAuthStore((state) => state.user?.id)
+  const isDemoMode = useDemoStore((state) => state.isDemoMode)
+
+  return <GoalsContent key={isDemoMode ? 'demo' : `user-${userId ?? 'none'}`} />
+}
+
+function GoalsContent() {
   const state = useGoalsState()
 
   if (state.isLoading) return <PageSkeleton />
@@ -57,11 +67,30 @@ export default function GoalsPage() {
               )
             }
             aria-expanded={state.showCreateForm}
+            disabled={state.createGoalPending || state.recovery.pendingGoalId !== null}
           >
             {state.showCreateForm ? 'Close form' : 'Create Goal'}
           </Button>
         }
       />
+
+      {state.isDemoMode && (
+        <output
+          aria-live="polite"
+          aria-atomic="true"
+          className="block rounded-lg border border-app-blue/20 bg-app-blue/5 px-4 py-3 text-sm text-text-secondary"
+        >
+          Try creating, editing, or deleting a goal. Demo changes are temporary and reset when you leave this page or reload.
+        </output>
+      )}
+
+      {!state.isDemoMode && (
+        <LegacyGoalRecovery
+          recovery={state.recovery}
+          isEditing={state.showCreateForm || state.editingGoalId !== null
+            || state.editingDetailsGoalId !== null || state.isGoalMutationPending}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-5 md:grid-cols-3">
         <StatCard
@@ -142,6 +171,7 @@ export default function GoalsPage() {
           <CreateGoalForm
             formData={state.formData}
             isPending={state.createGoalPending}
+            error={state.createError}
             onFormDataChange={state.setFormData}
             onSubmit={state.handleSubmit}
             onCancel={() => state.setShowCreateForm(false)}
@@ -167,8 +197,14 @@ export default function GoalsPage() {
               avgMonthlySavings={state.avgMonthlySavings}
               isEditing={state.editingGoalId === goal.id}
               isEditingDetails={state.editingDetailsGoalId === goal.id}
-              onStartEdit={() => { state.setEditingGoalId(goal.id); state.setEditingDetailsGoalId(null) }}
-              onStartEditDetails={() => { state.setEditingDetailsGoalId(goal.id); state.setEditingGoalId(null) }}
+              isBusy={state.isGoalMutationPending || state.recovery.pendingGoalId !== null}
+              isSaving={state.savingGoalId === goal.id}
+              isDeleting={state.deletingGoalId === goal.id}
+              isDemoMode={state.isDemoMode}
+              updateError={state.updateError}
+              deleteError={state.deleteErrorGoalId === goal.id ? state.deleteError : null}
+              onStartEdit={() => state.startEdit(goal.id, false)}
+              onStartEditDetails={() => state.startEdit(goal.id, true)}
               onSaveAllocation={state.handleSaveAllocation}
               onSaveDetails={state.handleSaveDetails}
               onCancelEdit={state.handleCancelEdit}

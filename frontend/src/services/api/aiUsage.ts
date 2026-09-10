@@ -9,6 +9,8 @@ export interface UsageRollup {
   total_tokens: number
   cost_usd: number
   call_count: number
+  reserved_tokens?: number
+  pending_call_count?: number
 }
 
 export interface UsageResponse {
@@ -18,13 +20,13 @@ export interface UsageResponse {
   month_to_date: UsageRollup
   all_time: UsageRollup
   limits: {
-    /** BYOK-only per-user token cap (null = no limit) */
+    /** Per-user cap for server Bedrock calls (null = no cap, 0 blocks calls). */
     daily: number | null
     monthly: number | null
-    /** App-wide daily message cap, applies only in app_bedrock mode */
+    /** Daily shared-funded Bedrock call cap, including earlier shared usage. */
     app_daily_messages: number
   }
-  /** Messages sent via app_bedrock today (0 when BYOK). */
+  /** Shared-funded Bedrock calls today, including pending calls. */
   messages_today: number
   as_of: string
   day_start: string

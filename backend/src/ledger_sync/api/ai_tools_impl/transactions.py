@@ -26,6 +26,10 @@ from .registry import (
     register,
     to_decimal,
 )
+from .schemas import (
+    SearchTransactionsArguments,
+    ToolArguments,
+)
 
 
 def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
@@ -135,7 +139,7 @@ register(
             "and transaction count. Use when the user asks 'how many accounts', "
             "'list my accounts', 'which account has the most money', etc."
         ),
-        schema={"type": "object", "properties": {}, "required": []},
+        arguments_model=ToolArguments,
         execute=_exec_list_accounts,
     )
 )
@@ -148,9 +152,12 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     case-insensitive LIKE. Optional filters narrow results further.
     """
     query = str(args.get("query", "")).strip()
-    limit = min(
-        int(args.get("limit", SEARCH_TRANSACTIONS_DEFAULT_LIMIT)),
-        SEARCH_TRANSACTIONS_MAX_LIMIT,
+    limit = max(
+        1,
+        min(
+            int(args.get("limit", SEARCH_TRANSACTIONS_DEFAULT_LIMIT)),
+            SEARCH_TRANSACTIONS_MAX_LIMIT,
+        ),
     )
     start = parse_date(args.get("start_date"))
     end = parse_date(args.get("end_date"))
@@ -237,29 +244,7 @@ register(
             f"(default {SEARCH_TRANSACTIONS_DEFAULT_LIMIT}, "
             f"max {SEARCH_TRANSACTIONS_MAX_LIMIT})."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Text to search for."},
-                "start_date": {"type": "string", "description": "YYYY-MM-DD inclusive."},
-                "end_date": {"type": "string", "description": "YYYY-MM-DD inclusive."},
-                "category": {"type": "string"},
-                "account": {"type": "string"},
-                "type": {
-                    "type": "string",
-                    "enum": ["Income", "Expense", "Transfer"],
-                },
-                "min_amount": {"type": "number"},
-                "max_amount": {"type": "number"},
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": SEARCH_TRANSACTIONS_MAX_LIMIT,
-                    "default": SEARCH_TRANSACTIONS_DEFAULT_LIMIT,
-                },
-            },
-            "required": [],
-        },
+        arguments_model=SearchTransactionsArguments,
         execute=_exec_search_transactions,
     )
 )

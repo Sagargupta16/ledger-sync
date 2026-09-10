@@ -38,11 +38,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
     setTestStatus,
   } = props
   const providerModels = MODELS[provider] ?? []
-  // Every provider takes a key now: OpenAI/Anthropic keys are used browser-
-  // direct; a Bedrock API key (bearer token) is stored encrypted and used by
-  // the server proxy to sign calls with YOUR AWS account instead of the
-  // app's shared credential.
-  const needsApiKey = Boolean(provider)
+  const hasStoredKey = config?.has_key && config.provider === provider
 
   return (
     <>
@@ -54,6 +50,8 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
           onChange={(e) => {
             setProvider(e.target.value)
             setModel(MODELS[e.target.value]?.[0]?.value ?? '')
+            setApiKey('')
+            setShowKey(false)
             setTestStatus('idle')
           }}
           className={selectClass}
@@ -69,8 +67,8 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
         </select>
         <FieldHint>
           {isBedrock(provider)
-            ? 'Paste a Bedrock API key (bearer token from the AWS console). Calls are proxied through the server and signed with YOUR key -- leave empty to use the shared app credential.'
-            : 'Your API key is encrypted and stored securely. LLM calls go directly from your browser to the provider.'}
+            ? 'Use your Bedrock API key (bearer token from the AWS console). The server sends calls with your key, and AWS bills your account. Choose the shared app mode above to use the app quota.'
+            : 'Your API key is stored encrypted. AI calls go directly from your browser to the provider and are billed to your account.'}
         </FieldHint>
       </div>
 
@@ -99,6 +97,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
             id="ai-model-custom"
             type="text"
             value={model}
+            maxLength={100}
             onChange={(e) => setModel(e.target.value)}
             placeholder={
               isBedrock(provider)
@@ -122,6 +121,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
             id="ai-region"
             type="text"
             value={region}
+            maxLength={20}
             onChange={(e) => setRegion(e.target.value)}
             placeholder="us-east-1"
             className={inputClass}
@@ -129,23 +129,27 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
         </div>
       )}
 
-      {needsApiKey && (
+      {provider && (
         <div>
           <FieldLabel htmlFor="ai-key">
-            {config?.has_key ? 'Update API Key' : 'API Key'}
+            {hasStoredKey ? 'Replace API Key (optional)' : 'API Key'}
           </FieldLabel>
           <div className="relative">
             <input
               id="ai-key"
               type={showKey ? 'text' : 'password'}
               value={apiKey}
+              autoComplete="new-password"
+              spellCheck={false}
+              maxLength={16_384}
+              required={!hasStoredKey}
               onChange={(e) => {
                 setApiKey(e.target.value)
                 setTestStatus('idle')
               }}
               placeholder={
-                config?.has_key
-                  ? 'Key configured (enter new to update)'
+                hasStoredKey
+                  ? 'Leave blank to keep your saved key'
                   : 'Enter your API key'
               }
               className={`${inputClass} pr-12`}
@@ -163,6 +167,11 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
               <span className="sr-only">{showKey ? 'Hide API key' : 'Show API key'}</span>
             </Button>
           </div>
+          <FieldHint>
+            {hasStoredKey
+              ? 'Leave blank to keep your saved key when changing the model or region.'
+              : 'A personal key is required for this provider. Changing providers requires a new key.'}
+          </FieldHint>
         </div>
       )}
     </>

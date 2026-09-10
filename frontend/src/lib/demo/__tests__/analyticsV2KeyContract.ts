@@ -78,7 +78,10 @@ export const V2_ENDPOINTS: readonly V2Endpoint[] = [
   { segment: 'budgets', build: (t) => analyticsV2Keys.budgets({ active_only: bool(t[0]) }) },
   {
     segment: 'goals',
-    build: (t) => analyticsV2Keys.goals({ goal_type: str(t[0]), include_achieved: bool(t[1]) }),
+    build: (t) => {
+      const key = analyticsV2Keys.goals({ goal_type: str(t[0]), include_achieved: bool(t[1]) })
+      return t[2] === 'demo' ? [...key, 'demo'] : key
+    },
   },
   {
     segment: 'spending-rule',

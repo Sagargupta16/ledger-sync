@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.db.models import Transaction, User
 
+from .schemas import ToolArguments
+
 # --- Central tool limit defaults --------------------------------------------
 
 SEARCH_TRANSACTIONS_DEFAULT_LIMIT = 20
@@ -42,12 +44,19 @@ ToolExecutor = Callable[[User, Session, dict[str, Any]], Any]
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """A tool the LLM can call. `schema` is a JSON Schema for the params."""
+    """A tool whose advertised and enforced argument schemas have one source."""
 
     name: str
     description: str
-    schema: dict[str, Any]
+    arguments_model: type[ToolArguments]
     execute: ToolExecutor
+
+    @property
+    def schema(self) -> dict[str, Any]:
+        return self.arguments_model.model_json_schema()
+
+    def validate_arguments(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self.arguments_model.model_validate(arguments).model_dump(exclude_none=True)
 
 
 REGISTRY: dict[str, ToolSpec] = {}

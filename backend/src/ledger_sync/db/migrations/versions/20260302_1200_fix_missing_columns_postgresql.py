@@ -16,6 +16,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 # revision identifiers, used by Alembic.
 revision: str = "c7f8a9b0d1e2"
 down_revision: str | None = "b1c2d3e4f5a6"
@@ -31,44 +33,47 @@ def _column_exists(table: str, column: str) -> bool:
 
 
 def upgrade() -> None:
-    # --- transactions: created_at, updated_at ---
-    if not _column_exists("transactions", "created_at"):
-        # Add as nullable first, backfill, then set NOT NULL
-        op.add_column(
-            "transactions",
-            sa.Column("created_at", sa.DateTime(), nullable=True, server_default=sa.text("now()")),
-        )
-        op.execute("UPDATE transactions SET created_at = now() WHERE created_at IS NULL")
-        op.alter_column("transactions", "created_at", nullable=False)
-
-    if not _column_exists("transactions", "updated_at"):
-        op.add_column(
-            "transactions",
-            sa.Column("updated_at", sa.DateTime(), nullable=True, server_default=sa.text("now()")),
-        )
-        op.execute("UPDATE transactions SET updated_at = now() WHERE updated_at IS NULL")
-        op.alter_column("transactions", "updated_at", nullable=False)
+    conn = op.get_bind()
+    for column in ("created_at", "updated_at"):
+        if not _column_exists("transactions", column):
+            op.add_column("transactions", sa.Column(column, sa.DateTime(), nullable=True))
+            conn.execute(
+                sa.text(
+                    f"UPDATE transactions SET {column} = CURRENT_TIMESTAMP WHERE {column} IS NULL"
+                )
+            )
+            with op.batch_alter_table("transactions") as batch_op:
+                batch_op.alter_column(
+                    column,
+                    existing_type=sa.DateTime(),
+                    nullable=False,
+                    server_default=sa.func.current_timestamp(),
+                )
 
     # --- tax_records: user_id (may be missing if af63e055055a failed) ---
     if not _column_exists("tax_records", "user_id"):
+        owners = conn.execute(sa.text("SELECT id FROM users ORDER BY id LIMIT 2")).scalars().all()
+        has_tax_records = conn.execute(sa.text("SELECT 1 FROM tax_records LIMIT 1")).first()
+        if has_tax_records is not None and len(owners) != 1:
+            raise RuntimeError(
+                "Legacy tax records need an explicitly identified owner before this migration."
+            )
         # Add nullable first, then set NOT NULL after backfill
         op.add_column(
             "tax_records",
             sa.Column("user_id", sa.Integer(), nullable=True),
         )
-        # Assign to the first user if any rows exist (tax_records were not user-scoped before)
-        conn = op.get_bind()
-        result = conn.execute(sa.text("SELECT id FROM users LIMIT 1"))
-        row = result.fetchone()
-        if row:
-            op.execute(
+        if has_tax_records is not None:
+            conn.execute(
                 sa.text("UPDATE tax_records SET user_id = :uid WHERE user_id IS NULL"),
-                {"uid": row[0]},
+                {"uid": owners[0]},
             )
-        op.alter_column("tax_records", "user_id", nullable=False)
-        op.create_foreign_key(None, "tax_records", "users", ["user_id"], ["id"])
+        with op.batch_alter_table("tax_records") as batch_op:
+            batch_op.alter_column("user_id", existing_type=sa.Integer(), nullable=False)
+            batch_op.create_foreign_key("fk_tax_records_user_id", "users", ["user_id"], ["id"])
 
 
+@irreversible
 def downgrade() -> None:
     # These are fixes for production — downgrading would break things further
     pass

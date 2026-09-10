@@ -18,6 +18,7 @@ from ledger_sync.core.reconciler_helpers import (
     update_stats_for_action,
 )
 from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.utils.logging import logger
 
 if TYPE_CHECKING:
@@ -123,6 +124,7 @@ class TransferReconcilerMixin:
             "subcategory",
             "note",
             "type",
+            "currency",
             "from_account",
             "to_account",
         ]
@@ -248,12 +250,11 @@ class TransferReconcilerMixin:
                     row_ids.append(record_id)
                     skip_flags.append(False)
             except (ValueError, TypeError, KeyError) as e:
-                logger.error("Error computing ID for transfer: %s", e)
-                row_ids.append("")
-                skip_flags.append(True)
+                msg = f"Invalid transfer in snapshot: {e}"
+                raise NormalizationError(msg) from e
 
         # Phase 2: Batch-fetch all existing records
-        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags, strict=True) if rid and not skip]
+        valid_ids = [rid for rid, skip in zip(row_ids, skip_flags, strict=True) if not skip]
         existing_map = self._batch_fetch_existing(valid_ids, user_id)
 
         # Phase 3: Process each row using pre-fetched data
@@ -262,6 +263,7 @@ class TransferReconcilerMixin:
             "subcategory",
             "note",
             "type",
+            "currency",
             "from_account",
             "to_account",
         ]
@@ -269,7 +271,7 @@ class TransferReconcilerMixin:
             tx_id = row_ids[idx]
             stats.processed += 1
 
-            if skip_flags[idx] or not tx_id:
+            if skip_flags[idx]:
                 stats.skipped += 1
                 continue
 
@@ -306,11 +308,8 @@ class TransferReconcilerMixin:
                 )
                 update_stats_for_action(stats, action)
 
-        # Commit all changes
-        self.session.commit()
-
-        # Mark soft deletes
+        # Keep both reconciliation groups and the import log in one transaction.
+        self.session.flush()
         stats.deleted = self.mark_soft_deletes_transfers(import_time)
-        self.session.commit()
 
         return stats
