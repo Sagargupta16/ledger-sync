@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.auth import (
@@ -114,9 +114,8 @@ class AuthService:
         Identity is keyed on (auth_provider, auth_provider_id), NOT on email.
         Email is only used to link a provider to a pre-existing account that
         has no provider yet (e.g. a legacy account). Silent cross-provider
-        linking is refused: if an account already exists for this email under
-        a different provider, the login is rejected to prevent account
-        takeover via a recycled/shared email address.
+        linking is refused. An email match never replaces an existing provider
+        identity, including a different subject from the same provider.
 
         Args:
             email: Email from the OAuth provider (already provider-verified).
@@ -128,38 +127,59 @@ class AuthService:
             JWT tokens.
 
         Raises:
-            HTTPException: If the email belongs to a different provider.
+            HTTPException: If the identity is missing, bound elsewhere, or inactive.
 
         """
+        if provider not in {"google", "github"} or not provider_id.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The sign-in provider did not return a valid account identity.",
+            )
+
         user = self._get_user_by_provider(provider, provider_id)
 
         if user is None:
-            # No account for this provider identity — fall back to email to
-            # link a provider-less legacy account, or create a new one.
+            # Only a fully unbound legacy account can be linked by verified email.
             existing = self._get_user_by_email(email)
             if existing is not None:
-                if existing.auth_provider and existing.auth_provider != provider:
-                    # Account exists under a different provider. Refuse to
-                    # silently merge — this is the cross-provider takeover path.
+                if existing.auth_provider is not None or existing.auth_provider_id is not None:
                     logger.warning(
-                        "OAuth login refused: email already linked to provider %s, not %s",
-                        existing.auth_provider,
-                        provider,
+                        "OAuth login refused: email belongs to a bound identity",
                     )
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=(
-                            "This email is already registered with a different "
-                            f"sign-in provider ({existing.auth_provider}). "
-                            "Please sign in with that provider."
+                            "This email is already linked to another sign-in identity. "
+                            "Please sign in with the account originally used for Ledger Sync."
                         ),
                     )
                 user = existing
 
         if user:
-            # Existing account — log in and bind/refresh the provider identity.
-            user.auth_provider = provider
-            user.auth_provider_id = provider_id
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="This account is inactive.",
+                )
+
+            if user.auth_provider is None and user.auth_provider_id is None:
+                # Claim legacy identities atomically, including concurrent callbacks.
+                linked_id = self.session.execute(
+                    update(User)
+                    .where(
+                        User.id == user.id,
+                        User.auth_provider.is_(None),
+                        User.auth_provider_id.is_(None),
+                        User.is_active.is_(True),
+                    )
+                    .values(auth_provider=provider, auth_provider_id=provider_id)
+                    .returning(User.id)
+                ).scalar_one_or_none()
+                if linked_id is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="This account changed during sign-in. Please start sign-in again.",
+                    )
             if not user.full_name and full_name:
                 user.full_name = full_name
             user.is_verified = True

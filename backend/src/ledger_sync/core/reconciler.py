@@ -16,6 +16,7 @@ from ledger_sync.core.reconciler_helpers import (
 from ledger_sync.core.reconciler_transfers import TransferReconcilerMixin
 from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
+from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.utils.logging import logger
 
 USER_ID_REQUIRED_MSG = "user_id is required for reconciliation"
@@ -245,7 +246,7 @@ class Reconciler(TransferReconcilerMixin):
             return transaction, "inserted"
 
         # UPDATE existing transaction
-        updateable_fields = ["category", "subcategory", "note", "type"]
+        updateable_fields = ["category", "subcategory", "note", "type", "currency"]
         return self._apply_existing_update(
             existing, transaction_id, import_time, updateable_fields, normalized_row
         )
@@ -434,20 +435,16 @@ class Reconciler(TransferReconcilerMixin):
                 )
                 row_ids.append(actual_id)
             except (ValueError, TypeError, KeyError) as e:
-                logger.error("Error computing ID for transaction: %s", e)
-                row_ids.append("")
+                msg = f"Invalid transaction in snapshot: {e}"
+                raise NormalizationError(msg) from e
 
         # Phase 2: Batch-fetch all existing records (1-2 queries instead of N)
-        valid_ids = [rid for rid in row_ids if rid]
-        existing_map = self._batch_fetch_existing(valid_ids, user_id)
+        existing_map = self._batch_fetch_existing(row_ids, user_id)
 
         # Phase 3: Process each row using pre-fetched data
-        updateable_fields = ["category", "subcategory", "note", "type"]
+        updateable_fields = ["category", "subcategory", "note", "type", "currency"]
         for idx, row in enumerate(normalized_rows):
             tx_id = row_ids[idx]
-            if not tx_id:
-                continue
-
             stats.processed += 1
             existing = existing_map.get(tx_id)
 
@@ -479,11 +476,9 @@ class Reconciler(TransferReconcilerMixin):
                 )
                 update_stats_for_action(stats, action)
 
-        # Commit all changes
-        self.session.commit()
-
-        # Mark soft deletes
+        # Flush so new/updated timestamps participate in the deletion sweep.
+        # The sync engine owns the transaction and commits both groups + log.
+        self.session.flush()
         stats.deleted = self.mark_soft_deletes(import_time)
-        self.session.commit()
 
         return stats

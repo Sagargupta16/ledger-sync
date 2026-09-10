@@ -10,7 +10,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Session
 from ledger_sync.core import rules
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
-from ledger_sync.db.models import ImportLog, Transaction
+from ledger_sync.db.models import ImportLog, Transaction, User
 from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
 from ledger_sync.ingest.normalizer import (
@@ -18,7 +18,12 @@ from ledger_sync.ingest.normalizer import (
     NormalizationError,
     format_transfer_category,
 )
+from ledger_sync.schemas.upload import MAX_UPLOAD_ROWS
 from ledger_sync.utils.logging import logger
+
+
+class AlreadyImportedError(ValueError):
+    """Raised when the same file requires an explicit forced re-import."""
 
 
 class SyncEngine:
@@ -56,13 +61,16 @@ class SyncEngine:
 
     def _raise_if_already_imported(self, file_hash: str, *, force: bool) -> ImportLog | None:
         """Return any existing import log, raising if it blocks a non-forced re-import."""
+        # Serialize replacement snapshots for one user on PostgreSQL. The lock
+        # lasts until the ledger and log commit together.
+        self.session.execute(select(User.id).where(User.id == self.user_id).with_for_update())
         existing_import = self.check_already_imported(file_hash)
         if existing_import and not force:
             logger.info("File already imported at %s", existing_import.imported_at)
             msg = (
                 f"File already imported at {existing_import.imported_at}. Use --force to re-import."
             )
-            raise ValueError(msg)
+            raise AlreadyImportedError(msg)
         return existing_import
 
     def _existing_spellings(self, *columns: InstrumentedAttribute[str | None]) -> dict[str, str]:
@@ -181,6 +189,8 @@ class SyncEngine:
 
         self._canonicalize_account_casing(normalized_rows)
         self._canonicalize_category_casing(normalized_rows)
+        for row in normalized_rows:
+            self.normalizer.validate_normalized_row(row)
 
         transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
         transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
@@ -188,7 +198,7 @@ class SyncEngine:
 
         stats = ReconciliationStats()
 
-        if transactions:
+        try:
             stats.merge(
                 self.reconciler.reconcile_batch(
                     normalized_rows=transactions,
@@ -197,7 +207,6 @@ class SyncEngine:
                 )
             )
 
-        if transfers:
             stats.merge(
                 self.reconciler.reconcile_transfers_batch(
                     normalized_rows=transfers,
@@ -206,24 +215,27 @@ class SyncEngine:
                 )
             )
 
-        # On a forced re-import, drop the prior log before writing the new one.
-        if existing_import:
-            self.session.delete(existing_import)
-            self.session.commit()
+            # The prior log, both ledger groups, and the replacement log are
+            # committed as one unit, including empty-group soft deletions.
+            if existing_import:
+                self.session.delete(existing_import)
 
-        import_log = ImportLog(
-            user_id=self.user_id,
-            file_hash=file_hash,
-            file_name=source_file,
-            imported_at=import_time,
-            rows_processed=stats.processed,
-            rows_inserted=stats.inserted,
-            rows_updated=stats.updated,
-            rows_deleted=stats.deleted,
-            rows_skipped=stats.skipped,
-        )
-        self.session.add(import_log)
-        self.session.commit()
+            import_log = ImportLog(
+                user_id=self.user_id,
+                file_hash=file_hash,
+                file_name=source_file,
+                imported_at=import_time,
+                rows_processed=stats.processed,
+                rows_inserted=stats.inserted,
+                rows_updated=stats.updated,
+                rows_deleted=stats.deleted,
+                rows_skipped=stats.skipped,
+            )
+            self.session.add(import_log)
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
         logger.info("Import completed: %s", stats)
         return stats
@@ -238,8 +250,10 @@ class SyncEngine:
         """Import pre-parsed transaction rows from the JSON upload endpoint.
 
         The frontend has already parsed the Excel/CSV file and sent structured
-        rows. This method normalizes (category corrections, transfer resolution),
-        hashes, reconciles, and runs post-import analytics.
+        rows. This method validates the full snapshot, normalizes labels,
+        reconciles both ledger groups, and commits them with the import log.
+        Entries absent from the snapshot are soft-deleted across all dates and
+        accounts. Analytics runs separately after that commit.
 
         Args:
             rows: List of dicts with keys: date, amount, currency, type,
@@ -256,9 +270,9 @@ class SyncEngine:
 
         """
         logger.info("Starting JSON import of %s (%d rows)", file_name, len(rows))
-        import_time = datetime.now(UTC)
-
-        existing_import = self._raise_if_already_imported(file_hash, force=force)
+        if not rows or len(rows) > MAX_UPLOAD_ROWS:
+            msg = f"Snapshot must contain between 1 and {MAX_UPLOAD_ROWS:,} rows"
+            raise NormalizationError(msg)
 
         # Normalize each row (category corrections, transfer resolution, etc.)
         normalized_rows: list[dict[str, Any]] = []
@@ -267,11 +281,11 @@ class SyncEngine:
                 normalized = self.normalizer.normalize_from_dict(row)
                 normalized_rows.append(normalized)
             except NormalizationError as e:
-                logger.warning("Row %d: %s", idx + 2, e)
+                msg = f"Row {idx + 2}: {e}. Snapshot rejected; no ledger entries were changed."
+                raise NormalizationError(msg) from e
 
-        if not normalized_rows:
-            logger.warning("No valid rows to import")
-            return ReconciliationStats()
+        existing_import = self._raise_if_already_imported(file_hash, force=force)
+        import_time = datetime.now(UTC)
 
         return self._reconcile_and_log(
             normalized_rows,
@@ -293,7 +307,8 @@ class SyncEngine:
             analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
             analytics_results = analytics_engine.run_full_analytics(source_file=source_file)
             logger.info("Analytics completed: %s", analytics_results)
-        except (ValueError, TypeError, RuntimeError) as e:
+        except Exception as e:
+            self.session.rollback()
             logger.error("Analytics calculation failed (non-fatal): %s", e)
 
     def import_file(self, file_path: Path, force: bool = False) -> ReconciliationStats:
@@ -311,7 +326,6 @@ class SyncEngine:
 
         """
         logger.info(f"Starting import of {file_path}")
-        import_time = datetime.now(UTC)
 
         # Step 1: Load and validate -- pick the right loader by extension
         if file_path.suffix.lower() == ".csv":
@@ -319,15 +333,12 @@ class SyncEngine:
         else:
             df, column_mapping, file_hash = self.excel_loader.load(file_path)
 
-        existing_import = self._raise_if_already_imported(file_hash, force=force)
-
         # Step 2: Normalize data
         logger.info("Normalizing data...")
         normalized_rows = self.normalizer.normalize_dataframe(df, column_mapping)
 
-        if not normalized_rows:
-            logger.warning("No valid rows to import")
-            return ReconciliationStats()
+        existing_import = self._raise_if_already_imported(file_hash, force=force)
+        import_time = datetime.now(UTC)
 
         # Steps 3-5: Reconcile transactions + transfers and write the import log.
         stats = self._reconcile_and_log(

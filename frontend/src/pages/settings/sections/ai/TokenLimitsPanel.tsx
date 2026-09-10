@@ -13,22 +13,26 @@ interface TokenLimitsPanelProps {
   setMonthlyLimit: (v: string) => void
   onSave: () => void
   saving: boolean
+  error: string | null
+  saved: boolean
 }
 
 export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
-  const { usage, dailyLimit, setDailyLimit, monthlyLimit, setMonthlyLimit, onSave, saving } = props
+  const {
+    usage, dailyLimit, setDailyLimit, monthlyLimit, setMonthlyLimit, onSave, saving, error, saved,
+  } = props
 
   return (
     <div className="border-t border-border pt-4 space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <FieldLegend>Token usage &amp; limits</FieldLegend>
         {usage && (
           <div className="text-xs text-muted-foreground font-mono">
             Today {formatTokens(usage.today.total_tokens)}
-            {usage.limits.daily ? ` / ${formatTokens(usage.limits.daily)}` : ''}
+            {usage.limits.daily != null ? ` / ${formatTokens(usage.limits.daily)}` : ''}
             <span className="text-text-quaternary"> · </span>
             MTD {formatTokens(usage.month_to_date.total_tokens)}
-            {usage.limits.monthly ? ` / ${formatTokens(usage.limits.monthly)}` : ''}
+            {usage.limits.monthly != null ? ` / ${formatTokens(usage.limits.monthly)}` : ''}
             {usage.all_time.cost_usd > 0 && (
               <>
                 <span className="text-text-quaternary"> · </span>
@@ -53,10 +57,12 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
             type="number"
             inputMode="numeric"
             min={0}
-            step={1000}
+            max={10_000_000}
+            step={1}
             value={dailyLimit}
             onChange={(e) => setDailyLimit(e.target.value)}
             placeholder="No limit"
+            aria-describedby="ai-limits-hint ai-limits-status"
             className={inputClass}
           />
         </div>
@@ -72,19 +78,30 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
             type="number"
             inputMode="numeric"
             min={0}
-            step={10000}
+            max={100_000_000}
+            step={1}
             value={monthlyLimit}
             onChange={(e) => setMonthlyLimit(e.target.value)}
             placeholder="No limit"
+            aria-describedby="ai-limits-hint ai-limits-status"
             className={inputClass}
           />
         </div>
       </div>
-      <FieldHint>
-        Leave blank for no cap. Server-side Bedrock calls are blocked when today's or this
-        month's usage would exceed the limit. For browser-direct providers (OpenAI, Anthropic)
-        the limits are informational only -- the provider still charges your key.
-      </FieldHint>
+      <div id="ai-limits-hint">
+        <FieldHint>
+          Leave blank for no token cap. Set 0 to block Bedrock calls. Both shared and personal
+          Bedrock calls count used tokens and tokens reserved for pending calls toward these
+          limits. OpenAI and Anthropic limits are informational because calls go directly to
+          the provider; set spending controls with your provider.
+        </FieldHint>
+      </div>
+      {(usage?.month_to_date.reserved_tokens ?? 0) > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {formatTokens(usage?.today.reserved_tokens ?? 0)} tokens reserved today;{' '}
+          {formatTokens(usage?.month_to_date.reserved_tokens ?? 0)} this month.
+        </p>
+      )}
       <Button
         id="save-ai-token-limits"
         type="button"
@@ -92,9 +109,14 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
         size="sm"
         onClick={onSave}
         disabled={saving}
+        isLoading={saving}
       >
-        {saving ? 'Saving limits...' : 'Save limits'}
+        {saving ? 'Saving limits...' : error ? 'Retry limits' : 'Save limits'}
       </Button>
+      <div id="ai-limits-status" role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'}>
+        {error && <p className="text-sm text-app-red">{error} Your entries are kept here.</p>}
+        {!error && saved && <p className="text-sm text-app-green">Token limits saved.</p>}
+      </div>
     </div>
   )
 }

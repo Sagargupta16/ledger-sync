@@ -9,17 +9,17 @@ stay in sync with the raw transactions. The explicit POST
 """
 
 from datetime import UTC
-from typing import Annotated
+from typing import Annotated, Literal
 
 import anyio
 from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import desc, func, select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import SQLAlchemyError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.api.rate_limit import limiter, user_limiter
+from ledger_sync.api.rate_limit import _user_key_func, limiter
 from ledger_sync.core.analytics import AnalyticsEngine
-from ledger_sync.core.sync_engine import SyncEngine
+from ledger_sync.core.sync_engine import AlreadyImportedError, SyncEngine
 from ledger_sync.db.models import ImportLog
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.schemas.transactions import (
@@ -32,10 +32,8 @@ from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
 
-# Rate limit uploads. Two decorators stack -- whichever trips first returns
-# 429. IP-keyed (5x higher) catches unauthenticated floods before they reach
-# the auth dep; user-keyed protects each account behind CGNAT / carrier NAT
-# where dozens of real users share one egress.
+# Register both bounds on the same limiter so SlowAPI checks both keys.
+# The wider IP limit accommodates accounts sharing a carrier or office network.
 
 
 @router.post(
@@ -43,12 +41,13 @@ router = APIRouter(prefix="", tags=["upload"])
     responses={
         400: {"description": "Data format issue"},
         409: {"description": "File already imported"},
+        413: {"description": "Upload exceeds configured size limit"},
         422: {"description": "Validation error"},
         429: {"description": "Rate limit exceeded"},
         500: {"description": "Processing failed"},
     },
 )
-@user_limiter.limit("10/minute")
+@limiter.limit("10/minute", key_func=_user_key_func)
 @limiter.limit("50/minute")
 async def upload_transactions(
     request: Request,  # required by slowapi
@@ -56,9 +55,10 @@ async def upload_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> UploadResponse:
-    """Upload pre-parsed transaction rows.
+    """Replace the current user's ledger with a complete INR snapshot.
 
-    The frontend parses Excel/CSV files and sends structured JSON. This
+    Include every account and date to retain; missing entries are soft-deleted.
+    The frontend validates and confirms the snapshot before sending JSON. This
     endpoint normalizes, hashes, reconciles the transactions, and then
     triggers a full analytics refresh so pre-aggregated tables stay in
     sync with the raw data. If the analytics step fails the upload still
@@ -95,27 +95,28 @@ async def upload_transactions(
             )
         )
 
-        # Defense-in-depth: recompute analytics synchronously so pre-aggregated
-        # tables (monthly/daily summaries, category trends, investment
-        # holdings, etc.) stay consistent with the raw transactions even if
-        # the client skips the explicit /api/analytics/v2/refresh call.
+        analytics_status: Literal["ready", "failed"] = "ready"
+        analytics_message = None
         try:
             analytics = AnalyticsEngine(db, user_id=current_user.id)
             await anyio.to_thread.run_sync(
                 lambda: analytics.run_full_analytics(source_file=payload.file_name),
             )
-        except (OSError, RuntimeError, ValueError, OperationalError) as exc:
+        except Exception as exc:
             # Don't fail the upload if the post-upload refresh blows up -- the
             # raw data is safely persisted; the user can re-run /refresh.
-            # OperationalError covers a Postgres statement timeout on a large
-            # recompute (Neon free tier), which must NOT fail an upload whose
-            # transactions are already committed.
+            # Any analytics error must preserve the successful ledger result.
+            # A failed refresh is retried separately, never by re-importing.
             logger.warning(
                 "Post-upload analytics refresh failed for user_id=%s: %s",
                 current_user.id,
                 exc,
             )
             db.rollback()
+            analytics_status = "failed"
+            analytics_message = (
+                "Your ledger is saved. Insights could not be refreshed. Retry the refresh."
+            )
 
         return UploadResponse(
             success=True,
@@ -128,9 +129,11 @@ async def upload_transactions(
                 "unchanged": stats.skipped,
             },
             file_name=payload.file_name,
+            analytics_status=analytics_status,
+            analytics_message=analytics_message,
         )
 
-    except ValueError as e:
+    except AlreadyImportedError as e:
         logger.warning("File already imported: %s", e)
         raise HTTPException(status_code=409, detail=str(e)) from e
 
@@ -141,7 +144,8 @@ async def upload_transactions(
             detail=f"Data format issue: {e}",
         ) from e
 
-    except (OSError, RuntimeError) as e:
+    except (OSError, RuntimeError, SQLAlchemyError) as e:
+        db.rollback()
         logger.error("Unexpected error processing upload: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,

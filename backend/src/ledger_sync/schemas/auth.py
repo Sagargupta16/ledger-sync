@@ -5,6 +5,7 @@ OAuth-only authentication — no email/password endpoints.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,21 +77,49 @@ class UserUpdate(BaseModel):
 
 
 class OAuthCallbackRequest(BaseModel):
-    """Request model for OAuth callback with authorization code."""
+    """Authorization code and proof retained by the initiating browser tab."""
 
-    code: str = Field(..., description="Authorization code from OAuth provider")
-    state: str | None = Field(None, description="CSRF state token for validation")
+    code: str = Field(..., min_length=1, max_length=2048)
+    state: str = Field(..., min_length=1, max_length=512, pattern=r"^[A-Za-z0-9_.-]+$")
+    code_verifier: str = Field(
+        ...,
+        min_length=43,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._~-]+$",
+        description="PKCE verifier from this tab, never included in the redirect URL",
+    )
+
+
+class OAuthInitiationRequest(BaseModel):
+    """Start a sign-in using the browser's S256 PKCE challenge."""
+
+    code_challenge: str = Field(..., min_length=43, max_length=43, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class OAuthProviderConfig(BaseModel):
     """OAuth provider configuration (returned to frontend)."""
 
-    provider: str
+    provider: Literal["google", "github"]
     client_id: str
     authorize_url: str
     scope: str
     redirect_uri: str
-    state: str = Field(..., description="CSRF state token to include in authorize URL")
+    flow_version: Literal[2] = 2
+
+
+class OAuthRestartConfig(OAuthProviderConfig):
+    """Legacy clients navigate to a restart bridge, never an unbound login."""
+
+    state: Literal["oauth-upgrade-v2"] = "oauth-upgrade-v2"
+
+
+class OAuthAuthorization(OAuthProviderConfig):
+    """One sign-in attempt bound to a provider, redirect, and PKCE challenge."""
+
+    state: str
+    code_challenge: str
+    code_challenge_method: Literal["S256"] = "S256"
+    expires_in: int
 
 
 class MessageResponse(BaseModel):

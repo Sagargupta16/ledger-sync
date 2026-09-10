@@ -1,17 +1,20 @@
 import { useState } from 'react'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { AlertCircle, CheckCircle, Sparkles, Trash2 } from 'lucide-react'
 
 import ErrorState from '@/components/shared/ErrorState'
 import Button from '@/components/ui/Button'
+import { getApiErrorMessage } from '@/lib/errorUtils'
+import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import {
   aiConfigService,
   type AIConfig,
   type AIConfigUpdate,
   type AIMode,
 } from '@/services/api/aiConfig'
-import { aiUsageService, type UsageResponse } from '@/services/api/aiUsage'
+import { aiUsageService, type LimitsUpdateRequest, type UsageResponse } from '@/services/api/aiUsage'
 
 import { Section } from '../sectionPrimitives'
 import { ByokConfigForm } from './ai/ByokConfigForm'
@@ -25,10 +28,12 @@ interface Props {
 
 export default function AIAssistantSection({ index }: Readonly<Props>) {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   const {
     data: config,
     isLoading,
     isError,
+    isFetching,
     refetch,
   } = useQuery<AIConfig>({
     queryKey: ['ai-config'],
@@ -43,39 +48,31 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const [showKey, setShowKey] = useState(false)
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [testError, setTestError] = useState('')
-
-  // provider/model/region are seeded lazily, but the ['ai-config'] query has
-  // not resolved on first render so the initializers capture the empty
-  // defaults. Unlike the limit fields below they had no resync, so a saved BYOK
-  // config showed blank Provider/Model/Region until the user re-picked. Mirror
-  // the lastSynced* reconciliation: when config arrives (or changes), adopt it
-  // -- but only until the user edits, so we never clobber an in-progress change.
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [configConflict, setConfigConflict] = useState(false)
+  const [limitsError, setLimitsError] = useState<string | null>(null)
   const [byokInteracted, setByokInteracted] = useState(false)
-  const [lastSyncedProvider, setLastSyncedProvider] = useState(config?.provider ?? null)
-  if (config && !byokInteracted && (config.provider ?? '') !== (lastSyncedProvider ?? '')) {
-    setLastSyncedProvider(config.provider ?? null)
-    setProvider(config.provider ?? '')
-    setModel(config.model ?? '')
-    setRegion(config.region ?? 'us-east-1')
-  }
-
+  const [limitsInteracted, setLimitsInteracted] = useState(false)
+  const [lastSyncedConfig, setLastSyncedConfig] = useState(config)
   const [dailyLimit, setDailyLimit] = useState<string>(() =>
     config?.daily_token_limit == null ? '' : String(config.daily_token_limit),
   )
   const [monthlyLimit, setMonthlyLimit] = useState<string>(() =>
     config?.monthly_token_limit == null ? '' : String(config.monthly_token_limit),
   )
-  const [lastSyncedDaily, setLastSyncedDaily] = useState(config?.daily_token_limit ?? null)
-  const [lastSyncedMonthly, setLastSyncedMonthly] = useState(config?.monthly_token_limit ?? null)
-  const persistedDaily = config?.daily_token_limit ?? null
-  const persistedMonthly = config?.monthly_token_limit ?? null
-  if (persistedDaily !== lastSyncedDaily) {
-    setLastSyncedDaily(persistedDaily)
-    setDailyLimit(persistedDaily == null ? '' : String(persistedDaily))
-  }
-  if (persistedMonthly !== lastSyncedMonthly) {
-    setLastSyncedMonthly(persistedMonthly)
-    setMonthlyLimit(persistedMonthly == null ? '' : String(persistedMonthly))
+
+  // Adopt server changes only while that form has no unsaved edits.
+  if (config && config !== lastSyncedConfig) {
+    setLastSyncedConfig(config)
+    if (!byokInteracted) {
+      setProvider(config.provider ?? '')
+      setModel(config.model ?? '')
+      setRegion(config.region ?? 'us-east-1')
+    }
+    if (!limitsInteracted) {
+      setDailyLimit(config.daily_token_limit == null ? '' : String(config.daily_token_limit))
+      setMonthlyLimit(config.monthly_token_limit == null ? '' : String(config.monthly_token_limit))
+    }
   }
 
   const { data: usage } = useQuery<UsageResponse>({
@@ -85,70 +82,170 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
     staleTime: 30_000,
   })
 
-  // `void queryClient.invalidateQueries(...)` below: query-core swallows refetch
-  // rejections internally, so these promises never reject. The mutation failures
-  // themselves are toasted by the global MutationCache onError in lib/queryClient.
+  const publishConfig = async (data: AIConfig, signal: AbortSignal) => {
+    await queryClient.cancelQueries({ queryKey: ['ai-config'] })
+    assertCurrentSession(signal)
+    queryClient.setQueryData(['ai-config'], data)
+    void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+  }
+
+  const beginConfigWrite = () => {
+    setActionError(null)
+    setConfigConflict(false)
+    return sessionSignal
+  }
+
+  const handleConfigError = (error: unknown, _variables: unknown, signal?: AbortSignal) => {
+    if (!signal || !isCurrentSession(signal)) return
+    setActionError(getApiErrorMessage(error))
+    setConfigConflict(isAxiosError(error) && error.response?.status === 409)
+  }
+
   const saveMutation = useMutation({
-    mutationFn: (data: AIConfigUpdate) => aiConfigService.updateConfig(data),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      setApiKey('')
+    mutationKey: ['ai-config', 'save', getSessionGeneration()],
+    mutationFn: (data: AIConfigUpdate) => {
+      assertCurrentSession(sessionSignal)
+      return aiConfigService.updateConfig(data)
     },
+    onMutate: beginConfigWrite,
+    onSuccess: async (data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      await publishConfig(data, signal)
+      setByokInteracted(false)
+      setProvider(data.provider ?? '')
+      setModel(data.model ?? '')
+      setRegion(data.region ?? 'us-east-1')
+      setApiKey('')
+      setShowKey(false)
+      setTestStatus('idle')
+    },
+    onError: handleConfigError,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => aiConfigService.deleteConfig(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      setProvider('')
-      setModel('')
-      setApiKey('')
+    mutationKey: ['ai-config', 'delete', getSessionGeneration()],
+    mutationFn: async () => {
+      assertCurrentSession(sessionSignal)
+      await aiConfigService.deleteConfig()
+      assertCurrentSession(sessionSignal)
+      return aiConfigService.getConfig()
     },
+    onMutate: beginConfigWrite,
+    onSuccess: async (data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      await publishConfig(data, signal)
+      setByokInteracted(false)
+      setProvider(data.provider ?? '')
+      setModel(data.model ?? '')
+      setRegion(data.region ?? 'us-east-1')
+      setApiKey('')
+      setShowKey(false)
+      setTestStatus('idle')
+      saveMutation.reset()
+    },
+    onError: handleConfigError,
   })
 
   const modeMutation = useMutation({
-    mutationFn: (mode: AIMode) => aiConfigService.setMode(mode),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+    mutationKey: ['ai-config', 'mode', getSessionGeneration()],
+    mutationFn: (mode: AIMode) => {
+      assertCurrentSession(sessionSignal)
+      return aiConfigService.setMode(mode)
     },
+    onMutate: beginConfigWrite,
+    onSuccess: async (data, _variables, signal) => {
+      if (signal && isCurrentSession(signal)) await publishConfig(data, signal)
+    },
+    onError: handleConfigError,
   })
 
   const limitsMutation = useMutation({
-    mutationFn: async () => {
-      const daily = dailyLimit.trim()
-      const monthly = monthlyLimit.trim()
-      await aiUsageService.updateLimits({
-        daily_token_limit:
-          daily === '' ? undefined : Math.max(0, Number.parseInt(daily, 10)),
-        monthly_token_limit:
-          monthly === '' ? undefined : Math.max(0, Number.parseInt(monthly, 10)),
-        clear_daily: daily === '',
-        clear_monthly: monthly === '',
-      })
+    mutationKey: ['ai-config', 'limits', getSessionGeneration()],
+    mutationFn: async (limits: LimitsUpdateRequest) => {
+      assertCurrentSession(sessionSignal)
+      await aiUsageService.updateLimits(limits)
+      assertCurrentSession(sessionSignal)
+      return aiConfigService.getConfig()
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ai-config'] })
-      void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+    onMutate: () => {
+      setLimitsError(null)
+      return sessionSignal
+    },
+    onSuccess: async (data, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
+      await publishConfig(data, signal)
+      setLimitsInteracted(false)
+      setDailyLimit(data.daily_token_limit == null ? '' : String(data.daily_token_limit))
+      setMonthlyLimit(data.monthly_token_limit == null ? '' : String(data.monthly_token_limit))
+    },
+    onError: (error, _variables, signal) => {
+      if (signal && isCurrentSession(signal)) setLimitsError(getApiErrorMessage(error))
     },
   })
 
+  const isBusy = saveMutation.isPending || deleteMutation.isPending || modeMutation.isPending
+    || limitsMutation.isPending || testStatus === 'testing'
+  const hasStoredKey = config?.has_key && config.provider === provider
+  const validRegion = !isBedrock(provider) || /^[a-z0-9-]{1,20}$/.test(region.trim())
+  const canSave = Boolean(provider && model.trim() && model.trim().length <= 100
+    && validRegion && !configConflict && (apiKey.trim() || hasStoredKey))
+
+  const reloadConfig = async () => {
+    const result = await refetch()
+    if (!isCurrentSession(sessionSignal)) return
+    if (result.error) {
+      setActionError(getApiErrorMessage(result.error))
+      return
+    }
+    setConfigConflict(false)
+    setActionError(null)
+  }
+
+  const editConfig = () => {
+    setByokInteracted(true)
+    if (!configConflict) setActionError(null)
+    setTestStatus('idle')
+    saveMutation.reset()
+  }
+
+  const editLimits = () => {
+    setLimitsInteracted(true)
+    setLimitsError(null)
+    limitsMutation.reset()
+  }
+
   const handleSave = () => {
-    if (!provider || !model) return
-    if (!isBedrock(provider) && !apiKey) return
+    if (!canSave || isBusy) return
     saveMutation.mutate({
       provider,
-      model,
-      // Bedrock: the user's API key (bearer token) when provided; the legacy
-      // placeholder keeps the shared server credential path.
-      api_key: isBedrock(provider) && !apiKey ? 'bedrock-uses-aws-credentials' : apiKey,
-      region: isBedrock(provider) ? region : undefined,
+      model: model.trim(),
+      ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
+      region: isBedrock(provider) ? region.trim() : undefined,
+    })
+  }
+
+  const handleSaveLimits = () => {
+    if (isBusy) return
+    const daily = dailyLimit.trim() === '' ? undefined : Number(dailyLimit)
+    const monthly = monthlyLimit.trim() === '' ? undefined : Number(monthlyLimit)
+    if (daily !== undefined && (!Number.isInteger(daily) || daily < 0 || daily > 10_000_000)) {
+      setLimitsError('Enter a daily limit from 0 to 10,000,000 whole tokens, or leave it blank.')
+      return
+    }
+    if (monthly !== undefined && (!Number.isInteger(monthly) || monthly < 0 || monthly > 100_000_000)) {
+      setLimitsError('Enter a monthly limit from 0 to 100,000,000 whole tokens, or leave it blank.')
+      return
+    }
+    limitsMutation.mutate({
+      daily_token_limit: daily,
+      monthly_token_limit: monthly,
+      clear_daily: daily === undefined,
+      clear_monthly: monthly === undefined,
     })
   }
 
   const handleTest = async () => {
-    if (!provider || !model) return
-    if (!isBedrock(provider) && !apiKey) return
+    if (!provider || !model.trim() || !apiKey.trim() || isBedrock(provider) || isBusy) return
     setTestStatus('testing')
     setTestError('')
     try {
@@ -160,36 +257,30 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       if (provider === 'openai') {
         url = 'https://api.openai.com/v1/chat/completions'
         headers = {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey.trim()}`,
           'Content-Type': 'application/json',
         }
         // o-series reasoning models reject max_tokens; they need
         // max_completion_tokens (and reasoning eats tokens, so allow more).
         const isReasoning = /^o\d/i.test(model)
         body = JSON.stringify({
-          model,
+          model: model.trim(),
           messages: [{ role: 'user', content: testPrompt }],
           ...(isReasoning ? { max_completion_tokens: 16 } : { max_tokens: 5 }),
         })
       } else if (provider === 'anthropic') {
         url = 'https://api.anthropic.com/v1/messages'
         headers = {
-          'x-api-key': apiKey,
+          'x-api-key': apiKey.trim(),
           'Content-Type': 'application/json',
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true',
         }
         body = JSON.stringify({
-          model,
+          model: model.trim(),
           messages: [{ role: 'user', content: testPrompt }],
           max_tokens: 5,
         })
-      } else if (isBedrock(provider)) {
-        setTestError(
-          'Save config, then test via the chat widget (Bedrock uses server-side AWS credentials)',
-        )
-        setTestStatus('error')
-        return
       } else {
         // Bare `return` left testStatus on 'testing' forever, so an unrecognised
         // provider spun the button's spinner with no error and no way out but a
@@ -199,7 +290,9 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
         return
       }
 
-      const resp = await fetch(url, { method: 'POST', headers, body })
+      assertCurrentSession(sessionSignal)
+      const resp = await fetch(url, { method: 'POST', headers, body, signal: sessionSignal })
+      assertCurrentSession(sessionSignal)
       if (resp.ok) {
         setTestStatus('success')
       } else {
@@ -208,21 +301,21 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
         // answers a differently-shaped error body would have thrown on the
         // member access instead of falling back to the status code.
         const err: unknown = await resp.json().catch(() => ({}))
+        assertCurrentSession(sessionSignal)
         const errMsg =
           (err as { error?: { message?: string } }).error?.message ?? `Error ${resp.status}`
         setTestError(errMsg)
         setTestStatus('error')
       }
     } catch {
+      if (!isCurrentSession(sessionSignal)) return
       setTestError('Network error -- check your connection')
       setTestStatus('error')
     }
   }
 
-  const canSave = provider && model && (isBedrock(provider) || apiKey)
-
   if (isLoading) return null
-  if (isError) {
+  if (isError && !config) {
     return (
       <Section
         index={index}
@@ -250,47 +343,41 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       title="AI Assistant"
       description="Chat with your financial data"
     >
-      <div className="space-y-4">
+      <fieldset disabled={isBusy} aria-busy={isBusy} className="space-y-4 border-0 p-0 m-0 min-w-0">
+        <legend className="sr-only">AI assistant settings</legend>
         <ModeToggle
           mode={mode}
-          onChange={(next) => modeMutation.mutate(next)}
+          onChange={(next) => { if (next !== mode && !isBusy) modeMutation.mutate(next) }}
           appLimit={usage?.limits.app_daily_messages ?? 10}
-          pending={modeMutation.isPending}
+          pending={isBusy}
         />
 
         {!isByok && <AppModePanel usage={usage} />}
 
         {isByok && (
           <>
+            {!config?.has_key && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Add a personal key to enable chat, or choose the shared app mode above.
+              </p>
+            )}
             <ByokConfigForm
               config={config}
               provider={provider}
-              setProvider={(v) => { setByokInteracted(true); setProvider(v) }}
+              setProvider={(v) => { editConfig(); setProvider(v) }}
               model={model}
-              setModel={(v) => { setByokInteracted(true); setModel(v) }}
+              setModel={(v) => { editConfig(); setModel(v) }}
               region={region}
-              setRegion={(v) => { setByokInteracted(true); setRegion(v) }}
+              setRegion={(v) => { editConfig(); setRegion(v) }}
               apiKey={apiKey}
-              setApiKey={setApiKey}
+              setApiKey={(v) => { editConfig(); setApiKey(v) }}
               showKey={showKey}
               setShowKey={setShowKey}
               setTestStatus={setTestStatus}
             />
 
-            {(provider || (usage && usage.all_time.call_count > 0)) && (
-              <TokenLimitsPanel
-                usage={usage}
-                dailyLimit={dailyLimit}
-                setDailyLimit={setDailyLimit}
-                monthlyLimit={monthlyLimit}
-                setMonthlyLimit={setMonthlyLimit}
-                onSave={() => limitsMutation.mutate()}
-                saving={limitsMutation.isPending}
-              />
-            )}
-
             {provider && (
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 {!isBedrock(provider) && (
                   <Button
                     id="test-ai-connection"
@@ -300,7 +387,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                     // try/catch (setTestError on failure), so it never
                     // rejects; `void` adapts it to the void-returning prop.
                     onClick={() => void handleTest()}
-                    disabled={!apiKey || testStatus === 'testing'}
+                    disabled={!apiKey.trim() || !model.trim() || isBusy}
                     isLoading={testStatus === 'testing'}
                   >
                     {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
@@ -310,10 +397,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                   id="save-ai-configuration"
                   type="button"
                   onClick={handleSave}
-                  disabled={!canSave || saveMutation.isPending}
+                  disabled={!canSave || isBusy}
                   isLoading={saveMutation.isPending}
                 >
-                  {saveMutation.isPending ? 'Saving...' : 'Save'}
+                  {saveMutation.isPending ? 'Saving...' : saveMutation.isError ? 'Retry save' : 'Save'}
                 </Button>
                 {config?.has_key && (
                   <Button
@@ -332,27 +419,57 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             )}
 
             {testStatus === 'success' && (
-              <div className="flex items-center gap-2 text-sm text-app-green">
-                <CheckCircle className="w-4 h-4" />
+              <div role="status" className="flex items-center gap-2 text-sm text-app-green">
+                <CheckCircle className="w-4 h-4" aria-hidden="true" />
                 Connection successful
               </div>
             )}
             {testStatus === 'error' && (
-              <div className="flex items-center gap-2 text-sm text-app-red">
-                <AlertCircle className="w-4 h-4" />
+              <div role="alert" className="flex items-center gap-2 text-sm text-app-red">
+                <AlertCircle className="w-4 h-4" aria-hidden="true" />
                 {testError}
               </div>
             )}
 
             {saveMutation.isSuccess && (
-              <div className="flex items-center gap-2 text-sm text-app-green">
-                <CheckCircle className="w-4 h-4" />
+              <div role="status" className="flex items-center gap-2 text-sm text-app-green">
+                <CheckCircle className="w-4 h-4" aria-hidden="true" />
                 AI configuration saved. Open the chat widget (bottom-right) to start.
               </div>
             )}
           </>
         )}
-      </div>
+        {actionError && (
+          <div role="alert" className="space-y-2 text-sm text-app-red">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span>{actionError}{saveMutation.isError ? ' Your edits are kept here.' : ''}</span>
+            </div>
+            {configConflict && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void reloadConfig()}
+                isLoading={isFetching}
+              >
+                Reload saved configuration
+              </Button>
+            )}
+          </div>
+        )}
+        <TokenLimitsPanel
+          usage={usage}
+          dailyLimit={dailyLimit}
+          setDailyLimit={(v) => { editLimits(); setDailyLimit(v) }}
+          monthlyLimit={monthlyLimit}
+          setMonthlyLimit={(v) => { editLimits(); setMonthlyLimit(v) }}
+          onSave={handleSaveLimits}
+          saving={limitsMutation.isPending}
+          error={limitsError}
+          saved={limitsMutation.isSuccess}
+        />
+      </fieldset>
     </Section>
   )
 }

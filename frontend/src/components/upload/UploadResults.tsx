@@ -11,7 +11,7 @@ interface UploadResultsProps {
 
 export default function UploadResults({ stats, fileName, uploadTime }: Readonly<UploadResultsProps>) {
   const totalChanges = stats.inserted + stats.updated + stats.deleted
-  const totalProcessed = totalChanges + (stats.unchanged || 0)
+  const totalProcessed = stats.processed ?? stats.inserted + stats.updated + stats.unchanged
 
   return (
     <motion.div
@@ -61,7 +61,7 @@ export default function UploadResults({ stats, fileName, uploadTime }: Readonly<
         />
         <StatCard
           icon={Copy}
-          label="Skipped (Dupes)"
+          label="Unchanged / paired"
           value={stats.unchanged || 0}
           color="text-muted-foreground"
           bgColor="bg-[var(--overlay-3)]"

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import { PreferencesProvider } from '@/components/shared/PreferencesProvider'
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
+import { useDemoStore } from '@/store/demoStore'
 import { useMotionStore } from '@/store/motionStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthInit } from '@/hooks/api/useAuth'
@@ -24,7 +25,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import OAuthCallbackPage from '@/pages/OAuthCallbackPage'
 import DemoEntryPage from '@/pages/DemoEntryPage'
 
-// Lazy-loaded -- heavier pages, prefetched in background after initial load
+// Lazy-loaded pages are prefetched when a navigation link is focused or hovered.
 const pageImports = {
   UploadSyncPage: () => import('@/pages/upload-sync/UploadSyncPage'),
   TransactionsPage: () => import('@/pages/TransactionsPage'),
@@ -80,28 +81,33 @@ const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
 const MorePage = lazy(pageImports.MorePage)
 const OverviewPage = lazy(pageImports.OverviewPage)
 
-/**
- * Prefetch all lazy page chunks in the background after initial load.
- * Uses requestIdleCallback so it doesn't block the main thread.
- */
-function prefetchAllPages() {
-  const prefetch = () => {
-    for (const loader of Object.values(pageImports)) {
-      // Swallow deliberately. A chunk fetch that fails during idle prefetch is
-      // not an error the user should see -- `ChunkErrorBoundary` handles the
-      // case that matters, which is a failure at NAVIGATION time. Left bare,
-      // each rejected import surfaced as an unhandled promise rejection in the
-      // console on a flaky connection, for a page the user never opened.
-      loader().catch(() => {})
-    }
-  }
-
-  if ('requestIdleCallback' in globalThis) {
-    requestIdleCallback(prefetch)
-  } else {
-    setTimeout(prefetch, 2000)
-  }
-}
+const routeLoaders = new Map<string, () => Promise<unknown>>([
+  [ROUTES.UPLOAD, pageImports.UploadSyncPage],
+  [ROUTES.TRANSACTIONS, pageImports.TransactionsPage],
+  [ROUTES.INVESTMENT_ANALYTICS, pageImports.InvestmentAnalyticsPage],
+  [ROUTES.MUTUAL_FUND_PROJECTION, pageImports.MutualFundProjectionPage],
+  [ROUTES.RETURNS_ANALYSIS, pageImports.ReturnsAnalysisPage],
+  [ROUTES.TAX_PLANNING, pageImports.TaxPlanningPage],
+  [ROUTES.GST_ANALYSIS, pageImports.GSTAnalysisPage],
+  [ROUTES.NET_WORTH, pageImports.NetWorthPage],
+  [ROUTES.SPENDING_ANALYSIS, pageImports.SpendingAnalysisPage],
+  [ROUTES.MERCHANT_INTELLIGENCE, pageImports.MerchantIntelligencePage],
+  [ROUTES.INCOME_ANALYSIS, pageImports.IncomeAnalysisPage],
+  [ROUTES.INCOME_EXPENSE_FLOW, pageImports.IncomeExpenseFlowPage],
+  [ROUTES.TRENDS_FORECASTS, pageImports.TrendsForecastsPage],
+  [ROUTES.COMPARISON, pageImports.ComparisonPage],
+  [ROUTES.BUDGETS, pageImports.BudgetPage],
+  [ROUTES.YEAR_IN_REVIEW, pageImports.YearInReviewPage],
+  [ROUTES.SETTINGS, pageImports.SettingsPage],
+  [ROUTES.ANOMALIES, pageImports.AnomalyReviewPage],
+  [ROUTES.DATA_HEALTH, pageImports.DataHealthPage],
+  [ROUTES.GOALS, pageImports.GoalsPage],
+  [ROUTES.SUBSCRIPTIONS, pageImports.SubscriptionTrackerPage],
+  [ROUTES.BILL_CALENDAR, pageImports.BillCalendarPage],
+  [ROUTES.FIRE_CALCULATOR, pageImports.FIRECalculatorPage],
+  [ROUTES.MORE, pageImports.MorePage],
+  [ROUTES.OVERVIEW, pageImports.OverviewPage],
+])
 
 /**
  * Minimal Suspense fallback -- only shows after 150ms delay
@@ -185,17 +191,47 @@ function AuthInitializer({ children }: Readonly<{ children: React.ReactNode }>) 
   // useAuthInit verifies the token with the server and sets loading to false when done.
   // This replaces the arbitrary setTimeout approach.
   useAuthInit()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isLoading = useAuthStore((state) => state.isLoading)
 
-  // Prefetch all lazy page chunks once (after auth is resolved)
-  const prefetchedRef = useRef(false)
   useEffect(() => {
-    if (!prefetchedRef.current) {
-      prefetchedRef.current = true
-      prefetchAllPages()
+    if (!isAuthenticated || isLoading) return
+    const prefetched = new Set<string>()
+    const basePath = new URL(import.meta.env.BASE_URL, window.location.origin).pathname.replace(/\/$/, '')
+    const prefetchLink = (event: Event) => {
+      if (!(event.target instanceof Element)) return
+      const link = event.target.closest<HTMLAnchorElement>('a[href]')
+      if (!link) return
+      const url = new URL(link.href)
+      if (url.origin !== window.location.origin || !url.pathname.startsWith(`${basePath}/`)) return
+      const path = url.pathname.slice(basePath.length).replace(/\/$/, '')
+      const loader = routeLoaders.get(path)
+      if (!loader || prefetched.has(path)) return
+      prefetched.add(path)
+      // Navigation still owns chunk-error feedback. A failed hint can retry.
+      void loader().catch(() => { prefetched.delete(path) })
     }
-  }, [])
+    document.addEventListener('pointerover', prefetchLink)
+    document.addEventListener('focusin', prefetchLink)
+    document.addEventListener('touchstart', prefetchLink, { passive: true })
+    return () => {
+      document.removeEventListener('pointerover', prefetchLink)
+      document.removeEventListener('focusin', prefetchLink)
+      document.removeEventListener('touchstart', prefetchLink)
+    }
+  }, [isAuthenticated, isLoading])
 
   return <>{children}</>
+}
+
+function AuthenticatedLayout() {
+  const userId = useAuthStore((state) => state.user?.id)
+  const demo = useDemoStore((state) => state.isDemoMode)
+  return (
+    <ProtectedRoute>
+      <AppLayout key={demo ? 'demo' : userId ?? 'anonymous'} />
+    </ProtectedRoute>
+  )
 }
 
 // Landing page that shows HomePage
@@ -255,11 +291,7 @@ function App() {
                   {/* Protected routes with layout */}
                   <Route
                     path="/*"
-                    element={
-                      <ProtectedRoute>
-                        <AppLayout />
-                      </ProtectedRoute>
-                    }
+                    element={<AuthenticatedLayout />}
                   >
                     <Route path="home" element={<Navigate replace to={ROUTES.DASHBOARD} />} />
                     <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />

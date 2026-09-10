@@ -10,6 +10,7 @@ import { AuthModal } from '../AuthModal'
 
 vi.mock('@/services/api/auth', () => ({
   getOAuthProviders: vi.fn(),
+  beginOAuthLogin: vi.fn(),
 }))
 
 const PROVIDERS: OAuthProviderConfig[] = [
@@ -19,7 +20,7 @@ const PROVIDERS: OAuthProviderConfig[] = [
     authorize_url: 'https://accounts.google.com/o/oauth2/v2/auth',
     scope: 'openid email profile',
     redirect_uri: 'http://localhost:5173/auth/callback/google',
-    state: 'google-state',
+    flow_version: 2,
   },
   {
     provider: 'github',
@@ -27,7 +28,7 @@ const PROVIDERS: OAuthProviderConfig[] = [
     authorize_url: 'https://github.com/login/oauth/authorize',
     scope: 'read:user user:email',
     redirect_uri: 'http://localhost:5173/auth/callback/github',
-    state: 'github-state',
+    flow_version: 2,
   },
 ]
 
@@ -98,5 +99,22 @@ describe('AuthModal', () => {
     expect(
       screen.queryByText("Couldn't reach the sign-in service."),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows initiation failures and lets the user start a fresh attempt', async () => {
+    vi.mocked(authApi.getOAuthProviders).mockResolvedValue(PROVIDERS)
+    vi.mocked(authApi.beginOAuthLogin).mockRejectedValue(
+      new Error('Sign-in needs session storage in this tab. Enable it and try again.'),
+    )
+    render(<AuthModalHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open sign in' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in needs session storage')
+    expect(authApi.beginOAuthLogin).toHaveBeenCalledWith(PROVIDERS[0])
+    const google = screen.getByRole('button', { name: 'Continue with Google' })
+    expect(google).toBeEnabled()
+    fireEvent.click(google)
+    await waitFor(() => expect(authApi.beginOAuthLogin).toHaveBeenCalledTimes(2))
   })
 })

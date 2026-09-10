@@ -160,8 +160,8 @@ export function computeTaxForFY(
   const selectedRegime = resolveSelectedRegime(newRegimeAvailable, regimeOverride, preferredRegime)
   const isNewRegime = selectedRegime === 'new'
   const taxSlabs = getTaxSlabs(fyYear, selectedRegime)
-  const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime (with 80C)'
-  const standardDeduction = getStandardDeduction(fyYear)
+  const regimeLabel = isNewRegime ? 'New Tax Regime' : 'Old Tax Regime'
+  const standardDeduction = getStandardDeduction(fyYear, selectedRegime)
 
   const hasEmploymentIncome = recordedTaxableIncome > 0
 
@@ -351,7 +351,7 @@ export function computePrevFYDisplay(
     )
     if (prevProjection) {
       const prevSlabs = getTaxSlabs(prevStart, isNewRegime ? 'new' : 'old')
-      const prevStdDeduction = getStandardDeduction(prevStart)
+      const prevStdDeduction = getStandardDeduction(prevStart, isNewRegime ? 'new' : 'old')
       const prevTax = calculateTax(
         prevProjection.grossTaxable,
         prevSlabs,
@@ -375,7 +375,6 @@ export function computePrevFYDisplay(
 export function calculateBreakEvenDeduction(
   grossIncome: number,
   fyYear: number,
-  standardDeduction: number,
   salaryMonthsCount: number,
   newRegimeTax: number,
 ): number {
@@ -383,7 +382,7 @@ export function calculateBreakEvenDeduction(
     const oldWithDeductions = calculateTax(
       Math.max(0, grossIncome - d),
       getTaxSlabs(fyYear, 'old'),
-      standardDeduction,
+      getStandardDeduction(fyYear, 'old'),
       true,
       salaryMonthsCount,
       false,

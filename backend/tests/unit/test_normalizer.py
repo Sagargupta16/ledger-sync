@@ -98,6 +98,57 @@ class TestDataNormalizer:
         # A clean decimal string is preserved exactly.
         assert normalizer.normalize_amount("19.99") == Decimal("19.99")
 
+    def test_invalid_dataframe_rejects_whole_snapshot(self):
+        frame = pd.DataFrame(
+            [
+                {
+                    "Date": "2026-01-01",
+                    "Amount": 100,
+                    "Account": "Cash",
+                    "Category": "Food",
+                    "Type": "Expense",
+                },
+                {
+                    "Date": "2026-02-30",
+                    "Amount": 200,
+                    "Account": "Cash",
+                    "Category": "Food",
+                    "Type": "Expense",
+                },
+            ]
+        )
+        mapping = {
+            "date": "Date",
+            "amount": "Amount",
+            "account": "Account",
+            "category": "Category",
+            "type": "Type",
+        }
+        with pytest.raises(NormalizationError, match="Row 3"):
+            DataNormalizer().normalize_dataframe(frame, mapping)
+
+    def test_missing_dataframe_account_is_not_imported_as_nan(self):
+        frame = pd.DataFrame(
+            [
+                {
+                    "Date": "2026-01-01",
+                    "Amount": 100,
+                    "Account": None,
+                    "Category": "Food",
+                    "Type": "Expense",
+                }
+            ]
+        )
+        mapping = {
+            "date": "Date",
+            "amount": "Amount",
+            "account": "Account",
+            "category": "Category",
+            "type": "Type",
+        }
+        with pytest.raises(NormalizationError, match="Account and category"):
+            DataNormalizer().normalize_dataframe(frame, mapping)
+
     def test_normalize_string(self):
         """Test string normalization."""
         normalizer = DataNormalizer()

@@ -366,11 +366,17 @@ export function getTaxSlabsForFY(fyStartYear: number): TaxSlab[] {
 }
 
 /**
- * Get the standard deduction amount for a given FY (new regime).
+ * Get the standard deduction for the selected FY and regime.
  * Sourced from tax-config so a Budget change is a one-line edit.
  */
-export function getStandardDeduction(fyStartYear: number): number {
-  return getTaxConfig(fyStartYear).newRegime.standardDeduction
+export function getStandardDeduction(
+  fyStartYear: number,
+  regime: 'new' | 'old' = 'new',
+): number {
+  const config = getTaxConfig(fyStartYear)
+  return regime === 'new'
+    ? config.newRegime.standardDeduction
+    : config.oldRegime.standardDeduction
 }
 
 /**

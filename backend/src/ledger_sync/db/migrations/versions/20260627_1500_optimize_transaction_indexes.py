@@ -23,6 +23,8 @@ from collections.abc import Sequence
 from alembic import op
 from sqlalchemy import inspect
 
+from ledger_sync.db.migrations.safety import irreversible
+
 # revision identifiers, used by Alembic.
 revision: str = "optimize_tx_indexes_2026"
 down_revision: str | None = "cohort_spending_2026"
@@ -66,6 +68,7 @@ def upgrade() -> None:
             op.create_index(name, TABLE, cols, unique=False)
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

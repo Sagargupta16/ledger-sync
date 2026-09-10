@@ -14,6 +14,8 @@ import {
 } from '@/lib/chartPeriodUtils'
 import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import ErrorState from '@/components/shared/ErrorState'
+import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
@@ -42,7 +44,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   // Daily per-category sums, aggregated server-side (date-range applied in SQL).
   // The client keeps its own day/week/month bucketing so the ISO-week + label
   // logic is unchanged -- we just feed it daily rows instead of the full ledger.
-  const { data: series } = useQuery({
+  const { data: series, isLoading, isError, refetch } = useQuery({
     queryKey: ['category-daily-series', 'expense', dateRange?.start_date, dateRange?.end_date],
     queryFn: async () =>
       (
@@ -131,6 +133,19 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
     exportChartAsCsv('multi-category-analysis.csv', topCategories, chartData)
   }
 
+  if (isLoading) return <ChartSkeleton height="h-80" />
+
+  if (isError) {
+    return (
+      <ErrorState
+        variant="card"
+        title="Unable to load category trends"
+        message="Your spending history couldn't be loaded. Try again to see the category comparison."
+        onRetry={() => { void refetch() }}
+      />
+    )
+  }
+
   return (
     <motion.div
       className="ledger-panel p-4 sm:p-5"
@@ -173,6 +188,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
               variant="secondary"
               size="sm"
               onClick={handleExport}
+              disabled={chartData.length === 0}
               type="button"
               title="Export chart"
               aria-label="Export chart as CSV"

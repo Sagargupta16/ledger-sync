@@ -149,6 +149,84 @@ def test_execute_unknown_tool_returns_404() -> None:
     assert resp.status_code == 404
 
 
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        ("search_transactions", {"limit": -1}),
+        ("search_transactions", {"limit": 101}),
+        ("search_transactions", {"limit": "5"}),
+        ("search_transactions", {"limit": True}),
+        ("search_transactions", {"start_date": "2026-02-30"}),
+        ("search_transactions", {"start_date": "2026-03-01", "end_date": "2026-02-01"}),
+        ("search_transactions", {"min_amount": 50, "max_amount": 10}),
+        ("search_transactions", {"min_amount": -1}),
+        ("search_transactions", {"query": "a" * 501}),
+        ("search_transactions", {"type": "Unknown"}),
+        ("list_categories", {"limit": 0}),
+        ("list_categories", {"type": "Transfer"}),
+        ("list_recent_months", {"limit": 25}),
+        ("get_cash_flow", {"months": -1}),
+        ("get_monthly_summary", {"period": "2026-13"}),
+        ("get_category_spending", {"category": "  "}),
+        ("get_fy_summary", {"fiscal_year": "FY2024-99"}),
+        ("list_recurring", {"active_only": "false"}),
+        ("list_anomalies", {"include_reviewed": 1}),
+        ("list_accounts", {"user_id": 123}),
+    ],
+)
+def test_invalid_tool_arguments_are_rejected_before_execution(name: str, arguments: dict) -> None:
+    app, _session, _user = _make_app_with_data()
+
+    response = TestClient(app).post(
+        "/api/ai/tools/execute", json={"name": name, "arguments": arguments}
+    )
+
+    assert response.status_code == 422
+
+
+def test_search_limit_caps_rows_and_keeps_tenant_scope() -> None:
+    app, session, user = _make_app_with_data()
+    other = User(email="other@example.test", hashed_password=TEST_BCRYPT_HASH, is_active=True)
+    session.add(other)
+    session.flush()
+    for index in range(125):
+        session.add(
+            Transaction(
+                transaction_id=f"bounded-search-{index}",
+                user_id=user.id,
+                date=datetime(2026, 3, 2, tzinfo=UTC),
+                amount=Decimal("1"),
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="Synthetic Bank",
+                category="Bounded category",
+                source_file="synthetic.csv",
+            )
+        )
+    session.add(
+        Transaction(
+            transaction_id="other-user-bounded-search",
+            user_id=other.id,
+            date=datetime(2026, 3, 2, tzinfo=UTC),
+            amount=Decimal("999"),
+            currency="INR",
+            type=TransactionType.EXPENSE,
+            account="Other User Bank",
+            category="Bounded category",
+            source_file="synthetic.csv",
+        )
+    )
+    session.commit()
+
+    result = _exec(
+        TestClient(app), "search_transactions", {"category": "Bounded category", "limit": 100}
+    )
+
+    assert result["returned"] == 100
+    assert result["total_matching_filters"] == 125
+    assert {row["account"] for row in result["transactions"]} == {"Synthetic Bank"}
+
+
 def test_list_accounts_returns_hdfc_and_icici() -> None:
     app, _s, _u = _make_app_with_data()
     client = TestClient(app)

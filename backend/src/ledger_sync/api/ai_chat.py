@@ -4,8 +4,8 @@ Browser-direct calls to AWS Bedrock fail (no CORS, SigV4 auth required).
 This endpoint proxies chat requests to Bedrock using boto3 which handles
 SigV4 signing and AWS Event Stream binary parsing automatically.
 
-Credentials come from the standard AWS credential chain (env vars,
-~/.aws/credentials, IAM role, etc.) -- no stored API key needed.
+App mode uses server credentials. BYOK Bedrock requires the user's stored bearer
+key and never falls back to shared credentials when that key is missing.
 
 Why non-streaming JSON instead of SSE:
 ---------------------------------------
@@ -30,70 +30,131 @@ frontend will execute and feed back on the next call.
 
 from __future__ import annotations
 
+import json
+import logging
 import os
-from typing import Any
+from typing import Any, Literal, Self
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 from sqlalchemy import select
 
 from ledger_sync.api.ai_usage import (
-    check_app_message_limit,
-    check_token_limits,
-    record_usage,
+    complete_usage,
+    release_usage,
+    reserve_usage,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.preferences_ai import LEGACY_BEDROCK_PLACEHOLDER, rewrap_stored_ai_key
 from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.core.encryption import DecryptionError, decrypt_api_key
 from ledger_sync.db.models import UserPreferences
 
-# Legacy placeholder the frontend used to send for Bedrock configs before
-# per-user bearer tokens were supported. Treated as "no user key".
-_LEGACY_BEDROCK_PLACEHOLDER = "bedrock-uses-aws-credentials"
-
 router = APIRouter(prefix="/api/ai", tags=["ai"])
+logger = logging.getLogger(__name__)
 
-# Rate-limit the Bedrock proxy. App-mode usage is additionally capped per
-# user per day via ai_daily_message_limit; this IP-keyed limit catches
-# abusive clients that rotate users or bypass the in-app UI.
-
-
-class ContentBlock(BaseModel):
-    """One content block inside a message. Mirrors Bedrock's Converse schema.
-
-    Exactly one of text/toolUse/toolResult is populated per block. We accept
-    them as an open dict so the frontend can pass them through without the
-    backend needing a discriminated union.
-    """
-
-    type: str  # "text" | "tool_use" | "tool_result"
-    text: str | None = None
-    tool_use_id: str | None = None
-    name: str | None = None
-    input: dict[str, Any] | None = None
-    content: list[dict[str, Any]] | None = None
+MAX_CHAT_BYTES = 262_144
+MAX_JSON_DEPTH = 12
 
 
-class StructuredMessage(BaseModel):
-    role: str  # "user" | "assistant"
-    # Either `content` (simple string) or `blocks` (structured). Simple
-    # strings get wrapped into a single text block before calling Bedrock.
-    content: str | None = None
-    blocks: list[ContentBlock] | None = None
+class ChatModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
-class ToolSpec(BaseModel):
-    name: str
-    description: str
-    parameters: dict[str, Any]
+class ToolResultContent(ChatModel):
+    text: str | None = Field(default=None, min_length=1, max_length=65_536)
+    json_data: JsonValue = Field(default=None, alias="json")
+
+    @model_validator(mode="after")
+    def validate_content(self) -> Self:
+        if (self.text is not None) == ("json_data" in self.model_fields_set):
+            raise ValueError("Tool result must contain exactly one of text or json")
+        return self
 
 
-class BedrockChatRequest(BaseModel):
-    messages: list[StructuredMessage] = Field(min_length=1)
-    system_prompt: str = ""
+class ContentBlock(ChatModel):
+    """A bounded text, tool-use, or tool-result block."""
+
+    type: Literal["text", "tool_use", "tool_result"]
+    text: str | None = Field(default=None, min_length=1, max_length=65_536)
+    tool_use_id: str | None = Field(
+        default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    name: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    input: dict[str, JsonValue] | None = Field(default=None, max_length=20)
+    content: list[ToolResultContent] | None = Field(default=None, min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> Self:
+        present = {
+            name
+            for name in ("text", "tool_use_id", "name", "input", "content")
+            if getattr(self, name) is not None
+        }
+        required = {
+            "text": {"text"},
+            "tool_use": {"tool_use_id", "name", "input"},
+            "tool_result": {"tool_use_id", "content"},
+        }
+        if present != required[self.type]:
+            raise ValueError(f"Invalid fields for {self.type} block")
+        return self
+
+
+class StructuredMessage(ChatModel):
+    role: Literal["user", "assistant"]
+    content: str | None = Field(default=None, min_length=1, max_length=65_536)
+    blocks: list[ContentBlock] | None = Field(default=None, min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def validate_message(self) -> Self:
+        if (self.content is None) == (self.blocks is None):
+            raise ValueError("Message must contain exactly one of content or blocks")
+        for block in self.blocks or []:
+            if block.type == "tool_use" and self.role != "assistant":
+                raise ValueError("Only assistant messages may contain tool_use")
+            if block.type == "tool_result" and self.role != "user":
+                raise ValueError("Only user messages may contain tool_result")
+        return self
+
+
+class ToolSpec(ChatModel):
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    description: str = Field(min_length=1, max_length=4096)
+    parameters: dict[str, JsonValue] = Field(max_length=32)
+
+    @model_validator(mode="after")
+    def validate_schema(self) -> Self:
+        if self.parameters.get("type") != "object":
+            raise ValueError("Tool parameters must be an object schema")
+        return self
+
+
+def _check_json_depth(value: Any, depth: int = 0) -> None:
+    if depth > MAX_JSON_DEPTH:
+        raise ValueError("Chat JSON nesting is too deep")
+    if isinstance(value, dict):
+        for child in value.values():
+            _check_json_depth(child, depth + 1)
+    elif isinstance(value, list):
+        for child in value:
+            _check_json_depth(child, depth + 1)
+
+
+class BedrockChatRequest(ChatModel):
+    messages: list[StructuredMessage] = Field(min_length=1, max_length=100)
+    system_prompt: str = Field(default="", max_length=32_768)
     max_tokens: int = Field(default=1024, ge=1, le=4096)
-    tools: list[ToolSpec] | None = None
+    tools: list[ToolSpec] | None = Field(default=None, max_length=32)
+
+    @model_validator(mode="after")
+    def validate_size(self) -> Self:
+        value = self.model_dump(by_alias=True, exclude_none=True)
+        _check_json_depth(value)
+        if len(json.dumps(value, ensure_ascii=False, allow_nan=False).encode()) > MAX_CHAT_BYTES:
+            raise ValueError("Chat history is too large; start a new conversation")
+        return self
 
 
 class BedrockChatResponse(BaseModel):
@@ -157,7 +218,10 @@ def _to_bedrock_message(msg: StructuredMessage) -> dict[str, Any]:
                     {
                         "toolResult": {
                             "toolUseId": b.tool_use_id,
-                            "content": b.content or [],
+                            "content": [
+                                item.model_dump(by_alias=True, exclude_unset=True)
+                                for item in b.content or []
+                            ],
                         }
                     }
                 )
@@ -209,24 +273,32 @@ def _build_converse_kwargs(payload: BedrockChatRequest, model_id: str) -> dict[s
     return kwargs
 
 
-def _resolve_user_bearer(prefs: UserPreferences) -> str | None:
+def _resolve_user_bearer(prefs: UserPreferences, session: DatabaseSession) -> str | None:
     if prefs.ai_mode != "byok" or prefs.ai_provider != "bedrock":
         return None
     if not prefs.ai_api_key_encrypted:
-        return None
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a personal Bedrock key or select App Bedrock mode for shared access.",
+        )
     try:
-        candidate, _needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
+        candidate, needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
     except DecryptionError as exc:
         raise HTTPException(
             status_code=400,
             detail="Stored Bedrock key cannot be decrypted -- re-enter it in Settings.",
         ) from exc
-    if not candidate or candidate == _LEGACY_BEDROCK_PLACEHOLDER:
-        return None
+    if not candidate.strip() or candidate.strip() == LEGACY_BEDROCK_PLACEHOLDER:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a personal Bedrock key or select App Bedrock mode for shared access.",
+        )
+    if needs_reencrypt:
+        rewrap_stored_ai_key(session, prefs, candidate)
     return candidate
 
 
-def _check_server_credential_path(session: Any, user_id: int) -> None:
+def _check_server_credential_path() -> None:
     has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
     has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
     if not has_bearer and not has_sigv4:
@@ -239,7 +311,6 @@ def _check_server_credential_path(session: Any, user_id: int) -> None:
                 "API key in Settings > AI Assistant."
             ),
         )
-    check_app_message_limit(session, user_id)
 
 
 def _build_bedrock_config() -> Any:
@@ -248,7 +319,8 @@ def _build_bedrock_config() -> Any:
     return Config(
         connect_timeout=3,
         read_timeout=8,
-        retries={"max_attempts": 1, "mode": "standard"},
+        # A retry may duplicate billable inference without an idempotency key.
+        retries={"total_max_attempts": 1, "mode": "standard"},
     )
 
 
@@ -277,12 +349,65 @@ def _call_bedrock(
     user_bearer: str | None,
     converse_kwargs: dict[str, Any],
 ) -> dict[str, Any]:
+    from botocore.exceptions import (  # type: ignore[import-untyped]
+        ClientError,
+        NoCredentialsError,
+        ParamValidationError,
+        PartialCredentialsError,
+    )
+
     try:
         client = _create_bedrock_client(region, config, user_bearer)
+    except Exception as exc:
+        # Client setup cannot consume inference quota, including credential
+        # resolution and personal bearer registration failures.
+        raise BedrockInvocationError(
+            "Bedrock client setup failed before inference. "
+            "Check the configured key, model, and region.",
+            billable=False,
+        ) from exc
+
+    try:
         response: dict[str, Any] = client.converse(**converse_kwargs)
         return response
+    except (NoCredentialsError, PartialCredentialsError, ParamValidationError) as exc:
+        raise BedrockInvocationError(
+            "Bedrock credentials or request configuration are invalid. "
+            "Check the configured key, model, and region.",
+            billable=False,
+        ) from exc
+    except ClientError as exc:
+        code = str(exc.response.get("Error", {}).get("Code", ""))
+        not_invoked = code in {
+            "AccessDeniedException",
+            "UnrecognizedClientException",
+            "InvalidSignatureException",
+            "ExpiredTokenException",
+            "ValidationException",
+            "ResourceNotFoundException",
+            "ThrottlingException",
+            "ServiceQuotaExceededException",
+            "ModelNotReadyException",
+        }
+        logger.warning("Bedrock invocation failed with provider code %s", code)
+        raise BedrockInvocationError(
+            "Bedrock rejected the request. Check the configured key, model, and region "
+            "or retry after the model is ready or provider throttling clears.",
+            billable=not not_invoked,
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Bedrock error: {exc}") from exc
+        raise BedrockInvocationError(
+            "Bedrock could not complete the request. Usage remains reserved because "
+            "the provider may have processed it. Try again after the UTC quota reset "
+            "or check the provider status.",
+            billable=True,
+        ) from exc
+
+
+class BedrockInvocationError(HTTPException):
+    def __init__(self, detail: str, *, billable: bool) -> None:
+        super().__init__(status_code=502, detail=detail)
+        self.billable = billable
 
 
 def _extract_content_blocks(response: dict[str, Any]) -> list[dict[str, Any]]:
@@ -323,26 +448,29 @@ def bedrock_chat_proxy(
         raise HTTPException(status_code=400, detail="No preferences found")
 
     model_id, region = _get_bedrock_model_region(prefs)
-    converse_kwargs = _build_converse_kwargs(payload, model_id)
 
     # BYOK Bedrock: if the user stored their own Bedrock API key (bearer
     # token), the call is signed with THEIR key -- they pay AWS directly and
     # the app's shared-key message cap does not apply (their own token caps
-    # do). The legacy placeholder string means "no user key".
-    user_bearer = _resolve_user_bearer(prefs)
+    # do). A missing key or legacy placeholder cannot spend shared credentials.
+    user_bearer = _resolve_user_bearer(prefs, session)
+    funding_source: Literal["app", "personal"] = "personal" if user_bearer else "app"
 
     if user_bearer is None:
         # Server-credential path. Pre-flight: if no auth mechanism is
         # reachable, give a clear error instead of letting boto3 surface its
         # misleading "model identifier is invalid" exception (which is what
         # it says when it can't sign the request).
-        # Shared-key spend: enforce the app-wide daily message cap regardless
-        # of mode so a user cannot bypass cost control by flipping to byok
-        # without bringing a key.
-        _check_server_credential_path(session, current_user.id)
+        _check_server_credential_path()
+        model_id = settings.ai_default_bedrock_model
+        region = settings.ai_default_bedrock_region
 
-    if prefs.ai_mode != "app_bedrock":
-        check_token_limits(session, current_user.id)
+    converse_kwargs = _build_converse_kwargs(payload, model_id)
+    # One UTF-8 byte per input token plus framing is a conservative estimate
+    # without a provider call or model-specific tokenizer dependency.
+    estimated_input = (
+        len(json.dumps(converse_kwargs, ensure_ascii=False, allow_nan=False).encode()) + 1024
+    )
 
     # Explicit, finite timeouts + bounded retries. Without this boto3 inherits
     # botocore's 60s connect / 60s read defaults, which on Vercel's 10s
@@ -350,21 +478,40 @@ def bedrock_chat_proxy(
     # until the platform kills it (see the module docstring). Cap below the
     # platform limit so we fail fast with a clean 502 instead.
     bedrock_config = _build_bedrock_config()
-    response = _call_bedrock(region, bedrock_config, user_bearer, converse_kwargs)
-    content_blocks = _extract_content_blocks(response)
+    user_id = current_user.id
+    reservation_id = reserve_usage(
+        session,
+        user_id,
+        model_id,
+        estimated_input + payload.max_tokens,
+        funding_source=funding_source,
+    )
+    try:
+        response = _call_bedrock(region, bedrock_config, user_bearer, converse_kwargs)
+    except BedrockInvocationError as exc:
+        if not exc.billable:
+            release_usage(session, user_id, reservation_id)
+        raise
 
     # Record usage from Bedrock's reported counters. Bedrock exposes these
     # in `usage: {inputTokens, outputTokens, totalTokens}` on converse().
     usage = response.get("usage") or {}
-    record_usage(
+    input_tokens = usage.get("inputTokens")
+    output_tokens = usage.get("outputTokens")
+    complete_usage(
         session,
-        current_user.id,
-        provider="bedrock",
-        model=model_id,
-        input_tokens=int(usage.get("inputTokens") or 0),
-        output_tokens=int(usage.get("outputTokens") or 0),
-        tool_rounds=1,
+        user_id,
+        reservation_id,
+        input_tokens=(
+            input_tokens if type(input_tokens) is int and input_tokens >= 0 else estimated_input
+        ),
+        output_tokens=(
+            output_tokens
+            if type(output_tokens) is int and output_tokens >= 0
+            else payload.max_tokens
+        ),
     )
+    content_blocks = _extract_content_blocks(response)
 
     return BedrockChatResponse(
         blocks=_from_bedrock_blocks(content_blocks),

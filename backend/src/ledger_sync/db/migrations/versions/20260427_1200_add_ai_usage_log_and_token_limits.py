@@ -11,6 +11,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "b2c3d4e5f6a8"
 down_revision: str | None = "a1b2c3d4e5f7"
 branch_labels: str | Sequence[str] | None = None
@@ -67,6 +69,7 @@ def upgrade() -> None:
     )
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: downgrades are empty; rollback via DB backup.
     pass

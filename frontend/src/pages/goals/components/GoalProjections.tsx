@@ -6,6 +6,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { formatCurrencyCompact } from '@/lib/formatters'
+import { parseLocalDate } from '@/lib/dateUtils'
 import { rawColors } from '@/constants/colors'
 import { formatMonthYear } from '../helpers'
 import type { GoalProjection } from '../types'
@@ -42,7 +43,7 @@ export default function GoalProjections({
       <div className="flex items-center gap-2 text-xs text-text-secondary">
         <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.teal }} />
         <span>
-          Target: {goal.target_date ? new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No deadline'}
+          Target: {goal.target_date ? formatMonthYear(parseLocalDate(goal.target_date)) : 'No deadline'}
           {/*
             monthsRemaining is a WHOLE-month count, so a deadline days away is 0
             and no per-month figure is quoted for it (there isn't one). Say which
@@ -81,7 +82,7 @@ export default function GoalProjections({
         <span className="font-medium" style={{ color: projection.statusColor }}>
           {projection.statusLabel}
         </span>
-        {projection.monthsDelta != null && projection.status !== 'achieved' && projection.status !== 'no_data' && (
+        {projection.monthsDelta != null && projection.monthsDelta !== 0 && projection.status !== 'achieved' && projection.status !== 'no_data' && (
           <span className="text-text-tertiary">
             {projection.monthsDelta > 0
               ? `-- ${Math.round(projection.monthsDelta)} months ahead`

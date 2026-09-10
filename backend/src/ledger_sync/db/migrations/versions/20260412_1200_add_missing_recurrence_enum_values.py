@@ -19,6 +19,8 @@ from collections.abc import Sequence
 from alembic import op
 from sqlalchemy import text
 
+from ledger_sync.db.migrations.safety import irreversible
+
 # revision identifiers, used by Alembic.
 revision: str = "f1a2b3c4d5e6"
 down_revision: str | None = "e844a13cc445"
@@ -38,6 +40,7 @@ def upgrade() -> None:
     conn.execute(text("ALTER TYPE recurrencefrequency ADD VALUE IF NOT EXISTS 'SEMIANNUAL'"))
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

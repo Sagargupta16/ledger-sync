@@ -7,30 +7,31 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   RefreshCw,
-  Sparkles,
   Upload,
 } from 'lucide-react'
 
 import { Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { MAX_UPLOAD_SIZE_BYTES } from '@/lib/fileParser'
 
 import type { UploadPhase } from '../useUploadSync'
 
 const PHASE_LABELS: Record<NonNullable<UploadPhase>, string> = {
   parsing: 'Parsing file...',
-  processing: 'Uploading and processing transactions...',
-  analytics: 'Computing analytics...',
+  review: 'Ready for review. Nothing has been uploaded.',
+  processing: 'Saving your ledger and refreshing insights...',
+  analytics: 'Retrying insights refresh...',
 }
 
 const PROGRESS_STEPS: { phase: NonNullable<UploadPhase>; label: string }[] = [
   { phase: 'parsing', label: 'Read file' },
-  { phase: 'processing', label: 'Sync rows' },
-  { phase: 'analytics', label: 'Refresh insights' },
+  { phase: 'review', label: 'Review scope' },
+  { phase: 'processing', label: 'Save & refresh' },
 ]
 
 const UPLOAD_FEATURES = [
   { icon: CheckCircle2, text: 'Auto-detect duplicates' },
-  { icon: RefreshCw, text: 'Smart sync' },
+  { icon: RefreshCw, text: 'Full snapshot' },
   { icon: FileSpreadsheet, text: '.xlsx, .xls & .csv' },
 ]
 
@@ -52,11 +53,16 @@ export default function UploadDropzone({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (acceptedFiles, fileRejections) => {
       if (fileRejections.length > 0) {
+        const tooLarge = fileRejections.some((rejection) =>
+          rejection.errors.some((error) => error.code === 'file-too-large'),
+        )
         const tooManyFiles = fileRejections.some((rejection) =>
           rejection.errors.some((error) => error.code === 'too-many-files'),
         )
         setRejectionMessage(
-          tooManyFiles
+          tooLarge
+            ? 'File exceeds the 50 MB limit.'
+            : tooManyFiles
             ? 'Choose one statement at a time.'
             : 'Choose an .xlsx, .xls, or .csv transaction file.',
         )
@@ -74,6 +80,7 @@ export default function UploadDropzone({
       'text/csv': ['.csv'],
     },
     maxFiles: 1,
+    maxSize: MAX_UPLOAD_SIZE_BYTES,
     disabled: isBusy,
   })
 
@@ -91,11 +98,12 @@ export default function UploadDropzone({
               id="upload-import-title"
               className="inline-flex items-center gap-2 text-sm font-medium text-foreground"
             >
-              <Sparkles className="size-4" aria-hidden="true" />
-              Import transactions
+              <FileSpreadsheet className="size-4" aria-hidden="true" />
+              Import a complete ledger
             </h2>
             <p className="max-w-lg text-pretty text-sm leading-6 text-muted-foreground">
-              Drop one statement to detect new rows, changed entries, and duplicates before the ledger is refreshed.
+              Choose your complete Excel or CSV export in INR. You will review the dates,
+              accounts, and row counts before any existing entries are replaced.
             </p>
 
             <div className="grid gap-2 text-sm sm:grid-cols-3">
@@ -135,38 +143,6 @@ export default function UploadDropzone({
                   >
                     {selectedFileName}
                   </p>
-                  <ol className="grid w-full grid-cols-3 gap-2 text-left">
-                    {PROGRESS_STEPS.map((step, index) => {
-                      const activeIndex = PROGRESS_STEPS.findIndex((item) => item.phase === phase)
-                      const isComplete = index < activeIndex
-                      const isCurrent = index === activeIndex
-                      return (
-                        <li
-                          key={step.phase}
-                          aria-current={isCurrent ? 'step' : undefined}
-                          className="min-w-0"
-                        >
-                          <span
-                            className={cn(
-                              'mb-1 block h-1 rounded-full',
-                              isComplete || isCurrent
-                                ? 'bg-primary'
-                                : 'bg-[var(--overlay-6)]',
-                            )}
-                            aria-hidden="true"
-                          />
-                          <span
-                            className={cn(
-                              'block text-[11px] leading-4',
-                              isCurrent ? 'font-medium text-foreground' : 'text-text-tertiary',
-                            )}
-                          >
-                            {step.label}
-                          </span>
-                        </li>
-                      )
-                    })}
-                  </ol>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-4">
@@ -186,11 +162,14 @@ export default function UploadDropzone({
                   </div>
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-1.5">
                     <FileSpreadsheet className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv supported</span>
+                    <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv up to 50 MB</span>
                   </div>
                 </div>
               )}
             </div>
+            {phase === 'review' && (
+              <p role="status" className="mt-2 text-sm text-primary">{PHASE_LABELS.review}</p>
+            )}
             {rejectionMessage && (
               <p
                 role="alert"
@@ -202,6 +181,22 @@ export default function UploadDropzone({
             )}
           </div>
         </div>
+        <ol className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4" aria-label="Import stages">
+          {PROGRESS_STEPS.map((step, index) => {
+            const activePhase = phase === 'analytics' ? 'processing' : phase
+            const isCurrent = step.phase === activePhase
+            return (
+              <li
+                key={step.phase}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={cn('text-xs leading-5', isCurrent ? 'font-semibold text-primary' : 'text-muted-foreground')}
+              >
+                <span className="mr-1.5 font-mono" aria-hidden="true">{index + 1}.</span>
+                {step.label}
+              </li>
+            )
+          })}
+        </ol>
       </div>
     </motion.section>
   )

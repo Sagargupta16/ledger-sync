@@ -2,7 +2,7 @@
  * Authentication Hooks
  *
  * React Query hooks for authentication operations.
- * OAuth-only — login is handled via OAuth callback page.
+ * OAuth-only login is handled via the callback page.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -13,24 +13,10 @@ import { prefetchCoreData } from '@/lib/prefetch'
 import { seedDemoCache } from '@/lib/demo/seedDemoCache'
 import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { useBudgetStore } from '@/store/budgetStore'
-import { useAccountStore } from '@/store/accountStore'
-import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
-import { DEMO_USER } from '@/lib/demo/enterDemoMode'
-
-/**
- * Clear every persisted, user-scoped Zustand store on logout. These stores
- * persist to localStorage under static keys (not namespaced by user), so on a
- * shared browser the next user would otherwise see the previous user's budgets,
- * account classifications, and preferences. queryClient.clear() only drops the
- * in-memory server cache -- it does NOT touch these localStorage-backed stores.
- */
-function clearPersistedUserStores() {
-  useBudgetStore.getState().clearBudgets()
-  useAccountStore.getState().reset()
-  useInvestmentAccountStore.getState().reset()
-  usePreferencesStore.getState().reset()
-}
+import { DEMO_USER, DEMO_TOKENS } from '@/lib/demo/enterDemoMode'
+import {
+  assertCurrentSession, clearSessionData, endSession, getSessionGeneration, getSessionSignal, isCurrentSession,
+} from '@/lib/session'
 
 export const AUTH_QUERY_KEY = ['auth', 'user']
 
@@ -39,20 +25,17 @@ export const AUTH_QUERY_KEY = ['auth', 'user']
  */
 export const useLogout = () => {
   const queryClient = useQueryClient()
-  const { logout } = useAuthStore()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: authApi.logout,
-    onSuccess: () => {
-      logout()
-      queryClient.clear()
-      clearPersistedUserStores()
+    mutationKey: ['auth', 'logout', getSessionGeneration()],
+    mutationFn: () => {
+      assertCurrentSession(sessionSignal)
+      return authApi.logout()
     },
-    onError: () => {
-      // Logout should always succeed client-side
-      logout()
-      queryClient.clear()
-      clearPersistedUserStores()
+    onMutate: () => sessionSignal,
+    onSettled: (_data, _error, _variables, signal) => {
+      if (signal && isCurrentSession(signal)) endSession(queryClient)
     },
   })
 }
@@ -66,7 +49,9 @@ export const useCurrentUser = () => {
   return useQuery({
     queryKey: AUTH_QUERY_KEY,
     queryFn: async () => {
+      const signal = getSessionSignal()
       const user = await authApi.getMe()
+      assertCurrentSession(signal)
       setUser(user)
       return user
     },
@@ -81,7 +66,7 @@ export const useCurrentUser = () => {
  * Hook to initialize auth state on app load
  */
 export const useAuthInit = () => {
-  const { accessToken, setLoading, logout, setUser } = useAuthStore()
+  const { isLoading, setLoading, setUser } = useAuthStore()
   const queryClient = useQueryClient()
 
   return useQuery({
@@ -89,39 +74,33 @@ export const useAuthInit = () => {
     queryFn: async () => {
       // Demo mode: re-seed cache (handles browser refresh) and skip API
       if (isDemoMode()) {
+        clearSessionData(queryClient)
+        useAuthStore.getState().login(DEMO_USER, DEMO_TOKENS)
         seedDemoCache(queryClient)
         usePreferencesStore.getState().hydrateFromApi(generateDemoPreferences())
-        setUser(DEMO_USER)
-        setLoading(false)
         return DEMO_USER
       }
 
-      // Stale demo token from a closed tab — clean up
-      if (accessToken === 'demo-token') {
-        logout()
-        setLoading(false)
+      const { accessToken } = useAuthStore.getState()
+      if (!accessToken || accessToken === 'demo-token') {
+        endSession(queryClient)
         return null
       }
 
-      if (!accessToken) {
-        setLoading(false)
-        return null
-      }
-
+      const signal = getSessionSignal()
       try {
         const user = await authApi.getMe()
+        assertCurrentSession(signal)
         setUser(user)
         setLoading(false)
-        // Returning user with valid token — prefetch all data
         prefetchCoreData()
         return user
       } catch {
-        // Token invalid - logout
-        logout()
-        setLoading(false)
+        if (isCurrentSession(signal)) endSession(queryClient)
         return null
       }
     },
+    enabled: isLoading,
     staleTime: Infinity, // Only run once
     retry: false,
     refetchOnWindowFocus: false,
@@ -134,10 +113,17 @@ export const useAuthInit = () => {
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient()
   const { updateUser } = useAuthStore()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: authApi.updateProfile,
-    onSuccess: (user) => {
+    mutationKey: ['auth', 'profile', getSessionGeneration()],
+    mutationFn: (fullName: string) => {
+      assertCurrentSession(sessionSignal)
+      return authApi.updateProfile(fullName)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (user, _variables, signal) => {
+      if (!signal || !isCurrentSession(signal)) return
       updateUser(user)
       // Fire-and-forget: invalidateQueries resolves even when the refetch
       // fails (query-core catches internally), and the profile-update failure
@@ -152,14 +138,17 @@ export const useUpdateProfile = () => {
  */
 export const useDeleteAccount = () => {
   const queryClient = useQueryClient()
-  const { logout } = useAuthStore()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: authApi.deleteAccount,
-    onSuccess: () => {
-      logout()
-      queryClient.clear()
-      clearPersistedUserStores()
+    mutationKey: ['auth', 'delete-account', getSessionGeneration()],
+    mutationFn: () => {
+      assertCurrentSession(sessionSignal)
+      return authApi.deleteAccount()
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, _variables, signal) => {
+      if (signal && isCurrentSession(signal)) endSession(queryClient)
     },
   })
 }
@@ -170,12 +159,17 @@ export const useDeleteAccount = () => {
  */
 export const useResetAccount = () => {
   const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
 
   return useMutation({
-    mutationFn: (mode: 'full' | 'transactions' = 'full') => authApi.resetAccount(mode),
-    onSuccess: () => {
-      // Clear all cached data since account is reset
-      queryClient.clear()
+    mutationKey: ['auth', 'reset-account', getSessionGeneration()],
+    mutationFn: (mode: 'full' | 'transactions' = 'full') => {
+      assertCurrentSession(sessionSignal)
+      return authApi.resetAccount(mode)
+    },
+    onMutate: () => sessionSignal,
+    onSuccess: (_data, mode, signal) => {
+      if (signal && isCurrentSession(signal)) clearSessionData(queryClient, mode !== 'transactions')
     },
   })
 }

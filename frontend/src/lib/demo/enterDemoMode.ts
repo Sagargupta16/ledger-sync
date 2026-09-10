@@ -6,6 +6,7 @@ import { useDemoStore } from '@/store/demoStore'
 import { useAuthStore } from '@/store/authStore'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { ROUTES } from '@/constants'
+import { clearSessionData } from '@/lib/session'
 
 import { seedDemoCache } from './seedDemoCache'
 import { generateDemoPreferences } from './generateDerivedData'
@@ -28,6 +29,8 @@ export const DEMO_TOKENS = {
 } as const
 
 export function enterDemoMode(queryClient: QueryClient, navigate: NavigateFunction): void {
+  clearSessionData(queryClient)
+
   // 1. Set demo flag
   useDemoStore.getState().enterDemo()
 

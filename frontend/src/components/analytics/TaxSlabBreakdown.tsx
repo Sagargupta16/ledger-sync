@@ -36,7 +36,7 @@ export default function TaxSlabBreakdown({
   return (
     <div>
       <p className="text-sm font-medium text-muted-foreground mb-4">
-        {isNewRegime ? 'Tax Slabs (FY 2025-26 Onwards)' : 'Tax Slabs (Before FY 2025-26)'}
+        {isNewRegime ? 'New' : 'Old'} regime slabs for FY {fyYear}-{String((fyYear + 1) % 100).padStart(2, '0')}
       </p>
 
       {/* Standard Deduction Info */}
@@ -44,10 +44,11 @@ export default function TaxSlabBreakdown({
         <p className="text-sm text-app-blue">
           Standard Deduction:{' '}
           <span className="font-semibold">{formatCurrency(standardDeduction)}</span>
-          {fyYear >= 2024 ? ' (from FY 2024-25)' : ' (before FY 2024-25)'}
+          {' for salaried income'}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Tax calculated on: {formatCurrency(grossTaxableIncome)} (After standard deduction)
+          Taxable salary after standard deduction:{' '}
+          {formatCurrency(Math.max(0, grossTaxableIncome - standardDeduction))}
         </p>
       </div>
 

@@ -7,11 +7,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
 from ledger_sync.db.models import TransactionType
+from ledger_sync.schemas.upload import MAX_LABEL_LENGTH, MAX_NOTE_LENGTH, MAX_UPLOAD_ROWS
 from ledger_sync.utils.logging import logger
 
 TRANSFER_IN = "transfer in"
@@ -53,6 +54,23 @@ class NormalizeRowsMixin:
 
     def normalize_transaction_type(self, value: Any) -> TransactionType:
         raise NotImplementedError
+
+    def validate_normalized_row(self, row: dict[str, Any]) -> None:
+        """Check storage and accounting boundaries before any ledger writes."""
+        if row["currency"] != "INR":
+            msg = "Only INR source amounts are supported. Export or convert the source to INR."
+            raise NormalizationError(msg)
+        for field in ("account", "category", "subcategory", "from_account", "to_account"):
+            value = row.get(field)
+            if field in ("account", "category") and not value:
+                msg = f"{field.capitalize()} is missing"
+                raise NormalizationError(msg)
+            if value and len(value) > MAX_LABEL_LENGTH:
+                msg = f"{field.capitalize()} must be at most {MAX_LABEL_LENGTH} characters"
+                raise NormalizationError(msg)
+        if row.get("note") and len(row["note"]) > MAX_NOTE_LENGTH:
+            msg = f"Note must be at most {MAX_NOTE_LENGTH} characters"
+            raise NormalizationError(msg)
 
     def _extract_currency(self, row: pd.Series) -> str:
         """Extract and clean currency from row, defaulting to INR.
@@ -191,8 +209,15 @@ class NormalizeRowsMixin:
             )
 
             # Standardize account and category names
-            account = self._standardize_account(str(row[column_mapping["account"]]))
-            category = self._standardize_category(str(row[column_mapping["category"]]))
+            account = self._standardize_account(
+                self.normalize_string_preserve_case(row[column_mapping["account"]])
+            )
+            category = self._standardize_category(
+                self.normalize_string_preserve_case(row[column_mapping["category"]])
+            )
+            if not account or not category:
+                msg = "Account and category are required"
+                raise NormalizationError(msg)
 
             # Normalize the type
             tx_type = self.normalize_transaction_type(row[column_mapping["type"]])
@@ -231,6 +256,7 @@ class NormalizeRowsMixin:
             msg = f"Unexpected error normalizing row: {e}"
             raise NormalizationError(msg) from e
         else:
+            self.validate_normalized_row(normalized)
             return normalized
 
     def normalize_from_dict(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -255,8 +281,13 @@ class NormalizeRowsMixin:
             date = self.normalize_date(row["date"])
             amount = self.normalize_amount(row["amount"])
             currency = self._clean_text(str(row.get("currency", "INR"))).upper() or "INR"
-            account = self._standardize_account(str(row["account"]))
-            category = self._standardize_category(str(row["category"]))
+            account = self._standardize_account(self.normalize_string_preserve_case(row["account"]))
+            category = self._standardize_category(
+                self.normalize_string_preserve_case(row["category"])
+            )
+            if not account or not category:
+                msg = "Account and category are required"
+                raise NormalizationError(msg)
             tx_type = self.normalize_transaction_type(row["type"])
             subcategory = (
                 self._clean_text(str(row["subcategory"])) if row.get("subcategory") else None
@@ -276,7 +307,7 @@ class NormalizeRowsMixin:
                     to_account = self._standardize_account(category)
                     leg = "out"
 
-                return {
+                normalized = {
                     "date": date,
                     "amount": amount,
                     "currency": currency,
@@ -290,8 +321,10 @@ class NormalizeRowsMixin:
                     "is_transfer": True,
                     "transfer_leg": leg,
                 }
+                self.validate_normalized_row(normalized)
+                return normalized
 
-            return {
+            normalized = {
                 "date": date,
                 "amount": amount,
                 "currency": currency,
@@ -304,6 +337,8 @@ class NormalizeRowsMixin:
                 "note": note,
                 "is_transfer": False,
             }
+            self.validate_normalized_row(normalized)
+            return normalized
 
         except NormalizationError:
             raise
@@ -326,21 +361,18 @@ class NormalizeRowsMixin:
             List of normalized row dictionaries
 
         """
+        if df.empty or len(df) > MAX_UPLOAD_ROWS:
+            msg = f"Snapshot must contain between 1 and {MAX_UPLOAD_ROWS:,} rows"
+            raise NormalizationError(msg)
         normalized_rows = []
-        errors = []
 
-        for idx, row in df.iterrows():
+        for row_number, (_, row) in enumerate(df.iterrows(), start=2):
             try:
                 normalized = self.normalize_row(row, column_mapping)
                 normalized_rows.append(normalized)
             except NormalizationError as e:
-                # +2 for Excel row number (1-indexed + header)
-                error_msg = f"Row {cast(int, idx) + 2}: {e}"
-                errors.append(error_msg)
-                logger.warning(error_msg)
-
-        if errors:
-            logger.warning(f"Skipped {len(errors)} rows due to normalization errors")
+                msg = f"Row {row_number}: {e}. Snapshot rejected; no ledger entries were changed."
+                raise NormalizationError(msg) from e
 
         logger.info(f"Successfully normalized {len(normalized_rows)} rows")
         return normalized_rows

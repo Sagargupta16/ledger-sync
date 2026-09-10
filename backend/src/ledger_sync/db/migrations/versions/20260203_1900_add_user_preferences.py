@@ -32,7 +32,7 @@ _DEFAULT_ANOMALY_TYPES = '["high_expense", "unusual_category", "large_transfer",
 
 def upgrade() -> None:
     """Create user_preferences table."""
-    op.create_table(
+    preferences = op.create_table(
         "user_preferences",
         # Primary key
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -124,54 +124,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # Insert default preferences row
-    # Note: Using f-string with hardcoded constants is safe (not user input)
+    # Column defaults supply the same initial preferences on both dialects.
     op.execute(
-        f"""
-        INSERT INTO user_preferences (
-            fiscal_year_start_month,
-            essential_categories,
-            investment_account_mappings,
-            salary_categories,
-            bonus_categories,
-            investment_income_categories,
-            default_budget_alert_threshold,
-            auto_create_budgets,
-            budget_rollover_enabled,
-            number_format,
-            currency_symbol,
-            currency_symbol_position,
-            default_time_range,
-            anomaly_expense_threshold,
-            anomaly_types_enabled,
-            auto_dismiss_recurring_anomalies,
-            recurring_min_confidence,
-            recurring_auto_confirm_occurrences,
-            created_at,
-            updated_at
-        ) VALUES (
-            4,
-            '{_DEFAULT_ESSENTIAL_CATEGORIES}',
-            '{_DEFAULT_INVESTMENT_MAPPINGS}',
-            '{{"Employment Income": ["Salary", "Stipend"]}}',
-            '{{"Employment Income": ["Bonus", "RSUs/Stock Options"]}}',
-            '{{"Investment Income": ["Dividends", "Interest", "Capital Gains"]}}',
-            80.0,
-            0,
-            0,
-            'indian',
-            '₹',
-            'before',
-            'last_12_months',
-            2.0,
-            '{_DEFAULT_ANOMALY_TYPES}',
-            1,
-            50.0,
-            6,
-            datetime('now'),
-            datetime('now')
+        preferences.insert().values(
+            created_at=sa.func.current_timestamp(),
+            updated_at=sa.func.current_timestamp(),
         )
-        """,
     )
 
 

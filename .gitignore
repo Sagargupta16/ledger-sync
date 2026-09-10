@@ -103,12 +103,10 @@ next-env.d.ts
 .vercel
 
 # Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
+.env*
+!.env*.example
+!.env*.template
+!.env*.sample
 
 # Package managers (unused lock files only — keep pnpm-lock.yaml and uv.lock)
 package-lock.json
@@ -161,10 +159,25 @@ nul
 README.backup.md
 
 # Data files
-# data/
+private/
+imports/
+backups/
 *.xlsx
 *.xls
-# *.csv
+*.csv
+*.tsv
+*.dump
+*.sql
+*.sql.gz
+*.pem
+*.key
+# Only synthetic fixtures and documented examples belong in source control.
+!**/tests/fixtures/**/*.csv
+!**/tests/fixtures/**/*.tsv
+!**/tests/fixtures/**/*.sql
+!**/examples/**/*.csv
+!**/examples/**/*.tsv
+!**/examples/**/*.sql
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -225,7 +238,6 @@ typings/
 .superpowers/
 
 # Added for consistency
-.env.*.local
 Thumbs.db
 
 # Test / verification artifacts (Playwright MCP screenshots, ad-hoc captures, traces)

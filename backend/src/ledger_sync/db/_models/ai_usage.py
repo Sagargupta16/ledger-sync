@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db._models._constants import USER_FK
@@ -31,7 +31,7 @@ class AIUsageLog(Base):
         Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
     )
 
-    # When the call completed (server clock; self-reported calls use this too)
+    # The UTC budget window in which the call was reserved or self-reported.
     timestamp: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -43,6 +43,17 @@ class AIUsageLog(Base):
     # switches providers mid-month.
     provider: Mapped[str] = mapped_column(String(20), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Legacy Bedrock rows cannot be reliably split by credential source.
+    funding_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="personal", server_default="legacy"
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="completed", server_default="completed"
+    )
+    reserved_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -59,4 +70,12 @@ class AIUsageLog(Base):
 
     # Primary aggregation path: "this user's usage in the last N days". The
     # (user_id, timestamp) composite lets us answer it with an index scan.
-    __table_args__ = (Index("ix_ai_usage_user_timestamp", "user_id", "timestamp"),)
+    __table_args__ = (
+        Index("ix_ai_usage_user_timestamp", "user_id", "timestamp"),
+        CheckConstraint(
+            "funding_source IN ('app', 'personal', 'legacy')",
+            name="ck_ai_usage_funding_source",
+        ),
+        CheckConstraint("status IN ('reserved', 'completed', 'failed')", name="ck_ai_usage_status"),
+        CheckConstraint("reserved_tokens >= 0", name="ck_ai_usage_reserved_tokens"),
+    )

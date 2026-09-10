@@ -76,7 +76,6 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
         taxSlabs={planning.taxSlabs}
         isNewRegime={planning.isNewRegime}
         fyYear={planning.fyYear}
-        standardDeduction={planning.standardDeduction}
         currentIncome={planning.display.gross}
       />
 

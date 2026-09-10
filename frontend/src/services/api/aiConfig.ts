@@ -9,8 +9,9 @@ export interface AIConfig {
   provider: string | null
   model: string | null
   has_key: boolean
+  funding_source?: 'app' | 'personal' | null
   region: string | null
-  /** Per-user daily/monthly token caps (BYOK only). `null` = no limit. */
+  /** Per-user token caps for server Bedrock calls. `null` = no cap, 0 blocks calls. */
   daily_token_limit: number | null
   monthly_token_limit: number | null
 }
@@ -18,7 +19,8 @@ export interface AIConfig {
 export interface AIConfigUpdate {
   provider: string
   model: string
-  api_key: string
+  /** Omit to keep the stored key for the same provider. */
+  api_key?: string
   region?: string
 }
 

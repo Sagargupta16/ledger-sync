@@ -35,8 +35,7 @@ export default function TaxRegimeComparisonSection({ planning }: Readonly<Props>
       <RegimeComparison
         grossIncome={planning.display.gross}
         fyYear={planning.fyYear}
-        standardDeduction={planning.standardDeduction}
-        salaryMonthsCount={planning.salaryMonthsCount}
+        salaryMonthsCount={planning.useSalaryProjection ? 12 : planning.salaryMonthsCount}
       />
     </motion.div>
   )

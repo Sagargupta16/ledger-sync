@@ -21,6 +21,8 @@ and rejects tokens without a ``tv`` claim.
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "token_version_2026"
 down_revision: str | None = "optimize_tx_indexes_2026"
 branch_labels: str | None = None
@@ -39,6 +41,7 @@ def upgrade() -> None:
     )
 
 
+@irreversible
 def downgrade() -> None:
     # Per project convention: rollback via DB backup, not down-migration.
     pass

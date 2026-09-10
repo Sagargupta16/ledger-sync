@@ -1,8 +1,9 @@
-import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios'
+import axios, { AxiosHeaders, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { API_BASE_URL } from '@/constants'
 import { useAuthStore, getAccessToken, getRefreshToken } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
 import { getDemoTransactions } from '@/lib/demo/seedDemoCache'
+import { assertCurrentSession, endSession, getSessionSignal, isCurrentSession } from '@/lib/session'
 import {
   generateDemoTotals,
   generateDemoMonthlyAggregation,
@@ -163,54 +164,54 @@ export const apiClient = axios.create({
   },
 })
 
-// Demo mode interceptor -- blocks all real API calls when demo is active.
-// For GET requests, returns computed data; for mutations, rejects.
+type SessionRequest = InternalAxiosRequestConfig & {
+  _retry?: boolean
+  _sessionSignal?: AbortSignal
+}
+
+function isOAuthRequest(url: string = ''): boolean {
+  return url.split('?')[0].startsWith('/api/auth/oauth/')
+}
+
+// Capture the session synchronously, before the caller can log out or switch
+// identities. Retries keep the original signal and cannot borrow a new login.
 apiClient.interceptors.request.use(
   (config) => {
-    if (!isDemoMode()) return config
+    const request = config as SessionRequest
+    request._sessionSignal ??= getSessionSignal()
+    assertCurrentSession(request._sessionSignal)
+    request.signal = config.signal
+      ? AbortSignal.any([config.signal as AbortSignal, request._sessionSignal])
+      : request._sessionSignal
 
-    // Block mutations in demo mode
-    const method = config.method?.toLowerCase()
-    if (method && method !== 'get') {
-      return Promise.reject(new Error('Mutations are disabled in demo mode'))
+    const oauthRequest = isOAuthRequest(config.url)
+    const token = getAccessToken()
+    if (token && !oauthRequest && !isDemoMode()) {
+      config.headers.set('Authorization', `Bearer ${token}`)
+    } else {
+      config.headers.delete('Authorization')
     }
 
-    // For GET requests, return mock data via adapter override
+    // Provider discovery and code exchange must work from the demo sign-up.
+    if (!isDemoMode() || oauthRequest) return config
+
+    if (config.method && config.method.toLowerCase() !== 'get') {
+      throw new Error('Mutations are disabled in demo mode')
+    }
+
     config.adapter = () => {
       const url = config.url ?? ''
       const params = (config.params ?? {}) as Record<string, unknown>
-      const txs = getDemoTransactions()
-
-      const data = resolveDemoData(url, params, txs)
+      const data = resolveDemoData(url, params, getDemoTransactions())
       return Promise.resolve({ data, status: 200, statusText: 'OK', headers: {}, config })
     }
 
     return config
   },
-  // Re-throw instead of `Promise.reject(error)`: axios turns a throw inside a
-  // rejection handler into the same rejected promise with the same value, and
-  // rethrowing keeps a non-Error rejection intact rather than wrapping it.
   (error: unknown) => {
     throw error
   },
-)
-
-// Request interceptor -- always attach the token if one exists.
-// If it's expired, the server returns 401, and the response interceptor
-// handles the refresh transparently.
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken()
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  // Re-throw rather than `Promise.reject(error)` -- see the demo interceptor
-  // above; axios produces the identical rejected promise either way.
-  (error: unknown) => {
-    throw error
-  },
+  { synchronous: true },
 )
 
 /**
@@ -227,104 +228,67 @@ function withBearer(headers: AxiosRequestConfig['headers'], token: string): Axio
   return AxiosHeaders.from(headers as never).set('Authorization', `Bearer ${token}`)
 }
 
-// --- Token refresh mutex ---
-// Prevents multiple concurrent 401s from each firing their own refresh request.
-let isRefreshing = false
-let failedQueue: Array<{
-  resolve: (token: string) => void
-  reject: (error: unknown) => void
-}> = []
+// Concurrent 401s share one refresh within their original session only.
+let pendingRefresh: { signal: AbortSignal; promise: Promise<string> } | null = null
 
-function processQueue(error: unknown, token: string | null) {
-  for (const { resolve, reject } of failedQueue) {
-    if (error || !token) {
-      reject(error ?? new Error('Token refresh failed'))
-    } else {
-      resolve(token)
-    }
+function refreshAccessToken(signal: AbortSignal): Promise<string> {
+  assertCurrentSession(signal)
+  if (pendingRefresh?.signal === signal) return pendingRefresh.promise
+
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    endSession()
+    return Promise.reject(new Error('Your session has expired. Please sign in again.'))
   }
-  failedQueue = []
+
+  const promise = axios.post<AuthTokens>(
+    `${API_BASE_URL}/api/auth/refresh`,
+    { refresh_token: refreshToken },
+    { signal },
+  ).then(({ data }) => {
+    assertCurrentSession(signal)
+    if (!data.access_token || !data.refresh_token) {
+      throw new Error('Token refresh returned incomplete tokens')
+    }
+    useAuthStore.getState().setTokens(data)
+    return data.access_token
+  }).catch((error: unknown) => {
+    // A late refresh failure must never log out a newer session.
+    if (isCurrentSession(signal)) endSession()
+    throw error
+  }).finally(() => {
+    if (pendingRefresh?.signal === signal) pendingRefresh = null
+  })
+
+  pendingRefresh = { signal, promise }
+  return promise
 }
 
 // Response interceptor for error handling and token refresh
 apiClient.interceptors.response.use(
-  (response) => response,
-  // `unknown` + a narrowing guard rather than the implicit `any` axios hands
-  // over. This handler is the auth backbone, and untyped it read
-  // `error.config`, `error.response.status` and the refresh payload's
-  // `access_token` off `any` -- so a refresh response missing `access_token`
-  // would have set the literal header `Bearer undefined` and put every
-  // subsequent request into a silent 401 loop with no error anywhere.
+  (response) => {
+    const signal = (response.config as SessionRequest)._sessionSignal
+    if (signal) assertCurrentSession(signal)
+    return response
+  },
   async (error: unknown) => {
     if (!axios.isAxiosError(error)) throw error
 
-    const originalRequest = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
+    const request = error.config as SessionRequest | undefined
+    if (request?._sessionSignal) assertCurrentSession(request._sessionSignal)
+    if (error.response?.status !== 401 || !request || isOAuthRequest(request.url)) throw error
 
-    // If 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      // If a refresh is already in-flight, queue this request
-      if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        }).then((token) => {
-          originalRequest.headers = withBearer(originalRequest.headers, token)
-          return apiClient(originalRequest)
-        })
-      }
-
-      const refreshTokenValue = getRefreshToken()
-      if (refreshTokenValue) {
-        isRefreshing = true
-        let freshAccessToken: string
-        try {
-          // Try to refresh the token
-          const response = await axios.post<AuthTokens>(`${API_BASE_URL}/api/auth/refresh`, {
-            refresh_token: refreshTokenValue,
-          })
-
-          const { access_token, refresh_token } = response.data
-          // Guard the field the whole session hangs on. Untyped, a malformed
-          // refresh response flowed straight into `Bearer undefined`; failing
-          // here instead routes to the catch below, which logs the user out
-          // cleanly rather than leaving them in a broken signed-in state.
-          if (!access_token) throw new Error('Token refresh returned no access token')
-
-          // Update store with new tokens
-          useAuthStore.getState().setTokens({
-            access_token,
-            refresh_token,
-            token_type: 'bearer',
-          })
-
-          // Replay all queued requests with the new token
-          processQueue(null, access_token)
-          freshAccessToken = access_token
-        } catch (refreshError) {
-          // Reject all queued requests
-          processQueue(refreshError, null)
-          // Refresh failed - logout user
-          useAuthStore.getState().logout()
-          throw refreshError
-        } finally {
-          isRefreshing = false
-        }
-
-        // Retry the original request with new token.
-        // Deliberately OUTSIDE the try above: the catch means "refresh failed"
-        // (reject the queue, log out). A retried request that fails for an
-        // unrelated reason -- 500, network drop -- must not be treated as a
-        // failed refresh, which is what `return await` inside the try would do.
-        originalRequest.headers = withBearer(originalRequest.headers, freshAccessToken)
-        return apiClient(originalRequest)
-      } else {
-        // No refresh token - logout
-        useAuthStore.getState().logout()
-      }
+    if (request._retry) {
+      endSession()
+      throw error
     }
 
-    throw error
+    request._retry = true
+    const signal = request._sessionSignal ?? getSessionSignal()
+    const token = await refreshAccessToken(signal)
+    assertCurrentSession(signal)
+    request.headers = withBearer(request.headers, token)
+    return apiClient(request)
   }
 )
 

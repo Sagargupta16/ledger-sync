@@ -43,6 +43,8 @@ database backup to roll back).
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision: str = "capital_loss_categories_2026"
 down_revision: str | None = "rollup_split_backfill_2026"
 branch_labels: str | None = None
@@ -71,5 +73,6 @@ def upgrade() -> None:
         )
 
 
+@irreversible
 def downgrade() -> None:
     """No downgrade -- restore from a database backup."""

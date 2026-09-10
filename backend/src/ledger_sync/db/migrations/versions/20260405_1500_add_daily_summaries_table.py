@@ -12,6 +12,8 @@ Changes:
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 revision = "d2a3b4c5e6f7"
 down_revision = "c1511eec274c"
 branch_labels = None
@@ -44,6 +46,7 @@ def upgrade() -> None:
     )
 
 
+@irreversible
 def downgrade() -> None:
     # Intentionally empty: rollback requires a database backup (see CLAUDE.md)
     pass

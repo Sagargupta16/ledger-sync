@@ -20,9 +20,12 @@ import AdvancedSection from './sections/AdvancedSection'
 
 export default function SettingsPage() {
   const s = useSettingsState()
+  const isPending = s.isSaving || s.isResetting || s.applyingRules
+  const saveLabel = s.isSaving ? 'Saving changes...' : s.saveError ? 'Retry save' : 'Save changes'
 
   // Drag handlers (thin wrappers that update hook state)
   const handleDragStart = (item: string) => {
+    if (isPending) return
     s.setDraggedItem(item)
     s.setDragType('account')
   }
@@ -31,6 +34,7 @@ export default function SettingsPage() {
     s.setDragType(null)
   }
   const handleDropOnCategory = (category: string) => {
+    if (isPending) return
     const item = s.draggedItem
     if (item && s.dragType === 'account') {
       s.setClassifications((prev) => ({ ...prev, [item]: category }))
@@ -40,6 +44,7 @@ export default function SettingsPage() {
   }
   // Keyboard/tap fallback for the drag-and-drop classifier.
   const handleAssignAccount = (account: string, category: string) => {
+    if (isPending) return
     s.setClassifications((prev) => ({ ...prev, [account]: category }))
     s.setHasChanges(true)
   }
@@ -89,7 +94,7 @@ export default function SettingsPage() {
           subtitle="Configure your financial preferences"
           action={
             <div className="flex flex-wrap items-center gap-3">
-              {s.hasChanges && (
+              {s.hasChanges && !isPending && (
                 <span className="flex items-center gap-1.5 text-sm text-warning-text">
                   <span className="w-2 h-2 rounded-full bg-app-yellow animate-pulse" /> Unsaved
                 </span>
@@ -99,6 +104,8 @@ export default function SettingsPage() {
                 type="button"
                 variant="secondary"
                 onClick={() => s.setShowResetConfirm(true)}
+                disabled={isPending}
+                isLoading={s.isResetting}
                 icon={<RotateCcw className="h-4 w-4" />}
                 aria-label="Reset settings"
               >
@@ -112,15 +119,36 @@ export default function SettingsPage() {
                 // so they never reject; `void` adapts them to void-returning
                 // handler props without swallowing an unreported error.
                 onClick={() => void s.handleSave()}
-                disabled={!s.hasChanges || s.isSaving}
+                disabled={!s.hasChanges || isPending}
+                isLoading={s.isSaving}
+                aria-busy={s.isSaving}
                 icon={<Save className="h-4 w-4" />}
               >
-                <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
+                <span>{saveLabel}</span>
               </Button>
             </div>
           }
         />
 
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          {s.isSaving
+            ? 'Saving settings and refreshing your financial views...'
+            : s.isResetting
+              ? 'Resetting preferences...'
+              : s.savedAt && !s.hasChanges
+                ? `Saved at ${s.savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : 'Save changes when you are ready to apply your preferences.'}
+        </p>
+
+        {s.saveError && (
+          <div role="alert" className="rounded-lg border border-app-red/25 bg-app-red/5 px-4 py-3">
+            <p className="text-sm font-medium text-app-red">Changes need attention</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{s.saveError}</p>
+          </div>
+        )}
+
+        <fieldset disabled={isPending} aria-busy={isPending} className="min-w-0 space-y-5 border-0 p-0">
+        <legend className="sr-only">Settings preferences</legend>
         {/* Group: Money Setup -- keep the primary financial controls open and secondary details compact */}
         <GroupHeader>Money Setup</GroupHeader>
 
@@ -247,6 +275,7 @@ export default function SettingsPage() {
             updateLocalPref={s.updateLocalPref}
           />
         )}
+        </fieldset>
 
         <ConfirmDialog
           open={s.showResetConfirm}
@@ -272,21 +301,20 @@ export default function SettingsPage() {
               className="fixed inset-x-0 z-40 flex justify-start bottom-[calc(68px+env(safe-area-inset-bottom,0px)+0.75rem)] pl-4 pr-24 sm:justify-center sm:px-4 lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
             >
               <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-sm">
-                <span role="status" aria-live="polite" className="sr-only">
-                  Unsaved changes
-                </span>
                 <span className="hidden items-center gap-1.5 text-sm text-warning-text sm:flex">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
-                  {' '}Unsaved changes
+                  {' '}{s.isSaving ? 'Saving changes' : s.saveError ? 'Save incomplete' : 'Unsaved changes'}
                 </span>
                 <Button
                   id="save-settings-floating"
                   type="button"
                   onClick={() => void s.handleSave()}
-                  disabled={s.isSaving}
+                  disabled={isPending}
+                  isLoading={s.isSaving}
+                  aria-busy={s.isSaving}
                   icon={<Save className="h-4 w-4" />}
                 >
-                  <span>{s.isSaving ? 'Saving...' : 'Save'}</span>
+                  <span>{saveLabel}</span>
                 </Button>
               </div>
             </motion.div>

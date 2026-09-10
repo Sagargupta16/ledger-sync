@@ -96,7 +96,7 @@ export default function UploadFormatPreview() {
             Expected Format
           </h2>
           <p className="text-sm text-muted-foreground">
-            Your Excel or CSV should include these transaction fields
+            Include all history and accounts, using these fields and INR source amounts
           </p>
         </div>
       </div>
@@ -116,6 +116,9 @@ export default function UploadFormatPreview() {
             Column names are flexible -- <span className="text-foreground">"Period"</span> or{' '}
             <span className="text-foreground">"Date"</span> both work. Export from Money Manager
             Pro for best results.
+            {' '}Dates must be real calendar days. Use plain numbers for amounts;
+            signed values are imported as magnitudes and the transaction type supplies direction.
+            {' '}Non-INR source amounts are rejected. Display conversion remains available in Settings.
           </p>
         </div>
       </div>

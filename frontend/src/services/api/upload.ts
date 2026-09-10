@@ -1,5 +1,6 @@
 import type { UploadResponse } from '@/types'
 import type { ParsedTransaction } from '@/lib/fileParser'
+import { FileParseError, MAX_UPLOAD_SIZE_BYTES } from '@/lib/fileParser'
 
 import { apiClient } from './client'
 
@@ -39,22 +40,32 @@ export const uploadService = {
     rows,
     force = false,
   }: UploadPayload): Promise<UploadResponse> => {
-    const response = await apiClient.post<UploadResponse>('/api/upload', {
+    const payload = {
       file_name: fileName,
       file_hash: fileHash,
       rows,
       force,
-    }, {
+    }
+    if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > MAX_UPLOAD_SIZE_BYTES) {
+      throw new FileParseError('Parsed upload exceeds the 50 MB limit. Reduce long notes and try again.')
+    }
+    const response = await apiClient.post<UploadResponse>('/api/upload', payload, {
       timeout: UPLOAD_TIMEOUT_MS,
     })
 
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'The ledger could not be saved.')
+    }
     return response.data
   },
 
   refreshAnalytics: async (): Promise<void> => {
-    await apiClient.post('/api/analytics/v2/refresh', null, {
+    const response = await apiClient.post<{ success: boolean }>('/api/analytics/v2/refresh', null, {
       timeout: UPLOAD_TIMEOUT_MS,
     })
+    if (!response.data.success) {
+      throw new Error('Insights could not be refreshed. Your saved ledger is unchanged.')
+    }
   },
 
   /**

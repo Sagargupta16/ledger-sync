@@ -1,13 +1,7 @@
 name: keepalive
 
-# Pings the production backend every 30 minutes to keep the Neon free-tier
-# branch unarchived. Without this, idle gaps >24 h trigger a `timeline_archive`
-# operation, and the next user request pays a 15-25 s cold-start penalty
-# while the branch is unarchived. See docs/DEPLOYMENT.md for context.
-#
-# Cost: ~0 GitHub Actions minutes (the job runs in <5 s, well under the free
-# tier monthly allowance). Bumps Neon CPU usage from ~50 min/mo to ~60 min/mo
-# (still <1 % of the 191.9 CU-hour free-tier ceiling).
+# Checks both backend and database connectivity every 30 minutes. Neon can
+# still suspend between checks; this is not a guarantee of a warm instance.
 
 on:
   schedule:
@@ -24,12 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Wake backend
+      - name: Check backend database connectivity
         run: |
-          # The /health endpoint is unauthenticated and returns instantly.
-          # (App-level route in main.py -- no /api/ prefix, unlike domain routers.)
-          # We don't fail the workflow on non-200 -- the goal is only to keep
-          # the branch warm; a transient 5xx during deploy is fine.
-          curl --silent --max-time 30 \
-            "https://ledger-sync-api.vercel.app/health" \
-            || echo "Ping returned non-zero, ignoring (transient OK)"
+          if ! curl --fail --silent --show-error --output /dev/null \
+            --max-time 30 --retry 2 --retry-all-errors --retry-delay 5 \
+            "https://ledger-sync-api.vercel.app/health/db"; then
+            echo "::error::Backend database health failed after three attempts. Check the release and Neon connectivity."
+            exit 1
+          fi

@@ -1,16 +1,15 @@
 name: Deploy Frontend to GitHub Pages
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch: # Allow manual trigger
+  workflow_call:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

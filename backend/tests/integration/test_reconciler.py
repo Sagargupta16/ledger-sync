@@ -3,7 +3,13 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+from sqlalchemy import event, select
+
 from ledger_sync.core.reconciler import Reconciler
+from ledger_sync.core.sync_engine import AlreadyImportedError, SyncEngine
+from ledger_sync.db.models import ImportLog, Transaction, TransactionType
+from ledger_sync.ingest.normalizer import NormalizationError
 
 
 class TestReconciler:
@@ -107,3 +113,176 @@ class TestReconciler:
 
         assert deleted_count == 1
         assert sample_transaction.is_deleted is True
+
+
+def _snapshot_row(**changes) -> dict:
+    return {
+        "date": "2026-01-15",
+        "amount": 100,
+        "currency": "INR",
+        "type": "Expense",
+        "account": "Cash",
+        "category": "Food",
+        "note": None,
+        **changes,
+    }
+
+
+@pytest.mark.parametrize(
+    "bad_row",
+    [
+        _snapshot_row(date="2026-02-30"),
+        _snapshot_row(amount="100abc"),
+        _snapshot_row(amount=float("inf")),
+        _snapshot_row(amount="NaN"),
+        _snapshot_row(currency="USD"),
+        _snapshot_row(account=" \x00 "),
+        _snapshot_row(category=None),
+    ],
+)
+def test_invalid_snapshot_performs_no_writes(test_db_session, test_user, bad_row):
+    engine = SyncEngine(test_db_session, user_id=test_user.id)
+    engine.import_rows([_snapshot_row(), _snapshot_row(amount=200)], "initial.csv", "initial")
+    writes = []
+
+    def record_write(_conn, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().split(" ", 1)[0].upper() in {"INSERT", "UPDATE", "DELETE"}:
+            writes.append(statement)
+
+    event.listen(test_db_session.bind, "before_cursor_execute", record_write)
+    try:
+        with pytest.raises(NormalizationError, match="Row 3"):
+            engine.import_rows([_snapshot_row(), bad_row], "invalid.csv", "invalid")
+    finally:
+        event.remove(test_db_session.bind, "before_cursor_execute", record_write)
+
+    assert writes == []
+    assert (
+        len(
+            test_db_session.scalars(
+                select(Transaction).where(Transaction.is_deleted.is_(False))
+            ).all()
+        )
+        == 2
+    )
+    assert len(test_db_session.scalars(select(ImportLog)).all()) == 1
+
+
+@pytest.mark.parametrize("failure_stage", ["transfers", "commit"])
+def test_snapshot_failure_rolls_back_ledger_and_forced_import_log(
+    test_db_session, test_user, monkeypatch, failure_stage
+):
+    engine = SyncEngine(test_db_session, user_id=test_user.id)
+    engine.import_rows(
+        [_snapshot_row(), _snapshot_row(type="Transfer-Out", category="Savings")],
+        "initial.csv",
+        "same-hash",
+    )
+    original_ids = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    original_log_id = test_db_session.scalar(select(ImportLog.id))
+
+    def fail_commit():
+        raise RuntimeError("synthetic final commit failure")
+
+    original_reconcile = engine.reconciler.reconcile_transfers_batch
+
+    def fail_transfers(*args, **kwargs):
+        original_reconcile(*args, **kwargs)
+        raise RuntimeError("synthetic failure after transfer deletion")
+
+    if failure_stage == "commit":
+        monkeypatch.setattr(test_db_session, "commit", fail_commit)
+    else:
+        monkeypatch.setattr(engine.reconciler, "reconcile_transfers_batch", fail_transfers)
+
+    with pytest.raises(RuntimeError, match="synthetic"):
+        engine.import_rows([_snapshot_row(amount=300)], "replacement.csv", "same-hash", force=True)
+
+    rows = test_db_session.scalars(select(Transaction)).all()
+    assert {row.transaction_id for row in rows} == original_ids
+    assert all(not row.is_deleted and row.amount == Decimal("100.00") for row in rows)
+    logs = test_db_session.scalars(select(ImportLog)).all()
+    assert len(logs) == 1
+    assert logs[0].id == original_log_id
+    assert logs[0].file_name == "initial.csv"
+
+
+@pytest.mark.parametrize("remaining_type", ["Expense", "Transfer-Out"])
+def test_snapshot_removes_empty_group_without_touching_other_users(
+    test_db_session, test_user, make_user, remaining_type
+):
+    engine = SyncEngine(test_db_session, user_id=test_user.id)
+    engine.import_rows(
+        [_snapshot_row(), _snapshot_row(type="Transfer-Out", category="Savings")],
+        "initial.csv",
+        "initial",
+    )
+    other_user = make_user("other-import@example.com")
+    SyncEngine(test_db_session, user_id=other_user.id).import_rows(
+        [_snapshot_row()], "other.csv", "other"
+    )
+    remaining = _snapshot_row(
+        type=remaining_type, category="Savings" if remaining_type == "Transfer-Out" else "Food"
+    )
+    stats = engine.import_rows([remaining], "replacement.csv", "replacement")
+    live_rows = test_db_session.scalars(
+        select(Transaction).where(
+            Transaction.user_id == test_user.id, Transaction.is_deleted.is_(False)
+        )
+    ).all()
+
+    assert stats.deleted == 1
+    assert len(live_rows) == 1
+    expected_type = (
+        TransactionType.TRANSFER if remaining_type == "Transfer-Out" else TransactionType.EXPENSE
+    )
+    assert live_rows[0].type == expected_type
+    assert (
+        test_db_session.scalar(
+            select(Transaction.is_deleted).where(Transaction.user_id == other_user.id)
+        )
+        is False
+    )
+
+
+def test_duplicate_file_and_duplicate_row_behavior_is_preserved(test_db_session, test_user):
+    engine = SyncEngine(test_db_session, user_id=test_user.id)
+    rows = [
+        _snapshot_row(),
+        _snapshot_row(),
+        _snapshot_row(type="Transfer-Out", category="Savings"),
+        _snapshot_row(type="Transfer-In", account="Savings", category="Cash"),
+    ]
+    first = engine.import_rows(rows, "snapshot.csv", "same-hash")
+    original_ids = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    assert first.inserted == 3
+    assert first.skipped == 1
+
+    with pytest.raises(AlreadyImportedError):
+        engine.import_rows(rows, "snapshot.csv", "same-hash")
+
+    forced = engine.import_rows(rows, "snapshot.csv", "same-hash", force=True)
+    assert forced.processed == 4
+    assert forced.inserted == forced.updated == forced.deleted == 0
+    assert forced.skipped == 4
+    assert set(test_db_session.scalars(select(Transaction.transaction_id))) == original_ids
+    assert len(test_db_session.scalars(select(ImportLog)).all()) == 1
+
+
+@pytest.mark.parametrize("transaction_type", ["Expense", "Transfer-Out"])
+def test_currency_correction_updates_existing_id(test_db_session, test_user, transaction_type):
+    engine = SyncEngine(test_db_session, user_id=test_user.id)
+    rows = [_snapshot_row(type=transaction_type)]
+    engine.import_rows(rows, "initial.csv", "initial")
+    stored = test_db_session.scalar(select(Transaction))
+    original_id = stored.transaction_id
+    stored.currency = "USD"
+    test_db_session.commit()
+
+    stats = engine.import_rows(rows, "corrected.csv", "corrected")
+
+    assert stats.updated == 1
+    assert stats.inserted == stats.deleted == 0
+    stored = test_db_session.scalar(select(Transaction))
+    assert stored.transaction_id == original_id
+    assert stored.currency == "INR"

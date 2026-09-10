@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COLUMN_MAPPINGS, REQUIRED_COLUMNS, VALID_TYPES } from '@/constants/columns'
-import { parseDate } from '@/lib/fileParser'
+import { parseAmount, parseDate, parseFile } from '@/lib/fileParser'
 
 /**
  * Tests for the fileParser module's helper logic.
@@ -90,6 +90,74 @@ describe('parseDate (timezone-stable)', () => {
 
   it('throws on an unparseable date', () => {
     expect(() => parseDate('not-a-date', 7)).toThrow(/Row 7/)
+  })
+
+  it.each([
+    '2026-02-30', '31/04/2026', '29-Feb-2025', 'Feb 31 2026',
+    '2026-01-15garbage', '2026-01-15 25:00:00', Infinity, NaN,
+  ])('rejects invalid dates without rolling them forward: %s', (value) => {
+    expect(() => parseDate(value, 3)).toThrow(/Row 3/)
+  })
+
+  it('accepts a real leap day', () => {
+    expect(parseDate('29/02/2024', 3)).toBe('2024-02-29')
+  })
+})
+
+describe('parseAmount', () => {
+  it.each([
+    ['1.005', 1.01],
+    ['10.075', 10.08],
+    [2.675, 2.68],
+    ['9.995', 10],
+    ['-2.675', 2.68],
+    ['1,00,000.25', 100000.25],
+    ['1,000.25', 1000.25],
+    ['1e3', 1000],
+    ['0.004', 0],
+  ])('rounds decimal source amounts half up: %s', (input, expected) => {
+    expect(parseAmount(input, 2)).toBe(expected)
+  })
+
+  it.each(['100abc', '1,2', '1.2.3', Infinity, NaN, true, '1e99', ''])(
+    'rejects malformed or unsupported amounts: %s', (value) => {
+      expect(() => parseAmount(value, 4)).toThrow(/Row 4/)
+    },
+  )
+})
+
+function csvFile(lines: string[]): File {
+  const contents = ['Date,Account,Category,Type,Amount,Currency', ...lines].join('\n')
+  const buffer = new TextEncoder().encode(contents).buffer
+  return Object.assign(new File([buffer], 'snapshot.csv', { type: 'text/csv' }), {
+    arrayBuffer: () => Promise.resolve(buffer),
+  })
+}
+
+describe('parseFile snapshot validation', () => {
+  it.each([
+    ['2026-02-30,Cash,Food,Expense,200,INR', /Row 3.*calendar/],
+    ['2026-01-16,Cash,Food,Expense,100abc,INR', /Row 3.*complete number/],
+    ['2026-01-16,Cash,Food,Expense,100,USD', /Row 3.*INR/],
+    ['2026-01-16,,Food,Expense,100,INR', /Row 3.*Account/],
+  ])('rejects the entire CSV when a row is invalid', async (invalidRow, expected) => {
+    const file = csvFile(['2026-01-15,Cash,Food,Expense,100,INR', invalidRow])
+    await expect(parseFile(file)).rejects.toThrow(expected)
+  })
+
+  it('returns valid CSV rows with exact cent rounding', async () => {
+    const result = await parseFile(csvFile(['2026-01-15,Cash,Food,Expense,10.075,INR']))
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0].amount).toBe(10.08)
+    expect(result.fileHash).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('reports the source row after a blank line', async () => {
+    const file = csvFile([
+      '2026-01-15,Cash,Food,Expense,100,INR', '',
+      '2026-02-30,Cash,Food,Expense,200,INR',
+    ])
+    await expect(parseFile(file)).rejects.toThrow(/Row 4/)
   })
 })
 

@@ -1,23 +1,13 @@
-"""Shared rate limiters (IP-keyed + user-keyed).
+"""One SlowAPI limiter with IP and account key functions.
 
-Two Limiter instances are exported:
-
-- ``limiter`` — IP-keyed via ``get_remote_address``. Attached to
-  ``app.state.limiter`` in main.py so slowapi's
-  ``_rate_limit_exceeded_handler`` can read ``request.app.state.limiter``
-  to inject Retry-After / rate-limit headers. Use for pre-auth endpoints
-  (OAuth callback, refresh) where the caller has no verified identity yet.
-
-- ``user_limiter`` — keyed on the JWT ``sub`` claim from the Authorization
-  header, falling back to remote address if the token is missing or invalid.
-  Use for authenticated endpoints where per-user limits are the correct
-  granularity (upload, AI chat). Behind CGNAT / carrier NAT, IP-keyed
-  limits bucket-share across every user on the same egress -- user-keyed
-  limits isolate per account.
-
-Decorators stack: ``@user_limiter.limit(...)`` alongside ``@limiter.limit(...)``
-evaluates both independently; whichever trips first returns 429.
+SlowAPI marks a request as checked after the first limiter runs. Stacked
+decorators must therefore register on the same instance. ``user_limiter``
+preserves the account-keyed decorator API used by uploads and chat while
+registering its limits on ``limiter``, which is attached to app.state.
 """
+
+from collections.abc import Callable
+from typing import Any, cast
 
 from fastapi import Request
 from slowapi import Limiter
@@ -39,11 +29,26 @@ def _user_key_func(request: Request) -> str:
         return get_remote_address(request)
 
     payload = decode_token(auth[7:])
-    if payload is None or not payload.sub:
+    if payload is None or payload.type != "access" or not payload.sub:
         return get_remote_address(request)
 
     return f"user:{payload.sub}"
 
 
 limiter = Limiter(key_func=get_remote_address)
-user_limiter = Limiter(key_func=_user_key_func)
+
+
+class _UserLimiter:
+    """Compatible account-keyed decorators registered on the shared limiter."""
+
+    @staticmethod
+    def limit[Endpoint: Callable[..., Any]](
+        limit_value: str, **options: Any
+    ) -> Callable[[Endpoint], Endpoint]:
+        return cast(
+            Callable[[Endpoint], Endpoint],
+            limiter.limit(limit_value, key_func=_user_key_func, **options),
+        )
+
+
+user_limiter = _UserLimiter()

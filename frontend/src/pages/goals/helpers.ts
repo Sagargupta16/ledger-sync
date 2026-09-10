@@ -8,12 +8,7 @@ import {
   toLocalDateKey,
 } from '@/lib/dateUtils'
 import { rawColors } from '@/constants/colors'
-import {
-  ALLOCATION_STORAGE_KEY,
-  DELETED_GOALS_STORAGE_KEY,
-  GOAL_OVERRIDES_STORAGE_KEY,
-} from './constants'
-import type { GoalProjection, GoalOverride } from './types'
+import type { GoalProjection } from './types'
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -159,71 +154,4 @@ export function computeGoalProjection(
   const tracking = resolveTrackingStatus(projectedDate, targetDate, monthsRemaining, now)
 
   return { monthsRemaining, deadlineState, requiredMonthlySavings, projectedDate, monthsToComplete, ...tracking }
-}
-
-// ---------------------------------------------------------------------------
-// localStorage helpers
-// ---------------------------------------------------------------------------
-
-/** Read goal allocations from localStorage. */
-export function loadAllocations(): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(ALLOCATION_STORAGE_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw) as Record<string, number>
-  } catch (e) {
-    console.warn('[loadAllocations] Failed to read localStorage:', e)
-    return {}
-  }
-}
-
-/** Persist goal allocations to localStorage. */
-export function saveAllocations(allocations: Record<string, number>): void {
-  try {
-    localStorage.setItem(ALLOCATION_STORAGE_KEY, JSON.stringify(allocations))
-  } catch (e) {
-    console.warn('[saveAllocations] Failed to write localStorage:', e)
-  }
-}
-
-/** Read hidden (deleted) goal IDs from localStorage. */
-export function loadDeletedGoals(): Set<number> {
-  try {
-    const raw = localStorage.getItem(DELETED_GOALS_STORAGE_KEY)
-    if (!raw) return new Set()
-    return new Set(JSON.parse(raw) as number[])
-  } catch (e) {
-    console.warn('[loadDeletedGoals] Failed to read localStorage:', e)
-    return new Set()
-  }
-}
-
-/** Persist hidden (deleted) goal IDs to localStorage. */
-export function saveDeletedGoals(ids: Set<number>): void {
-  try {
-    localStorage.setItem(DELETED_GOALS_STORAGE_KEY, JSON.stringify([...ids]))
-  } catch (e) {
-    console.warn('[saveDeletedGoals] Failed to write localStorage:', e)
-  }
-}
-
-/** Read goal overrides from localStorage. */
-export function loadGoalOverrides(): Record<number, GoalOverride> {
-  try {
-    const raw = localStorage.getItem(GOAL_OVERRIDES_STORAGE_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw) as Record<number, GoalOverride>
-  } catch (e) {
-    console.warn('[loadGoalOverrides] Failed to read localStorage:', e)
-    return {}
-  }
-}
-
-/** Persist goal overrides to localStorage. */
-export function saveGoalOverrides(overrides: Record<number, GoalOverride>): void {
-  try {
-    localStorage.setItem(GOAL_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides))
-  } catch (e) {
-    console.warn('[saveGoalOverrides] Failed to write localStorage:', e)
-  }
 }

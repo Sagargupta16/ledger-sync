@@ -9,6 +9,7 @@ import {
 import * as authApi from '@/services/api/auth'
 import type { OAuthProviderConfig } from '@/types'
 import { Button } from '@/components/ui'
+import { getApiErrorMessage } from '@/lib/errorUtils'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -34,21 +35,6 @@ function GitHubIcon({ className }: Readonly<{ className?: string }>) {
   )
 }
 
-function buildAuthorizeUrl(provider: OAuthProviderConfig): string {
-  const params = new URLSearchParams({
-    client_id: provider.client_id,
-    redirect_uri: provider.redirect_uri,
-    scope: provider.scope,
-    response_type: 'code',
-    state: provider.state,
-  })
-  if (provider.provider === 'google') {
-    params.set('access_type', 'offline')
-    params.set('prompt', 'consent')
-  }
-  return `${provider.authorize_url}?${params.toString()}`
-}
-
 export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
   const modalRef = useRef<HTMLDivElement>(null)
   const closeModal = useEffectEvent(onClose)
@@ -61,6 +47,9 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
     { status: 'loading' | 'failed' } | { status: 'loaded'; providers: OAuthProviderConfig[] }
   >({ status: 'loading' })
   const [retryToken, setRetryToken] = useState(0)
+  const [pendingProvider, setPendingProvider] = useState<string | null>(null)
+  const [signInError, setSignInError] = useState<string | null>(null)
+  const initiatingRef = useRef(false)
 
   const retry = () => {
     setProvidersState({ status: 'loading' })
@@ -127,9 +116,20 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
     }
   }, [isOpen])
 
-  const handleOAuthLogin = (provider: OAuthProviderConfig) => {
-    // Navigate to provider's authorize URL -- will redirect back to /auth/callback/:provider
-    globalThis.location.assign(buildAuthorizeUrl(provider))
+  const handleOAuthLogin = async (provider: OAuthProviderConfig) => {
+    if (initiatingRef.current) return
+    initiatingRef.current = true
+    setPendingProvider(provider.provider)
+    setSignInError(null)
+    try {
+      const url = await authApi.beginOAuthLogin(provider)
+      globalThis.location.assign(url)
+    } catch (error) {
+      setSignInError(getApiErrorMessage(error, 'Could not start sign-in. Please try again.'))
+    } finally {
+      initiatingRef.current = false
+      setPendingProvider(null)
+    }
   }
 
   const isLoadingProviders = providersState.status === 'loading'
@@ -209,11 +209,14 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                           type="button"
                           variant="secondary"
                           size="lg"
-                          onClick={() => handleOAuthLogin(googleProvider)}
+                          onClick={() => { void handleOAuthLogin(googleProvider) }}
+                          disabled={pendingProvider !== null}
                           className="w-full py-3"
                         >
-                          <GoogleIcon className="size-5" />
-                          Continue with Google
+                          {pendingProvider === 'google'
+                            ? <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                            : <GoogleIcon className="size-5" />}
+                          {pendingProvider === 'google' ? 'Opening Google...' : 'Continue with Google'}
                         </Button>
                       )}
                       {githubProvider && (
@@ -221,11 +224,14 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                           type="button"
                           variant="secondary"
                           size="lg"
-                          onClick={() => handleOAuthLogin(githubProvider)}
+                          onClick={() => { void handleOAuthLogin(githubProvider) }}
+                          disabled={pendingProvider !== null}
                           className="w-full py-3"
                         >
-                          <GitHubIcon className="size-5" />
-                          Continue with GitHub
+                          {pendingProvider === 'github'
+                            ? <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                            : <GitHubIcon className="size-5" />}
+                          {pendingProvider === 'github' ? 'Opening GitHub...' : 'Continue with GitHub'}
                         </Button>
                       )}
                     </div>
@@ -263,6 +269,12 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                   </div>
                 )
               })()}
+
+              {signInError && (
+                <p role="alert" className="mt-4 text-sm text-center text-destructive">
+                  {signInError}
+                </p>
+              )}
 
               {/* Footer */}
               <p className="text-text-tertiary text-xs text-center mt-6 border-t border-border pt-5">

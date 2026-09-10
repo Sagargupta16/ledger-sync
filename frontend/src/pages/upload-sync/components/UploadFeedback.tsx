@@ -1,8 +1,7 @@
 import { motion } from 'motion/react'
 import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
 
-import ErrorState from '@/components/shared/ErrorState'
-import { Button } from '@/components/ui'
+import { Button, Card } from '@/components/ui'
 
 import type { UploadConflict, UploadFailure, UploadSuccess } from '../useUploadSync'
 
@@ -11,8 +10,9 @@ interface UploadFeedbackProps {
   readonly failure: UploadFailure | null
   readonly success: UploadSuccess | null
   readonly isBusy: boolean
-  readonly onForceReupload: () => Promise<void>
+  readonly onForceReupload: () => void
   readonly onRetryUpload: () => Promise<void>
+  readonly onRetryAnalytics: () => Promise<void>
 }
 
 export default function UploadFeedback({
@@ -22,6 +22,7 @@ export default function UploadFeedback({
   isBusy,
   onForceReupload,
   onRetryUpload,
+  onRetryAnalytics,
 }: UploadFeedbackProps) {
   return (
     <>
@@ -41,6 +42,28 @@ export default function UploadFeedback({
               {': '}
               {success.summary}
             </p>
+            {success.analyticsStatus === 'ready' ? (
+              <p className="mt-2 text-sm text-foreground">Insights are up to date.</p>
+            ) : (
+              <div className="mt-3 space-y-2 border-t border-app-yellow/30 pt-3">
+                <p className="text-sm text-warning-text">
+                  {success.analyticsMessage ?? (
+                    success.analyticsStatus === 'failed'
+                      ? 'Your ledger is saved, but insights could not be refreshed.'
+                      : 'Your ledger is saved. The server did not confirm the insights refresh.'
+                  )}
+                </p>
+                <Button
+                  variant="secondary"
+                  icon={<RefreshCw className="size-4" />}
+                  isLoading={isBusy}
+                  onClick={() => void onRetryAnalytics()}
+                >
+                  Retry insights refresh
+                </Button>
+                <p className="text-xs text-muted-foreground">This will not re-import your file.</p>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -61,7 +84,7 @@ export default function UploadFeedback({
               <span className="font-mono text-sm text-foreground">
                 {conflict.parsed.fileName}
               </span>{' '}
-              was imported before. Re-upload to sync changes.
+              was imported before. Review the full-snapshot scope before syncing it again.
             </p>
           </div>
           <Button
@@ -78,12 +101,29 @@ export default function UploadFeedback({
       )}
 
       {failure && (
-        <ErrorState
-          variant="card"
-          title="Upload failed"
-          message={`${failure.parsed.fileName}: ${failure.message}`}
-          onRetry={() => void onRetryUpload()}
-        />
+        <Card className="border-error/30">
+          <div role="alert" className="space-y-3">
+            <h3 className="font-semibold text-foreground">
+              {failure.parsed ? 'Upload needs attention' : 'File needs attention'}
+            </h3>
+            <p className="break-words text-sm leading-6 text-muted-foreground">
+              {failure.fileName}: {failure.message}
+            </p>
+            {failure.parsed ? (
+              <Button
+                variant="secondary"
+                onClick={() => void onRetryUpload()}
+                isLoading={isBusy}
+              >
+                Retry upload
+              </Button>
+            ) : (
+              <p className="text-sm text-foreground">
+                No ledger entries were changed. Correct the file and select it again.
+              </p>
+            )}
+          </div>
+        </Card>
       )}
     </>
   )

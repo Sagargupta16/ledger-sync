@@ -64,11 +64,6 @@ const OLD_REGIME_BASE: RegimeConfig = {
   standardDeduction: 50_000,
 }
 
-const OLD_REGIME_FY2024_ONWARDS: RegimeConfig = {
-  ...OLD_REGIME_BASE,
-  standardDeduction: 75_000, // Budget 2024 bump
-}
-
 // ─── FY 2023-24 and earlier (Budget 2023 new regime) ────────────────────────
 
 const NEW_REGIME_FY2023: RegimeConfig = {
@@ -148,7 +143,7 @@ const FY_CONFIGS: FYTaxConfig[] = [
     fyLabel: 'FY 2024-25',
     source: 'Budget 2024 (Jul 2024)',
     effectiveFrom: '2024-04-01',
-    oldRegime: OLD_REGIME_FY2024_ONWARDS,
+    oldRegime: OLD_REGIME_BASE,
     newRegime: NEW_REGIME_FY2024,
     professionalTaxPerMonth: 200,
     cessRate: 0.04,
@@ -158,7 +153,7 @@ const FY_CONFIGS: FYTaxConfig[] = [
     fyLabel: 'FY 2025-26',
     source: 'Budget 2025 (Feb 2025)',
     effectiveFrom: '2025-04-01',
-    oldRegime: OLD_REGIME_FY2024_ONWARDS,
+    oldRegime: OLD_REGIME_BASE,
     newRegime: NEW_REGIME_FY2025,
     professionalTaxPerMonth: 200,
     cessRate: 0.04,

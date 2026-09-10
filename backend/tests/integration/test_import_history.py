@@ -14,8 +14,14 @@ would shift every displayed timestamp by the viewer's zone.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
-from ledger_sync.db.models import ImportLog
+import pytest
+from sqlalchemy import select
+
+from ledger_sync.api.rate_limit import limiter
+from ledger_sync.config.settings import settings
+from ledger_sync.db.models import ImportLog, Transaction
 
 HISTORY_URL = "/api/upload/history"
 
@@ -123,3 +129,78 @@ def test_limit_is_bounded(two_user_client) -> None:
 
     assert client.get(HISTORY_URL, params={"limit": 0}).status_code == 422
     assert client.get(HISTORY_URL, params={"limit": 101}).status_code == 422
+
+
+def _upload_payload() -> dict:
+    return {
+        "file_name": "synthetic.csv",
+        "file_hash": "a" * 64,
+        "rows": [
+            {
+                "date": "2026-01-15",
+                "amount": 100,
+                "currency": "INR",
+                "type": "Expense",
+                "account": "Cash",
+                "category": "Food",
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize("refresh_fails", [False, True])
+def test_upload_reports_refresh_outcome_after_saving_ledger(
+    two_user_client, monkeypatch, refresh_fails
+) -> None:
+    client, session, user_a, _, _ = two_user_client
+    monkeypatch.setattr(limiter, "enabled", False)
+    with patch("ledger_sync.api.upload.AnalyticsEngine") as analytics:
+        if refresh_fails:
+            analytics.return_value.run_full_analytics.side_effect = RuntimeError(
+                "synthetic failure"
+            )
+        response = client.post("/api/upload", json=_upload_payload())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["analytics_status"] == ("failed" if refresh_fails else "ready")
+    assert body["stats"]["inserted"] == 1
+    analytics.return_value.run_full_analytics.assert_called_once()
+    assert session.scalar(select(Transaction).where(Transaction.user_id == user_a.id)) is not None
+    history = client.get(HISTORY_URL).json()
+    assert history["total_count"] == 1
+    assert history["imports"][0]["file_name"] == "synthetic.csv"
+
+
+def test_upload_rejects_invalid_snapshot_and_preserves_history(
+    two_user_client, monkeypatch
+) -> None:
+    client, session, _, _, _ = two_user_client
+    monkeypatch.setattr(limiter, "enabled", False)
+    with patch("ledger_sync.api.upload.AnalyticsEngine"):
+        assert client.post("/api/upload", json=_upload_payload()).status_code == 200
+        invalid = _upload_payload()
+        invalid["file_hash"] = "b" * 64
+        invalid["rows"].append({**invalid["rows"][0], "date": "2026-02-30"})
+        response = client.post("/api/upload", json=invalid)
+        duplicate = client.post("/api/upload", json=_upload_payload())
+
+    assert response.status_code == 422
+    assert duplicate.status_code == 409
+    assert len(session.scalars(select(Transaction)).all()) == 1
+    assert client.get(HISTORY_URL).json()["total_count"] == 1
+
+
+@pytest.mark.parametrize("chunked", [False, True])
+def test_upload_body_limit_is_enforced_before_json_parsing(
+    two_user_client, monkeypatch, chunked
+) -> None:
+    client, session, _, _, _ = two_user_client
+    monkeypatch.setattr(settings, "max_upload_size_bytes", 128)
+    content = iter([b"x" * 65, b"x" * 64]) if chunked else b"x" * 129
+    response = client.post("/api/upload", content=content)
+
+    assert response.status_code == 413
+    assert "size limit" in response.json()["detail"]
+    assert len(session.scalars(select(ImportLog)).all()) == 0

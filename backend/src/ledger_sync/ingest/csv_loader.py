@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ledger_sync.ingest.validator import ExcelValidator, ValidationError
+from ledger_sync.schemas.upload import MAX_UPLOAD_ROWS
 from ledger_sync.utils.logging import logger
 
 
@@ -55,18 +56,19 @@ class CsvLoader:
 
         """
         logger.info(f"Loading CSV file: {file_path}")
+        self.validator.validate_file_exists(file_path)
 
         # Calculate file hash for idempotency
         file_hash = self.calculate_file_hash(file_path)
         logger.debug(f"File hash: {file_hash}")
 
         try:
-            df = pd.read_csv(file_path, encoding="utf-8")
+            df = pd.read_csv(file_path, encoding="utf-8", nrows=MAX_UPLOAD_ROWS + 1)
             logger.info(f"Loaded {len(df)} rows from CSV")
         except UnicodeDecodeError:
             # Fall back to latin-1 which accepts any byte sequence
             try:
-                df = pd.read_csv(file_path, encoding="latin-1")
+                df = pd.read_csv(file_path, encoding="latin-1", nrows=MAX_UPLOAD_ROWS + 1)
                 logger.info(f"Loaded {len(df)} rows from CSV (latin-1 fallback)")
             except (ValueError, OSError) as e:
                 msg = f"Failed to read CSV file: {e}"

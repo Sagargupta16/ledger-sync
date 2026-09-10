@@ -19,7 +19,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,9 +29,12 @@ import {
   totalsOptions,
 } from '@/hooks/api/useAnalytics'
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
+import { PREFERENCES_KEY } from '@/hooks/api/usePreferences'
+import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import type { Budget, FinancialGoal } from '@/services/api/analyticsV2'
 import type { MonthlyAggregation, TotalsData } from '@/services/api/calculations'
-import type { Transaction } from '@/types'
+import { useAuthStore } from '@/store/authStore'
+import type { Transaction, User } from '@/types'
 
 import OverviewPage from '../OverviewPage'
 
@@ -124,6 +127,22 @@ const ACTIVE_GOAL: FinancialGoal = {
  */
 const ALL_TIME = { start_date: undefined, end_date: undefined }
 
+const GOAL_OWNER: User = {
+  id: 901,
+  email: 'overview-goals@example.invalid',
+  full_name: 'Overview fixture',
+  is_active: true,
+  is_verified: true,
+  auth_provider: 'google',
+  created_at: '2026-01-01T00:00:00',
+  last_login: null,
+}
+
+afterEach(() => {
+  cleanup()
+  useAuthStore.getState().logout()
+})
+
 interface OverviewFixture {
   totals?: TotalsData
   transactions?: Transaction[]
@@ -140,13 +159,19 @@ function renderOverview(
     goals = [],
   }: OverviewFixture = {},
 ) {
+  useAuthStore.getState().login(GOAL_OWNER, {
+    access_token: 'overview-test-access',
+    refresh_token: 'overview-test-refresh',
+    token_type: 'bearer',
+  })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  qc.setQueryData(PREFERENCES_KEY, { ...generateDemoPreferences(), id: GOAL_OWNER.id })
   qc.setQueryData(totalsOptions(ALL_TIME).queryKey, totals)
   qc.setQueryData(monthlyAggregationOptions(ALL_TIME).queryKey, monthly)
   qc.setQueryData(recentTransactionsOptions(5).queryKey, [])
   qc.setQueryData(['transactions', undefined], transactions)
   qc.setQueryData(analyticsV2Keys.budgets({ active_only: true }), budgets)
-  qc.setQueryData(analyticsV2Keys.goals(), goals)
+  qc.setQueryData([...analyticsV2Keys.goals(), GOAL_OWNER.id], goals)
   const view = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>

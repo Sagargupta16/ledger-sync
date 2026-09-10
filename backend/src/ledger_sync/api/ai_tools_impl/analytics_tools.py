@@ -23,6 +23,12 @@ from .registry import (
     register,
     to_decimal,
 )
+from .schemas import (
+    AnomalyArguments,
+    CashFlowArguments,
+    FiscalYearArguments,
+    ToolArguments,
+)
 
 # --- Extra tools backed by analytics tables ---------------------------------
 
@@ -76,15 +82,7 @@ register(
             "for questions like 'what was FY 2024-25 income' or 'show last "
             "year's totals'. Omit `fiscal_year` to get the most recent FY."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "fiscal_year": {
-                    "type": "string",
-                    "description": "Fiscal year like FY2024-25. Optional.",
-                },
-            },
-        },
+        arguments_model=FiscalYearArguments,
         execute=_exec_get_fy_summary,
     )
 )
@@ -192,15 +190,7 @@ register(
             "returns what can be derived from transactions. Use for 'how much "
             "tax did I pay in FY 2024-25', '80C utilization', 'last year tax'."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "fiscal_year": {
-                    "type": "string",
-                    "description": "Optional. Most recent if omitted.",
-                },
-            },
-        },
+        arguments_model=FiscalYearArguments,
         execute=_exec_get_tax_summary,
     )
 )
@@ -212,7 +202,7 @@ def _exec_get_cash_flow(user: User, db: Session, args: dict[str, Any]) -> Any:
     Equivalent of what the Cash Flow page shows, but tabular for the LLM.
     Defaults to the last 12 months.
     """
-    limit = min(int(args.get("months", 12)), 60)
+    limit = max(1, min(int(args.get("months", 12)), 60))
     rows = (
         db.execute(
             select(MonthlySummary)
@@ -262,12 +252,7 @@ register(
             "Monthly income vs expense time series (oldest -> newest). Use for "
             "'show cash flow', 'how has saving changed', 'trend of expenses'."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "months": {"type": "integer", "minimum": 1, "maximum": 60, "default": 12},
-            },
-        },
+        arguments_model=CashFlowArguments,
         execute=_exec_get_cash_flow,
     )
 )
@@ -311,7 +296,7 @@ register(
             "List active budgets with current-month usage. Use for 'which "
             "budgets am I over', 'show my budgets', 'is my food budget ok'."
         ),
-        schema={"type": "object", "properties": {}, "required": []},
+        arguments_model=ToolArguments,
         execute=_exec_list_budgets,
     )
 )
@@ -352,12 +337,7 @@ register(
             "Recent unusual-spending alerts the system detected. Use for 'any "
             "anomalies this month', 'what did I overspend on'."
         ),
-        schema={
-            "type": "object",
-            "properties": {
-                "include_reviewed": {"type": "boolean", "default": False},
-            },
-        },
+        arguments_model=AnomalyArguments,
         execute=_exec_list_anomalies,
     )
 )
@@ -414,7 +394,7 @@ register(
             "their salary breakdown, CTC, or why numbers are shown in a specific "
             "currency."
         ),
-        schema={"type": "object", "properties": {}, "required": []},
+        arguments_model=ToolArguments,
         execute=_exec_get_preferences_summary,
     )
 )

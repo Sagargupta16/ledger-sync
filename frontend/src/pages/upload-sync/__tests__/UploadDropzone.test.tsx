@@ -65,8 +65,8 @@ describe('UploadDropzone', () => {
     expect(
       screen.getByRole('button', { name: 'Upload an Excel or CSV transaction file' }),
     ).toHaveAttribute('aria-busy', 'true')
-    expect(screen.getByText('Uploading and processing transactions...')).toBeInTheDocument()
+    expect(screen.getByText('Saving your ledger and refreshing insights...')).toBeInTheDocument()
     expect(screen.getByText('statement.csv')).toBeInTheDocument()
-    expect(screen.getByText('Sync rows').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByText('Save & refresh').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 })

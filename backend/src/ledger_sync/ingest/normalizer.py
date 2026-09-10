@@ -25,6 +25,7 @@ from ledger_sync.db.models import TransactionType
 # errors raised by the row mixin were a DIFFERENT type than the one upload.py and
 # sync_engine.py catch -- they escaped every handler as a raw 500.
 from ledger_sync.ingest.normalizer_rows import NormalizationError, NormalizeRowsMixin
+from ledger_sync.schemas.upload import MAX_AMOUNT
 
 __all__ = ["DataNormalizer", "NormalizationError", "format_transfer_category"]
 
@@ -277,7 +278,16 @@ class DataNormalizer(NormalizeRowsMixin):
             return value
 
         try:
-            result = pd.to_datetime(value)
+            if isinstance(value, (int, float, bool)):
+                msg = "Date must be a calendar date, not a numeric timestamp"
+                raise NormalizationError(msg)
+            if isinstance(value, str) and re.fullmatch(r"\d{1,2}[/-]\d{1,2}[/-]\d{4}", value):
+                result = pd.to_datetime(value.replace("/", "-"), format="%d-%m-%Y")
+            else:
+                result = pd.to_datetime(value)
+            if pd.isna(result):
+                msg = "Date value is missing or invalid"
+                raise NormalizationError(msg)
             if isinstance(result, pd.Timestamp):
                 return result.to_pydatetime()
             return datetime(result.year, result.month, result.day)
@@ -308,7 +318,11 @@ class DataNormalizer(NormalizeRowsMixin):
             # don't corrupt the amount (e.g. 2.675 must round to 2.68, not 2.67).
             # str() of a pandas/numpy numeric yields a decimal-string Decimal
             # can parse exactly. quantize applies ROUND_HALF_UP to 2 places.
-            return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            amount = Decimal(str(value))
+            if not amount.is_finite() or amount < 0 or amount > MAX_AMOUNT:
+                msg = f"Amount must be finite and between 0 and {MAX_AMOUNT} INR"
+                raise NormalizationError(msg)
+            return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (ValueError, InvalidOperation) as e:
             msg = f"Cannot convert amount '{value}': {e}"
             raise NormalizationError(msg) from e

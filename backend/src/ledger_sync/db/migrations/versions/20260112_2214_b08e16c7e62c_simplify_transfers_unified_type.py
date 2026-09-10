@@ -11,6 +11,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
+from ledger_sync.db.migrations.safety import irreversible
+
 # revision identifiers, used by Alembic.
 revision: str = "b08e16c7e62c"
 down_revision: str | None = "343e4412d829"
@@ -19,16 +21,48 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    conflicting_id = bind.execute(
+        sa.text(
+            "SELECT 1 FROM transfers JOIN transactions "
+            "ON transfers.transfer_id = transactions.transaction_id LIMIT 1"
+        )
+    ).first()
+    if conflicting_id is not None:
+        raise RuntimeError(
+            "Transfer IDs already exist in transactions. Resolve the conflicting records "
+            "from a verified backup before retrying. No transfer rows were removed."
+        )
+    if bind.dialect.name == "postgresql":
+        enums = {enum["name"]: enum["labels"] for enum in sa.inspect(bind).get_enums()}
+        if "transactiontype" in enums and "TRANSFER" not in enums["transactiontype"]:
+            # Existing databases at the first revision need the label committed
+            # before it can be used by the INSERT below.
+            with op.get_context().autocommit_block():
+                op.execute("ALTER TYPE transactiontype ADD VALUE IF NOT EXISTS 'TRANSFER'")
+
     # Add from_account and to_account columns to transactions table
     op.add_column("transactions", sa.Column("from_account", sa.String(length=255), nullable=True))
     op.add_column("transactions", sa.Column("to_account", sa.String(length=255), nullable=True))
     op.create_index("ix_transactions_from_account", "transactions", ["from_account"], unique=False)
     op.create_index("ix_transactions_to_account", "transactions", ["to_account"], unique=False)
 
-    # Migrate Transfer-In/Transfer-Out from transfers table to transactions as Transfer type
-    # This SQL consolidates double-entry transfers into single entries
+    # Collapse only one incoming/outgoing pair with matching ledger and source
+    # metadata. Preserve unpaired legs and every row in an ambiguous group.
     op.execute(
         """
+        WITH candidates AS (
+            SELECT transfers.*,
+                SUM(CASE WHEN CAST(type AS VARCHAR) IN ('TRANSFER_OUT', 'Transfer-Out')
+                    THEN 1 ELSE 0 END) OVER transfer_pair AS outgoing_count,
+                SUM(CASE WHEN CAST(type AS VARCHAR) IN ('TRANSFER_IN', 'Transfer-In')
+                    THEN 1 ELSE 0 END) OVER transfer_pair AS incoming_count
+            FROM transfers
+            WINDOW transfer_pair AS (
+                PARTITION BY date, amount, currency, from_account, to_account,
+                             subcategory, note, source_file, last_seen_at, is_deleted
+            )
+        )
         INSERT INTO transactions (
             transaction_id, date, amount, currency, type, account, category, subcategory,
             note, from_account, to_account, source_file, last_seen_at, is_deleted
@@ -38,7 +72,7 @@ def upgrade() -> None:
             date,
             amount,
             currency,
-            'Transfer' as type,
+            'TRANSFER' as type,
             from_account as account,
             category,
             subcategory,
@@ -48,9 +82,11 @@ def upgrade() -> None:
             source_file,
             last_seen_at,
             is_deleted
-        FROM transfers
-        WHERE type = 'Transfer-Out'
-        AND transfer_id NOT IN (SELECT transaction_id FROM transactions)
+        FROM candidates
+        WHERE NOT (
+            CAST(type AS VARCHAR) IN ('TRANSFER_IN', 'Transfer-In')
+            AND outgoing_count = 1 AND incoming_count = 1
+        )
     """,
     )
 
@@ -58,6 +94,7 @@ def upgrade() -> None:
     op.drop_table("transfers")
 
 
+@irreversible
 def downgrade() -> None:
     # Recreate transfers table
     op.create_table(

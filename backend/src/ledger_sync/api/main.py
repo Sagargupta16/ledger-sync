@@ -14,7 +14,9 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import OperationalError
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ledger_sync import __version__
 from ledger_sync.api.account_classifications import (
     router as account_classifications_router,
 )
@@ -44,42 +46,78 @@ from ledger_sync.utils.logging import logger, setup_logging
 
 _MiddlewareCallNext = Callable[[Request], Awaitable[Response]]
 
-APP_VERSION = "2.24.0"
+APP_VERSION = __version__
 
 # Initialize logging at the configured level (LEDGER_SYNC_LOG_LEVEL, default INFO)
 setup_logging(settings.log_level)
 
 
-def _cleanup_stale_temp_files() -> None:
-    """Remove stale upload temp files older than 1 hour on startup."""
-    import tempfile
-    from pathlib import Path
+class UploadSizeLimitMiddleware:
+    """Bound upload bodies, including chunked requests, before JSON parsing."""
 
-    temp_dir = Path(tempfile.gettempdir())
-    cutoff = time.time() - 3600  # 1 hour ago
-    cleaned = 0
-    for pattern in ("*.xlsx", "*.xls", "*.csv"):
-        for f in temp_dir.glob(pattern):
-            try:
-                if f.stat().st_mtime < cutoff:
-                    f.unlink()
-                    cleaned += 1
-            except OSError as e:
-                logger.debug("Could not remove temp file %s: %s", f, e)
-    if cleaned:
-        logger.info("Cleaned up %d stale temp files", cleaned)
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] != "http"
+            or scope["method"] != "POST"
+            or scope["path"].rstrip("/") != "/api/upload"
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        limit = settings.max_upload_size_bytes
+        messages: list[Message] = []
+        size = 0
+        for name, value in scope.get("headers", []):
+            if name.lower() == b"content-length":
+                try:
+                    size = int(value)
+                except ValueError:
+                    response = JSONResponse(
+                        status_code=400, content={"detail": "Invalid body size"}
+                    )
+                    await response(scope, receive, send)
+                    return
+        if size <= limit:
+            size = 0
+            while True:
+                message = await receive()
+                if message["type"] == "http.disconnect":
+                    return
+                size += len(message.get("body", b""))
+                if size > limit:
+                    break
+                messages.append(message)
+                if not message.get("more_body", False):
+                    break
+        if size > limit:
+            response = JSONResponse(
+                status_code=413,
+                content={"detail": f"Upload exceeds the {limit // (1024 * 1024)} MB size limit."},
+            )
+            await response(scope, receive, send)
+            return
+
+        buffered = iter(messages)
+
+        async def bounded_receive() -> Message:
+            message = next(buffered, None)
+            return message if message is not None else await receive()
+
+        await self.app(scope, bounded_receive, send)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Application lifespan: initialize database, HTTP client, and clean temp files."""
+    """Application lifespan: initialize database and the shared HTTP client."""
     try:
         settings.warn_if_development_secrets()
         logger.info("Initializing database...")
         init_db()
         logger.info("Database initialized successfully")
         logger.info("CORS allowed origins: %s", _cors_origins)
-        _cleanup_stale_temp_files()
     except Exception as exc:
         logger.error("Database initialization failed: %s", exc)
         raise
@@ -111,6 +149,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 
 # GZip compression — reduces JSON payload sizes by ~80%
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(UploadSizeLimitMiddleware)
 
 
 # ─── Security Headers Middleware ─────────────────────────────────────────────

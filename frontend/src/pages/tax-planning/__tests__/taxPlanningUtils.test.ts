@@ -118,6 +118,11 @@ describe('computeTaxForFY salary TDS treatment toggle', () => {
   it('gross mode taxes the recorded amount directly (no gross-up)', () => {
     const r = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', false)
     expect(r.grossTaxableIncome).toBe(recorded)
+    // AY 2025-26 ITR-1 rules: old-regime salary deduction is Rs 50,000.
+    // With no professional tax, Rs 10 lakh salary owes Rs 1,02,500 + 4% cess.
+    const oldRegime = computeTaxForFY('FY 2024-25', 1_000_000, 0, 'old', 'new', false)
+    expect(oldRegime.standardDeduction).toBe(50_000)
+    expect(oldRegime.taxAlreadyPaid).toBe(106_600)
   })
 
   it('net mode yields a higher tax than gross mode for the same recorded amount', () => {

@@ -29,7 +29,11 @@ def _create_transactions_table_if_missing(inspector: sa.engine.Inspector) -> Non
         sa.Column("date", sa.DateTime(), nullable=False),
         sa.Column("amount", sa.Numeric(precision=15, scale=2), nullable=False),
         sa.Column("currency", sa.String(length=10), nullable=False),
-        sa.Column("type", sa.Enum("EXPENSE", "INCOME", name="transactiontype"), nullable=False),
+        sa.Column(
+            "type",
+            sa.Enum("EXPENSE", "INCOME", "TRANSFER", name="transactiontype"),
+            nullable=False,
+        ),
         sa.Column("account", sa.String(length=255), nullable=False),
         sa.Column("category", sa.String(length=255), nullable=False),
         sa.Column("subcategory", sa.String(length=255), nullable=True),
@@ -124,28 +128,27 @@ def _migrate_transfer_records(conn: sa.engine.Connection, inspector: sa.engine.I
     if "transactions" not in inspector.get_table_names():
         return
 
-    try:
-        result = conn.execute(
-            sa.text(
-                """
-                SELECT transaction_id, date, amount, currency, account, category, subcategory,
-                       note, source_file, last_seen_at, is_deleted
-                FROM transactions
-                WHERE type = 'Transfer'
-            """,
-            ),
-        )
-        transfer_records = result.fetchall()
-    except (sa.exc.OperationalError, sa.exc.ProgrammingError):
-        # No transfer records or type constraint already updated - this is expected
-        # during certain migration states
-        return
+    result = conn.execute(
+        sa.text(
+            """
+            SELECT transaction_id, date, amount, currency, account, category, subcategory,
+                   note, source_file, last_seen_at, is_deleted
+            FROM transactions
+            WHERE CAST(type AS VARCHAR) IN ('Transfer', 'TRANSFER')
+        """,
+        ),
+    )
+    transfer_records = result.fetchall()
 
     for record in transfer_records:
         _insert_transfer_from_transaction(conn, record)
 
     if transfer_records:
-        conn.execute(sa.text("DELETE FROM transactions WHERE type = 'Transfer'"))
+        conn.execute(
+            sa.text(
+                "DELETE FROM transactions WHERE CAST(type AS VARCHAR) IN ('Transfer', 'TRANSFER')"
+            )
+        )
 
 
 def _insert_transfer_from_transaction(conn: sa.engine.Connection, record: sa.engine.Row) -> None:

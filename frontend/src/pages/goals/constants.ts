@@ -1,10 +1,6 @@
 import { rawColors } from '@/constants/colors'
 import { GOAL_TYPE_VALUES, type GoalTypeValue } from '@/services/api/analyticsV2'
 
-export const ALLOCATION_STORAGE_KEY = 'ledger-sync-goal-allocations'
-export const DELETED_GOALS_STORAGE_KEY = 'ledger-sync-deleted-goals'
-export const GOAL_OVERRIDES_STORAGE_KEY = 'ledger-sync-goal-overrides'
-
 /**
  * Colour and label per goal type. Exhaustive over `GOAL_TYPE_VALUES`, so adding a
  * type there fails type-check here instead of at render time.
