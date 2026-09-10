@@ -36,6 +36,10 @@ export default function TaxRegimeComparisonSection({ planning }: Readonly<Props>
         grossIncome={planning.display.gross}
         fyYear={planning.fyYear}
         salaryMonthsCount={planning.useSalaryProjection ? 12 : planning.salaryMonthsCount}
+        hasEmploymentIncome={planning.hasEmploymentIncome}
+        employmentIncome={planning.useSalaryProjection
+          ? planning.annualTaxComputation?.grossEmploymentIncome ?? planning.salaryProjection?.grossTaxable
+          : planning.taxComputation.grossEmploymentIncome ?? undefined}
       />
     </motion.div>
   )

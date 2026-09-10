@@ -198,7 +198,7 @@ describe('OverviewPage KPI delta label', () => {
     renderOverview(THROUGH_JUNE)
 
     // Income and Spending both carry a delta, so the label appears twice.
-    expect(screen.getAllByText('Jun vs May')).toHaveLength(2)
+    expect(screen.getAllByText('Jun 26 vs May 26')).toHaveLength(2)
     expect(screen.queryByText('vs last month')).not.toBeInTheDocument()
   })
 
@@ -206,12 +206,12 @@ describe('OverviewPage KPI delta label', () => {
     // The assertion that a second hardcoded string cannot satisfy. June is
     // absent here, so the same page must read May vs Apr off the same hook.
     const { unmount } = renderOverview(THROUGH_JUNE)
-    expect(screen.getAllByText('Jun vs May')).toHaveLength(2)
+    expect(screen.getAllByText('Jun 26 vs May 26')).toHaveLength(2)
     unmount()
 
     renderOverview(THROUGH_MAY)
-    expect(screen.getAllByText('May vs Apr')).toHaveLength(2)
-    expect(screen.queryByText('Jun vs May')).not.toBeInTheDocument()
+    expect(screen.getAllByText('May 26 vs Apr 26')).toHaveLength(2)
+    expect(screen.queryByText('Jun 26 vs May 26')).not.toBeInTheDocument()
   })
 
   it('renders a real delta beside the label, so the label is not a fallback', () => {

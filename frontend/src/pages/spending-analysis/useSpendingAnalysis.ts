@@ -18,16 +18,14 @@ import { calculateSpendingBreakdown } from '@/lib/preferencesUtils'
 import { filterTransactionsByDateRange, computeCategoryBreakdown } from '@/lib/transactionUtils'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys, spendingRuleSavings } from '@/lib/finance/spending'
 import { resolveEssentialCategories } from '@/store/preferencesStore'
 import type { Transaction } from '@/types'
 
 import {
   buildSpendingChartData,
-  computeBudgetRuleMetrics,
   monthlyAvgLineLabelFor,
   monthlyAvgSubtitleFor,
-  monthlySpendShape,
-  spanMonthKeys,
 } from './spendingAnalysisUtils'
 
 export function useSpendingAnalysis() {
@@ -147,7 +145,7 @@ export function useSpendingAnalysis() {
       .reduce((sum, t) => sum + Math.abs(t.amount), 0)
   }, [comparableTransactions])
 
-  const savings = Math.max(0, totalIncome - comparableSpending)
+  const savings = spendingRuleSavings(totalIncome, comparableSpending)
 
   const categoryBreakdown = useMemo(
     () => computeCategoryBreakdown(filteredTransactions),

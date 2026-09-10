@@ -1,4 +1,5 @@
 import { rawColors } from '@/constants/colors'
+import { parseLocalDate } from '@/lib/dateUtils'
 
 // ---------------------------------------------------------------------------
 // Frequency / cost helpers
@@ -17,7 +18,7 @@ export { toMonthlyAmount } from '@/lib/recurrenceFrequency'
 /** Format a date string as a readable date */
 export function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return parseLocalDate(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

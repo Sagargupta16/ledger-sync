@@ -11,6 +11,7 @@ from sqlalchemy import delete
 
 from ledger_sync.core._analytics_helpers import mom_change_pct as _mom_change_pct
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_math import investment_transfer_delta
 from ledger_sync.db.models import (
     DailySummary,
     MonthlySummary,
@@ -289,14 +290,12 @@ class SummariesMixin(AnalyticsEngineBase):
         data["transfer_count"] += 1
         data["total_transfers_out"] += amount
         data["total_transfers_in"] += amount
-        # Treat each leg independently (not elif): a transfer BETWEEN two
-        # investment accounts is internal rebalancing and must net to zero,
-        # not register as a fresh inflow. -amount for money INTO investments,
-        # +amount for money OUT, so investment->investment cancels.
-        if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
-            data["net_investment_flow"] -= amount
-        if self._is_investment_account(txn.from_account):  # type: ignore[attr-defined]
-            data["net_investment_flow"] += amount
+        # Preserve the API's cash-flow sign: funding investments is an outflow.
+        data["net_investment_flow"] -= investment_transfer_delta(
+            amount,
+            source_is_investment=self._is_investment_account(txn.from_account),  # type: ignore[attr-defined]
+            destination_is_investment=self._is_investment_account(txn.to_account),  # type: ignore[attr-defined]
+        )
 
     def _calculate_daily_summaries(
         self,

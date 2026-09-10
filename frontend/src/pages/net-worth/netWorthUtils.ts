@@ -5,6 +5,8 @@ import {
   type AccountTypeValue,
 } from '@/services/api/accountClassifications'
 
+export { computeNetWorthTimeSeries } from '@/lib/finance/netWorth'
+
 /**
  * The display categories this module groups accounts into.
  *
@@ -130,50 +132,6 @@ const CATEGORY_BY_ACCOUNT_TYPE: Record<AccountTypeValue, NetWorthCategory> = {
 
 function categoryForAccountType(accountType: AccountTypeValue): NetWorthCategory {
   return CATEGORY_BY_ACCOUNT_TYPE[accountType]
-}
-
-/** Compute daily cumulative net worth from transactions. */
-export function computeNetWorthTimeSeries(
-  transactions: Array<{ date: string; type: string; amount: number }>,
-  allCategories: string[],
-  categoryProportions: Record<string, number>,
-): Array<Record<string, number | string>> {
-  if (!transactions.length) return []
-
-  const dailyMap: Record<string, { income: number; expense: number }> = {}
-  for (const tx of transactions) {
-    const day = tx.date.substring(0, 10)
-    if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
-    if (tx.type === 'Income') dailyMap[day].income += tx.amount
-    else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
-  }
-
-  const sortedDays = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
-  let cumNW = 0
-  let cumIncome = 0
-  let cumExpense = 0
-
-  return sortedDays.map(([date, { income, expense }]) => {
-    const flow = income - expense
-    cumNW += flow
-    cumIncome += income
-    cumExpense += expense
-    const positiveNW = Math.max(cumNW, 0)
-
-    const point: Record<string, number | string> = {
-      date,
-      netWorth: cumNW,
-      dailyFlow: flow,
-      cumulativeIncome: cumIncome,
-      cumulativeExpenses: cumExpense,
-    }
-
-    allCategories.forEach((cat) => {
-      point[cat] = positiveNW * (categoryProportions[cat] || 0)
-    })
-
-    return point
-  })
 }
 
 export function ariaSort(

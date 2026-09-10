@@ -13,12 +13,12 @@ import { useMemo } from 'react'
 import { isInvestmentAccount } from '@/constants/accountTypes'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { getDateKey } from '@/lib/dateUtils'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 
 import {
   computeInvestmentMetrics,
-  countRealisedEvents,
   groupTransactionsByMonth,
 } from './returnsAnalysisUtils'
 
@@ -29,8 +29,10 @@ export function useReturnsAnalysis() {
     isLoading: transactionsLoading,
     isError: transactionsError,
   } = transactionsQuery
+  const preferencesQuery = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
-  const dateParams = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
+  // A closing balance includes contributions before the selected P&L window.
+  const dateParams = { end_date: dateRange.end_date ?? undefined }
   const balancesQuery = useAccountBalances(dateParams)
   const {
     data: balanceData,
@@ -41,8 +43,8 @@ export function useReturnsAnalysis() {
   // removed CAGR/ROI pair, so nothing reads it now and the request is gone.
   // Include the transactions query: the P&L metrics derive from `transactions`,
   // so omitting it flashed zeros as if loaded before transactions arrived.
-  const isLoading = transactionsLoading || balancesLoading
-  const isError = transactionsError || balancesError
+  const isLoading = transactionsLoading || balancesLoading || preferencesQuery.isLoading
+  const isError = transactionsError || balancesError || preferencesQuery.isError
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -55,21 +57,21 @@ export function useReturnsAnalysis() {
 
   const investmentAccounts = useMemo(() => {
     const accounts = balanceData?.accounts ?? {}
+    const mappings = preferencesQuery.data?.investment_account_mappings ?? {}
     return Object.entries(accounts)
-      .filter(([name]) => isInvestmentAccount(name))
+      .filter(([name]) => Object.hasOwn(mappings, name) || isInvestmentAccount(name))
       .map(([name, data]) => ({
         name,
-        balance: Math.abs((data as { balance: number; transactions: number }).balance),
-        transactions: (data as { balance: number; transactions: number }).transactions,
+        balance: data.balance,
+        transactions: data.transactions,
       }))
       .sort((a, b) => b.balance - a.balance)
-  }, [balanceData])
+  }, [balanceData, preferencesQuery.data?.investment_account_mappings])
 
-  const { dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss } =
-    useMemo(() => computeInvestmentMetrics(transactions), [transactions])
-
-  const totalIncome = investmentProfit + dividendIncome + interestIncome
-  const totalExpenses = investmentLoss + brokerFees
+  const {
+    dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,
+    totalIncome, totalExpenses, eventCount: realisedEventCount,
+  } = useMemo(() => computeInvestmentMetrics(transactions), [transactions])
 
   // `estimatedCAGR` and `roi` used to be derived here. estimatedCAGR compared
   // the FIRST and LAST month's TOTAL INCOME (salary, not investments) and called
@@ -87,12 +89,11 @@ export function useReturnsAnalysis() {
     return monthlyComboData.map(d => ({ month: d.month, net: d.net }))
   }, [monthlyComboData])
 
-  const realisedEventCount = useMemo(() => countRealisedEvents(transactions), [transactions])
-
   const retry = () => {
     const retries: Array<Promise<unknown>> = []
     if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
     if (balancesQuery.isError) retries.push(balancesQuery.refetch())
+    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
     void Promise.all(retries)
   }
 

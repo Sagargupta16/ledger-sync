@@ -7,7 +7,8 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { getDateKey } from '@/lib/dateUtils'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
-import { computePaidTax, groupTransactionsByFY } from '@/pages/tax-planning/taxPlanningUtils'
+import { computePaidTax, groupTransactionsByFY, reconcileTaxWithholding } from '@/lib/finance/taxHistory'
+import { selectSalaryStructure, usePreferencesStore } from '@/store/preferencesStore'
 
 import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 import {
@@ -31,6 +32,7 @@ export function useIncomeExpenseFlow() {
     [transactionsQuery.data],
   )
   const preferences = preferencesQuery.data
+  const salaryStructure = usePreferencesStore(selectSalaryStructure)
   const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
   const isError = transactionsQuery.isError || preferencesQuery.isError
   const retry = () => {
@@ -41,8 +43,8 @@ export function useIncomeExpenseFlow() {
   // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
   const isMobile = useIsMobile(1024)
 
-  // Same tax engine inputs the Income Tax page uses, so the sankey's Tax
-  // figures agree with that page for the same FY.
+  // Share the tax engine and classified employment inputs. The flow estimates
+  // withholding from net receipts, separately from annual tax liability.
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || FY_START_MONTH
   const salaryIsNetOfTds = preferences?.salary_is_net_of_tds ?? true
   const preferredRegime = preferences?.preferred_tax_regime || 'new'
@@ -163,23 +165,22 @@ export function useIncomeExpenseFlow() {
       subBuckets.expense,
     )
 
-    // FY-wise slab computation (same engine as the Income Tax page): group the
-    // filtered window by FY and sum each FY's computed tax-already-paid. With
-    // net-of-TDS salaries the ledger never sees that money, so the computed
-    // figure over and above explicit tax transactions is "deducted at source".
+    // Group the filtered window by FY and estimate withholding from net
+    // employment receipts. Gross receipts alone do not establish tax payment.
+    // The inferred amount above explicit tax transactions is shown separately.
     const byFY = groupTransactionsByFY(
       fyTransactions,
       fiscalYearStartMonth,
       incomeClassification,
       epfTaxableFraction,
+      salaryStructure,
     )
     const computedTax = Object.entries(byFY).reduce(
       (sum, [fy, fyData]) =>
         sum + computePaidTax(fy, fyData, null, preferredRegime, salaryIsNetOfTds),
       0,
     )
-    const tdsAtSource = Math.max(0, computedTax - totalTax)
-    const taxTotal = totalTax + tdsAtSource
+    const { tdsAtSource, taxTotal } = reconcileTaxWithholding(computedTax, totalTax)
 
     // Tax node drills into its breakdown: explicit tax categories plus the
     // computed at-source figure when present.
@@ -226,6 +227,7 @@ export function useIncomeExpenseFlow() {
     epfTaxableFraction,
     preferredRegime,
     salaryIsNetOfTds,
+    salaryStructure,
   ])
 
   // The currently displayed view: overview, a category's subcategories, or an

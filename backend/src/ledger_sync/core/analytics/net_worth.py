@@ -333,6 +333,8 @@ class NetWorthMixin(AnalyticsEngineBase):
         elif account_type == AccountType.CREDIT_CARDS.value:
             if balance < 0:  # Outstanding balance
                 result["credit_card_outstanding"] += abs(balance)
+            else:
+                result["other_assets"] += balance
         elif account_type == AccountType.INVESTMENTS.value:
             self._assign_investment_balance(result, account, balance)
         elif account_type == AccountType.LOANS.value:

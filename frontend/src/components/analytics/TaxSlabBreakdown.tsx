@@ -47,7 +47,7 @@ export default function TaxSlabBreakdown({
           {' for salaried income'}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Taxable salary after standard deduction:{' '}
+          Taxable income after standard deduction:{' '}
           {formatCurrency(Math.max(0, grossTaxableIncome - standardDeduction))}
         </p>
       </div>
@@ -203,7 +203,7 @@ export default function TaxSlabBreakdown({
                 colSpan={3}
                 className="py-4 px-2 sm:px-4 text-right text-base font-bold text-foreground"
               >
-                {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Already Paid:'}
+                {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Liability:'}
               </th>
               <td className="py-4 px-2 sm:px-4 text-right text-base">
                 <Money value={totalTax} bold className="text-primary" />

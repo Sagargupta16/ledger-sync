@@ -13,6 +13,7 @@ import {
 } from '@/store/preferencesStore'
 import type { GrowthAssumptions, RsuGrant, SalaryComponents } from '@/types/salary'
 import { DEFAULT_SALARY_COMPONENTS } from '@/types/salary'
+import { salaryCashEarnings } from '@/lib/salaryCompensation'
 
 import { Section } from '../sectionPrimitives'
 import { GrowthAssumptionsForm } from './salary/GrowthAssumptionsForm'
@@ -100,26 +101,13 @@ export default function SalaryStructureSection({
     if (idx > 0) setSelectedFY(fyKeys[idx - 1])
   }, [fyKeys, selectedFY])
 
-  const annualCTC = useMemo(() => {
-    const s = currentSalary
-    const base = Number(s.base_salary_annual) || 0
-    const hra = Number(s.hra_annual) || 0
-    const epf = (Number(s.epf_monthly) || 0) * 12
-    const nps = (Number(s.nps_monthly) || 0) * 12
-    return (
-      base +
-      hra +
-      (Number(s.bonus_annual) || 0) +
-      epf +
-      nps +
-      (Number(s.special_allowance_annual) || 0) +
-      (Number(s.other_taxable_annual) || 0)
-    )
-  }, [currentSalary])
+  const cashEarnings = useMemo(() => salaryCashEarnings(currentSalary), [currentSalary])
 
   const displayCurrency = usePreferencesStore(selectDisplayCurrency)
   const {
     fetchingPriceFor,
+    fetchingVestPricesFor,
+    priceStatusByGrant,
     addGrant,
     removeGrant,
     updateGrant,
@@ -128,10 +116,16 @@ export default function SalaryStructureSection({
     removeVesting,
     sortGrantVestings,
     fetchStockPrice,
+    fetchVestPrices,
   } = useRsuGrants(localRsuGrants, updateRsuGrants, displayCurrency)
 
   const updateGrowth = useCallback(
     (field: keyof GrowthAssumptions, raw: string | boolean) => {
+      if (field === 'bonus_mode') {
+        if (raw !== '' && raw !== 'recurring' && raw !== 'one_time') return
+        updateGrowthAssumptions({ ...localGrowthAssumptions, bonus_mode: raw || null })
+        return
+      }
       let value: number | boolean
       if (typeof raw === 'boolean') {
         value = raw
@@ -159,7 +153,7 @@ export default function SalaryStructureSection({
         selectedFY={selectedFY}
         fyIdx={fyIdx}
         currentSalary={currentSalary}
-        annualCTC={annualCTC}
+        cashEarnings={cashEarnings}
         onPrev={goPrev}
         onNext={goNext}
         onAddFY={addFY}
@@ -171,6 +165,8 @@ export default function SalaryStructureSection({
       <RsuGrants
         grants={localRsuGrants}
         fetchingPriceFor={fetchingPriceFor}
+        fetchingVestPricesFor={fetchingVestPricesFor}
+        priceStatusByGrant={priceStatusByGrant}
         onAddGrant={addGrant}
         onRemoveGrant={removeGrant}
         onUpdateGrant={updateGrant}
@@ -182,6 +178,7 @@ export default function SalaryStructureSection({
         // still type the price manually), so it never rejects; `void` adapts
         // it to the void-returning prop.
         onFetchStockPrice={(grant) => void fetchStockPrice(grant)}
+        onFetchVestPrices={(grant) => void fetchVestPrices(grant)}
       />
 
       <div className="border-t border-border" />

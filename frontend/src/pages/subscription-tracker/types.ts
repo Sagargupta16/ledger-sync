@@ -13,11 +13,4 @@ export interface RecurringFormData {
   category?: string
 }
 
-export interface RecurringSummary {
-  monthlyExpense: number
-  monthlyIncome: number
-  netMonthly: number
-  count: number
-  deactivatedExpenseSavings: number
-  deactivatedCount: number
-}
+export type { RecurringCommitmentSummary as RecurringSummary } from '@/lib/recurringCalculations'

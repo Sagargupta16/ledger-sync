@@ -16,6 +16,7 @@ import {
 import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { formatCurrencyShort } from '@/lib/formatters'
+import { cumulativeShareCutoff } from '@/lib/distribution'
 import {
   ChartContainer,
   GRID_DEFAULTS,
@@ -92,20 +93,6 @@ interface ParetoModel {
   vitalFewCount: number
 }
 
-/** Index of the first row whose cumulative share reaches `threshold`, plus one. */
-function countVitalFew(
-  sorted: readonly { amount: number }[],
-  total: number,
-  threshold: number,
-): number {
-  let running = 0
-  for (const [index, row] of sorted.entries()) {
-    running += row.amount
-    if ((running / total) * 100 >= threshold) return index + 1
-  }
-  return sorted.length
-}
-
 function buildParetoSummary(
   rowCount: number,
   vitalFewCount: number,
@@ -167,7 +154,11 @@ export default function ParetoChart({
       head = [...visible, { category: 'Other', amount: otherTotal }]
     }
 
-    const vitalFewCount = countVitalFew(sorted, total, threshold)
+    const { count: vitalFewCount } = cumulativeShareCutoff(
+      sorted.map((row) => row.amount),
+      total,
+      threshold,
+    )
 
     let running = 0
     const rows = head.map((r, i) => {

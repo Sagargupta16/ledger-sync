@@ -67,6 +67,23 @@ export function GrowthAssumptionsForm({
           />
         </div>
         <div>
+          <FieldLabel htmlFor="growth-bonus-mode">Bonus in Future Years</FieldLabel>
+          <select
+            id="growth-bonus-mode"
+            value={growth.bonus_mode ?? ''}
+            onChange={(event) => onUpdate('bonus_mode', event.target.value)}
+            className={inputClass}
+            aria-describedby="growth-bonus-mode-hint"
+          >
+            <option value="">Based on growth rate</option>
+            <option value="recurring">Repeat every year</option>
+            <option value="one_time">Only entered fiscal years</option>
+          </select>
+          <p id="growth-bonus-mode-hint" className="mt-1 text-xs text-muted-foreground">
+            Based on growth rate: 0% stops future bonuses. Choose repeat every year to keep a flat bonus.
+          </p>
+        </div>
+        <div>
           <FieldLabel htmlFor="growth-bonus">Bonus Growth (%/yr)</FieldLabel>
           <input
             id="growth-bonus"

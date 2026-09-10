@@ -23,12 +23,11 @@ from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import AccountType
 
-#: Which bucket each account type feeds, split by balance sign. ``None`` means the
-#: balance is dropped (a credit card in credit is not an asset).
+#: Which bucket each account type feeds, split by balance sign.
 _POSITIVE_BUCKET: dict[AccountType, str] = {
     AccountType.CASH: "cash_and_bank",
     AccountType.BANK_ACCOUNTS: "cash_and_bank",
-    AccountType.CREDIT_CARDS: "",
+    AccountType.CREDIT_CARDS: "other_assets",
     AccountType.INVESTMENTS: "other_assets",
     AccountType.LOANS: "other_assets",
     AccountType.OTHER_WALLETS: "other_assets",
@@ -71,10 +70,6 @@ def test_every_account_type_is_covered_by_the_case_maps() -> None:
 def test_positive_balance_lands_in_its_bucket(session: Session, account_type: AccountType) -> None:
     buckets = _buckets(session, account_type.value, "1000")
     expected = _POSITIVE_BUCKET[account_type]
-    if not expected:
-        # A credit card in credit contributes nothing; it is not an asset.
-        assert sum(buckets.values()) == Decimal(0)
-        return
     assert buckets[expected] == Decimal("1000")
     assert sum(buckets.values()) == Decimal("1000")
 
@@ -109,3 +104,41 @@ def test_unclassified_account_defaults_to_other_wallets(session: Session) -> Non
     engine = AnalyticsEngine(session, user_id=1)
     buckets = engine._categorize_account_balances({"Acct": Decimal("700")}, {})
     assert buckets["other_assets"] == Decimal("700")
+
+
+def test_internal_card_prepayment_preserves_total_net_worth(session: Session) -> None:
+    engine = AnalyticsEngine(session, user_id=1)
+    buckets = engine._categorize_account_balances(
+        {"Bank": Decimal("9000"), "Card": Decimal("1000")},
+        {
+            "Bank": AccountType.BANK_ACCOUNTS.value,
+            "Card": AccountType.CREDIT_CARDS.value,
+        },
+    )
+    assert buckets["cash_and_bank"] == Decimal("9000")
+    assert buckets["other_assets"] == Decimal("1000")
+    assert sum(buckets.values()) == Decimal("10000")
+
+
+def test_bucketed_net_worth_equals_account_balances(session: Session) -> None:
+    engine = AnalyticsEngine(session, user_id=1)
+    balances = {
+        "Bank": Decimal("9000.25"),
+        "Prepaid card": Decimal("1000.75"),
+        "Card debt": Decimal("-2000.50"),
+        "Loan": Decimal("-3000"),
+        "Wallet": Decimal("200.50"),
+    }
+    buckets = engine._categorize_account_balances(
+        balances,
+        {
+            "Bank": AccountType.BANK_ACCOUNTS.value,
+            "Prepaid card": AccountType.CREDIT_CARDS.value,
+            "Card debt": AccountType.CREDIT_CARDS.value,
+            "Loan": AccountType.LOANS.value,
+            "Wallet": AccountType.OTHER_WALLETS.value,
+        },
+    )
+    liabilities = buckets["credit_card_outstanding"] + buckets["loans_payable"]
+    assets = sum(buckets.values()) - liabilities
+    assert assets - liabilities == sum(balances.values())

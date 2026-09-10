@@ -5,28 +5,19 @@
  * tax breakdowns using calculateTax() from taxCalculator.ts.
  */
 
-import {
-  calculateTax,
-  getStandardDeduction,
-  getTaxSlabs,
-} from '@/lib/taxCalculator'
+import { parseFYStartYear as parseFYStart } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
-import { isVested, todayKey, vestingPrice } from '@/lib/rsuVesting'
+import { sumRsuCompensation, todayKey, valueRsuVestings } from '@/lib/rsuVesting'
+import { salaryCashEarnings } from '@/lib/salaryCompensation'
+import { shareOfIncomePercent } from '@/lib/savingsRate'
+import { buildSalaryPayroll } from '@/lib/finance/payrollPlanning'
 import type {
   GrowthAssumptions,
   ProjectedFYBreakdown,
   RsuGrant,
   SalaryComponents,
+  ValuedRsuVesting,
 } from '@/types/salary'
-
-/**
- * Parse the numeric start year from an FY string.
- * Handles both "2025-26" and "FY 2025-26" formats.
- */
-function parseFYStart(fy: string): number {
-  const stripped = fy.replace(/^FY\s+/i, '')
-  return Number.parseInt(stripped.split('-')[0], 10)
-}
 
 /** Last two digits of a year: 2025 -> "25", 2100 -> "00", 2099 -> "99". */
 function twoDigitYear(year: number): string {
@@ -37,28 +28,6 @@ function twoDigitYear(year: number): string {
 function offsetFY(fy: string, offset: number): string {
   const startYear = parseFYStart(fy) + offset
   return `${startYear}-${twoDigitYear(startYear + 1)}`
-}
-
-/** Get the FY string a date falls into given a fiscal year start month.
- *
- * Parses YYYY-MM components directly: `new Date('2025-04-01')` is UTC midnight
- * but getMonth()/getFullYear() return local components, shifting a 1st-of-month
- * date into the prior month (wrong FY) for negative-offset users.
- */
-function dateToFY(dateStr: string, fyStartMonth: number): string {
-  const isoMatch = /^(\d{4})-(\d{2})/.exec(dateStr)
-  let year: number
-  let month: number
-  if (isoMatch) {
-    year = Number(isoMatch[1])
-    month = Number(isoMatch[2])
-  } else {
-    const d = new Date(dateStr)
-    year = d.getUTCFullYear()
-    month = d.getUTCMonth() + 1
-  }
-  const fyStartYear = month >= fyStartMonth ? year : year - 1
-  return `${fyStartYear}-${twoDigitYear(fyStartYear + 1)}`
 }
 
 /** Safely coerce a value (possibly string from JSON) to number. */
@@ -86,45 +55,47 @@ export function getRsuVestingsByFY(
   baseStartYear?: number,
   today: string = todayKey(),
 ): Record<string, RsuFYData> {
+  return groupRsuVestingsByFY(valueRsuVestings(grants, {
+    fyStartMonth,
+    stockAppreciationPct,
+    baseStartYear,
+    today,
+  }))
+}
+
+function groupRsuVestingsByFY(events: ValuedRsuVesting[]): Record<string, RsuFYData> {
   const result: Record<string, RsuFYData> = {}
 
-  for (const grant of grants) {
-    for (const vesting of grant.vestings) {
-      const fy = dateToFY(vesting.date, fyStartMonth)
-      const fyStart = parseFYStart(fy)
-      const vested = isVested(vesting, today)
-      const yearsFromBase =
-        baseStartYear === undefined || vested ? 0 : fyStart - baseStartYear
-      const appreciationFactor = Math.pow(
-        1 + stockAppreciationPct / 100,
-        Math.max(0, yearsFromBase),
-      )
-      const adjustedPrice = vestingPrice(grant, vesting, today) * appreciationFactor
-      const vestingValue = vesting.quantity * adjustedPrice
-
-      if (!result[fy]) {
-        result[fy] = { shares: 0, value: 0, details: [] }
-      }
-      result[fy].shares += vesting.quantity
-      result[fy].value += vestingValue
-
-      const existing = result[fy].details.find(
-        (d) => d.stock_name === grant.stock_name,
-      )
-      if (existing) {
-        existing.shares += vesting.quantity
-        existing.value += vestingValue
-      } else {
-        result[fy].details.push({
-          stock_name: grant.stock_name,
-          shares: vesting.quantity,
-          value: vestingValue,
-        })
-      }
+  for (const event of events) {
+    const bucket = result[event.fy] ??= { shares: 0, value: 0, details: [] }
+    bucket.shares += event.grossQuantity
+    bucket.value += event.grossValue
+    const existing = bucket.details.find((detail) => detail.stock_name === event.stockName)
+    if (existing) {
+      existing.shares += event.grossQuantity
+      existing.value += event.grossValue
+    } else {
+      bucket.details.push({
+        stock_name: event.stockName,
+        shares: event.grossQuantity,
+        value: event.grossValue,
+      })
     }
   }
 
   return result
+}
+
+/** Missing mode preserves saved behavior; explicit recurring permits flat bonuses. */
+export function projectAnnualBonus(
+  annualBonus: number,
+  yearsOffset: number,
+  growth: Pick<GrowthAssumptions, 'bonus_growth_pct' | 'bonus_mode'>,
+): number {
+  if (yearsOffset === 0) return annualBonus
+  const recurring = growth.bonus_mode === 'recurring'
+    || (growth.bonus_mode == null && growth.bonus_growth_pct !== 0)
+  return recurring ? annualBonus * Math.pow(1 + growth.bonus_growth_pct / 100, yearsOffset) : 0
 }
 
 /** Project a single fiscal year's income and tax breakdown. */
@@ -139,7 +110,7 @@ export function projectFiscalYear(
   const baseFY =
     sortedFYs.findLast((fy) => fy <= targetFY) ?? sortedFYs[0]
   if (!baseFY || !salaryStructure[baseFY]) {
-    return emptyBreakdown(targetFY)
+    return emptyBreakdown(targetFY, fyStartMonth)
   }
 
   const base = salaryStructure[baseFY]
@@ -161,15 +132,9 @@ export function projectFiscalYear(
     return isExplicit ? N(src.hra_annual) : N(src.hra_annual) * baseGrowthFactor
   })()
 
-  const bonusAnnual = (() => {
-    if (isExplicit) return N(salaryStructure[targetFY].bonus_annual)
-    if (yearsOffset === 0) return N(base.bonus_annual)
-    if (growth.bonus_growth_pct === 0) return 0
-    return (
-      N(base.bonus_annual) *
-      Math.pow(1 + growth.bonus_growth_pct / 100, yearsOffset)
-    )
-  })()
+  const bonusAnnual = isExplicit
+    ? N(salaryStructure[targetFY].bonus_annual)
+    : projectAnnualBonus(N(base.bonus_annual), yearsOffset, growth)
 
   const epfAnnual = (() => {
     if (isExplicit) return N(salaryStructure[targetFY].epf_monthly) * MONTHS_PER_YEAR
@@ -193,44 +158,37 @@ export function projectFiscalYear(
     : N(base.other_taxable_annual)
 
   const baseStartYear = parseFYStart(baseFY)
-  const rsuByFY = getRsuVestingsByFY(
-    rsuGrants,
+  const rsuVestingEvents = valueRsuVestings(rsuGrants, {
     fyStartMonth,
-    growth.stock_price_appreciation_pct,
+    stockAppreciationPct: growth.stock_price_appreciation_pct,
     baseStartYear,
-  )
+  }).filter((event) => event.fy === targetFY)
+  const rsuByFY = groupRsuVestingsByFY(rsuVestingEvents)
   const rsuData = rsuByFY[targetFY] ?? { shares: 0, value: 0, details: [] }
+  const rsuCompensation = sumRsuCompensation(rsuVestingEvents)
 
-  const grossTaxable =
-    baseSalaryAnnual +
-    hraAnnual +
-    bonusAnnual +
-    specialAllowanceAnnual +
-    otherTaxableAnnual +
-    rsuData.value -
-    epfAnnual
-
-  const fyStartYear = parseFYStart(targetFY)
-  const standardDeduction = getStandardDeduction(fyStartYear)
+  const cashEarnings = salaryCashEarnings({
+    base_salary_annual: baseSalaryAnnual,
+    hra_annual: hraAnnual,
+    bonus_annual: bonusAnnual,
+    special_allowance_annual: specialAllowanceAnnual,
+    other_taxable_annual: otherTaxableAnnual,
+  }).annual
+  const { grossTaxable, standardDeduction, taxResult, compensation } = buildSalaryPayroll({
+    cashEarnings,
+    cashDeductions: epfAnnual,
+    bonus: bonusAnnual,
+    rsuVestingEvents,
+    fyStartYear: parseFYStart(targetFY),
+    fyStartMonth,
+    regime: 'new',
+  })
   const netTaxable = Math.max(0, grossTaxable - standardDeduction)
-
-  const slabs = getTaxSlabs(fyStartYear, 'new')
-  const taxResult = calculateTax(
-    grossTaxable,
-    slabs,
-    standardDeduction,
-    true,
-    12,
-    true,
-    fyStartYear,
-  )
-
-  const takeHome = grossTaxable - taxResult.totalTax
-  const effectiveTaxRate =
-    grossTaxable > 0 ? (taxResult.totalTax / grossTaxable) * 100 : 0
+  const effectiveTaxRate = shareOfIncomePercent(taxResult.totalTax, grossTaxable)
 
   return {
     fy: targetFY,
+    fyStartMonth,
     baseSalary: baseSalaryAnnual,
     hra: hraAnnual,
     bonus: bonusAnnual,
@@ -240,11 +198,18 @@ export function projectFiscalYear(
     otherTaxable: otherTaxableAnnual,
     rsuIncome: rsuData.value,
     rsuDetails: rsuData.details,
+    rsuVestingEvents,
+    cashEarnings,
+    cashDeductions: epfAnnual,
     grossTaxable,
     standardDeduction,
     netTaxable,
     totalTax: taxResult.totalTax,
-    takeHome,
+    takeHome: compensation.cashTakeHome,
+    ...compensation,
+    rsuWithholding: rsuCompensation.withholdingValue,
+    rsuRecordedWithholding: rsuCompensation.recordedWithholding,
+    rsuEstimatedWithholding: rsuCompensation.estimatedWithholding,
     effectiveTaxRate,
     isProjected: !isExplicit || yearsOffset > 0,
   }
@@ -273,9 +238,10 @@ export function projectMultipleYears(
   return results
 }
 
-function emptyBreakdown(fy: string): ProjectedFYBreakdown {
+function emptyBreakdown(fy: string, fyStartMonth: number): ProjectedFYBreakdown {
   return {
     fy,
+    fyStartMonth,
     baseSalary: 0,
     hra: 0,
     bonus: 0,
@@ -285,11 +251,22 @@ function emptyBreakdown(fy: string): ProjectedFYBreakdown {
     otherTaxable: 0,
     rsuIncome: 0,
     rsuDetails: [],
+    rsuVestingEvents: [],
+    cashEarnings: 0,
+    cashDeductions: 0,
     grossTaxable: 0,
     standardDeduction: 0,
     netTaxable: 0,
     totalTax: 0,
     takeHome: 0,
+    cashTakeHome: 0,
+    netShareValue: 0,
+    netCompensation: 0,
+    payrollTax: 0,
+    rsuWithholding: 0,
+    rsuRecordedWithholding: 0,
+    rsuEstimatedWithholding: 0,
+    excessShareWithholding: 0,
     effectiveTaxRate: 0,
     isProjected: true,
   }

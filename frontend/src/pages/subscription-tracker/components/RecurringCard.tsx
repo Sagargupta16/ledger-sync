@@ -11,11 +11,13 @@ import {
   CheckCircle2,
   Receipt,
   ShoppingBag,
+  CircleHelp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button, Input, Select } from '@/components/ui'
 import { formatCurrency } from '@/lib/formatters'
+import { getRecurringFreshness } from '@/lib/recurringCalculations'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
 import { FREQUENCY_OPTIONS } from '../constants'
@@ -32,10 +34,12 @@ interface RecurringCardPatch {
 
 export function RecurringCard({
   item,
+  asOfDateKey,
   onUpdate,
   onDelete,
 }: Readonly<{
   item: RecurringTransaction
+  asOfDateKey: string
   onUpdate: (patch: RecurringCardPatch) => void
   onDelete: () => void
 }>) {
@@ -47,6 +51,7 @@ export function RecurringCard({
   const monthly = toMonthlyAmount(item.expected_amount, item.frequency)
   const isIncome = item.type === 'Income'
   const isHabit = item.pattern_kind === 'habit'
+  const freshness = getRecurringFreshness(item, asOfDateKey)
 
   const saveEdit = () => {
     const amt = Number(editAmt)
@@ -155,7 +160,18 @@ export function RecurringCard({
                   Detected
                 </span>
               )}
+              {freshness === 'needs-review' && (
+                <span className="inline-flex items-center gap-1 rounded bg-app-yellow/10 px-1.5 py-0.5 text-[11px] font-medium text-warning-text">
+                  <CircleHelp aria-hidden="true" className="h-3 w-3" />
+                  <span>Needs review</span>
+                </span>
+              )}
             </div>
+            {freshness === 'needs-review' && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                No recent matching entry. Review whether this still recurs.
+              </p>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary">
               {item.category && <span>{item.category}</span>}
               {item.last_occurrence && (

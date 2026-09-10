@@ -1,0 +1,159 @@
+.currency-atmosphere {
+  --currency-ink: var(--color-text-tertiary);
+  --currency-opacity: 0.22;
+  --currency-opacity-soft: 0.14;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+  user-select: none;
+}
+
+html[data-theme='light'] .currency-atmosphere {
+  --currency-opacity: 0.17;
+  --currency-opacity-soft: 0.11;
+}
+
+.currency-atmosphere__mark {
+  --currency-tilt: -12deg;
+  --currency-drift-x: 10px;
+  --currency-duration: 28s;
+  --currency-delay: -8s;
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  color: var(--currency-ink);
+  font-family: var(--font-sans);
+  font-size: 3rem;
+  font-weight: 300;
+  line-height: 1;
+  opacity: var(--currency-opacity-soft);
+  transform: rotate(var(--currency-tilt));
+}
+
+.currency-atmosphere__mark--rupee-north,
+.currency-atmosphere__mark--rupee-south,
+.currency-atmosphere__mark--rupee-east {
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--color-app-blue);
+}
+
+.currency-atmosphere__mark--rupee-north {
+  top: 15%;
+  left: -1.5rem;
+  width: 5.5rem;
+  height: 5.5rem;
+  font-size: 3.5rem;
+}
+
+.currency-atmosphere__mark--euro-east {
+  --currency-tilt: 14deg;
+  --currency-drift-x: -12px;
+  --currency-duration: 34s;
+  --currency-delay: -21s;
+  top: 43%;
+  right: -1rem;
+}
+
+.currency-atmosphere__mark--rupee-south {
+  --currency-tilt: 8deg;
+  --currency-duration: 32s;
+  --currency-delay: -17s;
+  bottom: 14%;
+  left: -0.75rem;
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.currency-atmosphere__mark--dollar-west {
+  --currency-tilt: -9deg;
+  --currency-duration: 30s;
+  --currency-delay: -23s;
+  top: 46%;
+  left: 1.5rem;
+  font-size: 2.5rem;
+}
+
+.currency-atmosphere__mark--rupee-east {
+  --currency-tilt: 16deg;
+  --currency-drift-x: -8px;
+  --currency-duration: 38s;
+  --currency-delay: -11s;
+  right: 1.5rem;
+  bottom: 8%;
+  width: 6rem;
+  height: 6rem;
+  font-size: 4rem;
+}
+
+.currency-atmosphere__mark--pound-north {
+  --currency-tilt: -16deg;
+  --currency-drift-x: -6px;
+  --currency-duration: 26s;
+  --currency-delay: -19s;
+  top: 8%;
+  right: 20%;
+  font-size: 2.5rem;
+}
+
+.currency-atmosphere__mark--rupee-west {
+  --currency-tilt: 12deg;
+  --currency-duration: 36s;
+  --currency-delay: -27s;
+  bottom: 6%;
+  left: 24%;
+  font-size: 3.5rem;
+}
+
+html[data-motion='full'] .currency-atmosphere__mark {
+  animation: currency-atmosphere-drift var(--currency-duration)
+    cubic-bezier(0.45, 0, 0.55, 1) var(--currency-delay) infinite alternate;
+}
+
+html[data-motion='reduced'] .currency-atmosphere__mark {
+  animation: none;
+}
+
+@keyframes currency-atmosphere-drift {
+  from {
+    opacity: var(--currency-opacity-soft);
+    transform: translate3d(0, 0, 0) rotate(var(--currency-tilt));
+  }
+  to {
+    opacity: var(--currency-opacity);
+    transform: translate3d(var(--currency-drift-x), -28px, 0)
+      rotate(calc(var(--currency-tilt) + 6deg));
+  }
+}
+
+@media (min-width: 640px) {
+  .currency-atmosphere__mark--rupee-north {
+    left: 1rem;
+  }
+
+  .currency-atmosphere__mark--euro-east {
+    right: 0.5rem;
+  }
+
+  .currency-atmosphere__mark--rupee-south {
+    bottom: 24%;
+    left: 38%;
+  }
+}
+
+@media (max-width: 639px) {
+  .currency-atmosphere__mark:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+@media print {
+  .currency-atmosphere {
+    display: none;
+  }
+}

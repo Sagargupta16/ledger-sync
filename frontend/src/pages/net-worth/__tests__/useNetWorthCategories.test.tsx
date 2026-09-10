@@ -57,9 +57,14 @@ const TRANSACTIONS: Transaction[] = [
   } as unknown as Transaction,
 ]
 
+const balancesRef: {
+  current: { accounts: Record<string, { balance: number; transactions: number }> }
+} = { current: balances }
+const transactionsRef = { current: TRANSACTIONS }
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useAccountBalances: () => ({
-    data: balances,
+    data: balancesRef.current,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -68,7 +73,7 @@ vi.mock('@/hooks/api/useAnalytics', () => ({
 
 vi.mock('@/hooks/api/useTransactions', () => ({
   useTransactions: () => ({
-    data: TRANSACTIONS,
+    data: transactionsRef.current,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -100,6 +105,8 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('useNetWorth -- stacked asset categories', () => {
   beforeEach(() => {
+    balancesRef.current = balances
+    transactionsRef.current = TRANSACTIONS
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 6, 26))
   })
@@ -129,5 +136,41 @@ describe('useNetWorth -- stacked asset categories', () => {
   it('never emits a bare Loans category, which is not a wire value', () => {
     const { result } = renderHook(() => useNetWorth(), { wrapper })
     expect(result.current.allCategories).not.toContain('Loans')
+  })
+
+  it('allocates the full positive cash-flow balance across only included assets', () => {
+    const { result } = renderHook(() => useNetWorth(), { wrapper })
+    const point = result.current.filteredNetWorthData[0]
+    const stackedTotal = result.current.allCategories.reduce(
+      (sum, category) => sum + Number(point[category]),
+      0,
+    )
+    // Positive excluded Loans/Lended and Other balances do not dilute this stack.
+    expect(stackedTotal).toBeCloseTo(100_000)
+    expect(point['Bank Accounts']).toBeCloseTo(100_000 * 200_000 / 505_000)
+    expect(result.current.totalAssets).toBe(514_000)
+    expect(result.current.totalLiabilities).toBe(20_000)
+  })
+
+  it('keeps a bank overdraft out of positive category values', () => {
+    balancesRef.current = {
+      accounts: {
+        'Bank A': { balance: 100_000, transactions: 1 },
+        'Overdraft Bank': { balance: -40_000, transactions: 1 },
+      },
+    }
+    transactionsRef.current = [
+      ...TRANSACTIONS,
+      { ...TRANSACTIONS[0], id: 't-2', type: 'Expense', amount: 40_000 },
+    ]
+    const { result } = renderHook(() => useNetWorth(), { wrapper })
+    expect(result.current.totalAssets).toBe(100_000)
+    expect(result.current.totalLiabilities).toBe(40_000)
+    expect(result.current.netWorth).toBe(60_000)
+    expect(result.current.allCategories).toEqual(['Bank Accounts'])
+    expect(result.current.filteredNetWorthData[0]).toMatchObject({
+      netWorth: 60_000,
+      'Bank Accounts': 60_000,
+    })
   })
 })

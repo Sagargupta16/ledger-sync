@@ -11,8 +11,9 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { calculateTax, getStandardDeduction, getTaxSlabs } from '@/lib/taxCalculator'
 import type { TaxSlab } from '@/lib/taxCalculator'
+import { buildTaxRateCurve, effectiveTaxRate, type TaxRateCurvePoint } from '@/lib/finance/taxRateCurve'
+import { shareOfIncomePercent } from '@/lib/savingsRate'
 import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -29,6 +30,8 @@ interface EffectiveTaxRateChartProps {
   isNewRegime?: boolean
   fyYear: number
   currentIncome?: number
+  currentTax?: number
+  hasEmploymentIncome?: boolean
 }
 
 const RANGE_OPTIONS = [
@@ -43,53 +46,23 @@ export default function EffectiveTaxRateChart({
   fyYear,
   isNewRegime = true,
   currentIncome = 0,
+  currentTax,
+  hasEmploymentIncome = true,
 }: Readonly<EffectiveTaxRateChartProps>) {
   const [maxIncome, setMaxIncome] = useState(5000000)
   const { animate, isMobile } = useChartPresentation(101)
 
-  // Compute BOTH regime curves for side-by-side comparison
-  const chartData = useMemo(() => {
-    const points = 100
-    const step = maxIncome / points
-    const newSlabs = getTaxSlabs(fyYear, 'new')
-    const oldSlabs = getTaxSlabs(fyYear, 'old')
-    const newDeduction = getStandardDeduction(fyYear, 'new')
-    const oldDeduction = getStandardDeduction(fyYear, 'old')
-
-    const data: Array<{
-      income: number
-      newRegimeRate: number
-      oldRegimeRate: number
-    }> = []
-
-    for (let i = 0; i <= points; i++) {
-      const income = Math.round(step * i)
-      if (income === 0) {
-        data.push({ income: 0, newRegimeRate: 0, oldRegimeRate: 0 })
-        continue
-      }
-
-      const newResult = calculateTax(
-        income, newSlabs, newDeduction, false, 12, true, fyYear,
-      )
-      const oldResult = calculateTax(
-        income, oldSlabs, oldDeduction, false, 12, false, fyYear,
-      )
-
-      data.push({
-        income,
-        newRegimeRate: Math.round(((newResult.totalTax / income) * 100) * 100) / 100,
-        oldRegimeRate: Math.round(((oldResult.totalTax / income) * 100) * 100) / 100,
-      })
-    }
-
-    return data
-  }, [maxIncome, fyYear])
+  // Regime availability follows the same tax plan as the page's selector.
+  const { points: chartData, newRegimeAvailable } = useMemo(
+    () => buildTaxRateCurve(maxIncome, fyYear, hasEmploymentIncome),
+    [maxIncome, fyYear, hasEmploymentIncome],
+  )
+  const selectedNewRegime = isNewRegime && newRegimeAvailable
 
   // Find crossover point where old regime becomes better
   const crossoverIncome = useMemo(() => {
     for (const point of chartData) {
-      if (point.income > 0 && point.oldRegimeRate < point.newRegimeRate) {
+      if (point.newRegimeRate !== undefined && point.income > 0 && point.oldRegimeRate < point.newRegimeRate) {
         return point.income
       }
     }
@@ -98,16 +71,15 @@ export default function EffectiveTaxRateChart({
 
   const currentPoint = useMemo(() => {
     if (currentIncome <= 0) return null
-    const regime = isNewRegime ? 'new' : 'old'
-    const slabs = getTaxSlabs(fyYear, regime)
-    const result = calculateTax(
-      currentIncome, slabs, getStandardDeduction(fyYear, regime), false, 12, isNewRegime, fyYear,
-    )
+    const regime = selectedNewRegime ? 'new' : 'old'
+    const rate = currentTax === undefined
+      ? effectiveTaxRate(currentIncome, fyYear, regime, hasEmploymentIncome)
+      : shareOfIncomePercent(currentTax, currentIncome)
     return {
       income: currentIncome,
-      effectiveRate: Math.round(((result.totalTax / currentIncome) * 100) * 100) / 100,
+      effectiveRate: Number(rate.toFixed(2)),
     }
-  }, [currentIncome, fyYear, isNewRegime])
+  }, [currentIncome, currentTax, fyYear, selectedNewRegime, hasEmploymentIncome])
 
   return (
     <motion.div
@@ -121,7 +93,10 @@ export default function EffectiveTaxRateChart({
             <TrendingUp aria-hidden="true" className="size-4 shrink-0 text-app-orange" />
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Includes each regime's standard deduction, before additional deductions
+            {hasEmploymentIncome
+              ? 'Full-year employment-income curves, including standard deduction and professional tax.'
+              : 'Non-employment income curves, without salary deductions or professional tax.'}
+            {' '}Your marker uses the estimate shown above.
           </p>
           {fyYear !== 0 && (
             <p className="mt-2 font-mono text-[11px] tabular-nums text-muted-foreground">
@@ -136,7 +111,7 @@ export default function EffectiveTaxRateChart({
               {currentPoint.effectiveRate.toFixed(2)}<span className="ml-1 text-sm text-muted-foreground">%</span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {isNewRegime ? 'New' : 'Old'} regime at {formatCurrencyShort(currentPoint.income)}
+              {selectedNewRegime ? 'New' : 'Old'} regime at {formatCurrencyShort(currentPoint.income)}
             </p>
           </div>
         )}
@@ -145,7 +120,13 @@ export default function EffectiveTaxRateChart({
         {fyYear === 0 ? (
           <ChartEmptyState height={320} message="Select a financial year to view effective tax rates" />
         ) : (
-        <ChartContainer height={320} mobileHeight={260} ariaLabel="Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers">
+        <ChartContainer
+          height={320}
+          mobileHeight={260}
+          ariaLabel={newRegimeAvailable
+            ? 'Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers'
+            : 'Effective tax rate by income for the old regime, with your-income marker'}
+        >
           <LineChart data={chartData} margin={{ top: 24, right: isMobile ? 8 : 16, bottom: 8, left: 0 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
@@ -169,10 +150,13 @@ export default function EffectiveTaxRateChart({
               {...chartTooltipProps}
               cursor={CHART_LINE_CURSOR_STYLE}
               content={<ChartTooltipContent />}
-              formatter={(value, name) => [
-                typeof value === 'number' ? `${value.toFixed(2)}%` : '',
-                name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
-              ]}
+              formatter={(value, name) => {
+                if (name === 'newRegimeRate' && !newRegimeAvailable) return null
+                return [
+                  typeof value === 'number' ? `${value.toFixed(2)}%` : '',
+                  name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
+                ]
+              }}
               labelFormatter={(label: unknown) => `Income: ${formatCurrencyShort(Number(label))}`}
             />
             {/* Old Regime -- blue dashed line (no fill, so the crossover with
@@ -192,18 +176,20 @@ export default function EffectiveTaxRateChart({
               isAnimationActive={animate}
             />
             {/* New Regime -- orange solid line */}
-            <Line
-              type="monotone"
-              dataKey="newRegimeRate"
-              stroke={rawColors.app.orange}
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.orange }}
-              name="newRegimeRate"
-              animationDuration={520}
-              animationEasing="ease-out"
-              isAnimationActive={animate}
-            />
+            {newRegimeAvailable && (
+              <Line
+                type="monotone"
+                dataKey="newRegimeRate"
+                stroke={rawColors.app.orange}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.orange }}
+                name="newRegimeRate"
+                animationDuration={520}
+                animationEasing="ease-out"
+                isAnimationActive={animate}
+              />
+            )}
             {/* Crossover marker */}
             {crossoverIncome && crossoverIncome <= maxIncome && (
               <ReferenceLine
@@ -249,10 +235,12 @@ export default function EffectiveTaxRateChart({
       {/* Legend + Range selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
         <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:w-auto">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.app.orange }} />
-            <span>New Regime</span>
-          </div>
+          {newRegimeAvailable && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.app.orange }} />
+              <span>New Regime</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-0.5 rounded border-dashed border-t-2" style={{ borderColor: rawColors.app.blue }} />
             <span>Old Regime</span>
@@ -266,7 +254,7 @@ export default function EffectiveTaxRateChart({
           {currentPoint && (
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
-              <span>You, {isNewRegime ? 'new' : 'old'} ({currentPoint.effectiveRate}%)</span>
+              <span>You, {selectedNewRegime ? 'new' : 'old'} ({currentPoint.effectiveRate}%)</span>
             </div>
           )}
         </div>
@@ -298,7 +286,10 @@ export default function EffectiveTaxRateChart({
         chartData,
         [
           { header: 'Annual income', rowHeader: true, value: (row) => formatCurrencyShort(row.income) },
-          { header: 'New regime effective rate', value: (row) => `${row.newRegimeRate.toFixed(2)}%` },
+          ...(newRegimeAvailable ? [{
+            header: 'New regime effective rate',
+            value: (row: TaxRateCurvePoint) => row.newRegimeRate === undefined ? '' : `${row.newRegimeRate.toFixed(2)}%`,
+          }] : []),
           { header: 'Old regime effective rate', value: (row) => `${row.oldRegimeRate.toFixed(2)}%` },
         ],
         `Effective tax rates for financial year ${fyYear}-${String(fyYear + 1).slice(-2)}`,

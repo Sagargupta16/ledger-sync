@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useDeferredValue, useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MotionConfig } from 'motion/react'
@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@/constants'
 import AppLayout from '@/components/layout/AppLayout'
+import { PAGE_TITLES } from '@/components/layout/pageTitles'
 import { Spinner } from '@/components/ui'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
@@ -224,13 +225,71 @@ function AuthInitializer({ children }: Readonly<{ children: React.ReactNode }>) 
   return <>{children}</>
 }
 
-function AuthenticatedLayout() {
+function AuthenticatedLayout({ pendingTitle }: Readonly<{ pendingTitle?: string }>) {
   const userId = useAuthStore((state) => state.user?.id)
   const demo = useDemoStore((state) => state.isDemoMode)
   return (
     <ProtectedRoute>
-      <AppLayout key={demo ? 'demo' : userId ?? 'anonymous'} />
+      <AppLayout key={demo ? 'demo' : userId ?? 'anonymous'} pendingTitle={pendingTitle} />
     </ProtectedRoute>
+  )
+}
+
+function AppRoutes() {
+  const location = useLocation()
+  const deferredLocation = useDeferredValue(location)
+  // BrowserRouter keeps requested locations urgent so pending feedback can paint
+  // while this deferred workspace waits for a destination chunk.
+  // Public and authentication routes always switch immediately.
+  const isPublicRoute = location.pathname === '/' || location.pathname === '/demo' || location.pathname.startsWith('/auth/')
+  const visibleLocation = isPublicRoute ? location : deferredLocation
+  const pendingTitle = location.pathname === visibleLocation.pathname
+    ? undefined
+    : PAGE_TITLES[location.pathname] ?? 'Page'
+
+  return (
+    <Routes location={visibleLocation}>
+      {/* Public routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/demo" element={<DemoEntryPage />} />
+      <Route path="/auth/callback/:provider" element={<OAuthCallbackPage />} />
+
+      {/* Protected routes with layout */}
+      <Route
+        path="/*"
+        element={<AuthenticatedLayout pendingTitle={pendingTitle} />}
+      >
+        <Route path="home" element={<Navigate replace to={ROUTES.DASHBOARD} />} />
+        <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
+        <Route path={toRelativePath(ROUTES.OVERVIEW)} element={<OverviewPage />} />
+        <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
+        <Route path={toRelativePath(ROUTES.SETTINGS)} element={<SettingsPage />} />
+        <Route path={toRelativePath(ROUTES.TRANSACTIONS)} element={<TransactionsPage />} />
+        <Route path={toRelativePath(ROUTES.INVESTMENT_ANALYTICS)} element={<InvestmentAnalyticsPage />} />
+        <Route path={toRelativePath(ROUTES.MUTUAL_FUND_PROJECTION)} element={<MutualFundProjectionPage />} />
+        <Route path={toRelativePath(ROUTES.RETURNS_ANALYSIS)} element={<ReturnsAnalysisPage />} />
+        <Route path={toRelativePath(ROUTES.TAX_PLANNING)} element={<TaxPlanningPage />} />
+        <Route path={toRelativePath(ROUTES.GST_ANALYSIS)} element={<GSTAnalysisPage />} />
+        <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
+        <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
+        <Route path={toRelativePath(ROUTES.MERCHANT_INTELLIGENCE)} element={<MerchantIntelligencePage />} />
+        <Route path={toRelativePath(ROUTES.INCOME_ANALYSIS)} element={<IncomeAnalysisPage />} />
+        <Route path={toRelativePath(ROUTES.INCOME_EXPENSE_FLOW)} element={<IncomeExpenseFlowPage />} />
+        <Route path={toRelativePath(ROUTES.TRENDS_FORECASTS)} element={<TrendsForecastsPage />} />
+        <Route path={toRelativePath(ROUTES.COMPARISON)} element={<ComparisonPage />} />
+        <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
+        <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
+        <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
+        <Route path={toRelativePath(ROUTES.DATA_HEALTH)} element={<DataHealthPage />} />
+        <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
+        <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
+        <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
+        <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />
+        <Route path={toRelativePath(ROUTES.MORE)} element={<MorePage />} />
+        {/* 404 catch-all for unmatched routes */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   )
 }
 
@@ -279,51 +338,10 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthInitializer>
           <PreferencesProvider>
-            <BrowserRouter basename={import.meta.env.BASE_URL}>
+            <BrowserRouter basename={import.meta.env.BASE_URL} useTransitions={false}>
               <ChunkErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/demo" element={<DemoEntryPage />} />
-                  <Route path="/auth/callback/:provider" element={<OAuthCallbackPage />} />
-
-                  {/* Protected routes with layout */}
-                  <Route
-                    path="/*"
-                    element={<AuthenticatedLayout />}
-                  >
-                    <Route path="home" element={<Navigate replace to={ROUTES.DASHBOARD} />} />
-                    <Route path={toRelativePath(ROUTES.DASHBOARD)} element={<DashboardPage />} />
-                    <Route path={toRelativePath(ROUTES.OVERVIEW)} element={<OverviewPage />} />
-                    <Route path={toRelativePath(ROUTES.UPLOAD)} element={<UploadSyncPage />} />
-                    <Route path={toRelativePath(ROUTES.SETTINGS)} element={<SettingsPage />} />
-                    <Route path={toRelativePath(ROUTES.TRANSACTIONS)} element={<TransactionsPage />} />
-                    <Route path={toRelativePath(ROUTES.INVESTMENT_ANALYTICS)} element={<InvestmentAnalyticsPage />} />
-                    <Route path={toRelativePath(ROUTES.MUTUAL_FUND_PROJECTION)} element={<MutualFundProjectionPage />} />
-                    <Route path={toRelativePath(ROUTES.RETURNS_ANALYSIS)} element={<ReturnsAnalysisPage />} />
-                    <Route path={toRelativePath(ROUTES.TAX_PLANNING)} element={<TaxPlanningPage />} />
-                    <Route path={toRelativePath(ROUTES.GST_ANALYSIS)} element={<GSTAnalysisPage />} />
-                    <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
-                    <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
-                    <Route path={toRelativePath(ROUTES.MERCHANT_INTELLIGENCE)} element={<MerchantIntelligencePage />} />
-                    <Route path={toRelativePath(ROUTES.INCOME_ANALYSIS)} element={<IncomeAnalysisPage />} />
-                    <Route path={toRelativePath(ROUTES.INCOME_EXPENSE_FLOW)} element={<IncomeExpenseFlowPage />} />
-                    <Route path={toRelativePath(ROUTES.TRENDS_FORECASTS)} element={<TrendsForecastsPage />} />
-                    <Route path={toRelativePath(ROUTES.COMPARISON)} element={<ComparisonPage />} />
-                    <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
-                    <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
-                    <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
-                    <Route path={toRelativePath(ROUTES.DATA_HEALTH)} element={<DataHealthPage />} />
-                    <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
-                    <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />
-                    <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
-                    <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />
-                    <Route path={toRelativePath(ROUTES.MORE)} element={<MorePage />} />
-                    {/* 404 catch-all for unmatched routes */}
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Route>
-                </Routes>
+                <AppRoutes />
               </Suspense>
               </ChunkErrorBoundary>
             </BrowserRouter>

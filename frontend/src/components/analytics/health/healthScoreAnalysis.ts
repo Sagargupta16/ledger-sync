@@ -1,5 +1,5 @@
 import type { Transaction } from '@/types'
-import type { CFPScoreInputs } from '@/lib/financialHealthCalculator'
+import { liquidAssetsFromFlows, type CFPScoreInputs } from '@/lib/financialHealthCalculator'
 import {
   completeMonthKeys,
   investmentAllocationRatePercent,
@@ -14,8 +14,7 @@ import {
   DEBT_CATEGORIES,
   DISCRETIONARY_CATEGORIES,
   ESSENTIAL_CATEGORIES,
-  checkIsInvestmentTransaction,
-  checkIsInvestmentWithdrawal,
+  healthInvestmentTransferDelta,
   matchesCategoryList,
   weightedCoefficientOfVariation,
 } from './healthScoreTypes'
@@ -42,12 +41,13 @@ export function classifyTransaction(
   const amount = Math.abs(tx.amount)
   const category = tx.category || 'Other'
 
-  if (checkIsInvestmentTransaction(tx, isInvestmentAccount)) {
-    bucket.investmentInflow += amount
+  const investmentDelta = healthInvestmentTransferDelta(tx, isInvestmentAccount)
+  if (investmentDelta > 0) {
+    bucket.investmentInflow += investmentDelta
     return
   }
-  if (checkIsInvestmentWithdrawal(tx, isInvestmentAccount)) {
-    bucket.investmentOutflow += amount
+  if (investmentDelta < 0) {
+    bucket.investmentOutflow -= investmentDelta
     return
   }
   if (tx.type === 'Income') {
@@ -164,7 +164,7 @@ export function computeAnalysis(
   // balance feed is available do we fall back to the old cumulative-flow
   // proxy -- which understates badly for anyone whose lifetime investing
   // exceeds their lifetime cash surplus (it clamps to 0).
-  const flowProxyLiquid = Math.max(0, cumulativeNetSavings - Math.max(0, totalNetInvestment))
+  const flowProxyLiquid = liquidAssetsFromFlows(cumulativeNetSavings, totalNetInvestment)
   const liquidSavings = balances ? balances.liquidAssets : flowProxyLiquid
   const emergencyFundMonths = avgMonthlyExpense > 0 ? liquidSavings / avgMonthlyExpense : 0
 

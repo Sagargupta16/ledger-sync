@@ -380,8 +380,8 @@ export function getStandardDeduction(
 }
 
 /**
- * Parse the numeric start year from an FY label like "FY 2025-26".
+ * Parse the start year from "FY 2025-26", "FY2025-26", or "2025-26".
  */
 export function parseFYStartYear(fyLabel: string): number {
-  return Number.parseInt(fyLabel.split(' ')[1]?.split('-')[0] || '0', 10)
+  return Number.parseInt(fyLabel.trim().replace(/^FY\s*/i, '').split('-')[0] || '0', 10)
 }

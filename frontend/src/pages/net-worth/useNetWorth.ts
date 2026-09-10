@@ -6,17 +6,21 @@ import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import { capSeriesToToday, dropPartialMonth, formatMonthKey } from '@/lib/dateUtils'
+import {
+  buildMonthlyNetWorthBalances,
+  computeLinearGrowthStats,
+  computeNetWorthTimeSeries,
+  projectNetWorthLinearBand,
+  summarizeNetWorthAccounts,
+  type NetWorthPoint,
+} from '@/lib/finance/netWorth'
 
 import {
   buildMilestoneRows,
-  computeLinearGrowthStats,
   downsampleToMonthly,
-  projectNetWorthLinearBand,
-  type NetWorthPoint,
 } from './netWorthProjection'
 import {
   NON_ASSET_CATEGORIES,
-  computeNetWorthTimeSeries,
   resolveAccountCategory,
   resolveAccountType,
 } from './netWorthUtils'
@@ -65,15 +69,6 @@ export function useNetWorth() {
   }
 
   const accounts = useMemo(() => balanceData?.accounts ?? {}, [balanceData?.accounts])
-  const totalAssets = Object.values(accounts)
-    .filter((acc) => acc.balance > 0)
-    .reduce((sum, acc) => sum + acc.balance, 0)
-  const totalLiabilities = Math.abs(
-    Object.values(accounts)
-      .filter((acc) => acc.balance < 0)
-      .reduce((sum, acc) => sum + acc.balance, 0),
-  )
-  const netWorth = totalAssets - totalLiabilities
 
   const investmentMappings = useMemo(
     () => preferences?.investment_account_mappings ?? {},
@@ -91,40 +86,23 @@ export function useNetWorth() {
     [classifications, investmentMappings],
   )
 
-  const categoryTotals = useMemo(() => {
-    return Object.entries(accounts).reduce(
-      (acc, [name, data]) => {
-        const category = categorizeAccount(name)
-        if (!acc[category]) acc[category] = 0
-        acc[category] += Math.abs(data.balance)
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-  }, [accounts, categorizeAccount])
-
-  // Asset categories only -- the stacked series splits POSITIVE net worth, so
-  // liabilities and the unclassified bucket are excluded. The exclusion list
-  // lives beside the category vocabulary in netWorthUtils; the literal array
-  // that used to sit here carried a dead `'Loans'` entry (the backend enum
-  // serializes `'Loans/Lended'`) and would have gone stale again on any rename.
-  const allCategories = useMemo(
+  const {
+    totalAssets,
+    totalLiabilities,
+    netWorth,
+    assetCategories: allCategories,
+    categoryProportions,
+  } = useMemo(
     () =>
-      Object.keys(categoryTotals).filter(
-        (cat) => !(NON_ASSET_CATEGORIES as readonly string[]).includes(cat),
+      summarizeNetWorthAccounts(
+        Object.entries(accounts).map(([name, data]) => ({
+          category: categorizeAccount(name),
+          balance: data.balance,
+        })),
+        NON_ASSET_CATEGORIES,
       ),
-    [categoryTotals],
+    [accounts, categorizeAccount],
   )
-
-  const totalPositive = useMemo(() => totalAssets, [totalAssets])
-
-  const categoryProportions = useMemo(() => {
-    const props: Record<string, number> = {}
-    allCategories.forEach((cat) => {
-      props[cat] = totalPositive > 0 ? (categoryTotals[cat] || 0) / totalPositive : 0
-    })
-    return props
-  }, [categoryTotals, allCategories, totalPositive])
 
   /**
    * Daily cumulative net worth, with future-dated rows cut off.
@@ -178,52 +156,32 @@ export function useNetWorth() {
     [chartSeries],
   )
 
-  /**
-   * `chartSeries` with the in-progress month removed -- the basis for every
-   * month-over-month figure on the page.
-   *
-   * `computeLinearGrowthStats` averages month-END deltas, so a month that is 26
-   * of 31 days done contributes a stub delta as if it were a full month. On the
-   * real ledger that pulled the model to 114,005/month with sigma 74,889 off a
-   * final delta of -97,823, where the completed months give 120,553/month, sigma
-   * 55,645 and a final delta of +144,411. The chart itself still shows today.
-   */
-  const completeMonthSeries: NetWorthPoint[] = useMemo(
-    () => dropPartialMonth(chartSeries, 'date'),
+  const monthEndSeries = useMemo(
+    () => buildMonthlyNetWorthBalances(chartSeries),
     [chartSeries],
   )
 
-  /**
-   * Linear (average monthly delta) growth model. The series is cumulative cash
-   * flow (book value, no market prices), so a compound/geometric fit would treat
-   * savings as an asset return and blow up long-horizon projections -- see
-   * computeAvgMonthlyGrowth docs.
-   *
-   * `computeLinearGrowthStats` needs 3 month buckets to produce 2 deltas and
-   * returns `{growth: 0, sigma: 0}` below that. Dropping the in-progress month
-   * from a 3-month history leaves 2 buckets, and a 0 growth silently disables the
-   * projection overlay (`chartData` guards on `monthlyGrowth <= 0`) and blanks
-   * every milestone ETA -- so any user with about a quarter of history lost the
-   * feature to a guard meant to improve it. Below the model's minimum, fall back
-   * to the capped-at-today series: including a partial final month skews the
-   * model, but a skewed projection the notice already qualifies beats no
-   * projection with nothing on screen to explain the absence.
-   */
-  // Month BUCKETS, not points: the model buckets by YYYY-MM and needs 3.
-  // Testing the returned growth for 0 instead would conflate "not enough
-  // history" with a real flat quarter and swap the basis under it.
-  const hasCompleteMonthGrowthBasis = useMemo(
-    () => new Set(completeMonthSeries.map((p) => p.date.slice(0, 7))).size >= 3,
-    [completeMonthSeries],
+  // Fill inactive months before excluding the current partial month so a gap
+  // before today's last observation still contributes complete calendar months.
+  const completeMonthSeries: NetWorthPoint[] = useMemo(
+    () => dropPartialMonth(monthEndSeries, 'date'),
+    [monthEndSeries],
   )
+
+  /**
+   * The linear cash-flow model needs two calendar-month deltas for variance.
+   * A short history can use the partial month with the existing disclosure;
+   * a sparse history counts carried calendar months, not observed rows.
+   */
+  const hasCompleteMonthGrowthBasis = completeMonthSeries.length >= 3
 
   const growthStats = useMemo(
     () =>
       computeLinearGrowthStats(
-        hasCompleteMonthGrowthBasis ? completeMonthSeries : chartSeries,
+        hasCompleteMonthGrowthBasis ? completeMonthSeries : monthEndSeries,
         12,
       ),
-    [hasCompleteMonthGrowthBasis, completeMonthSeries, chartSeries],
+    [hasCompleteMonthGrowthBasis, completeMonthSeries, monthEndSeries],
   )
   const monthlyGrowth = growthStats.growth
 
@@ -245,7 +203,7 @@ export function useNetWorth() {
       }
       return filteredNetWorthData
     }
-    const monthlyHistorical = downsampleToMonthly(chartSeries)
+    const monthlyHistorical = monthEndSeries
     const band = projectNetWorthLinearBand(
       anchor,
       monthlyGrowth,
@@ -278,21 +236,12 @@ export function useNetWorth() {
       })),
     ]
     return [...historicalPoints, ...projectedPoints]
-  }, [showProjection, anchor, monthlyGrowth, growthStats.sigma, chartSeries, filteredNetWorthData])
+  }, [showProjection, anchor, monthlyGrowth, growthStats.sigma, chartSeries, monthEndSeries, filteredNetWorthData])
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
-  // Month-END net-worth series (reuses the same downsampling the chart uses) --
-  // drives the Net Worth KPI sparkline + its month-over-month delta. Derived
-  // purely from data already on the page; no extra fetch. Built off the
-  // complete-months series: the last "month end" of an unfinished month is just
-  // today's running balance, and comparing it to a real month end reported a
-  // -4.5% net-worth drop on the real ledger (uncapped) / -4.7% (capped at today)
-  // when the last completed month was in fact +7.4%.
-  const monthlyNetWorth = useMemo(
-    () => downsampleToMonthly(completeMonthSeries),
-    [completeMonthSeries],
-  )
+  // The badge and sparkline share the completed calendar-month balance series.
+  const monthlyNetWorth = completeMonthSeries
 
   const netWorthSparkline = useMemo(
     () => monthlyNetWorth.slice(-12).map((p) => p.netWorth),

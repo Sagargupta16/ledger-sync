@@ -1,13 +1,12 @@
 import { motion } from 'motion/react'
 import { formatCurrency } from '@/lib/formatters'
-import { parseLocalDate } from '@/lib/dateUtils'
+import { computeGoalPace } from '@/lib/finance/goalProjection'
 import { ProgressBar } from '@/components/shared'
 import { EASING } from '@/constants/animations'
 import { colors } from '@/constants/colors'
 import { useMotionStore } from '@/store/motionStore'
 import { goalTypeColor, goalTypeLabel } from '../constants'
 import type { GoalProjection } from '../types'
-import { differenceInMonths } from '../helpers'
 import CircularProgress from './CircularProgress'
 import GoalProjections from './GoalProjections'
 import GoalCardActions, { type GoalCardActionsProps } from './GoalCardActions'
@@ -41,19 +40,7 @@ export default function GoalCard({
   // "On-pace" tick: the % of the target you should have funded by now, given how
   // much of the goal's timeline (start_date -> target_date) has elapsed. The ring
   // shows where you ARE; this tick shows where you SHOULD be -- the gap is the story.
-  // Derived from projection.monthsRemaining (already computed against "now" in the
-  // hook) so we stay render-pure: elapsed = totalSpan - monthsRemaining.
-  // Skip when the goal is open-ended (no deadline) or already achieved.
-  // `start_date` is nullable on the wire, and without one there is no timeline
-  // to measure elapsed time against, so there is no pace to show.
-  const onPacePct = (() => {
-    if (!goal.target_date || !goal.start_date || projection.status === 'achieved')
-      return undefined
-    const totalSpan = differenceInMonths(parseLocalDate(goal.target_date), parseLocalDate(goal.start_date))
-    if (!Number.isFinite(totalSpan) || totalSpan <= 0) return undefined
-    const elapsedFraction = (totalSpan - projection.monthsRemaining) / totalSpan
-    return Math.max(0, Math.min(100, elapsedFraction * 100))
-  })()
+  const onPacePct = computeGoalPace(goal, projection)
 
   return (
     <motion.div

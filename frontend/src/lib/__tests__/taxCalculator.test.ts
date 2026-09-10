@@ -165,5 +165,7 @@ describe('getTaxSlabs / getStandardDeduction / getFYFromDate', () => {
   it('parses FY label', () => {
     expect(parseFYStartYear('FY 2025-26')).toBe(2025)
     expect(parseFYStartYear('FY 2099-00')).toBe(2099)
+    expect(parseFYStartYear('2026-27')).toBe(2026)
+    expect(parseFYStartYear(' fy 2019-20 ')).toBe(2019)
   })
 })

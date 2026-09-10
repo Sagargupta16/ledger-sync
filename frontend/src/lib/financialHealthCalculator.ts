@@ -272,6 +272,11 @@ export interface CFPScoreInputs {
   balances?: BalanceInputs | null
 }
 
+/** Flow-only liquid asset estimate, used when observed balances are unavailable. */
+export function liquidAssetsFromFlows(cumulativeNetSavings: number, netInvestments: number): number {
+  return Math.max(0, cumulativeNetSavings - Math.max(0, netInvestments))
+}
+
 /**
  * Compute all 6 CFP ratios and a weighted composite score.
  */
@@ -299,7 +304,7 @@ export function computeCFPScore(params: CFPScoreInputs): CFPScoreResult {
     netWorth = balances.netWorth
   } else {
     // Fallback proxy: liquid = net savings minus money locked in investments.
-    liquidAssets = Math.max(0, cumulativeNetSavings - Math.max(0, netInvestments))
+    liquidAssets = liquidAssetsFromFlows(cumulativeNetSavings, netInvestments)
     totalAssets = liquidAssets + Math.max(0, netInvestments)
     // Net worth must subtract outstanding debt; otherwise solvency is always
     // 100% (netWorth === totalAssets) and debt has no effect on the score.

@@ -49,7 +49,7 @@ interface RadarAngleTickProps extends Partial<Pick<BaseTickContentProps, 'x' | '
   readonly labelFontSize: number
 }
 
-function RadarAngleTick({ x, y, textAnchor, payload, isMobile, labelFontSize }: RadarAngleTickProps) {
+function RadarAngleTick({ x, y, textAnchor, payload, isMobile, labelFontSize }: Readonly<RadarAngleTickProps>) {
   return (
     <Text
       x={x}

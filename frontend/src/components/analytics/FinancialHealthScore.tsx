@@ -18,6 +18,7 @@ import ErrorState from '@/components/shared/ErrorState'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
+  cfpInputsFromAnalysis,
   computeMonthlyData,
   computeAnalysis,
   calculateMetrics,
@@ -194,20 +195,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
 
   const cfpCompositeScore = useMemo(() => {
     if (!analysisData) return 0
-    const totalMonths = analysisData.monthsAnalyzed
-    const essentialRatio = analysisData.essentialToIncomeRatio / 100
-    return computeCFPScore({
-      totalIncome: analysisData.avgMonthlyIncome * totalMonths,
-      totalExpenses: analysisData.avgMonthlyExpense * totalMonths,
-      avgMonthlyIncome: analysisData.avgMonthlyIncome,
-      avgMonthlyExpense: analysisData.avgMonthlyExpense,
-      avgMonthlyEssentialExpense: analysisData.avgMonthlyExpense * essentialRatio,
-      avgMonthlyDebt: analysisData.avgMonthlyDebt,
-      cumulativeNetSavings: analysisData.cumulativeNetSavings,
-      netInvestments: analysisData.totalInvestmentInflow - analysisData.totalInvestmentOutflow,
-      totalDebtOutstanding: analysisData.avgMonthlyDebt * totalMonths,
-      balances: analysisData.balances,
-    }).compositeScore
+    return computeCFPScore(cfpInputsFromAnalysis(analysisData)).compositeScore
   }, [analysisData])
 
   if (isLoading) return <LoadingSkeleton />

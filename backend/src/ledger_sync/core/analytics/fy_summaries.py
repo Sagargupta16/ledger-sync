@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_math import investment_transfer_delta
 from ledger_sync.db.models import FYSummary, Transaction, TransactionType
 
 # Match Indian tax-related notes as whole words. Original regex was `\btax(es)?\b`
@@ -188,8 +189,14 @@ class FYSummariesMixin(AnalyticsEngineBase):
             self._accumulate_fy_expense(txn, data, amount)
 
         elif txn.type == TransactionType.TRANSFER:
-            if self._is_investment_account(txn.to_account):  # type: ignore[attr-defined]
-                data["investments_made"] += amount
+            contribution = investment_transfer_delta(
+                amount,
+                source_is_investment=self._is_investment_account(txn.from_account),  # type: ignore[attr-defined]
+                destination_is_investment=self._is_investment_account(txn.to_account),  # type: ignore[attr-defined]
+            )
+            # Gross external funding. Internal rebalancing is not a new purchase;
+            # withdrawals are represented in the monthly net investment flow.
+            data["investments_made"] += max(contribution, Decimal(0))
 
     def _accumulate_fy_income(
         self,

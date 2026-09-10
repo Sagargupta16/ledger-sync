@@ -10,9 +10,11 @@ import type {
 } from '@/services/api/analyticsV2'
 import type { Transaction } from '@/types'
 import { toLocalDateKey } from '@/lib/dateUtils'
-import { savingsRatePercentOr, shareOfIncomePercent } from '@/lib/savingsRate'
+import { savingsRatePercentOr, savingsRatePercentFromNet, shareOfIncomePercent } from '@/lib/savingsRate'
+import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
 
 import { generateDemoMonthlyAggregation } from './demoCalculations'
+import { DEMO_INVESTMENT_MAPPINGS } from './demoPreferences'
 import {
   ESSENTIAL_CATEGORIES,
   isExpense,
@@ -21,6 +23,8 @@ import {
   monthKey,
   sum,
 } from './demoHelpers'
+
+const isDemoInvestment = investmentAccountTest(Object.keys(DEMO_INVESTMENT_MAPPINGS))
 
 function computeIncomeBreakdown(txs: Transaction[], mk: string) {
   const incomeItems = txs.filter((t) => isIncome(t) && monthKey(t.date) === mk)
@@ -44,7 +48,9 @@ function computeExpenseBreakdown(txs: Transaction[], mk: string) {
 function computeTransferTotals(txs: Transaction[], mk: string) {
   const transfers = txs.filter((t) => isTransfer(t) && monthKey(t.date) === mk)
   const out = sum(transfers.filter((t) => t.from_account).map((t) => t.amount))
-  return { count: transfers.length, out, in: 0 }
+  const incoming = sum(transfers.filter((t) => t.to_account).map((t) => t.amount))
+  const investments = summarizeInvestmentTransfers(transfers, isDemoInvestment)
+  return { count: transfers.length, out, in: incoming, netInvestment: -investments.netContributions }
 }
 
 function computeChangePct(current: number, previous: number | null): number | null {
@@ -93,14 +99,14 @@ export function generateDemoMonthlySummaries(txs: Transaction[]): MonthlySummary
       transfers: {
         out: xfer.out,
         in: xfer.in,
-        net_investment: xfer.out - xfer.in,
+        net_investment: xfer.netInvestment,
         count: xfer.count,
       },
       savings: {
         net: data.net_savings,
         // The demo payload must carry the same definition the backend rollup
         // does, or the demo tour teaches a number the real app won't reproduce.
-        rate: savingsRatePercentOr({ income: data.income, expense: data.expense }),
+        rate: savingsRatePercentFromNet(data.net_savings, data.income) ?? 0,
       },
       // Deliberately the share-of-income helper, not a savings rate: the
       // numerator is a single flow. Its complement to the rate above is only
@@ -310,11 +316,7 @@ export function generateDemoFYSummaries(txs: Transaction[]): FYSummary[] {
     const investIncome = sum(
       fyTxs.filter((t) => isIncome(t) && t.category === 'Investment Income').map((t) => t.amount),
     )
-    const investments = sum(
-      fyTxs
-        .filter((t) => isTransfer(t) && t.subcategory?.match(/SIP|PPF|EPF|FD|Fixed/))
-        .map((t) => t.amount),
-    )
+    const investments = summarizeInvestmentTransfers(fyTxs, isDemoInvestment).contributions
 
     const prevFY = i > 0 ? fyMap[sortedFYs[i - 1]] : null
     const prevIncome = prevFY ? sum(prevFY.filter(isIncome).map((t) => t.amount)) : 0

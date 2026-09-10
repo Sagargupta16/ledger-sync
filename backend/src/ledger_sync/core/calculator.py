@@ -12,6 +12,7 @@ from decimal import Decimal
 from statistics import mean, pstdev
 from typing import Any
 
+from ledger_sync.core.ledger_math import compute_account_balances
 from ledger_sync.db.models import Transaction, TransactionType
 
 
@@ -104,19 +105,10 @@ def group_by_category(transactions: list[Transaction]) -> dict[str, float]:
 
 def group_by_account(transactions: list[Transaction]) -> dict[str, float]:
     """Group transactions by account and calculate net balance."""
-    account_totals: dict[str, Decimal] = defaultdict(Decimal)
-    for t in transactions:
-        amount = _to_decimal(t.amount)
-        if t.type == TransactionType.INCOME:
-            account_totals[t.account] += amount
-        elif t.type == TransactionType.EXPENSE:
-            account_totals[t.account] -= amount
-        elif t.type == TransactionType.TRANSFER:
-            if t.from_account:
-                account_totals[t.from_account] -= amount
-            if t.to_account:
-                account_totals[t.to_account] += amount
-    return {k: float(v) for k, v in account_totals.items()}
+    return {
+        account: float(balance)
+        for account, balance in compute_account_balances(transactions).items()
+    }
 
 
 def is_measurable_consistency(monthly_expenses: list[float]) -> bool:

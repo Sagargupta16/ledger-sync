@@ -61,8 +61,8 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
   const latestYear = yearlyTaxData.at(-1)
   const cumulativeScaleShort = `${formatCurrencyShort(0)}-${formatCurrencyShort(cumulativeTaxMax)}`
   const chartAriaLabel = isMobile
-    ? `Tax per fiscal year -- paid versus projected. Cumulative tax uses the right scale from ${formatCurrency(0)} to ${formatCurrency(cumulativeTaxMax)}.`
-    : 'Tax per fiscal year -- paid versus projected, with a cumulative total trend line'
+    ? `Tax per fiscal year, recorded-income estimates and projections. Cumulative tax uses the right scale from ${formatCurrency(0)} to ${formatCurrency(cumulativeTaxMax)}.`
+    : 'Tax per fiscal year, recorded-income estimates and projections, with a cumulative total trend line'
 
   return (
     <motion.div
@@ -78,7 +78,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
           </p>
           <h3 className="text-xl font-semibold tracking-tight">Tax per year</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Paid and projected tax, with a cumulative total
+            Tax on recorded income and remaining projections, with a cumulative total
           </p>
         </div>
         {hasTaxData && latestYear && (
@@ -94,7 +94,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
       {hasTaxData && (
         <ChartSeriesLegend
           items={[
-            { key: 'paid', label: 'Tax paid', color: rawColors.app.red },
+            { key: 'paid', label: 'Recorded-income estimate', color: rawColors.app.red },
             { key: 'projected', label: 'Projected', color: rawColors.app.orange },
             { key: 'cumulative', label: 'Cumulative total', color: rawColors.app.blue },
           ]}
@@ -135,7 +135,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
               formatter={(value, name) => {
                 if (typeof value !== 'number' || value === 0) return ['', '']
                 const labels: Record<string, string> = {
-                  paidTax: 'Tax Paid',
+                  paidTax: 'Tax on recorded income',
                   projected: 'Projected Tax',
                   cumulative: 'Cumulative',
                 }
@@ -202,7 +202,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
         yearlyTaxData,
         [
           { header: 'Fiscal year', rowHeader: true, value: (row) => row.fy },
-          { header: 'Tax paid', value: (row) => formatCurrency(row.paidTax) },
+          { header: 'Tax on recorded income', value: (row) => formatCurrency(row.paidTax) },
           { header: 'Projected tax', value: (row) => formatCurrency(row.projected) },
           { header: 'Cumulative tax', value: (row) => formatCurrency(row.cumulative) },
         ],

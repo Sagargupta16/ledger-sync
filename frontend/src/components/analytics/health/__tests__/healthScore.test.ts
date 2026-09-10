@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { computeCFPScore, type BalanceInputs } from '@/lib/financialHealthCalculator'
 
 import { computeBalancePosition } from '../healthScoreBalances'
-import { computeAnalysis, computeMonthlyData } from '../healthScoreAnalysis'
+import {
+  cfpInputsFromAnalysis,
+  computeAnalysis,
+  computeMonthlyData,
+  createEmptyBucket,
+} from '../healthScoreAnalysis'
 import { weightedCoefficientOfVariation } from '../healthScoreTypes'
 import type { AccountBalances } from '@/services/api/calculations'
 import type { Transaction } from '@/types'
@@ -177,6 +182,40 @@ describe('emergency fund uses real liquid balance, not the flow proxy', () => {
     // proxy liquid = 360k - 100k = 260k; 260k / 40k = 6.5 months.
     const emergency = result.ratios.find((r) => r.name === 'Emergency Fund')!
     expect(emergency.value).toBeCloseTo(6.5, 1)
+  })
+})
+
+describe('shared liquid asset fallback', () => {
+  it.each([
+    { expense: 40000, inflow: 20000, outflow: 0, observed: null, monthsCovered: 3 },
+    { expense: 40000, inflow: 80000, outflow: 0, observed: null, monthsCovered: 0 },
+    { expense: 40000, inflow: 0, outflow: 20000, observed: null, monthsCovered: 4.5 },
+    { expense: 120000, inflow: 0, outflow: 0, observed: null, monthsCovered: 0 },
+    { expense: 40000, inflow: 0, outflow: 0, observed: 0, monthsCovered: 0 },
+    { expense: 40000, inflow: 80000, outflow: 0, observed: 80000, monthsCovered: 2 },
+  ])('keeps analysis and CFP coverage at $monthsCovered months for $observed observed assets', ({
+    expense, inflow, outflow, observed, monthsCovered,
+  }) => {
+    const months = ['2025-01', '2025-02', '2025-03']
+    const monthlyData = Object.fromEntries(months.map((month) => [month, {
+      ...createEmptyBucket(),
+      income: 100000,
+      expense,
+      essential: 20000,
+      investmentInflow: inflow,
+      investmentOutflow: outflow,
+    }]))
+    const position = observed === null
+      ? null
+      : computeBalancePosition(balances({ 'Bank Synthetic': observed }), categorize)
+
+    const analysis = computeAnalysis(months, monthlyData, position)
+    const cfp = computeCFPScore(cfpInputsFromAnalysis(analysis))
+
+    expect(analysis.emergencyFundMonths).toBe(monthsCovered)
+    expect(cfp.ratios.find((ratio) => ratio.name === 'Liquidity Ratio')?.value).toBe(monthsCovered)
+    expect(cfp.ratios.find((ratio) => ratio.name === 'Emergency Fund')?.value).toBe(monthsCovered)
+    expect(analysis.balances).toBe(position)
   })
 })
 

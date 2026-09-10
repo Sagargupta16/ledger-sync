@@ -1,16 +1,4 @@
-/**
- * Guards the denominator of the Credit Card Health card.
- *
- * It used to read `creditCardLimits[name] || 100000`, so every card the user had
- * not configured contributed a fabricated 1,00,000 to the total limit and to the
- * utilization percentage. The live account has 7 detected cards with 5 configured
- * limits totalling 10,40,000; the old code reported 12,40,000. The shape below is
- * that real account (values re-derived read-only from backend/ledger_sync.db via
- * the same net-balance math /api/calculations/account-balances performs).
- *
- * The `||` was independently wrong too: a deliberate limit of 0 (blocked or
- * closed card) fell through to the fake 1,00,000.
- */
+/** Synthetic signed balances exercise outstanding debt and measured coverage. */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
@@ -28,19 +16,16 @@ vi.mock('@/services/api/accountClassifications', () => ({
   },
 }))
 
-/** Real account shape: net balances, so cards sit negative. */
 const NET_BALANCES: Record<string, number> = {
-  'CC: ICICI Amazon Pay': -10_000,
-  'CC: HDFC Swiggy': -3846.17,
-  'CC: HDFC Tata Neu Infinity': -583.32,
-  'CC: CSB Jupiter': -310,
-  'CC: Axis Google Flex': -169,
-  'CC: HDFC Pixel Play': 0,
-  'CC: ICICI Others': 0,
-  'HDFC Bank': 41_000,
+  'CC: Daily': -2000,
+  'CC: Travel': -3000,
+  'CC: Reserve': 0,
+  'CC: Unconfigured A': -750,
+  'CC: Unconfigured B': -250,
+  'Bank Account': 4000,
 }
 
-/** `CC: ` prefix marks a card, matching the live account's naming. */
+/** Fixture classifications distinguish cards from an unrelated bank account. */
 function classify(balances: Record<string, number>): Record<string, string> {
   return Object.fromEntries(
     Object.keys(balances).map((name) => [
@@ -50,13 +35,10 @@ function classify(balances: Record<string, number>): Record<string, string> {
   )
 }
 
-/** The 5 limits actually configured on the live account. Two cards have none. */
-const REAL_LIMITS: Record<string, number> = {
-  'CC: ICICI Others': 300_000,
-  'CC: ICICI Amazon Pay': 50_000,
-  'CC: HDFC Tata Neu Infinity': 330_000,
-  'CC: HDFC Swiggy': 330_000,
-  'CC: HDFC Pixel Play': 30_000,
+const CONFIGURED_LIMITS: Record<string, number> = {
+  'CC: Daily': 10_000,
+  'CC: Travel': 20_000,
+  'CC: Reserve': 20_000,
 }
 
 function balancePayload(balances: Record<string, number>): AccountBalances {
@@ -111,32 +93,49 @@ beforeEach(() => {
 
 describe('CreditCardHealth denominator', () => {
   it('sums only configured limits and discloses the coverage', async () => {
-    await renderCard(NET_BALANCES, REAL_LIMITS)
+    await renderCard(NET_BALANCES, CONFIGURED_LIMITS)
 
-    // 5 of 7 configured. Old code: 5 real + 2 fabricated 1,00,000 = 12,40,000.
-    expect(screen.getByText(/5 of 7 cards with limits set/)).toBeInTheDocument()
+    expect(screen.getByText(/3 of 5 cards with limits set/)).toBeInTheDocument()
     const limitRow = screen.getByText('Limits you have set').parentElement
-    expect(digitsOf(limitRow?.textContent ?? '')).toContain('1040000')
-    expect(digitsOf(limitRow?.textContent ?? '')).not.toContain('1240000')
+    expect(digitsOf(limitRow?.textContent ?? '')).toContain('50000')
   })
 
   it('reports utilization over the measured subset, not the whole ledger', async () => {
-    await renderCard(NET_BALANCES, REAL_LIMITS)
+    await renderCard(NET_BALANCES, CONFIGURED_LIMITS)
 
-    // 14,429.49 measured / 10,40,000 = 1.4%. Total outstanding stays 14,908.49
-    // because the two unconfigured cards keep their absolute balances.
-    expect(screen.getByText('1.4%')).toBeInTheDocument()
+    // Measured debt is 5000 of 50000; unconfigured debt stays in the total only.
+    expect(screen.getByText('10.0%')).toBeInTheDocument()
     const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
-    expect(digitsOf(totalRow?.textContent ?? '')).toContain('14908.49')
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000')
   })
 
   it('never invents a limit for an unconfigured card', async () => {
-    await renderCard(NET_BALANCES, REAL_LIMITS)
+    await renderCard(NET_BALANCES, CONFIGURED_LIMITS)
 
-    // Both unconfigured cards say so instead of showing 0.3% / 0.2% against a
-    // fake 1,00,000 as the old code did.
     expect(screen.getAllByText('No limit set')).toHaveLength(2)
     expect(screen.getAllByText(/Utilization and available credit stay hidden/)).toHaveLength(2)
+  })
+
+  it('shows zero outstanding and utilization for a prepaid card', async () => {
+    await renderCard({ 'CC: Prepaid': 2500 }, { 'CC: Prepaid': 10_000 })
+
+    expect(screen.getByText(/0.0% utilization across 1 of 1 cards with limits set/)).toBeInTheDocument()
+    const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('0')
+    const outstandingRow = screen.getByText('Outstanding').parentElement
+    expect(digitsOf(outstandingRow?.lastElementChild?.textContent ?? '')).toBe('0')
+    expect(screen.queryByText('25.0%')).not.toBeInTheDocument()
+  })
+
+  it('does not offset one card debt with another card prepaid balance', async () => {
+    await renderCard(
+      { 'CC: Owing': -6000, 'CC: Prepaid': 2000 },
+      { 'CC: Owing': 10_000, 'CC: Prepaid': 10_000 },
+    )
+
+    expect(screen.getByText(/30.0% utilization across 2 of 2 cards with limits set/)).toBeInTheDocument()
+    const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000')
   })
 
   it('keeps a deliberate limit of 0 as 0 instead of falling through to 100000', async () => {

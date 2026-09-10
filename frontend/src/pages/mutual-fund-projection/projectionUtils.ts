@@ -1,6 +1,11 @@
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { calculateXIRR } from '@/lib/xirr'
 import { addMonthsToKey, formatMonthKey, MS_PER_YEAR } from '@/lib/dateUtils'
+import {
+  allocateHistoricalSIPValue,
+  calculateSIPBenchmarkValue,
+  projectMonthlySIP,
+} from '@/lib/finance/sipProjection'
 import type { Transaction } from '@/types'
 
 import type { ChartDataPoint, MutualFundAccount } from './types'
@@ -20,25 +25,15 @@ export function calculateSIPProjection(
   sipGrowthRate: number,
   startingCorpus: number,
 ): { value: number; invested: number; returns: number } {
-  const monthlyRate = annualRate / 12 / 100
-  let totalInvested = startingCorpus
-  let portfolioValue = startingCorpus
-  let currentMonthlySIP = monthlySIP
-
-  for (let month = 1; month <= years * 12; month++) {
-    totalInvested += currentMonthlySIP
-    portfolioValue = (portfolioValue + currentMonthlySIP) * (1 + monthlyRate)
-
-    if (month % 12 === 0 && sipGrowthRate > 0) {
-      currentMonthlySIP = currentMonthlySIP * (1 + sipGrowthRate / 100)
-    }
-  }
-
-  return {
-    value: portfolioValue,
-    invested: totalInvested,
-    returns: portfolioValue - totalInvested,
-  }
+  return projectMonthlySIP({
+    monthlySIP,
+    annualRate,
+    years,
+    sipGrowthRate,
+    startingCorpus,
+    // The summary measures future returns from today's corpus as its baseline.
+    initialInvested: startingCorpus,
+  }).summary
 }
 
 /** Integer month index (year*12 + monthIndex) for a `YYYY-MM` key, for gap math. */
@@ -77,8 +72,6 @@ export function buildHistoricalChartData(
   }
 
   const totalInvested = cumulativeInvested
-  const totalGains = effectiveCurrentValue - totalInvested
-  const monthlyRate = expectedReturn / 12 / 100
 
   // Pre-bucket each transfer by its month index so the expected-value pass can
   // compound every contribution forward without re-parsing dates each month.
@@ -94,18 +87,15 @@ export function buildHistoricalChartData(
     .forEach(([monthKey, invested]) => {
       const monthLabel = formatMonthKey(monthKey, MF_MONTH_LABEL_OPTS)
 
-      const proportionalValue = totalInvested > 0
-        ? invested + (invested / totalInvested) * totalGains
-        : invested
+      const proportionalValue = allocateHistoricalSIPValue(
+        invested, totalInvested, effectiveCurrentValue,
+      )
 
       // Expected value at this month = each prior contribution grown at the
       // monthly expected rate for the number of months it has been invested.
-      const here = monthIndexOfKey(monthKey)
-      let expected = 0
-      for (const [contribIdx, amount] of contributionsByMonth) {
-        if (contribIdx > here) continue
-        expected += amount * (1 + monthlyRate) ** (here - contribIdx)
-      }
+      const expected = calculateSIPBenchmarkValue(
+        contributionsByMonth, monthIndexOfKey(monthKey), expectedReturn,
+      )
 
       data.push({
         month: monthLabel,
@@ -128,37 +118,32 @@ export function buildProjectionChartData(
   projectionYears: number,
   sipGrowthRate: number,
 ): ChartDataPoint[] {
-  const data: ChartDataPoint[] = []
-  let projectedInvested = lastHistorical.invested
-  let projectedValue = lastHistorical.value
-  let currentSIP = activeMonthlySIP
-  const monthlyRate = expectedReturn / 12 / 100
+  const { months } = projectMonthlySIP({
+    monthlySIP: activeMonthlySIP,
+    annualRate: expectedReturn,
+    years: projectionYears,
+    sipGrowthRate,
+    startingCorpus: lastHistorical.value,
+    // The chart retains historical contributions as its cost basis.
+    initialInvested: lastHistorical.invested,
+  })
 
-  for (let i = 1; i <= projectionYears * 12; i++) {
+  return months.map(({ month, invested, value }) => {
     // `addMonthsToKey`, not `setMonth(getMonth() + i)`. When the last SIP falls
     // on day 29-31, `setMonth` overflows odd offsets into the following month,
     // so a 60-point 5-year horizon rendered only 35 distinct month labels --
     // ~25 duplicated x-axis categories and ~25 calendar months with no point,
     // making the compounding curve look like it stepped two months at a time.
     // Key math also drops the UTC-parse/local-getter mix the old `Date` path had.
-    const monthLabel = formatMonthKey(addMonthsToKey(lastDateKey, i), MF_MONTH_LABEL_OPTS)
+    const monthLabel = formatMonthKey(addMonthsToKey(lastDateKey, month), MF_MONTH_LABEL_OPTS)
 
-    projectedInvested += currentSIP
-    projectedValue = (projectedValue + currentSIP) * (1 + monthlyRate)
-
-    if (i % 12 === 0 && sipGrowthRate > 0) {
-      currentSIP *= (1 + sipGrowthRate / 100)
-    }
-
-    data.push({
+    return {
       month: monthLabel,
-      invested: Math.round(projectedInvested),
-      value: Math.round(projectedValue),
+      invested: Math.round(invested),
+      value: Math.round(value),
       isHistorical: false,
-    })
-  }
-
-  return data
+    }
+  })
 }
 
 /** Detect the most recent monthly SIP amount from transfers. */

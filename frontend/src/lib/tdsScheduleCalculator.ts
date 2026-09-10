@@ -22,10 +22,11 @@
  * total income.
  */
 
-import { calculateTax, type TaxSlab } from '@/lib/taxCalculator'
+import { calculateGrossFromNet, calculateTax, type TaxSlab } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
-import { vestingPrice } from '@/lib/rsuVesting'
-import type { RsuGrant } from '@/types/salary'
+import { sumRsuCompensation, valueRsuVestings, type RsuValuationOptions } from '@/lib/rsuVesting'
+import { settleSalaryCompensation } from '@/lib/salaryCompensation'
+import type { RsuGrant, ValuedRsuVesting } from '@/types/salary'
 
 /** Month labels in fiscal-year order, starting from the FY start month. */
 const ALL_MONTHS = [
@@ -47,21 +48,37 @@ export interface TdsMonthRow {
   annualTax: number
   /** Baseline TDS plus marginal tax on extras assigned to this month. */
   monthlyTds: number
-  /** Running total of TDS deducted through this month. */
+  /** Running planned tax liability through this month, not proof of payment. */
   cumulativeTds: number
-  /** Take-home this month (monthIncome - monthlyTds). */
+  /** Compatibility alias for cashTakeHome; retained shares are separate. */
   takeHome: number
+  cashIncome: number
+  cashDeductions: number
+  cashTds: number
+  cumulativeCashTds: number
+  cashTakeHome: number
+  netShareValue: number
+  netCompensation: number
+  rsuGrossIncome: number
+  rsuWithholding: number
+  rsuRecordedWithholding: number
+  rsuEstimatedWithholding: number
+  excessShareWithholding: number
 }
 
 export interface TdsScheduleParams {
   /** Recurring taxable income per month used to establish the flat baseline. */
   regularMonthlyIncome: number
-  /** Bonus, RSU, or other extra income keyed by 0-based FY month index. */
+  /** Cash extras by FY month. Do not also include RSUs supplied as valued events. */
   extraByMonth: Record<number, number>
+  rsuVestingEvents?: ValuedRsuVesting[]
+  /** Employee payroll deductions reduce cash, not new-regime taxable earnings. */
+  monthlyCashDeductions?: number
   /** Month (1-12) the fiscal year starts on (India: 4 = April). */
   fyStartMonth: number
   slabs: TaxSlab[]
   standardDeduction: number
+  applyProfessionalTax?: boolean
   isNewRegime: boolean
   fyStartYear: number
 }
@@ -76,36 +93,18 @@ export function rsuExtrasByFyMonth(
   grants: RsuGrant[],
   fyStartYear: number,
   fyStartMonth: number,
+  options: Omit<RsuValuationOptions, 'fyStartMonth'> = {},
 ): Record<number, number> {
   const out: Record<number, number> = {}
-  for (const grant of grants) {
-    for (const v of grant.vestings) {
-      // Parse YYYY-MM directly: new Date(iso) reads local components and can
-      // shift a 1st-of-month vesting into the prior month/FY off-UTC.
-      const isoMatch = /^(\d{4})-(\d{2})/.exec(v.date)
-      let m: number
-      let y: number
-      if (isoMatch) {
-        y = Number(isoMatch[1])
-        m = Number(isoMatch[2]) // 1-12
-      } else {
-        const d = new Date(v.date)
-        y = d.getUTCFullYear()
-        m = d.getUTCMonth() + 1
-      }
-      // Which FY does this vesting belong to?
-      const vestingFyStart = m >= fyStartMonth ? y : y - 1
-      if (vestingFyStart !== fyStartYear) continue
-      const idx = (m - fyStartMonth + MONTHS_PER_YEAR) % MONTHS_PER_YEAR
-      // Vested rows use the locked vest-date price; upcoming use current.
-      out[idx] = (out[idx] ?? 0) + v.quantity * vestingPrice(grant, v)
-    }
+  for (const event of valueRsuVestings(grants, { ...options, fyStartMonth })) {
+    if (event.fyStartYear !== fyStartYear) continue
+    out[event.monthIndex] = (out[event.monthIndex] ?? 0) + event.grossValue
   }
   return out
 }
 
 export interface TaxPaidTillDate {
-  /** Tax deducted at source through the months paid so far. */
+  /** Estimated withholding from cash and shares through the months paid so far. */
   taxPaid: number
   /** Gross taxable income accrued so far (base accrued + gross bonus). */
   incomeReceived: number
@@ -113,8 +112,15 @@ export interface TaxPaidTillDate {
   baseAccrued: number
   /** Gross bonus (incl. RSU) backed out from the salary surplus. */
   bonusGross: number
-  /** Bonus actually received in-hand (after-tax surplus). */
+  /** Net extra compensation above expected base, including matched net shares. */
   bonusNet: number
+  cashBonusGross: number
+  cashTaxPaid: number
+  rsuGrossIncome: number
+  netShareValue: number
+  rsuWithholding: number
+  rsuRecordedWithholding: number
+  rsuEstimatedWithholding: number
 }
 
 export interface TaxPaidTillDateParams {
@@ -122,8 +128,12 @@ export interface TaxPaidTillDateParams {
   baseAnnual: number
   /** Number of months you have actually been paid this FY. */
   monthsPaid: number
-  /** Total salary actually credited to the bank so far (net, after TDS). */
+  /** Recorded net employment receipts; identify included RSU value separately. */
   receivedNet: number
+  rsuVestingEvents?: ValuedRsuVesting[]
+  /** Identified RSU receipts already in receivedNet; exclude them from cash inference. */
+  rsuNetIncludedInReceivedNet?: number
+  monthlyCashDeductions?: number
   slabs: TaxSlab[]
   standardDeduction: number
   isNewRegime: boolean
@@ -138,18 +148,11 @@ export interface TaxPaidTillDateParams {
  *     baseTdsPerMonth   = tax(baseAnnual) / 12
  *     expectedNetBase/mo = baseAnnual/12 - baseTdsPerMonth   (in-hand base)
  *
- *   Anything credited ABOVE the expected in-hand base is bonus, received
- *   AFTER tax. Because base already sits in the top slab, bonus is taxed at
- *   the marginal top-slab rate, so we gross it back up:
- *     bonusNet   = receivedNet - expectedNetBase * monthsPaid
- *     bonusGross = bonusNet / (1 - marginalRate)
- *     bonusTax   = bonusGross - bonusNet
- *
- *   taxPaid       = baseTdsPerMonth * monthsPaid + bonusTax
- *   incomeReceived (gross taxable) = baseAnnual/12 * monthsPaid + bonusGross
- *
- * The marginal rate is read from the tax function (a probe just above base),
- * not hard-coded, so it tracks slab/cess/surcharge changes automatically.
+ * Cash and matched net shares are combined once to solve the incremental net
+ * equation with calculateGrossFromNet. This follows actual tax slabs, rebate
+ * relief and surcharge boundaries. Known gross shares are then separated from
+ * inferred cash bonus. Share withholding is a tax payment, not more taxable
+ * income or a second tax deduction. These are estimates, not payroll records.
  */
 export function computeTaxPaidTillDate(params: TaxPaidTillDateParams): TaxPaidTillDate {
   const {
@@ -160,6 +163,9 @@ export function computeTaxPaidTillDate(params: TaxPaidTillDateParams): TaxPaidTi
     standardDeduction,
     isNewRegime,
     fyStartYear,
+    rsuVestingEvents = [],
+    rsuNetIncludedInReceivedNet = 0,
+    monthlyCashDeductions = 0,
   } = params
 
   const taxOn = (income: number): number =>
@@ -172,25 +178,47 @@ export function computeTaxPaidTillDate(params: TaxPaidTillDateParams): TaxPaidTi
   const baseGrossPerMonth = baseAnnual / MONTHS_PER_YEAR
   const expectedNetBasePerMonth = baseGrossPerMonth - baseTdsPerMonth
 
-  const baseTaxPaid = baseTdsPerMonth * months
   const baseAccrued = baseGrossPerMonth * months
-
-  // Marginal rate just above the annual base -- read from the tax engine on a
-  // small probe so cess/surcharge are included (e.g. 31.2% in the 30% slab).
-  const PROBE = 100_000
-  const marginalRate = (taxOn(baseAnnual + PROBE) - baseAnnualTax) / PROBE
-
-  // Surplus over the expected in-hand base is bonus received after tax.
-  const bonusNet = Math.max(0, receivedNet - expectedNetBasePerMonth * months)
-  const bonusGross = marginalRate < 1 ? bonusNet / (1 - marginalRate) : bonusNet
-  const bonusTax = bonusGross - bonusNet
+  const cashDeductions = monthlyCashDeductions * months
+  const rsu = sumRsuCompensation(
+    rsuVestingEvents.filter((event) => event.vested && event.fyStartYear === fyStartYear),
+  )
+  const cashReceived = Math.max(0, receivedNet - rsuNetIncludedInReceivedNet)
+  const bonusNet = Math.max(
+    0, cashReceived + cashDeductions + rsu.netValue - expectedNetBasePerMonth * months,
+  )
+  const inferredExtras = bonusNet === 0 ? 0 : Math.max(0, calculateGrossFromNet(
+    baseAnnual - baseAnnualTax + bonusNet,
+    {
+      slabs,
+      standardDeduction,
+      applyProfessionalTax: true,
+      salaryMonthsCount: MONTHS_PER_YEAR,
+      isNewRegime,
+      fyStartYear,
+    },
+  ) - baseAnnual)
+  const cashBonusGross = Math.max(0, inferredExtras - rsu.grossValue)
+  const bonusGross = cashBonusGross + rsu.grossValue
+  // A shortfall against regular net salary can be an unrecorded payroll
+  // deduction, so it is not proof of additional tax when no surplus exists.
+  const cashTaxPaid = bonusNet === 0
+    ? baseTdsPerMonth * months
+    : Math.max(0, baseAccrued + cashBonusGross - cashDeductions - cashReceived)
 
   return {
-    taxPaid: baseTaxPaid + bonusTax,
+    taxPaid: cashTaxPaid + rsu.withholdingValue,
     incomeReceived: baseAccrued + bonusGross,
     baseAccrued,
     bonusGross,
     bonusNet,
+    cashBonusGross,
+    cashTaxPaid,
+    rsuGrossIncome: rsu.grossValue,
+    netShareValue: rsu.netValue,
+    rsuWithholding: rsu.withholdingValue,
+    rsuRecordedWithholding: rsu.recordedWithholding,
+    rsuEstimatedWithholding: rsu.estimatedWithholding,
   }
 }
 
@@ -216,12 +244,15 @@ export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
     standardDeduction,
     isNewRegime,
     fyStartYear,
+    rsuVestingEvents = [],
+    monthlyCashDeductions = 0,
+    applyProfessionalTax = true,
   } = params
 
   const regularAnnual = regularMonthlyIncome * MONTHS_PER_YEAR
 
   const taxOn = (income: number): number =>
-    calculateTax(income, slabs, standardDeduction, true, MONTHS_PER_YEAR, isNewRegime, fyStartYear)
+    calculateTax(income, slabs, standardDeduction, applyProfessionalTax, MONTHS_PER_YEAR, isNewRegime, fyStartYear)
       .totalTax
 
   // Flat baseline TDS: the tax on regular salary alone, spread evenly.
@@ -230,10 +261,16 @@ export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
 
   const rows: TdsMonthRow[] = []
   let cumulativeTds = 0
+  let cumulativeCashTds = 0
+  let shareCredit = 0
   let extrasBefore = 0 // extras that landed in earlier months
 
   for (let i = 0; i < MONTHS_PER_YEAR; i++) {
-    const extra = extraByMonth[i] ?? 0
+    const rsu = sumRsuCompensation(rsuVestingEvents.filter(
+      (event) => event.fyStartYear === fyStartYear && event.monthIndex === i,
+    ))
+    const cashIncome = regularMonthlyIncome + (extraByMonth[i] ?? 0)
+    const extra = (extraByMonth[i] ?? 0) + rsu.grossValue
     const monthIncome = regularMonthlyIncome + extra
 
     // Marginal tax on THIS month's extra, stacked on regular + prior extras so
@@ -248,6 +285,16 @@ export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
 
     const monthlyTds = Math.max(0, baselineMonthlyTds + marginalExtraTax)
     cumulativeTds += monthlyTds
+    const compensation = settleSalaryCompensation({
+      cashEarnings: cashIncome,
+      cashDeductions: monthlyCashDeductions,
+      totalTax: monthlyTds,
+      netShareValue: rsu.netValue,
+      shareWithholding: rsu.withholdingValue,
+      priorShareCredit: shareCredit,
+    })
+    shareCredit = compensation.excessShareWithholding
+    cumulativeCashTds += compensation.payrollTax
 
     rows.push({
       month: monthLabel(fyStartMonth, i),
@@ -257,7 +304,19 @@ export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
       annualTax: taxOn(projectedAnnual),
       monthlyTds,
       cumulativeTds,
-      takeHome: monthIncome - monthlyTds,
+      takeHome: compensation.cashTakeHome,
+      cashIncome,
+      cashDeductions: monthlyCashDeductions,
+      cashTds: compensation.payrollTax,
+      cumulativeCashTds,
+      cashTakeHome: compensation.cashTakeHome,
+      netShareValue: compensation.netShareValue,
+      netCompensation: compensation.netCompensation,
+      rsuGrossIncome: rsu.grossValue,
+      rsuWithholding: rsu.withholdingValue,
+      rsuRecordedWithholding: rsu.recordedWithholding,
+      rsuEstimatedWithholding: rsu.estimatedWithholding,
+      excessShareWithholding: compensation.excessShareWithholding,
     })
   }
 

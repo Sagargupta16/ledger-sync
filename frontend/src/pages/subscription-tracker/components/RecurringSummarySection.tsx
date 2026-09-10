@@ -30,12 +30,19 @@ export default function RecurringSummarySection({
   const totalMix = summary.monthlyIncome + summary.monthlyExpense
   const incomeShare = totalMix > 0 ? (summary.monthlyIncome / totalMix) * 100 : 0
   const expenseShare = totalMix > 0 ? (summary.monthlyExpense / totalMix) * 100 : 0
+  const freshnessRows = [
+    { label: 'Confirmed or recent', subtotal: summary.current },
+    { label: 'Needs review', subtotal: summary.needsReview },
+  ]
+  if (summary.unassessed.count > 0) {
+    freshnessRows.push({ label: 'Date or frequency unavailable', subtotal: summary.unassessed })
+  }
 
   return (
     <>
       <div
         className={`grid grid-cols-2 gap-3 sm:gap-5 ${
-          summary.deactivatedCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+          summary.pausedExpenseCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
         }`}
       >
         <SummaryCard
@@ -74,11 +81,11 @@ export default function RecurringSummarySection({
           delay={0.12}
           compact
         />
-        {summary.deactivatedCount > 0 && (
+        {summary.pausedExpenseCount > 0 && (
           <SummaryCard
             icon={PowerOff}
-            label={`Saved monthly (${summary.deactivatedCount} cancelled)`}
-            value={formatCurrencyCompact(summary.deactivatedExpenseSavings)}
+            label={`Paused expenses (${summary.pausedExpenseCount})`}
+            value={formatCurrencyCompact(summary.pausedMonthlyExpense)}
             colorClass="text-app-purple"
             bgClass="bg-app-purple/20"
             delay={0.16}
@@ -86,6 +93,47 @@ export default function RecurringSummarySection({
           />
         )}
       </div>
+
+      {(summary.needsReview.count > 0 || summary.unassessed.count > 0) && (
+        <section className="ledger-panel space-y-3 p-4">
+          <div className="space-y-1">
+            <h2 className="text-sm font-medium text-foreground">Commitment freshness</h2>
+            <p className="text-xs text-muted-foreground">
+              Every active commitment stays in the totals. Review older detections to confirm whether they still recur.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <caption className="sr-only">Monthly commitment estimates by freshness</caption>
+              <thead className="text-text-tertiary">
+                <tr>
+                  <th scope="col" className="pb-2 pr-3 font-medium">Included in totals</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-medium">Expense/mo</th>
+                  <th scope="col" className="pb-2 text-right font-medium">Income/mo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {freshnessRows.map(({ label, subtotal }) => (
+                  <tr key={label} className="border-t border-border/50">
+                    <th scope="row" className="py-2.5 pr-3 font-medium text-foreground">
+                      <span className="block">{label}</span>
+                      <span className="mt-0.5 block font-normal text-text-tertiary">
+                        {subtotal.count} items
+                      </span>
+                    </th>
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-foreground">
+                      {formatCurrency(subtotal.monthlyExpense)}
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-foreground">
+                      {formatCurrency(subtotal.monthlyIncome)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {hasActiveItems && totalMix > 0 && (
         <section className="ledger-panel space-y-3 p-4">
@@ -126,11 +174,11 @@ export default function RecurringSummarySection({
           <div className="flex flex-col gap-1.5 text-[11px] text-text-tertiary sm:flex-row sm:items-center sm:gap-4">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 shrink-0 rounded-full bg-app-green" />
-              Income {formatCurrency(summary.monthlyIncome)}/mo
+              <span>Income {formatCurrency(summary.monthlyIncome)}/mo</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 shrink-0 rounded-full bg-app-red" />
-              Expense {formatCurrency(summary.monthlyExpense)}/mo
+              <span>Expense {formatCurrency(summary.monthlyExpense)}/mo</span>
             </span>
           </div>
         </section>

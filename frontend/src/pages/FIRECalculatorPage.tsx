@@ -8,7 +8,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { computeFIRE, computeRetirementCorpus } from '@/lib/fireCalculator'
+import { computeFIRE, computeRetirementCorpus, deriveFIREInputs } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
@@ -80,16 +80,11 @@ export default function FIRECalculatorPage() {
   // FIRE inputs with defaults from transaction data. The distinct-month count
   // is the number of keys in the monthly rollup (one per YYYY-MM) -- no need to
   // pull the full ledger just to count months.
-  const autoValues = useMemo(() => {
-    const totalIncome = totals?.total_income ?? 0
-    const totalExpenses = Math.abs(totals?.total_expenses ?? 0)
-    const months = Object.keys(monthlyData ?? {}).length || 1
-    const annualIncome = (totalIncome / months) * 12
-    const annualExpenses = (totalExpenses / months) * 12
-    const annualSavings = annualIncome - annualExpenses
-    const monthlyExpenses = annualExpenses / 12
-    return { annualIncome, annualExpenses, annualSavings, monthlyExpenses }
-  }, [monthlyData, totals])
+  const autoValues = useMemo(() => deriveFIREInputs(
+    totals?.total_income ?? 0,
+    totals?.total_expenses ?? 0,
+    Object.keys(monthlyData ?? {}).length,
+  ), [monthlyData, totals])
 
   // FIRE adjustable params
   const [swr, setSwr] = useState(3)
@@ -106,7 +101,7 @@ export default function FIRECalculatorPage() {
 
   const fireResult = useMemo(() => computeFIRE({
     annualExpenses: autoValues.annualExpenses,
-    essentialAnnualExpenses: autoValues.annualExpenses * 0.6,
+    essentialAnnualExpenses: autoValues.essentialAnnualExpenses,
     annualSavings: autoValues.annualSavings,
     annualIncome: autoValues.annualIncome,
     swr: swr / 100,

@@ -78,13 +78,13 @@ export default function ReturnsHoldingsChart({
           Investment Accounts by Book Value
         </h2>
         <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">
-          Investment accounts ranked by ledger balance.
+          Closing ledger balances, including activity before the selected period.
           {topAccount && <> Top account: <span className="font-medium text-foreground">{topAccount.name}</span>.</>}
         </p>
       </div>
 
       {accounts.length === 0 ? (
-        <ChartEmptyState height={280} message="No investment account balances in the selected period" />
+        <ChartEmptyState height={280} message="No investment account balances through the selected period" />
       ) : (
         <figure>
           <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">

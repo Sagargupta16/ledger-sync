@@ -66,9 +66,10 @@ function renderLayout(mode: MotionMode) {
 async function expectSettledPage(name: string) {
   await waitFor(() => {
     const main = screen.getByRole('main')
-    expect(main.children).toHaveLength(1)
+    const frames = main.querySelectorAll('[data-route-frame]')
+    expect(frames).toHaveLength(1)
     expect(screen.getByRole('heading', { name })).toBeInTheDocument()
-    expect(main.firstElementChild).toHaveStyle({ opacity: '1', transform: 'none' })
+    expect(frames[0]).toHaveStyle({ opacity: '1', transform: 'none' })
   })
 }
 
@@ -92,8 +93,10 @@ describe('AppLayout route motion', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Expense Analysis' }))
     if (mode === 'full') {
-      // The outgoing route must keep its own content while its exit runs.
-      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+      // The outgoing page stays visible, with its controls removed from interaction.
+      const outgoing = screen.getByText('Dashboard', { selector: 'h1' })
+      expect(outgoing.closest('[data-route-frame]')).toHaveAttribute('inert')
+      expect(screen.queryByRole('heading', { name: 'Dashboard' })).not.toBeInTheDocument()
     }
     await expectSettledPage('Expense Analysis')
 

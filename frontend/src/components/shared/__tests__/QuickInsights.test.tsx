@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { formatCurrency } from '@/lib/formatters'
 
 import QuickInsights from '../QuickInsights'
 
@@ -17,6 +18,7 @@ vi.mock('@/hooks/api/useAnalytics', () => {
     useTotals: () => query({
       total_income: 100_000,
       total_expenses: 40_000,
+      net_savings: 40_000,
     }),
     useMonthlyAggregation: () => query({}),
   }
@@ -70,5 +72,15 @@ describe('QuickInsights groups', () => {
     expect(screen.queryByText('Savings Rate')).not.toBeInTheDocument()
     expect(within(moneyFlow!).queryByText('Age of Money')).not.toBeInTheDocument()
     expect(within(operating!).getByText('Age of Money')).toBeInTheDocument()
+  })
+
+  it('retains realised losses in the net savings and savings rate cards', () => {
+    render(<QuickInsights />)
+
+    const savings = screen.getByText('Net Savings').closest('dl')
+    const rate = screen.getByText('Savings Rate').closest('dl')
+    expect(savings).toHaveTextContent(formatCurrency(40_000))
+    expect(rate).toHaveTextContent('40.0%')
+    expect(savings).not.toHaveTextContent(formatCurrency(60_000))
   })
 })

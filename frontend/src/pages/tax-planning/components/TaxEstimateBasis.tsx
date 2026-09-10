@@ -9,11 +9,11 @@ interface Props {
 
 export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
   const rules = getTaxConfig(planning.fyYear)
-  let incomeBasis = 'Gross salary recorded in your ledger'
+  let incomeBasis = 'Gross taxable income recorded in your ledger'
   if (planning.useSalaryProjection) {
-    incomeBasis = 'Full-year salary projection'
-  } else if (planning.salaryIsNetOfTds) {
-    incomeBasis = 'Net salary converted to estimated gross'
+    incomeBasis = 'Employment forecast plus other recorded taxable income'
+  } else if (planning.taxComputation.incomeBasis === 'net') {
+    incomeBasis = 'Net employment receipts converted to estimated gross'
   }
 
   return (
@@ -41,6 +41,13 @@ export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
           <dd className="mt-1 text-xs text-muted-foreground">{rules.source}</dd>
         </div>
       </dl>
+      {planning.taxComputation.incomeBasis === 'net' && !planning.useSalaryProjection && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Withholding is estimated on employment income only. Other taxable income stays at its recorded gross amount.
+          Known employee deductions are restored before estimating gross salary.
+          These estimates do not establish how much tax was paid.
+        </p>
+      )}
       {rules.fyStartYear !== planning.fyYear && (
         <p className="text-xs leading-relaxed text-muted-foreground">
           Rules for {planning.effectiveFY} are not available here yet. This estimate uses{' '}

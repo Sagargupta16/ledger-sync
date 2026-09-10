@@ -1,22 +1,22 @@
 import { motion } from 'motion/react'
 import { Calculator, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, percentChange } from '@/lib/formatters'
 
 interface TaxSummaryCardsProps {
   isLoading: boolean
   netTaxableIncome: number
   grossTaxableIncome: number
-  taxAlreadyPaid: number
+  totalTax: number
   isProjecting?: boolean
   prevNetTaxableIncome?: number | null
   prevGrossTaxableIncome?: number | null
-  prevTaxAlreadyPaid?: number | null
+  prevTotalTax?: number | null
 }
 
 function YoyBadge({ current, previous }: Readonly<{ current: number; previous: number | null | undefined }>) {
   if (previous == null || previous === 0) return null
-  const pct = ((current - previous) / previous) * 100
-  if (!Number.isFinite(pct)) return null
+  const pct = percentChange(current, previous)
+  if (pct === null || !Number.isFinite(pct)) return null
 
   const isUp = pct >= 0
   const Icon = isUp ? TrendingUp : TrendingDown
@@ -35,11 +35,11 @@ export default function TaxSummaryCards({
   isLoading,
   netTaxableIncome,
   grossTaxableIncome,
-  taxAlreadyPaid,
+  totalTax,
   isProjecting = false,
   prevNetTaxableIncome,
   prevGrossTaxableIncome,
-  prevTaxAlreadyPaid,
+  prevTotalTax,
 }: Readonly<TaxSummaryCardsProps>) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -54,7 +54,9 @@ export default function TaxSummaryCards({
             <TrendingUp className="size-4 text-app-green" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-kpi-label text-muted-foreground">Salaried Income</p>
+            <p className="text-kpi-label text-muted-foreground">
+              {isProjecting ? 'Cash take-home' : 'Income after estimated tax'}
+            </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
                 {isLoading ? '...' : formatCurrency(netTaxableIncome)}
@@ -62,7 +64,7 @@ export default function TaxSummaryCards({
               {!isLoading && <YoyBadge current={netTaxableIncome} previous={prevNetTaxableIncome} />}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {isProjecting ? 'Projected take-home' : 'Received after TDS'}
+              {isProjecting ? 'Employment payroll after tax and employee EPF' : 'After estimated tax and known employee deductions'}
             </p>
           </div>
         </div>
@@ -103,16 +105,16 @@ export default function TaxSummaryCards({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-kpi-label text-muted-foreground">
-              {isProjecting ? 'Estimated Tax' : 'Tax Already Paid'}
+              Estimated tax liability
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : formatCurrency(taxAlreadyPaid)}
+                {isLoading ? '...' : formatCurrency(totalTax)}
               </p>
-              {!isLoading && <YoyBadge current={taxAlreadyPaid} previous={prevTaxAlreadyPaid} />}
+              {!isLoading && <YoyBadge current={totalTax} previous={prevTotalTax} />}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {isProjecting ? 'Projected tax liability' : 'Deducted at source'}
+              {isProjecting ? 'Projected employment and other recorded taxable income' : 'Calculated under the selected regime'}
             </p>
           </div>
         </div>

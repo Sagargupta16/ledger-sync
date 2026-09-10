@@ -34,8 +34,8 @@ const planning = {
   fyList: ['FY 2025-26', 'FY 2024-25'],
   transactionsByFY: {},
   multiYearProjections: [
-    { fy: '2024-25', totalTax: 200_000 },
-    { fy: '2025-26', totalTax: 300_000 },
+    { fy: '2024-25', grossTaxable: 1_500_000, cashDeductions: 0 },
+    { fy: '2025-26', grossTaxable: 3_000_000, cashDeductions: 0 },
   ],
   currentFYLabel: 'FY 2025-26',
   regimeOverride: null,
@@ -53,17 +53,17 @@ describe('TaxYearChart', () => {
 
       expect(
         screen.getByRole('img', {
-          name: /Cumulative tax uses the right scale from ₹0 to ₹5,00,000/,
+          name: /Cumulative tax uses the right scale from ₹0 to ₹6,10,600/,
         }),
       ).toBeInTheDocument()
 
-      const scale = screen.getByText('Cumulative: ₹0-₹5.0L')
+      const scale = screen.getByText('Cumulative: ₹0-₹6.1L')
       expect(scale).toHaveClass('min-w-0', 'truncate')
       expect(scale.parentElement).toHaveClass('min-w-0', 'max-w-full')
       expect(rechartsProbe.rightAxisProps).toMatchObject({
         width: 0,
         hide: true,
-        domain: [0, 500_000],
+        domain: [0, 610_600],
       })
     } finally {
       Object.defineProperty(globalThis.window, 'innerWidth', {

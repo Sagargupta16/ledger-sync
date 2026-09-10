@@ -2,7 +2,7 @@
 
 Architecture reference for the current Ledger Sync source.
 
-Source walkthrough updated on 2026-09-09. The local Graphify graph is a
+Source walkthrough updated on 2026-09-10. The local Graphify graph is a
 navigation aid; the application entry points, routes, services, stores, models,
 and workflows define the contracts below.
 
@@ -95,6 +95,7 @@ Key modules:
 | `reconciler.py` | User-scoped upsert, restore, and soft-delete behavior |
 | `reconciler_transfers.py` | Transfer-pair normalization and reconciliation |
 | `calculator.py` | Pure on-demand financial metrics |
+| [ledger_math.py](../backend/src/ledger_sync/core/ledger_math.py) | Shared `Decimal` account balances and signed transfers across the investment boundary; callers own authorization and exclusions |
 | `query_helpers.py` | Database-agnostic SQL and shared filters |
 | `time_filter.py` | Relative ranges anchored on the IST ledger clock |
 | `ledger_clock.py` | Single source of naive IST `now`, `today`, month, and financial-year boundaries |
@@ -292,12 +293,134 @@ independently of the preceding import commit. Data Health exposes coverage and
 rollup freshness.
 
 Read endpoints use persisted aggregates or user-scoped SQL for the requested
-period. Frontend utilities still own preference-sensitive tax, scenario, and
-projection calculations. Imported cash flows and book-value holdings do not
-establish a live market valuation or an actual investment return by themselves.
-Tax rules are fiscal-year versioned: old-regime standard deduction is INR
-50,000; new-regime deduction is INR 75,000 from FY 2024-25. The UI states the
-income basis, deductions, rule year, and any latest-known-rules fallback.
+period. `ledger_math.py` provides reusable balance and investment-boundary
+arithmetic underneath backend callers; it does not decide user scope. Frontend
+domain modules own preference-sensitive tax, scenario, and projection models.
+Imported cash flows and book-value holdings do not establish a live market
+valuation or an actual investment return by themselves.
+
+The [developer calculation map](CALCULATIONS.md#developer-calculation-map)
+identifies the current backend and frontend owners, monetary/date conventions,
+rate sources, and focused checks. Reuse those owners when adding a page;
+chart components receive computed values rather than duplicating business
+formulas.
+
+### Shared finance composition
+
+Share one implementation per financial rule, with small modules by domain.
+The common directory is not a single calculator that fetches data, reads every
+preference, and renders charts.
+
+```mermaid
+flowchart TB
+  api["Scoped ledger and aggregates"]
+  hooks["Feature hooks<br/>Preferences, dates, scenario inputs"]
+  flows["investmentFlows / investmentReturns<br/>sipProjection"]
+  history["goalProjection / netWorth<br/>cashFlowForecast / dashboardMetrics"]
+  spending["spending / spendingStatistics<br/>creditCardUtilization"]
+  tax["taxPlanning / taxHistory<br/>payrollPlanning / taxRateCurve"]
+  helpers["Existing shared helpers<br/>Tax engine, RSUs, salary, TDS<br/>Dates, savings, recurring, distribution<br/>Instruments, FIRE, GST, XIRR"]
+  adapter["Page utility compatibility exports<br/>Chart labels and series adaptation"]
+  ui["Pages and charts<br/>Values, units, scope, estimate flags"]
+  api --> hooks
+  hooks --> flows
+  hooks --> history
+  hooks --> spending
+  hooks --> tax
+  hooks --> helpers
+  history --> helpers
+  spending --> helpers
+  tax --> helpers
+  flows --> adapter
+  history --> adapter
+  spending --> adapter
+  tax --> adapter
+  helpers --> adapter
+  adapter --> ui
+```
+
+| Change needed | Canonical source to edit | Composition boundary |
+| --- | --- | --- |
+| Investment funding or account legs | [investmentFlows.ts](../frontend/src/lib/finance/investmentFlows.ts) | Exact configured membership or a caller-supplied predicate; internal moves cancel at the investment boundary. |
+| Recorded investment return classification | [investmentReturns.ts](../frontend/src/lib/finance/investmentReturns.ts) | One category per event; the returns page adapter formats the shared metrics. |
+| SIP compounding or modeled history | [sipProjection.ts](../frontend/src/lib/finance/sipProjection.ts) | One forward monthly loop; separate proportional historical estimate and contribution benchmark. Page adapters preserve seeds, labels, and rounding. |
+| Goal savings, completion, or funding pace | [goalProjection.ts](../frontend/src/lib/finance/goalProjection.ts) | Pure requirements/status/pace; goal helpers add labels and theme colors. |
+| Asset/liability totals, calendar growth, or milestones | [netWorth.ts](../frontend/src/lib/finance/netWorth.ts) | Carried balance levels, first attainment/recovery/ETA, and the separately labeled cumulative cash-flow model. Milestone names and visible-row caps stay in the adapter. |
+| Cash-flow projection | [cashFlowForecast.ts](../frontend/src/lib/finance/cashFlowForecast.ts) | Preserve recorded API net savings; project consumption surplus before future capital losses. |
+| Dashboard month comparisons | [dashboardMetrics.ts](../frontend/src/lib/finance/dashboardMetrics.ts) | Complete-month API comparisons and savings-rate percentage-point change. |
+| Spending-rule flags or calendar-month means/medians | [spending.ts](../frontend/src/lib/finance/spending.ts) | Shared rule surplus, configured targets/tolerance, calendar spine, and zero-month statistics. |
+| Burn rates or typical day/month/weekday | [spendingStatistics.ts](../frontend/src/lib/finance/spendingStatistics.ts) | Inclusive days, fractional calendar months, active spending days, and completed-month medians remain separate policies. |
+| Card outstanding, utilization, and coverage | [creditCardUtilization.ts](../frontend/src/lib/finance/creditCardUtilization.ts) | Signed API balances become nonnegative debt; prepaid assets contribute zero. Known limits define the measured numerator/denominator. |
+| Tax basis, combined annual tax, or regime comparison | [taxPlanning.ts](../frontend/src/lib/finance/taxPlanning.ts) | Employment eligibility, gross/net reconstruction with known deductions, and annual employment plus the selected FY's other taxable income once. |
+| FY grouping, tax history, or residual withholding | [taxHistory.ts](../frontend/src/lib/finance/taxHistory.ts) | Explicit salary preferences, recorded-income liability, annual comparisons, and `reconcileTaxWithholding` for IncomeExpenseFlow; legacy `paidTax` is not proof of payment. |
+| Dated payroll and tax display composition | [payrollPlanning.ts](../frontend/src/lib/finance/payrollPlanning.ts) | `buildSalaryPayroll` supplies monthly settlement and annual cash sums with closing share credit. Combined annual tax and employment-only payroll cash keep separate scopes. |
+| Hypothetical effective tax curve | [taxRateCurve.ts](../frontend/src/lib/finance/taxRateCurve.ts) | Same FY, employment eligibility, and tax engine as the planning model; pre-2020 curves display the old regime only. |
+| Vest quantities, price basis, withholding | [rsuVesting.ts](../frontend/src/lib/rsuVesting.ts) | Canonical valued events shared by Settings, annual projections, and TDS. |
+| Cash/share settlement and salary growth | [salaryCompensation.ts](../frontend/src/lib/salaryCompensation.ts), [projectionCalculator.ts](../frontend/src/lib/projectionCalculator.ts), [tdsScheduleCalculator.ts](../frontend/src/lib/tdsScheduleCalculator.ts) | Monthly settlement primitive, growth inputs, and TDS schedule compose through `buildSalaryPayroll`; derived projections carry `fyStartMonth`. |
+| Recurring amounts, income coverage, and review status | [recurringCalculations.ts](../frontend/src/lib/recurringCalculations.ts), [recurrenceFrequency.ts](../frontend/src/lib/recurrenceFrequency.ts) | Shared recent positive-income median/coverage, cadence/annualization, explicit as-of date, and all active commitments retained in totals. |
+| Median or concentration threshold | [distribution.ts](../frontend/src/lib/distribution.ts) | `medianOf` and `cumulativeShareCutoff`; callers retain row order/identity and the chart's Other cap. |
+| Financial-health inputs and liquid-assets proxy | [financialHealthCalculator.ts](../frontend/src/lib/financialHealthCalculator.ts), [healthScoreAnalysis.ts](../frontend/src/components/analytics/health/healthScoreAnalysis.ts) | Summary/detail share `cfpInputsFromAnalysis`; `liquidAssetsFromFlows` is used only without observed balances. FHN and CFP remain separate. |
+| Instrument or FIRE assumptions | [instrumentCalculators.ts](../frontend/src/lib/instrumentCalculators.ts), [fireCalculator.ts](../frontend/src/lib/fireCalculator.ts) | One NPS weighted-return kernel, EPF split/minimum, and FIRE input annualization/60% essentials assumption; no generic merged projection engine. |
+| GST or dated investment return | [gstCalculator.ts](../frontend/src/lib/gstCalculator.ts), [xirr.ts](../frontend/src/lib/xirr.ts) | Existing global owners stay in place; adapters supply inputs rather than relocating solvers for naming consistency. |
+
+`taxPlanningUtils.ts` re-exports tax planning and history functions.
+`returnsAnalysisUtils.ts`, `netWorthUtils.ts`, `netWorthProjection.ts`,
+`cashFlowUtils.ts`, SIP `projectionUtils.ts`, goal `helpers.ts`,
+`spendingAnalysisUtils.ts`, `quickInsightsData.ts`, `recentIncome.ts`, and
+`dayOfWeekUtils.ts` retain compatibility and presentation work. Put a correction
+in the canonical module and test a consumer; do not create a second formula in
+an adapter.
+
+The contracts that presentation must preserve are:
+
+- Ledger money is INR major units with positive transaction magnitudes and
+  signed derived balances. Domain investment net contributions are positive
+  for funding; monthly API net investment flow is negative for funding; FY
+  investments made counts gross external contributions.
+- Credit-card outstanding is `max(0, -signedBalance)`: positive prepaid assets
+  contribute zero debt/utilization, without offsetting another card's debt.
+  Missing/zero limits and unavailable balances do not acquire invented ratios.
+- Recorded net savings includes known capital losses. The forecast keeps
+  that history while projecting consumption surplus before future losses.
+  Net-worth growth counts actual calendar intervals, including inactive
+  months, and distinguishes account balances from cash-flow history.
+- Spending calendar averages include interior zero months; burn rates use
+  inclusive days and fractional calendar-month coverage; typical spending days
+  count active days; completed-month medians exclude the current month even on
+  its last day. Recurring coverage instead uses the latest twelve usable
+  positive-income months. Do not unify those denominators.
+- Tax rules are FY-versioned. Business-only income gets no salary standard
+  deduction. Gross receipts do not establish tax paid; net-of-TDS reconstruction
+  applies only to classified employment, restoring explicit known cash deductions
+  first. Employee EPF reduces cash, not new-regime taxable income. Pre-2020 rate
+  charts expose only the available old regime.
+- Combined annual tax uses the greater of recorded and projected employment
+  gross plus the selected FY's other recorded taxable income once. Cards,
+  annual charts, and regime comparisons share that scope. The dated salary
+  schedule and cash take-home remain employment-only.
+- Gross RSU units remain the tax basis. Missing actual received units use
+  30% tax plus 4% cess on tax: 25 - 7.5 - 0.3 = 17.2 estimated received shares.
+  Entered units, including zero, override that estimate. Cash take-home and
+  retained share value remain separate. Missing `bonus_mode` preserves the
+  legacy zero-growth one-time bonus choice.
+- `buildSalaryPayroll` derives annual cash from the dated monthly schedule and
+  retains the final month's excess share credit separately. Late share
+  withholding does not retroactively refund earlier cash TDS. All classified
+  RSU ledger receipts in the FY are excluded from cash inference regardless of
+  settlement month; no vest-month matching or broker reconciliation is claimed.
+- SIP summary and chart adapters preserve their distinct initial value/cost
+  bases and rounding. Allocated historical SIP values are estimates. Goal and
+  milestone ETAs share calendar-month/fractional-day stepping, with presentation
+  outside the math domains.
+- Estimate and freshness flags travel with values. Active recurring items
+  needing review remain in totals; a gap is not cancellation. Stale analytics
+  and missing payroll observations are not made trustworthy by a chart.
+
+RSU prices still use the legacy display-currency field convention. The shared
+valuation helpers multiply supplied prices without migrating stored values or
+establishing a new currency contract. Payroll inference, recorded book values,
+and illustrative forecast bands retain their limitations, detailed in
+[Calculations](CALCULATIONS.md#trust-and-compatibility).
 
 ## Frontend Architecture
 
@@ -336,11 +459,23 @@ intent through pointer, keyboard focus, or touch can prefetch the matching
 internal page module. Startup no longer eagerly imports every page. Production
 Workbox installation still precaches static chunks for offline use, including
 in anonymous sessions; runtime lazy loading does not promise zero asset
-downloads. Suspense waits 150 ms
-before showing the page spinner to avoid a flash for fast chunk loads.
+downloads.
 
-The protected route wraps `AppLayout`, which renders the responsive shell and
-an `<Outlet>`. `/home` is a compatibility redirect to `/dashboard`.
+`BrowserRouter` uses its supported `useTransitions={false}` option so requested
+locations and pending feedback update promptly. `AppRoutes` separately defers
+workspace route content while a lazy destination loads.
+The committed page, header, and shell stay visible; the header announces
+`Opening {pendingTitle}` with a thin progress treatment. Full motion animates
+the treatment; the app's Reduced setting keeps it stationary. Public and
+authentication routes render immediately. Initial loads still use the delayed
+Suspense fallback when there is no committed workspace to retain.
+
+The protected route wraps an identity-keyed `AppLayout`. Its captured outlet
+crossfades in synchronous mode, without a blank wait between pages. Outgoing
+frames become `inert` and `aria-hidden`. Search-only location changes update
+the route without a pathname remount; logout/account changes discard the old
+workspace. The header and currency atmosphere live outside the route frame.
+`/home` is a compatibility redirect to `/dashboard`.
 
 See [PAGES.md](PAGES.md) for every route and data source.
 
@@ -415,10 +550,11 @@ flowchart TB
 | [PieChartLedger](../frontend/src/components/ui/PieChartLedger.tsx) | Ranked amount/share rows, coordinated slice hover/focus, and native buttons for category drilldown. |
 | [useChartPresentation](../frontend/src/components/ui/useChartPresentation.ts) | Live viewport, theme, and motion subscriptions; returns `isMobile`, `theme`, and `animate`. |
 
-Financial definitions remain in feature hooks, pure utilities, and API
-calculations. For example,
-[useDashboardMetrics](../frontend/src/hooks/useDashboardMetrics.ts) selects
-complete months and normalizes expense signs before supplying chart rows;
+Financial definitions remain in the named finance domains, shared helpers,
+and backend calculations. For example,
+[useDashboardMetrics](../frontend/src/hooks/useDashboardMetrics.ts) composes
+[dashboardMetrics](../frontend/src/lib/finance/dashboardMetrics.ts) for
+complete-month comparisons before supplying chart rows;
 [useAnalytics](../frontend/src/hooks/api/useAnalytics.ts) accesses the typed
 [calculation service](../frontend/src/services/api/calculations.ts). Shared chart
 primitives do not fetch ledger data or own financial preferences.
@@ -899,16 +1035,34 @@ SQLite tests do not establish PostgreSQL migration or locking behavior; those
 checks require a native PostgreSQL test database. OAuth verification can use
 synthetic identities and stubbed provider responses without a real login.
 
-Native PostgreSQL 17.11 verification for this update covered fresh and populated
-migrations, constraints, complete-plan downgrade guards, transaction-local
-timeouts, and daily/monthly quota races across independent connections.
-The final migration pass also covered unmatched transfer preservation,
-irreversible consolidation rollback, and legacy VARCHAR/absent-enum setup.
-Fixtures were synthetic and the owned local cluster was stopped afterward.
+For finance changes, start with the domain suite plus an affected consumer:
+
+```bash
+pnpm --dir frontend exec vitest run src/lib/finance/__tests__
+pnpm --dir frontend exec vitest run src/pages/tax-planning/__tests__/taxPlanningUtils.test.ts src/lib/__tests__/rsuVesting.test.ts src/lib/__tests__/projectionCalculator.test.ts src/lib/__tests__/tdsScheduleCalculator.test.ts src/lib/__tests__/recurringCalculations.test.ts
+pnpm --dir frontend exec vitest run src/pages/mutual-fund-projection/__tests__ src/pages/goals/__tests__ src/pages/net-worth/__tests__
+pnpm --dir frontend exec vitest run src/lib/__tests__/instrumentCalculators.test.ts src/lib/__tests__/fireCalculator.test.ts src/components/analytics/__tests__/CreditCardHealth.test.tsx src/components/analytics/__tests__/FinancialHealthScore.test.tsx
+pnpm --dir frontend run type-check
+```
+
+From the repository root, backend arithmetic and investment-summary checks run
+natively with synthetic fixtures:
+
+```bash
+cd backend
+uv run pytest tests/unit/test_ledger_math.py tests/integration/test_investment_transfer_summaries.py
+```
+
+No Docker is required. Use isolated test configuration; PostgreSQL-specific
+checks need a disposable native PostgreSQL cluster. Run fresh/populated
+migrations, constraints, downgrade guards, transaction-local timeouts, and
+cross-connection quota races there when those boundaries change. These commands
+and coverage descriptions are not a claim that CI or deployment checks passed.
 Vercel protection/promotion and distributed rate-limit storage remain external
 deployment configuration.
 
-See [TESTING.md](TESTING.md) for commands and scope. Deployment health and
+See the [focused calculation checks](CALCULATIONS.md#focused-calculation-checks)
+and [TESTING.md](TESTING.md) for commands and scope. Deployment health and
 database recovery checks are maintained in [DEPLOYMENT.md](DEPLOYMENT.md) and
 [DATABASE.md](DATABASE.md).
 
@@ -916,6 +1070,6 @@ database recovery checks are maintained in [DEPLOYMENT.md](DEPLOYMENT.md) and
 
 - [API](API.md)
 - [Database](DATABASE.md)
-- [Calculations](CALCULATIONS.md)
+- [Calculation Map and Formula Reference](CALCULATIONS.md)
 - [Development](DEVELOPMENT.md)
 - [Page Catalog](PAGES.md)

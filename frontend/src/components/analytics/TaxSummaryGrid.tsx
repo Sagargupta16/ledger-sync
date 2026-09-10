@@ -1,34 +1,27 @@
 import { motion } from 'motion/react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { savingsRatePercentOr } from '@/lib/savingsRate'
+import type { taxOverviewMetrics } from '@/lib/finance/payrollPlanning'
 import { ProgressBar } from '@/components/shared'
 import { hexToRgba, rawColors } from '@/constants/colors'
 
 interface TaxSummaryGridProps {
   selectedFY: string
   grossTaxableIncome: number
-  taxAlreadyPaid: number
+  totalTax: number
   totalIncome: number
-  totalExpense: number
+  metrics: ReturnType<typeof taxOverviewMetrics>
   isProjecting?: boolean
 }
 
 export default function TaxSummaryGrid({
   selectedFY,
   grossTaxableIncome,
-  taxAlreadyPaid,
+  totalTax,
   totalIncome,
-  totalExpense,
+  metrics,
   isProjecting = false,
 }: Readonly<TaxSummaryGridProps>) {
-  const effectiveTaxRate =
-    grossTaxableIncome > 0 ? (taxAlreadyPaid / grossTaxableIncome) * 100 : 0
-
-  const netSavings = totalIncome - totalExpense
-  // Shared definition, not a local one: this tile sits beside the effective tax
-  // rate above, which is a genuinely different ratio (tax over gross taxable
-  // income) and stays hand-rolled on purpose.
-  const savingsRate = savingsRatePercentOr({ income: totalIncome, expense: totalExpense })
+  const { effectiveTaxRate, netSavings, savingsRate } = metrics
 
   return (
     <motion.div
@@ -62,7 +55,7 @@ export default function TaxSummaryGrid({
             className="mt-3"
           />
           <p className="text-overline text-text-tertiary mt-2">
-            {formatCurrency(taxAlreadyPaid)} on {formatCurrency(grossTaxableIncome)} gross
+            {formatCurrency(totalTax)} on {formatCurrency(grossTaxableIncome)} gross
           </p>
         </div>
         {!isProjecting && (

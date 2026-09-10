@@ -89,7 +89,7 @@ class TestRsuGrant:
             RsuVesting(date=vest_date, quantity=6, price_at_vest=zero)
 
     def test_net_quantity_defaults_to_none(self):
-        """Absent means "no withholding recorded", NOT "equal to the gross vest"."""
+        """Actuals stay unknown; a UI estimate is never persisted as an actual."""
         vesting = RsuVesting(date=date(2026, 3, 15), quantity=25)
         assert vesting.net_quantity is None
 
@@ -110,11 +110,21 @@ class TestRsuGrant:
         with pytest.raises(ValidationError, match="cannot exceed"):
             RsuVesting(date=vest_date, quantity=6, net_quantity=over_gross)
 
-    def test_net_quantity_rejects_zero(self):
+    def test_net_quantity_accepts_zero_for_full_withholding(self):
+        vesting = RsuVesting(date=date(2025, 8, 15), quantity=6, net_quantity=Decimal("0"))
+        assert vesting.net_quantity == Decimal("0")
+        assert vesting.quantity == 6
+
+    def test_net_quantity_rejects_negative(self):
         vest_date = date(2025, 8, 15)
-        zero = Decimal("0")
+        negative = Decimal("-0.001")
         with pytest.raises(ValidationError):
-            RsuVesting(date=vest_date, quantity=6, net_quantity=zero)
+            RsuVesting(date=vest_date, quantity=6, net_quantity=negative)
+
+    def test_net_quantity_preserves_fractional_precision(self):
+        vesting = RsuVesting(date=date(2025, 8, 15), quantity=25, net_quantity=Decimal("17.200123"))
+        assert vesting.net_quantity == Decimal("17.200123")
+        assert vesting.quantity == 25
 
     def test_stock_price_must_be_positive(self):
         stock_price = Decimal("0")
@@ -169,10 +179,21 @@ class TestGrowthAssumptions:
         ga = GrowthAssumptions()
         assert ga.base_salary_growth_pct == 0
         assert ga.bonus_growth_pct == 0
+        assert ga.bonus_mode is None
         assert ga.epf_scales_with_base is True
         assert ga.nps_growth_pct == 0
         assert ga.stock_price_appreciation_pct == 0
         assert ga.projection_years == 3
+
+    @pytest.mark.parametrize("mode", ["recurring", "one_time"])
+    def test_bonus_mode_is_explicit_and_preserves_zero_growth(self, mode: str) -> None:
+        growth = GrowthAssumptions.model_validate({"bonus_mode": mode, "bonus_growth_pct": 0})
+        assert growth.bonus_mode == mode
+        assert growth.bonus_growth_pct == 0
+
+    def test_bonus_mode_rejects_unknown_values(self) -> None:
+        with pytest.raises(ValidationError):
+            GrowthAssumptions.model_validate({"bonus_mode": "sometimes"})
 
     def test_projection_years_bounds(self):
         ga = GrowthAssumptions(projection_years=5)

@@ -1,4 +1,5 @@
 import type { Transaction } from '@/types'
+import { investmentTransferDelta } from '@/lib/finance/investmentFlows'
 
 export type FinHealthTier = 'healthy' | 'coping' | 'vulnerable'
 export type Pillar = 'spend' | 'save' | 'borrow' | 'plan'
@@ -236,15 +237,7 @@ export function checkIsInvestmentTransaction(
   tx: Transaction,
   isInvestmentAccount: (name: string) => boolean,
 ): boolean {
-  if (tx.type !== 'Transfer' || !tx.to_account) return false
-  const toAccount = tx.to_account.toLowerCase()
-  const note = (tx.note ?? '').toLowerCase()
-  const category = (tx.category || '').toLowerCase()
-  if (isInvestmentAccount(tx.to_account)) return true
-  if (matchesPatterns(toAccount, INVESTMENT_ACCOUNT_PATTERNS)) return true
-  if (matchesPatterns(note, INVESTMENT_NOTE_KEYWORDS)) return true
-  if (matchesPatterns(category, INVESTMENT_NOTE_KEYWORDS)) return true
-  return false
+  return healthInvestmentTransferDelta(tx, isInvestmentAccount) > 0
 }
 
 export function isToAccountInvestment(
@@ -260,10 +253,25 @@ export function checkIsInvestmentWithdrawal(
   tx: Transaction,
   isInvestmentAccount: (name: string) => boolean,
 ): boolean {
-  if (tx.type !== 'Transfer' || !tx.from_account) return false
-  const fromAccount = tx.from_account.toLowerCase()
-  const toIsInvestment = isToAccountInvestment(tx.to_account, isInvestmentAccount)
-  if (isInvestmentAccount(tx.from_account) && !toIsInvestment) return true
-  if (matchesPatterns(fromAccount, INVESTMENT_ACCOUNT_PATTERNS) && !toIsInvestment) return true
-  return false
+  return healthInvestmentTransferDelta(tx, isInvestmentAccount) < 0
+}
+
+/** Preserve the health view's account/note fallback while sharing transfer direction. */
+export function healthInvestmentTransferDelta(
+  tx: Transaction,
+  isInvestmentAccount: (name: string) => boolean,
+): number {
+  if (tx.type !== 'Transfer') return 0
+  const fromInvestment = isToAccountInvestment(tx.from_account, isInvestmentAccount)
+  // Notes can identify an otherwise unknown destination, but cannot turn a
+  // withdrawal from a known holding into another investment contribution.
+  const inferredDestination = !fromInvestment && (
+    matchesPatterns(tx.note ?? '', INVESTMENT_NOTE_KEYWORDS) ||
+    matchesPatterns(tx.category || '', INVESTMENT_NOTE_KEYWORDS)
+  )
+  return investmentTransferDelta(tx, (name) => {
+    if (!name) return false
+    return isToAccountInvestment(name, isInvestmentAccount) ||
+      (name === tx.to_account && inferredDestination)
+  })
 }

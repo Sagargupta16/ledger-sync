@@ -19,7 +19,9 @@ import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { EASING } from '@/constants/animations'
 import { toLocalDateKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
-import { netSavings as computeNetSavings, savingsRatePercentOr } from '@/lib/savingsRate'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
+import { computeSpendingPace, medianSpendingDay, medianSpendingMonth } from '@/lib/finance/spendingStatistics'
+import { recurringCoveragePercent, typicalMonthlyIncome } from '@/lib/recurringCalculations'
 import { useMotionStore } from '@/store/motionStore'
 
 import ErrorState from './ErrorState'
@@ -28,18 +30,12 @@ import {
   type InsightDescriptor,
   getVisibleWidgetKeys,
   filterByVisibility,
-  computeDaysInRange,
-  computeMonthsInRange,
-  resolveSpanRange,
-  medianSpendingDay,
-  medianSpendingMonth,
   fmtChange,
   buildQuickInsights,
   buildFunFacts,
   DAY_NAMES,
   monthLabel,
 } from './quickInsightsData'
-import { typicalMonthlyIncome } from './recentIncome'
 
 /**
  * Upper bound the `/analytics/v2/daily-summaries` endpoint accepts (`Query(le=3000)`).
@@ -192,13 +188,10 @@ export default function QuickInsights({
   // span (returned by the endpoint as min/max date) -- no raw rows needed. The
   // end is capped at today so forward-dated rows cannot stretch the divisor past
   // the elapsed period; see `resolveSpanRange`.
-  const spanRange = resolveSpanRange(dateRange, insights, toLocalDateKey(new Date()))
-  const daysInRange = computeDaysInRange(spanRange, [])
-  const monthsInRange = computeMonthsInRange(spanRange, [])
-
   const totalSpending = insights?.total_spending ?? 0
-  const avgDailySpending = totalSpending / daysInRange
-  const monthlyBurnRate = totalSpending / monthsInRange
+  const { spanRange, daysInRange, monthsInRange, avgDailySpending, monthlyBurnRate } = computeSpendingPace(
+    totalSpending, dateRange, insights, toLocalDateKey(new Date()),
+  )
 
   const netCashback = insights?.net_cashback ?? 0
   const cashbackCount = insights?.cashback_count ?? 0
@@ -206,22 +199,11 @@ export default function QuickInsights({
   const avgTransactionAmount = insights?.avg_expense ?? 0
   const totalTransfers = insights?.total_transfers ?? 0
 
-  // New insights data
-  //
-  // Savings rate and net savings are recomputed from the flows through the
-  // shared definition rather than read from the response's own `savings_rate` /
-  // `net_savings` fields. Those are precomputed server-side, so a tile could
-  // contradict the income and expense totals printed beside it on this very
-  // card. Deriving all three from one pair of flows makes the band internally
-  // consistent by construction.
-  //
-  // This does NOT make the number true: on the no-date-filter path the backend
-  // serves these totals from the `monthly_summaries` rollup, which can lag the
-  // raw ledger. That staleness is surfaced separately by StaleAnalyticsAlert.
+  // The API's net includes capital losses, which are excluded from consumption
+  // expenses. Rebuilding it as income minus spending would lose those outflows.
   const totalIncome = totalsData?.total_income ?? 0
-  const totalExpenses = Math.abs(totalsData?.total_expenses ?? 0)
-  const savingsRate = savingsRatePercentOr({ income: totalIncome, expense: totalExpenses })
-  const netSavings = computeNetSavings({ income: totalIncome, expense: totalExpenses })
+  const netSavings = totalsData?.net_savings ?? 0
+  const savingsRate = savingsRatePercentFromNet(netSavings, totalIncome) ?? 0
 
   const topIncomeSource: [string, number] | null = insights?.top_income_source
     ? [insights.top_income_source.category, insights.top_income_source.amount]
@@ -267,10 +249,7 @@ export default function QuickInsights({
   // the honest number for the wrong one, so coverage stays null and the card is
   // withheld instead.
   const typicalIncome = typicalMonthlyIncome(monthlySummariesQuery.data)
-  const recurringCoverage =
-    typicalIncome != null && typicalIncome > 0
-      ? (fixedCommitmentsMonthly / typicalIncome) * 100
-      : null
+  const recurringCoverage = recurringCoveragePercent(fixedCommitmentsMonthly, typicalIncome)
 
   // Income vs Expense ratio
   const totalExpenseAbs = Math.abs(totalsData?.total_expenses ?? 0)

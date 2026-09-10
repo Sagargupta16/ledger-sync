@@ -2,23 +2,85 @@ import { useId, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button, Money } from '@/components/ui'
-import { calculateTax, getStandardDeduction, getTaxSlabs } from '@/lib/taxCalculator'
+import { compareTaxRegimes } from '@/lib/finance/taxPlanning'
 import { formatCurrency } from '@/lib/formatters'
 
-import { calculateBreakEvenDeduction } from '../taxPlanningUtils'
 import DeductionInput from './DeductionInput'
-import RegimeVerdictDetail from './RegimeVerdictDetail'
 
 interface Props {
   grossIncome: number
   fyYear: number
   salaryMonthsCount: number
+  hasEmploymentIncome?: boolean
+  employmentIncome?: number
+}
+
+type Comparison = NonNullable<ReturnType<typeof compareTaxRegimes>>
+
+function BreakEvenDetail({ comparison }: Readonly<{ comparison: Comparison }>) {
+  if (!comparison.newIsBetter) {
+    return (
+      <p className="mt-2 text-sm text-muted-foreground">
+        Claim only deductions you qualify for when filing your return.
+      </p>
+    )
+  }
+  if (comparison.breakEvenDeduction === null) {
+    return (
+      <p className="mt-2 text-sm text-muted-foreground">
+        Old Regime still costs more with up to {formatCurrency(comparison.breakEvenLimit)} in
+        additional deductions. This comparison limit is not a statutory deduction cap.
+      </p>
+    )
+  }
+  return (
+    <p className="mt-2 text-sm text-muted-foreground">
+      Old Regime matches or beats this estimate at{' '}
+      <span className="font-semibold text-foreground">
+        {formatCurrency(comparison.breakEvenDeduction)}
+      </span>{' '}
+      in total deductions.
+      {comparison.totalDeductions > 0 && (
+        <span>
+          {' '}That is {formatCurrency(comparison.additionalDeductionToBreakEven ?? 0)} more
+          than the deductions entered above.
+        </span>
+      )}
+    </p>
+  )
+}
+
+function ComparisonVerdict({ comparison }: Readonly<{ comparison: Comparison }>) {
+  if (comparison.equalTax) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Both regimes give the same estimated tax with these inputs.
+      </p>
+    )
+  }
+  return (
+    <>
+      <p className="text-sm">
+        <span className="font-semibold text-foreground">
+          {comparison.newIsBetter ? 'New Regime' : 'Old Regime'}
+        </span>
+        {' saves you '}
+        <Money value={comparison.difference} bold className="text-app-green" />
+        {comparison.newIsBetter && comparison.totalDeductions === 0
+          ? ' without additional deductions.'
+          : '.'}
+      </p>
+      <BreakEvenDetail comparison={comparison} />
+    </>
+  )
 }
 
 export default function RegimeComparison({
   grossIncome,
   fyYear,
   salaryMonthsCount,
+  hasEmploymentIncome = salaryMonthsCount > 0,
+  employmentIncome,
 }: Readonly<Props>) {
   const deductionFieldsId = useId()
   const [sec80C, setSec80C] = useState(0)
@@ -30,49 +92,16 @@ export default function RegimeComparison({
 
   // 80CCD(1B) is a standalone ₹50k additional deduction for NPS Tier-1 contributions,
   // over and above the 80C 1.5L cap. Many salaried users miss it.
-  const totalDeductions = sec80C + sec80CCD1B + sec80D + hra + sec24b
-  const newStandardDeduction = getStandardDeduction(fyYear, 'new')
-  const oldStandardDeduction = getStandardDeduction(fyYear, 'old')
-
-  const newTax = calculateTax(
+  const comparison = compareTaxRegimes({
     grossIncome,
-    getTaxSlabs(fyYear, 'new'),
-    newStandardDeduction,
-    true,
-    salaryMonthsCount,
-    true,
     fyYear,
-  )
-  const oldRegimeIncome = Math.max(0, grossIncome - totalDeductions)
-  const oldTax = calculateTax(
-    oldRegimeIncome,
-    getTaxSlabs(fyYear, 'old'),
-    oldStandardDeduction,
-    true,
     salaryMonthsCount,
-    false,
-    fyYear,
-  )
-
-  const newTotal = newTax.totalTax
-  const oldTotal = oldTax.totalTax
-  const diff = Math.abs(newTotal - oldTotal)
-  const equalTax = Math.round(newTotal * 100) === Math.round(oldTotal * 100)
-  const newIsBetter = !equalTax && newTotal < oldTotal
-  const oldIsBetter = !equalTax && oldTotal < newTotal
-  const betterRegime = newIsBetter ? 'New Regime' : 'Old Regime'
-
-  const breakEvenDeduction =
-    newIsBetter && grossIncome > 0
-      ? calculateBreakEvenDeduction(
-          grossIncome,
-          fyYear,
-          salaryMonthsCount,
-          newTotal,
-        )
-      : 0
-
-  if (grossIncome <= 0) return null
+    hasEmploymentIncome,
+    employmentIncome,
+    oldRegimeDeductions: sec80C + sec80CCD1B + sec80D + hra + sec24b,
+  })
+  if (!comparison) return null
+  const { newTax, oldTax, newIsBetter, oldIsBetter, totalDeductions } = comparison
 
   return (
     <div className="space-y-4">
@@ -92,12 +121,12 @@ export default function RegimeComparison({
               </span>
             )}
           </div>
-          <Money value={newTotal} bold className="text-xl" />
+          <Money value={newTax.totalTax} bold className="text-xl" />
           <p className="text-xs text-muted-foreground mt-1">
-            Effective rate: {grossIncome > 0 ? ((newTotal / grossIncome) * 100).toFixed(1) : '0'}%
+            Effective rate: {comparison.newEffectiveRate.toFixed(1)}%
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Standard deduction: {formatCurrency(newStandardDeduction)}
+            Standard deduction: {formatCurrency(newTax.standardDeduction)}
           </p>
         </div>
         <div
@@ -113,9 +142,9 @@ export default function RegimeComparison({
               </span>
             )}
           </div>
-          <Money value={oldTotal} bold className="text-xl" />
+          <Money value={oldTax.totalTax} bold className="text-xl" />
           <p className="text-xs text-muted-foreground mt-1">
-            Effective rate: {grossIncome > 0 ? ((oldTotal / grossIncome) * 100).toFixed(1) : '0'}%
+            Effective rate: {comparison.oldEffectiveRate.toFixed(1)}%
             {totalDeductions > 0 && (
               <span className="text-app-green">
                 {' '}
@@ -127,7 +156,7 @@ export default function RegimeComparison({
             )}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Standard deduction: {formatCurrency(oldStandardDeduction)}
+            Standard deduction: {formatCurrency(oldTax.standardDeduction)}
           </p>
         </div>
       </div>
@@ -199,26 +228,7 @@ export default function RegimeComparison({
       </div>
 
       <div className="rounded-lg border border-border bg-[var(--overlay-2)] px-4 py-3" aria-live="polite">
-        {equalTax ? (
-          <p className="text-sm text-muted-foreground">
-            Both regimes give the same estimated tax with these inputs.
-          </p>
-        ) : (
-          <>
-            <p className="text-sm">
-              <span className="font-semibold text-foreground">{betterRegime}</span>
-              {' saves you '}
-              <Money value={diff} bold className="text-app-green" />
-              {newIsBetter && totalDeductions === 0 ? ' without additional deductions.' : '.'}
-            </p>
-            <RegimeVerdictDetail
-              newIsBetter={newIsBetter}
-              totalDeductions={totalDeductions}
-              breakEvenDeduction={breakEvenDeduction}
-              grossIncome={grossIncome}
-            />
-          </>
-        )}
+        <ComparisonVerdict comparison={comparison} />
       </div>
     </div>
   )
