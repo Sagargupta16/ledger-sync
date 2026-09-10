@@ -66,6 +66,8 @@ export default function ChartContainer({
       height={resolvedHeight}
       minWidth={0}
       minHeight={0}
+      className="min-w-0 [&_text]:tabular-nums"
+      debounce={48}
       {...rest}
     >
       {children}
@@ -77,7 +79,12 @@ export default function ChartContainer({
   // Wrap in a role="img" with the descriptive label so screen readers
   // announce a single meaningful summary instead of walking every SVG node.
   return (
-    <div role="img" aria-label={ariaLabel} style={{ width: '100%', height: '100%' }}>
+    <div
+      role="img"
+      aria-label={ariaLabel}
+      className="relative min-w-0 max-w-full"
+      style={{ width: '100%', height: '100%' }}
+    >
       {container}
     </div>
   )

@@ -1,8 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
+import { motion } from 'motion/react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
+import { EASING } from '@/constants/animations'
 import { formatCurrency } from '@/lib/formatters'
 import type { SpendingBucket } from '@/services/api/analyticsV2'
+import { useMotionStore } from '@/store/motionStore'
 
 /**
  * One of the three big header cards on the /budgets page (Needs, Wants, Savings).
@@ -63,6 +66,7 @@ export function BucketCard({
   scoreDelta,
   hasIncome,
 }: Props) {
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   const status = statusFor(scoreDelta, hasIncome)
 
   // Cap-kind cards fill from 0 -> target -> over (bar can exceed 100%).
@@ -70,6 +74,8 @@ export function BucketCard({
   // still 100% full visually; the score-delta line shows the surplus).
   const progressPct = kind === 'cap' ? pctOfIncome : Math.min(pctOfIncome, target)
   const isOverCap = kind === 'cap' && pctOfIncome > target
+  const progressMax = Math.max(target, pctOfIncome, 1)
+  const targetPosition = Math.max(0, Math.min(100, (target / progressMax) * 100))
 
   const targetLabel =
     kind === 'cap' ? `Target: ≤${target}% of income` : `Target: ≥${target}% of income`
@@ -81,55 +87,80 @@ export function BucketCard({
       : `${deltaSign}${scoreDelta.toFixed(0)} pts vs target`
 
   return (
-    <div
-      className="ledger-panel flex h-full flex-col gap-3 p-4 sm:p-5"
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.32, ease: EASING.cinematic }}
+      className="@container/bucket ledger-panel flex h-full min-w-0 flex-col p-4 sm:p-5"
       aria-label={`${title} bucket, ${pctOfIncome.toFixed(1)} percent of income, ${deltaLabel}`}
     >
       {/* Top row: icon + title + description */}
-      <div className="flex items-start gap-3">
-        <div className="rounded-md bg-[var(--overlay-3)] p-2" aria-hidden="true">
-          <Icon className="w-5 h-5 text-foreground" />
-        </div>
+      <div className="flex min-h-20 items-start justify-between gap-3 @max-[14rem]/bucket:min-h-24">
         <div className="min-w-0">
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-base font-semibold text-foreground">{title}</h3>
-            <span className="text-xs text-muted-foreground">({target}%)</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          <h3 className="text-base font-semibold leading-6 text-foreground">{title}</h3>
+          <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">{description}</p>
+        </div>
+        <div className="mt-0.5 shrink-0 rounded-md bg-[var(--overlay-3)] p-2" aria-hidden="true">
+          <Icon className="size-4" style={{ color: PROGRESS_TINTS[bucket] }} />
         </div>
       </div>
 
       {/* Big amount -- KPI hero scale, matches MetricCard hero */}
-      <div className="ledger-figure text-xl font-semibold text-foreground sm:text-2xl">
+      <div className="ledger-figure mt-5 break-words font-mono text-xl font-semibold leading-tight text-foreground tabular-nums @min-[16rem]/bucket:text-2xl">
         {formatCurrency(amount)}
       </div>
 
       {/* Progress bar with % label */}
-      <div className="space-y-1">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-muted-foreground">Current</span>
-          <span
-            className={`text-sm font-semibold tabular-nums ${
+      <div className="mt-auto pt-5">
+        <dl className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <dt className="text-xs leading-5 text-muted-foreground">Current</dt>
+            <dd className={`mt-1 font-mono text-lg font-semibold leading-6 tabular-nums ${
               isOverCap ? 'text-app-red' : STATUS_COLORS[status]
-            }`}
-          >
-            {pctOfIncome.toFixed(1)}%
-          </span>
+            }`}>
+              {pctOfIncome.toFixed(1)}%
+            </dd>
+          </div>
+          <div className="text-right">
+            <dt className="text-xs leading-5 text-muted-foreground">{kind === 'cap' ? 'Ceiling' : 'Minimum'}</dt>
+            <dd className="mt-1 font-mono text-lg font-medium leading-6 text-foreground tabular-nums">
+              {target}%
+            </dd>
+          </div>
+        </dl>
+        <div className="relative">
+          <ProgressBar
+            value={progressPct}
+            max={progressMax}
+            color={PROGRESS_TINTS[bucket]}
+            height={8}
+            target={target}
+            bands={kind === 'floor' && pctOfIncome > target ? [
+              { upTo: targetPosition, color: 'transparent' },
+              { upTo: 100, color: 'color-mix(in srgb, var(--color-app-green) 20%, transparent)' },
+            ] : undefined}
+            ariaLabel={`${title} at ${pctOfIncome.toFixed(1)} percent of income`}
+          />
+          <span
+            className="pointer-events-none absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
+            style={{ left: `${targetPosition}%` }}
+            aria-hidden="true"
+          />
         </div>
-        <ProgressBar
-          value={progressPct}
-          max={Math.max(target, pctOfIncome, 1)}
-          color={PROGRESS_TINTS[bucket]}
-          height={8}
-          target={target}
-          ariaLabel={`${title} at ${pctOfIncome.toFixed(1)} percent of income`}
-        />
+        <div className="mt-2 flex justify-between font-mono text-[10px] text-text-tertiary tabular-nums" aria-hidden="true">
+          <span>0%</span>
+          <span>{Number(progressMax.toFixed(1))}% of income</span>
+        </div>
       </div>
 
       {/* Footer: target + delta */}
-      <div className="border-t border-[var(--hairline-1)] pt-2 text-xs text-muted-foreground">
-        {targetLabel} · <span className={STATUS_COLORS[status]}>{deltaLabel}</span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--hairline-1)] pt-3 text-xs leading-5 text-muted-foreground tabular-nums">
+        <span>{targetLabel}</span>
+        <span className={`inline-flex items-center gap-1.5 font-medium ${STATUS_COLORS[status]}`}>
+          <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
+          {deltaLabel}
+        </span>
       </div>
-    </div>
+    </motion.div>
   )
 }

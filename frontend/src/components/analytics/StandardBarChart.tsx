@@ -12,17 +12,21 @@
  *   />
  */
 
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList, Brush,
 } from 'recharts'
 
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
-  BAR_RADIUS, LEGEND_DEFAULTS, shouldAnimate,
+  BAR_RADIUS, BRUSH_DEFAULTS, referenceLine,
 } from '@/components/ui/chartDefaults'
+import { CHART_TEXT } from '@/constants/chartColors'
 import { barLabelFormatter, barLabelStyle } from '@/lib/chartUtils'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
@@ -68,6 +72,8 @@ interface StandardBarChartProps {
   readonly barSize?: number
   readonly barGap?: number
   readonly stacked?: boolean
+  /** Optional timeline window; the accessible table always retains every row. */
+  readonly brush?: Pick<ComponentProps<typeof Brush>, 'startIndex' | 'endIndex' | 'onChange'>
   readonly referenceLines?: ReferenceLineConfig[]
   /**
    * Draw a median baseline across the first bar series so a reader can tell
@@ -142,6 +148,7 @@ export default function StandardBarChart({
   barSize,
   barGap,
   stacked = false,
+  brush,
   referenceLines,
   baseline,
   margin,
@@ -152,6 +159,7 @@ export default function StandardBarChart({
   rowHeaderLabel,
 }: StandardBarChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const { animate, isMobile } = useChartPresentation(data.length)
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -160,30 +168,45 @@ export default function StandardBarChart({
   // Hover-isolate only makes sense for a single-series ranking chart. With
   // grouped/stacked bars, dimming by row index would fade unrelated series.
   const isolateOnHover = bars.length === 1 && !stacked
-  const animate = shouldAnimate(data.length)
+  const isRanking = layout === 'vertical'
   const xOpts = xAngle === undefined ? undefined : { angle: xAngle, height: xHeight }
   const xDefaults = xAxisDefaults(data.length, xOpts)
   const yDefaults = yAxisDefaults({
-    ...(yWidth !== undefined && { width: yWidth }),
-    ...(layout === 'vertical' && yCategoryKey !== undefined && { currency: false }),
+    width: yWidth ?? (isRanking ? (isMobile ? 84 : 112) : (isMobile ? 48 : 56)),
+    ...(isRanking && { currency: false }),
   })
 
   const chartMargin = buildChartMargin(margin, xAngle)
-  const gridProps = buildGridProps(GRID_DEFAULTS, hideVerticalGrid, hideHorizontalGrid)
+  const gridProps = buildGridProps(
+    isRanking ? { ...GRID_DEFAULTS, vertical: true, horizontal: false } : GRID_DEFAULTS,
+    hideVerticalGrid,
+    hideHorizontalGrid,
+  )
   const tooltipFormatterProp = buildTooltipFormatter(tooltipValueWithPayload, tooltipFormatter)
   // Row label comes from the category axis, which swaps sides with the layout.
-  const isRanking = layout === 'vertical'
   const labelKey = isRanking ? (yCategoryKey ?? dataKey) : dataKey
   const rowHeaderName = rowHeaderLabel ?? (isRanking ? 'Category' : 'Period')
+  const hasNegative = data.some((row) =>
+    bars.some((bar) => Number((row as Record<string, unknown>)[bar.key]) < 0),
+  )
 
   return (
     <>
+      {showLegend && bars.length > 1 && (
+        <ChartSeriesLegend items={bars.map((bar) => ({
+          key: bar.key,
+          label: bar.label ?? bar.key,
+          color: bar.color,
+        }))} />
+      )}
       <ChartContainer height={height} ariaLabel={ariaLabel}>
         <BarChart
+          key={brush ? 'windowed' : 'full'}
           data={data}
           layout={layout}
           margin={chartMargin}
-          barGap={barGap}
+          barGap={barGap ?? '16%'}
+          barCategoryGap="24%"
         >
           <CartesianGrid {...gridProps} />
           <XAxis
@@ -191,23 +214,29 @@ export default function StandardBarChart({
             type={xType ?? (isRanking ? 'number' : 'category')}
             domain={xDomain}
             {...xDefaults}
+            interval={isMobile || isRanking ? 'preserveStartEnd' : xDefaults.interval}
+            {...(isRanking && { tickFormatter: (value: number) => formatCurrencyShort(value) })}
             {...(xTickFormatter && { tickFormatter: xTickFormatter })}
           />
           <YAxis
-            dataKey={isRanking ? yCategoryKey : undefined}
+            dataKey={isRanking ? labelKey : undefined}
             type={yType ?? (isRanking ? 'category' : 'number')}
             {...yDefaults}
+            {...(isRanking && {
+              tick: { ...yDefaults.tick, fontFamily: 'var(--font-sans)', width: yDefaults.width - 12 },
+              interval: 0,
+            })}
             {...(yTickFormatter && { tickFormatter: yTickFormatter })}
           />
           <Tooltip
             {...chartTooltipProps}
+            content={<ChartTooltipContent />}
             formatter={tooltipFormatterProp as never}
           />
           {referenceLines?.map(renderReferenceLine)}
           {renderBaseline(baseline, data, bars, layout)}
-          {showLegend && bars.length > 1 && (
-            <Legend {...LEGEND_DEFAULTS} />
-          )}
+          {hasNegative && !referenceLines?.some((ref) => (isRanking ? ref.x : ref.y) === 0)
+            && referenceLine({ ...(isRanking ? { x: 0 } : { y: 0 }), variant: 'zero' })}
           {bars.map((bar) => (
             <Bar
               key={bar.key}
@@ -216,11 +245,11 @@ export default function StandardBarChart({
               fill={bar.color}
               fillOpacity={bar.fillOpacity}
               radius={bar.radius ?? BAR_RADIUS}
-              shape={renderBarShape(bar, activeIndex, isolateOnHover)}
-              isAnimationActive={animate}
-              animationDuration={600}
+              shape={renderBarShape(bar, activeIndex, isolateOnHover, layout)}
+              isAnimationActive={animate && !brush}
+              animationDuration={480}
               animationEasing="ease-out"
-              maxBarSize={bar.barSize ?? barSize ?? 48}
+              maxBarSize={bar.barSize ?? barSize ?? 36}
               barSize={bar.barSize}
               stackId={stacked ? 'stack' : bar.stackId}
               cursor={onBarClick ? 'pointer' : undefined}
@@ -243,13 +272,21 @@ export default function StandardBarChart({
               {showLabels && (
                 <LabelList
                   dataKey={bar.key}
-                  position="top"
+                  position={isRanking ? 'right' : 'top'}
                   formatter={barLabelFormatter as never}
-                  style={barLabelStyle}
+                  style={{ ...barLabelStyle, fill: CHART_TEXT.secondary, fontFamily: 'var(--font-mono)' }}
                 />
               )}
             </Bar>
           ))}
+          {brush && !isRanking && (
+            <Brush
+              {...BRUSH_DEFAULTS}
+              dataKey={dataKey}
+              tickFormatter={xTickFormatter}
+              {...brush}
+            />
+          )}
         </BarChart>
       </ChartContainer>
       {/* Screen-reader fallback, rendered as a SIBLING of ChartContainer --

@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import { refreshRawColors } from '@/constants/colors'
 
 import StandardPieChart from '../StandardPieChart'
 import { buildPieSlices, renderPieSectorShape } from '../standardPieChartParts'
@@ -107,7 +108,7 @@ describe('StandardPieChart', () => {
       />,
     )
 
-    expect(screen.getByText('42 units')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('42 units')).toBeInTheDocument()
   })
 })
 
@@ -117,6 +118,22 @@ describe('StandardPieChart', () => {
  * never paints the SVG, so both are asserted on the pure functions directly.
  */
 describe('StandardPieChart slice colours', () => {
+  it('refreshes a cached slice palette when the theme tokens change', () => {
+    const rows = buildPieSlices([{ name: 'A', value: 3 }], 7)
+    const previous = document.documentElement.style.getPropertyValue('--color-app-purple')
+
+    try {
+      document.documentElement.style.setProperty('--color-app-purple', '#010203')
+      refreshRawColors()
+
+      expect(rows[0].fill).toBe('#010203')
+    } finally {
+      if (previous) document.documentElement.style.setProperty('--color-app-purple', previous)
+      else document.documentElement.style.removeProperty('--color-app-purple')
+      refreshRawColors()
+    }
+  })
+
   it('pins the palette colour onto each row, so colour and slice travel together', () => {
     // `<Cell>` children were matched by RENDERED position, so anything that
     // dropped or reordered a sector slid the palette onto the wrong category.

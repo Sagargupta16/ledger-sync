@@ -8,8 +8,9 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
-import { rawColors } from '@/constants/colors'
+import { colors, rawColors } from '@/constants/colors'
 import { useCountUp } from '@/hooks/useCountUp'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
@@ -25,6 +26,7 @@ import {
 } from './health/healthScoreUtils'
 import { computeBalancePosition } from './health/healthScoreBalances'
 import CFPScoreView from './health/CFPScoreView'
+import HealthIndicator from './health/HealthIndicator'
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -57,70 +59,64 @@ const METRIC_SHORT_LABELS: Record<string, string> = {
   'Income Stability': 'Income Stability',
 }
 
-function ScoreHeader({ title, score, subtitle, color }: Readonly<{
+function ScoreHeader({ title, score, subtitle, status, color }: Readonly<{
   title: string
   score: number
   subtitle: string
+  status: string
   color: string
 }>) {
   const animatedScore = useCountUp(score)
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2">
-        <div className={`p-2 rounded-lg ${{ 'text-app-green': 'bg-app-green/10', 'text-app-orange': 'bg-app-orange/10', 'text-app-red': 'bg-app-red/10' }[color] ?? 'bg-app-blue/10'}`}>
-          <Shield className={`w-4 h-4 ${color}`} />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
-        </div>
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>
+        <p className={`mt-1 text-xs font-medium ${color}`}>{status}</p>
       </div>
-      <p className={`text-xl font-bold tabular-nums ${color}`}>{Math.round(animatedScore)}</p>
+      <p className={`ledger-figure font-mono text-3xl font-semibold leading-none tabular-nums ${color}`}>
+        {Math.round(animatedScore)}
+        <span className="ml-1 text-xs font-normal text-text-tertiary">/100</span>
+      </p>
     </div>
   )
 }
 
 function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{ dimension: string; score: number; fullMark: number }>; chartColor: string }>) {
+  const isMobile = useIsMobile()
   return (
-    <div className="mb-2">
+    <div className="-mx-2 my-3 sm:mx-0">
       <StandardRadarChart
         data={metrics}
         dataKey="score"
         categoryKey="dimension"
         color={chartColor}
         name="Score"
-        labelFontSize={9}
+        labelFontSize={isMobile ? 10 : 11}
+        height={isMobile ? 200 : 224}
+        showRadiusTicks
       />
     </div>
   )
 }
 
 const TIER_COLORS: Record<string, string> = {
-  healthy: rawColors.app.green,
-  coping: rawColors.app.orange,
-  vulnerable: rawColors.app.red,
+  healthy: colors.app.green,
+  coping: colors.app.orange,
+  vulnerable: colors.app.red,
 }
 
 function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
-  const color = TIER_COLORS[metric.status] ?? rawColors.app.red
+  const color = TIER_COLORS[metric.status] ?? colors.app.red
 
   return (
-    <div className="min-w-0 border-b border-[var(--hairline-1)] py-2.5">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-foreground truncate">{metric.name}</span>
-        <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round(metric.score)}</span>
-      </div>
-      <div className="h-1 bg-muted/30 rounded-full overflow-hidden mb-1.5">
-        <div
-          className="h-full rounded-full"
-          style={{ backgroundColor: color, width: `${metric.score}%` }}
-        />
-      </div>
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] text-text-tertiary truncate">{metric.description}</p>
-        <p className="text-[10px] text-text-quaternary shrink-0 ml-2">Target: {metric.target}</p>
-      </div>
-    </div>
+    <HealthIndicator
+      name={metric.name}
+      score={metric.score}
+      description={metric.description}
+      target={metric.target}
+      color={color}
+    />
   )
 }
 
@@ -248,44 +244,45 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   }))
 
   return (
-    <details className="group ledger-panel overflow-hidden">
-      <summary className="ledger-control flex min-h-12 cursor-pointer list-none items-center gap-3 border-0 px-4 py-3 sm:px-5">
+    <details open className="group/health ledger-panel overflow-hidden">
+      <summary className="flex min-h-16 cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] sm:px-5">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-blue/10">
-          <Shield className="size-4 text-app-blue" />
+          <Shield className="size-4 text-app-blue" aria-hidden="true" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">Financial health details</span>
-          <span className="block text-xs text-muted-foreground">
+        <span className="min-w-0 flex-1 basis-40">
+          <span className="ledger-meta block text-text-secondary">Financial health</span>
+          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
             Score breakdowns and planning ratios for the last {analysisData.monthsAnalyzed} months
           </span>
         </span>
-        <span className="hidden items-center gap-2 sm:flex">
-          <span className={`ledger-figure text-sm font-semibold ${fhnStatus.color}`}>
-            FinHealth {Math.round(overallScore)}
+        <span className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 group-open/health:hidden sm:order-none sm:w-auto">
+          <span className={`ledger-figure font-mono text-xs font-semibold tabular-nums ${fhnStatus.color}`}>
+            FinHealth {Math.round(overallScore)}<span className="font-normal text-text-tertiary">/100</span>
           </span>
-          <span className={`ledger-figure text-sm font-semibold ${cfpStatus.color}`}>
-            CFP {Math.round(cfpCompositeScore)}
+          <span className={`ledger-figure font-mono text-xs font-semibold tabular-nums ${cfpStatus.color}`}>
+            CFP {Math.round(cfpCompositeScore)}<span className="font-normal text-text-tertiary">/100</span>
           </span>
         </span>
         <ChevronDown
-          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open/health:rotate-180"
           aria-hidden="true"
         />
       </summary>
       <div className="grid grid-cols-1 gap-6 border-t border-[var(--hairline-1)] p-4 sm:p-5 lg:grid-cols-2">
-        <section className="min-w-0 lg:border-r lg:border-[var(--hairline-1)] lg:pr-6">
+        <section className="@container/finhealth min-w-0 lg:border-r lg:border-[var(--hairline-1)] lg:pr-6">
           <ScoreHeader
             title="FinHealth Score"
             score={overallScore}
             subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            status={fhnStatus.label}
             color={fhnStatus.color}
           />
           <RadarVisualization metrics={fhnRadarData} chartColor={rawColors.app.blue} />
-          <p className="text-[11px] text-center text-muted-foreground mb-3">{getSummary(overallScore)}</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <p className="mb-4 min-h-10 text-pretty text-xs leading-5 text-muted-foreground">{getSummary(overallScore)}</p>
+          <div className="grid grid-cols-1 gap-x-5 @min-[23rem]/finhealth:grid-cols-2">
             {metrics.map((m) => <HealthMetricCard key={m.name} metric={m} />)}
           </div>
-          <p className="text-[10px] text-center text-muted-foreground/50 mt-3">Financial Health Network framework</p>
+          <p className="mt-3 text-[11px] leading-5 text-text-tertiary">Financial Health Network framework</p>
         </section>
 
         <section className="min-w-0">
@@ -293,6 +290,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
             title="CFP Ratios"
             score={cfpCompositeScore}
             subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            status={cfpStatus.label}
             color={cfpStatus.color}
           />
           <CFPScoreView analysisData={analysisData} />

@@ -1,43 +1,29 @@
 import { memo, useMemo } from 'react'
-import { motion } from 'motion/react'
-import { rawColors } from '@/constants/colors'
-import { fadeUpItem, staggerContainer } from '@/constants/animations'
+import { colors, rawColors } from '@/constants/colors'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { cfpInputsFromAnalysis } from './healthScoreAnalysis'
 import type { AnalysisResult } from './healthScoreUtils'
+import HealthIndicator from './HealthIndicator'
 
 function getStatusColor(status: 'good' | 'warning' | 'poor'): string {
-  if (status === 'good') return rawColors.app.green
-  if (status === 'warning') return rawColors.app.orange
-  return rawColors.app.red
+  if (status === 'good') return colors.app.green
+  if (status === 'warning') return colors.app.orange
+  return colors.app.red
 }
 
 function RatioCard({ ratio }: Readonly<{ ratio: CFPRatio }>) {
   const color = getStatusColor(ratio.status)
   return (
-    <motion.div
-      variants={fadeUpItem}
-      className="min-w-0 border-b border-[var(--hairline-1)] py-3"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-foreground">{ratio.name}</span>
-        <span className="text-sm font-bold tabular-nums" style={{ color }}>{ratio.formattedValue}</span>
-      </div>
-      <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden mb-2">
-        <motion.div
-          className="h-full w-full origin-left rounded-full"
-          style={{ backgroundColor: color }}
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: Math.min(Math.max(ratio.score, 0), 100) / 100 }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-        />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-text-tertiary">{ratio.description}</span>
-        <span className="text-xs text-text-quaternary">Target: {ratio.target}</span>
-      </div>
-    </motion.div>
+    <HealthIndicator
+      name={ratio.name}
+      score={ratio.score}
+      value={ratio.formattedValue}
+      description={ratio.description}
+      target={ratio.target}
+      color={color}
+    />
   )
 }
 
@@ -46,6 +32,7 @@ interface CFPScoreViewProps {
 }
 
 const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPScoreViewProps>) {
+  const isMobile = useIsMobile()
   // One mapping, shared with the composite-score call site, so the CFP savings
   // rate is the analysis' pooled rate rather than a rate rebuilt from averages.
   const { ratios } = useMemo(
@@ -60,34 +47,34 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
   }))
 
   return (
-    <div className="space-y-4">
+    <div className="@container/cfp">
       {/* Radar chart */}
-      <div className="mb-2">
+      <div className="-mx-2 mb-3 sm:mx-0">
         <StandardRadarChart
           data={radarData}
           dataKey="score"
           categoryKey="dimension"
           color={rawColors.app.teal}
           name="CFP Score"
-          height={240}
+          height={isMobile ? 200 : 224}
+          labelFontSize={isMobile ? 10 : 11}
           showRadiusTicks
           dotRadius={3}
         />
       </div>
 
+      <p className="mb-4 min-h-10 text-pretty text-xs leading-5 text-muted-foreground">
+        Each bar shows a score out of 100. The current ratio and its target are listed below.
+      </p>
+
       {/* Ratio Cards */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
+      <div className="grid grid-cols-1 gap-x-5 @min-[23rem]/cfp:grid-cols-2">
         {ratios.map((ratio) => (
           <RatioCard key={ratio.name} ratio={ratio} />
         ))}
-      </motion.div>
+      </div>
 
-      <p className="text-[10px] text-center text-muted-foreground/50">
+      <p className="mt-3 text-[11px] leading-5 text-text-tertiary">
         Based on CFP Board / FPSB India financial planning standards
       </p>
     </div>

@@ -16,8 +16,12 @@ import type { TaxSlab } from '@/lib/taxCalculator'
 import { formatCurrencyShort } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, shouldAnimate } from '@/components/ui/chartDefaults'
+import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, ACTIVE_DOT } from '@/components/ui/chartDefaults'
 import { fadeUpItem } from '@/constants/animations'
 
 interface EffectiveTaxRateChartProps {
@@ -41,6 +45,7 @@ export default function EffectiveTaxRateChart({
   currentIncome = 0,
 }: Readonly<EffectiveTaxRateChartProps>) {
   const [maxIncome, setMaxIncome] = useState(5000000)
+  const { animate, isMobile } = useChartPresentation(101)
 
   // Compute BOTH regime curves for side-by-side comparison
   const chartData = useMemo(() => {
@@ -109,26 +114,39 @@ export default function EffectiveTaxRateChart({
       variants={fadeUpItem}
       className="ledger-panel p-4 sm:p-5"
     >
-      <div className="mb-4 flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-orange/15">
-            <TrendingUp className="size-4 text-app-orange" />
-          </div>
-          <div>
+      <div className="mb-5 flex min-w-0 flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 max-w-lg">
+          <div className="mb-1 flex items-center gap-2">
             <h3 className="text-base font-semibold">Effective tax rate</h3>
-            <p className="text-xs text-muted-foreground">
-              Includes each regime's standard deduction, before additional deductions
+            <TrendingUp aria-hidden="true" className="size-4 shrink-0 text-app-orange" />
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Includes each regime's standard deduction, before additional deductions
+          </p>
+          {fyYear !== 0 && (
+            <p className="mt-2 font-mono text-[11px] tabular-nums text-muted-foreground">
+              FY {fyYear}-{String(fyYear + 1).slice(-2)}
+            </p>
+          )}
+        </div>
+        {fyYear !== 0 && currentPoint && (
+          <div className="min-w-0">
+            <p className="ledger-meta text-muted-foreground">Your effective rate</p>
+            <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-foreground">
+              {currentPoint.effectiveRate.toFixed(2)}<span className="ml-1 text-sm text-muted-foreground">%</span>
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isNewRegime ? 'New' : 'Old'} regime at {formatCurrencyShort(currentPoint.income)}
             </p>
           </div>
-        </div>
+        )}
       </div>
 
-      <div style={{ height: 350 }}>
         {fyYear === 0 ? (
-          <ChartEmptyState height={350} message="Select a financial year to view effective tax rates" />
+          <ChartEmptyState height={320} message="Select a financial year to view effective tax rates" />
         ) : (
-        <ChartContainer ariaLabel="Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers">
-          <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 4 }}>
+        <ChartContainer height={320} mobileHeight={260} ariaLabel="Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers">
+          <LineChart data={chartData} margin={{ top: 24, right: isMobile ? 8 : 16, bottom: 8, left: 0 }}>
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
               {...xAxisDefaults(chartData.length)}
@@ -143,12 +161,14 @@ export default function EffectiveTaxRateChart({
               tickFormatter={(v: number) => formatCurrencyShort(v)}
             />
             <YAxis
-              {...yAxisDefaults({ currency: false })}
+              {...yAxisDefaults({ currency: false, width: isMobile ? 36 : 44 })}
               tickFormatter={(v: number) => `${v}%`}
               domain={[0, 'auto']}
             />
             <Tooltip
               {...chartTooltipProps}
+              cursor={CHART_LINE_CURSOR_STYLE}
+              content={<ChartTooltipContent />}
               formatter={(value, name) => [
                 typeof value === 'number' ? `${value.toFixed(2)}%` : '',
                 name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
@@ -162,25 +182,27 @@ export default function EffectiveTaxRateChart({
               type="monotone"
               dataKey="oldRegimeRate"
               stroke={rawColors.app.blue}
-              strokeWidth={2}
+              strokeWidth={2.25}
               strokeDasharray="6 3"
               dot={false}
+              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
               name="oldRegimeRate"
-              animationDuration={600}
+              animationDuration={520}
               animationEasing="ease-out"
-              isAnimationActive={shouldAnimate(chartData.length)}
+              isAnimationActive={animate}
             />
             {/* New Regime -- orange solid line */}
             <Line
               type="monotone"
               dataKey="newRegimeRate"
               stroke={rawColors.app.orange}
-              strokeWidth={2}
+              strokeWidth={2.5}
               dot={false}
+              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.orange }}
               name="newRegimeRate"
-              animationDuration={600}
+              animationDuration={520}
               animationEasing="ease-out"
-              isAnimationActive={shouldAnimate(chartData.length)}
+              isAnimationActive={animate}
             />
             {/* Crossover marker */}
             {crossoverIncome && crossoverIncome <= maxIncome && (
@@ -189,10 +211,10 @@ export default function EffectiveTaxRateChart({
                 stroke={rawColors.app.purple}
                 strokeDasharray="4 4"
                 label={{
-                  value: `Old wins at ${formatCurrencyShort(crossoverIncome)}`,
+                  value: `Old lower near ${formatCurrencyShort(crossoverIncome)}`,
                   fill: rawColors.app.purple,
                   fontSize: 10,
-                  position: 'top',
+                  position: 'insideTopRight',
                 }}
               />
             )}
@@ -223,7 +245,6 @@ export default function EffectiveTaxRateChart({
           </LineChart>
         </ChartContainer>
         )}
-      </div>
 
       {/* Legend + Range selector */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
@@ -249,27 +270,40 @@ export default function EffectiveTaxRateChart({
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Range:</span>
-          <div className="ledger-control flex overflow-hidden rounded-md border p-1">
+        <fieldset className="min-w-0">
+          <legend className="mb-1.5 text-xs text-muted-foreground">Income range</legend>
+          <div className="ledger-control flex flex-wrap rounded-md border p-1">
             {RANGE_OPTIONS.map(({ label, value }) => (
-              <button
+              <motion.button
                 key={value}
                 type="button"
                 onClick={() => setMaxIncome(value)}
                 aria-pressed={maxIncome === value}
-                className={`min-h-11 min-w-11 rounded px-2.5 py-1 text-xs font-medium transition-colors lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 ${
+                aria-label={`Income up to ${formatCurrencyShort(value)}`}
+                whileTap={animate ? { scale: 0.94 } : undefined}
+                transition={{ duration: 0.15 }}
+                className={`min-h-11 min-w-11 rounded px-2.5 py-1 font-mono text-xs font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 ${
                   maxIncome === value
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {label}
-              </button>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </fieldset>
       </div>
+      {fyYear !== 0 && chartDataTable(
+        chartData,
+        [
+          { header: 'Annual income', rowHeader: true, value: (row) => formatCurrencyShort(row.income) },
+          { header: 'New regime effective rate', value: (row) => `${row.newRegimeRate.toFixed(2)}%` },
+          { header: 'Old regime effective rate', value: (row) => `${row.oldRegimeRate.toFixed(2)}%` },
+        ],
+        `Effective tax rates for financial year ${fyYear}-${String(fyYear + 1).slice(-2)}`,
+        (row) => String(row.income),
+      )}
     </motion.div>
   )
 }

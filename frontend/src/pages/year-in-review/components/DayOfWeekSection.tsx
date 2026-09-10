@@ -15,9 +15,11 @@ export default function DayOfWeekSection({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="ledger-panel p-4 sm:p-6"
+      className="ledger-panel min-w-0 p-4 sm:p-6"
     >
-      <h2 className="mb-4 text-lg font-semibold">Spending by Day of Week</h2>
+      <p className="ledger-meta mb-2 text-app-blue">Your weekly rhythm</p>
+      <h2 className="text-xl font-semibold tracking-tight">Spending by Day of Week</h2>
+      <p className="mb-5 mt-1 text-sm text-muted-foreground">Average daily spending and income, Sunday through Saturday.</p>
       <DayOfWeekChart grid={grid} />
     </motion.section>
   )

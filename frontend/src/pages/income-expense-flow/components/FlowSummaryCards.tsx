@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, TrendingUp } from 'lucide-react'
 
 import { ProgressBar } from '@/components/shared'
 import { rawColors } from '@/constants/colors'
@@ -18,67 +18,61 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
   const { totalIncome, totalExpense, netSavings, savingsRate } = props
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4"
+      transition={{ delay: 0.08, duration: 0.35 }}
+      className="ledger-panel grid min-w-0 grid-cols-1 min-[360px]:grid-cols-2 xl:grid-cols-[1fr_1fr_1.15fr_0.85fr]"
     >
-      <div className="ledger-panel p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-app-green/10">
-            <TrendingUp className="size-3.5 text-app-green" />
-          </span>
+      <div className="min-w-0 border-b border-border p-4 min-[360px]:border-r sm:p-5 xl:border-b-0">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">Total Income</p>
+          <ArrowDownLeft className="size-4 text-income" aria-hidden="true" />
         </div>
-        <p className="ledger-figure truncate text-base font-semibold text-app-green sm:text-xl" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
+        <p className="ledger-figure break-words text-xl font-semibold tracking-tight text-income sm:text-2xl" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Recorded inflow</p>
       </div>
 
-      <div className="ledger-panel p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-app-red/10">
-            <TrendingDown className="size-3.5 text-app-red" />
-          </span>
+      <div className="min-w-0 border-b border-border p-4 sm:p-5 xl:border-b-0 xl:border-r">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">Total Expense</p>
+          <ArrowUpRight className="size-4 text-expense" aria-hidden="true" />
         </div>
-        <p className="ledger-figure truncate text-base font-semibold text-app-red sm:text-xl" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
+        <p className="ledger-figure break-words text-xl font-semibold tracking-tight text-expense sm:text-2xl" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Excluding tax</p>
       </div>
 
-      <div className="ledger-panel p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${netSavings >= 0 ? 'bg-app-blue/10' : 'bg-app-red/10'}`}>
-            <ArrowRightLeft
-              className={`size-3.5 ${netSavings >= 0 ? 'text-primary' : 'text-app-red'}`}
-            />
-          </span>
+      <div className="min-w-0 border-b border-border bg-[var(--overlay-1)] p-4 min-[360px]:border-b-0 min-[360px]:border-r sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">Net Savings</p>
+          <ArrowRightLeft
+            className={`size-4 ${netSavings >= 0 ? 'text-savings' : 'text-expense'}`}
+            aria-hidden="true"
+          />
         </div>
         <p
-          className={`ledger-figure truncate text-base font-semibold sm:text-xl ${
-            netSavings >= 0 ? 'text-primary' : 'text-app-red'
+          className={`ledger-figure break-words text-xl font-semibold tracking-tight sm:text-2xl ${
+            netSavings >= 0 ? 'text-foreground' : 'text-expense'
           }`}
           title={`${netSavings < 0 ? '-' : ''}${formatCurrency(Math.abs(netSavings))}`}
         >
-          {netSavings < 0 && <span aria-hidden>-</span>}
+          {netSavings < 0 && '-'}
           {formatCurrency(Math.abs(netSavings))}
         </p>
-        {netSavings < 0 && (
-          <p className="text-xs font-medium text-app-red mt-1 uppercase tracking-wide">
-            Deficit
-          </p>
-        )}
+        <p className={`mt-2 text-xs ${netSavings < 0 ? 'font-medium text-expense' : 'text-muted-foreground'}`}>
+          {netSavings < 0 ? 'Deficit' : 'After expenses and recorded tax'}
+        </p>
       </div>
 
-      <div className="ledger-panel p-4 sm:p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${savingsRate >= 20 ? 'bg-app-green/10' : 'bg-app-yellow/10'}`}>
-            <TrendingUp
-              className={`size-3.5 ${savingsRate >= 20 ? 'text-app-green' : 'text-app-yellow'}`}
-            />
-          </span>
+      <div className="min-w-0 p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">Savings Rate</p>
+          <TrendingUp
+            className={`size-4 ${savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-income' : 'text-app-yellow'}`}
+            aria-hidden="true"
+          />
         </div>
         <p
-          className={`ledger-figure text-xl font-semibold ${
+          className={`ledger-figure text-xl font-semibold tracking-tight sm:text-2xl ${
             savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-app-green' : 'text-app-yellow'
           }`}
         >
@@ -90,11 +84,11 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           color={
             savingsRate >= SAVINGS_RATE_BENCHMARK ? rawColors.app.green : rawColors.app.yellow
           }
-          height={6}
+          height={4}
           className="mt-3"
           ariaLabel={`Savings rate ${formatPercent(savingsRate)} against ${SAVINGS_RATE_BENCHMARK}% benchmark`}
         />
-        <p className="text-xs text-text-tertiary mt-1.5">
+        <p className="mt-2 text-xs text-muted-foreground">
           {SAVINGS_RATE_BENCHMARK}% benchmark
         </p>
       </div>

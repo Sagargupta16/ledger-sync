@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import {
   Activity,
+  ArrowUpRight,
   Briefcase,
   DollarSign,
   PiggyBank,
@@ -11,6 +12,8 @@ import {
 
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 import EmptyState from '@/components/shared/EmptyState'
+import ProgressBar from '@/components/shared/ProgressBar'
+import { FADE_UP } from '@/constants/animations'
 import { formatCurrency } from '@/lib/formatters'
 
 import type { IncomeCategoryDatum } from '../useIncomeAnalysis'
@@ -44,69 +47,77 @@ export default function IncomeCategorySection({
 }: IncomeCategorySectionProps) {
   return (
     <motion.section
-      className="ledger-panel p-4 md:p-6"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="ledger-panel min-w-0 p-4 sm:p-6"
+      {...FADE_UP}
       aria-labelledby="income-category-title"
     >
-      <h2 id="income-category-title" className="mb-4 text-lg font-semibold text-foreground">
+      <p className="ledger-meta mb-2 text-app-green">Where income comes from</p>
+      <h2 id="income-category-title" className="text-xl font-semibold tracking-tight text-foreground">
         Income by Category
       </h2>
+      <p className="mt-1 text-sm text-muted-foreground">Select a source to inspect its transactions.</p>
 
       {data.length > 0 ? (
-        <div className="flex flex-col items-center gap-4 md:gap-6 lg:flex-row lg:gap-8">
+        <div className="mt-6 grid min-w-0 grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)] lg:gap-8">
           {/* No role="img" wrapper here -- it would enclose the chart's sr-only
               data table and ARIA presentational children would hide it again.
               `ariaLabel` puts the label on the chart's own wrapper instead. */}
-          <div className="w-64">
+          <div className="min-w-0">
             <StandardPieChart
               data={[...data]}
-              height={256}
-              innerRadius={50}
-              outerRadius={90}
+              height={280}
+              innerRadius="64%"
+              outerRadius="88%"
               showLegend={false}
               onSliceClick={onSelectCategory}
               ariaLabel="Donut chart breaking down total income by source category"
             />
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Total income <span className="ml-2 font-mono tabular-nums text-foreground">{formatCurrency(totalIncome)}</span>
+            </p>
           </div>
-          <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-            {data.map((item) => {
-              const Icon = INCOME_CATEGORY_ICONS[item.category] || DollarSign
-              const percentage =
-                totalIncome > 0 ? ((item.value / totalIncome) * 100).toFixed(1) : '0'
+          <div className="min-w-0">
+            <div className="mb-1 flex justify-between border-b border-border pb-3 text-xs text-muted-foreground">
+              <span>Source</span>
+              <span>Amount / share</span>
+            </div>
+            <ul className="divide-y divide-border/60" aria-label="Income sources">
+              {data.map((item) => {
+                const Icon = INCOME_CATEGORY_ICONS[item.category] || DollarSign
+                const percentage =
+                  totalIncome > 0 ? ((item.value / totalIncome) * 100).toFixed(1) : '0'
 
-              return (
-                <button
-                  key={item.name}
-                  type="button"
-                  onClick={() => onSelectCategory(item.name)}
-                  className="w-full rounded-lg border border-[var(--hairline-1)] bg-surface-dropdown/30 p-4 text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <div className="mb-2 flex items-center gap-3">
-                    <div
-                      className="rounded-lg p-2"
-                      style={{ backgroundColor: `${item.color}20` }}
+                return (
+                  <li key={item.name}>
+                    <motion.button
+                      type="button"
+                      onClick={() => onSelectCategory(item.name)}
+                      whileTap={{ scale: 0.99 }}
+                      className="group w-full min-w-0 rounded-md py-4 text-left transition-colors hover:bg-[var(--overlay-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <Icon className="size-5" style={{ color: item.color }} aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <p className="truncate font-medium text-foreground">{item.name}</p>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+                        <div className="flex min-w-0 items-start gap-2.5">
+                          <Icon className="mt-0.5 size-4 shrink-0" style={{ color: item.color }} aria-hidden="true" />
+                          <p className="break-words text-sm font-medium text-foreground">{item.name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-sm font-semibold tabular-nums text-foreground sm:text-base">
+                            {formatCurrency(item.value)}
+                          </p>
+                          <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">{percentage}% of income</p>
+                        </div>
+                        <div className="col-span-2 flex items-center gap-3 pl-6.5">
+                          <div className="flex-1">
+                            <ProgressBar value={Number(percentage)} max={100} color={item.color} height={4} />
+                          </div>
+                          <ArrowUpRight className="size-4 shrink-0 text-muted-foreground group-hover:text-app-blue" aria-hidden="true" />
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">{percentage}% of income</p>
-                    </div>
-                  </div>
-                  <p className="ledger-figure text-xl font-bold" style={{ color: item.color }}>
-                    {formatCurrency(item.value)}
-                  </p>
-                </button>
-              )
-            })}
+                    </motion.button>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </div>
       ) : (

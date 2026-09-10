@@ -45,7 +45,7 @@ function buildCategoryColumns({
       sortValue: (delta) => delta.category,
       mobilePrimary: true,
       cell: (delta) => (
-        <span className="text-sm font-medium text-foreground truncate block">{delta.category}</span>
+        <span className="block text-sm font-medium text-foreground">{delta.category}</span>
       ),
     },
     {
@@ -54,20 +54,20 @@ function buildCategoryColumns({
       widthClass: 'w-[42%]',
       mobileLabel: 'Period comparison',
       cell: (delta) => (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <ProgressBar
             value={delta.periodA}
             max={axisMax}
             color={color}
-            height={6}
-            className="opacity-40"
+            height={8}
+            className="opacity-50"
             ariaLabel={`${delta.category} ${periodA.label}: ${formatCurrency(delta.periodA)}`}
           />
           <ProgressBar
             value={delta.periodB}
             max={axisMax}
             color={color}
-            height={6}
+            height={8}
             ariaLabel={`${delta.category} ${periodB.label}: ${formatCurrency(delta.periodB)}`}
           />
         </div>
@@ -78,13 +78,13 @@ function buildCategoryColumns({
       header: periodB.label,
       align: 'right',
       sortable: true,
-      widthClass: 'w-24',
+      widthClass: 'w-36',
       mobileLabel: 'Values',
       sortValue: (delta) => delta.periodB,
       cell: (delta) => (
-        <div className="leading-tight">
+        <div className="font-mono leading-relaxed tabular-nums">
           <p className="text-sm font-semibold text-foreground">{formatCurrency(delta.periodB)}</p>
-          <p className="text-caption text-text-tertiary">
+          <p className="text-xs text-muted-foreground">
             {periodA.label}: {formatCurrency(delta.periodA)}
           </p>
         </div>
@@ -102,7 +102,7 @@ function buildCategoryColumns({
         const isGood = invertChange ? delta.change < 0 : delta.change >= 0
         return (
           <span
-            className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${changeBadgeClass(delta.change, isGood)}`}
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs font-semibold tabular-nums ${changeBadgeClass(delta.change, isGood)}`}
           >
             <ChangeIcon change={delta.change} size="w-3 h-3" />
             {delta.change > 0 ? '+' : ''}
@@ -124,7 +124,7 @@ export function CategorySection({
   icon, title, deltas, periodA, periodB, invertChange, delay,
 }: Readonly<CategorySectionProps>) {
   const axisMax = deltas.length > 0 ? Math.max(deltas[0].periodA, deltas[0].periodB, 1) : 1
-  const color = rawColors.app.indigo
+  const color = invertChange ? rawColors.app.red : rawColors.app.green
   const columns = buildCategoryColumns({ axisMax, color, periodA, periodB, invertChange })
 
   return (
@@ -132,15 +132,18 @@ export function CategorySection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="ledger-panel p-4 md:p-6"
+      className="ledger-panel min-w-0 p-4 sm:p-6"
     >
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {icon}
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         </div>
-        <span className="text-xs text-text-tertiary">{deltas.length} categories</span>
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">{deltas.length} categories</span>
       </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        {periodA.label} is faded; {periodB.label} is solid. Sort the columns to find the largest changes.
+      </p>
       {deltas.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No {title.toLowerCase().replace(' categories', '')} data for selected periods.

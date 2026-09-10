@@ -372,9 +372,108 @@ utilities. Repeated visual patterns belong in shared components.
 | `components/upload/` | Drop zone, account classification, and upload result UI |
 | `components/chat/` | AI panel, messages, and orchestration |
 
-`PageContainer` and `PageHeader` define page-level structure. Shared tokens in
-`index.css` control theme, density, borders, chart colors, focus states, and
-responsive behavior.
+[PageContainer](../frontend/src/components/ui/PageContainer.tsx) and
+[PageHeader](../frontend/src/components/ui/PageHeader.tsx) define page-level
+structure. [Card](../frontend/src/components/ui/Card.tsx) supplies the common
+surface; [MetricCard](../frontend/src/components/shared/MetricCard.tsx) and
+[SummaryCard](../frontend/src/components/shared/SummaryCard.tsx) present supplied
+headline values. Shared tokens in [index.css](../frontend/src/index.css) control
+theme, density, borders, chart colors, focus states, and responsive behavior.
+
+### Shared chart composition
+
+Feature components pass prepared rows, series metadata, formatters, and
+drilldown callbacks to
+[StandardAreaChart](../frontend/src/components/analytics/StandardAreaChart.tsx),
+[StandardBarChart](../frontend/src/components/analytics/StandardBarChart.tsx),
+[StandardPieChart](../frontend/src/components/analytics/StandardPieChart.tsx),
+[StandardRadarChart](../frontend/src/components/analytics/StandardRadarChart.tsx),
+and [TimeSeriesLineChart](../frontend/src/components/analytics/TimeSeriesLineChart.tsx).
+These adapters compose Recharts with shared presentation primitives:
+
+```mermaid
+flowchart TB
+  data["API hooks and feature calculations"]
+  page["Page / feature composition<br/>Rows, series, formatters, drilldown"]
+  charts["Standard area / bar / pie / radar<br/>TimeSeriesLineChart"]
+  appearance["themeStore + motionStore<br/>useChartPresentation"]
+  plot["ChartContainer + Recharts<br/>ChartTooltipContent"]
+  reading["ChartSeriesLegend / PieChartLedger"]
+  table["chartDataTable<br/>Caption and exact values"]
+  data --> page --> charts
+  appearance --> charts
+  charts --> plot
+  charts --> reading
+  charts --> table
+```
+
+| Shared source | Responsibility |
+| --- | --- |
+| [ChartContainer](../frontend/src/components/ui/ChartContainer.tsx) | Responsive plot dimensions and the optional `ariaLabel` image wrapper. Below 640 px, `mobileHeight` wins; otherwise numeric heights above 280 px are capped. |
+| [ChartTooltipContent](../frontend/src/components/ui/ChartTooltipContent.tsx) | Period, series, and value reading order using Recharts payloads, formatters, and sorting. [ChartTooltip](../frontend/src/components/ui/ChartTooltip.tsx) supplies shared styling and motion-aware props. |
+| [ChartSeriesLegend](../frontend/src/components/ui/ChartSeriesLegend.tsx) | HTML series names outside the plot, with optional latest values and a caption. |
+| [PieChartLedger](../frontend/src/components/ui/PieChartLedger.tsx) | Ranked amount/share rows, coordinated slice hover/focus, and native buttons for category drilldown. |
+| [useChartPresentation](../frontend/src/components/ui/useChartPresentation.ts) | Live viewport, theme, and motion subscriptions; returns `isMobile`, `theme`, and `animate`. |
+
+Financial definitions remain in feature hooks, pure utilities, and API
+calculations. For example,
+[useDashboardMetrics](../frontend/src/hooks/useDashboardMetrics.ts) selects
+complete months and normalizes expense signs before supplying chart rows;
+[useAnalytics](../frontend/src/hooks/api/useAnalytics.ts) accesses the typed
+[calculation service](../frontend/src/services/api/calculations.ts). Shared chart
+primitives do not fetch ledger data or own financial preferences.
+[chartDefaults](../frontend/src/components/ui/chartDefaults.tsx) centralizes
+axes, grids, gradients, reference lines, and brush styling.
+
+The pie adapter uses [pieSlices](../frontend/src/components/ui/pieSlices.ts) to
+drop non-positive values and cap wedges at seven by default. The tail becomes
+an exact-sum `Other (N categories)` slice. Wedges, the visible ledger, and the
+accessible table share these grouped rows. `sliceClickTarget` prevents the
+synthetic Other slice from becoming a category filter.
+
+#### Accessible table contract
+
+[chartDataTable](../frontend/src/components/ui/chartDataTable.tsx) renders a
+visually hidden table with a caption, `<th scope="col">` headers, and one
+`rowHeader: true` column rendered as `<th scope="row">`. Area, bar, line, and
+radar fallbacks retain every supplied row; the pie fallback mirrors its grouped
+slices with amount and share columns.
+
+Pass `ariaLabel` to the chart adapter so `ChartContainer` names only the visual
+plot with `role="img"`. The table must be a sibling of the visual chart branch,
+outside that image subtree. The pie adapter places it after the plot/ledger
+grid. Neither `ChartContainer` nor a caller-supplied `role="img"` wrapper may
+enclose the table: ARIA makes image descendants presentational. A visible
+legend or tooltip does not replace this table. jsdom does not model that ARIA
+behavior, so finding a table in a unit test alone does not prove it is exposed
+to assistive technology.
+
+#### Live appearance and range state
+
+[themeStore](../frontend/src/store/themeStore.ts) applies the Light or Dark
+theme through [theme.ts](../frontend/src/lib/theme.ts), which refreshes concrete
+SVG colors from CSS tokens through
+[colors.ts](../frontend/src/constants/colors.ts) and
+[chartColors.ts](../frontend/src/constants/chartColors.ts).
+`useChartPresentation` subscribes to the resolved theme; `ChartContainer` keys
+its inner Recharts `ResponsiveContainer` by that theme to repaint the plot.
+
+The existing [motionStore](../frontend/src/store/motionStore.ts) persists Full
+or Reduced mode. `useChartPresentation` enables series animation only in Full
+mode when the supplied count is below `CHART_ANIMATION_THRESHOLD`.
+[App.tsx](../frontend/src/App.tsx) applies the same preference through
+`MotionConfig`; shared tooltips and pie ledger rows honor it too. Motion
+changes do not remount page state.
+
+[MonthlyFlowChart](../frontend/src/components/analytics/MonthlyFlowChart.tsx)
+keeps the complete selected-period dataset and owns the controlled
+`StandardBarChart.brush` selection outside the plot. On mobile, more than six
+months opens on the latest six, with range labels, earlier/later buttons, and
+drag handles to reach all history. Desktop displays every supplied month.
+The summary totals and accessible table always use the full dataset. A changed
+data array resets the window to the latest months; appearance changes leave
+that caller-owned selection intact. `StandardAreaChart.showBrush` also windows
+the plot without slicing its input or accessible table.
 
 ### Server state
 

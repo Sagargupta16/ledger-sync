@@ -9,14 +9,17 @@ import {
   chartTooltipProps,
   currencyTooltipFormatter,
   GRID_DEFAULTS,
-  shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import { referenceLine } from '@/components/ui/chartDefaults'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { fadeUpItem } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 import { tooltipLabelString } from '@/lib/chartUtils'
-import { formatCurrencyCompact, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import type { GSTSlabBreakdown, GSTSummary } from '@/lib/gstCalculator'
 
 import { GST_SLAB_COLORS } from '../constants'
@@ -27,6 +30,8 @@ interface Props {
 }
 
 export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
+  const { animate, isMobile } = useChartPresentation(Math.max(taxableSlabs.length, data.monthlyTrend.length))
+  const latestMonth = data.monthlyTrend.at(-1)
   // Slice colours ride on the data rows as `fill`. Recharts merges each row
   // over its sector props, so this is the supported replacement for the
   // deprecated `<Cell>` child and resolves to the exact same hex values.
@@ -42,15 +47,16 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
   )
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
-        <div className="mb-4">
-          <h3 className="text-base font-semibold text-foreground">Estimated GST by slab</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+    <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <motion.div variants={fadeUpItem} className="ledger-panel relative min-w-0 p-4 sm:p-6">
+        <div className="mb-2">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">01 / Rate mix</p>
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">Estimated GST by slab</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             Share of estimated GST across applied tax rates
           </p>
         </div>
-        <div className="h-[270px]">
+        <div className="h-[240px]">
           <ChartContainer
             width="100%"
             height="100%"
@@ -64,12 +70,24 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                innerRadius={50}
+                innerRadius={66}
                 paddingAngle={2}
-                isAnimationActive={shouldAnimate(slabSlices.length)}
+                cornerRadius={4}
+                strokeWidth={0}
+                isAnimationActive={animate}
+                animationDuration={520}
+                animationEasing="ease-out"
               />
+              <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
+                <tspan x="50%" dy="-6" fill={rawColors.chart.textPrimary} fontSize={22} fontFamily="var(--font-mono)" fontWeight={600}>
+                  {formatCurrencyShort(data.totalGST)}
+                </tspan>
+                <tspan x="50%" dy="24" fill={rawColors.chart.textSubtle} fontSize={10}>
+                  Estimated GST
+                </tspan>
+              </text>
               <Tooltip
-                formatter={currencyTooltipFormatter}
+                formatter={(value, name) => [currencyTooltipFormatter(value), `${name ?? ''}% slab`]}
                 // Pie tooltip label is the `nameKey` value, i.e. the numeric slab rate.
                 labelFormatter={(slab) => `${tooltipLabelString(slab)}% slab`}
                 {...chartTooltipProps}
@@ -77,39 +95,63 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
             </PieChart>
           </ChartContainer>
         </div>
-        <div className="flex flex-wrap gap-2 mt-2 justify-center">
+        <ul aria-label="GST by tax rate" className="divide-y divide-border/60 border-t border-border">
           {taxableSlabs.map((slab) => {
             const share = data.totalGST > 0 ? (slab.gstAmount / data.totalGST) * 100 : 0
             return (
-              <div
+              <li
                 key={slab.slab}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-[var(--overlay-2)] px-2 py-1 text-xs"
+                className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 py-3"
               >
-                <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: GST_SLAB_COLORS[slab.slab] }}
-                />
-                <span className="font-medium text-foreground">{slab.slab}%</span>
-                <span className="tabular-nums text-app-indigo">
-                  {formatCurrencyCompact(slab.gstAmount)}
+                <span className="font-mono text-xs font-semibold tabular-nums text-foreground">{slab.slab}%</span>
+                <div className="min-w-0">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--overlay-2)]" aria-hidden="true">
+                    <motion.div
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: Math.max(0, Math.min(share / 100, 1)) }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      className="h-full w-full origin-left rounded-full"
+                      style={{ backgroundColor: GST_SLAB_COLORS[slab.slab] ?? rawColors.app.blue }}
+                    />
+                  </div>
+                </div>
+                <span className="text-right">
+                  <span className="block font-mono text-xs font-semibold tabular-nums text-foreground">{formatCurrency(slab.gstAmount)}</span>
+                  <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">{share.toFixed(0)}% of GST</span>
                 </span>
-                <span className="tabular-nums text-text-tertiary">{share.toFixed(0)}%</span>
-              </div>
+              </li>
             )
           })}
-        </div>
+        </ul>
+        {chartDataTable(
+          taxableSlabs,
+          [
+            { header: 'Tax slab', rowHeader: true, value: (row) => `${row.slab}%` },
+            { header: 'Estimated GST', value: (row) => formatCurrency(row.gstAmount) },
+            { header: 'Share of GST', value: (row) => `${(data.totalGST > 0 ? (row.gstAmount / data.totalGST) * 100 : 0).toFixed(0)}%` },
+          ],
+          'Estimated GST by tax slab: exact amounts',
+          (row) => String(row.slab),
+        )}
       </motion.div>
 
-      <motion.div variants={fadeUpItem} className="ledger-panel p-4 sm:p-5">
-        <div className="mb-4">
-          <h3 className="text-base font-semibold text-foreground">Monthly estimated GST</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+      <motion.div variants={fadeUpItem} className="ledger-panel relative min-w-0 p-4 sm:p-6">
+        <div className="mb-6">
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">02 / Over time</p>
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">Monthly estimated GST</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             Month-by-month indirect tax estimate
           </p>
         </div>
+        {latestMonth && (
+          <ChartSeriesLegend
+            items={[{ key: 'gst', label: 'Estimated GST', color: rawColors.app.indigo, value: formatCurrency(latestMonth.gstAmount) }]}
+            caption={`Latest: ${latestMonth.monthLabel}`}
+          />
+        )}
         {data.monthlyTrend.length <= 1 ? (
           <ChartEmptyState
-            height={270}
+            height={isMobile ? 270 : 320}
             message="Need at least two months of spending to show a trend"
           />
         ) : (
@@ -118,19 +160,34 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
             height={270}
             ariaLabel="Estimated GST paid each month across the selected fiscal year"
           >
-            <BarChart data={data.monthlyTrend}>
+            <BarChart data={data.monthlyTrend} margin={{ top: 16, right: 4, bottom: 8, left: 0 }} barCategoryGap="24%">
               <CartesianGrid {...GRID_DEFAULTS} />
               <XAxis dataKey="monthLabel" {...xAxisDefaults(data.monthlyTrend.length)} />
-              <YAxis {...yAxisDefaults()} tickFormatter={(value: number) => formatCurrencyShort(value)} />
+              <YAxis {...yAxisDefaults({ width: 52 })} tickFormatter={(value: number) => formatCurrencyShort(value)} />
               <Tooltip formatter={currencyTooltipFormatter} {...chartTooltipProps} />
+              {data.monthlyTrend.some((row) => row.gstAmount < 0) && referenceLine({ y: 0, variant: 'zero' })}
               <Bar
                 dataKey="gstAmount"
+                name="Estimated GST"
                 fill={rawColors.app.indigo}
+                fillOpacity={0.85}
                 radius={BAR_RADIUS}
-                isAnimationActive={shouldAnimate(data.monthlyTrend.length)}
+                maxBarSize={32}
+                isAnimationActive={animate}
+                animationDuration={520}
+                animationEasing="ease-out"
               />
             </BarChart>
           </ChartContainer>
+        )}
+        {data.monthlyTrend.length > 1 && chartDataTable(
+          data.monthlyTrend,
+          [
+            { header: 'Month', rowHeader: true, value: (row) => row.monthLabel },
+            { header: 'Estimated GST', value: (row) => formatCurrency(row.gstAmount) },
+          ],
+          'Monthly estimated GST: exact amounts',
+          (row) => row.month,
         )}
       </motion.div>
     </div>

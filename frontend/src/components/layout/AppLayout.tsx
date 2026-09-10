@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useLocation, useOutlet } from 'react-router-dom'
 
 import { motion, AnimatePresence } from 'motion/react'
 
@@ -19,6 +19,8 @@ import WorkspaceHeader from './WorkspaceHeader'
 
 export default function AppLayout() {
   const location = useLocation()
+  // Keep each route's content inside its own wrapper until its exit completes.
+  const outlet = useOutlet()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'Page not found'
 
@@ -68,7 +70,7 @@ export default function AppLayout() {
                 {...ROUTE_TRANSITION}
               >
                 <ErrorBoundary key={location.pathname}>
-                  <Outlet />
+                  {outlet}
                 </ErrorBoundary>
               </motion.div>
             </AnimatePresence>

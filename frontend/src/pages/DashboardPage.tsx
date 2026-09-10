@@ -169,6 +169,8 @@ export default function DashboardPage() {
         }
       />
 
+      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
+
       <section className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
@@ -189,21 +191,18 @@ export default function DashboardPage() {
       {/* Financial Health Score */}
       <FinancialHealthScore transactions={filteredTransactions} />
 
-      {/* Income vs spending over time -- direction, which the pies below cannot show */}
-      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
-
       {/* Income Sources & Expense Sources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {/* Income Sources */}
-        <section className="ledger-panel p-4 sm:p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-app-green/10">
+        <section className="dashboard-source ledger-panel p-4 sm:p-5">
+          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-7 items-center justify-center text-app-green">
               <Wallet className="size-3.5 text-app-green" />
             </span>
             <span>Income Sources</span>
           </h2>
           {incomeChartData.length > 0 ? (
-            <div className="space-y-4">
+            <div className="dashboard-source-body">
               <StandardPieChart
                 data={incomeChartData}
                 height={180}
@@ -248,15 +247,15 @@ export default function DashboardPage() {
         </section>
 
         {/* Expense Sources */}
-        <section className="ledger-panel p-4 sm:p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-app-red/10">
+        <section className="dashboard-source ledger-panel p-4 sm:p-5">
+          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-7 items-center justify-center text-app-red">
               <CreditCard className="size-3.5 text-app-red" />
             </span>
             <span>Expense Sources</span>
           </h2>
           {expenseChartData.length > 0 ? (
-            <div className="space-y-4">
+            <div className="dashboard-source-body">
               <StandardPieChart
                 data={expenseChartData}
                 height={180}

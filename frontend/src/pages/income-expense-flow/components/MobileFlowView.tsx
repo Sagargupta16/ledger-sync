@@ -88,6 +88,7 @@ export default function MobileFlowView({
   const expenseMax = expenseByCategory[0]?.amount ?? 0
   const savingsShare = totalIncome > 0 ? Math.max(netSavings, 0) / totalIncome : 0
   const expenseShare = totalIncome > 0 ? totalExpense / totalIncome : 0
+  const taxDrill = view.meta[view.nodes.findLastIndex((node) => node.name === 'Tax')]?.drill
 
   return (
     <motion.div
@@ -96,10 +97,10 @@ export default function MobileFlowView({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 260, damping: 26 }}
       style={{ transformOrigin: '50% 15%' }}
-      className="space-y-4"
+      className="space-y-5"
     >
       {/* Income sources */}
-      <Section title="Income sources" total={totalIncome} totalColor={rawColors.app.green}>
+      <Section step="01" title="Income sources" total={totalIncome} totalColor={rawColors.app.green}>
         {incomeByCategory.map((entry, idx) => (
           <FlowRow
             key={entry.name}
@@ -116,33 +117,37 @@ export default function MobileFlowView({
 
       <Arrow />
 
-      {/* Total Income pill */}
+      {/* Recorded income stays distinct from the desktop gross-income pool. */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-lg border border-app-blue/20 bg-app-blue/10 p-4 text-center"
+        className="border-y border-border bg-[var(--overlay-1)] px-4 py-5"
       >
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <p className="mb-3 flex items-center gap-3 text-xs font-medium text-muted-foreground">
+          <span className="font-mono text-[10px]">02</span>
           Total Income
         </p>
         <p
-          className="mt-1 truncate text-2xl font-bold tabular-nums text-foreground"
+          className="break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-foreground"
           title={formatCurrency(totalIncome)}
         >
           {formatCurrency(totalIncome)}
         </p>
+        <p className="mt-2 text-xs text-muted-foreground">Recorded income for the selected period</p>
       </motion.div>
 
       <Arrow />
 
-      {/* One 100%-stacked bar: how each rupee of income splits between savings
-          and expenses. Single bar (not per-category) so it complements -- never
-          duplicates -- the desktop Sankey and the split cards below. */}
+      {/* The bar compares savings and expenses; labels retain their shares of
+          recorded income. Tax remains separate in the allocation below. */}
       {totalIncome > 0 && (
         <SplitShareBar savingsShare={savingsShare} expenseShare={expenseShare} />
       )}
 
-      {/* Savings vs Expenses (vs Tax when present) split */}
+      <h4 className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+        <span className="font-mono text-[10px]">03</span>
+        Allocation
+      </h4>
       <div className="grid grid-cols-2 gap-3">
         <SplitCard
           label="Savings"
@@ -163,9 +168,21 @@ export default function MobileFlowView({
             percent={totalIncome > 0 ? totalTax / totalIncome : 0}
             color={rawColors.app.orange}
             className="col-span-2"
+            onDrill={taxDrill ? () => drillInto(taxDrill) : undefined}
           />
         )}
       </div>
+      {view.rowsTotal !== totalIncome && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Allocation shares use recorded income. Tax also includes computed TDS at source,
+          which is outside recorded income.
+        </p>
+      )}
+      {netSavings < 0 && (
+        <p className="text-sm text-expense">
+          Deficit: <span className="font-mono font-medium tabular-nums">{formatCurrency(netSavings)}</span>
+        </p>
+      )}
 
       {expenseByCategory.length > 0 && (
         <>
@@ -173,6 +190,7 @@ export default function MobileFlowView({
 
           {/* Expense categories */}
           <Section
+            step="04"
             title="Where expenses went"
             total={totalExpense}
             totalColor={rawColors.app.red}
@@ -197,31 +215,34 @@ export default function MobileFlowView({
 }
 
 function Section({
+  step,
   title,
   total,
   totalColor,
   children,
 }: Readonly<{
+  step?: string
   title: string
   total: number
   totalColor: string
   children: React.ReactNode
 }>) {
   return (
-    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-3 sm:p-4">
-      <div className="mb-3 flex min-w-0 items-baseline justify-between gap-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+    <div className="min-w-0">
+      <div className="mb-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-2 border-b border-border pb-3">
+        <h4 className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+          {step && <span className="font-mono text-[10px]">{step}</span>}
           {title}
         </h4>
         <span
-          className="max-w-[8rem] truncate text-sm font-semibold tabular-nums"
+          className="break-words font-mono text-sm font-semibold tabular-nums"
           style={{ color: totalColor }}
           title={formatCurrency(total)}
         >
           {formatCurrency(total)}
         </span>
       </div>
-      <div className="space-y-2.5">{children}</div>
+      <div className="divide-y divide-border/60">{children}</div>
     </div>
   )
 }
@@ -245,15 +266,17 @@ function FlowRow({
 }>) {
   const row = (
     <>
-      <div className="flex items-baseline justify-between gap-2 mb-1">
-        <span className="text-sm text-foreground truncate flex-1 min-w-0 inline-flex items-center gap-1">
+      <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
+        <span className="inline-flex min-w-0 items-center gap-1 text-sm font-medium leading-snug text-foreground">
           {label}
           {onDrill && <ChevronRight className="w-3.5 h-3.5 text-text-quaternary shrink-0" aria-hidden />}
         </span>
-        <span className="text-xs text-text-tertiary shrink-0">{formatPercent(percent * 100)}</span>
+        <span className="font-mono text-xs font-medium tabular-nums text-foreground">
+          {formatCurrency(amount)}
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 rounded-full bg-[var(--overlay-2)] overflow-hidden">
+      <div className="flex items-center gap-3">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--overlay-2)]">
           <motion.div
             initial={{ scaleX: 0 }}
             animate={{ scaleX: Math.min(Math.max(barWidth, 0.02), 1) }}
@@ -263,10 +286,9 @@ function FlowRow({
           />
         </div>
         <span
-          className="max-w-[7rem] shrink-0 truncate text-xs font-medium tabular-nums text-foreground"
-          title={formatCurrency(amount)}
+          className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground"
         >
-          {formatCurrency(amount)}
+          {formatPercent(percent * 100)}
         </span>
       </div>
     </>
@@ -283,7 +305,7 @@ function FlowRow({
           type="button"
           onClick={onDrill}
           aria-label={`${label}: see breakdown`}
-          className="-mx-2 block min-h-11 w-full rounded-lg px-2 py-1 text-left transition-colors hover:bg-[var(--overlay-2)] active:bg-[var(--overlay-2)]"
+          className="block min-h-14 w-full rounded-md px-2 py-3 text-left transition-colors hover:bg-[var(--overlay-2)] active:bg-[var(--overlay-2)]"
         >
           {row}
         </button>
@@ -296,6 +318,7 @@ function FlowRow({
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, duration: 0.25 }}
+      className="px-2 py-3"
     >
       {row}
     </motion.div>
@@ -314,14 +337,14 @@ function SplitShareBar({
   const expenseWidth = total > 0 ? (expenseShare / total) * 100 : 100
 
   return (
-    <div className="rounded-lg border border-border bg-[var(--overlay-1)] p-3 sm:p-4">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Where each rupee goes
+    <div className="min-w-0 py-1">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-xs font-medium text-foreground">
+          Savings / expenses
         </h4>
-        <span className="text-xs text-text-tertiary">share of income</span>
+        <span className="text-[10px] text-muted-foreground">share of recorded income</span>
       </div>
-      <div className="flex h-3 w-full rounded-full overflow-hidden bg-[var(--overlay-2)]">
+      <div className="flex h-3 w-full gap-1 overflow-hidden rounded-sm bg-[var(--overlay-2)]">
         {savingsWidth > 0 && (
           <div className="h-full overflow-hidden" style={{ width: `${savingsWidth}%` }}>
             <motion.div
@@ -371,39 +394,45 @@ function SplitCard({
   percent,
   color,
   className = '',
+  onDrill,
 }: Readonly<{
   label: string
   amount: number
   percent: number
   color: string
   className?: string
+  onDrill?: () => void
 }>) {
-  return (
-    <div
-      className={`min-w-0 rounded-lg border p-3 text-center sm:p-4 ${className}`}
-      style={{
-        borderColor: `${color}33`,
-        background: `${color}11`,
-      }}
-    >
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color }}>
+  const content = (
+    <>
+      <p className="flex items-center gap-2 text-xs font-medium" style={{ color }}>
+        <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden="true" />
         {label}
+        {onDrill && <ChevronRight className="ml-auto size-3.5" aria-hidden="true" />}
       </p>
       <p
-        className="mt-1 truncate text-base font-bold tabular-nums text-foreground min-[360px]:text-lg"
+        className="mt-3 break-words font-mono text-sm font-semibold tabular-nums text-foreground min-[400px]:text-base"
         title={formatCurrency(amount)}
       >
         {formatCurrency(amount)}
       </p>
-      <p className="text-xs text-muted-foreground mt-0.5">{formatPercent(percent * 100)}</p>
-    </div>
+      <p className="mt-1 font-mono text-[10px] tabular-nums text-muted-foreground">{formatPercent(percent * 100)}</p>
+    </>
   )
+  const classes = `min-w-0 rounded-md border border-border bg-[var(--overlay-1)] p-3 text-left sm:p-4 ${className}`
+  return onDrill ? (
+    <button type="button" onClick={onDrill} className={`${classes} transition-colors hover:bg-[var(--overlay-2)]`} aria-label={`${label}: see breakdown`}>
+      {content}
+    </button>
+  ) : <div className={classes}>{content}</div>
 }
 
 function Arrow() {
   return (
-    <div className="flex justify-center">
-      <ArrowDown className="w-5 h-5 text-text-quaternary" />
+    <div className="flex items-center justify-center gap-3" aria-hidden="true">
+      <span className="h-px w-10 bg-border" />
+      <ArrowDown className="size-4 text-muted-foreground" />
+      <span className="h-px w-10 bg-border" />
     </div>
   )
 }

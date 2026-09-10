@@ -1,14 +1,25 @@
 import { motion } from 'motion/react'
-import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { parseLocalDate } from '@/lib/dateUtils'
 import { ProgressBar } from '@/components/shared'
-import { rawColors } from '@/constants/colors'
+import { EASING } from '@/constants/animations'
+import { colors } from '@/constants/colors'
+import { useMotionStore } from '@/store/motionStore'
 import { goalTypeColor, goalTypeLabel } from '../constants'
 import type { GoalProjection } from '../types'
 import { differenceInMonths } from '../helpers'
 import CircularProgress from './CircularProgress'
 import GoalProjections from './GoalProjections'
 import GoalCardActions, { type GoalCardActionsProps } from './GoalCardActions'
+
+const GOAL_TYPE_TINTS: Record<string, string> = {
+  savings: colors.app.green,
+  debt_payoff: colors.app.red,
+  investment: colors.app.blue,
+  expense_reduction: colors.app.orange,
+  income_increase: colors.app.purple,
+  custom: colors.app.teal,
+}
 
 export default function GoalCard({
   goal,
@@ -20,10 +31,10 @@ export default function GoalCard({
   projection: GoalProjection
   avgMonthlySavings: number | null
 }>) {
-  // Accessor, not a direct index: an unmapped `goal_type` used to make this
-  // `undefined`, which the chip below interpolated into the literal CSS value
-  // "undefined20" and the browser dropped.
-  const color = goalTypeColor(goal.goal_type)
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  // Live theme tokens keep the presentation in sync when the theme changes.
+  // Retain the existing fallback for historical or unknown goal types.
+  const color = GOAL_TYPE_TINTS[goal.goal_type] ?? goalTypeColor(goal.goal_type)
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
   const remaining = Math.max(0, goal.target_amount - effectiveAmount)
 
@@ -46,71 +57,86 @@ export default function GoalCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="ledger-panel p-4 sm:p-5"
+      transition={{ duration: reduceMotion ? 0 : 0.35, ease: EASING.cinematic }}
+      className="@container/goal ledger-panel flex h-full min-w-0 flex-col p-4 sm:p-5"
     >
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h4 className="break-words text-lg font-semibold leading-tight text-foreground">
-            {goal.name}
-          </h4>
           <span
-            className="inline-block mt-1 px-2.5 py-0.5 text-xs rounded-full font-medium"
-            style={{ backgroundColor: `${color}20`, color }}
+            className="inline-flex items-center gap-2 text-xs font-medium leading-5"
+            style={{ color }}
           >
+            <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
             {goalTypeLabel(goal.goal_type)}
           </span>
+          <h4 className="mt-1 break-words text-balance text-lg font-semibold leading-6 text-foreground">
+            {goal.name}
+          </h4>
         </div>
-        <div className="relative flex items-center justify-center flex-shrink-0 ml-3">
-          <CircularProgress progress={progressPct} color={color} />
-          <span className="absolute text-sm font-bold text-foreground">{Math.round(progressPct)}%</span>
+        <div className="relative flex shrink-0 items-center justify-center" aria-hidden="true">
+          <CircularProgress progress={progressPct} color={color} size={64} />
+          <span className="absolute flex flex-col items-center gap-0.5">
+            <span className="font-mono text-sm font-semibold text-foreground tabular-nums">{Math.round(progressPct)}%</span>
+            <span className="text-[9px] text-text-tertiary">funded</span>
+          </span>
         </div>
       </div>
 
       {/* Amount Details */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-5">
-        <div className="min-w-0">
-          <p className="text-xs text-text-tertiary">Target</p>
-          <p className="ledger-figure whitespace-nowrap text-sm font-medium text-foreground">
-            <span className="sm:hidden">{formatCurrencyCompact(goal.target_amount)}</span>
-            <span className="hidden sm:inline">{formatCurrency(goal.target_amount)}</span>
-          </p>
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+        <div className="col-span-2 min-w-0">
+          <dt className="text-xs leading-5 text-text-tertiary">Allocated</dt>
+          <dd className="ledger-figure mt-1 break-words font-mono text-2xl font-semibold leading-tight text-foreground tabular-nums @min-[24rem]/goal:text-3xl">
+            {formatCurrency(effectiveAmount)}
+          </dd>
         </div>
         <div className="min-w-0">
-          <p className="text-xs text-text-tertiary">Allocated</p>
-          <p className="ledger-figure whitespace-nowrap text-sm font-medium" style={{ color }}>
-            <span className="sm:hidden">{formatCurrencyCompact(effectiveAmount)}</span>
-            <span className="hidden sm:inline">{formatCurrency(effectiveAmount)}</span>
-          </p>
+          <dt className="text-xs leading-5 text-text-tertiary">Target</dt>
+          <dd className="ledger-figure mt-1 break-words font-mono text-sm font-medium text-foreground tabular-nums">
+            {formatCurrency(goal.target_amount)}
+          </dd>
         </div>
-        <div className="min-w-0">
-          <p className="text-xs text-text-tertiary">Remaining</p>
-          <p className="ledger-figure whitespace-nowrap text-sm font-medium text-foreground">
-            <span className="sm:hidden">{formatCurrencyCompact(remaining)}</span>
-            <span className="hidden sm:inline">{formatCurrency(remaining)}</span>
-          </p>
+        <div className="min-w-0 text-right">
+          <dt className="text-xs leading-5 text-text-tertiary">Remaining</dt>
+          <dd className="ledger-figure mt-1 break-words font-mono text-sm font-medium text-foreground tabular-nums">
+            {formatCurrency(remaining)}
+          </dd>
         </div>
-      </div>
+      </dl>
 
       {/* Funded vs on-pace -- the tick marks where you should be by now */}
-      <div className="mt-4">
-        <ProgressBar
-          value={progressPct}
-          color={color}
-          height={8}
-          target={onPacePct}
-          ariaLabel={`${goal.name} progress: ${Math.round(progressPct)} percent funded`}
-        />
+      <div className="mt-5">
+        <div className="relative">
+          <ProgressBar
+            value={progressPct}
+            color={color}
+            height={8}
+            target={onPacePct}
+            ariaLabel={`${goal.name} progress: ${Math.round(progressPct)} percent funded`}
+          />
+          {onPacePct !== undefined && (
+            <span
+              className="pointer-events-none absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
+              style={{ left: `${onPacePct}%` }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+        <div className="mt-2 flex justify-between font-mono text-[10px] text-text-tertiary tabular-nums" aria-hidden="true">
+          <span>0%</span>
+          <span>100% funded</span>
+        </div>
         {onPacePct !== undefined && (
-          <p className="mt-1.5 text-[11px] text-text-tertiary">
+          <p className="mt-2 text-xs leading-5 text-text-tertiary tabular-nums">
             {progressPct >= onPacePct ? (
-              <span style={{ color: rawColors.app.green }}>
+              <span style={{ color: colors.app.green }}>
                 {Math.round(progressPct - onPacePct)}% ahead of pace
               </span>
             ) : (
-              <span style={{ color: rawColors.app.orange }}>
+              <span style={{ color: colors.app.orange }}>
                 {Math.round(onPacePct - progressPct)}% behind pace
               </span>
             )}
@@ -122,8 +148,10 @@ export default function GoalCard({
       {/* Smart Projections */}
       <GoalProjections goal={goal} projection={projection} avgMonthlySavings={avgMonthlySavings} />
 
-      {goal.notes && <p className="mt-3 break-words text-sm text-text-tertiary italic">{goal.notes}</p>}
-      <GoalCardActions goal={goal} effectiveAmount={effectiveAmount} {...actions} />
+      {goal.notes && <p className="mt-3 break-words text-pretty text-sm leading-6 text-text-tertiary">{goal.notes}</p>}
+      <div className="mt-auto pt-4">
+        <GoalCardActions goal={goal} effectiveAmount={effectiveAmount} {...actions} />
+      </div>
     </motion.div>
   )
 }

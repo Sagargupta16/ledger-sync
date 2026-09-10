@@ -41,11 +41,11 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
   if (!hasData) return <ChartEmptyState height={260} />
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <StandardBarChart
         data={data}
         dataKey="day"
-        height={260}
+        height={300}
         bars={[
           { key: 'spending', color: rawColors.app.red, label: 'Avg Spending' },
           { key: 'earning', color: rawColors.app.green, label: 'Avg Earning' },
@@ -60,25 +60,25 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2"
+          className="grid grid-cols-1 gap-4 border-t border-border pt-4 min-[440px]:grid-cols-2"
         >
-          <div className="px-3 py-2 rounded-lg bg-app-red/10 border border-app-red/20">
-            <p className="text-xs uppercase tracking-wide text-text-quaternary font-semibold">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">
               Biggest Day
             </p>
-            <p className="text-sm font-semibold text-foreground mt-0.5">
+            <p className="mt-2 text-sm font-semibold text-foreground">
               <span className="text-app-red">{insights.topDay}</span>
-              <span className="text-text-tertiary text-xs font-normal"> · {formatCurrencyShort(insights.topAmount)}/day</span>
+              <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground"> · {formatCurrencyShort(insights.topAmount)}/day</span>
             </p>
           </div>
-          <div className="px-3 py-2 rounded-lg bg-[var(--overlay-2)] border border-border">
-            <p className="text-xs uppercase tracking-wide text-text-quaternary font-semibold">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">
               Weekend vs Weekday
             </p>
-            <p className="text-sm font-semibold text-foreground mt-0.5">
+            <p className="mt-2 font-mono text-sm font-semibold tabular-nums text-foreground">
               {insights.weekendDelta >= 0 ? '+' : ''}
               {(insights.weekendDelta * 100).toFixed(0)}%
-              <span className="text-text-tertiary text-xs font-normal"> on weekends</span>
+              <span className="font-sans text-xs font-normal text-muted-foreground"> on weekends</span>
             </p>
           </div>
         </motion.div>

@@ -92,7 +92,7 @@ function GoalsContent() {
         />
       )}
 
-      <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 sm:gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
         <StatCard
           title="Total Goals"
           value={String(state.summary.total)}
@@ -107,7 +107,7 @@ function GoalsContent() {
           iconColor={rawColors.app.green}
           delay={0.04}
         />
-        <div className="min-[375px]:col-span-2 md:col-span-1">
+        <div className="col-span-2 md:col-span-1">
           <StatCard
             title="In Progress"
             value={String(state.summary.inProgress)}

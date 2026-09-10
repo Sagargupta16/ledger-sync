@@ -7,7 +7,8 @@ import { Sector, type PieSectorShapeProps } from 'recharts'
 
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { capPieSlices, sliceClickTarget, type PieSliceDatum } from '@/components/ui/pieSlices'
-import { getChartColor } from '@/constants/chartColors'
+import { CHART_SURFACE, SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import { isMotionReduced } from '@/store/motionStore'
 
 /**
  * A capped slice with its colour resolved onto the datum.
@@ -33,7 +34,8 @@ export function buildPieSlices(
 ): PieSliceRow[] {
   return capPieSlices(data, maxSlices).map((slice, i) => ({
     ...slice,
-    fill: slice.color ?? getChartColor(i),
+    // A stable datum can still pick up refreshed theme tokens.
+    get fill() { return slice.isOther ? SEMANTIC_COLORS.muted : (slice.color ?? getChartColor(i)) },
   }))
 }
 
@@ -67,9 +69,11 @@ export function renderPieSectorShape(activeName: string | null, hasClickHandler:
     return (
       <Sector
         {...props}
+        stroke={CHART_SURFACE.activeStroke}
+        strokeWidth={1}
         style={{
           cursor: clickable ? 'pointer' : 'default',
-          transition: 'opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+          transition: isMotionReduced() ? 'none' : 'opacity 160ms ease-out',
           opacity: isDimmed ? 0.4 : 1,
         }}
       />

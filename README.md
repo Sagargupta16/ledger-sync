@@ -204,7 +204,9 @@ instance.
 The [static overview image](docs/images/system-overview.svg) remains available
 as a companion illustration.
 
-See [docs/architecture.md](docs/architecture.md) for component and data-flow details.
+See [architecture](docs/architecture.md) for system boundaries and the
+[shared chart system](docs/architecture.md#shared-chart-composition) for frontend
+composition and accessibility contracts.
 
 ## Deployment
 

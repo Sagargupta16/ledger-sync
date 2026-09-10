@@ -1,6 +1,9 @@
 import { memo, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+import { DURATION, fadeUpWithDelay } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 import { cn } from '@/lib/cn'
+import { useMotionStore } from '@/store/motionStore'
 
 interface CardProps {
   children: ReactNode
@@ -21,24 +24,46 @@ export const Card = memo(function Card({
   delay = 0,
   variant = 'default'
 }: CardProps) {
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  const entrance = fadeUpWithDelay(delay)
   const variantClasses = {
-    default: 'rounded-lg border border-[var(--hairline-1)] bg-surface-1 p-4 sm:p-5',
-    interactive: 'rounded-lg border border-[var(--hairline-1)] bg-surface-1 p-4 sm:p-5 transition-colors duration-150 hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)]'
+    default: '',
+    interactive: cn(
+      'hover:border-[var(--hairline-4)] hover:bg-surface-hover',
+      !reduceMotion && 'hover:-translate-y-0.5',
+    )
   }
+  const cardClassName = cn(
+    'min-w-0 rounded-lg border border-[var(--glass-border)] bg-surface-1 p-4 shadow-[var(--glass-shadow)] sm:p-5',
+    variantClasses[variant],
+    className,
+  )
+  const interactionStyle = variant === 'interactive' ? {
+    transitionProperty: 'translate',
+    transitionDuration: 'var(--duration-fast)',
+    transitionTimingFunction: 'var(--ease-cinematic)',
+  } : undefined
 
   if (animate) {
     return (
-      <div
-        className={cn(variantClasses[variant], 'animate-fade-up', className)}
-        style={{ animationDelay: `${delay * 1000}ms` }}
+      <motion.div
+        initial={reduceMotion ? false : entrance.initial}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          ...entrance.transition,
+          delay: reduceMotion ? 0 : entrance.transition.delay,
+          duration: reduceMotion ? 0 : DURATION.quick,
+        }}
+        className={cardClassName}
+        style={interactionStyle}
       >
         {children}
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div className={cn(variantClasses[variant], className)}>
+    <div className={cardClassName} style={interactionStyle}>
       {children}
     </div>
   )
@@ -53,7 +78,7 @@ interface CardHeaderProps {
 
 /**
  * Card header with title, optional icon, and action slot.
- * Clean typographic hierarchy with restrained icon backgrounds.
+ * Clear typographic hierarchy with inline icons.
  */
 export const CardHeader = memo(function CardHeader({
   title,
@@ -62,21 +87,21 @@ export const CardHeader = memo(function CardHeader({
   action
 }: CardHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-3 mb-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div className="flex min-w-0 flex-1 basis-40 items-start gap-2.5">
         {icon && (
-          <div className="shrink-0 rounded-md border border-[var(--hairline-2)] bg-[var(--overlay-2)] p-2">
+          <div className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4">
             {icon}
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+          <h3 className="text-pretty text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{title}</h3>
           {subtitle && (
-            <p className="mt-0.5 text-xs text-text-tertiary">{subtitle}</p>
+            <p className="mt-1 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]">{subtitle}</p>
           )}
         </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 [&>*]:max-w-full">{action}</div>}
     </div>
   )
 })
@@ -95,8 +120,7 @@ interface StatCardProps {
 }
 
 /**
- * Statistic card for displaying KPIs with clean typography
- * and restrained icon backgrounds.
+ * Statistic card with a full-width figure and optional trend.
  */
 export const StatCard = memo(function StatCard({
   title,
@@ -108,27 +132,27 @@ export const StatCard = memo(function StatCard({
   delay = 0
 }: StatCardProps) {
   return (
-    <Card delay={delay}>
-      <div className="flex items-center gap-3">
-        {icon && (
-          <div
-            className="rounded-md p-2"
-            style={{
-              background: `${iconColor}10`
-            }}
-          >
-            <div style={{ color: iconColor }}>{icon}</div>
-          </div>
-        )}
-        <div className="flex-1">
-          <p className="text-xs text-text-tertiary">{title}</p>
-          <p className="ledger-figure text-lg sm:text-xl font-semibold text-foreground">{value}</p>
+    <Card delay={delay} className="metric-card h-full">
+      <div className="flex h-full min-w-0 flex-col justify-between gap-4">
+        <div className="flow-root min-h-10">
+          {icon && (
+            <div
+              className="float-right mt-0.5 ml-2 [&>svg]:size-4"
+              style={{ color: iconColor }}
+            >
+              {icon}
+            </div>
+          )}
+          <p className="min-w-0 text-pretty text-xs font-medium leading-5 text-muted-foreground [overflow-wrap:anywhere]">{title}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="metric-value ledger-figure max-w-full font-semibold leading-tight tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere]" title={String(value)}>{value}</p>
           {subtitle && (
-            <p className="text-[11px] text-text-quaternary mt-1">{subtitle}</p>
+            <p className="mt-1.5 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(
-              'text-xs mt-1 font-medium',
+              'mt-3 text-xs font-medium tabular-nums [overflow-wrap:anywhere]',
               trend.isPositive ? 'text-app-green' : 'text-app-red'
             )}>
               {trend.isPositive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%

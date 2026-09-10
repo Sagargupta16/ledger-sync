@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 
+import { motion } from 'motion/react'
 import {
   ShoppingBag, TrendingUp, TrendingDown, Zap, Gift, Receipt,
   Flame, ArrowLeftRight, Landmark, Calendar, BarChart3,
@@ -15,9 +16,11 @@ import {
 } from '@/hooks/api/useAnalytics'
 import { useDailySummaries, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
+import { EASING } from '@/constants/animations'
 import { toLocalDateKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
 import { netSavings as computeNetSavings, savingsRatePercentOr } from '@/lib/savingsRate'
+import { useMotionStore } from '@/store/motionStore'
 
 import ErrorState from './ErrorState'
 import LoadingSkeleton from './LoadingSkeleton'
@@ -65,53 +68,68 @@ interface QuickInsightsProps {
 function InsightCard({
   item,
   emphasis = false,
-}: Readonly<{ item: InsightDescriptor; emphasis?: boolean }>) {
+  index = 0,
+}: Readonly<{ item: InsightDescriptor; emphasis?: boolean; index?: number }>) {
   // Format-preserving count-up; settles on the exact formatted string.
   const animatedValue = useAnimatedValue(item.value)
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  const reveal = {
+    initial: reduceMotion ? false as const : { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: {
+      duration: reduceMotion ? 0 : 0.32,
+      delay: reduceMotion ? 0 : Math.min(index * 0.04, 0.16),
+      ease: EASING.cinematic,
+    },
+  }
 
   if (emphasis) {
     return (
-      <div className="quick-insight-card ledger-cell min-h-28 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 text-xs font-medium leading-4 text-muted-foreground">
-            {item.title}
-          </p>
-          <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
-            <item.icon className={`size-4 ${item.color}`} />
-          </div>
-        </div>
-        <p
-          className="ledger-figure mt-4 break-words text-lg font-semibold leading-tight text-foreground tabular-nums sm:text-xl"
-          title={item.value}
-        >
-          {animatedValue}
-        </p>
-        {item.subtitle && (
-          <p className="mt-1 break-words text-[11px] leading-4 text-text-tertiary" title={item.subtitle}>
-            {item.subtitle}
-          </p>
-        )}
-      </div>
+      <motion.div {...reveal} className="@container ledger-cell flex min-h-36 flex-col p-4">
+        <dl className="flex flex-1 flex-col">
+          <dt className="flex items-start justify-between gap-3">
+            <span className="min-w-0 text-xs font-medium leading-5 text-muted-foreground">
+              {item.title}
+            </span>
+            <item.icon className={`mt-0.5 size-4 shrink-0 ${item.color}`} aria-hidden="true" />
+          </dt>
+          <dd
+            className="ledger-figure mt-4 break-words font-mono text-xl font-semibold leading-tight text-foreground tabular-nums @min-[14rem]:text-2xl"
+            title={item.value}
+          >
+            {animatedValue}
+          </dd>
+          {item.subtitle && (
+            <dd className="mt-2 break-words text-xs leading-5 text-text-tertiary tabular-nums" title={item.subtitle}>
+              {item.subtitle}
+            </dd>
+          )}
+        </dl>
+      </motion.div>
     )
   }
 
   return (
-    <div className="quick-insight-card ledger-cell flex min-h-20 items-center gap-3 p-3">
-      <div className={`flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
-        <item.icon className={`size-3.5 ${item.color}`} />
+    <motion.div
+      {...reveal}
+      className="ledger-cell flex min-h-28 items-start gap-3 p-4"
+      style={{ flexBasis: '13rem', minWidth: 'min(100%, 13rem)' }}
+    >
+      <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
+        <item.icon className={`size-3.5 ${item.color}`} aria-hidden="true" />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] leading-4 text-muted-foreground">{item.title}</p>
-        <p className="insight-value ledger-figure whitespace-nowrap font-semibold text-foreground tabular-nums" title={item.value}>
+      <dl className="min-w-0 flex-1">
+        <dt className="text-xs leading-5 text-muted-foreground">{item.title}</dt>
+        <dd className="ledger-figure mt-1 break-words text-base font-semibold leading-6 text-foreground tabular-nums" title={item.value}>
           {animatedValue}
-        </p>
+        </dd>
         {item.subtitle && (
-          <p className="break-words text-[11px] leading-4 text-text-tertiary" title={item.subtitle}>
+          <dd className="mt-1 break-words text-xs leading-5 text-text-tertiary tabular-nums" title={item.subtitle}>
             {item.subtitle}
-          </p>
+          </dd>
         )}
-      </div>
-    </div>
+      </dl>
+    </motion.div>
   )
 }
 
@@ -333,11 +351,11 @@ export default function QuickInsights({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="ledger-band grid grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={`s-${i}`} className="h-28 w-full" />)}
+        <div className="ledger-band grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+          {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={`s-${i}`} className="h-36 w-full" />)}
         </div>
-        <div className="ledger-band ledger-flow-grid">
-          {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={`f-${i}`} className="h-20 w-full" />)}
+        <div className="ledger-band grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+          {Array.from({ length: 4 }, (_, i) => <LoadingSkeleton key={`f-${i}`} className="h-28 w-full" />)}
         </div>
       </div>
     )
@@ -356,54 +374,62 @@ export default function QuickInsights({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <section aria-labelledby="money-flow-heading">
-        <div className="mb-2">
-          <h3 id="money-flow-heading" className="ledger-meta text-text-tertiary">
-            Money flow
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <div className="mb-3">
+          <div className="flex items-center gap-3">
+            <h3 id="money-flow-heading" className="ledger-meta text-text-secondary">
+              Money flow
+            </h3>
+            <span className="h-px flex-1 bg-[var(--hairline-1)]" aria-hidden="true" />
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Income, spending, and retained cash for this period.
           </p>
         </div>
-        <div className="ledger-band grid grid-cols-2 lg:grid-cols-4">
-          {visibleMoneyFlowInsights.map((item) => (
-            <InsightCard key={item.title} item={item} emphasis />
+        <div className="ledger-band grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+          {visibleMoneyFlowInsights.map((item, index) => (
+            <InsightCard key={item.title} item={item} index={index} emphasis />
           ))}
         </div>
       </section>
 
       {visibleOperatingInsights.length > 0 && (
         <section aria-labelledby="operating-position-heading">
-          <div className="mb-2">
-            <h3 id="operating-position-heading" className="ledger-meta text-text-tertiary">
-              Operating position
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <div className="mb-3">
+            <div className="flex items-center gap-3">
+              <h3 id="operating-position-heading" className="ledger-meta text-text-secondary">
+                Operating position
+              </h3>
+              <span className="h-px flex-1 bg-[var(--hairline-1)]" aria-hidden="true" />
+            </div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Liquidity, commitments, and short-term resilience.
             </p>
           </div>
-          <div className="ledger-band ledger-flow-grid">
-            {visibleOperatingInsights.map((item) => (
-              <InsightCard key={item.title} item={item} />
+          <div className="ledger-band grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
+            {visibleOperatingInsights.map((item, index) => (
+              <InsightCard key={item.title} item={item} index={index} />
             ))}
           </div>
         </section>
       )}
 
-      <details className="group">
-        <summary className="ledger-control flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md border px-3 py-2 text-sm font-medium text-foreground">
+      <details open className="group/signals">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-md py-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <span className="flex-1">Behavior signals</span>
-          <span className="text-xs font-normal text-muted-foreground">
+          <span className="font-mono text-xs font-normal text-muted-foreground tabular-nums">
             {visibleFunFacts.length} metrics
           </span>
           <ChevronDown
-            className="size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-180"
+            className="size-4 text-muted-foreground transition-transform duration-150 group-open/signals:rotate-180"
             aria-hidden="true"
           />
         </summary>
         <div className="ledger-band ledger-flow-grid mt-2">
-          {visibleFunFacts.map((item) => <InsightCard key={item.title} item={item} />)}
+          {visibleFunFacts.map((item, index) => (
+            <InsightCard key={item.title} item={item} index={index} />
+          ))}
         </div>
       </details>
     </div>

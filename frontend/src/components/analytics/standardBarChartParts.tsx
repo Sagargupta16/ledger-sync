@@ -5,7 +5,7 @@
 
 import { Rectangle, ReferenceLine, type BarShapeProps } from 'recharts'
 
-import { referenceLine, type ReferenceLineVariant } from '@/components/ui/chartDefaults'
+import { BAR_RADIUS, referenceLine, type ReferenceLineVariant } from '@/components/ui/chartDefaults'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { baselineLine, type BaselineOptions } from '@/components/ui/chartBaseline'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
@@ -57,10 +57,10 @@ export function buildChartMargin(
   xAngle: number | undefined,
 ) {
   return {
-    top: margin?.top ?? 8,
-    right: margin?.right ?? 12,
+    top: margin?.top ?? 16,
+    right: margin?.right ?? 16,
     bottom: margin?.bottom ?? (xAngle ? 20 : 8),
-    left: margin?.left ?? 4,
+    left: margin?.left ?? 0,
   }
 }
 
@@ -98,9 +98,10 @@ export function renderBarShape(
   bar: BarConfig,
   activeIndex: number | null,
   isolate: boolean,
+  layout?: 'horizontal' | 'vertical',
 ) {
   const hasCustomColor = Boolean(bar.cellColors || bar.getCellColor)
-  if (!hasCustomColor && !isolate) return undefined
+  if (!hasCustomColor && !isolate && layout === undefined) return undefined
   return function BarShape(props: BarShapeProps) {
     const row = (props.payload ?? {}) as Record<string, unknown>
     // `index` is the position within the rendered slice; the pre-filter index
@@ -109,12 +110,15 @@ export function renderBarShape(
     const rowIndex = props.originalDataIndex ?? props.index
     const color = resolveCellColor(bar, row, rowIndex) ?? bar.color
     const dimmed = isolate && activeIndex !== null && activeIndex !== rowIndex
+    const negative = Number(row[bar.key]) < 0
+    const horizontalRadius: [number, number, number, number] = negative ? [0, 0, 5, 5] : BAR_RADIUS
+    const verticalRadius: [number, number, number, number] = negative ? [5, 0, 0, 5] : [0, 5, 5, 0]
     return (
       <Rectangle
         {...props}
         fill={color}
         fillOpacity={dimmed ? 0.35 : (bar.fillOpacity ?? 1)}
-        style={{ transition: 'fill-opacity 200ms ease' }}
+        radius={bar.radius ?? (layout === 'vertical' ? verticalRadius : horizontalRadius)}
       />
     )
   }
@@ -144,7 +148,14 @@ export function renderReferenceLine(ref: ReferenceLineConfig) {
       y={ref.y}
       stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
       strokeDasharray={ref.strokeDasharray ?? '3 3'}
-      label={ref.label ? { value: ref.label, fill: CHART_TEXT.subtle, fontSize: 10 } : undefined}
+      label={ref.label ? {
+        value: ref.label,
+        fill: CHART_TEXT.subtle,
+        fontSize: 10,
+        fontFamily: 'var(--font-mono)',
+        position: 'insideTopRight',
+        offset: 8,
+      } : undefined}
     />
   )
 }

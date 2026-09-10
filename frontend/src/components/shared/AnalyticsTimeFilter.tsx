@@ -1,7 +1,11 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 
 import { motion } from 'motion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+import { DURATION, EASING, TAP_FEEDBACK } from '@/constants/animations'
+import { cn } from '@/lib/cn'
+import { useMotionStore } from '@/store/motionStore'
 
 export type { AnalyticsViewMode } from '@/lib/dateUtils'
 import { type AnalyticsViewMode, getFYFromDate } from '@/lib/dateUtils'
@@ -63,6 +67,10 @@ export default function AnalyticsTimeFilter({
   fiscalYearStartMonth = 4,
   availableModes,
 }: AnalyticsTimeFilterProps) {
+  const activeId = useId()
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  const transition = { duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }
+
   // Filter view modes if availableModes is specified
   const filteredViewModes = availableModes
     ? viewModes.filter((m) => availableModes.includes(m.value))
@@ -184,67 +192,84 @@ export default function AnalyticsTimeFilter({
   const showNavigation = viewMode !== 'all_time'
 
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+    <div className="flex min-w-0 max-w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {/* Period Navigation -- LEFT of the mode selector */}
       {showNavigation && (
-        <div className="flex items-center justify-center sm:justify-start gap-2">
+        <div className="ledger-control flex w-full min-w-0 max-w-full items-center gap-1 rounded-lg border p-1 sm:w-auto">
           <motion.button
+            type="button"
             onClick={handlePrevious}
             disabled={!canGoPrev}
-            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary lg:pointer-fine:size-9"
-            whileTap={canGoPrev ? { scale: 0.95 } : undefined}
+            className="flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-text-tertiary enabled:hover:bg-[var(--overlay-2)] enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-30 lg:pointer-fine:size-9"
+            whileTap={canGoPrev && !reduceMotion ? TAP_FEEDBACK : undefined}
+            transition={transition}
             title={canGoPrev ? 'Previous period' : 'Already at your earliest data'}
             aria-label="Previous period"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft aria-hidden="true" className="size-4" />
           </motion.button>
 
           <span
             aria-live="polite"
             aria-atomic="true"
-            className="text-foreground font-medium min-w-28 sm:min-w-36 text-center truncate"
+            className="min-w-0 flex-1 px-2 text-center text-sm font-medium leading-5 text-foreground tabular-nums [overflow-wrap:anywhere] sm:min-w-36"
           >
-            {periodLabel}
+            <motion.span
+              key={periodLabel}
+              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={transition}
+              className="block"
+            >
+              {periodLabel}
+            </motion.span>
           </span>
 
           <motion.button
+            type="button"
             onClick={handleNext}
             disabled={!canGoNext}
-            className="flex size-11 items-center justify-center rounded-md text-text-tertiary transition-colors duration-150 ease-out hover:bg-[var(--overlay-3)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-tertiary lg:pointer-fine:size-9"
-            whileTap={canGoNext ? { scale: 0.95 } : undefined}
+            className="flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-text-tertiary enabled:hover:bg-[var(--overlay-2)] enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-30 lg:pointer-fine:size-9"
+            whileTap={canGoNext && !reduceMotion ? TAP_FEEDBACK : undefined}
+            transition={transition}
             title={canGoNext ? 'Next period' : 'Already at your latest data'}
             aria-label="Next period"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight aria-hidden="true" className="size-4" />
           </motion.button>
         </div>
       )}
 
-      {/* View Mode Selector. Full-width on phone so the 4 tabs flex evenly and
-          never overflow under ~400px; auto-width inline pill from sm+. */}
-      <div className="flex items-center gap-1 p-1 bg-[var(--overlay-2)] rounded-lg w-full sm:w-auto" role="tablist" aria-label="Time range">
+      {/* View Mode Selector. Full-width on phone with wrapping options;
+          auto-width inline control from sm+. */}
+      <div className="ledger-control flex w-full min-w-0 max-w-full flex-wrap gap-1 rounded-lg border p-1 sm:w-auto" role="tablist" aria-label="Time range">
         {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}
+            type="button"
             role="tab"
             aria-selected={viewMode === mode.value}
             onClick={() => onViewModeChange(mode.value)}
-            className={`relative min-h-11 min-w-11 flex-1 whitespace-nowrap rounded-md px-2 py-2.5 text-sm transition-colors duration-150 ease-out sm:flex-none sm:px-3 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 lg:pointer-fine:py-1.5 ${
+            className={cn(
+              'relative isolate min-h-11 min-w-11 flex-auto touch-manipulation rounded-md px-2 py-1.5 text-center text-sm font-medium leading-5 whitespace-nowrap sm:flex-none sm:px-3 lg:pointer-fine:min-h-9',
+              'focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               viewMode === mode.value
-                ? 'text-foreground font-medium'
-                : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-2)]'
-            }`}
-            whileTap={{ scale: 0.97 }}
+                ? 'text-primary'
+                : 'text-muted-foreground hover:bg-[var(--overlay-2)] hover:text-foreground',
+            )}
+            whileTap={reduceMotion ? undefined : TAP_FEEDBACK}
+            transition={transition}
           >
             {viewMode === mode.value && (
-              <motion.div
-                layoutId="analyticsActiveTab"
-                className="absolute inset-0 bg-[var(--overlay-5)] rounded-md"
+              <motion.span
+                aria-hidden="true"
+                layoutId={reduceMotion ? undefined : activeId}
+                className="pointer-events-none absolute inset-0 rounded-md border border-primary/20 bg-primary/10"
                 initial={false}
-                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                transition={transition}
               />
             )}
-            <span className="relative z-10">{mode.label}</span>
+            <span className="relative">{mode.label}</span>
           </motion.button>
         ))}
       </div>

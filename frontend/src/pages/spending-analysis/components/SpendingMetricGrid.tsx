@@ -1,7 +1,7 @@
-import { Activity, PieChart, Tag, TrendingDown } from 'lucide-react'
+import { motion } from 'motion/react'
 
-import MetricCard from '@/components/shared/MetricCard'
 import Sparkline from '@/components/shared/Sparkline'
+import { FADE_UP } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -28,45 +28,50 @@ export default function SpendingMetricGrid({
   subcategoriesCount,
 }: SpendingMetricGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-      <MetricCard
-        title="Total Spending"
-        value={formatCurrency(totalSpending)}
-        icon={TrendingDown}
-        color="red"
-      />
-      <MetricCard
-        title="Monthly Avg"
-        value={formatCurrency(monthlyAvgSpending)}
-        icon={Activity}
-        color="orange"
-        subtitle={monthlyAvgSubtitle}
-        trend={
-          monthlyTrendData.length >= 2 ? (
+    <motion.dl
+      {...FADE_UP}
+      className="grid grid-cols-1 gap-x-6 gap-y-5 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-[1.2fr_1.1fr_1fr_0.8fr]"
+      aria-label="Spending summary"
+    >
+      <div className="min-w-0">
+        <dt className="ledger-meta text-app-red">Total Spending</dt>
+        <dd className="mt-2 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-foreground sm:text-3xl">
+          {formatCurrency(totalSpending)}
+        </dd>
+        <dd className="mt-2 text-xs text-muted-foreground">Selected period</dd>
+      </div>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Monthly Avg</dt>
+        <dd className="mt-2 break-words font-mono text-xl font-semibold tabular-nums text-foreground">
+          {formatCurrency(monthlyAvgSpending)}
+        </dd>
+        <dd className="mt-2 text-xs leading-relaxed text-muted-foreground">{monthlyAvgSubtitle}</dd>
+        {monthlyTrendData.length >= 2 && (
+          <dd className="mt-2 max-w-40">
             <Sparkline
               data={monthlyTrendData.map((item) => item.expense)}
-              color={rawColors.app.orange}
-              height={40}
+              color={rawColors.app.red}
+              height={32}
               showTooltip={false}
               ariaLabel="Monthly spending trend"
             />
-          ) : undefined
-        }
-      />
-      <MetricCard
-        title="Top Category"
-        value={topCategory}
-        icon={Tag}
-        color="blue"
-        subtitle={topCategoryAmount > 0 ? formatCurrency(topCategoryAmount) : undefined}
-      />
-      <MetricCard
-        title="Categories"
-        value={`${categoriesCount} / ${subcategoriesCount}`}
-        icon={PieChart}
-        color="purple"
-        subtitle="Categories / Subcategories"
-      />
-    </div>
+          </dd>
+        )}
+      </div>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Top Category</dt>
+        <dd className="mt-2 break-words text-lg font-semibold text-foreground">{topCategory}</dd>
+        {topCategoryAmount > 0 && (
+          <dd className="mt-2 font-mono text-sm tabular-nums text-app-red">{formatCurrency(topCategoryAmount)}</dd>
+        )}
+      </div>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Categories</dt>
+        <dd className="mt-2 font-mono text-xl font-semibold tabular-nums text-foreground">
+          {categoriesCount}<span className="px-1 text-muted-foreground">/</span>{subcategoriesCount}
+        </dd>
+        <dd className="mt-2 text-xs text-muted-foreground">Categories / Subcategories</dd>
+      </div>
+    </motion.dl>
   )
 }

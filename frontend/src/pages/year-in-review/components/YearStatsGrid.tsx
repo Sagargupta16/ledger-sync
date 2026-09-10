@@ -22,7 +22,7 @@ interface YearStatsGridProps {
 
 export default function YearStatsGrid({ stats }: YearStatsGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-5 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-x-6 gap-y-5 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
       <StatCard
         label="Total Spending"
         value={formatCurrencyCompact(stats.totalExpense)}

@@ -19,7 +19,7 @@ interface PeriodSelectorProps {
 }
 
 const selectClass =
-  'ledger-control w-full min-h-11 rounded-md border px-3 py-2.5 text-sm text-foreground tabular-nums cursor-pointer transition-colors sm:w-auto lg:pointer-fine:min-h-9 lg:pointer-fine:py-2'
+  'ledger-control w-full min-h-11 rounded-md border px-3 py-2.5 text-sm text-foreground tabular-nums cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-app-blue'
 
 export function PeriodSelector({
   mode, label, monthOptions, yearOptions, fyOptions,
@@ -28,10 +28,10 @@ export function PeriodSelector({
   const selectId = useId()
 
   return (
-    <div className="flex w-full sm:w-auto flex-col items-center gap-1.5">
+    <div className="flex w-full min-w-0 flex-col items-stretch gap-2">
       <div className="flex items-center gap-1.5">
-        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-        <label htmlFor={selectId} className="text-xs text-muted-foreground font-medium">{label}</label>
+        <Calendar className="size-3.5 text-app-blue" aria-hidden="true" />
+        <label htmlFor={selectId} className="text-xs font-medium text-muted-foreground">{label}</label>
       </div>
       {mode === 'month' && (
         <select id={selectId} className={selectClass} value={month} onChange={(e) => onMonth(e.target.value)}>
