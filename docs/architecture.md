@@ -776,8 +776,10 @@ flowchart TB
   class vercel external
 ```
 
-The CI dependency chain gates migrations on all check jobs and Pages on
-migration success. Native PostgreSQL runs from isolated test-cluster binaries
+The CI dependency chain gates migrations on all check jobs. Pages also waits
+for a healthy backend reporting the frontend release version and a connected
+database, leaving the previous site active if that check times out.
+Native PostgreSQL runs from isolated test-cluster binaries
 in CI. Vercel's Git deployment is outside this dependency chain; the workflow
 does not establish that a backend release waits for migrations. Preserve
 schema compatibility and follow [DEPLOYMENT.md](DEPLOYMENT.md) for rollout,

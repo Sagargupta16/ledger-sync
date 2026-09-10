@@ -216,8 +216,9 @@ The hosted installation uses:
 | Backend | Vercel serverless, ASGI |
 | Database | Neon PostgreSQL 17 with PgBouncer |
 
-On `main`, CI checks gate database migrations, which gate the GitHub Pages
-deployment. PostgreSQL migration checks use a native instance. Vercel's Git
+On `main`, CI checks gate database migrations. GitHub Pages then waits for a
+healthy backend reporting the frontend release version and a connected database.
+PostgreSQL migration checks use a native instance. Vercel's Git
 deployment is a separate platform path, so schema-compatible backend releases
 still need coordination. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before
 changing production configuration.

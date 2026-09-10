@@ -54,6 +54,41 @@ jobs:
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html
 
+      - name: Wait for the matching backend release
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          import { setTimeout } from 'node:timers/promises'
+
+          const expectedVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
+          const apiBase = process.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
+          if (!apiBase) throw new Error('VITE_API_BASE_URL must be configured before deployment.')
+          const deadline = Date.now() + 10 * 60 * 1000
+          let ready = false
+          while (Date.now() < deadline) {
+            try {
+              const responses = await Promise.all(['/health', '/health/db'].map((path) =>
+                fetch(`${apiBase}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' })))
+              if (responses.every((response) => response.ok)) {
+                const [health, database] = await Promise.all(responses.map((response) => response.json()))
+                if (health.status === 'healthy' && health.version === expectedVersion
+                  && database.database === 'connected') {
+                  ready = true
+                  break
+                }
+              }
+            } catch {
+              // A backend rollout can briefly interrupt health requests.
+            }
+            console.log(`Waiting for healthy backend ${expectedVersion} before publishing Pages.`)
+            await setTimeout(10000)
+          }
+          if (!ready) throw new Error('Backend rollout is not ready. The existing Pages deployment remains active.')
+          console.log(`Backend ${expectedVersion} and its database are ready.`)
+          NODE
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:

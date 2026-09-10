@@ -18,8 +18,10 @@ Browser
 ```
 
 Production releases use `main`. CI gates the migration workflow, then the
-GitHub Pages workflow, for the same commit. Vercel's external GitHub integration
-must be configured or promoted separately to respect that gate.
+GitHub Pages workflow, for the same commit. Pages waits for a healthy backend
+reporting the frontend release version and a connected database before publishing.
+Vercel's external GitHub integration must be configured or promoted separately
+after migrations.
 
 ## Deployment Sources
 
@@ -241,7 +243,13 @@ After CI and database migrations pass for the same commit, the deployment workfl
    disabled (`--frozen-lockfile --ignore-scripts`).
 4. Builds with `GITHUB_PAGES=true`.
 5. Copies `index.html` to `404.html`.
-6. Publishes `frontend/dist`.
+6. Waits up to ten minutes for `/health` to report the frontend package version
+   and for `/health/db` to report a connected database.
+7. Publishes `frontend/dist`.
+
+If the backend is not ready, the workflow fails before publishing and the
+previous Pages deployment remains active. This is a release-version and health
+check, not a commit identity check; verify the intended Vercel commit separately.
 
 The `404.html` copy allows direct navigation to React Router paths on GitHub
 Pages. `BrowserRouter` uses `import.meta.env.BASE_URL`, so every route remains
@@ -274,9 +282,10 @@ exchanging the authorization code.
 After merge:
 
 - Main CI validates the merged commit, then applies any pending migrations.
-- GitHub Pages publishes that same commit only after migration success.
-- Promote the Vercel backend after those gates. Automatic Vercel deployment
-  needs the separately configured protection described above.
+- Promote the Vercel backend after CI and migrations pass. Automatic Vercel
+  deployment needs the separately configured protection described above.
+- GitHub Pages publishes that same commit only after the backend readiness
+  check succeeds.
 
 Do not push release changes directly to `main`.
 
