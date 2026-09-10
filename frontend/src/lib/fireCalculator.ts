@@ -27,7 +27,7 @@ export function deriveFIREInputs(
   totalExpenses: number,
   observedMonths = 1,
 ): FIREInputDefaults {
-  const months = observedMonths ? observedMonths : 1
+  const months = observedMonths === 0 || Number.isNaN(observedMonths) ? 1 : observedMonths
   const annualIncome = (totalIncome / months) * MONTHS_PER_YEAR
   const annualExpenses = (Math.abs(totalExpenses) / months) * MONTHS_PER_YEAR
   return {
