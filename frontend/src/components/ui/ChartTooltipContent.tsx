@@ -50,7 +50,7 @@ export default function ChartTooltipContent({
       className="block"
       role={accessibilityLayer ? undefined : 'tooltip'}
       aria-live={accessibilityLayer ? 'assertive' : undefined}
-      style={CHART_TOOLTIP_STYLE}
+      style={{ ...CHART_TOOLTIP_STYLE, fontFeatureSettings: 'inherit' }}
     >
       {heading != null && heading !== '' && (
         <span className="mb-2 block border-b border-border/60 pb-2 text-xs font-medium text-muted-foreground">
