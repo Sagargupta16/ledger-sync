@@ -9,11 +9,12 @@ interface Props {
 
 export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
   const rules = getTaxConfig(planning.fyYear)
-  const incomeBasis = planning.useSalaryProjection
-    ? 'Full-year salary projection'
-    : planning.salaryIsNetOfTds
-      ? 'Net salary converted to estimated gross'
-      : 'Gross salary recorded in your ledger'
+  let incomeBasis = 'Gross salary recorded in your ledger'
+  if (planning.useSalaryProjection) {
+    incomeBasis = 'Full-year salary projection'
+  } else if (planning.salaryIsNetOfTds) {
+    incomeBasis = 'Net salary converted to estimated gross'
+  }
 
   return (
     <section

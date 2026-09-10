@@ -52,6 +52,23 @@ APP_VERSION = __version__
 setup_logging(settings.log_level)
 
 
+async def _buffer_upload_body(receive: Receive, limit: int) -> tuple[list[Message], int] | None:
+    """Buffer a bounded upload, returning None if the client disconnects."""
+    messages: list[Message] = []
+    size = 0
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return None
+        size += len(message.get("body", b""))
+        if size > limit:
+            break
+        messages.append(message)
+        if not message.get("more_body", False):
+            break
+    return messages, size
+
+
 class UploadSizeLimitMiddleware:
     """Bound upload bodies, including chunked requests, before JSON parsing."""
 
@@ -81,17 +98,10 @@ class UploadSizeLimitMiddleware:
                     await response(scope, receive, send)
                     return
         if size <= limit:
-            size = 0
-            while True:
-                message = await receive()
-                if message["type"] == "http.disconnect":
-                    return
-                size += len(message.get("body", b""))
-                if size > limit:
-                    break
-                messages.append(message)
-                if not message.get("more_body", False):
-                    break
+            body = await _buffer_upload_body(receive, limit)
+            if body is None:
+                return
+            messages, size = body
         if size > limit:
             response = JSONResponse(
                 status_code=413,

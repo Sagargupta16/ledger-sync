@@ -96,9 +96,9 @@ export default function useLegacyGoalRecovery(query: UseQueryResult<FinancialGoa
         : 'Your choice succeeded, but this browser could not remember the review. Original browser data is still intact.')
       setStored(readLegacyGoalData())
       return true
-    } catch (failure) {
+    } catch (error_) {
       if (isCurrentSession(signal)) {
-        setError({ goalId: recovery.goal.id, message: getApiErrorMessage(failure) })
+        setError({ goalId: recovery.goal.id, message: getApiErrorMessage(error_) })
         setStored(readLegacyGoalData())
       }
       return false

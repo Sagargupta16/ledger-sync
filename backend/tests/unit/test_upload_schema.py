@@ -75,16 +75,16 @@ def test_upload_request_rejects_empty_rows() -> None:
     ],
 )
 def test_invalid_row_is_rejected_at_request_boundary(changes: dict) -> None:
+    row = _row() | changes
     with pytest.raises(ValidationError):
-        TransactionRow(**(_row() | changes))
+        TransactionRow(**row)
 
 
 def test_upload_rejects_non_hex_hash_and_oversized_filename() -> None:
     for changes in ({"file_hash": "z" * 64}, {"file_name": "a" * 501}):
+        payload = {"file_name": "test.csv", "file_hash": "a" * 64, "rows": [_row()]} | changes
         with pytest.raises(ValidationError):
-            TransactionUploadRequest(
-                **({"file_name": "test.csv", "file_hash": "a" * 64, "rows": [_row()]} | changes)
-            )
+            TransactionUploadRequest(**payload)
 
 
 def test_row_preserves_decimal_digits_for_backend_rounding() -> None:

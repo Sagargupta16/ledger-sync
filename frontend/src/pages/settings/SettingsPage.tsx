@@ -21,7 +21,9 @@ import AdvancedSection from './sections/AdvancedSection'
 export default function SettingsPage() {
   const s = useSettingsState()
   const isPending = s.isSaving || s.isResetting || s.applyingRules
-  const saveLabel = s.isSaving ? 'Saving changes...' : s.saveError ? 'Retry save' : 'Save changes'
+  const saveActionLabel = s.saveError ? 'Retry save' : 'Save changes'
+  const saveLabel = s.isSaving ? 'Saving changes...' : saveActionLabel
+  const unsavedLabel = s.saveError ? 'Save incomplete' : 'Unsaved changes'
 
   // Drag handlers (thin wrappers that update hook state)
   const handleDragStart = (item: string) => {
@@ -86,6 +88,15 @@ export default function SettingsPage() {
 
   let sectionIndex = 0
 
+  let statusMessage = 'Save changes when you are ready to apply your preferences.'
+  if (s.isSaving) {
+    statusMessage = 'Saving settings and refreshing your financial views...'
+  } else if (s.isResetting) {
+    statusMessage = 'Resetting preferences...'
+  } else if (s.savedAt && !s.hasChanges) {
+    statusMessage = `Saved at ${s.savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  }
+
   return (
     <PageContainer maxWidth="5xl" className="space-y-5">
         {/* Page Header */}
@@ -130,15 +141,9 @@ export default function SettingsPage() {
           }
         />
 
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          {s.isSaving
-            ? 'Saving settings and refreshing your financial views...'
-            : s.isResetting
-              ? 'Resetting preferences...'
-              : s.savedAt && !s.hasChanges
-                ? `Saved at ${s.savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Save changes when you are ready to apply your preferences.'}
-        </p>
+        <output aria-live="polite" className="block text-sm text-muted-foreground">
+          {statusMessage}
+        </output>
 
         {s.saveError && (
           <div role="alert" className="rounded-lg border border-app-red/25 bg-app-red/5 px-4 py-3">
@@ -303,7 +308,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3 rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown/95 px-4 py-2.5 shadow-sm">
                 <span className="hidden items-center gap-1.5 text-sm text-warning-text sm:flex">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-app-yellow" />
-                  {' '}{s.isSaving ? 'Saving changes' : s.saveError ? 'Save incomplete' : 'Unsaved changes'}
+                  {' '}{s.isSaving ? 'Saving changes' : unsavedLabel}
                 </span>
                 <Button
                   id="save-settings-floating"

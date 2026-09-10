@@ -100,6 +100,17 @@ function calendarDate(year: number, month: number, day: number, rowIndex: number
   return `${String(year).padStart(4, '0')}-${pad2(month)}-${pad2(day)}`
 }
 
+function isValidIsoTime(value: string): boolean {
+  const timezoneIndex = value.search(/[Z+-]/)
+  const time = timezoneIndex === -1 ? value : value.slice(0, timezoneIndex)
+  const timezone = timezoneIndex === -1 ? '' : value.slice(timezoneIndex)
+
+  const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/.test(time)
+  const validTimezone = timezone === '' || timezone === 'Z'
+    || /^[+-](?:[01]\d|2[0-3]):?[0-5]\d$/.test(timezone)
+  return validTime && validTimezone
+}
+
 /**
  * Parse a date cell into a timezone-stable `YYYY-MM-DD` string.
  *
@@ -125,8 +136,8 @@ export function parseDate(value: unknown, rowIndex: number): string {
   const str = stringify(value).trim()
 
   // Preserve the calendar day of ISO timestamps, without timezone conversion.
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):?[0-5]\d)?)?$/.exec(str)
-  if (isoMatch) {
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](.+))?$/.exec(str)
+  if (isoMatch && (isoMatch[4] === undefined || isValidIsoTime(isoMatch[4]))) {
     return calendarDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]), rowIndex)
   }
 
@@ -158,8 +169,9 @@ export function parseAmount(value: unknown, rowIndex: number): number {
 
   const text = stringify(value).trim()
   const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i
-  const grouped = /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d{1,2}(?:,\d{2})*,\d{3})(?:\.\d*)?$/
-  if (text.length > 100 || (!decimal.test(text) && !grouped.test(text))) {
+  const westernGrouped = /^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/
+  const indianGrouped = /^[+-]?\d{1,2}(?:,\d{2})*,\d{3}(?:\.\d*)?$/
+  if (text.length > 100 || (!decimal.test(text) && !westernGrouped.test(text) && !indianGrouped.test(text))) {
     throw new FileParseError(`Row ${rowIndex}: Amount must be a complete number, such as 1234.56.`)
   }
 
@@ -201,6 +213,50 @@ function trimOrUndefined(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
+function parseRow(
+  raw: Record<string, unknown>,
+  columnMapping: Record<string, string>,
+  rowNum: number,
+): ParsedTransaction {
+  const date = parseDate(raw[columnMapping.date], rowNum)
+  const amount = parseAmount(raw[columnMapping.amount], rowNum)
+  const type = parseType(raw[columnMapping.type], rowNum)
+  const account = stringify(raw[columnMapping.account]).trim()
+  const category = stringify(raw[columnMapping.category]).trim()
+
+  if (!account) throw new FileParseError(`Row ${rowNum}: Account is missing`)
+  if (!category) throw new FileParseError(`Row ${rowNum}: Category is missing`)
+
+  const currency = (columnMapping.currency
+    ? trimOrUndefined(raw[columnMapping.currency]) ?? 'INR'
+    : 'INR').toUpperCase()
+  if (currency !== 'INR') {
+    throw new FileParseError(
+      `Row ${rowNum}: ${currency} source amounts are not supported. Export or convert the source to INR. Display currency can still be changed in Settings.`,
+    )
+  }
+
+  const row: ParsedTransaction = {
+    date,
+    amount,
+    currency,
+    type,
+    account,
+    category,
+    subcategory: columnMapping.subcategory
+      ? trimOrUndefined(raw[columnMapping.subcategory])
+      : undefined,
+    note: columnMapping.note ? trimOrUndefined(raw[columnMapping.note]) : undefined,
+  }
+  for (const field of ['account', 'category', 'subcategory', 'note'] as const) {
+    const limit = field === 'note' ? MAX_NOTE_LENGTH : MAX_LABEL_LENGTH
+    if ((row[field]?.length ?? 0) > limit) {
+      throw new FileParseError(`Row ${rowNum}: ${field} must be at most ${limit} characters.`)
+    }
+  }
+  return row
+}
+
 function parseRows(
   rawRows: Record<string, unknown>[],
   columnMapping: Record<string, string>,
@@ -218,44 +274,7 @@ function parseRows(
     const raw = rawRows[i]
     // SheetJS preserves the worksheet row index even when blank rows are skipped.
     const rowNum = typeof raw.__rowNum__ === 'number' ? raw.__rowNum__ + 1 : i + 2
-
-    const date = parseDate(raw[columnMapping.date], rowNum)
-    const amount = parseAmount(raw[columnMapping.amount], rowNum)
-    const type = parseType(raw[columnMapping.type], rowNum)
-    const account = stringify(raw[columnMapping.account]).trim()
-    const category = stringify(raw[columnMapping.category]).trim()
-
-    if (!account) throw new FileParseError(`Row ${rowNum}: Account is missing`)
-    if (!category) throw new FileParseError(`Row ${rowNum}: Category is missing`)
-
-    const currency = (columnMapping.currency
-      ? trimOrUndefined(raw[columnMapping.currency]) ?? 'INR'
-      : 'INR').toUpperCase()
-    if (currency !== 'INR') {
-      throw new FileParseError(
-        `Row ${rowNum}: ${currency} source amounts are not supported. Export or convert the source to INR. Display currency can still be changed in Settings.`,
-      )
-    }
-
-    const row: ParsedTransaction = {
-      date,
-      amount,
-      currency,
-      type,
-      account,
-      category,
-      subcategory: columnMapping.subcategory
-        ? trimOrUndefined(raw[columnMapping.subcategory])
-        : undefined,
-      note: columnMapping.note ? trimOrUndefined(raw[columnMapping.note]) : undefined,
-    }
-    for (const field of ['account', 'category', 'subcategory', 'note'] as const) {
-      const limit = field === 'note' ? MAX_NOTE_LENGTH : MAX_LABEL_LENGTH
-      if ((row[field]?.length ?? 0) > limit) {
-        throw new FileParseError(`Row ${rowNum}: ${field} must be at most ${limit} characters.`)
-      }
-    }
-    rows.push(row)
+    rows.push(parseRow(raw, columnMapping, rowNum))
   }
 
   return rows

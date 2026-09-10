@@ -136,24 +136,7 @@ class AuthService:
                 detail="The sign-in provider did not return a valid account identity.",
             )
 
-        user = self._get_user_by_provider(provider, provider_id)
-
-        if user is None:
-            # Only a fully unbound legacy account can be linked by verified email.
-            existing = self._get_user_by_email(email)
-            if existing is not None:
-                if existing.auth_provider is not None or existing.auth_provider_id is not None:
-                    logger.warning(
-                        "OAuth login refused: email belongs to a bound identity",
-                    )
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=(
-                            "This email is already linked to another sign-in identity. "
-                            "Please sign in with the account originally used for Ledger Sync."
-                        ),
-                    )
-                user = existing
+        user = self._resolve_oauth_user(email, provider, provider_id)
 
         if user:
             if not user.is_active:
@@ -259,6 +242,29 @@ class AuthService:
     def _get_user_by_email(self, email: str) -> User | None:
         """Get user by email address."""
         return self.session.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+    def _resolve_oauth_user(self, email: str, provider: str, provider_id: str) -> User | None:
+        """Find the provider identity or an unbound legacy account with the verified email."""
+        user = self._get_user_by_provider(provider, provider_id)
+        if user is not None:
+            return user
+
+        # Only a fully unbound legacy account can be linked by verified email.
+        user = self._get_user_by_email(email)
+        if user is not None and (
+            user.auth_provider is not None or user.auth_provider_id is not None
+        ):
+            logger.warning(
+                "OAuth login refused: email belongs to a bound identity",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "This email is already linked to another sign-in identity. "
+                    "Please sign in with the account originally used for Ledger Sync."
+                ),
+            )
+        return user
 
     def _get_user_by_provider(self, provider: str, provider_id: str) -> User | None:
         """Get user by OAuth provider identity (the authoritative login key)."""

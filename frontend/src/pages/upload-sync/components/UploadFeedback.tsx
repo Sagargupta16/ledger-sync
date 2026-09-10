@@ -92,7 +92,7 @@ export default function UploadFeedback({
             variant="secondary"
             icon={<RefreshCw className="size-4" />}
             isLoading={isBusy}
-            onClick={() => void onForceReupload()}
+            onClick={() => onForceReupload()}
             className="border-app-yellow bg-app-yellow text-on-warning hover:bg-app-yellow/90"
           >
             Sync changes

@@ -96,12 +96,11 @@ class ExcelValidator:
 
         return column_mapping
 
-    def validate_data_types(self, df: pd.DataFrame, column_mapping: dict[str, str]) -> None:
+    def validate_data_types(self, df: pd.DataFrame) -> None:
         """Validate basic data types.
 
         Args:
             df: DataFrame to validate
-            column_mapping: Column name mapping
 
         Raises:
             ValidationError: If data types are invalid
@@ -135,6 +134,6 @@ class ExcelValidator:
         """
         self.validate_file_exists(file_path)
         column_mapping = self.validate_columns(df)
-        self.validate_data_types(df, column_mapping)
+        self.validate_data_types(df)
 
         return column_mapping

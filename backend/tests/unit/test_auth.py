@@ -116,8 +116,9 @@ class TestOAuthIdentity:
         test_user.auth_provider_id = bound_id
         test_db_session.commit()
 
+        service = AuthService(test_db_session)
         with pytest.raises(HTTPException) as error:
-            AuthService(test_db_session).oauth_login_or_register(
+            service.oauth_login_or_register(
                 email=test_user.email,
                 full_name=None,
                 provider="google",
@@ -161,8 +162,9 @@ class TestOAuthIdentity:
     def test_missing_subject_cannot_link_a_legacy_account(
         self, test_db_session, test_user, token_stub
     ):
+        service = AuthService(test_db_session)
         with pytest.raises(HTTPException) as error:
-            AuthService(test_db_session).oauth_login_or_register(
+            service.oauth_login_or_register(
                 email=test_user.email, full_name=None, provider="google", provider_id=""
             )
         assert error.value.status_code == 400
@@ -172,8 +174,9 @@ class TestOAuthIdentity:
     def test_inactive_account_is_not_linked(self, test_db_session, test_user, token_stub):
         test_user.is_active = False
         test_db_session.commit()
+        service = AuthService(test_db_session)
         with pytest.raises(HTTPException) as error:
-            AuthService(test_db_session).oauth_login_or_register(
+            service.oauth_login_or_register(
                 email=test_user.email,
                 full_name=None,
                 provider="google",
@@ -242,7 +245,7 @@ def oauth_client(two_user_client, monkeypatch, token_stub):
         get=AsyncMock(side_effect=profile),
     )
     app.dependency_overrides[get_http_client] = lambda: provider_client
-    yield client, session, provider_client, token_stub
+    return client, session, provider_client, token_stub
 
 
 def _start_oauth(client, provider="google"):
@@ -383,7 +386,8 @@ class TestOAuthFlow:
         assert parameters["restart"] == ["2"]
         assert parameters["error"] == [oauth._UPGRADE_MESSAGE]
         assert parameters["reload"]
-        assert "code" not in parameters and "state" not in parameters
+        assert "code" not in parameters
+        assert "state" not in parameters
         assert restart.headers["cache-control"] == "no-store"
         assert not client.cookies
         assert session.query(AuditLog).filter_by(operation="oauth_login").count() == 0

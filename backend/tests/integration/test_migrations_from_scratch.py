@@ -213,10 +213,10 @@ def test_cascade_and_orphan_rejection_work_in_migrated_database(
         Base.metadata.tables["users"].delete().where(Base.metadata.tables["users"].c.id == user_id)
     )
     assert migrated_db.execute(sa.select(sa.func.count()).select_from(views)).scalar_one() == 0
-    with pytest.raises(sa.exc.IntegrityError), migrated_db.begin_nested():
-        migrated_db.execute(
-            views.insert().values(user_id=user_id, name="Orphan view", filters="{}")
-        )
+    statement = views.insert().values(user_id=user_id, name="Orphan view", filters="{}")
+    savepoint = migrated_db.begin_nested()
+    with pytest.raises(sa.exc.IntegrityError), savepoint:
+        migrated_db.execute(statement)
 
 
 def test_historical_downgrade_rejects_entire_plan_before_changes(
@@ -233,8 +233,9 @@ def test_historical_downgrade_rejects_entire_plan_before_changes(
         for name in sa.inspect(migrated_db).get_table_names()
     }
 
+    config = _config(migrated_db)
     with pytest.raises(CommandError, match="no supported downgrade"):
-        command.downgrade(_config(migrated_db), "base")
+        command.downgrade(config, "base")
 
     after = {
         name: tuple(column["name"] for column in sa.inspect(migrated_db).get_columns(name))
@@ -285,8 +286,9 @@ def test_sqlite_identity_repair_refuses_duplicate_owners_without_changes(
     connection.commit()
     indexes_before = sa.inspect(connection).get_indexes("users")
 
+    config = _config(connection)
     with pytest.raises(RuntimeError, match="No accounts were merged or deleted"):
-        command.upgrade(_config(connection), IDENTITY_REVISION)
+        command.upgrade(config, IDENTITY_REVISION)
 
     assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
         IDENTITY_PREDECESSOR
@@ -311,8 +313,10 @@ def test_migrated_amount_checks_reject_nonpositive_values(
     values.update({"user_id": user_id, column_name: 0})
     migrated_db.commit()
 
-    with pytest.raises(sa.exc.IntegrityError), migrated_db.begin_nested():
-        migrated_db.execute(Base.metadata.tables[table_name].insert().values(**values))
+    statement = Base.metadata.tables[table_name].insert().values(**values)
+    savepoint = migrated_db.begin_nested()
+    with pytest.raises(sa.exc.IntegrityError), savepoint:
+        migrated_db.execute(statement)
 
 
 def test_identity_repair_preserves_invalid_amounts_and_revision_for_review(
@@ -328,8 +332,9 @@ def test_identity_repair_preserves_invalid_amounts_and_revision_for_review(
     connection.commit()
     indexes_before = sa.inspect(connection).get_indexes("users")
 
+    config = _config(connection)
     with pytest.raises(RuntimeError, match="No financial values were changed"):
-        command.upgrade(_config(connection), IDENTITY_REVISION)
+        command.upgrade(config, IDENTITY_REVISION)
 
     assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
         IDENTITY_PREDECESSOR

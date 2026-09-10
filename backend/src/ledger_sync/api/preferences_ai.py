@@ -124,7 +124,13 @@ def _config_response(prefs: UserPreferences) -> AIConfigResponse:
     )
 
 
-@router.put("/ai-config")
+@router.put(
+    "/ai-config",
+    responses={
+        400: {"description": "A personal API key is required for this provider"},
+        409: {"description": "The stored provider or key changed during the update"},
+    },
+)
 def update_ai_config(
     current_user: CurrentUser,
     config: AIConfigUpdate,

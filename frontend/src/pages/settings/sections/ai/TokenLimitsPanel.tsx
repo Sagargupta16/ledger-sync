@@ -21,6 +21,7 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
   const {
     usage, dailyLimit, setDailyLimit, monthlyLimit, setMonthlyLimit, onSave, saving, error, saved,
   } = props
+  const saveLabel = error ? 'Retry limits' : 'Save limits'
 
   return (
     <div className="border-t border-border pt-4 space-y-3">
@@ -111,7 +112,7 @@ export function TokenLimitsPanel(props: Readonly<TokenLimitsPanelProps>) {
         disabled={saving}
         isLoading={saving}
       >
-        {saving ? 'Saving limits...' : error ? 'Retry limits' : 'Save limits'}
+        {saving ? 'Saving limits...' : saveLabel}
       </Button>
       <div id="ai-limits-status" role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'}>
         {error && <p className="text-sm text-app-red">{error} Your entries are kept here.</p>}

@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 
 MAX_CHAT_BYTES = 262_144
 MAX_JSON_DEPTH = 12
+TOOL_IDENTIFIER_PATTERN = r"^[a-zA-Z0-9_-]+$"
 
 
 class ChatModel(BaseModel):
@@ -79,9 +80,11 @@ class ContentBlock(ChatModel):
     type: Literal["text", "tool_use", "tool_result"]
     text: str | None = Field(default=None, min_length=1, max_length=65_536)
     tool_use_id: str | None = Field(
-        default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$"
+        default=None, min_length=1, max_length=64, pattern=TOOL_IDENTIFIER_PATTERN
     )
-    name: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    name: str | None = Field(
+        default=None, min_length=1, max_length=64, pattern=TOOL_IDENTIFIER_PATTERN
+    )
     input: dict[str, JsonValue] | None = Field(default=None, max_length=20)
     content: list[ToolResultContent] | None = Field(default=None, min_length=1, max_length=16)
 
@@ -120,7 +123,7 @@ class StructuredMessage(ChatModel):
 
 
 class ToolSpec(ChatModel):
-    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    name: str = Field(min_length=1, max_length=64, pattern=TOOL_IDENTIFIER_PATTERN)
     description: str = Field(min_length=1, max_length=4096)
     parameters: dict[str, JsonValue] = Field(max_length=32)
 

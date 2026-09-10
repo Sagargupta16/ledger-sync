@@ -35,6 +35,12 @@ async function settleWrites(writes: Promise<unknown>[]): Promise<void> {
   if (failure?.status === 'rejected') throw failure.reason
 }
 
+function createdRuleIdUpdater(localId: string, id: number) {
+  return (current: LocalRule[]) => current.map((item) =>
+    item.localId === localId ? { ...item, id } : item,
+  )
+}
+
 export function useSettingsState() {
   // Data hooks
   const {
@@ -420,8 +426,8 @@ export function useSettingsState() {
   const handleSave = useCallback(async () => {
     if (!localPrefs || saveInProgress.current || applyingRules) return
     if (guardDemoAction('Saving settings')) return
-    const incompleteRule = rules.find((rule) => !rule.pattern.trim() || !rule.category.trim())
-    if (incompleteRule) {
+    const hasIncompleteRule = rules.some((rule) => !rule.pattern.trim() || !rule.category.trim())
+    if (hasIncompleteRule) {
       setSaveError('Add a pattern and category to every rule, or remove the unfinished rule.')
       return
     }
@@ -471,9 +477,7 @@ export function useSettingsState() {
             assertCurrentSession(signal)
             // Preserve successful creates if another write fails, so retrying
             // the retained draft updates this rule instead of creating it twice.
-            setRules((current) => current.map((item) =>
-              item.localId === rule.localId ? { ...item, id: created.id } : item,
-            ))
+            setRules(createdRuleIdUpdater(rule.localId, created.id))
           }))
           return
         }

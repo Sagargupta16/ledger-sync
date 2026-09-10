@@ -59,13 +59,13 @@ export default function UploadDropzone({
         const tooManyFiles = fileRejections.some((rejection) =>
           rejection.errors.some((error) => error.code === 'too-many-files'),
         )
-        setRejectionMessage(
-          tooLarge
-            ? 'File exceeds the 50 MB limit.'
-            : tooManyFiles
-            ? 'Choose one statement at a time.'
-            : 'Choose an .xlsx, .xls, or .csv transaction file.',
-        )
+        let message = 'Choose an .xlsx, .xls, or .csv transaction file.'
+        if (tooLarge) {
+          message = 'File exceeds the 50 MB limit.'
+        } else if (tooManyFiles) {
+          message = 'Choose one statement at a time.'
+        }
+        setRejectionMessage(message)
         return
       }
 
@@ -168,7 +168,9 @@ export default function UploadDropzone({
               )}
             </div>
             {phase === 'review' && (
-              <p role="status" className="mt-2 text-sm text-primary">{PHASE_LABELS.review}</p>
+              <output aria-live="polite" aria-atomic="true" className="mt-2 block text-sm text-primary">
+                {PHASE_LABELS.review}
+              </output>
             )}
             {rejectionMessage && (
               <p

@@ -79,7 +79,7 @@ class CsvLoader:
 
         # Validate columns (reuse the same validator, but skip file-extension check)
         column_mapping = self.validator.validate_columns(df)
-        self.validator.validate_data_types(df, column_mapping)
+        self.validator.validate_data_types(df)
         logger.info("CSV file validation passed")
 
         return df, column_mapping, file_hash

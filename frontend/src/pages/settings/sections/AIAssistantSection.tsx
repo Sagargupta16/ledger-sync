@@ -55,10 +55,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
   const [limitsInteracted, setLimitsInteracted] = useState(false)
   const [lastSyncedConfig, setLastSyncedConfig] = useState(config)
   const [dailyLimit, setDailyLimit] = useState<string>(() =>
-    config?.daily_token_limit == null ? '' : String(config.daily_token_limit),
+    String(config?.daily_token_limit ?? ''),
   )
   const [monthlyLimit, setMonthlyLimit] = useState<string>(() =>
-    config?.monthly_token_limit == null ? '' : String(config.monthly_token_limit),
+    String(config?.monthly_token_limit ?? ''),
   )
 
   // Adopt server changes only while that form has no unsaved edits.
@@ -70,8 +70,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       setRegion(config.region ?? 'us-east-1')
     }
     if (!limitsInteracted) {
-      setDailyLimit(config.daily_token_limit == null ? '' : String(config.daily_token_limit))
-      setMonthlyLimit(config.monthly_token_limit == null ? '' : String(config.monthly_token_limit))
+      setDailyLimit(String(config.daily_token_limit ?? ''))
+      setMonthlyLimit(String(config.monthly_token_limit ?? ''))
     }
   }
 
@@ -175,8 +175,8 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       if (!signal || !isCurrentSession(signal)) return
       await publishConfig(data, signal)
       setLimitsInteracted(false)
-      setDailyLimit(data.daily_token_limit == null ? '' : String(data.daily_token_limit))
-      setMonthlyLimit(data.monthly_token_limit == null ? '' : String(data.monthly_token_limit))
+      setDailyLimit(String(data.daily_token_limit ?? ''))
+      setMonthlyLimit(String(data.monthly_token_limit ?? ''))
     },
     onError: (error, _variables, signal) => {
       if (signal && isCurrentSession(signal)) setLimitsError(getApiErrorMessage(error))
@@ -185,6 +185,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
 
   const isBusy = saveMutation.isPending || deleteMutation.isPending || modeMutation.isPending
     || limitsMutation.isPending || testStatus === 'testing'
+  const saveLabel = saveMutation.isError ? 'Retry save' : 'Save'
   const hasStoredKey = config?.has_key && config.provider === provider
   const validRegion = !isBedrock(provider) || /^[a-z0-9-]{1,20}$/.test(region.trim())
   const canSave = Boolean(provider && model.trim() && model.trim().length <= 100
@@ -357,9 +358,9 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
         {isByok && (
           <>
             {!config?.has_key && (
-              <p role="status" className="text-sm text-muted-foreground">
+              <output className="block text-sm text-muted-foreground">
                 Add a personal key to enable chat, or choose the shared app mode above.
-              </p>
+              </output>
             )}
             <ByokConfigForm
               config={config}
@@ -400,7 +401,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
                   disabled={!canSave || isBusy}
                   isLoading={saveMutation.isPending}
                 >
-                  {saveMutation.isPending ? 'Saving...' : saveMutation.isError ? 'Retry save' : 'Save'}
+                  {saveMutation.isPending ? 'Saving...' : saveLabel}
                 </Button>
                 {config?.has_key && (
                   <Button
@@ -419,10 +420,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             )}
 
             {testStatus === 'success' && (
-              <div role="status" className="flex items-center gap-2 text-sm text-app-green">
+              <output className="flex items-center gap-2 text-sm text-app-green">
                 <CheckCircle className="w-4 h-4" aria-hidden="true" />
                 Connection successful
-              </div>
+              </output>
             )}
             {testStatus === 'error' && (
               <div role="alert" className="flex items-center gap-2 text-sm text-app-red">
@@ -432,10 +433,10 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
             )}
 
             {saveMutation.isSuccess && (
-              <div role="status" className="flex items-center gap-2 text-sm text-app-green">
+              <output className="flex items-center gap-2 text-sm text-app-green">
                 <CheckCircle className="w-4 h-4" aria-hidden="true" />
                 AI configuration saved. Open the chat widget (bottom-right) to start.
-              </div>
+              </output>
             )}
           </>
         )}

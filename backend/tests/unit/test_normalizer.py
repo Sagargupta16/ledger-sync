@@ -124,8 +124,9 @@ class TestDataNormalizer:
             "category": "Category",
             "type": "Type",
         }
+        normalizer = DataNormalizer()
         with pytest.raises(NormalizationError, match="Row 3"):
-            DataNormalizer().normalize_dataframe(frame, mapping)
+            normalizer.normalize_dataframe(frame, mapping)
 
     def test_missing_dataframe_account_is_not_imported_as_nan(self):
         frame = pd.DataFrame(
@@ -146,8 +147,9 @@ class TestDataNormalizer:
             "category": "Category",
             "type": "Type",
         }
+        normalizer = DataNormalizer()
         with pytest.raises(NormalizationError, match="Account and category"):
-            DataNormalizer().normalize_dataframe(frame, mapping)
+            normalizer.normalize_dataframe(frame, mapping)
 
     def test_normalize_string(self):
         """Test string normalization."""

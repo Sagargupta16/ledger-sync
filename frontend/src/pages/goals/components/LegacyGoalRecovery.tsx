@@ -53,7 +53,11 @@ export default function LegacyGoalRecovery({
           )}
         </>
       )}
-      {recovery.message && <p role="status" className="text-sm text-text-secondary">{recovery.message}</p>}
+      {recovery.message && (
+        <output aria-live="polite" aria-atomic="true" className="block text-sm text-text-secondary">
+          {recovery.message}
+        </output>
+      )}
       {recovery.error && !recovery.items.some((item) => item.goal.id === recovery.error?.goalId) && (
         <p role="alert" className="text-sm text-app-red">{recovery.error.message}</p>
       )}

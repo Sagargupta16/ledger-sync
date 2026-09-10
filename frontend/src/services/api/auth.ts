@@ -70,7 +70,7 @@ function validateProviderConfig(config: OAuthProviderConfig): void {
 }
 
 function base64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+  return btoa(String.fromCodePoint(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
 }
 
 function readOAuthAttempt(): OAuthAttempt | null {

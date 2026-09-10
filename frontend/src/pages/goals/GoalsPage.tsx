@@ -75,9 +75,13 @@ function GoalsContent() {
       />
 
       {state.isDemoMode && (
-        <p role="status" className="rounded-lg border border-app-blue/20 bg-app-blue/5 px-4 py-3 text-sm text-text-secondary">
+        <output
+          aria-live="polite"
+          aria-atomic="true"
+          className="block rounded-lg border border-app-blue/20 bg-app-blue/5 px-4 py-3 text-sm text-text-secondary"
+        >
           Try creating, editing, or deleting a goal. Demo changes are temporary and reset when you leave this page or reload.
-        </p>
+        </output>
       )}
 
       {!state.isDemoMode && (

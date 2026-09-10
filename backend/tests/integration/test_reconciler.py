@@ -151,8 +151,9 @@ def test_invalid_snapshot_performs_no_writes(test_db_session, test_user, bad_row
 
     event.listen(test_db_session.bind, "before_cursor_execute", record_write)
     try:
+        invalid_rows = [_snapshot_row(), bad_row]
         with pytest.raises(NormalizationError, match="Row 3"):
-            engine.import_rows([_snapshot_row(), bad_row], "invalid.csv", "invalid")
+            engine.import_rows(invalid_rows, "invalid.csv", "invalid")
     finally:
         event.remove(test_db_session.bind, "before_cursor_execute", record_write)
 
@@ -195,8 +196,9 @@ def test_snapshot_failure_rolls_back_ledger_and_forced_import_log(
     else:
         monkeypatch.setattr(engine.reconciler, "reconcile_transfers_batch", fail_transfers)
 
+    replacement_rows = [_snapshot_row(amount=300)]
     with pytest.raises(RuntimeError, match="synthetic"):
-        engine.import_rows([_snapshot_row(amount=300)], "replacement.csv", "same-hash", force=True)
+        engine.import_rows(replacement_rows, "replacement.csv", "same-hash", force=True)
 
     rows = test_db_session.scalars(select(Transaction)).all()
     assert {row.transaction_id for row in rows} == original_ids

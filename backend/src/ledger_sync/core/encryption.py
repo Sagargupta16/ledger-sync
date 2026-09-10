@@ -14,7 +14,6 @@ complete; changing a secret cannot recover ciphertext encrypted with it.
 from __future__ import annotations
 
 import base64
-import binascii
 import logging
 import os
 from collections.abc import Sequence
@@ -86,7 +85,7 @@ def encrypt_api_key(plaintext: str) -> str:
 def _decode_body(encoded: str) -> bytes:
     try:
         return base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError) as exc:
+    except ValueError as exc:
         raise DecryptionError("API key ciphertext is not valid base64") from exc
 
 
@@ -100,7 +99,7 @@ def _try_decrypt(body: bytes, material: bytes, version: int) -> str | None:
     associated_data = _V3_PREFIX.encode() if version == 3 else None
     try:
         return AESGCM(key).decrypt(nonce, ciphertext, associated_data).decode()
-    except (InvalidTag, UnicodeDecodeError, ValueError):
+    except (InvalidTag, ValueError):
         return None
 
 
