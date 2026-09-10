@@ -38,6 +38,30 @@ export interface MonthlyComboDatum {
   readonly cumulative: number
 }
 
+function getNetColor(net: number) {
+  if (net < 0) return rawColors.app.red
+  if (net > 0) return rawColors.app.green
+  return rawColors.chart.neutral
+}
+
+function NetValue({
+  value,
+  className,
+}: Readonly<{ value: number; className: string }>) {
+  let color = 'text-foreground'
+  if (value < 0) {
+    color = 'text-app-red'
+  } else if (value > 0) {
+    color = 'text-app-green'
+  }
+
+  return (
+    <p className={`${className} ${color}`}>
+      {value > 0 ? '+' : ''}{formatCurrency(value)}
+    </p>
+  )
+}
+
 function ComboTooltip({
   active,
   payload,
@@ -47,7 +71,7 @@ function ComboTooltip({
   const rows = [
     { label: 'Income', value: point.income, color: rawColors.app.green },
     { label: 'Expenses', value: point.expenses, color: rawColors.app.red },
-    { label: 'Monthly net', value: point.net, color: point.net < 0 ? rawColors.app.red : point.net > 0 ? rawColors.app.green : rawColors.chart.neutral },
+    { label: 'Monthly net', value: point.net, color: getNetColor(point.net) },
     { label: 'Cumulative', value: point.cumulative, color: rawColors.app.blue },
   ]
 
@@ -85,7 +109,7 @@ export default function ReturnsMonthlyChart({
   const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const bars = data.map((datum) => ({
     ...datum,
-    fill: datum.net > 0 ? rawColors.app.green : datum.net < 0 ? rawColors.app.red : rawColors.chart.neutral,
+    fill: getNetColor(datum.net),
     radius: datum.net < 0 ? [0, 0, 3, 3] : [3, 3, 0, 0],
   }))
   const latest = data.at(-1)
@@ -124,16 +148,18 @@ export default function ReturnsMonthlyChart({
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-y border-border/70 py-4">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Cumulative realised P&amp;L</p>
-              <p className={`mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl ${periodNet < 0 ? 'text-app-red' : periodNet > 0 ? 'text-app-green' : 'text-foreground'}`}>
-                {periodNet > 0 ? '+' : ''}{formatCurrency(periodNet)}
-              </p>
+              <NetValue
+                value={periodNet}
+                className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+              />
             </div>
             {latest && (
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Latest month · {latest.month}</p>
-                <p className={`mt-1 break-words font-mono text-lg font-semibold tabular-nums ${latest.net < 0 ? 'text-app-red' : latest.net > 0 ? 'text-app-green' : 'text-foreground'}`}>
-                  {latest.net > 0 ? '+' : ''}{formatCurrency(latest.net)}
-                </p>
+                <NetValue
+                  value={latest.net}
+                  className="mt-1 break-words font-mono text-lg font-semibold tabular-nums"
+                />
               </div>
             )}
           </div>

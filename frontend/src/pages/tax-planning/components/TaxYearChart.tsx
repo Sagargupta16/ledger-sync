@@ -32,11 +32,21 @@ interface Props {
   planning: TaxPlanningModel
 }
 
+function getTaxChartLayout(isMobile: boolean) {
+  return {
+    height: isMobile ? 270 : 340,
+    marginRight: isMobile ? 8 : 12,
+    leftAxisWidth: isMobile ? 48 : 52,
+    rightAxisWidth: isMobile ? 0 : 52,
+  }
+}
+
 export default function TaxYearChart({ planning }: Readonly<Props>) {
   const { animate, isMobile } = useChartPresentation(planning.fyList.length)
 
   if (planning.fyList.length === 0) return null
 
+  const layout = getTaxChartLayout(isMobile)
   const yearlyTaxData = buildYearlyTaxData(
     planning.fyList,
     planning.transactionsByFY,
@@ -95,10 +105,10 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
         <ChartEmptyState height={280} message="No tax liability found across years" />
       ) : (
         <ChartContainer
-          height={isMobile ? 270 : 340}
+          height={layout.height}
           ariaLabel={chartAriaLabel}
         >
-          <BarChart data={yearlyTaxData} margin={{ top: 16, right: isMobile ? 8 : 12, bottom: 8, left: 0 }} barCategoryGap="28%">
+          <BarChart data={yearlyTaxData} margin={{ top: 16, right: layout.marginRight, bottom: 8, left: 0 }} barCategoryGap="28%">
             <CartesianGrid {...GRID_DEFAULTS} />
             <XAxis
               {...xAxisDefaults(yearlyTaxData.length)}
@@ -109,14 +119,14 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
               {...yAxisDefaults()}
               yAxisId="left"
               tickFormatter={(value: number) => formatCurrencyShort(value)}
-              width={isMobile ? 48 : 52}
+              width={layout.leftAxisWidth}
             />
             <YAxis
               {...yAxisDefaults()}
               yAxisId="right"
               orientation="right"
               tickFormatter={(value: number) => formatCurrencyShort(value)}
-              width={isMobile ? 0 : 52}
+              width={layout.rightAxisWidth}
               hide={isMobile}
               domain={isMobile ? [0, cumulativeTaxMax] : undefined}
             />

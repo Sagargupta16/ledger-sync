@@ -84,15 +84,15 @@ export default function SavingsRateSection({
         <>
           <ul className="mb-5 flex flex-wrap gap-x-6 gap-y-2 border-y border-border/60 py-3 text-xs text-muted-foreground" aria-label="Savings rate chart series">
             <li className="flex items-center gap-2">
-              <span className="h-0.5 w-5 bg-app-blue" aria-hidden="true" />
+              <span className="h-0.5 w-5 bg-app-blue" aria-hidden="true" />{' '}
               Cumulative savings rate
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.app.green }} aria-hidden="true" />
+              <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.app.green }} aria-hidden="true" />{' '}
               Target: <span className="font-mono tabular-nums text-app-green">{savingsGoalPercent}%</span>
             </li>
             <li className="flex items-center gap-2">
-              <span className="h-px w-5 bg-muted-foreground" aria-hidden="true" />
+              <span className="h-px w-5 bg-muted-foreground" aria-hidden="true" />{' '}
               0% break-even
             </li>
           </ul>

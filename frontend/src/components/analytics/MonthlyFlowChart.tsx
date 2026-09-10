@@ -70,7 +70,7 @@ export default function MonthlyFlowChart({ data, partialMonthLabel }: Props) {
             <div>
               <dt className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="h-0.5 w-3 rounded-full bg-app-green" aria-hidden="true" />
-                Income
+                <span>Income</span>
               </dt>
               <dd className="font-mono text-lg font-medium tabular-nums text-app-green" title={formatCurrency(income)}>
                 {formatCurrencyShort(income)}
@@ -79,7 +79,7 @@ export default function MonthlyFlowChart({ data, partialMonthLabel }: Props) {
             <div>
               <dt className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="h-0.5 w-3 rounded-full bg-app-red" aria-hidden="true" />
-                Spending
+                <span>Spending</span>
               </dt>
               <dd className="font-mono text-lg font-medium tabular-nums text-app-red" title={formatCurrency(spending)}>
                 {formatCurrencyShort(spending)}
@@ -93,7 +93,8 @@ export default function MonthlyFlowChart({ data, partialMonthLabel }: Props) {
             </div>
           </dl>
           {showBrush && (
-            <div className="mb-3" role="group" aria-label="Monthly chart range">
+            <fieldset className="m-0 mb-3 min-w-0 border-0 p-0">
+              <legend className="sr-only">Monthly chart range</legend>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div aria-live="polite" aria-atomic="true">
                   <p className="font-mono text-xs font-medium tabular-nums">
@@ -127,7 +128,7 @@ export default function MonthlyFlowChart({ data, partialMonthLabel }: Props) {
               <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                 Drag the range handles or use the arrows to explore all months.
               </p>
-            </div>
+            </fieldset>
           )}
           <StandardBarChart
             data={data}

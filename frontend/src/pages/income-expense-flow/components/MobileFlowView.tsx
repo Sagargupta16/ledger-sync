@@ -124,7 +124,7 @@ export default function MobileFlowView({
         className="border-y border-border bg-[var(--overlay-1)] px-4 py-5"
       >
         <p className="mb-3 flex items-center gap-3 text-xs font-medium text-muted-foreground">
-          <span className="font-mono text-[10px]">02</span>
+          <span className="font-mono text-[10px]">02</span>{' '}
           Total Income
         </p>
         <p
@@ -145,7 +145,7 @@ export default function MobileFlowView({
       )}
 
       <h4 className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-        <span className="font-mono text-[10px]">03</span>
+        <span className="font-mono text-[10px]">03</span>{' '}
         Allocation
       </h4>
       <div className="grid grid-cols-2 gap-3">

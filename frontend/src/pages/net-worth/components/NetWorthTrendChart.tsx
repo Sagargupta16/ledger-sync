@@ -80,23 +80,13 @@ function NetWorthTooltip({ active, payload, label }: TooltipContentProps) {
   )
 }
 
-export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
-  const {
-    isLoading,
-    filteredNetWorthData,
-    chartData,
-    allCategories,
-    showStacked,
-    setShowStacked,
-    showProjection,
-    setShowProjection,
-    monthlyGrowth,
-    anchor,
-    milestoneRows,
-  } = props
-  const gradientId = useId().replaceAll(':', '')
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
-
+function getNetWorthChartView({
+  chartData,
+  filteredNetWorthData,
+  allCategories,
+  showStacked,
+  showProjection,
+}: Readonly<NetWorthTrendChartProps>) {
   // Stacked view splits net worth into category proportions of a POSITIVE total;
   // when cumulative net worth is negative those proportions collapse to a flat
   // zero line (meaningless). Disable the stacked toggle for windows that dip
@@ -109,14 +99,108 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   const plotData = effectiveStacked && showProjection ? filteredNetWorthData : chartData
   const animatedPointCount =
     plotData.length * (effectiveStacked ? Math.max(allCategories.length, 1) : 1)
-  const { animate: animateSeries, isMobile } = useChartPresentation(animatedPointCount)
+
+  return { hasNegativeNetWorth, stackedAllowed, effectiveStacked, plotData, animatedPointCount }
+}
+
+interface NetWorthChartSummaryProps extends Pick<NetWorthTrendChartProps, 'filteredNetWorthData' | 'allCategories' | 'milestoneRows'> {
+  effectiveStacked: boolean
+  showProjectionLine: boolean
+}
+
+function NetWorthChartSummary({
+  filteredNetWorthData,
+  allCategories,
+  milestoneRows,
+  effectiveStacked,
+  showProjectionLine,
+}: Readonly<NetWorthChartSummaryProps>) {
   const firstPoint = filteredNetWorthData[0]
   const lastPoint = filteredNetWorthData.at(-1)
   const latestValue = typeof lastPoint?.netWorth === 'number' ? lastPoint.netWorth : 0
   const openingValue = typeof firstPoint?.netWorth === 'number' ? firstPoint.netWorth : 0
   const periodChange = latestValue - openingValue
-  const showProjectionLine = showProjection && monthlyGrowth > 0 && !effectiveStacked
   const nextMilestone = milestoneRows?.find((row) => row.status === 'upcoming')
+  let changeColor = 'text-foreground'
+  if (periodChange < 0) {
+    changeColor = 'text-app-red'
+  } else if (periodChange > 0) {
+    changeColor = 'text-app-green'
+  }
+
+  return (
+    <>
+      <dl className="mb-5 grid grid-cols-1 gap-4 border-y border-border/70 py-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">Cumulative net cash flow</dt>
+          <dd className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight text-app-blue tabular-nums sm:text-3xl">
+            {formatCurrency(latestValue)}
+          </dd>
+          <dd className="mt-1 font-mono text-[10px] text-muted-foreground">
+            Selected range endpoint · {formatDate(String(lastPoint?.date ?? ''), { day: 'numeric', month: 'short', year: 'numeric' })}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">Trend change in selected period</dt>
+          <dd className={`mt-1 break-words font-mono text-lg font-semibold tabular-nums ${changeColor}`}>
+            {periodChange > 0 ? '+' : ''}{formatCurrency(periodChange)}
+          </dd>
+          <dd className="mt-1 text-[11px] text-muted-foreground">From {formatCurrency(openingValue)}</dd>
+        </div>
+        {nextMilestone && (
+          <div className="min-w-0 min-[420px]:col-span-2 sm:col-span-1">
+            <dt className="text-xs text-muted-foreground">Next trend milestone</dt>
+            <dd className="mt-1 break-words font-mono text-lg font-semibold tabular-nums text-foreground">
+              {formatCurrency(nextMilestone.value)}
+            </dd>
+            <dd className="mt-1 text-[11px] text-muted-foreground">
+              {nextMilestone.date
+                ? `Estimated ${formatDate(nextMilestone.date, { month: 'short', year: 'numeric' })}`
+                : 'No estimated date yet'}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <ChartSeriesLegend
+        items={effectiveStacked
+          ? allCategories.map((category) => ({
+            key: category,
+            label: (CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.other).label,
+            color: (CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.other).color,
+            value: formatCurrency(Number(lastPoint?.[category] ?? 0)),
+          }))
+          : [
+            { key: 'netWorth', label: 'Net worth trend · cumulative cash flow', color: rawColors.app.blue },
+            ...(showProjectionLine ? [
+              { key: 'projected', label: 'Dashed · projected median', color: rawColors.app.blue },
+              { key: 'projectionBand', label: 'Shaded · projection band (±1σ)', color: rawColors.app.blue },
+            ] : []),
+          ]}
+      />
+    </>
+  )
+}
+
+export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
+  const {
+    isLoading,
+    filteredNetWorthData,
+    chartData,
+    allCategories,
+    setShowStacked,
+    showProjection,
+    setShowProjection,
+    monthlyGrowth,
+    anchor,
+    milestoneRows,
+  } = props
+  const gradientId = useId().replaceAll(':', '')
+  const motionEnabled = useMotionStore((state) => state.mode === 'full')
+  const { hasNegativeNetWorth, stackedAllowed, effectiveStacked, plotData, animatedPointCount } = getNetWorthChartView(props)
+  const { animate: animateSeries, isMobile } = useChartPresentation(animatedPointCount)
+  const firstPoint = filteredNetWorthData[0]
+  const lastPoint = filteredNetWorthData.at(-1)
+  const showProjectionLine = showProjection && monthlyGrowth > 0 && !effectiveStacked
   const lastProjection = showProjectionLine ? chartData.at(-1) : undefined
   const spansYears = String(firstPoint?.date).slice(0, 4) !== String(lastPoint?.date).slice(0, 4)
 
@@ -215,52 +299,12 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
         const anchorDateIso = anchor?.date ?? getTodayKey()
         return (
           <>
-            <dl className="mb-5 grid grid-cols-1 gap-4 border-y border-border/70 py-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Cumulative net cash flow</dt>
-                <dd className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight text-app-blue tabular-nums sm:text-3xl">
-                  {formatCurrency(latestValue)}
-                </dd>
-                <dd className="mt-1 font-mono text-[10px] text-muted-foreground">
-                  Selected range endpoint · {formatDate(String(lastPoint?.date ?? ''), { day: 'numeric', month: 'short', year: 'numeric' })}
-                </dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Trend change in selected period</dt>
-                <dd className={`mt-1 break-words font-mono text-lg font-semibold tabular-nums ${periodChange < 0 ? 'text-app-red' : periodChange > 0 ? 'text-app-green' : 'text-foreground'}`}>
-                  {periodChange > 0 ? '+' : ''}{formatCurrency(periodChange)}
-                </dd>
-                <dd className="mt-1 text-[11px] text-muted-foreground">From {formatCurrency(openingValue)}</dd>
-              </div>
-              {nextMilestone && (
-                <div className="min-w-0 min-[420px]:col-span-2 sm:col-span-1">
-                  <dt className="text-xs text-muted-foreground">Next trend milestone</dt>
-                  <dd className="mt-1 break-words font-mono text-lg font-semibold tabular-nums text-foreground">
-                    {formatCurrency(nextMilestone.value)}
-                  </dd>
-                  <dd className="mt-1 text-[11px] text-muted-foreground">
-                    {nextMilestone.date
-                      ? `Estimated ${formatDate(nextMilestone.date, { month: 'short', year: 'numeric' })}`
-                      : 'No estimated date yet'}
-                  </dd>
-                </div>
-              )}
-            </dl>
-            <ChartSeriesLegend
-              items={effectiveStacked
-                ? allCategories.map((category) => ({
-                  key: category,
-                  label: (CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.other).label,
-                  color: (CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.other).color,
-                  value: formatCurrency(Number(lastPoint?.[category] ?? 0)),
-                }))
-                : [
-                  { key: 'netWorth', label: 'Net worth trend · cumulative cash flow', color: rawColors.app.blue },
-                  ...(showProjectionLine ? [
-                    { key: 'projected', label: 'Dashed · projected median', color: rawColors.app.blue },
-                    { key: 'projectionBand', label: 'Shaded · projection band (±1σ)', color: rawColors.app.blue },
-                  ] : []),
-                ]}
+            <NetWorthChartSummary
+              filteredNetWorthData={filteredNetWorthData}
+              allCategories={allCategories}
+              milestoneRows={milestoneRows}
+              effectiveStacked={effectiveStacked}
+              showProjectionLine={showProjectionLine}
             />
             <motion.div
               initial={motionEnabled ? { opacity: 0, y: 12 } : false}

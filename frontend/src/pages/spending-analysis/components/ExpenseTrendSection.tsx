@@ -105,7 +105,7 @@ export default function ExpenseTrendSection({
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-y border-border/60 py-3">
               <ul aria-label="Expense chart series" className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <span className="h-0.5 w-5 rounded-full bg-app-red" aria-hidden="true" />
+                  <span className="h-0.5 w-5 rounded-full bg-app-red" aria-hidden="true" />{' '}
                   Monthly spending
                 </li>
                 <li className="flex items-center gap-2">

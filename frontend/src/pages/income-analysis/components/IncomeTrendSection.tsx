@@ -88,7 +88,7 @@ export default function IncomeTrendSection({
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-y border-border/60 py-3">
               <ul aria-label="Income chart series" className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <span className="h-0.5 w-5 rounded-full bg-app-green" aria-hidden="true" />
+                  <span className="h-0.5 w-5 rounded-full bg-app-green" aria-hidden="true" />{' '}
                   Monthly income
                 </li>
                 <li className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function IncomeTrendSection({
             </ChartContainer>
             <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-relaxed text-muted-foreground">
               <span className="flex items-center gap-2">
-                <span className="w-5 border-t border-dotted" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />
+                <span className="w-5 border-t border-dotted" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />{' '}
                 Reference lines
               </span>
               {peakIncome !== undefined && (

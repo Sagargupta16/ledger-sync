@@ -156,7 +156,7 @@ export default function MonthlyTrendSection({
                 </div>
                 <ul className="space-y-2 text-xs text-muted-foreground lg:mt-5" aria-label={`${label} chart series`}>
                   <li className="flex items-center gap-2">
-                    <span className="h-0.5 w-5" style={{ backgroundColor: color }} aria-hidden="true" />
+                    <span className="h-0.5 w-5" style={{ backgroundColor: color }} aria-hidden="true" />{' '}
                     Monthly total
                   </li>
                   <li className="flex items-center gap-2">

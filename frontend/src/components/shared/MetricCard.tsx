@@ -33,6 +33,16 @@ interface MetricCardProps {
   titleInfo?: string
 }
 
+function getChangePresentation(change: number | undefined, invertChange?: boolean) {
+  const isPositive = (change ?? 0) >= 0
+  const isGood = invertChange ? !isPositive : isPositive
+
+  return {
+    changeColor: isGood ? rawColors.app.green : rawColors.app.red,
+    ChangeIcon: isPositive ? ArrowUpRight : ArrowDownRight,
+  }
+}
+
 export default function MetricCard({
   title,
   value,
@@ -70,10 +80,7 @@ export default function MetricCard({
   }
 
   const isInteractive = Boolean(href || onClick)
-  const isPositive = (change ?? 0) >= 0
-  const isGood = invertChange ? !isPositive : isPositive
-  const changeColor = isGood ? rawColors.app.green : rawColors.app.red
-  const ChangeIcon = isPositive ? ArrowUpRight : ArrowDownRight
+  const { changeColor, ChangeIcon } = getChangePresentation(change, invertChange)
 
   const content = (
     <motion.div

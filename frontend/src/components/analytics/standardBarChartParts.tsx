@@ -3,9 +3,9 @@
  * the repo's file-size rule. Not a public API -- import from the chart instead.
  */
 
-import { Rectangle, ReferenceLine, type BarShapeProps } from 'recharts'
+import { Rectangle, ReferenceLine, type BarShapeProps, type YAxisProps } from 'recharts'
 
-import { BAR_RADIUS, referenceLine, type ReferenceLineVariant } from '@/components/ui/chartDefaults'
+import { BAR_RADIUS, referenceLine, yAxisDefaults, type ReferenceLineVariant } from '@/components/ui/chartDefaults'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { baselineLine, type BaselineOptions } from '@/components/ui/chartBaseline'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
@@ -73,6 +73,34 @@ export function buildGridProps(
     ...gridDefaults,
     ...(hideVerticalGrid !== undefined && { vertical: !hideVerticalGrid }),
     ...(hideHorizontalGrid !== undefined && { horizontal: !hideHorizontalGrid }),
+  }
+}
+
+export function buildBarYAxisProps(
+  isRanking: boolean,
+  isMobile: boolean,
+  labelKey: string,
+  overrides: {
+    width?: number
+    type?: 'number' | 'category'
+    tickFormatter?: (value: string | number) => string
+  },
+): YAxisProps {
+  const numericWidth = isMobile ? 48 : 56
+  const categoryWidth = isMobile ? 84 : 112
+  const defaults = yAxisDefaults({
+    width: overrides.width ?? (isRanking ? categoryWidth : numericWidth),
+    ...(isRanking && { currency: false }),
+  })
+  return {
+    dataKey: isRanking ? labelKey : undefined,
+    type: overrides.type ?? (isRanking ? 'category' : 'number'),
+    ...defaults,
+    ...(isRanking && {
+      tick: { ...defaults.tick, fontFamily: 'var(--font-sans)', width: defaults.width - 12 },
+      interval: 0,
+    }),
+    ...(overrides.tickFormatter && { tickFormatter: overrides.tickFormatter }),
   }
 }
 

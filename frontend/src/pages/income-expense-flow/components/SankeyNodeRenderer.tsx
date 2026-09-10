@@ -20,6 +20,19 @@ interface SankeyNodeRendererProps {
   readonly onDrill: (crumb: DrillCrumb, origin?: { x: number; y: number }) => void
 }
 
+function wrapNodeLabel(name: string, lineLimit: number): string[] {
+  const labelLines: string[] = []
+  for (const word of name.split(' ')) {
+    const last = labelLines.at(-1)
+    if (last && last.length + word.length < lineLimit) {
+      labelLines[labelLines.length - 1] = `${last} ${word}`
+    } else {
+      labelLines.push(word)
+    }
+  }
+  return labelLines
+}
+
 /**
  * Button semantics for a drillable node <g>: pointer cursor, hover ring,
  * Enter/Space activation (recharts has no per-node keyboard support of its
@@ -78,16 +91,8 @@ export const SankeyNodeRenderer = ({
     : payload.depth === 0 || (payload.targetNodes?.length ?? 0) > 0
   const labelX = onLeftSide ? x - 12 : x + width + 12
   const anchor: 'end' | 'start' = onLeftSide ? 'end' : 'start'
-  const labelLines: string[] = []
   const lineLimit = payload.depth === 0 || !payload.targetNodes?.length ? 23 : 17
-  for (const word of payload.name.split(' ')) {
-    const last = labelLines.at(-1)
-    if (last && last.length + word.length < lineLimit) {
-      labelLines[labelLines.length - 1] = `${last} ${word}`
-    } else {
-      labelLines.push(word)
-    }
-  }
+  const labelLines = wrapNodeLabel(payload.name, lineLimit)
   const lineHeight = fontSize + 3
   const labelY = y + height / 2 - (labelLines.length * lineHeight + 23) / 2
 

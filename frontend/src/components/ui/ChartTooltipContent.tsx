@@ -43,19 +43,21 @@ export default function ChartTooltipContent({
   }
 
   const heading = label == null ? null : (labelFormatter?.(label, payload) ?? label)
+  const Container = accessibilityLayer ? 'output' : 'div'
 
   return (
-    <div
-      role={accessibilityLayer ? 'status' : 'tooltip'}
+    <Container
+      className="block"
+      role={accessibilityLayer ? undefined : 'tooltip'}
       aria-live={accessibilityLayer ? 'assertive' : undefined}
       style={CHART_TOOLTIP_STYLE}
     >
       {heading != null && heading !== '' && (
-        <p className="mb-2 border-b border-border/60 pb-2 text-xs font-medium text-muted-foreground">
+        <span className="mb-2 block border-b border-border/60 pb-2 text-xs font-medium text-muted-foreground">
           {heading}
-        </p>
+        </span>
       )}
-      <dl className="space-y-2.5">
+      <span className="block space-y-2.5">
         {entries.map((entry, index) => {
           const format = entry.formatter ?? formatter
           const formatted = format?.(entry.value, entry.name, entry, index, payload)
@@ -70,30 +72,30 @@ export default function ChartTooltipContent({
             : null
 
           return (
-            <div
+            <span
               key={`${entry.graphicalItemId ?? entry.name ?? 'series'}-${index}`}
               className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-5 gap-y-0.5"
             >
-              <dt className="flex min-w-0 items-baseline gap-2 text-xs text-muted-foreground">
+              <span className="flex min-w-0 items-baseline gap-2 text-xs text-muted-foreground">
                 <span
                   className="size-2 shrink-0 rounded-sm"
                   style={{ backgroundColor: color }}
                   aria-hidden="true"
                 />
                 <span className="break-words">{name}</span>
-              </dt>
-              <dd className="text-right font-mono text-xs font-semibold tabular-nums text-foreground">
+              </span>
+              <span className="text-right font-mono text-xs font-semibold tabular-nums text-foreground">
                 {value}{entry.unit}
-              </dd>
+              </span>
               {share && (
-                <dd className="col-span-2 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+                <span className="col-span-2 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
                   {share}
-                </dd>
+                </span>
               )}
-            </div>
+            </span>
           )
         })}
-      </dl>
-    </div>
+      </span>
+    </Container>
   )
 }

@@ -166,7 +166,7 @@ export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyB
               </ComposedChart>
             </ChartContainer>
             <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="h-px w-5 bg-muted-foreground" aria-hidden="true" />
+              <span className="h-px w-5 bg-muted-foreground" aria-hidden="true" />{' '}
               Break-even at zero. Net cash flow below this line is a deficit.
             </p>
             {chartDataTable(

@@ -70,16 +70,21 @@ function GrowthTooltip({ active, payload }: TooltipContentProps) {
   )
 }
 
-export function GrowthChart(props: Readonly<GrowthChartProps>) {
-  const { chartData, projectionYears, onProjectionYearsChange } = props
-  const gradientId = useId().replaceAll(':', '')
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
+interface GrowthChartContentProps {
+  chartData: ChartDataPoint[]
+  projectionYears: number
+  gradientId: string
+  motionEnabled: boolean
+  hasExpected: boolean
+  animateSeries: boolean
+  isMobile: boolean
+}
 
+function GrowthChartContent(props: Readonly<GrowthChartContentProps>) {
+  const { chartData, projectionYears, gradientId, motionEnabled, hasExpected, animateSeries, isMobile } = props
   // The last contribution month anchors the forecast; it need not be today.
   const lastHistorical = [...chartData].reverse().find((d) => d.isHistorical)
   const todayMonth = lastHistorical?.month
-  const hasExpected = chartData.some((d) => d.expectedValue !== undefined)
-  const { animate: animateSeries, isMobile } = useChartPresentation(chartData.length * (hasExpected ? 3 : 2))
   const lastPoint = chartData.at(-1)
   const firstProjection = chartData.find((point) => !point.isHistorical)
   const projectionStartsLate = firstProjection !== undefined && chartData.indexOf(firstProjection) > chartData.length / 2
@@ -89,6 +94,169 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
     historicalValue: point.isHistorical ? point.value : null,
     projectedValue: !point.isHistorical || point === lastHistorical ? point.value : null,
   }))
+
+  return (
+    <>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-y border-border/70 py-4">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{firstProjection ? 'Projected portfolio value' : 'Latest allocated portfolio value'}</p>
+          <motion.p
+            key={lastPoint?.value}
+            initial={motionEnabled ? { opacity: 0, y: 8 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: motionEnabled ? 0.25 : 0 }}
+            className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-app-blue sm:text-3xl"
+          >
+            {formatCurrency(lastPoint?.value ?? 0)}
+          </motion.p>
+          <p className="mt-1 font-mono text-[10px] text-muted-foreground">{lastPoint?.month}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{firstProjection ? 'Contributed principal at horizon' : 'Contributed principal'}</p>
+          <p className="mt-1 break-words font-mono text-lg font-semibold tabular-nums text-foreground">{formatCurrency(lastPoint?.invested ?? 0)}</p>
+          {firstProjection && <p className="mt-1 text-[11px] text-muted-foreground">{projectionYears}-year scenario</p>}
+        </div>
+      </div>
+      <ChartSeriesLegend
+        items={[
+          { key: 'invested', label: 'Invested Amount', color: rawColors.chart.neutral },
+          { key: 'value', label: 'Portfolio Value', color: rawColors.app.blue },
+          ...(hasExpected ? [{ key: 'expectedValue', label: 'Expected (at assumed return)', color: rawColors.app.orange }] : []),
+        ]}
+        caption="Dashed blue = projected value"
+      />
+      <motion.div
+        initial={motionEnabled ? { opacity: 0, y: 12 } : false}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <ChartContainer
+          height={360}
+          mobileHeight={300}
+          ariaLabel="Area chart projecting principal invested versus portfolio value over the selected number of years."
+        >
+          <ComposedChart data={plotData} margin={{ top: 28, right: 16, bottom: 8, left: 0 }}>
+            <defs>
+              {areaGradient(`${gradientId}-invested`, rawColors.chart.neutral, 0.12, 0.015)}
+              {areaGradient(`${gradientId}-value`, rawColors.app.blue, 0.26, 0.025)}
+            </defs>
+            <CartesianGrid {...GRID_DEFAULTS} />
+            {firstProjection && lastPoint && (
+              <ReferenceArea
+                x1={todayMonth ?? firstProjection.month}
+                x2={lastPoint.month}
+                fill={rawColors.app.blue}
+                fillOpacity={0.035}
+                strokeOpacity={0}
+              />
+            )}
+            <XAxis
+              {...xAxisDefaults(chartData.length)}
+              dataKey="month"
+              interval="preserveStartEnd"
+              minTickGap={isMobile ? 48 : 64}
+              height={44}
+            />
+            <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
+            <Tooltip {...chartTooltipProps} content={GrowthTooltip} />
+            <ReferenceLine y={0} stroke={rawColors.chart.referenceLine} />
+            <Area
+              type="monotone"
+              dataKey="invested"
+              name="Invested Amount"
+              stroke={rawColors.chart.neutral}
+              fill={areaGradientUrl(`${gradientId}-invested`)}
+              strokeWidth={2}
+              dot={chartData.length === 1 ? { r: 3 } : false}
+              activeDot={{ ...ACTIVE_DOT, fill: rawColors.chart.neutral }}
+              isAnimationActive={animateSeries}
+              animationDuration={600}
+              animationEasing="ease-out"
+            />
+            <Area
+              type="monotone"
+              dataKey="historicalValue"
+              name="Portfolio Value"
+              stroke={rawColors.app.blue}
+              fill={areaGradientUrl(`${gradientId}-value`)}
+              strokeWidth={2.5}
+              dot={chartData.length === 1 ? { r: 4 } : false}
+              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+              isAnimationActive={animateSeries}
+              animationDuration={720}
+              animationEasing="ease-out"
+            />
+            {firstProjection && (
+              <Area
+                type="monotone"
+                dataKey="projectedValue"
+                name="Projected Portfolio Value"
+                stroke={rawColors.app.blue}
+                fill={areaGradientUrl(`${gradientId}-value`)}
+                strokeWidth={2.5}
+                strokeDasharray="6 4"
+                dot={false}
+                activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+                connectNulls={false}
+                isAnimationActive={animateSeries}
+                animationBegin={80}
+                animationDuration={720}
+                animationEasing="ease-out"
+              />
+            )}
+            {hasExpected && (
+              <Line
+                type="monotone"
+                dataKey="expectedValue"
+                name="Expected (at assumed return)"
+                stroke={rawColors.app.orange}
+                strokeWidth={2}
+                strokeDasharray="5 4"
+                dot={false}
+                connectNulls={false}
+                isAnimationActive={animateSeries}
+                animationDuration={600}
+                animationEasing="ease-out"
+              />
+            )}
+            {todayMonth && firstProjection && (
+              <ReferenceLine
+                x={todayMonth}
+                stroke={rawColors.chart.referenceLineStrong}
+                strokeDasharray="3 3"
+                label={{ value: 'Projection begins', position: projectionStartsLate ? 'insideTopRight' : 'insideTopLeft', fill: rawColors.chart.textSubtle, fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              />
+            )}
+          </ComposedChart>
+        </ChartContainer>
+      </motion.div>
+      <p className="mt-4 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
+        Historical portfolio values are allocated across contributions. The dashed path and tinted region show estimates using your selected assumptions, not observed market values.
+      </p>
+      {chartDataTable(
+        chartData,
+        [
+          { header: 'Month', rowHeader: true, value: (point) => point.month },
+          { header: 'Basis', value: (point) => point.isHistorical ? 'Contribution history; allocated portfolio value' : 'Projection estimate' },
+          { header: 'Invested Amount', value: (point) => formatCurrency(point.invested) },
+          { header: 'Portfolio Value', value: (point) => formatCurrency(point.value) },
+          ...(hasExpected ? [{ header: 'Expected (at assumed return)', value: (point: ChartDataPoint) => point.expectedValue === undefined ? 'Not applicable' : formatCurrency(point.expectedValue) }] : []),
+        ],
+        'Investment growth path. Future values are scenario estimates.',
+        (point, index) => `${point.month}-${index}`,
+      )}
+    </>
+  )
+}
+
+export function GrowthChart(props: Readonly<GrowthChartProps>) {
+  const { chartData, projectionYears, onProjectionYearsChange } = props
+  const gradientId = useId().replaceAll(':', '')
+  const motionEnabled = useMotionStore((state) => state.mode === 'full')
+
+  const hasExpected = chartData.some((d) => d.expectedValue !== undefined)
+  const { animate: animateSeries, isMobile } = useChartPresentation(chartData.length * (hasExpected ? 3 : 2))
   const periodId = useId()
 
   return (
@@ -145,157 +313,15 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
           message="No SIP transactions found. Transfer data to a mutual fund account to see projections."
         />
       ) : (
-        <>
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-y border-border/70 py-4">
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{firstProjection ? 'Projected portfolio value' : 'Latest allocated portfolio value'}</p>
-              <motion.p
-                key={lastPoint?.value}
-                initial={motionEnabled ? { opacity: 0, y: 8 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: motionEnabled ? 0.25 : 0 }}
-                className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-app-blue sm:text-3xl"
-              >
-                {formatCurrency(lastPoint?.value ?? 0)}
-              </motion.p>
-              <p className="mt-1 font-mono text-[10px] text-muted-foreground">{lastPoint?.month}</p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{firstProjection ? 'Contributed principal at horizon' : 'Contributed principal'}</p>
-              <p className="mt-1 break-words font-mono text-lg font-semibold tabular-nums text-foreground">{formatCurrency(lastPoint?.invested ?? 0)}</p>
-              {firstProjection && <p className="mt-1 text-[11px] text-muted-foreground">{projectionYears}-year scenario</p>}
-            </div>
-          </div>
-          <ChartSeriesLegend
-            items={[
-              { key: 'invested', label: 'Invested Amount', color: rawColors.chart.neutral },
-              { key: 'value', label: 'Portfolio Value', color: rawColors.app.blue },
-              ...(hasExpected ? [{ key: 'expectedValue', label: 'Expected (at assumed return)', color: rawColors.app.orange }] : []),
-            ]}
-            caption="Dashed blue = projected value"
-          />
-          <motion.div
-            initial={motionEnabled ? { opacity: 0, y: 12 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ChartContainer
-              height={360}
-              mobileHeight={300}
-              ariaLabel="Area chart projecting principal invested versus portfolio value over the selected number of years."
-            >
-              <ComposedChart data={plotData} margin={{ top: 28, right: 16, bottom: 8, left: 0 }}>
-                <defs>
-                  {areaGradient(`${gradientId}-invested`, rawColors.chart.neutral, 0.12, 0.015)}
-                  {areaGradient(`${gradientId}-value`, rawColors.app.blue, 0.26, 0.025)}
-                </defs>
-                <CartesianGrid {...GRID_DEFAULTS} />
-                {firstProjection && lastPoint && (
-                  <ReferenceArea
-                    x1={todayMonth ?? firstProjection.month}
-                    x2={lastPoint.month}
-                    fill={rawColors.app.blue}
-                    fillOpacity={0.035}
-                    strokeOpacity={0}
-                  />
-                )}
-                <XAxis
-                  {...xAxisDefaults(chartData.length)}
-                  dataKey="month"
-                  interval="preserveStartEnd"
-                  minTickGap={isMobile ? 48 : 64}
-                  height={44}
-                />
-                <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
-                <Tooltip {...chartTooltipProps} content={GrowthTooltip} />
-                <ReferenceLine y={0} stroke={rawColors.chart.referenceLine} />
-                <Area
-                  type="monotone"
-                  dataKey="invested"
-                  name="Invested Amount"
-                  stroke={rawColors.chart.neutral}
-                  fill={areaGradientUrl(`${gradientId}-invested`)}
-                  strokeWidth={2}
-                  dot={chartData.length === 1 ? { r: 3 } : false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.chart.neutral }}
-                  isAnimationActive={animateSeries}
-                  animationDuration={600}
-                  animationEasing="ease-out"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="historicalValue"
-                  name="Portfolio Value"
-                  stroke={rawColors.app.blue}
-                  fill={areaGradientUrl(`${gradientId}-value`)}
-                  strokeWidth={2.5}
-                  dot={chartData.length === 1 ? { r: 4 } : false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                  isAnimationActive={animateSeries}
-                  animationDuration={720}
-                  animationEasing="ease-out"
-                />
-                {firstProjection && (
-                  <Area
-                    type="monotone"
-                    dataKey="projectedValue"
-                    name="Projected Portfolio Value"
-                    stroke={rawColors.app.blue}
-                    fill={areaGradientUrl(`${gradientId}-value`)}
-                    strokeWidth={2.5}
-                    strokeDasharray="6 4"
-                    dot={false}
-                    activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                    connectNulls={false}
-                    isAnimationActive={animateSeries}
-                    animationBegin={80}
-                    animationDuration={720}
-                    animationEasing="ease-out"
-                  />
-                )}
-                {hasExpected && (
-                  <Line
-                    type="monotone"
-                    dataKey="expectedValue"
-                    name="Expected (at assumed return)"
-                    stroke={rawColors.app.orange}
-                    strokeWidth={2}
-                    strokeDasharray="5 4"
-                    dot={false}
-                    connectNulls={false}
-                    isAnimationActive={animateSeries}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  />
-                )}
-                {todayMonth && firstProjection && (
-                  <ReferenceLine
-                    x={todayMonth}
-                    stroke={rawColors.chart.referenceLineStrong}
-                    strokeDasharray="3 3"
-                    label={{ value: 'Projection begins', position: projectionStartsLate ? 'insideTopRight' : 'insideTopLeft', fill: rawColors.chart.textSubtle, fontSize: 10, fontFamily: 'var(--font-mono)' }}
-                  />
-                )}
-              </ComposedChart>
-            </ChartContainer>
-          </motion.div>
-          <p className="mt-4 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
-            Historical portfolio values are allocated across contributions. The dashed path and tinted region show estimates using your selected assumptions, not observed market values.
-          </p>
-          {chartDataTable(
-            chartData,
-            [
-              { header: 'Month', rowHeader: true, value: (point) => point.month },
-              { header: 'Basis', value: (point) => point.isHistorical ? 'Contribution history; allocated portfolio value' : 'Projection estimate' },
-              { header: 'Invested Amount', value: (point) => formatCurrency(point.invested) },
-              { header: 'Portfolio Value', value: (point) => formatCurrency(point.value) },
-              ...(hasExpected ? [{ header: 'Expected (at assumed return)', value: (point: ChartDataPoint) => point.expectedValue === undefined ? 'Not applicable' : formatCurrency(point.expectedValue) }] : []),
-            ],
-            'Investment growth path. Future values are scenario estimates.',
-            (point, index) => `${point.month}-${index}`,
-          )}
-        </>
+        <GrowthChartContent
+          chartData={chartData}
+          projectionYears={projectionYears}
+          gradientId={gradientId}
+          motionEnabled={motionEnabled}
+          hasExpected={hasExpected}
+          animateSeries={animateSeries}
+          isMobile={isMobile}
+        />
       )}
     </motion.section>
   )

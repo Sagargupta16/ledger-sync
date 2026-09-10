@@ -101,6 +101,13 @@ function DrillBreadcrumb({
   )
 }
 
+function getFlowStages(crumb: DrillCrumb | undefined): string[] {
+  if (!crumb) return ['Income sources', 'Income total', 'Allocation', 'Expense detail']
+  return crumb.flow === 'income'
+    ? ['Income breakdown', crumb.label]
+    : [crumb.label, 'Expense breakdown']
+}
+
 export function SankeyChart(props: Readonly<SankeyChartProps>) {
   const {
     isLoading,
@@ -200,10 +207,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
             aria-label="Flow stages"
             className={`mb-5 grid gap-4 border-y border-border py-4 ${depth === 0 ? 'grid-cols-4' : 'grid-cols-2'}`}
           >
-            {(crumb
-              ? (crumb.flow === 'income' ? ['Income breakdown', crumb.label] : [crumb.label, 'Expense breakdown'])
-              : ['Income sources', 'Income total', 'Allocation', 'Expense detail']
-            ).map((stage, index, stages) => (
+            {getFlowStages(crumb).map((stage, index, stages) => (
               <li key={`${index}-${stage}`} className="flex min-w-0 items-center gap-3">
                 <span className="font-mono text-[10px] text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
                 <span className="text-xs font-medium text-foreground">{stage}</span>

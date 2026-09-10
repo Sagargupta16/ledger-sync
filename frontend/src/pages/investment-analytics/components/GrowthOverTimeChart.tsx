@@ -29,6 +29,35 @@ interface GrowthOverTimeChartProps {
   filteredGrowthData: Array<Record<string, string | number>>
 }
 
+function InvestmentBalanceSummary({
+  latestBalance,
+  balanceChange,
+}: Readonly<{ latestBalance: number; balanceChange: number }>) {
+  let changeColor = 'text-foreground'
+  if (balanceChange > 0) {
+    changeColor = 'text-app-green'
+  } else if (balanceChange < 0) {
+    changeColor = 'text-app-red'
+  }
+
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-y border-border/70 py-4">
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">Latest invested balance</p>
+        <p className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-app-blue sm:text-3xl">
+          {formatCurrency(latestBalance)}
+        </p>
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">Balance change in this period</p>
+        <p className={`mt-1 break-words font-mono text-base font-semibold tabular-nums ${changeColor}`}>
+          {balanceChange > 0 ? '+' : ''}{formatCurrency(balanceChange)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function GrowthOverTimeChart({
   isLoading,
   filteredGrowthData,
@@ -69,20 +98,7 @@ export function GrowthOverTimeChart({
           <ChartEmptyState height={400} />
         ) : (
           <>
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-y border-border/70 py-4">
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Latest invested balance</p>
-                <p className="mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-app-blue sm:text-3xl">
-                  {formatCurrency(latestBalance)}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Balance change in this period</p>
-                <p className={`mt-1 break-words font-mono text-base font-semibold tabular-nums ${balanceChange > 0 ? 'text-app-green' : balanceChange < 0 ? 'text-app-red' : 'text-foreground'}`}>
-                  {balanceChange > 0 ? '+' : ''}{formatCurrency(balanceChange)}
-                </p>
-              </div>
-            </div>
+            <InvestmentBalanceSummary latestBalance={latestBalance} balanceChange={balanceChange} />
             <ChartSeriesLegend
               items={INVESTMENT_CATEGORIES.map((category) => ({
                 key: category,

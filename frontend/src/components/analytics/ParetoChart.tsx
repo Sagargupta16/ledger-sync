@@ -106,6 +106,19 @@ function countVitalFew(
   return sorted.length
 }
 
+function buildParetoSummary(
+  rowCount: number,
+  vitalFewCount: number,
+  threshold: number,
+  itemNoun: string,
+  plural: string,
+) {
+  if (rowCount === 0) return `Which ${plural} make up ${threshold}% of your spend`
+  const countedNoun = vitalFewCount === 1 ? itemNoun : plural
+  const verb = vitalFewCount === 1 ? 'makes' : 'make'
+  return `${vitalFewCount} ${countedNoun} ${verb} up ${threshold}% of your spend -- the rest are the long tail`
+}
+
 /**
  * Pareto chart for spending concentration.
  *
@@ -177,12 +190,7 @@ export default function ParetoChart({
 
   const { animate, isMobile } = useChartPresentation(data.length)
   const plural = itemNounPlural ?? pluralize(itemNoun)
-  const countedNoun = vitalFewCount === 1 ? itemNoun : plural
-  const verb = vitalFewCount === 1 ? 'makes' : 'make'
-  const summary =
-    data.length === 0
-      ? `Which ${plural} make up ${threshold}% of your spend`
-      : `${vitalFewCount} ${countedNoun} ${verb} up ${threshold}% of your spend -- the rest are the long tail`
+  const summary = buildParetoSummary(data.length, vitalFewCount, threshold, itemNoun, plural)
 
   return (
     <motion.div

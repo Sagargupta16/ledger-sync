@@ -23,7 +23,7 @@ import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
+  GRID_DEFAULTS, xAxisDefaults,
   BAR_RADIUS, BRUSH_DEFAULTS, referenceLine,
 } from '@/components/ui/chartDefaults'
 import { CHART_TEXT } from '@/constants/chartColors'
@@ -31,7 +31,7 @@ import { barLabelFormatter, barLabelStyle } from '@/lib/chartUtils'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 import {
-  buildChartMargin, buildGridProps, renderBarShape, renderBarDataTable,
+  buildChartMargin, buildGridProps, buildBarYAxisProps, renderBarShape, renderBarDataTable,
   renderReferenceLine, renderBaseline,
   type BarConfig, type BaselineProp, type ReferenceLineConfig,
 } from './standardBarChartParts'
@@ -171,10 +171,6 @@ export default function StandardBarChart({
   const isRanking = layout === 'vertical'
   const xOpts = xAngle === undefined ? undefined : { angle: xAngle, height: xHeight }
   const xDefaults = xAxisDefaults(data.length, xOpts)
-  const yDefaults = yAxisDefaults({
-    width: yWidth ?? (isRanking ? (isMobile ? 84 : 112) : (isMobile ? 48 : 56)),
-    ...(isRanking && { currency: false }),
-  })
 
   const chartMargin = buildChartMargin(margin, xAngle)
   const gridProps = buildGridProps(
@@ -219,14 +215,11 @@ export default function StandardBarChart({
             {...(xTickFormatter && { tickFormatter: xTickFormatter })}
           />
           <YAxis
-            dataKey={isRanking ? labelKey : undefined}
-            type={yType ?? (isRanking ? 'category' : 'number')}
-            {...yDefaults}
-            {...(isRanking && {
-              tick: { ...yDefaults.tick, fontFamily: 'var(--font-sans)', width: yDefaults.width - 12 },
-              interval: 0,
+            {...buildBarYAxisProps(isRanking, isMobile, labelKey, {
+              width: yWidth,
+              type: yType,
+              tickFormatter: yTickFormatter,
             })}
-            {...(yTickFormatter && { tickFormatter: yTickFormatter })}
           />
           <Tooltip
             {...chartTooltipProps}

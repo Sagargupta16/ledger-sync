@@ -11,6 +11,47 @@ export interface InvestmentAccount {
   readonly transactions: number
 }
 
+function HoldingsBalanceBar({
+  balance,
+  maxMagnitude,
+  hasNegativeBalance,
+  index,
+  motionEnabled,
+}: Readonly<{
+  balance: number
+  maxMagnitude: number
+  hasNegativeBalance: boolean
+  index: number
+  motionEnabled: boolean
+}>) {
+  const positiveStart = hasNegativeBalance ? '50%' : 0
+  if (balance === 0) {
+    return (
+      <span
+        className="absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-muted-foreground"
+        style={{ left: positiveStart }}
+      />
+    )
+  }
+
+  const negative = balance < 0
+  const ratio = maxMagnitude > 0 ? Math.abs(balance) / maxMagnitude : 0
+
+  return (
+    <motion.span
+      className={`absolute inset-y-0 rounded-sm ${negative ? 'origin-right bg-app-red' : 'origin-left bg-app-blue'}`}
+      style={{
+        width: hasNegativeBalance ? '50%' : '100%',
+        ...(negative ? { right: '50%' } : { left: positiveStart }),
+      }}
+      initial={motionEnabled ? { scaleX: 0 } : false}
+      whileInView={{ scaleX: ratio }}
+      viewport={{ once: true }}
+      transition={{ duration: motionEnabled ? 0.65 : 0, delay: motionEnabled ? index * 0.035 : 0, ease: [0.22, 1, 0.36, 1] }}
+    />
+  )
+}
+
 export default function ReturnsHoldingsChart({
   accounts,
 }: Readonly<{ accounts: readonly InvestmentAccount[] }>) {
@@ -55,7 +96,7 @@ export default function ReturnsHoldingsChart({
           <ol aria-label="Investment accounts ranked by book value">
             {displayedAccounts.map((account, index) => {
               const negative = account.balance < 0
-              const ratio = maxMagnitude > 0 ? Math.abs(account.balance) / maxMagnitude : 0
+              const nonNegativeColor = account.balance === 0 ? 'text-muted-foreground' : 'text-app-blue'
               return (
                 <motion.li
                   key={account.name}
@@ -71,7 +112,7 @@ export default function ReturnsHoldingsChart({
                   <div className="min-w-0">
                     <div className="flex min-w-0 flex-col gap-1.5 @[28rem]:flex-row @[28rem]:items-baseline @[28rem]:justify-between @[28rem]:gap-x-6">
                       <span className="min-w-0 break-words text-sm font-medium leading-5 text-foreground">{account.name}</span>
-                      <span className={`break-words font-mono text-sm font-semibold tabular-nums ${negative ? 'text-app-red' : account.balance === 0 ? 'text-muted-foreground' : 'text-app-blue'}`}>
+                      <span className={`break-words font-mono text-sm font-semibold tabular-nums ${negative ? 'text-app-red' : nonNegativeColor}`}>
                         {formatCurrency(account.balance)}
                       </span>
                     </div>
@@ -79,24 +120,13 @@ export default function ReturnsHoldingsChart({
                       {hasNegativeBalance && (
                         <span className="absolute bottom-[-3px] left-1/2 top-[-3px] w-px bg-border-strong" />
                       )}
-                      {account.balance === 0 ? (
-                        <span
-                          className="absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-muted-foreground"
-                          style={{ left: hasNegativeBalance ? '50%' : 0 }}
-                        />
-                      ) : (
-                        <motion.span
-                          className={`absolute inset-y-0 rounded-sm ${negative ? 'origin-right bg-app-red' : 'origin-left bg-app-blue'}`}
-                          style={{
-                            width: hasNegativeBalance ? '50%' : '100%',
-                            ...(negative ? { right: '50%' } : { left: hasNegativeBalance ? '50%' : 0 }),
-                          }}
-                          initial={motionEnabled ? { scaleX: 0 } : false}
-                          whileInView={{ scaleX: ratio }}
-                          viewport={{ once: true }}
-                          transition={{ duration: motionEnabled ? 0.65 : 0, delay: motionEnabled ? index * 0.035 : 0, ease: [0.22, 1, 0.36, 1] }}
-                        />
-                      )}
+                      <HoldingsBalanceBar
+                        balance={account.balance}
+                        maxMagnitude={maxMagnitude}
+                        hasNegativeBalance={hasNegativeBalance}
+                        index={index}
+                        motionEnabled={motionEnabled}
+                      />
                     </div>
                     <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
                       {account.transactions} transaction{account.transactions === 1 ? '' : 's'}

@@ -12,6 +12,7 @@
 
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, Text,
+  type BaseTickContentProps,
 } from 'recharts'
 
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
@@ -41,6 +42,27 @@ interface StandardRadarChartProps<T> {
   readonly fillOpacity?: number
   /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
   readonly ariaLabel?: string
+}
+
+interface RadarAngleTickProps extends Partial<Pick<BaseTickContentProps, 'x' | 'y' | 'textAnchor' | 'payload'>> {
+  readonly isMobile: boolean
+  readonly labelFontSize: number
+}
+
+function RadarAngleTick({ x, y, textAnchor, payload, isMobile, labelFontSize }: RadarAngleTickProps) {
+  return (
+    <Text
+      x={x}
+      y={y}
+      textAnchor={textAnchor}
+      verticalAnchor="middle"
+      width={isMobile ? 68 : 88}
+      fill={rawColors.chart.textSubtle}
+      fontSize={labelFontSize}
+    >
+      {chartCellText(payload?.value)}
+    </Text>
+  )
 }
 
 export default function StandardRadarChart<T>({
@@ -73,19 +95,7 @@ export default function StandardRadarChart<T>({
             dataKey={categoryKey}
             axisLine={false}
             tickLine={false}
-            tick={(props) => (
-              <Text
-                x={props.x}
-                y={props.y}
-                textAnchor={props.textAnchor}
-                verticalAnchor="middle"
-                width={isMobile ? 68 : 88}
-                fill={rawColors.chart.textSubtle}
-                fontSize={labelFontSize}
-              >
-                {chartCellText(props.payload.value)}
-              </Text>
-            )}
+            tick={<RadarAngleTick isMobile={isMobile} labelFontSize={labelFontSize} />}
           />
           <PolarRadiusAxis
             angle={30}
