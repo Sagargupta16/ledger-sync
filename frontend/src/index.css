@@ -185,7 +185,7 @@
   --chart-text-primary: #fafafa;
   --chart-text-secondary: #f5f5f7;
   --chart-text-muted: #a1a1aa;
-  --chart-text-subtle: #71717a;
+  --chart-text-subtle: #95a3ac;
   --chart-text-dim: #52525b;
   --chart-axis-color: #9ca3af;
   --chart-grid: rgba(255, 255, 255, 0.04);
@@ -687,10 +687,10 @@ html[data-motion='reduced'] .heatmap-week-appear {
 /* ===== RESPONSIVE TYPOGRAPHY ===== */
 
 .text-page-title {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 650;
-  line-height: 1.25;
-  letter-spacing: 0;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
@@ -721,7 +721,7 @@ output {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -867,9 +867,25 @@ output {
   );
 }
 
+.dashboard-source {
+  container-type: inline-size;
+}
+
+.dashboard-source-body {
+  display: grid;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+@container (min-width: 29rem) {
+  .dashboard-source-body {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+}
+
 @media (min-width: 768px) {
   .text-page-title {
-    font-size: 1.625rem;
+    font-size: 2rem;
   }
 }
 

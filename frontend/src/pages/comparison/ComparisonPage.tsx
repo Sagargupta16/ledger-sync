@@ -123,14 +123,13 @@ export default function ComparisonPage() {
                 onKeyDown={(event) => handleModeKeyDown(event, val, setMode)}
                 className={`relative min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors lg:pointer-fine:min-h-0 lg:pointer-fine:py-1.5 ${
                   mode === val ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-[var(--overlay-5)]'
-                }`}
+                  }`}
                 whileTap={{ scale: 0.97 }}
               >
                 {mode === val && (
                   <motion.div
                     layoutId="comparisonModeTab"
-                    className="absolute inset-0 rounded-lg"
-                    style={{ backgroundColor: rawColors.app.indigo }}
+                    className="absolute inset-0 rounded-md border border-app-blue/30 bg-app-blue/10"
                     initial={false}
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
@@ -148,14 +147,14 @@ export default function ComparisonPage() {
         animate={{ opacity: 1, y: 0 }}
         className="ledger-panel p-4 sm:p-6"
       >
-        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row [&_select]:min-h-11 [&_select]:py-2.5 lg:pointer-fine:[&_select]:min-h-9 lg:pointer-fine:[&_select]:py-2">
+        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <PeriodSelector
             mode={mode} label="Period A"
             monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
             month={effectiveMonthA} year={yearA} fy={fyA}
             onMonth={setMonthA} onYear={setYearA} onFy={setFyA}
           />
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground sm:pt-6">
             <Equal className="w-5 h-5" />
             <span className="text-sm font-medium">vs</span>
           </div>
@@ -184,23 +183,27 @@ export default function ComparisonPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-4"
+          className="grid grid-cols-1 gap-x-6 gap-y-6 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-4"
         >
           <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
           <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
           <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} />
-          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} isPercent />
+          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} isPercent />
         </motion.div>
       </AnimatePresence>
 
       {/* Financial Overview */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="ledger-panel p-4 md:p-6">
-        <h2 className="text-lg font-semibold mb-4">Financial Overview</h2>
-        <div className="space-y-6">
+        <p className="ledger-meta mb-2 text-app-blue">Two periods, one scale</p>
+        <h2 className="text-xl font-semibold tracking-tight">Financial Overview</h2>
+        <p className="mb-6 mt-1 text-sm leading-relaxed text-muted-foreground">
+          Faded bars show {periodA.label}; solid bars show {periodB.label}. Bar length shows magnitude; values retain their sign.
+        </p>
+        <div className="divide-y divide-border/60">
           <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} maxValue={overviewMax} />
           <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} maxValue={overviewMax} invertChange />
           <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} maxValue={overviewMax} />
-          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.purple} maxValue={100} isPercent />
+          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} maxValue={100} isPercent />
         </div>
       </motion.div>
 
@@ -208,7 +211,7 @@ export default function ComparisonPage() {
       <SpendingDistribution periodA={periodA} periodB={periodB} distributionA={distributionA} distributionB={distributionB} />
 
       {/* Category Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <CategorySection
           icon={<TrendingDown className="w-5 h-5 text-app-red" />}
           title="Expense Categories"

@@ -1,8 +1,8 @@
 import { X } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
-import { formatCurrency } from '@/lib/formatters'
-import { netVestingValue, vestingPrice } from '@/lib/rsuVesting'
+import { formatCurrency, getActiveLocale } from '@/lib/formatters'
+import { grossVestingValue, hasLockedVestingPrice, netVestingQuantity, netVestingValue, vestingPrice } from '@/lib/rsuVesting'
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '../../styles'
@@ -21,15 +21,18 @@ export default function VestingCard({
   const { vesting, stateIdx } = entry
   const fyStartMonth = usePreferencesStore(selectFiscalYearStartMonth)
   const price = vestingPrice(grant, vesting, today)
-  const estimatedValue = vesting.quantity * price
+  const grossValue = grossVestingValue(vesting, price)
   const fiscalYear = vesting.date ? dateToFY(vesting.date, fyStartMonth) : ''
-  const usesVestPrice = vested && vesting.price_at_vest != null && vesting.price_at_vest > 0
+  const usesVestPrice = hasLockedVestingPrice(vesting, today)
   const rowName = `${grant.stock_name || 'RSU'} vesting ${stateIdx + 1}`
   const dateId = `mobile-vesting-${grant.id}-${stateIdx}-date`
   const quantityId = `mobile-vesting-${grant.id}-${stateIdx}-quantity`
   const netQuantityId = `mobile-vesting-${grant.id}-${stateIdx}-net-quantity`
   const headingId = `mobile-vesting-${grant.id}-${stateIdx}-heading`
   const valuationId = `mobile-vesting-${grant.id}-${stateIdx}-valuation`
+  const netHintId = `${netQuantityId}-hint`
+  const isEstimate = vesting.net_quantity == null
+  const netQuantity = netVestingQuantity(vesting)
   const netValue = netVestingValue(vesting, price)
 
   return (
@@ -84,7 +87,7 @@ export default function VestingCard({
           className="space-y-1 text-xs font-medium text-text-secondary"
         >
           <span>
-            Granted qty<span className="sr-only"> for {rowName}</span>
+            Gross granted qty<span className="sr-only"> for {rowName}</span>
           </span>
           <input
             id={quantityId}
@@ -106,42 +109,53 @@ export default function VestingCard({
           className="space-y-1 text-xs font-medium text-text-secondary"
         >
           <span>
-            Received after tax<span className="sr-only"> for {rowName}</span>
+            Actual received units<span className="sr-only"> for {rowName}</span>
           </span>
           <input
             id={netQuantityId}
             type="number"
             inputMode="decimal"
             min="0"
-            step="0.001"
+            max={vesting.quantity}
+            step="any"
             value={vesting.net_quantity ?? ''}
             onChange={(event) =>
               onUpdateVesting(grant.id, stateIdx, {
                 net_quantity: event.target.value === '' ? null : Number(event.target.value),
               })
             }
-            placeholder="Optional"
+            placeholder={netQuantity.toLocaleString(getActiveLocale(), {
+              maximumFractionDigits: 6,
+              useGrouping: false,
+            })}
+            aria-describedby={netHintId}
             className={inputClass}
           />
+          <span id={netHintId} className="block text-[11px] font-normal text-text-tertiary">
+            {isEstimate ? 'Estimated units; enter actuals to override' : 'Actual units override the estimate'}
+          </span>
         </label>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-[var(--overlay-2)] px-3 py-2">
-        <span className="text-xs text-muted-foreground">Estimated value</span>
+        <span className="text-xs text-muted-foreground">
+          {isEstimate || !usesVestPrice ? 'Estimated after-tax value' : 'Received value'}
+        </span>
         <span className="text-right">
           <span
-            className="ledger-figure block text-sm font-semibold text-foreground"
+            className="ledger-figure block text-sm font-semibold text-app-green"
             aria-describedby={valuationId}
           >
-            {estimatedValue > 0 ? formatCurrency(estimatedValue) : '--'}
+            {price > 0 ? formatCurrency(netValue) : '--'}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            Gross {price > 0 ? formatCurrency(grossValue) : '--'}
           </span>
           <span id={valuationId} className="mt-0.5 block text-[11px] text-muted-foreground">
-            {usesVestPrice ? `Vest-date price ${formatCurrency(price)}` : 'Current price'}
+            {usesVestPrice ? `Vest-date price ${formatCurrency(price)}` : 'Current price estimate'}
           </span>
-          {netValue !== null && (
-            <span className="mt-0.5 block text-[11px] text-app-green">
-              {formatCurrency(netValue)} received
-            </span>
+          {vested && !usesVestPrice && (
+            <span className="block text-[11px] text-text-tertiary">Vest-date price missing</span>
           )}
         </span>
       </div>

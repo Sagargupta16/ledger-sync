@@ -1,7 +1,8 @@
+import { motion } from 'motion/react'
 import { LineChart as LineChartIcon } from 'lucide-react'
 import {
   Area,
-  AreaChart,
+  ComposedChart,
   CartesianGrid,
   Line,
   ReferenceLine,
@@ -12,6 +13,10 @@ import {
 
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
   ACTIVE_DOT,
   areaGradient,
@@ -20,14 +25,14 @@ import {
   ChartContainer,
   GRID_DEFAULTS,
   referenceLine,
-  shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
+import { SCROLL_FADE_UP } from '@/constants/animations'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatMonthKey } from '@/lib/dateUtils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 
 import { formatTooltipName } from '../trendsUtils'
 import type { useTrendsForecasts } from '../useTrendsForecasts'
@@ -35,7 +40,7 @@ import type { useTrendsForecasts } from '../useTrendsForecasts'
 const MAX_VISIBLE_LABELS = {
   mobile: 4,
   tablet: 8,
-  desktop: 6,
+  desktop: 8,
 } as const
 
 type MonthlyTrendData = ReturnType<typeof useTrendsForecasts>['monthlyTrendWithAvg']
@@ -84,134 +89,192 @@ export default function MonthlyTrendSection({
     },
     {
       id: 'trendSavings',
-      color: rawColors.app.purple,
+      color: rawColors.app.blue,
       label: 'Savings',
       dataKey: 'savings',
       avgKey: 'savingsAvg',
       peak: peakSavings,
     },
   ] as const
-  const animateCharts = shouldAnimate(data.length * series.length * 2)
+  const { animate: animateCharts } = useChartPresentation(data.length * series.length * 2)
   const maxVisibleLabels = MAX_VISIBLE_LABELS[dims.breakpoint]
   const xAxisInterval = Math.max(0, Math.ceil(data.length / maxVisibleLabels) - 1)
 
   return (
-    <section className="ledger-panel p-4 sm:p-5" aria-labelledby="income-expense-trends-title">
-      <div className="mb-4 flex items-start gap-2.5">
-        <LineChartIcon className="mt-0.5 size-5 shrink-0 text-app-blue" aria-hidden="true" />
-        <div>
+    <motion.section
+      {...SCROLL_FADE_UP}
+      className="ledger-panel min-w-0 p-4 sm:p-6"
+      aria-labelledby="income-expense-trends-title"
+    >
+      <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center gap-2 text-app-blue">
+            <LineChartIcon className="size-4 shrink-0" aria-hidden="true" />
+            <p className="ledger-meta">Your monthly trajectory</p>
+          </div>
           <h2
             id="income-expense-trends-title"
-            className="text-base font-semibold text-foreground"
+            className="text-xl font-semibold tracking-tight text-foreground"
           >
             Income & Expense Trends
           </h2>
-          <p className="text-sm text-text-tertiary">
+          <p className="mt-1 text-sm text-muted-foreground">
             Monthly breakdown with {rollingAvgMonths}-month rolling averages
           </p>
         </div>
+        {data.length > 0 && (
+          <p className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+            {data[0].label} to {data.at(-1)?.label}
+          </p>
+        )}
       </div>
 
       {isLoading && <ChartSkeleton height="h-80" />}
       {!isLoading && data.length > 0 && (
-        <div className="grid grid-cols-1 divide-y divide-[var(--hairline-1)] lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+        <div className="divide-y divide-border">
           {series.map(({ id, color, label, dataKey, avgKey, peak }) => (
             <div
               key={id}
-              className="min-w-0 py-4 first:pt-0 last:pb-0 lg:px-4 lg:py-0 lg:first:pl-0 lg:last:pr-0"
+              className="grid min-w-0 grid-cols-1 gap-4 py-6 first:border-t first:border-border last:pb-0 lg:grid-cols-[10rem_minmax(0,1fr)] lg:gap-6"
             >
-              <div className="mb-3 flex items-center gap-2">
-                <span
-                  className="size-2.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                  aria-hidden="true"
-                />
-                <span className="text-sm font-medium text-foreground">{label}</span>
-              </div>
-              <ChartContainer
-                height={180}
-                ariaLabel={`Monthly ${label.toLowerCase()} with ${rollingAvgMonths}-month rolling average and peak reference line`}
-              >
-                <AreaChart
-                  data={data}
-                  onMouseMove={(event) => {
-                    if (event?.activeLabel) onActiveLabelChange(String(event.activeLabel))
-                  }}
-                  onMouseLeave={() => onActiveLabelChange(null)}
-                >
-                  <defs>{areaGradient(id, color, 0.4, 0.02)}</defs>
-                  <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis
-                    {...xAxisDefaults(data.length)}
-                    dataKey="label"
-                    interval={xAxisInterval}
-                  />
-                  <YAxis {...yAxisDefaults({ width: 46 })} />
-                  <Tooltip
-                    {...chartTooltipProps}
-                    labelFormatter={(
-                      _label: unknown,
-                      payload: ReadonlyArray<{ payload?: { month?: string } }>,
-                    ) => {
-                      const month = payload?.[0]?.payload?.month
-                      return month
-                        ? formatMonthKey(month, { month: 'long', year: 'numeric' })
-                        : ''
-                    }}
-                    formatter={(value, name) => [
-                      typeof value === 'number' ? formatCurrency(value) : '',
-                      formatTooltipName(
-                        name === undefined ? undefined : String(name),
-                        rollingAvgMonths,
-                      ),
-                    ]}
-                  />
-                  {referenceLine({
-                    y: peak,
-                    label: `Peak: ${formatCurrencyShort(peak)}`,
-                    variant: 'peak',
-                  })}
-                  {activeLabel && (
-                    <ReferenceLine
-                      x={activeLabel}
-                      stroke={rawColors.chart.activeStroke}
-                      strokeDasharray="3 3"
+              <div className="flex flex-wrap justify-between gap-3 lg:block">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <span
+                      className="h-2 w-2 rounded-sm"
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
                     />
-                  )}
-                  <Area
-                    type="monotone"
-                    dataKey={dataKey}
-                    stroke={color}
-                    fill={areaGradientUrl(id)}
-                    strokeWidth={2}
-                    dot={data.length === 1 ? { r: 3, fill: color } : false}
-                    activeDot={{ ...ACTIVE_DOT, fill: color }}
-                    isAnimationActive={animateCharts}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey={avgKey}
-                    stroke={color}
-                    strokeWidth={2}
-                    strokeDasharray="6 3"
-                    // Keys off the AVERAGE point count, not `data.length`: the
-                    // leading months carry no average, so three complete months
-                    // (the default FY view) leave a single point, and recharts
-                    // strokes nothing for one point (`M x,y Z`).
-                    dot={rollingAvgPointCount === 1 ? { r: 3, fill: color } : false}
-                    activeDot={{ ...ACTIVE_DOT, fill: color }}
-                    name={`${label} (${rollingAvgMonths}m avg)`}
-                    isAnimationActive={animateCharts}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                  />
-                </AreaChart>
-              </ChartContainer>
+                    {label}
+                  </h3>
+                  <dl className="mt-3">
+                    <dt className="text-xs text-muted-foreground">Peak month</dt>
+                    <dd className="mt-1 break-words font-mono text-lg font-semibold tabular-nums" style={{ color }}>
+                      {formatCurrency(peak)}
+                    </dd>
+                  </dl>
+                </div>
+                <ul className="space-y-2 text-xs text-muted-foreground lg:mt-5" aria-label={`${label} chart series`}>
+                  <li className="flex items-center gap-2">
+                    <span className="h-0.5 w-5" style={{ backgroundColor: color }} aria-hidden="true" />{' '}
+                    Monthly total
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />
+                    {rollingAvgMonths}-month average
+                  </li>
+                </ul>
+              </div>
+              <div className="min-w-0">
+                <ChartContainer
+                  height={220}
+                  mobileHeight={230}
+                  ariaLabel={`Monthly ${label.toLowerCase()} with ${rollingAvgMonths}-month rolling average and peak reference line`}
+                >
+                  <ComposedChart
+                    data={data}
+                    margin={{ top: 12, right: 12, bottom: 8, left: 0 }}
+                    syncId="monthly-finance-trends"
+                    syncMethod="value"
+                    onMouseMove={(event) => {
+                      if (event?.activeLabel) onActiveLabelChange(String(event.activeLabel))
+                    }}
+                    onMouseLeave={() => onActiveLabelChange(null)}
+                  >
+                    <defs>{areaGradient(id, color, 0.24, 0.01)}</defs>
+                    <CartesianGrid {...GRID_DEFAULTS} />
+                    <XAxis
+                      {...xAxisDefaults(data.length)}
+                      dataKey="label"
+                      interval={xAxisInterval}
+                    />
+                    <YAxis
+                      {...yAxisDefaults({ width: dims.breakpoint === 'mobile' ? 56 : 64 })}
+                      domain={dataKey === 'savings' ? ['auto', 'auto'] : [0, 'auto']}
+                    />
+                    <Tooltip
+                      {...chartTooltipProps}
+                      content={<ChartTooltipContent />}
+                      cursor={CHART_LINE_CURSOR_STYLE}
+                      labelFormatter={(
+                        _label: unknown,
+                        payload: ReadonlyArray<{ payload?: { month?: string } }>,
+                      ) => {
+                        const month = payload?.[0]?.payload?.month
+                        return month
+                          ? formatMonthKey(month, { month: 'long', year: 'numeric' })
+                          : ''
+                      }}
+                      formatter={(value, name) => [
+                        typeof value === 'number' ? formatCurrency(value) : '',
+                        formatTooltipName(
+                          name === undefined ? undefined : String(name),
+                          rollingAvgMonths,
+                        ),
+                      ]}
+                    />
+                    {referenceLine({
+                      y: peak,
+                      variant: 'peak',
+                    })}
+                    {dataKey === 'savings' && referenceLine({ y: 0, variant: 'zero' })}
+                    {activeLabel && (
+                      <ReferenceLine
+                        x={activeLabel}
+                        stroke={rawColors.chart.activeStroke}
+                        strokeDasharray="3 3"
+                      />
+                    )}
+                    <Area
+                      type="monotone"
+                      dataKey={dataKey}
+                      stroke={color}
+                      fill={areaGradientUrl(id)}
+                      strokeWidth={2.5}
+                      dot={data.length === 1 ? { r: 3, fill: color } : false}
+                      activeDot={{ ...ACTIVE_DOT, fill: color }}
+                      isAnimationActive={animateCharts}
+                      animationDuration={700}
+                      animationEasing="ease-out"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={avgKey}
+                      stroke={rawColors.text.secondary}
+                      strokeWidth={2}
+                      strokeDasharray="6 3"
+                      // Keys off the AVERAGE point count, not `data.length`: the
+                      // leading months carry no average, so three complete months
+                      // (the default FY view) leave a single point, and recharts
+                      // strokes nothing for one point (`M x,y Z`).
+                      dot={rollingAvgPointCount === 1 ? { r: 4, fill: rawColors.text.secondary } : false}
+                      activeDot={{ ...ACTIVE_DOT, fill: rawColors.text.secondary }}
+                      name={`${label} (${rollingAvgMonths}m avg)`}
+                      isAnimationActive={animateCharts}
+                      animationDuration={700}
+                      animationEasing="ease-out"
+                    />
+                  </ComposedChart>
+                </ChartContainer>
+                {chartDataTable(
+                  data,
+                  [
+                    { header: 'Month', rowHeader: true, value: (row) => formatMonthKey(row.month, { month: 'long', year: 'numeric' }) },
+                    { header: label, value: (row) => formatCurrency(row[dataKey]) },
+                    { header: `${rollingAvgMonths}-month average`, value: (row) => row[avgKey] === undefined ? 'Not available' : formatCurrency(row[avgKey]) },
+                  ],
+                  `Monthly ${label.toLowerCase()} and rolling average`,
+                  (row) => row.month,
+                )}
+              </div>
             </div>
           ))}
         </div>
+      )}
+      {!isLoading && data.length > 0 && (
+        <p className="mt-5 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+          Each plot uses its own amount scale. Dotted horizontal lines mark peak months; the savings plot also marks break-even.
+        </p>
       )}
       {!isLoading && data.length === 0 && (
         <EmptyState
@@ -223,6 +286,6 @@ export default function MonthlyTrendSection({
           variant="chart"
         />
       )}
-    </section>
+    </motion.section>
   )
 }

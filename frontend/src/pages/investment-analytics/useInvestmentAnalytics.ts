@@ -5,6 +5,11 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { calculateXIRR, type CashFlow } from '@/lib/xirr'
+import {
+  investmentAccountTest,
+  investmentTransferDelta,
+  netInvestmentTransferFlow,
+} from '@/lib/finance/investmentFlows'
 
 import {
   CATEGORY_COLORS,
@@ -31,6 +36,7 @@ export function useInvestmentAnalytics() {
     [preferences?.investment_account_mappings],
   )
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
+  const isInvestment = useMemo(() => investmentAccountTest(investmentAccounts), [investmentAccounts])
 
   const isLoading =
     balancesQuery.isLoading ||
@@ -78,7 +84,7 @@ export function useInvestmentAnalytics() {
     transactions.forEach((tx) => {
       processInvestmentTransaction(
         tx,
-        investmentAccounts,
+        isInvestment,
         accountToCategory,
         byAccount,
         byCategory,
@@ -87,27 +93,21 @@ export function useInvestmentAnalytics() {
 
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)
     return { byAccount, byCategory, total }
-  }, [transactions, investmentAccounts, accountToCategory])
+  }, [transactions, investmentAccounts, isInvestment, accountToCategory])
 
   const totalInvestmentValue = filteredInvestmentTotals.total
 
   const portfolioXIRR = useMemo((): number => {
     if (!investmentAccounts.length || !transactions.length) return 0
 
-    const invSet = new Set(investmentAccounts)
     const cashflows: CashFlow[] = []
 
     for (const tx of transactions) {
       if (tx.type !== 'Transfer') continue
       const d = new Date(tx.date)
       if (Number.isNaN(d.getTime())) continue
-      const toInv = invSet.has(tx.to_account ?? '')
-      const fromInv = invSet.has(tx.from_account ?? '')
-      if (toInv && !fromInv) {
-        cashflows.push({ date: d, amount: tx.amount })
-      } else if (fromInv && !toInv) {
-        cashflows.push({ date: d, amount: -tx.amount })
-      }
+      const amount = investmentTransferDelta(tx, isInvestment)
+      if (amount !== 0) cashflows.push({ date: d, amount })
     }
     if (cashflows.length < 1 || totalInvestmentValue <= 0) return 0
 
@@ -115,7 +115,7 @@ export function useInvestmentAnalytics() {
     cashflows.sort((a, b) => a.date.getTime() - b.date.getTime())
 
     return calculateXIRR(cashflows)
-  }, [transactions, investmentAccounts, totalInvestmentValue])
+  }, [transactions, investmentAccounts, isInvestment, totalInvestmentValue])
 
   const netInvestmentPL = useMemo(() => computeNetInvestmentPL(transactions), [transactions])
   const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
@@ -126,15 +126,11 @@ export function useInvestmentAnalytics() {
     if (!transactions.length || !investmentAccounts.length) return 0
     const now = new Date()
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    let total = 0
-    for (const tx of transactions) {
-      if (!tx.date.startsWith(currentMonthKey)) continue
-      if (tx.type === 'Transfer' && investmentAccounts.includes(tx.to_account ?? '')) {
-        total += tx.amount
-      }
-    }
-    return total
-  }, [transactions, investmentAccounts])
+    return netInvestmentTransferFlow(
+      transactions.filter((tx) => tx.date.startsWith(currentMonthKey)),
+      isInvestment,
+    )
+  }, [transactions, investmentAccounts, isInvestment])
 
   const targetProgress =
     monthlyInvestmentTarget > 0

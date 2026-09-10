@@ -51,16 +51,17 @@ export default function GoalCardActions({
 
   return (
     <>
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--hairline-1)] pt-3">
         <Button
           ref={progressRef}
           onClick={onStartEdit}
-          variant="secondary"
+          variant={isEditing ? 'primary' : 'secondary'}
           size="sm"
           disabled={isBusy}
           aria-expanded={isEditing}
           aria-label={`Update progress: ${goal.name}`}
           icon={<Pencil className="h-3.5 w-3.5" />}
+          className="min-h-11 min-w-0 flex-1 px-3 lg:pointer-fine:min-h-11"
         >
           Update Progress
         </Button>
@@ -75,6 +76,7 @@ export default function GoalCardActions({
             size="sm"
             disabled={isBusy}
             icon={<Edit3 className="h-3.5 w-3.5" />}
+            className="size-11 p-0"
           />
           <Button
             onClick={() => setConfirmDelete(true)}
@@ -84,7 +86,7 @@ export default function GoalCardActions({
             size="sm"
             disabled={isBusy}
             icon={<Trash2 className="h-3.5 w-3.5" />}
-            className="text-text-tertiary hover:bg-app-red/10 hover:text-app-red"
+            className="size-11 p-0 text-text-tertiary hover:bg-app-red/10 hover:text-app-red"
           />
         </div>
       </div>

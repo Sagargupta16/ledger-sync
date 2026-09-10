@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useEffect, type ReactNode } from 'react'
+import { useLocation, useOutlet } from 'react-router-dom'
 
-import { motion, AnimatePresence } from 'motion/react'
+import { motion, AnimatePresence, useIsPresent } from 'motion/react'
 
 import CommandPalette from '@/components/shared/CommandPalette'
 import ChatWidget from '@/components/chat/ChatWidget'
@@ -16,9 +16,29 @@ import MobileTabBar from './MobileTabBar'
 import { PAGE_TITLES } from './pageTitles'
 import StaleAnalyticsAlert from './StaleAnalyticsAlert'
 import WorkspaceHeader from './WorkspaceHeader'
+import CurrencyAtmosphere from './CurrencyAtmosphere'
 
-export default function AppLayout() {
+function RouteFrame({ children }: Readonly<{ children: ReactNode }>) {
+  const isPresent = useIsPresent()
+
+  return (
+    <motion.div
+      data-route-frame
+      aria-hidden={isPresent ? undefined : true}
+      inert={!isPresent}
+      className="relative col-start-1 row-start-1 min-h-full min-w-0"
+      style={{ zIndex: isPresent ? 1 : 0 }}
+      {...ROUTE_TRANSITION}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+export default function AppLayout({ pendingTitle }: Readonly<{ pendingTitle?: string }>) {
   const location = useLocation()
+  // Keep each route's content inside its own wrapper until its exit completes.
+  const outlet = useOutlet()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'Page not found'
 
@@ -51,7 +71,8 @@ export default function AppLayout() {
 
         <Sidebar />
         <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-          <WorkspaceHeader title={pageTitle} />
+          <CurrencyAtmosphere />
+          <WorkspaceHeader title={pageTitle} pendingTitle={pendingTitle} />
           {/*
             Above the scroll container, not inside it: a warning that the numbers
             below are stale is worthless if the user has to scroll up to find it.
@@ -59,19 +80,18 @@ export default function AppLayout() {
           <StaleAnalyticsAlert />
           <main
             id="main-content"
-            className="min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
+            aria-busy={Boolean(pendingTitle)}
+            className="relative z-10 min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                className="min-h-full"
-                {...ROUTE_TRANSITION}
-              >
-                <ErrorBoundary key={location.pathname}>
-                  <Outlet />
-                </ErrorBoundary>
-              </motion.div>
-            </AnimatePresence>
+            <div className="grid min-h-full">
+              <AnimatePresence initial={false} mode="sync">
+                <RouteFrame key={location.pathname}>
+                  <ErrorBoundary key={location.pathname}>
+                    {outlet}
+                  </ErrorBoundary>
+                </RouteFrame>
+              </AnimatePresence>
+            </div>
           </main>
         </div>
 

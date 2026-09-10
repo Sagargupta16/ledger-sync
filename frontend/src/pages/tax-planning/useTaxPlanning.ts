@@ -3,16 +3,16 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   FY_START_MONTH,
-  calculateTax,
   getFYFromDate,
+  parseFYStartYear,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
 import {
-  buildTdsSchedule,
-  rsuExtrasByFyMonth,
-  computeTaxPaidTillDate,
-  type TdsMonthRow,
-} from '@/lib/tdsScheduleCalculator'
+  applyProjectionTaxRegime,
+  buildPayrollPlanning,
+  taxPlanningDisplay,
+  taxOverviewMetrics,
+} from '@/lib/finance/payrollPlanning'
 import { getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
@@ -23,9 +23,9 @@ import {
 } from '@/store/preferencesStore'
 import {
   computePrevFYDisplay,
-  computeTaxForFY,
   groupTransactionsByFY,
-} from './taxPlanningUtils'
+} from '@/lib/finance/taxHistory'
+import { computeAnnualTaxPlanning, computeTaxForFY } from '@/lib/finance/taxPlanning'
 import type { TaxRegimeOverride } from './types'
 
 export function useTaxPlanning() {
@@ -73,8 +73,9 @@ export function useTaxPlanning() {
         fiscalYearStartMonth,
         incomeClassification,
         epfTaxableFraction,
+        salaryStructure,
       ),
-    [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction],
+    [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction, salaryStructure],
   )
 
   const txFyList = useMemo(
@@ -90,9 +91,9 @@ export function useTaxPlanning() {
     const salaryFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
     const latestSalaryFY = salaryFYs.at(-1)
     if (!latestSalaryFY) return []
-    const latestStart = Number.parseInt(latestSalaryFY.replace(/^FY\s*/i, ''), 10)
+    const latestStart = parseFYStartYear(latestSalaryFY)
     const futureFYs: string[] = []
-    for (let i = 1; i <= growthAssumptions.projection_years; i++) {
+    for (let i = 0; i <= growthAssumptions.projection_years; i++) {
       const yr = latestStart + i
       const end = (yr + 1) % 100
       futureFYs.push(`FY ${yr}-${String(end).padStart(2, '0')}`)
@@ -114,80 +115,44 @@ export function useTaxPlanning() {
   const effectiveFY =
     selectedFY || (fyList.includes(currentFYLabel) ? currentFYLabel : fyList[0]) || ''
 
-  const isFutureFY = projectedFYList.includes(effectiveFY) && !(effectiveFY in transactionsByFY)
+  const isFutureFY = parseFYStartYear(effectiveFY) > parseFYStartYear(currentFYLabel)
   const isCurrentFY = effectiveFY === currentFYLabel
   const useSalaryProjection = hasSalaryData && (isFutureFY || (showProjection && isCurrentFY))
 
-  const currentFYData = effectiveFY ? transactionsByFY[effectiveFY] : null
+  const currentFYData = (effectiveFY ? transactionsByFY[effectiveFY] : null) ?? null
   const income = currentFYData?.income ?? 0
   const expense = currentFYData?.expense ?? 0
   const netTaxableIncome = currentFYData?.taxableIncome ?? 0
   const salaryMonthsCount = currentFYData?.salaryMonths?.size ?? 0
 
-  const taxComputation = computeTaxForFY(
+  const taxComputation = useMemo(() => computeTaxForFY(
     effectiveFY,
     netTaxableIncome,
     salaryMonthsCount,
     regimeOverride,
     preferredRegime,
     salaryIsNetOfTds,
-  )
+    {
+      hasEmploymentIncome: currentFYData?.hasEmploymentIncome ?? false,
+      recordedEmploymentIncome: currentFYData?.employmentTaxableIncome ?? 0,
+      recordedEmploymentCashDeductions: currentFYData?.recordedEmploymentCashDeductions ?? 0,
+    },
+  ), [
+    effectiveFY, netTaxableIncome, salaryMonthsCount, regimeOverride,
+    preferredRegime, salaryIsNetOfTds, currentFYData,
+  ])
   const {
     fyYear,
     newRegimeAvailable,
     isNewRegime,
     taxSlabs,
     regimeLabel,
-    standardDeduction,
-    grossTaxableIncome,
-    baseTax,
-    slabBreakdown,
-    rebate87A,
-    surcharge,
-    cess,
-    professionalTax,
-    taxAlreadyPaid,
+    standardDeduction: recordedStandardDeduction,
   } = taxComputation
 
   const effectiveFYForProjector = effectiveFY.replace(/^FY\s+/i, '')
 
-  const salaryProjection = useMemo<ProjectedFYBreakdown | null>(() => {
-    if (!useSalaryProjection) return null
-    return projectFiscalYear(
-      effectiveFYForProjector,
-      salaryStructure,
-      rsuGrants,
-      growthAssumptions,
-      fiscalYearStartMonth,
-    )
-  }, [
-    useSalaryProjection,
-    effectiveFYForProjector,
-    salaryStructure,
-    rsuGrants,
-    growthAssumptions,
-    fiscalYearStartMonth,
-  ])
-
-  const salaryTaxResult = useMemo(() => {
-    if (!salaryProjection) return null
-    return calculateTax(
-      salaryProjection.grossTaxable,
-      taxSlabs,
-      standardDeduction,
-      true,
-      12,
-      isNewRegime,
-      fyYear,
-    )
-  }, [salaryProjection, taxSlabs, standardDeduction, isNewRegime, fyYear])
-
-  // Forward TDS schedule -- flat baseline on recurring compensation, annual
-  // bonus spread across 12 monthly extras, and dated RSU spikes. It is computed
-  // whenever salary data exists for this FY, independent of the projection
-  // toggle. The page-level `salaryProjection` is null outside projection mode,
-  // so project here to keep the chart available on the current-FY view.
-  const tdsProjection = useMemo<ProjectedFYBreakdown | null>(() => {
+  const salaryPlan = useMemo<ProjectedFYBreakdown | null>(() => {
     if (!hasSalaryData) return null
     return projectFiscalYear(
       effectiveFYForProjector,
@@ -197,173 +162,49 @@ export function useTaxPlanning() {
       fiscalYearStartMonth,
     )
   }, [
-    hasSalaryData,
-    effectiveFYForProjector,
-    salaryStructure,
-    rsuGrants,
-    growthAssumptions,
-    fiscalYearStartMonth,
+    hasSalaryData, effectiveFYForProjector, salaryStructure, rsuGrants,
+    growthAssumptions, fiscalYearStartMonth,
   ])
 
-  const tdsSchedule = useMemo<TdsMonthRow[]>(() => {
-    if (!tdsProjection) return []
-    // Base = certain recurring comp ONLY (exclude bonus AND RSU), so the flat
-    // monthly baseline = tax(base)/12 -- the exact same per-month figure the
-    // summary cards use. Bonus and RSU are modeled as extra income.
-    const baseAnnual = Math.max(
-      0,
-      tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,
-    )
-    // Bonus is an annual amount in the salary structure -- spread it evenly
-    // across the 12 months (recurring monthly bonus), so each month's spike is
-    // the tax on one month's slice (e.g. base ~29.8k + bonus tax ~14.6k = ~45k),
-    // NOT one giant April lump. RSU stays a dated one-month spike (Aug/Feb).
-    const rsuExtras = rsuExtrasByFyMonth(rsuGrants, fyYear, fiscalYearStartMonth)
-    const extraByMonth: Record<number, number> = { ...rsuExtras }
-    if (tdsProjection.bonus > 0) {
-      const bonusPerMonth = tdsProjection.bonus / MONTHS_PER_YEAR
-      for (let m = 0; m < MONTHS_PER_YEAR; m++) {
-        extraByMonth[m] = (extraByMonth[m] ?? 0) + bonusPerMonth
-      }
-    }
-    const projected = buildTdsSchedule({
-      regularMonthlyIncome: baseAnnual / MONTHS_PER_YEAR,
-      extraByMonth,
-      fyStartMonth: fiscalYearStartMonth,
-      slabs: taxSlabs,
-      standardDeduction,
-      isNewRegime,
-      fyStartYear: fyYear,
-    })
+  const selectedProjection = useMemo(
+    () => useSalaryProjection && salaryPlan
+      ? applyProjectionTaxRegime(salaryPlan, taxComputation.selectedRegime)
+      : null,
+    [useSalaryProjection, salaryPlan, taxComputation.selectedRegime],
+  )
+  const salaryProjection = selectedProjection?.projection ?? null
+  const annualTaxComputation = useMemo(
+    () => salaryProjection ? computeAnnualTaxPlanning({
+      recordedTax: taxComputation,
+      projectedEmploymentIncome: salaryProjection.grossTaxable,
+      projectedEmploymentCashDeductions: salaryProjection.cashDeductions,
+      projectedSalaryMonthsCount: salaryProjection.grossTaxable > 0 ? MONTHS_PER_YEAR : 0,
+    }) : null,
+    [salaryProjection, taxComputation],
+  )
+  const standardDeduction = annualTaxComputation?.standardDeduction ?? recordedStandardDeduction
+  const hasEmploymentIncome = annualTaxComputation?.hasEmploymentIncome ?? taxComputation.hasEmploymentIncome
 
-    // Reconcile the PAID (past) months with the cards: replace their projected
-    // TDS with the actual per-month figure derived from salary actually
-    // received (total tax paid / months), so "Deducted" bars match the cards.
-    // Future months keep the projection ("Expected").
-    if (isCurrentFY && !useSalaryProjection && salaryMonthsCount > 0) {
-      const actual = computeTaxPaidTillDate({
-        baseAnnual,
-        monthsPaid: salaryMonthsCount,
-        receivedNet: netTaxableIncome,
-        slabs: taxSlabs,
-        standardDeduction,
-        isNewRegime,
-        fyStartYear: fyYear,
-      })
-      const actualPerMonth = actual.taxPaid / salaryMonthsCount
-      return projected.map((row) =>
-        row.monthIndex < salaryMonthsCount
-          ? { ...row, monthlyTds: actualPerMonth }
-          : row,
-      )
-    }
-    return projected
-  }, [
-    tdsProjection,
-    rsuGrants,
-    fyYear,
-    fiscalYearStartMonth,
-    taxSlabs,
-    standardDeduction,
-    isNewRegime,
+  const payroll = useMemo(() => buildPayrollPlanning({
+    projection: salaryPlan,
+    tax: taxComputation,
+    fyData: currentFYData,
+    fyStartMonth: fiscalYearStartMonth,
     isCurrentFY,
     useSalaryProjection,
-    salaryMonthsCount,
-    netTaxableIncome,
-  ])
+  }), [salaryPlan, taxComputation, currentFYData, fiscalYearStartMonth, isCurrentFY, useSalaryProjection])
 
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
     if (!hasSalaryData) return []
     return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
-  }, [hasSalaryData, salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth])
-
-  // "Tax paid till date" (toggle ON, live current-FY view). Models real TDS:
-  // base salary TDS is cut every month paid (so it is non-zero even early in
-  // the year), plus the marginal tax on any bonus/RSU actually received.
-  //   base = certain recurring comp = grossTaxable - bonus - RSU
-  //   bonus received = actual bonus + RSU credits from transactions
-  // Only the "Tax Already Paid" and "Taxable Income" cards consume this; the
-  // "Salaried Income" card always shows what was actually received, untouched.
-  const cardOverride = useMemo(() => {
-    if (!showTdsSchedule || !tdsProjection || !isCurrentFY || useSalaryProjection) return null
-    if (salaryMonthsCount <= 0) return null
-
-    // Base = certain recurring comp from Settings (everything except bonus/RSU).
-    const baseAnnual = Math.max(
-      0,
-      tdsProjection.grossTaxable - tdsProjection.bonus - tdsProjection.rsuIncome,
-    )
-
-    const tillDate = computeTaxPaidTillDate({
-      baseAnnual,
-      monthsPaid: salaryMonthsCount,
-      // Actual salary credited to the bank so far (net of TDS); bonus is
-      // backed out from whatever was received above the expected base.
-      receivedNet: netTaxableIncome,
-      slabs: taxSlabs,
-      standardDeduction,
-      isNewRegime,
-      fyStartYear: fyYear,
-    })
-
-    return {
-      taxableIncome: tillDate.incomeReceived,
-      taxAlreadyPaid: tillDate.taxPaid,
-    }
+      .map((projection) => applyProjectionTaxRegime(projection, taxComputation.selectedRegime).projection)
   }, [
-    showTdsSchedule,
-    tdsProjection,
-    isCurrentFY,
-    useSalaryProjection,
-    salaryMonthsCount,
-    netTaxableIncome,
-    taxSlabs,
-    standardDeduction,
-    isNewRegime,
-    fyYear,
+    hasSalaryData, salaryStructure, rsuGrants, growthAssumptions,
+    fiscalYearStartMonth, taxComputation.selectedRegime,
   ])
 
-  const display = useMemo(() => {
-    if (salaryTaxResult && salaryProjection) {
-      return {
-        gross: salaryProjection.grossTaxable,
-        net: salaryProjection.grossTaxable - salaryTaxResult.totalTax,
-        totalTax: salaryTaxResult.totalTax,
-        baseTax: salaryTaxResult.tax,
-        cess: salaryTaxResult.cess,
-        professionalTax: salaryTaxResult.professionalTax,
-        slabBreakdown: salaryTaxResult.slabBreakdown,
-        rebate87A: salaryTaxResult.rebate87A,
-        surcharge: salaryTaxResult.surcharge,
-        income: salaryProjection.grossTaxable,
-      }
-    }
-    return {
-      gross: grossTaxableIncome,
-      net: netTaxableIncome,
-      totalTax: taxAlreadyPaid,
-      baseTax,
-      cess,
-      professionalTax,
-      slabBreakdown,
-      rebate87A,
-      surcharge,
-      income,
-    }
-  }, [
-    salaryTaxResult,
-    salaryProjection,
-    grossTaxableIncome,
-    netTaxableIncome,
-    taxAlreadyPaid,
-    baseTax,
-    cess,
-    professionalTax,
-    slabBreakdown,
-    rebate87A,
-    surcharge,
-    income,
-  ])
+  const display = taxPlanningDisplay(taxComputation, selectedProjection, income, annualTaxComputation)
+  const overviewMetrics = taxOverviewMetrics(display.gross, display.totalTax, display.income, expense)
 
   const prevFYDisplay = useMemo(
     () =>
@@ -431,9 +272,15 @@ export function useTaxPlanning() {
     useSalaryProjection,
     transactionsByFY,
     multiYearProjections,
-    tdsSchedule,
+    tdsSchedule: payroll.schedule,
     showTdsSchedule,
-    cardOverride,
+    paidTaxEstimate: payroll.paidEstimate,
+    paidMonthIndices: payroll.paidMonthIndices,
+    salaryProjection,
+    overviewMetrics,
+    taxComputation,
+    annualTaxComputation,
+    hasEmploymentIncome,
     netTaxableIncome,
     salaryMonthsCount,
     expense,

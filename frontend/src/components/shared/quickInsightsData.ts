@@ -1,12 +1,6 @@
 import type React from 'react'
 
-import {
-  addMonthsToKey,
-  daysInMonth,
-  monthKeysBetween,
-  MS_PER_DAY,
-  weekdayOf,
-} from '@/lib/dateUtils'
+import { weekdayOf } from '@/lib/dateUtils'
 import {
   meanRateSubtitle,
   meanVsTypicalSubtitle,
@@ -101,10 +95,7 @@ export function monthLabel(period: string): string {
   })
 }
 
-export interface DateRange {
-  start_date?: string
-  end_date?: string
-}
+export type { SpendingDateRange as DateRange } from '@/lib/finance/spendingStatistics'
 
 export interface Transaction {
   date: string
@@ -115,232 +106,16 @@ export interface Transaction {
   to_account?: string
 }
 
-/**
- * The window the mean-rate divisors run on: the explicit filter when there is
- * one, else the data's own min/max span, with the END capped at today.
- *
- * The cap is the point of this helper. `max_date` comes off the rows uncapped and
- * a forward-dated accrual pushes it past now, so the elapsed period a rate is
- * quoted "per" grows while the numerator cannot. All-time is the shipped default
- * view and `getAnalyticsDateRange` returns `{null, null}` for it, so
- * `capEndDateAtToday` never runs on this path -- this is the only place it can be
- * applied. Measured on the real ledger on 2026-07-27: one row dated 2026-07-31
- * (an income accrual) stretched the all-time span to 2,769 days against the 2,765
- * elapsed, diluting Average Daily Spending 1,444.76 -> 1,442.67 and Monthly Burn
- * Rate 43,960.70 -> 43,898.37 on 3,994,751.41 of spend. Small only because that
- * row is four days out; a user with a year of forward-booked SIPs inflates the
- * divisor by the whole horizon while the numerator cannot follow.
- *
- * An explicit `end_date` is capped too: the filter presets already cap
- * themselves, so a future end can only arrive from a hand-picked custom range,
- * where the same dilution applies for the same reason.
- */
-export function resolveSpanRange(
-  dateRange: DateRange,
-  dataSpan: { min_date?: string | null; max_date?: string | null } | undefined,
-  today: string,
-): DateRange {
-  const end = dateRange.end_date ?? dataSpan?.max_date ?? undefined
-  return {
-    start_date: dateRange.start_date ?? dataSpan?.min_date ?? undefined,
-    end_date: end && end.slice(0, 10) > today ? today : end,
-  }
-}
-
-/**
- * Days spanned by a window, counting both endpoints.
- *
- * The endpoints are INCLUSIVE: the backend filters `date >= start AND
- * date <= end`, so the numerator these divisors serve (`total_spending`) already
- * contains both the first and the last day. Differencing the two dates alone
- * returns an exclusive span and drops one day from the denominator, which
- * inflated every mean by a full day's worth of spend -- measured on the real
- * ledger, June 2026 divided 108,508.01 by 29 and reported 3,741.66/day for a
- * 30-day month whose real rate is 3,616.93 (+3.45%), and the subtitle read
- * "spread over 29 days" for a month that has 30. February 2026 was +3.70%.
- */
-function inclusiveDaySpan(startMs: number, endMs: number): number {
-  return Math.max(Math.ceil((endMs - startMs) / MS_PER_DAY) + 1, 1)
-}
-
-export function computeDaysInRange(dateRange: DateRange, transactions: Transaction[]): number {
-  if (!dateRange.start_date || !dateRange.end_date) {
-    if (transactions.length > 0) {
-      const dates = transactions.map(t => new Date(t.date).getTime())
-      return inclusiveDaySpan(Math.min(...dates), Math.max(...dates))
-    }
-    return 30
-  }
-  const start = new Date(dateRange.start_date)
-  const end = new Date(dateRange.end_date)
-  return inclusiveDaySpan(start.getTime(), end.getTime())
-}
-
-/**
- * How many calendar months a window covers, counting a partial month as the
- * fraction of ITS OWN month that is inside the window.
- *
- * Two defects this replaces, both of which pushed Monthly Burn Rate the wrong
- * way, and both measured on the real ledger on 2026-07-27:
- *
- * 1. `Math.max(days / 30.44, 1)` floored a partial month at a whole one. The
- *    monthly view (July capped at today, 27 of 31 days) billed 27 days as 1.0000
- *    months and published a burn rate of 107,651.65 where the pace those 27 days
- *    set is 123,600.04 -- a 12.9% understatement, worst on the 1st of the month
- *    and self-correcting only on the 31st. The same floor divided the
- *    recurring-coverage income denominator by 1.0 instead of 0.871, making fixed
- *    commitments look like a larger share of income than they are.
- *
- * 2. The 30.44-day average month was wrong in the other direction for COMPLETE
- *    months of any length but 30.44. A finished 30-day June came out 0.9855
- *    months and reported 110,099.46 against a real June spend of 108,508.01;
- *    a 28-day February reported 106,483.19 against 97,947.74 (+8.7%). A month is
- *    one month regardless of how many days it holds, so the fraction is taken per
- *    month against that month's own length.
- *
- * Guarded at a small positive floor so a same-day window cannot divide by zero.
- */
-export function monthsCovered(startKey: string, endKey: string): number {
-  const start = startKey.slice(0, 10)
-  const end = endKey.slice(0, 10)
-  if (end < start) return monthsCovered(end, start)
-
-  let months = 0
-  // Shared month walk (`@/lib/dateUtils`), so the December wrap has one owner
-  // rather than a copy here and another in `spendingAnalysisUtils`.
-  for (const monthKey of monthKeysBetween(start, end)) {
-    const total = daysInMonth(monthKey)
-    const firstDay = monthKey === start.slice(0, 7) ? Number(start.slice(8, 10)) : 1
-    const lastDay = monthKey === end.slice(0, 7) ? Number(end.slice(8, 10)) : total
-    months += (lastDay - firstDay + 1) / total
-  }
-  // A single day is a real fraction of a month, not zero and not a whole one.
-  return Math.max(months, 1 / 31)
-}
-
-export function computeMonthsInRange(dateRange: DateRange, transactions: Transaction[]): number {
-  if (!dateRange.start_date || !dateRange.end_date) {
-    if (transactions.length > 0) {
-      const keys = transactions.map((t) => t.date.slice(0, 10))
-      return monthsCovered(
-        keys.reduce((min, k) => (k < min ? k : min), keys[0]),
-        keys.reduce((max, k) => (k > max ? k : max), keys[0]),
-      )
-    }
-    return 1
-  }
-  return monthsCovered(dateRange.start_date, dateRange.end_date)
-}
-
-export function computeMedian(values: number[]): number {
-  if (values.length === 0) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2
-  }
-  return sorted[mid]
-}
-
-/**
- * Median spend on the days money actually moved, from a daily rollup series.
- *
- * Zero-spend days are dropped on purpose: including them answers "what does a
- * random calendar day cost", not "what does a typical spending day cost". On the
- * real ledger that distinction is stark -- 1,389 of the 2,769 calendar days in
- * the span have no expense at all, so an every-calendar-day median is 0.00.
- * Restricting to the 1,380 active days in this series gives 404.07 against a
- * 2,872.42 mean.
- *
- * Returns `null` when the series does not cover the requested window, so the
- * caller falls back to the plain mean subtitle instead of quoting a median
- * measured over the wrong period. `dailySummaries` is capped server-side (1,500
- * most recent days), which makes that check load-bearing for long histories.
- */
-export function medianSpendingDay(
-  rows: readonly { date: string; expense: number }[] | undefined,
-  range: DateRange,
-): number | null {
-  if (!rows?.length) return null
-  // The coverage check the "typical day" claim rests on. `daily-summaries` is
-  // capped server-side (1,500 most recent days) and the cap silently truncates
-  // the OLDEST days, so a window that starts before the first row returned is
-  // only partly covered and its median describes a different period than the
-  // label promises. Measured on the real ledger (1,519 stored days, so the cap
-  // drops 2019-01-01..2019-06-08): the yearly-2019 window reads a typical day of
-  // 53.00 against a true 81.50 (-35.0%), and FY 2019-20 reads 72.00 against
-  // 91.50 (-21.3%). Returning null degrades to the mean-only subtitle, which is
-  // the documented contract, instead of quoting a wrong number confidently.
-  const earliestCovered = rows.reduce((min, r) => (r.date < min ? r.date : min), rows[0].date)
-  if (range.start_date && range.start_date < earliestCovered) return null
-  const inRange = rows.filter(
-    (r) =>
-      (!range.start_date || r.date >= range.start_date) &&
-      (!range.end_date || r.date <= range.end_date),
-  )
-  const spendingDays = inRange.map((r) => Math.abs(r.expense)).filter((v) => v > 0)
-  if (spendingDays.length === 0) return null
-  return computeMedian(spendingDays)
-}
-
-/**
- * Median spend in a complete CALENDAR month, from a monthly aggregation map.
- *
- * The month in progress is excluded because a partial month always reads low
- * and would drag the "typical month" claim down -- the same reason Copilot
- * Money leaves the current month out of its average monthly spend
- * (https://help.copilot.money/en/articles/6918427-understanding-key-metrics-for-spending).
- * Returns `null` below two complete months, where a median is not meaningful.
- *
- * A month you spent NOTHING in stays in the median, because it is still a month.
- * This matters for consistency, not just for correctness on its own: the mean
- * beside it (`monthlyBurnRate`, whose divisor is `monthsCovered`) counts every
- * calendar month in the window, and both halves render through one
- * `meanRateSubtitle` template. Filtering `v > 0` here shipped two different
- * definitions of "typical month is X" -- the sibling
- * `monthlySpendShape.median` on the Expense Analysis page keeps zeros, so the
- * same phrase disagreed across pages. Reproduced this session on four calendar
- * months with spend in two (10,000 / 0 / 0 / 30,000): a 4-month divisor, mean
- * 10,000, and a typical month of 20,000 here against 5,000 there. The zeros are
- * only implicit ones when the rollup omits the key entirely, which is why the
- * span is reconstructed from the covered months rather than read off
- * `Object.keys`.
- */
-export function medianSpendingMonth(
-  monthly: Record<string, { expense?: number }> | undefined,
-  now: Date = new Date(),
-): number | null {
-  if (!monthly) return null
-  const cutoff = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const complete = Object.entries(monthly).filter(([key]) => key < cutoff)
-  if (complete.length === 0) return null
-  const byMonth = new Map(complete.map(([key, m]) => [key, Math.abs(m.expense ?? 0)]))
-  const keys = [...byMonth.keys()].sort((a, b) => a.localeCompare(b))
-  // Zero-fill the gaps the rollup left out entirely, so a month with no rows and
-  // a month with a 0 total are counted the same way. Both ends of `keys` exist
-  // because the empty-`complete` guard above already returned, which is what
-  // makes the `.at(-1)` assertion safe.
-  const totals = monthKeysInclusive(keys[0], keys.at(-1)!).map((key) => byMonth.get(key) ?? 0)
-  if (totals.length < 2) return null
-  return computeMedian(totals)
-}
-
-/**
- * Every "YYYY-MM" from `first` to `last` inclusive, gaps filled in.
- *
- * Stepped with `addMonthsToKey`, which clamps rather than overflowing -- the
- * `setMonth` idiom turns 31 Jan + 1 month into 3 March and would skip a calendar
- * month out of the divisor. Anchored on day 01 so the clamp never has to fire.
- */
-function monthKeysInclusive(first: string, last: string): string[] {
-  const keys: string[] = []
-  let cursor = `${first}-01`
-  for (let guard = 0; guard < 1200 && cursor.slice(0, 7) <= last; guard++) {
-    keys.push(cursor.slice(0, 7))
-    cursor = addMonthsToKey(cursor, 1)
-  }
-  return keys
-}
+// Compatibility exports; calculation policies are shared by all consumers.
+export {
+  resolveSpanRange,
+  computeDaysInRange,
+  computeMonthsInRange,
+  monthsCovered,
+  medianSpendingDay,
+  medianSpendingMonth,
+} from '@/lib/finance/spendingStatistics'
+export { medianOf as computeMedian } from '@/lib/distribution'
 
 export function computeWeekendSplit(transactions: Transaction[]) {
   let weekend = 0

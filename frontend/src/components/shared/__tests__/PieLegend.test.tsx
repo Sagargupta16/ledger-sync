@@ -47,7 +47,7 @@ describe('PieLegend', () => {
     const slices = capPieSlices(data)
     render(
       <>
-        <StandardPieChart data={data} ariaLabel="Expenses by category" />
+        <StandardPieChart data={data} showLegend={false} ariaLabel="Expenses by category" />
         <PieLegend slices={slices} onSelect={() => {}} focusRingClass="ring-x" />
       </>,
     )

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  deriveFIREInputs,
   computeFIRENumber,
   computeCoastFIRE,
   computeLeanFIRE,
@@ -9,6 +10,56 @@ import {
   computeFIRE,
   computeRetirementCorpus,
 } from '../fireCalculator'
+
+describe('deriveFIREInputs', () => {
+  it('annualizes observed months and keeps the 60% essential-expense assumption', () => {
+    const inputs = deriveFIREInputs(240_000, -90_000, 3)
+    expect(inputs).toEqual({
+      annualIncome: 960_000,
+      annualExpenses: 360_000,
+      annualSavings: 600_000,
+      monthlyExpenses: 30_000,
+      essentialAnnualExpenses: 216_000,
+    })
+    const result = computeFIRE(inputs)
+    expect(result.fireNumber).toBe(12_000_000)
+    expect(result.leanFIRE).toBe(7_200_000)
+  })
+
+  it('retains the one-month fallback when no rollup keys are available', () => {
+    expect(deriveFIREInputs(18_000, 6000, 0)).toEqual({
+      annualIncome: 216_000,
+      annualExpenses: 72_000,
+      annualSavings: 144_000,
+      monthlyExpenses: 6000,
+      essentialAnnualExpenses: 43_200,
+    })
+  })
+
+  it('returns zero defaults for an empty input', () => {
+    expect(deriveFIREInputs(0, 0, 0)).toEqual({
+      annualIncome: 0,
+      annualExpenses: 0,
+      annualSavings: 0,
+      monthlyExpenses: 0,
+      essentialAnnualExpenses: 0,
+    })
+  })
+
+  it('accepts either expense sign without changing the result', () => {
+    expect(deriveFIREInputs(1200, -300, 2)).toEqual(deriveFIREInputs(1200, 300, 2))
+  })
+
+  it('preserves negative annual savings when expenses exceed income', () => {
+    expect(deriveFIREInputs(1000, 1500, 2)).toEqual({
+      annualIncome: 6000,
+      annualExpenses: 9000,
+      annualSavings: -3000,
+      monthlyExpenses: 750,
+      essentialAnnualExpenses: 5400,
+    })
+  })
+})
 
 describe('computeFIRENumber', () => {
   it('divides annual expenses by SWR', () => {

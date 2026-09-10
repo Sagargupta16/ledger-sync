@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Wallet, CreditCard, Upload } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Wallet, CreditCard, Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 import MonthlyFlowChart from '@/components/analytics/MonthlyFlowChart'
+import InvestmentFlowSummary from '@/components/analytics/InvestmentFlowSummary'
 
 import PieLegend from '@/components/shared/PieLegend'
 import { capPieSlices } from '@/components/ui/pieSlices'
@@ -15,14 +16,40 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { FinancialHealthScore } from '@/components/analytics'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
+import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
+import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
+import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { computeAgeOfMoney, computeDaysOfBuffering, computeLiquidPosition } from '@/lib/ageOfMoneyCalculator'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
-import { toMonthlyAmount } from '@/pages/subscription-tracker/helpers'
+
+function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
+  hasHistory: boolean
+  onViewAll: () => void
+}>) {
+  const empty = hasHistory ? {
+    icon: CalendarRange,
+    title: 'No transactions in this period',
+    description: 'Your history is available. Choose the full history to continue exploring.',
+    actionLabel: 'View all history',
+    onAction: onViewAll,
+  } : {
+    icon: Upload,
+    title: 'No transactions yet',
+    description: 'Upload a bank statement to unlock your spending breakdowns, insights, and health score.',
+    actionLabel: 'Upload Data',
+    actionHref: ROUTES.UPLOAD,
+  }
+  return (
+    <PageContainer>
+      <PageHeader title="Dashboard" subtitle="Monitor cash flow, financial health, and account activity." />
+      <EmptyState {...empty} variant="card" />
+    </PageContainer>
+  )
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -41,6 +68,8 @@ export default function DashboardPage() {
     monthlyFlow,
     partialMonthLabel,
     momChanges,
+    investmentTransfers,
+    hasInvestmentMappings,
   } = useDashboardMetrics()
 
   // Fixed Commitments from active recurring.
@@ -59,11 +88,11 @@ export default function DashboardPage() {
     () => recurringItems.filter((r) => r.type === 'Expense'),
     [recurringItems],
   )
-  const fixedCommitmentsMonthly = useMemo(
-    () => fixedCommitments.reduce((sum, r) => sum + toMonthlyAmount(r.expected_amount, r.frequency), 0),
-    [fixedCommitments],
+  const today = getTodayKey()
+  const commitmentSummary = useMemo(
+    () => summarizeRecurringCommitments(fixedCommitments, today),
+    [fixedCommitments, today],
   )
-  const fixedCount = fixedCommitments.length
 
   // Age of Money & Days of Buffering
   const ageOfMoney = useMemo(
@@ -122,6 +151,10 @@ export default function DashboardPage() {
     void balanceQuery.refetch()
     void classificationsQuery.refetch()
   }
+  const focusCurrentFY = () => {
+    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    setViewMode('fy')
+  }
 
   if (pageLoading) return <PageSkeleton />
 
@@ -139,17 +172,7 @@ export default function DashboardPage() {
   // instead of a grid of empty widgets.
   if (!filteredTransactions?.length) {
     return (
-      <PageContainer>
-        <PageHeader title="Dashboard" subtitle="Monitor cash flow, financial health, and account activity." />
-        <EmptyState
-          icon={Upload}
-          title="No transactions yet"
-          description="Upload a bank statement to unlock your spending breakdowns, insights, and health score."
-          actionLabel="Upload Data"
-          actionHref={ROUTES.UPLOAD}
-          variant="card"
-        />
-      </PageContainer>
+      <DashboardEmpty hasHistory={Boolean(dataDateRange.maxDate)} onViewAll={() => setViewMode('all_time')} />
     )
   }
 
@@ -169,6 +192,28 @@ export default function DashboardPage() {
         }
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-[var(--hairline-1)] pb-4">
+        <p className="text-xs leading-5 text-muted-foreground">
+          {dataDateRange.maxDate && <>Latest transaction: <time dateTime={dataDateRange.maxDate}>{formatDate(dataDateRange.maxDate)}</time>. </>}
+          Monthly comparisons use complete months.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<CalendarRange className="size-3.5" />}
+            onClick={focusCurrentFY}
+          >
+            Focus current FY
+          </Button>
+          <Link to={ROUTES.INCOME_EXPENSE_FLOW} className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            Follow the money <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+
+      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
+
       <section className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
@@ -180,30 +225,77 @@ export default function DashboardPage() {
           dateRange={dateRange}
           ageOfMoney={ageOfMoney}
           daysOfBuffering={daysOfBuffering}
-          fixedCommitmentsMonthly={fixedCommitmentsMonthly}
-          fixedCount={fixedCount}
+          fixedCommitmentsMonthly={commitmentSummary.monthlyExpense}
+          fixedCount={commitmentSummary.count}
           momChanges={momChanges}
         />
+        {commitmentSummary.needsReview.count > 0 && (
+          <aside aria-label="Recurring estimates needing review" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-app-orange/20 bg-app-orange/5 px-4 py-3">
+            <p className="min-w-0 text-xs leading-5 text-muted-foreground">
+              Fixed costs include {formatCurrency(commitmentSummary.needsReview.monthlyExpense)}/month
+              {' '}from {commitmentSummary.needsReview.count} older, unconfirmed detections.
+              {' '}{formatCurrency(commitmentSummary.current.monthlyExpense)}/month is recent or confirmed.
+            </p>
+            <Link to={ROUTES.SUBSCRIPTIONS} className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              Review recurring items <ArrowUpRight className="size-3.5" aria-hidden="true" />
+            </Link>
+          </aside>
+        )}
       </section>
 
-      {/* Financial Health Score */}
-      <FinancialHealthScore transactions={filteredTransactions} />
-
-      {/* Income vs spending over time -- direction, which the pies below cannot show */}
-      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
-
-      {/* Income Sources & Expense Sources */}
+      {/* Spending first, then the income that funds it. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        {/* Expense Sources */}
+        <section className="dashboard-source ledger-panel p-4 sm:p-5">
+          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-7 items-center justify-center text-app-red">
+              <CreditCard className="size-3.5 text-app-red" />
+            </span>
+            <span>Expense Sources</span>
+          </h2>
+          {expenseChartData.length > 0 ? (
+            <div className="dashboard-source-body">
+              <StandardPieChart
+                data={expenseChartData}
+                height={180}
+                showLegend={false}
+                ariaLabel="Expense sources pie chart"
+                centerValue={formatCurrencyShort(expenseTotal)}
+                centerLabel="Total"
+                onSliceClick={(name) => {
+                  void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                }}
+              />
+              <div className="space-y-1">
+                <PieLegend
+                  slices={expenseSlices}
+                  focusRingClass="focus-visible:ring-app-red/40"
+                  onSelect={(name) => {
+                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                  }}
+                />
+                <div className="pt-2 mt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Total</span>
+                    <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
+          )}
+        </section>
         {/* Income Sources */}
-        <section className="ledger-panel p-4 sm:p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-app-green/10">
+        <section className="dashboard-source ledger-panel p-4 sm:p-5">
+          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+            <span className="flex size-7 items-center justify-center text-app-green">
               <Wallet className="size-3.5 text-app-green" />
             </span>
             <span>Income Sources</span>
           </h2>
           {incomeChartData.length > 0 ? (
-            <div className="space-y-4">
+            <div className="dashboard-source-body">
               <StandardPieChart
                 data={incomeChartData}
                 height={180}
@@ -247,48 +339,23 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Expense Sources */}
-        <section className="ledger-panel p-4 sm:p-5">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-app-red/10">
-              <CreditCard className="size-3.5 text-app-red" />
-            </span>
-            <span>Expense Sources</span>
-          </h2>
-          {expenseChartData.length > 0 ? (
-            <div className="space-y-4">
-              <StandardPieChart
-                data={expenseChartData}
-                height={180}
-                showLegend={false}
-                ariaLabel="Expense sources pie chart"
-                centerValue={formatCurrencyShort(expenseTotal)}
-                centerLabel="Total"
-                onSliceClick={(name) => {
-                  void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                }}
-              />
-              <div className="space-y-1">
-                <PieLegend
-                  slices={expenseSlices}
-                  focusRingClass="focus-visible:ring-app-red/40"
-                  onSelect={(name) => {
-                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                  }}
-                />
-                <div className="pt-2 mt-2 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Total</span>
-                    <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
-          )}
-        </section>
       </div>
+
+      <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
+
+      <FinancialHealthScore transactions={filteredTransactions} />
+
+      <nav aria-label="Planning shortcuts" className="flex flex-wrap gap-x-6 gap-y-1 border-t border-[var(--hairline-1)] pt-3">
+        {[
+          { to: ROUTES.TAX_PLANNING, label: 'Salary & RSU planning' },
+          { to: ROUTES.BUDGETS, label: 'Set a budget' },
+          { to: ROUTES.GOALS, label: 'Track a goal' },
+        ].map(({ to, label }) => (
+          <Link key={to} to={to} className="inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {label} <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        ))}
+      </nav>
 
       <div className="ledger-ruler" aria-hidden="true" />
     </PageContainer>

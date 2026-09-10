@@ -11,15 +11,17 @@
  *   />
  */
 
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Brush,
-} from 'recharts'
+import { useId } from 'react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Brush } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
-  areaGradient, areaGradientUrl, LEGEND_DEFAULTS, shouldAnimate, ACTIVE_DOT,
-  BRUSH_DEFAULTS,
+  areaGradient, areaGradientUrl, ACTIVE_DOT, BRUSH_DEFAULTS, referenceLine,
 } from '@/components/ui/chartDefaults'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -85,43 +87,63 @@ export default function StandardAreaChart({
   showBrush = false,
   ariaLabel,
 }: StandardAreaChartProps) {
+  const chartId = useId().replaceAll(':', '')
+  const { animate, isMobile } = useChartPresentation(data.length)
+
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  const animate = shouldAnimate(data.length)
   const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
-  const yDefaults = yAxisDefaults()
+  const yDefaults = yAxisDefaults({ width: isMobile ? 48 : 56 })
   const rows = data as readonly Record<string, unknown>[]
   const formatValue = tooltipFormatter ?? formatCurrency
+  const latest = rows.at(-1)
+  const latestLabel = chartCellText(latest?.[dataKey])
+  const hasNegative = rows.some((row) => areas.some((area) => Number(row[area.key]) < 0))
 
   return (
     <>
+      {showLegend && (
+        <ChartSeriesLegend
+          items={areas.map((area) => {
+            const value = latest?.[area.key]
+            return {
+              key: area.key,
+              label: area.label ?? area.key,
+              color: area.color,
+              value: typeof value === 'number' ? formatValue(value) : undefined,
+            }
+          })}
+          caption={latestLabel ? `Latest: ${tooltipLabelFormatter?.(latestLabel) ?? latestLabel}` : undefined}
+        />
+      )}
       <ChartContainer height={height} ariaLabel={ariaLabel}>
         <AreaChart
           data={data}
-          margin={{ top: 8, right: 12, bottom: xAngle ? 20 : 8, left: 4 }}
+          margin={{ top: 16, right: isMobile ? 8 : 16, bottom: xAngle ? 20 : 8, left: 0 }}
         >
           <defs>
-            {areas.map((area) =>
-              (area.showFill ?? true) && areaGradient(area.key, area.color, area.fillOpacity ?? 0.3),
+            {areas.map((area, index) =>
+              (area.showFill ?? true) && areaGradient(`${chartId}-${index}`, area.color, area.fillOpacity ?? 0.22),
             )}
           </defs>
           <CartesianGrid {...GRID_DEFAULTS} />
           <XAxis
             dataKey={dataKey}
             {...xDefaults}
+            interval={isMobile ? 'preserveStartEnd' : xDefaults.interval}
             {...(xTickFormatter && { tickFormatter: xTickFormatter })}
           />
           <YAxis {...yDefaults} />
           <Tooltip
             {...chartTooltipProps}
+            cursor={CHART_LINE_CURSOR_STYLE}
+            content={<ChartTooltipContent />}
             formatter={(value) => formatValue(typeof value === 'number' ? value : 0)}
             {...(tooltipLabelFormatter && { labelFormatter: tooltipLabelFormatter as never })}
           />
-          {showLegend && areas.length > 1 && (
-            <Legend {...LEGEND_DEFAULTS} />
-          )}
+          {hasNegative && !referenceLines?.some((ref) => ref.y === 0) && referenceLine({ y: 0, variant: 'zero' })}
           {referenceLines?.map((ref) => (
             <ReferenceLine
               key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
@@ -132,27 +154,33 @@ export default function StandardAreaChart({
               label={ref.label ? {
                 value: ref.label,
                 fill: CHART_TEXT.subtle,
-                fontSize: 11,
+                fontSize: 10,
+                fontFamily: 'var(--font-mono)',
+                offset: 8,
                 position: 'insideTopRight',
               } : undefined}
             />
           ))}
-          {areas.map((area) => (
+          {areas.map((area, index) => (
             <Area
               key={area.key}
               type={area.type ?? 'monotone'}
               dataKey={area.key}
               name={area.label ?? area.key}
               stroke={area.color}
-              strokeWidth={area.strokeWidth ?? 2}
+              strokeWidth={area.strokeWidth ?? 2.25}
+              strokeLinecap="round"
+              strokeLinejoin="round"
               strokeDasharray={area.strokeDasharray}
-              fill={(area.showFill ?? true) ? areaGradientUrl(area.key) : 'transparent'}
+              fill={(area.showFill ?? true) ? areaGradientUrl(`${chartId}-${index}`) : 'transparent'}
               fillOpacity={1}
-              dot={false}
+              dot={rows.filter((row) => typeof row[area.key] === 'number').length === 1
+                ? { r: 3, fill: area.color, strokeWidth: 0 }
+                : false}
               activeDot={{ ...ACTIVE_DOT, fill: area.color }}
               connectNulls
               isAnimationActive={animate}
-              animationDuration={600}
+              animationDuration={520}
               animationEasing="ease-out"
               stackId={stacked ? 'stack' : area.stackId}
             />
@@ -169,6 +197,11 @@ export default function StandardAreaChart({
           )}
         </AreaChart>
       </ChartContainer>
+      {showBrush && data.length > 4 && (
+        <p className="mt-2 text-right text-[11px] text-muted-foreground">
+          Drag the handles to inspect a period.
+        </p>
+      )}
       {chartDataTable(
         rows,
         [

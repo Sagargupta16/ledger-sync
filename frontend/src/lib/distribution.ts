@@ -28,6 +28,25 @@ export function medianOf(values: readonly number[]): number {
 }
 
 /**
+ * First prefix reaching a percentage of the total, including the crossing row.
+ * Callers own filtering, ordering and the total; ties remain separate rows.
+ */
+export function cumulativeShareCutoff(
+  orderedValues: readonly number[],
+  total: number,
+  thresholdPercent: number,
+): { count: number; share: number } {
+  if (total <= 0) return { count: 0, share: 0 }
+  let running = 0
+  for (const [index, value] of orderedValues.entries()) {
+    running += value
+    const share = (running / total) * 100
+    if (share >= thresholdPercent) return { count: index + 1, share }
+  }
+  return { count: orderedValues.length, share: 100 }
+}
+
+/**
  * How many times the mean exceeds the median, or `null` when the median cannot
  * serve as a denominator: an empty series, or a median of zero, which is what an
  * all-calendar-days spending series looks like (real ledger: 1,389 of 2,769

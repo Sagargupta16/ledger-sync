@@ -297,11 +297,63 @@ Requirements:
 - Use `PageContainer` and `PageHeader` for page structure.
 - Use `DataTable` with `mobileCards` for wide flat tables.
 - Use `Money` where amounts could be compressed.
-- Give every chart an accessible name.
+- Pass an `ariaLabel` to every chart and preserve its accessible table.
 - Preserve both the Light and Dark themes.
+- Honor the existing Full and Reduced motion preference.
 - Verify 320 px phone, phone landscape, tablet, desktop, and wide desktop
   layouts in a real browser.
 - Do not hide required workflows on mobile.
+
+### Building and extending charts
+
+Use the [shared chart composition](architecture.md#shared-chart-composition)
+reference for component ownership and source links. Keep financial queries,
+classification, date filtering, and calculations in feature hooks and utilities.
+Pass the resulting rows, labels, colors, formatters, and drilldown callbacks to
+the Standard chart adapters.
+
+For a custom plot, reuse `ChartContainer`, `ChartTooltipContent`,
+`ChartSeriesLegend` or `PieChartLedger`, and `chartDefaults` as appropriate.
+Subscribe through `useChartPresentation` so Recharts paint and animation follow
+live settings. Import the new tooltip, legend, pie ledger, and presentation
+hook from their own `components/ui/` files.
+
+Standard adapters already render accessible data tables. For custom plots,
+follow [chartDataTable](../frontend/src/components/ui/chartDataTable.tsx): keep
+the captioned table outside the plot's image wrapper, with exactly one scoped
+row-header column. The required shape is:
+
+```tsx
+<>
+  <ChartContainer height={280} ariaLabel={description}>
+    <YourRechartsPlot data={rows} />
+  </ChartContainer>
+  {chartDataTable(rows, columns, description, rowKey)}
+</>
+```
+
+Do not wrap this fragment or a Standard chart in another `role="img"` element;
+that would hide the table's semantics. Use the same series labels and value
+formatting as the plot. Pie fallbacks use the same grouped slices as the wedges,
+including the exact Other amount; category clicks go through `sliceClickTarget`.
+
+When changing chart presentation, verify the affected behavior:
+
+- Check the table's caption, headers, rows, values, and absence of any
+  `role="img"` ancestor. The existing
+  [accessible chart checks](../frontend/src/components/analytics/__tests__/StandardAccessibleCharts.test.tsx)
+  cover data parity; inspect accessibility in a browser too, since jsdom does
+  not implement image descendants becoming presentational.
+- Toggle Light/Dark and Full/Reduced while the chart is mounted. Check SVG
+  paint, tooltip motion, ledger interactions, and retention of page state.
+  Keep colors derived from tokens and animations tied to the existing stores.
+- Preserve all selected-period rows when adding a brush or mobile window.
+  Keep controlled range state above `ChartContainer`, whose inner plot remounts
+  on theme changes. Check both history endpoints, earlier/later controls,
+  period changes, and the full table and summary totals. See the
+  [monthly range regression checks](../frontend/src/components/analytics/__tests__/MonthlyFlowChartRange.test.tsx).
+- Exercise empty and single-point series, negative values, long labels, and
+  narrow layouts; confirm existing category drilldown still reaches its target.
 
 ## Testing
 

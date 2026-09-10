@@ -85,13 +85,13 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
                 Date
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
-                Granted Qty
+                Gross Qty
               </th>
-              <th scope="col" className="py-2 pr-3 text-left font-medium" title="Shares credited after sell-to-cover tax withholding. Optional.">
-                Received
+              <th scope="col" className="py-2 pr-3 text-left font-medium" title="Actual shares credited after tax. Blank uses the withholding estimate.">
+                Received Qty
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
-                Est. Value
+                After-tax Value
               </th>
               <th scope="col" className="py-2 pr-3 text-left font-medium">
                 FY

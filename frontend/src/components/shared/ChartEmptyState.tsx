@@ -1,6 +1,9 @@
 import { motion } from 'motion/react'
 import { BarChart3 } from 'lucide-react'
 
+import { DURATION, EASING } from '@/constants/animations'
+import { useMotionStore } from '@/store/motionStore'
+
 interface ChartEmptyStateProps {
   readonly message?: string
   readonly height?: number
@@ -14,25 +17,29 @@ export default function ChartEmptyState({
   message = 'No data available for the selected period',
   height = 300,
 }: ChartEmptyStateProps) {
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  const transition = { duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }
+
   return (
     <output
       aria-label="No data available for this chart"
-      className="flex flex-col items-center justify-center gap-3 rounded-md border border-[var(--hairline-1)]"
+      className="flex min-w-0 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--hairline-3)] bg-[var(--overlay-1)] p-4 text-center"
       style={{ height }}
     >
       <motion.span
-        className="rounded-md bg-[var(--overlay-2)] p-3"
-        initial={{ opacity: 0, scale: 0.8 }}
+        aria-hidden="true"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--hairline-2)] bg-surface-1 text-text-tertiary"
+        initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        transition={transition}
       >
-        <BarChart3 className="w-6 h-6 text-text-tertiary" />
+        <BarChart3 className="size-5" strokeWidth={1.5} />
       </motion.span>
       <motion.span
-        className="text-sm text-text-tertiary"
-        initial={{ opacity: 0, y: 6 }}
+        className="max-w-[32ch] text-pretty text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]"
+        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
+        transition={transition}
       >
         {message}
       </motion.span>

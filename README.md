@@ -95,7 +95,7 @@ pnpm run setup
 pnpm run dev
 ```
 
-Local services:
+Local services run natively; Docker is not required:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:8000`
@@ -131,12 +131,27 @@ pnpm run build     # Production frontend build
 pnpm run format    # Format both stacks
 ```
 
+Focused finance checks, from the repository root:
+
+```bash
+pnpm --dir frontend exec vitest run src/lib/finance/__tests__
+pnpm --dir frontend exec vitest run src/lib/__tests__/rsuVesting.test.ts src/lib/__tests__/projectionCalculator.test.ts src/lib/__tests__/tdsScheduleCalculator.test.ts src/lib/__tests__/recurringCalculations.test.ts
+pnpm --dir frontend exec vitest run src/lib/__tests__/instrumentCalculators.test.ts src/lib/__tests__/fireCalculator.test.ts src/components/analytics/__tests__/CreditCardHealth.test.tsx
+pnpm --dir frontend run type-check
+```
+
+The [calculation check map](docs/CALCULATIONS.md#focused-calculation-checks)
+adds consumer regressions and synthetic Python/SQLite tests. PostgreSQL-specific
+checks use a disposable native cluster, as described in [Testing](docs/TESTING.md).
+
 Backend migrations:
 
 ```bash
 cd backend
 uv run alembic upgrade head
 ```
+
+Run migrations only against the intended local development database.
 
 ## Tech Stack
 
@@ -150,6 +165,27 @@ uv run alembic upgrade head
 | Tooling | pnpm 11, uv, Vitest, pytest, Ruff, mypy, ESLint |
 
 ## Architecture
+
+Financial arithmetic is shared by domain. Backend
+[ledger_math.py](backend/src/ledger_sync/core/ledger_math.py) handles signed
+balances and investment boundaries; frontend [lib/finance](frontend/src/lib/finance/)
+owns investment and SIP models, goals and milestones, spending statistics,
+credit-card utilization, cash flow, dashboard metrics, tax, and dated payroll.
+These small domains compose the existing RSU, salary, TDS, recurring, and
+distribution helpers. Instrument, FIRE, GST, and XIRR calculators keep their
+shared owners. Hooks select inputs; page/chart adapters format results.
+
+Annual payroll cash is the sum of the dated monthly settlement, with unused
+share-withholding credit kept separate. Tax Planning combines annual employment
+and recorded business income for tax liability while labeling payroll cash as
+employment-only. Gross taxable value, received shares, and cash take-home are
+different measures.
+
+Use the [where-to-edit calculation map](docs/CALCULATIONS.md#implementation-owners)
+for canonical owners and focused tests. It documents money units, investment
+signs, gross versus received shares, cash take-home, completed-month policies,
+prepaid-card balances, and [trust limits](docs/CALCULATIONS.md#trust-and-compatibility),
+including the unresolved legacy RSU display-currency price convention.
 
 ```mermaid
 flowchart LR
@@ -204,7 +240,11 @@ instance.
 The [static overview image](docs/images/system-overview.svg) remains available
 as a companion illustration.
 
-See [docs/architecture.md](docs/architecture.md) for component and data-flow details.
+See [architecture](docs/architecture.md) for system boundaries and the
+[shared chart system](docs/architecture.md#shared-chart-composition) for frontend
+composition and accessibility contracts. The
+[developer calculation map](docs/CALCULATIONS.md#developer-calculation-map)
+links financial rule owners, page call paths, units, rates, and focused checks.
 
 ## Deployment
 
@@ -229,7 +269,7 @@ changing production configuration.
 - [Page and Route Catalog](docs/PAGES.md)
 - [API Reference](docs/API.md)
 - [Architecture](docs/architecture.md)
-- [Calculations](docs/CALCULATIONS.md)
+- [Calculation Map and Formula Reference](docs/CALCULATIONS.md)
 - [Database](docs/DATABASE.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Testing](docs/TESTING.md)

@@ -1,3 +1,5 @@
+import { cumulativeShareCutoff, medianOf } from '@/lib/distribution'
+
 import type {
   KindFilter,
   LabelKind,
@@ -93,13 +95,6 @@ export function filterByKind(rows: readonly MerchantRow[], filter: KindFilter): 
   return rows.filter((row) => toLabelKind(row.label_kind) === filter)
 }
 
-function median(values: readonly number[]): number {
-  if (values.length === 0) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
-}
-
 /**
  * How many of the biggest merchants it takes to cross `threshold` percent of
  * tracked spend, plus the share they actually reach.
@@ -115,13 +110,7 @@ export function paretoCut(
   const total = rows.reduce((sum, row) => sum + row.total_spent, 0)
   if (total <= 0) return { count: 0, share: 0 }
   const descending = [...rows].sort((a, b) => b.total_spent - a.total_spent)
-  let running = 0
-  for (const [index, row] of descending.entries()) {
-    running += row.total_spent
-    const share = (running / total) * 100
-    if (share >= threshold) return { count: index + 1, share }
-  }
-  return { count: descending.length, share: 100 }
+  return cumulativeShareCutoff(descending.map((row) => row.total_spent), total, threshold)
 }
 
 function maxBy(rows: readonly MerchantRow[], value: (row: MerchantRow) => number): MerchantRow | null {
@@ -148,7 +137,7 @@ export function computeStats(
     topBySpend,
     topByFrequency: maxBy(rows, (row) => row.transaction_count),
     avgTicket: trackedPayments > 0 ? trackedSpend / trackedPayments : 0,
-    medianMerchantTicket: median(rows.map((row) => row.avg_transaction)),
+    medianMerchantTicket: medianOf(rows.map((row) => row.avg_transaction)),
     topShare: trackedSpend > 0 && topBySpend ? (topBySpend.total_spent / trackedSpend) * 100 : 0,
     vitalFewCount,
     vitalFewShare,

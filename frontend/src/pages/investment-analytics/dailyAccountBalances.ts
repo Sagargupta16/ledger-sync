@@ -9,24 +9,21 @@
  * the category taxonomy owned by `investmentUtils.ts`.
  */
 
+import {
+  investmentAccountDeltas,
+  type InvestmentAccountTest,
+  type InvestmentFlowTransaction,
+} from '@/lib/finance/investmentFlows'
+
+export { investmentAccountTest } from '@/lib/finance/investmentFlows'
+
 /** Minimal transaction shape the growth series needs. */
-export type GrowthTransaction = {
+export type GrowthTransaction = InvestmentFlowTransaction & {
   date: string
-  type: string
-  amount: number
-  to_account?: string | null
-  from_account?: string | null
-  account?: string | null
 }
 
 /** Answers "is this account name one of the user's investment accounts". */
-export type AccountTest = (name: string | null | undefined) => boolean
-
-/** Bind the membership test to the configured investment accounts. */
-export function investmentAccountTest(investmentAccounts: readonly string[]): AccountTest {
-  const accountSet = new Set(investmentAccounts)
-  return (name) => name != null && accountSet.has(name)
-}
+export type AccountTest = InvestmentAccountTest
 
 /**
  * Rows that move an investment account: a transfer with either leg inside the
@@ -66,13 +63,8 @@ function applyToRunningBalances(
   tx: GrowthTransaction,
   isInvestment: AccountTest,
 ): void {
-  if (tx.type === 'Transfer') {
-    if (isInvestment(tx.to_account)) running[tx.to_account as string] += tx.amount
-    if (isInvestment(tx.from_account)) running[tx.from_account as string] -= tx.amount
-  } else if (tx.type === 'Income' && isInvestment(tx.account)) {
-    running[tx.account as string] += tx.amount
-  } else if (tx.type === 'Expense' && isInvestment(tx.account)) {
-    running[tx.account as string] -= tx.amount
+  for (const delta of investmentAccountDeltas(tx, isInvestment)) {
+    running[delta.account] += delta.amount
   }
 }
 

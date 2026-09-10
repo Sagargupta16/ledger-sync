@@ -7,6 +7,8 @@ import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { Button, ConfirmDialog, PageContainer, PageHeader } from '@/components/ui'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import { getTodayKey } from '@/lib/dateUtils'
+import { getRecurringFreshness, summarizeRecurringCommitments } from '@/lib/recurringCalculations'
 import {
   useRecurringTransactions,
   useCreateRecurringTransaction,
@@ -26,6 +28,10 @@ import RecurringSummarySection from './components/RecurringSummarySection'
 
 type RecurringUpdate = Omit<RecurringTransactionPatch, 'id'>
 
+const byMonthlyCostDesc = (a: RecurringTransaction, b: RecurringTransaction) =>
+  toMonthlyAmount(b.expected_amount, b.frequency) -
+  toMonthlyAmount(a.expected_amount, a.frequency)
+
 export default function SubscriptionTrackerPage() {
   const {
     data: items = [],
@@ -40,6 +46,7 @@ export default function SubscriptionTrackerPage() {
   const [showForm, setShowForm] = useState(false)
   const [suggestion, setSuggestion] = useState<Suggestion | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+  const asOfDateKey = getTodayKey()
 
   // Commitments only. The detector also emits `habit` rows -- a lunch bought
   // every week is genuinely periodic but is not a bill, and summing it into
@@ -55,43 +62,32 @@ export default function SubscriptionTrackerPage() {
   )
   const habits = useMemo(() => items.filter((i) => i.pattern_kind === 'habit'), [items])
 
-  const byMonthlyCostDesc = (a: RecurringTransaction, b: RecurringTransaction) =>
-    toMonthlyAmount(b.expected_amount, b.frequency) -
-    toMonthlyAmount(a.expected_amount, a.frequency)
-
   const active = useMemo(
     () => commitments.filter((i) => i.is_active && i.is_confirmed).sort(byMonthlyCostDesc),
     [commitments],
   )
   const detected = useMemo(
-    () => commitments.filter((i) => i.is_active && !i.is_confirmed).sort(byMonthlyCostDesc),
-    [commitments],
+    () => commitments
+      .filter((i) => i.is_active && !i.is_confirmed && getRecurringFreshness(i, asOfDateKey) !== 'needs-review')
+      .sort((a, b) =>
+        Number(getRecurringFreshness(a, asOfDateKey) === 'unassessed') -
+        Number(getRecurringFreshness(b, asOfDateKey) === 'unassessed') ||
+        byMonthlyCostDesc(a, b),
+      ),
+    [commitments, asOfDateKey],
+  )
+  const needsReview = useMemo(
+    () => commitments
+      .filter((i) => getRecurringFreshness(i, asOfDateKey) === 'needs-review')
+      .sort(byMonthlyCostDesc),
+    [commitments, asOfDateKey],
   )
   const inactive = useMemo(() => commitments.filter((i) => !i.is_active), [commitments])
 
-  // A detected bill still leaves the account every month, so the KPIs cover
-  // confirmed AND detected commitments. Scoping them to confirmed rows only is
-  // what made this page report 0/mo against a ledger full of real rent.
-  const summary = useMemo(() => {
-    const live = [...active, ...detected]
-    const monthlyFor = (type: string) =>
-      live
-        .filter((s) => s.type === type)
-        .reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
-    const monthlyExpense = monthlyFor('Expense')
-    const monthlyIncome = monthlyFor('Income')
-    const deactivatedExpenseSavings = inactive
-      .filter((s) => s.type === 'Expense')
-      .reduce((s, i) => s + toMonthlyAmount(i.expected_amount, i.frequency), 0)
-    return {
-      monthlyExpense,
-      monthlyIncome,
-      netMonthly: monthlyIncome - monthlyExpense,
-      count: live.length,
-      deactivatedExpenseSavings,
-      deactivatedCount: inactive.filter((s) => s.type === 'Expense').length,
-    }
-  }, [active, detected, inactive])
+  const summary = useMemo(
+    () => summarizeRecurringCommitments(items, asOfDateKey),
+    [items, asOfDateKey],
+  )
 
   const { guardDemoAction } = useDemoGuard()
 
@@ -157,7 +153,7 @@ export default function SubscriptionTrackerPage() {
       <RecurringSummarySection
         isLoading={isLoading}
         summary={summary}
-        hasActiveItems={active.length > 0 || detected.length > 0}
+        hasActiveItems={summary.count > 0}
       />
 
       {!showForm && !isLoading && (
@@ -186,13 +182,23 @@ export default function SubscriptionTrackerPage() {
           <RecurringItemsSection
             title="Confirmed"
             items={active}
+            asOfDateKey={asOfDateKey}
             onUpdate={handleUpdate}
             onDelete={(id, name) => setDeleteTarget({ id, name })}
           />
           <RecurringItemsSection
             title="Detected"
-            description="Found in your ledger by pattern detection. Confirm the ones you want to keep, or dismiss the rest."
+            description="Recent detections appear first. Confirm the commitments you recognize."
             items={detected}
+            asOfDateKey={asOfDateKey}
+            onUpdate={handleUpdate}
+            onDelete={(id, name) => setDeleteTarget({ id, name })}
+          />
+          <RecurringItemsSection
+            title="Needs review"
+            description="No matching entry for more than two expected intervals plus one week. These still count in your totals; a gap does not mean a commitment ended."
+            items={needsReview}
+            asOfDateKey={asOfDateKey}
             onUpdate={handleUpdate}
             onDelete={(id, name) => setDeleteTarget({ id, name })}
           />
@@ -200,6 +206,7 @@ export default function SubscriptionTrackerPage() {
             title="Repeat spending"
             description="These repeat but are not bills, so they stay out of your fixed-cost totals. Mark one as a commitment if it belongs there."
             items={habits}
+            asOfDateKey={asOfDateKey}
             muted
             onUpdate={handleUpdate}
             onDelete={(id, name) => setDeleteTarget({ id, name })}
@@ -207,6 +214,7 @@ export default function SubscriptionTrackerPage() {
           <RecurringItemsSection
             title="Paused"
             items={inactive}
+            asOfDateKey={asOfDateKey}
             muted
             onUpdate={handleUpdate}
             onDelete={(id, name) => setDeleteTarget({ id, name })}

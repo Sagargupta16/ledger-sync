@@ -1,5 +1,9 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { motion } from 'motion/react'
+
+import { DURATION, EASING } from '@/constants/animations'
 import { cn } from '@/lib/cn'
+import { useMotionStore } from '@/store/motionStore'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
 type ButtonSize = 'sm' | 'md' | 'lg'
@@ -13,7 +17,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'border border-primary bg-primary text-primary-foreground hover:border-app-blue-vibrant hover:bg-app-blue-vibrant',
+    'border border-primary bg-primary text-primary-foreground shadow-[var(--ledger-control-shadow)] hover:border-app-blue-vibrant hover:bg-app-blue-vibrant',
   secondary:
     'ledger-control border text-foreground hover:text-foreground',
   ghost:
@@ -44,46 +48,74 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
     className,
     children,
     disabled,
+    style,
     ...props
   },
   ref
 ) {
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+
   return (
     <button
       ref={ref}
       type={type}
       disabled={disabled || isLoading}
+      aria-busy={isLoading || undefined}
       className={cn(
-        // transition-[color,background-color,border-color,transform] keeps the
-        // press scale springy without animating layout properties.
-        'inline-flex items-center justify-center whitespace-nowrap font-medium transition-[color,background-color,border-color,transform] duration-150 ease-out',
-        'active:scale-[0.97]',
+        'inline-flex max-w-full touch-manipulation items-center justify-center whitespace-normal text-center font-medium leading-5 tabular-nums [overflow-wrap:anywhere]',
+        !reduceMotion && 'enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97]',
         'disabled:pointer-events-none disabled:opacity-50',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         variantClasses[variant],
         sizeClasses[size],
         className
       )}
+      style={{
+        transitionProperty: 'transform, translate, scale, opacity',
+        transitionDuration: 'var(--duration-fast)',
+        transitionTimingFunction: 'var(--ease-cinematic)',
+        ...style,
+      }}
       {...props}
     >
-      {isLoading && (
-        <svg
-          className="animate-spin h-4 w-4"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
+      {(icon || isLoading) && (
+        <span
           aria-hidden="true"
+          className="inline-grid shrink-0 place-items-center [&>*]:[grid-area:1/1]"
         >
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-      )}
-      {!isLoading && icon && (
-        <span className="shrink-0" aria-hidden="true">{icon}</span>
+          {icon && (
+            <motion.span
+              initial={false}
+              animate={{ opacity: isLoading ? 0 : 1, scale: isLoading ? 0.8 : 1 }}
+              transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
+              className="inline-flex items-center justify-center"
+            >
+              {icon}
+            </motion.span>
+          )}
+          {isLoading && (
+            <motion.span
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
+              className="inline-flex"
+            >
+              <svg
+                className="size-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </motion.span>
+          )}
+        </span>
       )}
       {children}
     </button>

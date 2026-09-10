@@ -83,13 +83,13 @@ export default function YearReviewControls({
               review.mode === value
                 ? 'text-foreground hover:text-foreground'
                 : 'text-muted-foreground'
-            }`}
+              }`}
           >
             {review.mode === value && (
               <motion.span
                 layoutId="heatmapModeTab"
-                className="absolute inset-0 rounded-md"
-                style={{ backgroundColor: modeAccent[value] }}
+                className="absolute inset-0 rounded-md border"
+                style={{ backgroundColor: `${modeAccent[value]}18`, borderColor: `${modeAccent[value]}50` }}
                 initial={false}
                 transition={{ type: 'spring', stiffness: 500, damping: 35 }}
               />

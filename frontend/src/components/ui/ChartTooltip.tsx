@@ -17,27 +17,43 @@ import { isMotionReduced } from '@/store/motionStore'
  */
 
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: CHART_SURFACE.tooltipBg,
-  border: `1px solid ${CHART_SURFACE.tooltipBorder}`,
-  borderRadius: '8px',
-  color: CHART_TEXT.primary,
-  padding: '12px 16px',
-  boxShadow: `0 8px 24px ${CHART_SURFACE.tooltipShadow}`,
+  get backgroundColor() { return CHART_SURFACE.tooltipBg },
+  get border() { return `1px solid ${CHART_SURFACE.tooltipBorder}` },
+  borderRadius: '12px',
+  get color() { return CHART_TEXT.primary },
+  padding: '12px 14px',
+  boxShadow: `0 4px 8px -4px ${CHART_SURFACE.tooltipShadow}, 0 16px 32px -12px ${CHART_SURFACE.tooltipShadow}`,
+  maxWidth: 'min(320px, calc(100vw - 32px))',
+  fontSize: '12px',
+  fontVariantNumeric: 'tabular-nums',
+  lineHeight: 1.5,
 }
 
 export const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
-  color: CHART_TEXT.muted,
-  marginBottom: '4px',
-  fontWeight: 500,
+  get color() { return CHART_TEXT.muted },
+  marginBottom: '8px',
+  fontSize: '11px',
+  fontWeight: 600,
 }
 
 export const CHART_TOOLTIP_ITEM_STYLE: CSSProperties = {
-  color: CHART_TEXT.primary,
-  padding: '2px 0',
+  get color() { return CHART_TEXT.primary },
+  padding: '4px 0',
+  fontVariantNumeric: 'tabular-nums',
 }
 
 /** Cursor style for BarChart hover highlight (subtle instead of default white) */
-export const CHART_CURSOR_STYLE = { fill: CHART_SURFACE.cursor }
+export const CHART_CURSOR_STYLE = {
+  get fill() { return CHART_SURFACE.cursor },
+  radius: 4,
+}
+
+/** A fine crosshair keeps the selected period readable through filled areas. */
+export const CHART_LINE_CURSOR_STYLE = {
+  get stroke() { return CHART_SURFACE.referenceLineStrong },
+  strokeWidth: 1,
+  strokeDasharray: '3 4',
+}
 
 /**
  * The tooltip box glides to follow the cursor instead of teleporting between
@@ -47,8 +63,11 @@ export const CHART_CURSOR_STYLE = { fill: CHART_SURFACE.cursor }
  * once via `chartTooltipProps`.
  */
 export const CHART_TOOLTIP_WRAPPER_STYLE: CSSProperties = {
-  transition: 'transform 120ms ease-out, opacity 120ms ease-out',
+  get transition() {
+    return isMotionReduced() ? 'none' : 'transform 140ms ease-out, opacity 140ms ease-out'
+  },
   outline: 'none',
+  zIndex: 20,
 }
 
 /** Spread-friendly object for Recharts <Tooltip {...chartTooltipProps} /> */
@@ -63,6 +82,7 @@ export const chartTooltipProps = {
   get isAnimationActive() {
     return !isMotionReduced()
   },
-  animationDuration: 200,
+  offset: 14,
+  animationDuration: 140,
   animationEasing: 'ease-out' as const,
 } as const

@@ -15,22 +15,28 @@ import { ReferenceLine } from 'recharts'
 
 import { CHART_TEXT, CHART_SURFACE, getChartAxisColor } from '@/constants/chartColors'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
-import { getSmartInterval } from '@/lib/chartUtils'
 import { CHART_ANIMATION_THRESHOLD } from '@/constants'
 import { isMotionReduced } from '@/store/motionStore'
 
 // ─── CartesianGrid defaults ─────────────────────────────────────────────────
 
 export const GRID_DEFAULTS = {
-  strokeDasharray: '3 3',
-  stroke: CHART_SURFACE.gridLine,
+  strokeDasharray: '2 5',
+  get stroke() { return CHART_SURFACE.gridLine },
   vertical: false,
 } as const
 
 // ─── Axis defaults ──────────────────────────────────────────────────────────
 
-export const AXIS_TICK = { fill: CHART_TEXT.subtle, fontSize: 11 } as const
-export const AXIS_LINE = { stroke: CHART_SURFACE.axisLine } as const
+export const AXIS_TICK = {
+  get fill() { return CHART_TEXT.subtle },
+  fontSize: 11,
+  fontFamily: 'var(--font-mono)',
+  style: { fontVariantNumeric: 'tabular-nums' },
+} as const
+export const AXIS_LINE = {
+  get stroke() { return CHART_SURFACE.axisLine },
+} as const
 
 export function xAxisDefaults(dataLength = 0, opts?: {
   angle?: number
@@ -42,7 +48,9 @@ export function xAxisDefaults(dataLength = 0, opts?: {
     tick: AXIS_TICK,
     tickLine: false,
     axisLine: AXIS_LINE,
-    interval: dataLength > 12 ? getSmartInterval(dataLength) : 0,
+    tickMargin: 10,
+    minTickGap: 24,
+    interval: 'preserveStartEnd' as const,
     ...(opts?.angle !== undefined && {
       angle: opts.angle,
       textAnchor: 'end' as const,
@@ -62,8 +70,10 @@ export function yAxisDefaults(opts?: {
     stroke: getChartAxisColor(),
     tick: AXIS_TICK,
     tickLine: false,
-    axisLine: AXIS_LINE,
-    width: opts?.width ?? 60,
+    axisLine: false,
+    tickMargin: 8,
+    tickCount: 5,
+    width: opts?.width ?? 56,
     ...(opts?.currency !== false && {
       tickFormatter: (value: number) => formatCurrencyShort(value),
     }),
@@ -77,19 +87,20 @@ export function yAxisDefaults(opts?: {
  *
  * @param id - Unique gradient ID (used as `fill="url(#gradient-{id})"`)
  * @param color - Hex color string
- * @param topOpacity - Opacity at the top of the area (default 0.3)
+ * @param topOpacity - Opacity at the top of the area (default 0.22)
  * @param bottomOpacity - Opacity at the bottom (default 0.02)
  */
 export function areaGradient(
   id: string,
   color: string,
-  topOpacity = 0.3,
+  topOpacity = 0.22,
   bottomOpacity = 0.02,
 ) {
   const gradientId = `gradient-${id}`
   return (
     <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stopColor={color} stopOpacity={topOpacity} />
+      <stop offset="55%" stopColor={color} stopOpacity={topOpacity * 0.35} />
       <stop offset="100%" stopColor={color} stopOpacity={bottomOpacity} />
     </linearGradient>
   )
@@ -103,7 +114,7 @@ export function areaGradientUrl(id: string) {
 // ─── Bar radius helper ──────────────────────────────────────────────────────
 
 /** Default rounded corners for bar charts [topLeft, topRight, bottomLeft, bottomRight] */
-export const BAR_RADIUS: [number, number, number, number] = [4, 4, 0, 0]
+export const BAR_RADIUS: [number, number, number, number] = [5, 5, 0, 0]
 
 /** Smaller radius for stacked/grouped bars */
 export const BAR_RADIUS_SM: [number, number, number, number] = [3, 3, 0, 0]
@@ -119,9 +130,9 @@ export function shouldAnimate(dataLength: number): boolean {
 
 /** Active dot style for hover state on Line/Area charts */
 export const ACTIVE_DOT = {
-  r: 6,
+  r: 4,
   strokeWidth: 2,
-  stroke: CHART_SURFACE.activeStroke,
+  get stroke() { return CHART_SURFACE.activeStroke },
   fill: 'currentColor', // inherits from the line/area color
 } as const
 
@@ -145,11 +156,15 @@ const REFERENCE_LINE_VARIANTS: Record<
   ReferenceLineVariant,
   { stroke: string; strokeDasharray?: string; labelFill?: string }
 > = {
-  peak: { stroke: CHART_SURFACE.referenceLine, strokeDasharray: '4 4' },
-  avg: { stroke: CHART_SURFACE.referenceLine, strokeDasharray: '5 5' },
-  target: { stroke: CHART_SURFACE.referenceLineStrong, strokeDasharray: '6 3' },
-  goal: { stroke: rawColors.app.green, strokeDasharray: '6 3', labelFill: rawColors.app.green },
-  zero: { stroke: CHART_SURFACE.referenceLineStrong },
+  peak: { get stroke() { return CHART_SURFACE.referenceLine }, strokeDasharray: '3 5' },
+  avg: { get stroke() { return CHART_SURFACE.referenceLine }, strokeDasharray: '3 5' },
+  target: { get stroke() { return CHART_SURFACE.referenceLineStrong }, strokeDasharray: '6 3' },
+  goal: {
+    get stroke() { return rawColors.app.green },
+    strokeDasharray: '6 3',
+    get labelFill() { return rawColors.app.green },
+  },
+  zero: { get stroke() { return CHART_SURFACE.referenceLineStrong } },
 }
 
 interface ReferenceLineOptions {
@@ -182,7 +197,14 @@ export function referenceLine({ y, x, label, variant = 'peak' }: ReferenceLineOp
       strokeDasharray={style.strokeDasharray}
       label={
         label
-          ? { value: label, position: 'insideTopRight', fill: style.labelFill ?? CHART_TEXT.subtle, fontSize: 10 }
+          ? {
+              value: label,
+              position: 'insideTopRight',
+              fill: style.labelFill ?? CHART_TEXT.subtle,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              offset: 8,
+            }
           : undefined
       }
     />
@@ -205,7 +227,11 @@ export function currencyTooltipFormatter(value: unknown): string {
 // ─── Legend defaults ────────────────────────────────────────────────────────
 
 export const LEGEND_DEFAULTS = {
-  wrapperStyle: { paddingTop: '16px', fontSize: '12px' },
+  wrapperStyle: {
+    paddingTop: '16px',
+    fontSize: '12px',
+    get color() { return CHART_TEXT.secondary },
+  },
   iconType: 'circle' as const,
   iconSize: 8,
 }

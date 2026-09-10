@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   SKEW_THRESHOLD,
+  cumulativeShareCutoff,
   formatSkewFactor,
   isHeavySkew,
   meanRateSubtitle,
@@ -61,6 +62,32 @@ describe('medianOf', () => {
     const input = [3, 1, 2]
     medianOf(input)
     expect(input).toEqual([3, 1, 2])
+  })
+})
+
+describe('cumulativeShareCutoff', () => {
+  it.each([
+    { values: [80, 10, 5, 5], total: 100, threshold: 80, count: 1, share: 80 },
+    { values: [25, 25, 25, 25], total: 100, threshold: 80, count: 4, share: 100 },
+    { values: [50, 25, 25], total: 100, threshold: 75, count: 2, share: 75 },
+    { values: [100, 0, 0], total: 100, threshold: 100, count: 1, share: 100 },
+    { values: [60, 40], total: 100, threshold: 0, count: 1, share: 60 },
+    { values: [60, 40], total: 100, threshold: 101, count: 2, share: 100 },
+    { values: [0, 0], total: 0, threshold: 80, count: 0, share: 0 },
+    { values: [], total: 0, threshold: 80, count: 0, share: 0 },
+  ])('includes the crossing row for $values at $threshold%', ({ values, total, threshold, count, share }) => {
+    const cutoff = cumulativeShareCutoff(values, total, threshold)
+
+    expect(cutoff).toEqual({ count, share })
+  })
+
+  it('uses the caller order without sorting or merging rows', () => {
+    const values = [10, 80, 10]
+
+    const cutoff = cumulativeShareCutoff(values, 100, 80)
+
+    expect(cutoff).toEqual({ count: 2, share: 90 })
+    expect(values).toEqual([10, 80, 10])
   })
 })
 

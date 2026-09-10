@@ -157,6 +157,27 @@ describe('paretoCut', () => {
   it('is safe on empty input', () => {
     expect(paretoCut([])).toEqual({ count: 0, share: 0 })
   })
+
+  it('keeps merchants with the same label as separate rows for the cutoff', () => {
+    const rows = [
+      row({ merchant: 'Shared label', total_spent: 40 }),
+      row({ merchant: 'Shared label', label_kind: 'descriptor', total_spent: 40 }),
+      row({ merchant: 'Tail', total_spent: 20 }),
+    ]
+
+    expect(paretoCut(rows)).toEqual({ count: 2, share: 80 })
+  })
+
+  it('preserves the zero-total guard and a caller-supplied threshold', () => {
+    const rows = [
+      row({ merchant: 'A', total_spent: 40 }),
+      row({ merchant: 'B', total_spent: 30 }),
+      row({ merchant: 'C', total_spent: 30 }),
+    ]
+
+    expect(paretoCut([row({ merchant: 'Zero', total_spent: 0 })])).toEqual({ count: 0, share: 0 })
+    expect(paretoCut(rows, 50)).toEqual({ count: 2, share: 70 })
+  })
 })
 
 describe('computeStats', () => {
@@ -183,6 +204,18 @@ describe('computeStats', () => {
 
   it('reports the median payee average so skew is visible', () => {
     expect(stats.medianMerchantTicket).toBe(250)
+  })
+
+  it('averages the middle payee tickets without changing the caller order', () => {
+    const tickets = [40, 100, 20, 60]
+    const merchants = tickets.map((avg_transaction, index) =>
+      row({ merchant: `Merchant ${index}`, avg_transaction }),
+    )
+
+    const result = computeStats(merchants)
+
+    expect(result.medianMerchantTicket).toBe(50)
+    expect(merchants.map((merchant) => merchant.avg_transaction)).toEqual(tickets)
   })
 
   it('reports the top payee share and the vital-few cut', () => {

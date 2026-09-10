@@ -1,34 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback } from 'react'
 
-import { preferencesService } from '@/services/api/preferences'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
-import { isVested, sortVestings, todayKey } from '@/lib/rsuVesting'
+import { sortVestings } from '@/lib/rsuVesting'
+import { useRsuPrices } from './useRsuPrices'
 
-/** Merge fetched vest-date prices (keyed `grantId|date`) into the grants. */
-function applyVestPrices(grants: RsuGrant[], fetched: Map<string, number>): RsuGrant[] {
-  const withPrice = (grantId: string, v: RsuVesting): RsuVesting => {
-    const price = fetched.get(`${grantId}|${v.date}`)
-    return price !== undefined && (v.price_at_vest == null || v.price_at_vest <= 0)
-      ? { ...v, price_at_vest: price }
-      : v
-  }
-  return grants.map((g) => ({ ...g, vestings: g.vestings.map((v) => withPrice(g.id, v)) }))
-}
-
-/**
- * RSU grant/vesting state handlers for the salary structure section.
- *
- * Also locks in vest-date prices: once a vesting date passes, the historical
- * close for that date is fetched once and stored as `price_at_vest` so the
- * vested value stops drifting with the current price.
- */
+/** RSU grant/vesting edits and explicit price actions for salary settings. */
 export function useRsuGrants(
   localRsuGrants: RsuGrant[],
   updateRsuGrants: (grants: RsuGrant[]) => void,
   displayCurrency: string,
 ) {
-  const [fetchingPriceFor, setFetchingPriceFor] = useState<string | null>(null)
+  const priceActions = useRsuPrices(localRsuGrants, updateRsuGrants, displayCurrency)
 
   const addGrant = useCallback(() => {
     const grant: RsuGrant = {
@@ -102,100 +85,8 @@ export function useRsuGrants(
     [localRsuGrants, updateGrant],
   )
 
-  /**
-   * Convert a foreign-currency stock price into the display currency.
-   *
-   * `onDate` converts at the rate published THEN, not now. Without it a vest-date
-   * close (a historical USD figure) was converted at today's USD/INR, mixing
-   * vintages: on a 2025-08-15 AMZN vest the rate was 87.46 against 95.34 on
-   * 2026-08-03, overstating that line by 9%. Indian RSU perquisite value is fixed
-   * at vesting and does not move with later FX, and these grants feed the tax
-   * projections, so the drift propagated into computed tax.
-   *
-   * A failed historical lookup returns the price unconverted rather than falling
-   * back to today's rate -- the caller then leaves `price_at_vest` unset and the
-   * row keeps showing "Current price", which is honest. Silently substituting
-   * today's rate is the bug being fixed.
-   */
-  const convertPrice = useCallback(
-    async (price: number, currency: string, onDate?: string): Promise<number> => {
-      if (!currency || currency === displayCurrency) return price
-      try {
-        const rates = await preferencesService.getExchangeRates(currency, onDate)
-        const rate = rates.rates[displayCurrency]
-        return rate ? Math.round(price * rate * 100) / 100 : price
-      } catch {
-        return price
-      }
-    },
-    [displayCurrency],
-  )
-
-  const fetchStockPrice = useCallback(
-    async (grant: RsuGrant) => {
-      if (!grant.stock_name.trim()) return
-      setFetchingPriceFor(grant.id)
-      try {
-        const result = await preferencesService.getStockPrice(grant.stock_name.trim())
-        const price = await convertPrice(result.price, result.currency)
-        updateGrant(grant.id, { stock_price: price })
-      } catch {
-        /* user can still enter manually */
-      } finally {
-        setFetchingPriceFor(null)
-      }
-    },
-    [updateGrant, convertPrice],
-  )
-
-  // Lock vest-date prices for vested rows that don't have one yet.
-  // Attempted keys are remembered per session so upstream failures
-  // (delisted ticker, Yahoo hiccup) don't retrigger on every render.
-  const attemptedVestFetches = useRef(new Set<string>())
-  useEffect(() => {
-    const today = todayKey()
-    const jobs: Array<{ grantId: string; symbol: string; date: string }> = []
-    for (const g of localRsuGrants) {
-      const symbol = g.stock_name.trim()
-      if (!symbol) continue
-      for (const v of g.vestings) {
-        if (!isVested(v, today) || (v.price_at_vest != null && v.price_at_vest > 0)) continue
-        const key = `${g.id}|${symbol}|${v.date}`
-        if (attemptedVestFetches.current.has(key)) continue
-        attemptedVestFetches.current.add(key)
-        jobs.push({ grantId: g.id, symbol, date: v.date })
-      }
-    }
-    if (jobs.length === 0) return
-
-    let cancelled = false
-    const run = async () => {
-      const fetched = new Map<string, number>()
-      for (const job of jobs) {
-        try {
-          const result = await preferencesService.getStockPrice(job.symbol, job.date)
-          // Same date for both legs: the close on the vest date converted at the
-          // FX rate published on the vest date.
-          const price = await convertPrice(result.price, result.currency, job.date)
-          if (price > 0) fetched.set(`${job.grantId}|${job.date}`, price)
-        } catch {
-          /* falls back to current price in the UI */
-        }
-      }
-      if (cancelled || fetched.size === 0) return
-      updateRsuGrants(applyVestPrices(localRsuGrants, fetched))
-    }
-    // Every await inside `run` is individually try/caught (a failed lookup
-    // falls back to the current price), so it never rejects; `void` marks the
-    // intentional fire-and-forget in the effect.
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [localRsuGrants, updateRsuGrants, convertPrice])
-
   return {
-    fetchingPriceFor,
+    ...priceActions,
     addGrant,
     removeGrant,
     updateGrant,
@@ -203,6 +94,5 @@ export function useRsuGrants(
     updateVesting,
     removeVesting,
     sortGrantVestings,
-    fetchStockPrice,
   }
 }

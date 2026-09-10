@@ -3,6 +3,7 @@ export interface SalaryComponents {
   base_salary_annual: number
   hra_annual: number | null
   bonus_annual: number
+  /** Employee payroll deduction; it does not reduce new-regime taxable earnings. */
   epf_monthly: number
   nps_monthly: number
   special_allowance_annual: number
@@ -20,7 +21,9 @@ export interface RsuVesting {
    * Shares actually received after sell-to-cover withholding, when the employer
    * withheld part of the vest to pay tax. Reporting only -- Indian perquisite
    * value is taxed on the FULL vest, so `quantity` stays the basis for every
-   * projection. Fractional because brokers credit fractional residuals.
+   * projection. Fractional because brokers credit fractional residuals; zero
+   * records full withholding. Missing actuals display an estimate of 30% tax
+   * plus 4% cess on the tax, without persisting an inferred received quantity.
    */
   net_quantity?: number | null
 }
@@ -39,10 +42,32 @@ export interface RsuGrant {
 export interface GrowthAssumptions {
   base_salary_growth_pct: number
   bonus_growth_pct: number
+  /** Missing/null preserves the saved zero-growth one-time bonus behavior. */
+  bonus_mode?: 'recurring' | 'one_time' | null
   epf_scales_with_base: boolean
   nps_growth_pct: number
   stock_price_appreciation_pct: number
   projection_years: number
+}
+
+/** One gross vest and its received shares, valued once for annual/monthly use. */
+export interface ValuedRsuVesting {
+  grantId: string
+  stockName: string
+  date: string
+  fy: string
+  fyStartYear: number
+  monthIndex: number
+  vested: boolean
+  price: number
+  grossQuantity: number
+  netQuantity: number
+  grossValue: number
+  netValue: number
+  withholdingValue: number
+  isNetQuantityEstimated: boolean
+  isPriceEstimated: boolean
+  isWithholdingEstimated: boolean
 }
 
 /** Default salary components for a new FY entry. */
@@ -69,6 +94,7 @@ export const DEFAULT_GROWTH_ASSUMPTIONS: GrowthAssumptions = {
 /** Projected breakdown for a single fiscal year. */
 export interface ProjectedFYBreakdown {
   fy: string
+  fyStartMonth: number
   baseSalary: number
   hra: number
   bonus: number
@@ -78,11 +104,22 @@ export interface ProjectedFYBreakdown {
   otherTaxable: number
   rsuIncome: number
   rsuDetails: Array<{ stock_name: string; shares: number; value: number }>
+  rsuVestingEvents: ValuedRsuVesting[]
+  cashEarnings: number
+  cashDeductions: number
   grossTaxable: number
   standardDeduction: number
   netTaxable: number
   totalTax: number
   takeHome: number
+  cashTakeHome: number
+  netShareValue: number
+  netCompensation: number
+  payrollTax: number
+  rsuWithholding: number
+  rsuRecordedWithholding: number
+  rsuEstimatedWithholding: number
+  excessShareWithholding: number
   effectiveTaxRate: number
   isProjected: boolean
 }

@@ -14,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from ledger_sync.core.ledger_math import compute_account_balances as compute_account_balances
 from ledger_sync.db.models import RecurrenceFrequency, Transaction, TransactionType
 
 # Default values (used if no preferences in DB)
@@ -265,21 +266,3 @@ def normalize_note(note: str | None) -> str | None:
     text = _DATE_TRAILER.sub("", text)
     text = _NUMBER_TRAILER.sub("", text)
     return text.strip() or None
-
-
-def compute_account_balances(
-    transactions: list[Transaction],
-) -> dict[str, Decimal]:
-    """Derive a net balance per account by walking the transaction history."""
-    balances: dict[str, Decimal] = defaultdict(Decimal)
-    for txn in transactions:
-        if txn.type == TransactionType.TRANSFER:
-            if txn.from_account:
-                balances[txn.from_account] -= Decimal(str(txn.amount))
-            if txn.to_account:
-                balances[txn.to_account] += Decimal(str(txn.amount))
-        elif txn.type == TransactionType.INCOME:
-            balances[txn.account] += Decimal(str(txn.amount))
-        elif txn.type == TransactionType.EXPENSE:
-            balances[txn.account] -= Decimal(str(txn.amount))
-    return balances

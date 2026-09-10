@@ -35,44 +35,44 @@ export function OverviewMetricRow({
   const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
 
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-1 gap-3 py-5 first:pt-0 last:pb-0 md:grid-cols-[8rem_minmax(0,1fr)] md:gap-6">
       {/* Header: metric label + change badge */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        <div className={`flex items-center gap-1 text-xs font-medium ${isGood ? 'text-app-green' : 'text-app-red'}`}>
+      <div className="flex items-center justify-between gap-3 md:block">
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+        <div className={`flex items-center gap-1 font-mono text-xs font-medium tabular-nums md:mt-2 ${isGood ? 'text-app-green' : 'text-app-red'}`}>
           <ChangeIcon change={change} size="w-3 h-3" />
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
         </div>
       </div>
       {/* Paired bars: A (faded) above B (solid), sharing one axis so the
           smaller period is never hidden behind the larger. */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="w-14 truncate text-caption text-text-tertiary sm:w-20" title={labelA}>{labelA}</span>
-          <div className="flex-1">
+      <div className="min-w-0 space-y-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 sm:grid-cols-[5.5rem_minmax(0,1fr)_8rem]">
+          <span className="text-xs text-muted-foreground">{labelA}</span>
+          <div className="col-span-2 row-start-2 sm:col-span-1 sm:row-auto">
             <ProgressBar
               value={Math.abs(valueA)}
               max={maxValue}
               color={color}
-              height={10}
-              className="opacity-40"
+              height={12}
+              className="opacity-50"
               ariaLabel={`${label} ${labelA}: ${fmtVal(valueA)}`}
             />
           </div>
-          <span className="w-20 truncate text-right text-caption font-medium tabular-nums text-text-secondary sm:w-24" title={fmtVal(valueA)}>{fmtVal(valueA)}</span>
+          <span className="text-right font-mono text-xs font-medium tabular-nums text-muted-foreground">{fmtVal(valueA)}</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="w-14 truncate text-caption text-text-tertiary sm:w-20" title={labelB}>{labelB}</span>
-          <div className="flex-1">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 sm:grid-cols-[5.5rem_minmax(0,1fr)_8rem]">
+          <span className="text-xs text-muted-foreground">{labelB}</span>
+          <div className="col-span-2 row-start-2 sm:col-span-1 sm:row-auto">
             <ProgressBar
               value={Math.abs(valueB)}
               max={maxValue}
               color={color}
-              height={10}
+              height={12}
               ariaLabel={`${label} ${labelB}: ${fmtVal(valueB)}`}
             />
           </div>
-          <span className="w-20 truncate text-right text-xs font-semibold tabular-nums text-foreground sm:w-24" title={fmtVal(valueB)}>{fmtVal(valueB)}</span>
+          <span className="text-right font-mono text-xs font-semibold tabular-nums text-foreground">{fmtVal(valueB)}</span>
         </div>
       </div>
     </div>

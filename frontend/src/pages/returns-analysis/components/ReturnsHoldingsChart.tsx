@@ -1,23 +1,9 @@
-import { Activity } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
+import { motion } from 'motion/react'
 
-import {
-  ChartContainer,
-  GRID_DEFAULTS,
-  chartTooltipProps,
-  shouldAnimate,
-  xAxisDefaults,
-} from '@/components/ui'
-import { CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
-import { rawColors } from '@/constants/colors'
-import { useChartDimensions } from '@/hooks/useChartDimensions'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { chartDataTable } from '@/components/ui/chartDataTable'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-
-const ACCOUNT_LAYOUT = {
-  mobile: { axisWidth: 78, nameLength: 12 },
-  tablet: { axisWidth: 120, nameLength: 20 },
-  desktop: { axisWidth: 150, nameLength: 28 },
-} as const
+import { useMotionStore } from '@/store/motionStore'
 
 export interface InvestmentAccount {
   readonly name: string
@@ -25,118 +11,148 @@ export interface InvestmentAccount {
   readonly transactions: number
 }
 
-function AccountTooltip({
-  active,
-  payload,
+function HoldingsBalanceBar({
+  balance,
+  maxMagnitude,
+  hasNegativeBalance,
+  index,
+  motionEnabled,
 }: Readonly<{
-  active?: boolean
-  payload?: Array<{ payload: { name: string; value: number; transactions: number } }>
+  balance: number
+  maxMagnitude: number
+  hasNegativeBalance: boolean
+  index: number
+  motionEnabled: boolean
 }>) {
-  if (!active || !payload?.length) return null
-  const account = payload[0].payload
+  const positiveStart = hasNegativeBalance ? '50%' : 0
+  if (balance === 0) {
+    return (
+      <span
+        className="absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-muted-foreground"
+        style={{ left: positiveStart }}
+      />
+    )
+  }
+
+  const negative = balance < 0
+  const ratio = maxMagnitude > 0 ? Math.abs(balance) / maxMagnitude : 0
 
   return (
-    <div style={CHART_TOOLTIP_STYLE}>
-      <p style={{ ...CHART_TOOLTIP_LABEL_STYLE, marginBottom: 6 }}>{account.name}</p>
-      <div
-        style={{
-          color: rawColors.chart.textPrimary,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 14,
-          fontVariantNumeric: 'tabular-nums',
-          fontWeight: 600,
-        }}
-      >
-        {formatCurrency(account.value)}
-      </div>
-      <div style={{ color: rawColors.chart.textSubtle, fontSize: 11, marginTop: 2 }}>
-        {account.transactions} transaction{account.transactions === 1 ? '' : 's'}
-      </div>
-    </div>
+    <motion.span
+      className={`absolute inset-y-0 rounded-sm ${negative ? 'origin-right bg-app-red' : 'origin-left bg-app-blue'}`}
+      style={{
+        width: hasNegativeBalance ? '50%' : '100%',
+        ...(negative ? { right: '50%' } : { left: positiveStart }),
+      }}
+      initial={motionEnabled ? { scaleX: 0 } : false}
+      whileInView={{ scaleX: ratio }}
+      viewport={{ once: true }}
+      transition={{ duration: motionEnabled ? 0.65 : 0, delay: motionEnabled ? index * 0.035 : 0, ease: [0.22, 1, 0.36, 1] }}
+    />
   )
 }
 
 export default function ReturnsHoldingsChart({
   accounts,
 }: Readonly<{ accounts: readonly InvestmentAccount[] }>) {
-  const { breakpoint } = useChartDimensions()
-  const { axisWidth: holdingsAxisWidth, nameLength: accountNameLength } =
-    ACCOUNT_LAYOUT[breakpoint]
+  const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const displayedAccounts = accounts.slice(0, 12)
-  const formatAccountName = (name: string) =>
-    name.length > accountNameLength ? `${name.slice(0, accountNameLength - 3)}...` : name
+  const maxMagnitude = Math.max(0, ...displayedAccounts.map((account) => Math.abs(account.balance)))
+  const hasNegativeBalance = displayedAccounts.some((account) => account.balance < 0)
+  const topAccount = accounts[0]
 
   return (
-    <section
-      className="ledger-panel p-4 sm:p-5"
+    <motion.section
+      className="ledger-panel @container min-w-0 p-4 sm:p-6"
       aria-labelledby="holdings-value-title"
+      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="mb-4 flex items-center gap-3">
-        <Activity className="size-5 text-app-purple" aria-hidden="true" />
-        <div>
-          <h2 id="holdings-value-title" className="text-lg font-semibold text-foreground">
-            Investment Accounts by Book Value
-          </h2>
-          <p className="text-pretty text-xs text-text-tertiary">
-            Investment accounts ranked by ledger balance. Top account:{' '}
-            <span className="font-medium text-foreground">{accounts[0].name}</span>
-            {' ('}
-            <span className="ledger-figure">{formatCurrencyShort(accounts[0].balance)}</span>
-            {').'}
-          </p>
-        </div>
+      <div className="mb-5">
+        <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
+          Wealth / account ledger
+        </p>
+        <h2 id="holdings-value-title" className="text-lg font-semibold tracking-tight text-foreground">
+          Investment Accounts by Book Value
+        </h2>
+        <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">
+          Closing ledger balances, including activity before the selected period.
+          {topAccount && <> Top account: <span className="font-medium text-foreground">{topAccount.name}</span>.</>}
+        </p>
       </div>
 
-      <ChartContainer
-        height={Math.max(280, displayedAccounts.length * 36)}
-        mobileHeight={Math.max(240, displayedAccounts.length * 32)}
-        ariaLabel="Horizontal bar chart of investment accounts ranked by ledger balance."
-      >
-        <BarChart
-          data={displayedAccounts.map((account, index) => ({
-            name: account.name,
-            value: account.balance,
-            transactions: account.transactions,
-            // Rank ramp: the top holding is solid, each row below it fades
-            // slightly. Carried on the datum because Recharts merges each row
-            // over its bar rectangle props, replacing the deprecated `<Cell>`.
-            fillOpacity: 1 - index * 0.05,
-          }))}
-          layout="vertical"
-          margin={{ top: 8, right: breakpoint === 'mobile' ? 12 : 24, bottom: 8, left: 4 }}
-        >
-          <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical />
-          <XAxis
-            type="number"
-            {...xAxisDefaults(displayedAccounts.length)}
-            tickFormatter={(value: number) => formatCurrencyShort(value)}
-          />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={holdingsAxisWidth}
-            tickFormatter={formatAccountName}
-            tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: rawColors.chart.axisLine }}
-          />
-          <Tooltip cursor={chartTooltipProps.cursor} content={AccountTooltip as never} />
-          <Bar
-            dataKey="value"
-            fill={rawColors.app.purple}
-            radius={[0, 4, 4, 0]}
-            isAnimationActive={shouldAnimate(displayedAccounts.length)}
-            animationDuration={600}
-            animationEasing="ease-out"
-          />
-        </BarChart>
-      </ChartContainer>
-
-      {accounts.length > 12 && (
-        <p className="mt-3 text-center text-xs text-text-tertiary">
-          Showing top 12 of {accounts.length} accounts
-        </p>
+      {accounts.length === 0 ? (
+        <ChartEmptyState height={280} message="No investment account balances through the selected period" />
+      ) : (
+        <figure>
+          <figcaption className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">
+            <span className="text-xs font-medium text-muted-foreground">Account / recorded activity</span>
+            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+              Scale {formatCurrencyShort(hasNegativeBalance ? -maxMagnitude : 0)} to {formatCurrencyShort(maxMagnitude)}
+            </span>
+          </figcaption>
+          <ol aria-label="Investment accounts ranked by book value">
+            {displayedAccounts.map((account, index) => {
+              const negative = account.balance < 0
+              const nonNegativeColor = account.balance === 0 ? 'text-muted-foreground' : 'text-app-blue'
+              return (
+                <motion.li
+                  key={account.name}
+                  className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 border-b border-border/50 py-4 last:border-b-0"
+                  initial={motionEnabled ? { opacity: 0, y: 8 } : false}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: motionEnabled ? 0.3 : 0, delay: motionEnabled ? index * 0.035 : 0 }}
+                >
+                  <span className="pt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 flex-col gap-1.5 @[28rem]:flex-row @[28rem]:items-baseline @[28rem]:justify-between @[28rem]:gap-x-6">
+                      <span className="min-w-0 break-words text-sm font-medium leading-5 text-foreground">{account.name}</span>
+                      <span className={`break-words font-mono text-sm font-semibold tabular-nums ${negative ? 'text-app-red' : nonNegativeColor}`}>
+                        {formatCurrency(account.balance)}
+                      </span>
+                    </div>
+                    <div className="relative my-2.5 h-2.5 rounded-sm bg-[var(--overlay-5)]" aria-hidden="true">
+                      {hasNegativeBalance && (
+                        <span className="absolute bottom-[-3px] left-1/2 top-[-3px] w-px bg-border-strong" />
+                      )}
+                      <HoldingsBalanceBar
+                        balance={account.balance}
+                        maxMagnitude={maxMagnitude}
+                        hasNegativeBalance={hasNegativeBalance}
+                        index={index}
+                        motionEnabled={motionEnabled}
+                      />
+                    </div>
+                    <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                      {account.transactions} transaction{account.transactions === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </motion.li>
+              )
+            })}
+          </ol>
+          <p className="mt-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
+            Book values reflect recorded cash flows. Market prices are not included.
+            {accounts.length > 12 && <> Showing top 12 of {accounts.length} accounts; the accessible table includes every account.</>}
+          </p>
+        </figure>
       )}
-    </section>
+
+      {chartDataTable(
+        accounts,
+        [
+          { header: 'Account', rowHeader: true, value: (account) => account.name },
+          { header: 'Book value', value: (account) => formatCurrency(account.balance) },
+          { header: 'Transactions', value: (account) => String(account.transactions) },
+        ],
+        'Investment accounts ranked by ledger balance. All account values are included.',
+        (account) => account.name,
+      )}
+    </motion.section>
   )
 }

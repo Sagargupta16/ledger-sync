@@ -15,7 +15,7 @@
 
 import type { ReactNode } from 'react'
 
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Transaction } from '@/types'
@@ -199,5 +199,56 @@ describe('useNetWorth -- three months, the last one in progress', () => {
       (row) => row.status === 'upcoming' && row.date !== null,
     )
     expect(upcomingWithEta.length).toBeGreaterThan(0)
+  })
+})
+
+describe('useNetWorth -- sparse calendar history', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 7, 15))
+    transactionsRef.current = [
+      tx('2026-01-31', 100_000, 'Income'),
+      tx('2026-04-30', 30_000, 'Income'),
+      tx('2026-07-31', 30_000, 'Income'),
+    ]
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shares the calendar growth rate with projections and the completed-month sparkline', () => {
+    const { result } = renderHook(() => useNetWorth(), { wrapper })
+    expect(result.current.monthlyGrowth).toBe(10_000)
+    expect(result.current.netWorthSparkline).toEqual([
+      100_000, 100_000, 100_000, 130_000, 130_000, 130_000, 160_000,
+    ])
+    expect(result.current.netWorthMoMLabel).toBe('Jul 26 vs prior month')
+    expect(result.current.netWorthMoMChange).toBe(23.1)
+    expect(result.current.growthUsesPartialMonth).toBe(false)
+
+    act(() => result.current.setShowProjection(true))
+    const history = result.current.chartData.filter((point) => point.netWorth !== null)
+    expect(history).toHaveLength(7)
+    expect(result.current.chartData.find((point) => point.date === '2026-08-31'))
+      .toMatchObject({ projected: 170_000 })
+  })
+
+  it('retains inactive completed months before dropping the current partial month', () => {
+    vi.setSystemTime(new Date(2026, 6, 26))
+    transactionsRef.current = [
+      tx('2026-01-31', 100_000, 'Income'),
+      tx('2026-04-30', 30_000, 'Income'),
+      tx('2026-07-10', 50_000, 'Expense'),
+    ]
+    const { result } = renderHook(() => useNetWorth(), { wrapper })
+    expect(result.current.anchor).toEqual({ date: '2026-07-10', netWorth: 80_000 })
+    expect(result.current.monthlyGrowth).toBe(6_000)
+    expect(result.current.netWorthSparkline).toEqual([
+      100_000, 100_000, 100_000, 130_000, 130_000, 130_000,
+    ])
+    expect(result.current.netWorthMoMChange).toBe(0)
+    expect(result.current.netWorthMoMLabel).toBe('Jun 26 vs prior month')
+    expect(result.current.growthUsesPartialMonth).toBe(false)
   })
 })

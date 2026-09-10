@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -14,7 +15,10 @@ class SalaryComponents(BaseModel):
     base_salary_annual: Decimal = Decimal(0)
     hra_annual: Decimal | None = None
     bonus_annual: Decimal = Decimal(0)
-    epf_monthly: Decimal = Decimal(3600)
+    epf_monthly: Decimal = Field(
+        default=Decimal(3600),
+        description="Employee EPF cash deduction; not a new-regime taxable-income deduction.",
+    )
     nps_monthly: Decimal = Decimal(0)
     special_allowance_annual: Decimal = Decimal(0)
     other_taxable_annual: Decimal = Decimal(0)
@@ -38,13 +42,14 @@ class RsuVesting(BaseModel):
     )
     net_quantity: Decimal | None = Field(
         default=None,
-        gt=0,
+        ge=0,
         description=(
             "Shares actually received after sell-to-cover withholding, when the "
             "employer withheld some of the vest to pay tax. Reporting only: "
             "perquisite value is taxed on the FULL vest, so `quantity` remains "
             "the basis for every tax projection. Fractional because brokers "
-            "credit fractional residuals."
+            "credit fractional residuals. Zero records full withholding; null "
+            "leaves the actual quantity unknown so the UI can show an estimate."
         ),
     )
 
@@ -84,6 +89,13 @@ class GrowthAssumptions(BaseModel):
 
     base_salary_growth_pct: float = 0
     bonus_growth_pct: float = 0
+    bonus_mode: Literal["recurring", "one_time"] | None = Field(
+        default=None,
+        description=(
+            "Bonus recurrence in projected years. Null keeps the saved behavior: "
+            "zero growth is one-time, nonzero growth repeats."
+        ),
+    )
     epf_scales_with_base: bool = True
     nps_growth_pct: float = 0
     stock_price_appreciation_pct: float = 0

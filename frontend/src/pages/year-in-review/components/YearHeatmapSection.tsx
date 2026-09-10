@@ -73,22 +73,23 @@ export default function YearHeatmapSection({
     selectedMonth == null
       ? null
       : {
-          label: MONTHS_SHORT[selectedMonth],
-          expense: review.stats.monthlyExpense[selectedMonth] ?? 0,
-          income: review.stats.monthlyIncome[selectedMonth] ?? 0,
-          net:
-            (review.stats.monthlyIncome[selectedMonth] ?? 0) -
-            (review.stats.monthlyExpense[selectedMonth] ?? 0),
-        }
+        label: MONTHS_SHORT[selectedMonth],
+        expense: review.stats.monthlyExpense[selectedMonth] ?? 0,
+        income: review.stats.monthlyIncome[selectedMonth] ?? 0,
+        net:
+          (review.stats.monthlyIncome[selectedMonth] ?? 0) -
+          (review.stats.monthlyExpense[selectedMonth] ?? 0),
+      }
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="ledger-panel p-4 sm:p-6"
+      className="ledger-panel min-w-0 p-4 sm:p-6"
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
+      <p className="ledger-meta mb-2 text-app-blue">Activity across the year</p>
+      <div className="mb-3 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
           <Flame className="h-5 w-5 shrink-0" style={{ color: modeAccent[review.mode] }} />
           <span>
             {modeLabel} Heatmap -- {review.isFYMode ? review.currentFY : review.selectedYear}
@@ -96,6 +97,12 @@ export default function YearHeatmapSection({
         </h2>
         <HeatmapLegend mode={review.mode} />
       </div>
+      <p className="mb-6 hidden text-sm text-muted-foreground lg:block">
+        Each square is one day. Focus a day and use the arrow keys to explore its figures.
+      </p>
+      <p className="mb-5 text-sm text-muted-foreground lg:hidden">
+        Select a month to see its spending, income, and net cash flow.
+      </p>
 
       <div className="hidden lg:block">
         <div className="overflow-x-auto">
@@ -168,7 +175,7 @@ export default function YearHeatmapSection({
         }
       />
 
-      <div className="mt-4 flex min-h-[28px] flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-xs sm:gap-x-6">
+      <div className="mt-5 flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4 text-sm tabular-nums sm:gap-x-6">
         <HeatmapDayDetail hoveredDay={review.hoveredDay} monthlyDetail={monthlyDetail} />
       </div>
     </motion.section>

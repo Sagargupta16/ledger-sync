@@ -158,6 +158,7 @@ export interface FYSummary {
     total: number
     tax_paid: number
   }
+  /** Gross funding from non-investment accounts; excludes internal rebalancing. */
   investments_made: number
   savings: {
     net: number

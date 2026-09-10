@@ -6,7 +6,6 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
-  Legend,
   Line,
   ReferenceLine,
   Tooltip,
@@ -15,17 +14,22 @@ import {
 } from 'recharts'
 
 import { rawColors } from '@/constants/colors'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { formatCurrencyShort } from '@/lib/formatters'
+import { cumulativeShareCutoff } from '@/lib/distribution'
 import {
   ChartContainer,
   GRID_DEFAULTS,
-  LEGEND_DEFAULTS,
   chartTooltipProps,
   currencyTooltipFormatter,
-  shouldAnimate,
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import { ACTIVE_DOT, BAR_RADIUS } from '@/components/ui/chartDefaults'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface ParetoChartProps {
@@ -89,18 +93,17 @@ interface ParetoModel {
   vitalFewCount: number
 }
 
-/** Index of the first row whose cumulative share reaches `threshold`, plus one. */
-function countVitalFew(
-  sorted: readonly { amount: number }[],
-  total: number,
+function buildParetoSummary(
+  rowCount: number,
+  vitalFewCount: number,
   threshold: number,
-): number {
-  let running = 0
-  for (const [index, row] of sorted.entries()) {
-    running += row.amount
-    if ((running / total) * 100 >= threshold) return index + 1
-  }
-  return sorted.length
+  itemNoun: string,
+  plural: string,
+) {
+  if (rowCount === 0) return `Which ${plural} make up ${threshold}% of your spend`
+  const countedNoun = vitalFewCount === 1 ? itemNoun : plural
+  const verb = vitalFewCount === 1 ? 'makes' : 'make'
+  return `${vitalFewCount} ${countedNoun} ${verb} up ${threshold}% of your spend -- the rest are the long tail`
 }
 
 /**
@@ -127,6 +130,8 @@ export default function ParetoChart({
   itemNoun = 'category',
   itemNounPlural,
 }: ParetoChartProps) {
+  const vitalColor = SEMANTIC_COLORS.expense
+  const tailColor = rawColors.text.tertiary
   const { rows: data, vitalFewCount } = useMemo<ParetoModel>(() => {
     const empty: ParetoModel = { rows: [], vitalFewCount: 0 }
     const sorted = Object.entries(categoryBreakdown)
@@ -149,7 +154,11 @@ export default function ParetoChart({
       head = [...visible, { category: 'Other', amount: otherTotal }]
     }
 
-    const vitalFewCount = countVitalFew(sorted, total, threshold)
+    const { count: vitalFewCount } = cumulativeShareCutoff(
+      sorted.map((row) => row.amount),
+      total,
+      threshold,
+    )
 
     let running = 0
     const rows = head.map((r, i) => {
@@ -163,118 +172,146 @@ export default function ParetoChart({
         amount: r.amount,
         cumulative: running,
         cumulativePct: (running / total) * 100,
-        // Vital few (orange) vs trivial many (muted) -- the 80%-cutoff split.
-        fill: isVital ? rawColors.app.orange : rawColors.text.tertiary,
+        fill: isVital ? vitalColor : tailColor,
       }
     })
 
     return { rows, vitalFewCount }
-  }, [categoryBreakdown, maxBars, threshold])
+  }, [categoryBreakdown, maxBars, threshold, vitalColor, tailColor])
 
-  const animate = shouldAnimate(data.length)
+  const { animate, isMobile } = useChartPresentation(data.length)
   const plural = itemNounPlural ?? pluralize(itemNoun)
-  const countedNoun = vitalFewCount === 1 ? itemNoun : plural
-  const verb = vitalFewCount === 1 ? 'makes' : 'make'
-  const summary =
-    data.length === 0
-      ? `Which ${plural} make up ${threshold}% of your spend`
-      : `${vitalFewCount} ${countedNoun} ${verb} up ${threshold}% of your spend -- the rest are the long tail`
+  const summary = buildParetoSummary(data.length, vitalFewCount, threshold, itemNoun, plural)
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={animate ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
-      className="ledger-panel p-4 sm:p-5"
+      transition={{ duration: animate ? 0.28 : 0, ease: [0.22, 1, 0.36, 1] }}
+      className="ledger-panel min-w-0 p-4 sm:p-5"
     >
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-orange/15">
-          <TrendingDown className="size-4 text-app-orange" />
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+            <TrendingDown className="size-4 shrink-0 text-app-red" aria-hidden="true" />
+            {title}
+          </h3>
+          <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">{summary}</p>
         </div>
-        <div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-text-tertiary">{summary}</p>
-        </div>
+        {data.length > 0 && (
+          <div className="shrink-0 text-right">
+            <p className="font-mono text-xl font-medium tabular-nums text-foreground">
+              {vitalFewCount}<span className="text-sm text-muted-foreground"> / {Object.keys(categoryBreakdown).length}</span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{plural} at {threshold}%</p>
+          </div>
+        )}
       </div>
       {data.length === 0 ? (
         <ChartEmptyState height={height} message="No spending in this range. Try a wider date range or upload more statements." />
       ) : (
-        <ChartContainer height={height} ariaLabel={`Pareto chart of ${itemNoun} spending: bars show spend per ${itemNoun} with a cumulative percentage line and an ${threshold} percent reference line`}>
-          <ComposedChart
-            data={data}
-            margin={{ top: 8, right: 24, bottom: 8, left: 4 }}
-          >
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis
-              dataKey="category"
-              {...xAxisDefaults(data.length, { angle: -30, height: 70 })}
-              interval={0}
-              tickFormatter={(value: string) =>
-                value.length > 14 ? `${value.slice(0, 12)}...` : value
-              }
-            />
-            <YAxis
-              yAxisId="left"
-              {...yAxisDefaults()}
-              tickFormatter={formatCurrencyShort}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              domain={[0, 100]}
-              tickFormatter={(v: number) => `${v}%`}
-              stroke={rawColors.text.tertiary}
-              tick={{ fill: rawColors.text.tertiary, fontSize: 11 }}
-            />
-            <Tooltip
-              {...chartTooltipProps}
-              formatter={((value: number | undefined, name: string | undefined) =>
-                name === CUMULATIVE_SERIES_NAME
-                  ? `${(value ?? 0).toFixed(1)}%`
-                  : currencyTooltipFormatter(value)) as never}
-            />
-            <Legend {...LEGEND_DEFAULTS} />
-            {/* Vital-few bars (orange) vs trivial-many (muted). The per-bar colour
-                rides on each datum's `fill` -- see `ParetoRow.fill`. Beyond
-                replacing the deprecated `<Cell>`, this fixes a latent
-                mis-colouring: Cell children are matched positionally against the
-                RENDERED bar list, so any filtering (zero-height bars are dropped)
-                would shift every colour onto the wrong category. */}
-            <Bar
-              yAxisId="left"
-              dataKey="amount"
-              name="Spend"
-              fill={rawColors.app.orange}
-              radius={[4, 4, 0, 0]}
-              isAnimationActive={animate}
-              animationDuration={600}
-              animationEasing="ease-out"
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="cumulativePct"
-              name={CUMULATIVE_SERIES_NAME}
-              stroke={rawColors.app.blue}
-              strokeWidth={2}
-              dot={{ r: 3, fill: rawColors.app.blue }}
-              activeDot={{ r: 5 }}
-              isAnimationActive={animate}
-              animationDuration={800}
-            />
-            <ReferenceLine
-              yAxisId="right"
-              y={threshold}
-              stroke={rawColors.text.tertiary}
-              strokeDasharray="4 4"
-              label={{
-                value: `${threshold}%`,
-                fill: rawColors.text.secondary,
-                fontSize: 11,
-                position: 'right',
-              }}
-            />
-          </ComposedChart>
-        </ChartContainer>
+        <>
+          <ChartSeriesLegend items={[
+            { key: 'amount', label: 'Spend', color: vitalColor },
+            { key: 'cumulativePct', label: CUMULATIVE_SERIES_NAME, color: rawColors.app.blue },
+          ]} caption={Object.keys(categoryBreakdown).length > maxBars ? 'Ranked spend; tail grouped' : 'Largest to smallest'} />
+          <ChartContainer height={height} ariaLabel={`Pareto chart of ${itemNoun} spending: bars show spend per ${itemNoun} with a cumulative percentage line and an ${threshold} percent reference line`}>
+            <ComposedChart
+              data={data}
+              margin={{ top: 16, right: 4, bottom: 8, left: 0 }}
+              barCategoryGap="24%"
+            >
+              <CartesianGrid {...GRID_DEFAULTS} />
+              <XAxis
+                dataKey="category"
+                {...xAxisDefaults(data.length, { angle: -30, height: 70 })}
+                interval={isMobile ? 'preserveStartEnd' : 0}
+                tickFormatter={(value: string) =>
+                  value.length > 14 ? `${value.slice(0, 12)}...` : value
+                }
+              />
+              <YAxis
+                yAxisId="left"
+                {...yAxisDefaults({ width: isMobile ? 48 : 56 })}
+                tickFormatter={formatCurrencyShort}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                {...yAxisDefaults({ currency: false, width: isMobile ? 36 : 44 })}
+                domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                tickFormatter={(v: number) => `${v}%`}
+              />
+              <Tooltip
+                {...chartTooltipProps}
+                content={<ChartTooltipContent />}
+                formatter={((value: number | undefined, name: string | undefined) =>
+                  name === CUMULATIVE_SERIES_NAME
+                    ? `${(value ?? 0).toFixed(1)}%`
+                    : currencyTooltipFormatter(value)) as never}
+              />
+              {/* Vital-few bars (expense red) vs trivial-many (muted). The per-bar colour
+                  rides on each datum's `fill` -- see `ParetoRow.fill`. Beyond
+                  replacing the deprecated `<Cell>`, this fixes a latent
+                  mis-colouring: Cell children are matched positionally against the
+                  RENDERED bar list, so any filtering (zero-height bars are dropped)
+                  would shift every colour onto the wrong category. */}
+              <Bar
+                yAxisId="left"
+                dataKey="amount"
+                name="Spend"
+                fill={vitalColor}
+                radius={BAR_RADIUS}
+                maxBarSize={36}
+                isAnimationActive={animate}
+                animationDuration={480}
+                animationEasing="ease-out"
+              />
+              <Line
+                yAxisId="right"
+                type="linear"
+                dataKey="cumulativePct"
+                name={CUMULATIVE_SERIES_NAME}
+                stroke={rawColors.app.blue}
+                strokeWidth={2.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                dot={{ r: 2.5, fill: rawColors.app.blue, strokeWidth: 0 }}
+                activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
+                isAnimationActive={animate}
+                animationBegin={animate ? 80 : 0}
+                animationDuration={520}
+                animationEasing="ease-out"
+              />
+              <ReferenceLine
+                yAxisId="right"
+                y={threshold}
+                stroke={rawColors.text.tertiary}
+                strokeDasharray="3 5"
+                label={{
+                  value: `${threshold}% threshold`,
+                  fill: rawColors.text.secondary,
+                  fontSize: 10,
+                  fontFamily: 'var(--font-mono)',
+                  position: 'insideTopRight',
+                  offset: 8,
+                }}
+              />
+            </ComposedChart>
+          </ChartContainer>
+          {chartDataTable(
+            data,
+            [
+              { header: itemNoun, rowHeader: true, value: (row) => row.category },
+              { header: 'Spend', value: (row) => currencyTooltipFormatter(row.amount) },
+              { header: 'Cumulative spend', value: (row) => currencyTooltipFormatter(row.cumulative) },
+              { header: 'Cumulative share', value: (row) => `${row.cumulativePct.toFixed(1)}%` },
+            ],
+            `${title} data`,
+            (row, index) => `${row.category}-${index}`,
+          )}
+        </>
       )}
     </motion.div>
   )

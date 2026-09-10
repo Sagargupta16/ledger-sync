@@ -10,6 +10,35 @@
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 
+export interface FIREInputDefaults {
+  annualIncome: number
+  annualExpenses: number
+  annualSavings: number
+  monthlyExpenses: number
+  essentialAnnualExpenses: number
+}
+
+/**
+ * Annualize over observed monthly rollup keys, retaining the one-month empty
+ * fallback and the existing 60% essential-expense planning assumption.
+ */
+export function deriveFIREInputs(
+  totalIncome: number,
+  totalExpenses: number,
+  observedMonths = 1,
+): FIREInputDefaults {
+  const months = observedMonths === 0 || Number.isNaN(observedMonths) ? 1 : observedMonths
+  const annualIncome = (totalIncome / months) * MONTHS_PER_YEAR
+  const annualExpenses = (Math.abs(totalExpenses) / months) * MONTHS_PER_YEAR
+  return {
+    annualIncome,
+    annualExpenses,
+    annualSavings: annualIncome - annualExpenses,
+    monthlyExpenses: annualExpenses / MONTHS_PER_YEAR,
+    essentialAnnualExpenses: annualExpenses * 0.6,
+  }
+}
+
 export interface FIREResult {
   fireNumber: number
   coastFIRE: number

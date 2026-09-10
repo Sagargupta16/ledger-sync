@@ -171,3 +171,50 @@ describe('buildForecast insufficient data', () => {
     expect(buildForecast(undefined, DURING_JULY)).toBeNull()
   })
 })
+
+describe('buildForecast observed savings and projection presentation', () => {
+  const withLosses = {
+    '2026-01': { income: 100_000, expense: 40_000, net_savings: 40_000 },
+    '2026-02': { income: 100_000, expense: 40_000, net_savings: 40_000 },
+    '2026-03': { income: 100_000, expense: 40_000, net_savings: 40_000 },
+  }
+
+  it('plots canonical observed net and separately exposes consumption surplus and losses', () => {
+    const result = buildForecast(withLosses, new Date(2026, 3, 1))!
+    const history = result.combined.filter((row) => !row.isForecast)
+
+    expect(history).toHaveLength(3)
+    expect(history.every((row) => row.net === 40_000)).toBe(true)
+    expect(history.every((row) => row.consumptionSurplus === 60_000 && row.capitalLosses === 20_000)).toBe(true)
+    expect(result.insights.avgSavings).toBe(40_000)
+    expect(result.insights.avgNetSavings).toBe(40_000)
+    expect(result.insights.projectedConsumptionSurplus).toBe(720_000)
+  })
+
+  it('bridges the projection at consumption surplus without overwriting the recorded net point', () => {
+    const result = buildForecast(withLosses, new Date(2026, 3, 1))!
+    const bridge = result.combined.find((row) => row.month === '2026-03')
+
+    expect(bridge).toMatchObject({
+      isForecast: false,
+      net: 40_000,
+      forecastNet: 60_000,
+      lower: 60_000,
+      upper: 60_000,
+      lowerBase: 60_000,
+      bandRange: 0,
+    })
+    expect(new Set(result.combined.map((row) => row.month)).size).toBe(result.combined.length)
+  })
+
+  it('does not invent future observed savings or capital losses', () => {
+    const result = buildForecast(withLosses, new Date(2026, 3, 1))!
+    const projections = result.combined.filter((row) => row.isForecast)
+
+    expect(projections).toHaveLength(12)
+    expect(projections.every((row) => row.net === undefined && row.capitalLosses === undefined)).toBe(true)
+    expect(projections.every((row) => row.forecastNet === 60_000)).toBe(true)
+    expect(result.assumptions.capitalLosses).toBe('not-projected')
+    expect(result.assumptions.rangeBasis).toBe('historical-consumption-surplus-variability')
+  })
+})

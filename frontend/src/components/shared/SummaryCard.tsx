@@ -1,6 +1,8 @@
 import { motion } from 'motion/react'
 
-import { fadeUpWithDelay } from '@/constants/animations'
+import { DURATION, fadeUpWithDelay } from '@/constants/animations'
+import { cn } from '@/lib/cn'
+import { useMotionStore } from '@/store/motionStore'
 
 interface SummaryCardProps {
   icon: React.ComponentType<{ className?: string }>
@@ -42,23 +44,37 @@ export default function SummaryCard({
   delay,
   compact = false,
 }: Readonly<SummaryCardProps>) {
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
+  const entrance = fadeUpWithDelay(delay)
   const padding = compact ? 'p-4 md:p-6' : 'p-6'
   return (
     <motion.div
-      {...fadeUpWithDelay(delay)}
-      className={`ledger-panel h-full ${padding}`}
+      {...entrance}
+      initial={reduceMotion ? false : entrance.initial}
+      transition={{
+        ...entrance.transition,
+        delay: reduceMotion ? 0 : entrance.transition.delay,
+        duration: reduceMotion ? 0 : DURATION.quick,
+      }}
+      className={cn('metric-card ledger-panel flex h-full min-w-0 flex-col justify-between gap-4', padding)}
     >
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-        <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${bgClass} ${shadowClass ?? ''}`}>
-          <Icon className={`size-4 ${colorClass}`} />
-        </div>
-        <div className="min-w-0 w-full">
-          <p className="break-words text-xs text-muted-foreground">{label}</p>
-          <p className="ledger-figure break-words text-lg font-semibold leading-tight text-foreground sm:text-xl">
-            {value}
-          </p>
-        </div>
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span
+          aria-hidden="true"
+          className={cn('flex size-6 shrink-0 items-center justify-center rounded-full', bgClass, shadowClass)}
+        >
+          <Icon className={cn('size-3.5', colorClass)} />
+        </span>
+        <p className="min-w-0 pt-0.5 text-pretty text-xs font-medium leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+          {label}
+        </p>
       </div>
+      <p
+        className="metric-value ledger-figure min-w-0 max-w-full whitespace-normal font-semibold leading-tight tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere]"
+        title={value}
+      >
+        {value}
+      </p>
     </motion.div>
   )
 }

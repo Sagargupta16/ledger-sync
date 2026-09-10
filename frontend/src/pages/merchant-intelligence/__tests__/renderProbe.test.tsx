@@ -193,7 +193,9 @@ describe('MerchantIntelligencePage render probe', () => {
     Object.defineProperty(globalThis.window, 'innerWidth', { value: 375, configurable: true })
     try {
       renderPage(ROWS)
-      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(screen.queryByRole('table', {
+        name: 'Payees by total spend, payment count, average payment and cadence',
+      })).not.toBeInTheDocument()
       const cards = screen.getByRole('list', {
         name: 'Payees by total spend, payment count, average payment and cadence',
       })

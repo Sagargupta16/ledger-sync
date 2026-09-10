@@ -25,7 +25,9 @@ import {
   calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
-import { completeMonthKeys, savingsRatePercent } from '@/lib/savingsRate'
+import { completeMonthKeys } from '@/lib/savingsRate'
+import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
+import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
 import { computeDataDateRange, filterTransactionsByDateRange } from '@/lib/transactionUtils'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 
@@ -37,14 +39,6 @@ interface ChartDatum {
   name: string
   value: number
   color: string
-}
-
-interface MoMChanges {
-  income: number | undefined
-  expense: number | undefined
-  savings: number | undefined
-  savingsRate: number | undefined
-  label: string
 }
 
 /** One complete month of the income-vs-spending bar series. */
@@ -108,7 +102,9 @@ export interface DashboardMetrics {
   partialMonthLabel: string | null
 
   // Month-over-month changes
-  momChanges: MoMChanges
+  momChanges: MonthlyChanges
+  investmentTransfers: ReturnType<typeof summarizeInvestmentTransfers>
+  hasInvestmentMappings: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +195,15 @@ export function useDashboardMetrics(): DashboardMetrics {
   const filteredTransactions = useMemo(
     () => filterTransactionsByDateRange(allTransactions, analyticsDateRange),
     [allTransactions, analyticsDateRange],
+  )
+  const investmentMappings = preferences?.investment_account_mappings
+  const hasInvestmentMappings = Object.keys(investmentMappings ?? {}).length > 0
+  const investmentTransfers = useMemo(
+    () => summarizeInvestmentTransfers(
+      filteredTransactions,
+      investmentAccountTest(Object.keys(investmentMappings ?? {})),
+    ),
+    [filteredTransactions, investmentMappings],
   )
 
   // ------ Income breakdown ------
@@ -310,55 +315,7 @@ export function useDashboardMetrics(): DashboardMetrics {
   }, [monthlyFlowAll])
 
   // ------ MoM changes ------
-  const momChanges = useMemo<MoMChanges>(() => {
-    const noChange: MoMChanges = {
-      income: undefined,
-      expense: undefined,
-      savings: undefined,
-      savingsRate: undefined,
-      label: 'vs prev month',
-    }
-    if (!monthlyData) return noChange
-    const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
-
-    // Drop every unfinished month. Testing only `at(-1)` assumed the current
-    // month sorts last, so a single future-dated row (the ledger has a
-    // 2026-07-31 payroll entry) left the in-progress month in as "current".
-    const completeMonths = completeMonthKeys(allMonths)
-
-    if (completeMonths.length < 2) return noChange
-
-    const currKey = completeMonths.at(-1) ?? ''
-    const prevKey = completeMonths.at(-2) ?? ''
-    const curr = monthlyData[currKey]
-    const prev = monthlyData[prevKey]
-    if (!curr || !prev) return noChange
-
-    const pct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / p) * 100).toFixed(1)))
-    // For savings, use abs(prev) as denominator so a sign flip (e.g. -1000 → +500)
-    // correctly shows improvement (+150%) rather than a misleading -150%.
-    const savingsPct = (c: number, p: number) => (p === 0 ? undefined : Number((((c - p) / Math.abs(p)) * 100).toFixed(1)))
-    // Shared definition, fed from income/expense rather than the pre-computed
-    // net_savings field, so this delta cannot drift from the KPI above it.
-    const currSavingsRate = savingsRatePercent({ income: curr.income, expense: Math.abs(curr.expense) })
-    const prevSavingsRate = savingsRatePercent({ income: prev.income, expense: Math.abs(prev.expense) })
-
-    const fmt = (key: string) => {
-      const [y, m] = key.split('-')
-      return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'short' })
-    }
-
-    return {
-      income: pct(curr.income, prev.income),
-      expense: pct(Math.abs(curr.expense), Math.abs(prev.expense)),
-      savings: savingsPct(curr.net_savings, prev.net_savings),
-      savingsRate:
-        currSavingsRate === null || prevSavingsRate === null
-          ? undefined
-          : Number((currSavingsRate - prevSavingsRate).toFixed(1)),
-      label: `${fmt(currKey)} vs ${fmt(prevKey)}`,
-    }
-  }, [monthlyData])
+  const momChanges = useMemo(() => computeMonthlyChanges(monthlyData), [monthlyData])
 
   return {
     viewMode,
@@ -386,5 +343,7 @@ export function useDashboardMetrics(): DashboardMetrics {
     monthlyFlow,
     partialMonthLabel,
     momChanges,
+    investmentTransfers,
+    hasInvestmentMappings,
   }
 }

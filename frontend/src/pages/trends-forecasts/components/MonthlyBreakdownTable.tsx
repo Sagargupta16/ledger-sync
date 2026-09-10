@@ -45,8 +45,8 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
     cell: (row) => (
       <span
         className={`ledger-figure font-bold ${
-          row.surplus >= 0 ? 'text-app-purple' : 'text-app-red'
-        }`}
+          row.surplus >= 0 ? 'text-app-blue' : 'text-app-red'
+          }`}
       >
         {formatCurrency(row.surplus)}
       </span>
@@ -61,7 +61,7 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
       <span
         className={`ledger-figure ${
           row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'
-        }`}
+          }`}
       >
         {row.rawSavingsRate.toFixed(1)}%
       </span>
@@ -72,10 +72,11 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
 export default function MonthlyBreakdownTable({ isLoading, chartData }: Readonly<Props>) {
   return (
     <section
-      className="ledger-panel p-4 sm:p-5 [&_thead_button]:min-h-11"
+      className="ledger-panel min-w-0 p-4 sm:p-6 [&_thead_button]:min-h-11"
       aria-labelledby="monthly-breakdown-title"
     >
-      <h2 id="monthly-breakdown-title" className="mb-4 text-base font-semibold text-foreground">
+      <p className="ledger-meta mb-2 text-app-blue">The figures behind the trend</p>
+      <h2 id="monthly-breakdown-title" className="mb-5 text-xl font-semibold tracking-tight text-foreground">
         Month-on-Month Breakdown
       </h2>
       {isLoading && <TableSkeleton rows={5} />}

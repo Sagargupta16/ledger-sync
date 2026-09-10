@@ -86,6 +86,13 @@ export default function IncomeAnalysisPage() {
         cashbacksTotal={cashbacksTotal}
         cashbackShare={cashbackShare}
       />
+      <IncomeTrendSection
+        data={monthlyTrendData}
+        peakIncome={peakIncome}
+        avgIncome={avgIncome}
+        rollingAvgPointCount={rollingAvgPointCount}
+        rollingAvgMonths={rollingAvgMonths}
+      />
       <IncomeCategorySection
         data={incomeTypeChartData}
         totalIncome={totalIncome}
@@ -94,13 +101,6 @@ export default function IncomeAnalysisPage() {
           // returns undefined and the prop expects void.
           void navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
         }}
-      />
-      <IncomeTrendSection
-        data={monthlyTrendData}
-        peakIncome={peakIncome}
-        avgIncome={avgIncome}
-        rollingAvgPointCount={rollingAvgPointCount}
-        rollingAvgMonths={rollingAvgMonths}
       />
       <IncomeSourcesSection dateRange={dateRange} />
     </PageContainer>

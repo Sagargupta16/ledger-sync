@@ -123,7 +123,7 @@ export default function NetWorthPage() {
       <NetWorthTrendChart
         isLoading={m.isLoading}
         filteredNetWorthData={m.filteredNetWorthData}
-        chartData={m.chartData as Array<Record<string, number | string | null>>}
+        chartData={m.chartData}
         allCategories={m.allCategories}
         showStacked={m.showStacked}
         setShowStacked={m.setShowStacked}

@@ -12,7 +12,7 @@ interface SalaryFieldsGridProps {
   selectedFY: string
   fyIdx: number
   currentSalary: SalaryComponents
-  annualCTC: number
+  cashEarnings: { annual: number; monthly: number }
   onPrev: () => void
   onNext: () => void
   onAddFY: () => void
@@ -28,7 +28,7 @@ const SALARY_FIELDS: Array<{
   { key: 'base_salary_annual', label: 'Base Salary', hint: 'Annual', nullable: false },
   { key: 'hra_annual', label: 'HRA', hint: 'Annual, optional', nullable: true },
   { key: 'bonus_annual', label: 'Bonus', hint: 'Annual', nullable: false },
-  { key: 'epf_monthly', label: 'EPF', hint: 'Monthly', nullable: false },
+  { key: 'epf_monthly', label: 'Employee EPF Deduction', hint: 'Monthly; reduces cash, not taxable earnings', nullable: false },
   { key: 'nps_monthly', label: 'NPS', hint: 'Monthly, optional', nullable: true },
   { key: 'special_allowance_annual', label: 'Special Allowance', hint: 'Annual', nullable: false },
   { key: 'other_taxable_annual', label: 'Other Taxable', hint: 'Annual', nullable: false },
@@ -40,7 +40,7 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
     selectedFY,
     fyIdx,
     currentSalary,
-    annualCTC,
+    cashEarnings,
     onPrev,
     onNext,
     onAddFY,
@@ -115,12 +115,12 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
 
           <div className="flex items-center justify-between border-y border-primary/20 bg-primary/5 py-4">
             <div>
-              <p className="text-xs text-muted-foreground">Total Annual CTC (excl. RSUs)</p>
-              <p className="text-lg font-semibold text-foreground">{formatCurrency(annualCTC)}</p>
+              <p className="text-xs text-muted-foreground">Annual Cash Earnings (before deductions)</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(cashEarnings.annual)}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Monthly (pre-tax)</p>
-              <p className="text-lg font-semibold text-foreground">{formatCurrency(annualCTC / 12)}</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(cashEarnings.monthly)}</p>
             </div>
           </div>
         </>

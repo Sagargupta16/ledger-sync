@@ -132,7 +132,7 @@ export const DISCLOSURE_TRANSITION = {
 } as const
 
 export const ROUTE_TRANSITION = {
-  initial: { opacity: 0, y: 20 },
+  initial: { opacity: 0.85, y: 8 },
   animate: {
     opacity: 1,
     y: 0,
@@ -140,7 +140,7 @@ export const ROUTE_TRANSITION = {
   },
   exit: {
     opacity: 0,
-    y: -10,
+    y: -4,
     transition: { duration: 0.1, ease: 'easeIn' },
   },
 } as const

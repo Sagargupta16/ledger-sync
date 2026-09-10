@@ -11,6 +11,7 @@ interface RecurringItemsSectionProps {
   readonly title: string
   readonly description?: string
   readonly items: RecurringTransaction[]
+  readonly asOfDateKey: string
   readonly muted?: boolean
   readonly onUpdate: (id: number, patch: RecurringUpdate) => void
   readonly onDelete: (id: number, name: string) => void
@@ -20,6 +21,7 @@ export default function RecurringItemsSection({
   title,
   description,
   items,
+  asOfDateKey,
   muted = false,
   onUpdate,
   onDelete,
@@ -38,6 +40,7 @@ export default function RecurringItemsSection({
         <div key={item.id}>
           <RecurringCard
             item={item}
+            asOfDateKey={asOfDateKey}
             onUpdate={(patch) => onUpdate(item.id, patch)}
             onDelete={() => onDelete(item.id, item.name)}
           />

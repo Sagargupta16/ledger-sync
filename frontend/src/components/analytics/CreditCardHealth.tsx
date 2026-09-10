@@ -14,6 +14,15 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import type { AccountTypeValue } from '@/services/api/accountClassifications'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import {
+  buildCreditCardAccount,
+  getCreditCardUtilizationStatus,
+  summarizeCreditCards,
+  type CreditCardAccount,
+  type CreditCardCoverageGap,
+  type CreditCardUtilizationStatus,
+  type UnmeasuredCreditCard,
+} from '@/lib/finance/creditCardUtilization'
 import { usePreferencesStore, selectCreditCardLimits } from '@/store/preferencesStore'
 
 // Typed against the wire vocabulary rather than a bare string, so a typo or a
@@ -24,29 +33,6 @@ const CREDIT_CARD_TYPE: AccountTypeValue = 'Credit Cards'
 // Where a user actually sets a limit. Referenced in every "no limit" message so
 // the empty state is actionable instead of just apologetic.
 const LIMITS_LOCATION = 'Settings > Advanced > Credit Card Limits'
-
-interface CardBase {
-  readonly name: string
-  /** null when the API balance is not a finite number -- nothing is knowable. */
-  readonly balance: number | null
-}
-
-/** Positive user-configured limit and a real balance, so every ratio is a number. */
-interface MeasuredCard extends CardBase {
-  readonly balance: number
-  readonly creditLimit: number
-  readonly utilization: number
-  readonly status: 'low' | 'medium' | 'high' | 'critical'
-}
-
-/** No usable limit (or no usable balance). At most the outstanding is knowable. */
-interface UnmeasuredCard extends CardBase {
-  readonly creditLimit: number | null
-  readonly utilization: null
-  readonly status: 'unknown'
-}
-
-type CreditCardAccount = MeasuredCard | UnmeasuredCard
 
 // Recommended utilization ceiling -- credit bureaus flag scores above 30%.
 const UTILIZATION_TARGET = 30
@@ -69,6 +55,13 @@ const STATUS_CLASS: Record<CreditCardAccount['status'], string> = {
   unknown: 'text-muted-foreground',
 }
 
+const UTILIZATION_FILL: Record<CreditCardUtilizationStatus, string> = {
+  low: rawColors.app.green,
+  medium: rawColors.app.blue,
+  high: rawColors.app.yellow,
+  critical: rawColors.app.red,
+}
+
 const UTILIZATION_LEGEND = [
   { range: '<30%', label: 'Excellent', bg: 'bg-app-green/10', text: 'text-app-green' },
   { range: '30-50%', label: 'Good', bg: 'bg-app-yellow/10', text: 'text-app-yellow' },
@@ -80,109 +73,11 @@ const LINK_CLASS =
 
 /** Solid fill color matching the utilization tier. */
 function utilizationFill(utilization: number): string {
-  if (utilization > 75) return rawColors.app.red
-  if (utilization > 50) return rawColors.app.yellow
-  if (utilization > 30) return rawColors.app.blue
-  return rawColors.app.green
-}
-
-/**
- * A limit the user never set is NOT 100000.
- *
- * This used to be `creditCardLimits[name] || 100000`, inventing a limit per
- * unconfigured card and dividing real balances by the invention. On the live
- * ledger (7 detected cards, 5 with a configured limit) that fabricated a
- * 12,40,000 denominator where only 10,40,000 exists. `||` also swallowed a
- * deliberate 0 (closed or blocked card), which `??` semantics preserve --
- * though utilization stays suppressed for it, 0 being no denominator either.
- */
-function resolveLimit(configured: number | undefined): number | null {
-  if (configured === undefined || !Number.isFinite(configured) || configured < 0) return null
-  return configured
-}
-
-/**
- * A non-finite balance is refused as a numerator for the same reason a missing
- * limit is refused as a denominator. Validating only the limit let a NaN balance
- * yield `utilization === NaN`, which is `!== null` and so counted as measured --
- * NaN then spread into every aggregate and the header read "NaN% utilization".
- */
-function buildCard(name: string, rawBalance: number, limit: number | null): CreditCardAccount {
-  const balance = Number.isFinite(rawBalance) ? Math.abs(rawBalance) : null
-
-  if (balance === null || limit === null || limit <= 0) {
-    return { name, balance, creditLimit: limit, utilization: null, status: 'unknown' }
-  }
-
-  const utilization = (balance / limit) * 100
-  let status: MeasuredCard['status'] = 'low'
-  if (utilization > 75) status = 'critical'
-  else if (utilization > 50) status = 'high'
-  else if (utilization > 30) status = 'medium'
-
-  return { name, balance, creditLimit: limit, utilization, status }
+  return UTILIZATION_FILL[getCreditCardUtilizationStatus(utilization)]
 }
 
 function countLabel(n: number): string {
   return `${n} ${n === 1 ? 'card' : 'cards'}`
-}
-
-/** Counts of the distinct reasons a card cannot be rated. */
-interface Gap {
-  readonly noLimit: number
-  readonly zeroLimit: number
-  readonly unavailable: number
-}
-
-/**
- * Every figure the panel renders, derived in one place.
- *
- * Extracted from the component body, which had accumulated the card scan, four
- * reduces, the gap tally and the ratio guard inline (cognitive complexity 18 vs
- * the 15 allowed, S3776). Keeping the derivation pure also means the ratio and
- * its disclosed coverage cannot drift apart: `overallUtilization` and
- * `measured` are computed from the same pass, so a card can never be inside the
- * numerator but outside the stated denominator.
- */
-interface CardTotals {
-  readonly measured: readonly MeasuredCard[]
-  readonly unmeasuredCount: number
-  readonly gap: Gap
-  readonly totalBalance: number
-  readonly measuredBalance: number
-  readonly measuredLimit: number
-  /** null when no positive limit is known -- never a fabricated denominator. */
-  readonly overallUtilization: number | null
-  readonly isElevated: boolean
-}
-
-function summarizeCards(creditCards: readonly CreditCardAccount[]): CardTotals {
-  const measured = creditCards.filter((c): c is MeasuredCard => c.utilization !== null)
-  const unmeasured = creditCards.filter((c) => c.utilization === null)
-
-  // A limit of 0 WAS configured -- it is just unusable as a denominator. Copy has
-  // to distinguish that from "never set", or it tells the user to do a thing
-  // they already did.
-  const gap: Gap = {
-    noLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === null).length,
-    zeroLimit: unmeasured.filter((c) => c.balance !== null && c.creditLimit === 0).length,
-    unavailable: unmeasured.filter((c) => c.balance === null).length,
-  }
-
-  const measuredBalance = measured.reduce((sum, c) => sum + c.balance, 0)
-  const measuredLimit = measured.reduce((sum, c) => sum + c.creditLimit, 0)
-  const overallUtilization = measuredLimit > 0 ? (measuredBalance / measuredLimit) * 100 : null
-
-  return {
-    measured,
-    unmeasuredCount: unmeasured.length,
-    gap,
-    totalBalance: creditCards.reduce((sum, c) => sum + (c.balance ?? 0), 0),
-    measuredBalance,
-    measuredLimit,
-    overallUtilization,
-    isElevated: overallUtilization !== null && overallUtilization > 50,
-  }
 }
 
 /**
@@ -207,7 +102,7 @@ function headerToneFor(overallUtilization: number | null, isElevated: boolean) {
  * it and sending them to settings to redo work already done, so each reason is
  * counted separately and only the ones that occur are named.
  */
-function gapReason({ noLimit, zeroLimit, unavailable }: Gap): string {
+function gapReason({ noLimit, zeroLimit, unavailable }: CreditCardCoverageGap): string {
   const parts: string[] = []
   if (noLimit > 0) {
     parts.push(noLimit === 1 ? 'one card has no limit set' : `${noLimit} cards have no limit set`)
@@ -224,13 +119,13 @@ function gapReason({ noLimit, zeroLimit, unavailable }: Gap): string {
 }
 
 /** The only call to action that is true for the gap at hand. Empty when none is. */
-function gapAction(gap: Gap): string {
+function gapAction(gap: CreditCardCoverageGap): string {
   if (gap.noLimit > 0) return `Add limits in ${LIMITS_LOCATION}.`
   if (gap.zeroLimit > 0) return `Raise a limit above 0 in ${LIMITS_LOCATION} to see utilization.`
   return ''
 }
 
-function emptyStateDescription(cardCountLabel: string, gap: Gap): string {
+function emptyStateDescription(cardCountLabel: string, gap: CreditCardCoverageGap): string {
   const head = `Outstanding balances below are exact, but ${gapReason(gap)}, so any utilization across ${cardCountLabel} would be invented rather than measured.`
   const action = gapAction(gap)
   return action ? `${head} ${action}` : head
@@ -270,12 +165,12 @@ function AmountRow({ label, value }: Readonly<{ label: string; value: number | n
 }
 
 /** Short badge for the reason a percentage is missing, so the row explains itself. */
-function unmeasuredBadge(card: UnmeasuredCard): string {
+function unmeasuredBadge(card: UnmeasuredCreditCard): string {
   if (card.balance === null) return 'Balance unavailable'
   return card.creditLimit === 0 ? 'Limit is 0' : 'No limit set'
 }
 
-function unmeasuredReason(card: UnmeasuredCard): string {
+function unmeasuredReason(card: UnmeasuredCreditCard): string {
   if (card.balance === null) {
     return 'This balance did not come back as a number, so nothing is computed from it.'
   }
@@ -318,7 +213,7 @@ function CardRow({ card }: Readonly<{ card: CreditCardAccount }>) {
       ) : (
         <AmountRow
           label={`Available of ${formatCurrency(card.creditLimit)}`}
-          value={Math.max(0, card.creditLimit - card.balance)}
+          value={card.availableCredit}
         />
       )}
     </div>
@@ -355,7 +250,7 @@ export default function CreditCardHealth() {
       const isNameHintedCreditCard = !classifiedType && name.toLowerCase().includes('credit')
 
       if (isClassifiedCreditCard || isNameHintedCreditCard) {
-        cards.push(buildCard(name, data.balance, resolveLimit(creditCardLimits[name])))
+        cards.push(buildCreditCardAccount(name, data.balance, creditCardLimits[name]))
       }
     })
 
@@ -380,7 +275,7 @@ export default function CreditCardHealth() {
     measuredLimit,
     overallUtilization,
     isElevated,
-  } = summarizeCards(creditCards)
+  } = summarizeCreditCards(creditCards)
 
   if (isLoading) {
     return (

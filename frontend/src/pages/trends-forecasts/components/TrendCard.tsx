@@ -62,7 +62,7 @@ export default function TrendCard({
   const secondStatValue = metrics.highest
 
   return (
-    <article className={`ledger-panel p-4 sm:p-5 ${className}`}>
+    <article className={`min-w-0 ${className}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className={`shrink-0 rounded-md p-2 ${iconBgClass}`}>
@@ -73,7 +73,7 @@ export default function TrendCard({
             {isLoading ? (
               <LoadingSkeleton className="h-7 w-28 mt-1" />
             ) : (
-              <p className={`ledger-figure break-words text-xl font-semibold ${valueClassName}`}>
+              <p className={`mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums ${valueClassName}`}>
                 {formatCurrency(metrics.current)}
               </p>
             )}
@@ -88,7 +88,7 @@ export default function TrendCard({
             className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${getTrendColor(metrics.direction, isPositiveGood)}`}
           >
             {getDirectionIcon(metrics.direction)}
-            <span className="ledger-figure font-semibold">
+            <span className="font-mono text-sm font-semibold tabular-nums">
               {formatPercent(metrics.changePercent)}
             </span>
             <span className="text-text-tertiary text-sm">vs previous month</span>
@@ -96,14 +96,14 @@ export default function TrendCard({
           <dl className="grid grid-cols-2 gap-3 border-t border-[var(--hairline-1)] pt-3">
             <div className="min-w-0">
               <dt className="text-xs text-text-tertiary">Average</dt>
-              <dd className={`ledger-figure break-words text-sm font-medium ${averageClassName}`}>
+              <dd className={`mt-1 break-words font-mono text-sm font-medium tabular-nums ${averageClassName}`}>
                 {formatCurrency(metrics.average)}
               </dd>
             </div>
             <div className="min-w-0">
               <dt className="text-xs text-text-tertiary">{secondStatLabel}</dt>
               <dd
-                className={`ledger-figure break-words text-sm font-medium ${secondStatClassName}`}
+                className={`mt-1 break-words font-mono text-sm font-medium tabular-nums ${secondStatClassName}`}
               >
                 {formatCurrency(secondStatValue)}
               </dd>

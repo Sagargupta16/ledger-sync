@@ -20,13 +20,14 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { rawColors } from '@/constants/colors'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 interface TooltipCapture {
   formatter?: (value: unknown, name: unknown) => string
 }
 
 /** The datum rows handed to the chart; each carries its own bar `fill`. */
-type CapturedRow = { category: string; fill?: string }
+type CapturedRow = { category: string; amount: number; cumulativePct: number; fill?: string }
 
 const captured: {
   tooltip?: TooltipCapture
@@ -123,7 +124,7 @@ describe('ParetoChart vital-few count', () => {
     // which merges labels from both sides of the cutoff and so stays muted.
     expect(captured.rows).toHaveLength(12)
     expect(captured.rows.slice(0, 11).map((r) => r.fill)).toEqual(
-      Array.from({ length: 11 }, () => rawColors.app.orange),
+      Array.from({ length: 11 }, () => SEMANTIC_COLORS.expense),
     )
     expect(captured.rows.at(-1)?.fill).toBe(rawColors.text.tertiary)
   })
@@ -135,7 +136,7 @@ describe('ParetoChart vital-few count', () => {
       screen.getByText('1 category makes up 80% of your spend -- the rest are the long tail'),
     ).toBeInTheDocument()
     expect(captured.rows.map((r) => r.fill)).toEqual([
-      rawColors.app.orange,
+      SEMANTIC_COLORS.expense,
       rawColors.text.tertiary,
       rawColors.text.tertiary,
       rawColors.text.tertiary,
@@ -149,7 +150,7 @@ describe('ParetoChart vital-few count', () => {
     render(<ParetoChart categoryBreakdown={{ A: 80, B: 10, C: 5, D: 5 }} />)
 
     const byCategory = new Map(captured.rows.map((r) => [r.category, r.fill]))
-    expect(byCategory.get('A')).toBe(rawColors.app.orange)
+    expect(byCategory.get('A')).toBe(SEMANTIC_COLORS.expense)
     expect(byCategory.get('B')).toBe(rawColors.text.tertiary)
   })
 
@@ -158,5 +159,47 @@ describe('ParetoChart vital-few count', () => {
 
     expect(screen.getByText('Which payees make up 80% of your spend')).toBeInTheDocument()
     expect(captured.rows).toHaveLength(0)
+  })
+
+  it('keeps an all-zero breakdown empty', () => {
+    render(<ParetoChart categoryBreakdown={{ A: 0, B: 0 }} />)
+
+    expect(screen.getByText('Which categories make up 80% of your spend')).toBeInTheDocument()
+    expect(captured.rows).toHaveLength(0)
+  })
+
+  it('preserves tied row counts, zero rows and absolute amounts at a custom cutoff', () => {
+    render(<ParetoChart categoryBreakdown={{ A: -25, B: 25, C: 25, D: 25, Zero: 0 }} threshold={75} />)
+
+    expect(screen.getByText('3 categories make up 75% of your spend -- the rest are the long tail')).toBeInTheDocument()
+    expect(captured.rows.map((row) => row.amount)).toEqual([25, 25, 25, 25, 0])
+    expect(captured.rows.map((row) => row.cumulativePct)).toEqual([25, 50, 75, 100, 100])
+    expect(captured.rows.map((row) => row.fill)).toEqual([
+      SEMANTIC_COLORS.expense,
+      SEMANTIC_COLORS.expense,
+      SEMANTIC_COLORS.expense,
+      rawColors.text.tertiary,
+      rawColors.text.tertiary,
+    ])
+  })
+
+  it('keeps a real Other label separate from the capped tail', () => {
+    render(<ParetoChart categoryBreakdown={{ Other: 40, A: 30, B: 20, C: 10 }} maxBars={3} threshold={60} />)
+
+    expect(screen.getByText('2 categories make up 60% of your spend -- the rest are the long tail')).toBeInTheDocument()
+    expect(captured.rows.map((row) => row.category)).toEqual(['Other', 'A', 'Other'])
+    expect(captured.rows.map((row) => row.amount)).toEqual([40, 30, 30])
+    expect(captured.rows.map((row) => row.cumulativePct)).toEqual([40, 70, 100])
+    expect(captured.rows[0].fill).toBe(SEMANTIC_COLORS.expense)
+    expect(captured.rows[2].fill).toBe(rawColors.text.tertiary)
+  })
+
+  it('counts original rows even when the cap leaves only the Other bar', () => {
+    render(<ParetoChart categoryBreakdown={equalPayees(5, 20)} maxBars={1} />)
+
+    expect(screen.getByText('4 categories make up 80% of your spend -- the rest are the long tail')).toBeInTheDocument()
+    expect(captured.rows).toEqual([
+      expect.objectContaining({ category: 'Other', amount: 100, cumulativePct: 100, fill: rawColors.text.tertiary }),
+    ])
   })
 })

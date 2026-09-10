@@ -15,6 +15,11 @@ export const EPF_STATUTORY_RATE_PCT = 12
 export const EPF_WAGE_CEILING = 15000
 export const EPF_MIN_MONTHLY_CONTRIBUTION = (EPF_WAGE_CEILING * EPF_STATUTORY_RATE_PCT) / 100
 
+/** Existing projection minimum: the wage-ceiling floor or 12% of full basic. */
+export function minimumEpfContribution(monthlyBasic: number): number {
+  return Math.max(EPF_MIN_MONTHLY_CONTRIBUTION, (monthlyBasic * EPF_STATUTORY_RATE_PCT) / 100)
+}
+
 /**
  * Of the employer's 12%, 8.33% of the EPS wage is diverted to the EPS pension
  * scheme (not the EPF corpus). The EPS wage is capped at the ₹15,000 ceiling,
@@ -182,6 +187,20 @@ export interface NPSParams {
   currentBalance?: number
 }
 
+/** Allocation and return inputs are percentage points; allocations are not normalized. */
+export function computeNpsWeightedReturn(
+  equity: number,
+  corp: number,
+  govt: number,
+  returns: { equity: number; corp_bond: number; govt_bond: number },
+): number {
+  return (
+    (equity / 100) * returns.equity +
+    (corp / 100) * returns.corp_bond +
+    (govt / 100) * returns.govt_bond
+  )
+}
+
 /**
  * NPS projection with weighted returns across asset classes.
  *
@@ -200,11 +219,11 @@ export function projectNPS(params: NPSParams): ProjectionResult {
     years = 25,
     currentBalance = 0,
   } = params
-  // Weighted annual return
-  const weightedReturn =
-    (equityPct / 100) * equityReturn +
-    (corpBondPct / 100) * corpReturn +
-    (govtBondPct / 100) * govtReturn
+  const weightedReturn = computeNpsWeightedReturn(equityPct, corpBondPct, govtBondPct, {
+    equity: equityReturn,
+    corp_bond: corpReturn,
+    govt_bond: govtReturn,
+  })
 
   const monthlyRate = weightedReturn / 12 / 100
 

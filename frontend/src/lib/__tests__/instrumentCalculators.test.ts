@@ -1,10 +1,90 @@
 import { describe, it, expect } from 'vitest'
 
 import {
+  computeNpsWeightedReturn,
   epfMonthlyContributions,
+  minimumEpfContribution,
   projectEPF,
+  projectNPS,
   EPF_WAGE_CEILING,
 } from '../instrumentCalculators'
+
+describe('minimumEpfContribution', () => {
+  it.each([
+    [0, 1800],
+    [9000, 1800],
+    [15000, 1800],
+    [50000, 6000],
+  ])('preserves the existing minimum for basic pay %s', (basic, minimum) => {
+    expect(minimumEpfContribution(basic)).toBe(minimum)
+  })
+})
+
+describe('computeNpsWeightedReturn', () => {
+  it('weights the three return assumptions in percentage points', () => {
+    expect(computeNpsWeightedReturn(50, 30, 20, {
+      equity: 10,
+      corp_bond: 8.5,
+      govt_bond: 7.5,
+    })).toBeCloseTo(9.05)
+  })
+
+  it('preserves partial allocations instead of normalizing them', () => {
+    expect(computeNpsWeightedReturn(25, 25, 0, {
+      equity: 12,
+      corp_bond: 4,
+      govt_bond: 7,
+    })).toBe(4)
+  })
+
+  it('retains negative returns', () => {
+    expect(computeNpsWeightedReturn(50, 25, 25, {
+      equity: -8,
+      corp_bond: 6,
+      govt_bond: 4,
+    })).toBe(-1.5)
+  })
+})
+
+describe('projectNPS', () => {
+  it('matches a beginning-of-month annuity at the weighted nominal monthly rate', () => {
+    const result = projectNPS({
+      monthlyContribution: 100,
+      equityPct: 50,
+      corpBondPct: 25,
+      govtBondPct: 25,
+      equityReturn: 18,
+      corpReturn: 8,
+      govtReturn: 4,
+      years: 1,
+      currentBalance: 1000,
+    })
+    // The mix yields 12% annually, or 1% per month. A closed-form annuity
+    // checks both the monthly timing and the loop without repeating it.
+    const growth = 1.01 ** 12
+    const maturity = Math.round(1000 * growth + 100 * ((growth - 1) / 0.01) * 1.01)
+    expect(result.projectedValue).toBe(maturity)
+    expect(result.totalContributed).toBe(2200)
+    expect(result.totalReturns).toBe(maturity - 2200)
+    expect(result.yearByYear).toEqual([
+      { year: 1, contributed: 2200, returns: maturity - 2200, total: maturity },
+    ])
+  })
+
+  it('preserves cost basis and zero growth', () => {
+    const result = projectNPS({
+      monthlyContribution: 100,
+      equityReturn: 0,
+      corpReturn: 0,
+      govtReturn: 0,
+      years: 1,
+      currentBalance: 1000,
+    })
+    expect(result.projectedValue).toBe(2200)
+    expect(result.totalContributed).toBe(2200)
+    expect(result.totalReturns).toBe(0)
+  })
+})
 
 /**
  * EPF statutory split regression. The earlier bug passed the employee % for

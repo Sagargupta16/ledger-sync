@@ -3,6 +3,14 @@ import { toLocalDateKey } from '@/lib/dateUtils'
 
 import { ESSENTIAL_CATEGORIES } from './demoHelpers'
 
+export const DEMO_INVESTMENT_MAPPINGS = {
+  'Groww Mutual Funds': 'mutual_funds',
+  'Groww Stocks': 'stocks',
+  'PPF Account': 'ppf_epf',
+  'EPF Account': 'ppf_epf',
+  'SBI FD': 'fixed_deposits',
+}
+
 function fyLabel(startYear: number): string {
   return `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
 }
@@ -119,13 +127,7 @@ export function generateDemoPreferences(): UserPreferences {
     id: -1,
     fiscal_year_start_month: 4,
     essential_categories: ESSENTIAL_CATEGORIES,
-    investment_account_mappings: {
-      'Groww Mutual Funds': 'mutual_funds',
-      'Groww Stocks': 'stocks',
-      'PPF Account': 'ppf_epf',
-      'EPF Account': 'ppf_epf',
-      'SBI FD': 'fixed_deposits',
-    },
+    investment_account_mappings: { ...DEMO_INVESTMENT_MAPPINGS },
     taxable_income_categories: [
       'Employment Income::Salary',
       'Employment Income::Bonuses',

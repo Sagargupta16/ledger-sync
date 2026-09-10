@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { getAnnualFactor, toMonthlyAmount } from '../helpers'
+import { formatDate, getAnnualFactor, toMonthlyAmount } from '../helpers'
+
+describe('formatDate', () => {
+  it('shows the same ledger date used for freshness even when a timestamp has an offset', () => {
+    expect(formatDate('2032-03-31T23:59:00-07:00')).toBe('Mar 31, 2032')
+  })
+})
 
 /**
  * The subscription tracker's KPI row sums `toMonthlyAmount` over every live

@@ -12,12 +12,25 @@ interface SankeyNodeRendererProps {
   readonly width: number
   readonly height: number
   readonly index: number
-  readonly payload: { name: string }
+  readonly payload: { name: string; depth?: number; targetNodes?: number[] }
   readonly meta: readonly SankeyNodeMeta[]
   readonly chartWidth: number
   readonly fontSize: number
   /** origin = the node's center in chart px, so the next view can zoom in from it. */
   readonly onDrill: (crumb: DrillCrumb, origin?: { x: number; y: number }) => void
+}
+
+function wrapNodeLabel(name: string, lineLimit: number): string[] {
+  const labelLines: string[] = []
+  for (const word of name.split(' ')) {
+    const last = labelLines.at(-1)
+    if (last && last.length + word.length < lineLimit) {
+      labelLines[labelLines.length - 1] = `${last} ${word}`
+    } else {
+      labelLines.push(word)
+    }
+  }
+  return labelLines
 }
 
 /**
@@ -73,9 +86,15 @@ export const SankeyNodeRenderer = ({
   const fillColor = nodeMeta?.color ?? rawColors.app.purple
   const drill = nodeMeta?.drill ?? null
 
-  const onLeftSide = x < chartWidth / 2
-  const labelX = onLeftSide ? x - 8 : x + width + 8
+  const onLeftSide = payload.depth === undefined
+    ? x < chartWidth / 2
+    : payload.depth === 0 || (payload.targetNodes?.length ?? 0) > 0
+  const labelX = onLeftSide ? x - 12 : x + width + 12
   const anchor: 'end' | 'start' = onLeftSide ? 'end' : 'start'
+  const lineLimit = payload.depth === 0 || !payload.targetNodes?.length ? 23 : 17
+  const labelLines = wrapNodeLabel(payload.name, lineLimit)
+  const lineHeight = fontSize + 3
+  const labelY = y + height / 2 - (labelLines.length * lineHeight + 23) / 2
 
   const interactiveProps = drill
     ? drillableGroupProps(
@@ -87,6 +106,19 @@ export const SankeyNodeRenderer = ({
 
   return (
     <g {...interactiveProps}>
+      <title>{`${payload.name}: ${formatCurrency(value)} (${percentage}%)`}</title>
+      {drill && (
+        <rect
+          x={x - 6}
+          y={y - Math.max(0, (44 - height) / 2)}
+          width={width + 12}
+          height={Math.max(height, 44)}
+          fill="transparent"
+          stroke={hovered ? fillColor : 'transparent'}
+          strokeWidth={1}
+          rx={6}
+        />
+      )}
       <rect
         x={x}
         y={y}
@@ -96,32 +128,55 @@ export const SankeyNodeRenderer = ({
         fillOpacity={drill && hovered ? 1 : 0.9}
         stroke={fillColor}
         strokeWidth={drill && hovered ? 2 : 0}
-        rx={4}
-        ry={4}
+        rx={3}
+        ry={3}
       />
       <text
         x={labelX}
-        y={y + height / 2 - fontSize * 0.25}
+        y={labelY}
         textAnchor={anchor}
         dominantBaseline="middle"
         fill={rawColors.chart.textPrimary}
         fontSize={fontSize}
-        fontWeight="600"
-        style={drill ? { textDecoration: hovered ? 'underline' : 'none' } : undefined}
+        fontWeight="500"
+        style={{
+          paintOrder: 'stroke',
+          stroke: 'var(--color-surface-1)',
+          strokeWidth: 4,
+          strokeLinejoin: 'round',
+          textDecoration: drill && hovered ? 'underline' : 'none',
+        }}
       >
-        {payload.name}
-        {drill ? ' ›' : ''}
+        {labelLines.map((line, lineIndex) => (
+          <tspan key={`${lineIndex}-${line}`} x={labelX} dy={lineIndex === 0 ? 0 : lineHeight}>
+            {line}{drill && lineIndex === labelLines.length - 1 ? ' ›' : ''}
+          </tspan>
+        ))}
       </text>
       <text
         x={labelX}
-        y={y + height / 2 + fontSize * 0.9}
+        y={labelY + labelLines.length * lineHeight + 3}
         textAnchor={anchor}
         dominantBaseline="middle"
-        fill={rawColors.app.purple}
-        fontSize={fontSize - 2}
-        fontWeight="500"
+        fill={rawColors.chart.textPrimary}
+        fontFamily="var(--font-mono)"
+        fontSize={fontSize}
+        fontWeight="600"
+        style={{ paintOrder: 'stroke', stroke: 'var(--color-surface-1)', strokeWidth: 4 }}
       >
-        {formatCurrency(value)} ({percentage}%)
+        {formatCurrency(value)}
+      </text>
+      <text
+        x={labelX}
+        y={labelY + labelLines.length * lineHeight + 20}
+        textAnchor={anchor}
+        dominantBaseline="middle"
+        fill={rawColors.chart.textSubtle}
+        fontFamily="var(--font-mono)"
+        fontSize={11}
+        style={{ paintOrder: 'stroke', stroke: 'var(--color-surface-1)', strokeWidth: 3 }}
+      >
+        {percentage}%
       </text>
     </g>
   )

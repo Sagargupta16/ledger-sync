@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { rawColors } from '@/constants/colors'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
+import { computeGoalPace, computeGoalProjection as computeDomainProjection } from '@/lib/finance/goalProjection'
 
 import { addMonths, computeGoalProjection, differenceInMonths } from '../helpers'
 import type { GoalDeadlineState } from '../types'
@@ -66,6 +68,139 @@ describe('differenceInMonths', () => {
   it('is negative when the later date precedes the earlier one', () => {
     expect(differenceInMonths(new Date(2026, 4, 15), new Date(2026, 6, 15))).toBe(-2)
     expect(differenceInMonths(new Date(2026, 6, 10), new Date(2026, 6, 15))).toBe(0)
+  })
+})
+
+describe('shared goal projection', () => {
+  it.each([null, 0, -5_000])('keeps the required contribution without projecting %s monthly savings', (savings) => {
+    const projection = computeDomainProjection(
+      { target_amount: TARGET_AMOUNT, target_date: '2026-08-15' },
+      30_000,
+      savings,
+      new Date(2026, 6, 15),
+    )
+
+    expect(projection).toEqual({
+      monthsRemaining: 1,
+      deadlineState: 'scheduled',
+      requiredMonthlySavings: 90_000,
+      projectedDate: null,
+      monthsToComplete: null,
+      status: 'no_data',
+      monthsDelta: null,
+    })
+  })
+
+  it('treats a zero target as achieved without savings data', () => {
+    const projection = computeDomainProjection(
+      { target_amount: 0, target_date: null },
+      0,
+      null,
+      new Date(2026, 0, 31),
+    )
+
+    expect(projection).toEqual({
+      monthsRemaining: 0,
+      deadlineState: 'none',
+      requiredMonthlySavings: null,
+      projectedDate: null,
+      monthsToComplete: null,
+      status: 'achieved',
+      monthsDelta: null,
+    })
+  })
+
+  it('projects fractional months after clamping the whole month to its last day', () => {
+    const projection = computeDomainProjection(
+      { target_amount: TARGET_AMOUNT, target_date: '2026-02-28' },
+      30_000,
+      60_000,
+      new Date(2026, 0, 31),
+    )
+
+    expect(projection).toEqual({
+      monthsRemaining: 1,
+      deadlineState: 'scheduled',
+      requiredMonthlySavings: 90_000,
+      projectedDate: new Date(2026, 2, 15),
+      monthsToComplete: 1.5,
+      status: 'slightly_behind',
+      monthsDelta: 0,
+    })
+  })
+
+  it('keeps an open-ended projection on track with its signed month delta', () => {
+    const projection = computeDomainProjection(
+      { target_amount: TARGET_AMOUNT, target_date: null },
+      0,
+      60_000,
+      new Date(2026, 0, 31),
+    )
+
+    expect(projection).toEqual({
+      monthsRemaining: 0,
+      deadlineState: 'none',
+      requiredMonthlySavings: null,
+      projectedDate: new Date(2026, 2, 31),
+      monthsToComplete: 2,
+      status: 'on_track',
+      monthsDelta: -2,
+    })
+  })
+})
+
+describe('goal projection presentation', () => {
+  it('reads refreshed theme colors when computing a projection', () => {
+    const originalGreen = rawColors.app.green
+    try {
+      rawColors.app.green = '#123456'
+      const projection = computeGoalProjection(makeGoal(), TARGET_AMOUNT, null, new Date(2026, 0, 31))
+      expect(projection.statusColor).toBe('#123456')
+    } finally {
+      rawColors.app.green = originalGreen
+    }
+  })
+
+  it.each([
+    [TARGET_AMOUNT, null, 'achieved', 'Achieved', rawColors.app.green, null],
+    [0, 0, 'no_data', 'No savings data', rawColors.app.yellow, null],
+    [0, 240_000, 'on_track', 'On Track', rawColors.app.green, 1],
+    [0, 120_000, 'on_track', 'On Track', rawColors.app.green, 0],
+    [0, 30_000, 'slightly_behind', 'Slightly Behind', rawColors.app.yellow, -3],
+    [0, 24_000, 'behind', 'Behind', rawColors.app.red, -4],
+  ] as const)('preserves status and presentation with %s saved and %s monthly', (
+    currentAmount, savings, status, statusLabel, statusColor, monthsDelta,
+  ) => {
+    const projection = computeGoalProjection(
+      makeGoal({ target_date: '2026-02-28' }),
+      currentAmount,
+      savings,
+      new Date(2026, 0, 31),
+    )
+
+    expect(projection).toMatchObject({ status, statusLabel, statusColor, monthsDelta })
+  })
+})
+
+describe('goal funding pace', () => {
+  it.each([
+    ['missing start', null, '2027-01-01', 6, 'on_track', undefined],
+    ['missing deadline', '2026-01-01', null, 0, 'on_track', undefined],
+    ['achieved', '2026-01-01', '2027-01-01', 6, 'achieved', undefined],
+    ['sub-month timeline', '2026-01-01', '2026-01-20', 0, 'on_track', undefined],
+    ['reversed timeline', '2027-01-01', '2026-01-01', 0, 'on_track', undefined],
+    ['invalid timeline', 'invalid', '2027-01-01', 6, 'on_track', undefined],
+    ['before the start', '2026-01-01', '2027-01-01', 18, 'on_track', 0],
+    ['halfway', '2026-01-01', '2027-01-01', 6, 'on_track', 50],
+    ['after the deadline', '2026-01-01', '2027-01-01', -1, 'on_track', 100],
+    ['clamped month end', '2026-01-31', '2026-02-28', 0, 'on_track', 100],
+  ] as const)('preserves the pace for %s', (
+    _label, startDate, targetDate, monthsRemaining, status, expected,
+  ) => {
+    expect(computeGoalPace(
+      { start_date: startDate, target_date: targetDate },
+      { monthsRemaining, status },
+    )).toBe(expected)
   })
 })
 

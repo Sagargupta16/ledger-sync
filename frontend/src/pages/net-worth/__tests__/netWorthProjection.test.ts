@@ -84,6 +84,27 @@ describe('buildMilestoneRows', () => {
     expect(tenL.distance).toBeNull()
   })
 
+  it.each([
+    ['2026-01-31', 100_000, '2026-02-28', 1],
+    ['2024-01-31', 100_000, '2024-02-29', 1],
+    ['2026-01-31', 150_000, '2026-03-15', 1.5],
+    ['2024-01-31', 150_000, '2024-03-15', 1.5],
+    ['2026-01-31', 153_000, '2026-03-16', 1.5],
+  ] as const)('steps ETA from %s to %s using calendar months before fractional days', (
+    anchorDate, value, date, distance,
+  ) => {
+    const anchor = { date: anchorDate, netWorth: 0 }
+    const rows = buildMilestoneRows([anchor], anchor, 100_000, [{ value, label: 'Target' }])
+    expect(rows).toEqual([{
+      value,
+      label: 'Target',
+      status: 'upcoming',
+      date,
+      distance,
+      stableSince: null,
+    }])
+  })
+
   it('sorts rows low-to-high by value', () => {
     const series = [{ date: '2024-01-01', netWorth: 600_000 }]
     const rows = buildMilestoneRows(series, series[0], 10_000)

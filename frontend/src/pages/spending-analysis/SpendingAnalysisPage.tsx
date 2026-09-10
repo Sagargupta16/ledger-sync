@@ -82,6 +82,15 @@ export default function SpendingAnalysisPage() {
         subcategoriesCount={subcategoriesCount}
       />
 
+      <ExpenseTrendSection
+        monthlyTrendData={monthlyTrendData}
+        peakExpense={peakExpense}
+        monthlyAvgSpending={monthlyAvgSpending}
+        monthlyAvgLineLabel={monthlyAvgLineLabel}
+        rollingAvgPointCount={rollingAvgPointCount}
+        rollingAvgMonths={rollingAvgMonths}
+      />
+
       <BudgetRuleAnalysis
         needsTarget={needsTarget}
         wantsTarget={wantsTarget}
@@ -90,15 +99,6 @@ export default function SpendingAnalysisPage() {
         spendingBreakdown={spendingBreakdown}
         budgetRuleMetrics={budgetRuleMetrics}
         savings={savings}
-      />
-
-      <ExpenseTrendSection
-        monthlyTrendData={monthlyTrendData}
-        peakExpense={peakExpense}
-        monthlyAvgSpending={monthlyAvgSpending}
-        monthlyAvgLineLabel={monthlyAvgLineLabel}
-        rollingAvgPointCount={rollingAvgPointCount}
-        rollingAvgMonths={rollingAvgMonths}
       />
 
       <motion.div {...SCROLL_FADE_UP}>

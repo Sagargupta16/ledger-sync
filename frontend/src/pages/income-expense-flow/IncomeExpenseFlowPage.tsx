@@ -19,7 +19,7 @@ const IncomeExpenseFlowPage = () => {
     return (
       <PageErrorState
         title="Cash Flow"
-        subtitle="Visualize how your income flows into savings and expenses"
+        subtitle="Follow your income through tax, spending, and savings."
         onRetry={m.retry}
       />
     )
@@ -30,7 +30,7 @@ const IncomeExpenseFlowPage = () => {
       <PageContainer>
         <PageHeader
           title="Cash Flow"
-          subtitle="Visualize how your income flows into savings and expenses"
+          subtitle="Follow your income through tax, spending, and savings."
         />
         <EmptyState
           icon={Upload}
@@ -48,7 +48,7 @@ const IncomeExpenseFlowPage = () => {
     <PageContainer>
       <PageHeader
         title="Cash Flow"
-        subtitle="Visualize how your income flows into savings and expenses"
+        subtitle="Follow your income through tax, spending, and savings."
         action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
       />
 

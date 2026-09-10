@@ -1,10 +1,11 @@
 import {
-  EPF_MIN_MONTHLY_CONTRIBUTION,
-  EPF_STATUTORY_RATE_PCT,
   epfMonthlyContributions,
+  minimumEpfContribution,
 } from '@/lib/instrumentCalculators'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
 import type { AccountBalances } from '@/services/api/calculations'
+
+export { computeNpsWeightedReturn as computeWeightedReturn } from '@/lib/instrumentCalculators'
 
 export type Instrument = 'ppf' | 'epf' | 'nps'
 
@@ -35,8 +36,7 @@ export function computeEpfContribution(salary: number, contribPct: number) {
   // not 2× the employee share.
   const { employee: yourShare, employerEpf, total: totalMonthly } =
     epfMonthlyContributions(salary, contribPct)
-  // Floor is the statutory minimum; above the wage ceiling you contribute on full salary.
-  const minContrib = Math.max(EPF_MIN_MONTHLY_CONTRIBUTION, (salary * EPF_STATUTORY_RATE_PCT) / 100)
+  const minContrib = minimumEpfContribution(salary)
   return { yourShare, employerEpf, totalMonthly, minContrib }
 }
 
@@ -46,17 +46,4 @@ export function rebalanceNpsAllocation(equityValue: number, corp: number, govt: 
   const ratio = corp + govt > 0 ? corp / (corp + govt) : 0.5
   const nextCorp = Math.round(remaining * ratio)
   return { equity: equityValue, corp: nextCorp, govt: remaining - nextCorp }
-}
-
-export function computeWeightedReturn(
-  equity: number,
-  corp: number,
-  govt: number,
-  returns: { equity: number; corp_bond: number; govt_bond: number },
-): number {
-  return (
-    (equity / 100) * returns.equity +
-    (corp / 100) * returns.corp_bond +
-    (govt / 100) * returns.govt_bond
-  )
 }

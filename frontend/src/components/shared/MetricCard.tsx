@@ -5,10 +5,11 @@ import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { CARD_HOVER, TAP_FEEDBACK } from '@/constants/animations'
+import { DURATION, EASING, TAP_FEEDBACK } from '@/constants/animations'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { cn } from '@/lib/cn'
+import { useMotionStore } from '@/store/motionStore'
 
 interface MetricCardProps {
   title: string
@@ -32,6 +33,16 @@ interface MetricCardProps {
   titleInfo?: string
 }
 
+function getChangePresentation(change: number | undefined, invertChange?: boolean) {
+  const isPositive = (change ?? 0) >= 0
+  const isGood = invertChange ? !isPositive : isPositive
+
+  return {
+    changeColor: isGood ? rawColors.app.green : rawColors.app.red,
+    ChangeIcon: isPositive ? ArrowUpRight : ArrowDownRight,
+  }
+}
+
 export default function MetricCard({
   title,
   value,
@@ -49,6 +60,7 @@ export default function MetricCard({
   titleInfo,
 }: Readonly<MetricCardProps>) {
   const colors = metricColorConfig[color]
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   // Count-up on the KPI figure (format-preserving; settles on the exact
   // original string). Hook order is stable: isLoading renders a skeleton with
   // no value, and this hook runs unconditionally before that branch.
@@ -56,28 +68,33 @@ export default function MetricCard({
 
   if (isLoading) {
     return (
-      <div className="ledger-panel min-h-28 space-y-3 p-4">
-        <div className="skeleton-surface h-3 w-1/2 rounded" />
-        <div className="skeleton-surface h-7 w-3/4 rounded" />
-      </div>
+      <output
+        aria-label={`Loading ${title}`}
+        aria-busy="true"
+        className={cn('ledger-panel block h-full min-h-32 min-w-0 space-y-4 p-4', hero && 'sm:p-5')}
+      >
+        <span aria-hidden="true" className="skeleton-surface block h-3 w-1/2 rounded" />
+        <span aria-hidden="true" className="skeleton-surface block h-7 w-3/4 rounded" />
+      </output>
     )
   }
 
   const isInteractive = Boolean(href || onClick)
-  const isPositive = (change ?? 0) >= 0
-  const isGood = invertChange ? !isPositive : isPositive
-  const changeColor = isGood ? rawColors.app.green : rawColors.app.red
-  const ChangeIcon = isPositive ? ArrowUpRight : ArrowDownRight
+  const { changeColor, ChangeIcon } = getChangePresentation(change, invertChange)
 
   const content = (
     <motion.div
-      whileHover={isInteractive ? CARD_HOVER : undefined}
-      whileTap={isInteractive ? TAP_FEEDBACK : undefined}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={isInteractive && !reduceMotion ? { y: -2 } : undefined}
+      whileTap={isInteractive && !reduceMotion ? TAP_FEEDBACK : undefined}
+      transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
       className={cn(
-        'metric-card ledger-panel group relative min-h-28 overflow-hidden border-t-2 p-4 text-left transition-colors duration-150',
-        isInteractive && 'hover:border-[var(--hairline-4)] hover:bg-[var(--overlay-1)]',
+        'metric-card ledger-panel relative h-full min-h-32 min-w-0 overflow-hidden p-4 text-left',
+        hero && 'sm:p-5',
+        isInteractive && 'hover:border-[var(--hairline-4)]',
       )}
-      style={{ borderTopColor: colors.text }}
+      style={{ transition: 'none' }}
     >
       {trend && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 opacity-20">
@@ -85,26 +102,25 @@ export default function MetricCard({
         </div>
       )}
 
-      <div className="relative flex h-full flex-col justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span
-            className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[var(--hairline-1)] transition-transform duration-200 group-hover:scale-110"
-            style={{ background: colors.bg }}
-          >
-            <Icon className="size-3.5" style={{ color: colors.text }} />
-          </span>
+      <div className="relative flex h-full min-w-0 flex-col gap-3">
+        <div className="flow-root min-h-10">
+          <Icon
+            aria-hidden="true"
+            className="float-right mt-0.5 ml-2 size-4"
+            style={{ color: colors.text }}
+          />
           <h3
-            className="min-w-0 truncate text-xs font-medium text-muted-foreground"
+            className="min-w-0 text-pretty text-xs font-medium leading-5 text-muted-foreground [overflow-wrap:anywhere]"
             title={titleInfo ?? (title.length > 24 ? title : undefined)}
           >
             {title}
           </h3>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <output
             className={cn(
-              'metric-value ledger-figure block whitespace-nowrap font-semibold leading-none text-foreground tabular-nums',
+              'metric-value ledger-figure block max-w-full whitespace-normal font-semibold leading-tight tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere]',
               hero && 'metric-value-hero',
             )}
             title={String(value)}
@@ -113,21 +129,23 @@ export default function MetricCard({
             {animatedValue}
           </output>
           {subtitle && (
-            <p className="mt-1 truncate text-[11px] text-text-tertiary" title={subtitle}>
+            <p className="mt-1.5 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]" title={subtitle}>
               {subtitle}
             </p>
           )}
           {change !== undefined && (
-            <div className="mt-2 flex min-w-0 items-center gap-1.5">
+            <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1">
               <span
-                className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold tabular-nums"
+                className="inline-flex max-w-full items-center gap-0.5 text-xs font-semibold tabular-nums [overflow-wrap:anywhere]"
                 style={{ color: changeColor }}
               >
-                <ChangeIcon className="size-3" />
-                {change > 0 ? '+' : ''}
-                {change}%
+                <ChangeIcon aria-hidden="true" className="size-3 shrink-0" />
+                <span className="min-w-0">
+                  {change > 0 ? '+' : ''}
+                  {change}%
+                </span>
               </span>
-              <span className="truncate text-[11px] text-text-tertiary">
+              <span className="min-w-0 text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]">
                 {changeLabel || 'vs last month'}
               </span>
             </div>
@@ -139,7 +157,10 @@ export default function MetricCard({
 
   if (href) {
     return (
-      <Link to={href} className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <Link
+        to={href}
+        className="block h-full min-w-0 touch-manipulation rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
         {content}
       </Link>
     )
@@ -150,7 +171,7 @@ export default function MetricCard({
       <button
         type="button"
         onClick={onClick}
-        className="group block w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        className="block h-full min-w-0 w-full touch-manipulation rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {content}
       </button>

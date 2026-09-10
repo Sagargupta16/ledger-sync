@@ -3,6 +3,7 @@ import { TrendingUp } from 'lucide-react'
 import { Sparkline } from '@/components/shared'
 import { Money } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
+import { percentChange } from '@/lib/formatters'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 
 interface Props {
@@ -18,19 +19,22 @@ const ROWS: Array<{
   { label: 'Base Salary', key: 'baseSalary', colorClass: 'text-income', trendColor: rawColors.app.green },
   { label: 'Bonus', key: 'bonus', colorClass: 'text-income', trendColor: rawColors.app.green },
   { label: 'RSU Vesting', key: 'rsuIncome', colorClass: 'text-income', trendColor: rawColors.app.green },
-  { label: 'EPF', key: 'epf', colorClass: 'text-muted-foreground', trendColor: rawColors.app.teal },
+  { label: 'Employee EPF', key: 'epf', colorClass: 'text-muted-foreground', trendColor: rawColors.app.teal },
   { label: 'Other', key: 'otherTaxable', colorClass: 'text-muted-foreground', trendColor: rawColors.app.teal },
   { label: 'Gross Taxable', key: 'grossTaxable', colorClass: 'text-foreground', trendColor: rawColors.app.blue },
   { label: 'Total Tax', key: 'totalTax', colorClass: 'text-expense', trendColor: rawColors.app.red },
-  { label: 'Take-Home', key: 'takeHome', colorClass: 'text-income', trendColor: rawColors.app.green },
+  { label: 'Share tax withholding', key: 'rsuWithholding', colorClass: 'text-expense', trendColor: rawColors.app.red },
+  { label: 'Cash take-home', key: 'cashTakeHome', colorClass: 'text-income', trendColor: rawColors.app.green },
+  { label: 'Retained share value', key: 'netShareValue', colorClass: 'text-income', trendColor: rawColors.app.teal },
+  { label: 'Combined net compensation', key: 'netCompensation', colorClass: 'text-income', trendColor: rawColors.app.green },
 ]
 
-/** First -> last CAGR-style total growth across the projection horizon. */
+/** Total change across the projection horizon, not an annualized return. */
 function totalGrowthPct(values: number[]): number | null {
   const first = values[0]
   const last = values.at(-1)
   if (first === undefined || last === undefined || first === 0) return null
-  return ((last - first) / first) * 100
+  return percentChange(last, first)
 }
 
 export default function MultiYearProjectionTable({ projections }: Readonly<Props>) {
@@ -52,7 +56,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
       </div>
 
       <section
-        className="overflow-x-auto overscroll-x-contain rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        className="relative overflow-x-auto overscroll-x-contain rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         aria-label="Multi-year salary and tax projection"
       >
         <table
@@ -66,7 +70,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
             <tr className="border-b border-border">
               <th
                 scope="col"
-                className="text-left py-2 px-3 text-muted-foreground font-medium max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+                className="text-left py-2 px-3 text-muted-foreground font-medium max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown max-sm:max-w-28 max-sm:text-xs max-sm:whitespace-normal"
               >
                 Component
               </th>
@@ -98,14 +102,14 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
           <tbody>
             {ROWS.map((row) => {
               const values = projections.map((p) => p[row.key] as number)
-              const hasAnyValue = values.some((v) => v > 0)
+              const hasAnyValue = values.some((v) => v !== 0)
               if (!hasAnyValue) return null
               const growth = totalGrowthPct(values)
               return (
                 <tr key={row.key} className="border-b border-border/50">
                   <th
                     scope="row"
-                    className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+                    className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown max-sm:max-w-28 max-sm:text-xs max-sm:whitespace-normal"
                   >
                     {row.label}
                   </th>
@@ -135,7 +139,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
             <tr className="border-b border-border/50">
               <th
                 scope="row"
-                className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown"
+                className="py-2.5 px-3 text-left font-medium text-foreground max-sm:sticky max-sm:left-0 max-sm:z-10 max-sm:bg-surface-dropdown max-sm:max-w-28 max-sm:text-xs max-sm:whitespace-normal"
               >
                 Effective Tax Rate
               </th>

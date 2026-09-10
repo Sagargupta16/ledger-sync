@@ -357,6 +357,16 @@ export const addDaysToKey = (dateKey: string, days: number): string => {
 }
 
 /**
+ * Add possibly fractional months on the local calendar. Whole months clamp
+ * month-end anchors; only the remaining fraction becomes rounded average days.
+ */
+export const addFractionalMonthsToKey = (dateKey: string, months: number): string => {
+  const wholeMonths = Math.floor(months)
+  const remainderDays = Math.round((months - wholeMonths) * DAYS_PER_AVG_MONTH)
+  return addDaysToKey(addMonthsToKey(dateKey, wholeMonths), remainderDays)
+}
+
+/**
  * Inclusive number of calendar days between two `YYYY-MM-DD` keys, so a single
  * day spans 1 and Jan 1 to Jan 31 spans 31. Use for any per-day average divisor;
  * never hardcode 30.
