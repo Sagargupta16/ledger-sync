@@ -99,7 +99,9 @@ describe('tax input basis and employment eligibility', () => {
 
   it('keeps the positional adapter while allowing explicit bonus eligibility', () => {
     const gig = computeTaxForFY('FY 2026-27', 1_500_000, 0, null, 'new', false)
-    const bonus = computeTaxForFY('FY 2026-27', 1_500_000, 0, null, 'new', false, true)
+    const bonus = computeTaxForFY('FY 2026-27', 1_500_000, 0, null, 'new', false, {
+      hasEmploymentIncome: true,
+    })
     expect(gig.totalTax).toBe(109_200)
     expect(bonus.totalTax).toBe(97_500)
   })
@@ -146,6 +148,72 @@ describe('tax input basis and employment eligibility', () => {
     expect(result.standardDeduction).toBe(10_000)
     expect(result.totalTax).toBe(109_200)
     expect(result.otherTaxableIncome).toBe(1_500_000)
+  })
+})
+
+describe('computeTaxForFY employment options', () => {
+  it('retains positional defaults when employment options are omitted or undefined', () => {
+    const result = computeTaxForFY('FY 2026-27', 3_000_000, 12, null, 'new')
+    expect(result).toMatchObject({
+      requestedIncomeBasis: 'net',
+      incomeBasis: 'gross',
+      hasEmploymentIncome: true,
+      incomeScopeComplete: false,
+      grossEmploymentIncome: null,
+      employmentCashDeductions: 0,
+      totalTax: 478_200,
+    })
+    expect(computeTaxForFY('FY 2026-27', 3_000_000, 12, null, 'new', true, {
+      hasEmploymentIncome: undefined,
+      recordedEmploymentIncome: undefined,
+      recordedEmploymentCashDeductions: undefined,
+    })).toEqual(result)
+  })
+
+  it('defaults eligibility from salary months while retaining explicit zero cash deductions', () => {
+    const result = computeTaxForFY('FY 2026-27', 2_521_800, 12, null, 'new', undefined, {
+      recordedEmploymentIncome: 2_521_800,
+      recordedEmploymentCashDeductions: 0,
+    })
+    expect(result.hasEmploymentIncome).toBe(true)
+    expect(result.incomeBasis).toBe('net')
+    expect(result.employmentCashDeductions).toBe(0)
+    expect(Math.abs(result.grossTaxableIncome - 3_000_000)).toBeLessThan(2)
+    expect(Math.abs(result.totalTax - 478_200)).toBeLessThan(1)
+    expect(Math.abs(result.netAfterCashDeductions - 2_521_800)).toBeLessThan(1)
+  })
+
+  it('preserves an explicit false employment flag despite positive salary months and amounts', () => {
+    const result = computeTaxForFY('FY 2026-27', 1_500_000, 12, null, 'new', true, {
+      hasEmploymentIncome: false,
+      recordedEmploymentIncome: 1_500_000,
+      recordedEmploymentCashDeductions: 43_200,
+    })
+    expect(result).toMatchObject({
+      hasEmploymentIncome: false,
+      grossTaxableIncome: 1_500_000,
+      employmentCashDeductions: 0,
+      standardDeduction: 0,
+      professionalTax: 0,
+      totalTax: 109_200,
+    })
+  })
+
+  it('keeps an explicit zero employment amount distinct from an unspecified split', () => {
+    const result = computeTaxForFY('FY 2026-27', 1_500_000, 12, null, 'new', true, {
+      hasEmploymentIncome: true,
+      recordedEmploymentIncome: 0,
+      recordedEmploymentCashDeductions: 0,
+    })
+    expect(result).toMatchObject({
+      incomeScopeComplete: true,
+      grossEmploymentIncome: 0,
+      otherTaxableIncome: 1_500_000,
+      employmentCashDeductions: 0,
+      standardDeduction: 0,
+      professionalTax: 0,
+      totalTax: 109_200,
+    })
   })
 })
 

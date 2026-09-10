@@ -209,7 +209,12 @@ export function computeAnnualTaxPlanning({
   })
 }
 
-/** Legacy argument order; net inference also needs the separate employment amount. */
+export type TaxEmploymentOptions = Partial<Pick<
+  TaxPlanningInput,
+  'hasEmploymentIncome' | 'recordedEmploymentIncome' | 'recordedEmploymentCashDeductions'
+>>
+
+/** Retains the first six positional arguments; employment details are named. */
 export function computeTaxForFY(
   selectedFY: string,
   recordedTaxableIncome: number,
@@ -217,10 +222,13 @@ export function computeTaxForFY(
   regimeOverride: TaxRegimeOverride,
   preferredRegime: string,
   salaryIsNetOfTds = true,
-  hasEmploymentIncome = salaryMonthsCount > 0,
-  recordedEmploymentIncome?: number,
-  recordedEmploymentCashDeductions = 0,
+  employment: Readonly<TaxEmploymentOptions> = {},
 ): TaxPlanningResult {
+  const {
+    hasEmploymentIncome = salaryMonthsCount > 0,
+    recordedEmploymentIncome,
+    recordedEmploymentCashDeductions = 0,
+  } = employment
   return computeTaxPlanning({
     selectedFY,
     recordedTaxableIncome,

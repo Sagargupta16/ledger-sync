@@ -116,7 +116,10 @@ describe('computeTaxForFY salary TDS treatment toggle', () => {
   const recorded = 1_500_000
 
   it('net-of-TDS (default) backs out a gross ABOVE the recorded amount', () => {
-    const r = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true, true, recorded)
+    const r = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true, {
+      hasEmploymentIncome: true,
+      recordedEmploymentIncome: recorded,
+    })
     // recorded is treated as post-tax, so the implied gross is higher and the
     // tax (= TDS already deducted) is positive.
     expect(r.grossTaxableIncome).toBeGreaterThan(recorded)
@@ -128,7 +131,9 @@ describe('computeTaxForFY salary TDS treatment toggle', () => {
     expect(r.grossTaxableIncome).toBe(recorded)
     // AY 2025-26 ITR-1 rules: old-regime salary deduction is Rs 50,000.
     // With no professional tax, Rs 10 lakh salary owes Rs 1,02,500 + 4% cess.
-    const oldRegime = computeTaxForFY('FY 2024-25', 1_000_000, 0, 'old', 'new', false, true)
+    const oldRegime = computeTaxForFY('FY 2024-25', 1_000_000, 0, 'old', 'new', false, {
+      hasEmploymentIncome: true,
+    })
     expect(oldRegime.standardDeduction).toBe(50_000)
     expect(oldRegime.totalTax).toBe(106_600)
     expect(oldRegime.estimatedTaxPaid).toBeNull()
@@ -136,15 +141,22 @@ describe('computeTaxForFY salary TDS treatment toggle', () => {
   })
 
   it('net mode yields a higher tax than gross mode for the same recorded amount', () => {
-    const net = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true, true, recorded)
+    const net = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', true, {
+      hasEmploymentIncome: true,
+      recordedEmploymentIncome: recorded,
+    })
     const gross = computeTaxForFY('FY 2025-26', recorded, 12, null, 'new', false)
     // Grossing up a net figure produces a larger taxable base -> more tax.
     expect(net.totalTax).toBeGreaterThan(gross.totalTax)
   })
 
-  it('accepts a known period cash deduction in the trailing compatibility argument', () => {
+  it('accepts a known period cash deduction in the employment options', () => {
     const result = computeTaxForFY(
-      'FY 2026-27', 2_478_600, 12, null, 'new', true, true, 2_478_600, 43_200,
+      'FY 2026-27', 2_478_600, 12, null, 'new', true, {
+        hasEmploymentIncome: true,
+        recordedEmploymentIncome: 2_478_600,
+        recordedEmploymentCashDeductions: 43_200,
+      },
     )
     expect(Math.abs(result.grossTaxableIncome - 3_000_000)).toBeLessThan(2)
     expect(Math.abs(result.totalTax - 478_200)).toBeLessThan(1)
@@ -164,7 +176,10 @@ describe('grouped employment eligibility', () => {
     expect(fy.salaryMonths.size).toBe(0)
     expect(fy.incomeGroups.Bonus.total).toBe(1_500_000)
     expect(computePaidTax('FY 2025-26', fy, null, 'new', true)).toBe(
-      Math.round(computeTaxForFY('FY 2025-26', 1_500_000, 0, null, 'new', true, true, 1_500_000).totalTax),
+      Math.round(computeTaxForFY('FY 2025-26', 1_500_000, 0, null, 'new', true, {
+        hasEmploymentIncome: true,
+        recordedEmploymentIncome: 1_500_000,
+      }).totalTax),
     )
   })
 
@@ -175,7 +190,9 @@ describe('grouped employment eligibility', () => {
       subcategory: 'Gig Work Income',
     }
     const fy = groupTransactionsByFY([tx], 4, defaultClassification)['FY 2025-26']
-    const tax = computeTaxForFY('FY 2025-26', fy.taxableIncome, 0, null, 'new', false, fy.hasEmploymentIncome)
+    const tax = computeTaxForFY('FY 2025-26', fy.taxableIncome, 0, null, 'new', false, {
+      hasEmploymentIncome: fy.hasEmploymentIncome,
+    })
 
     expect(fy.hasEmploymentIncome).toBe(false)
     expect(fy.employmentTaxableIncome).toBe(0)

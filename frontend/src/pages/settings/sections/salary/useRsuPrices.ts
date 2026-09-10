@@ -71,7 +71,7 @@ export function useRsuPrices(
       const price = await fetchConvertedPrice(grant.stock_name.trim(), displayCurrency)
       const current = latest.current.grants.find((item) => item.id === grant.id)
       if (!mounted.current) return
-      if (!current || current.stock_name !== grant.stock_name
+      if (current?.stock_name !== grant.stock_name
         || latest.current.displayCurrency !== displayCurrency || current.stock_price !== grant.stock_price) {
         throw new Error('The grant changed while its price was loading.')
       }
@@ -109,7 +109,7 @@ export function useRsuPrices(
     if (!mounted.current) return
     setPending(null)
     const current = latest.current.grants.find((item) => item.id === grant.id)
-    if (!current || current.stock_name !== grant.stock_name
+    if (current?.stock_name !== grant.stock_name
       || latest.current.displayCurrency !== displayCurrency) {
       setPriceStatusByGrant((previous) => ({
         ...previous,

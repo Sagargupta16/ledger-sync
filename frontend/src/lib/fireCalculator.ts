@@ -25,9 +25,9 @@ export interface FIREInputDefaults {
 export function deriveFIREInputs(
   totalIncome: number,
   totalExpenses: number,
-  observedMonths: number,
+  observedMonths = 1,
 ): FIREInputDefaults {
-  const months = observedMonths || 1
+  const months = observedMonths ? observedMonths : 1
   const annualIncome = (totalIncome / months) * MONTHS_PER_YEAR
   const annualExpenses = (Math.abs(totalExpenses) / months) * MONTHS_PER_YEAR
   return {

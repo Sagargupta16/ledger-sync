@@ -162,8 +162,11 @@ function computeGroupedTax(
   const salaryMonths = fyData.salaryMonths?.size || 0
   const computed = computeTaxForFY(
     fy, taxableAmt, salaryMonths, regimeOverride, preferredRegime,
-    salaryIsNetOfTds, fyData.hasEmploymentIncome, fyData.employmentTaxableIncome,
-    fyData.recordedEmploymentCashDeductions,
+    salaryIsNetOfTds, {
+      hasEmploymentIncome: fyData.hasEmploymentIncome,
+      recordedEmploymentIncome: fyData.employmentTaxableIncome,
+      recordedEmploymentCashDeductions: fyData.recordedEmploymentCashDeductions,
+    },
   )
   return computed
 }

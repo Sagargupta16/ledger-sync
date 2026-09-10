@@ -132,9 +132,11 @@ export function useTaxPlanning() {
     regimeOverride,
     preferredRegime,
     salaryIsNetOfTds,
-    currentFYData?.hasEmploymentIncome ?? false,
-    currentFYData?.employmentTaxableIncome ?? 0,
-    currentFYData?.recordedEmploymentCashDeductions ?? 0,
+    {
+      hasEmploymentIncome: currentFYData?.hasEmploymentIncome ?? false,
+      recordedEmploymentIncome: currentFYData?.employmentTaxableIncome ?? 0,
+      recordedEmploymentCashDeductions: currentFYData?.recordedEmploymentCashDeductions ?? 0,
+    },
   ), [
     effectiveFY, netTaxableIncome, salaryMonthsCount, regimeOverride,
     preferredRegime, salaryIsNetOfTds, currentFYData,

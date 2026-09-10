@@ -42,10 +42,10 @@ export interface NetWorthMilestoneProgress {
 export function buildMonthlyNetWorthBalances(
   series: readonly NetWorthPoint[],
 ): NetWorthPoint[] {
-  if (series.length === 0) return []
   const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
+  const last = sorted.at(-1)
+  if (!last) return []
   const first = sorted[0]
-  const last = sorted[sorted.length - 1]
   const monthBalances = new Map<string, number>()
   for (const point of sorted) {
     monthBalances.set(point.date.slice(0, 7), point.netWorth)
