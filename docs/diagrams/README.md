@@ -4,17 +4,25 @@ These diagrams describe the source reviewed on 2026-09-16, including the
 financial-estimate and profile changes in the working tree. They contain no
 account records, credentials, or production query results.
 
-The SVG previews render directly in repository documentation. Download an HTML
-file and open it in a browser for Archify's search, pan/zoom, themes, and export
-controls. GitHub's normal file page displays HTML source rather than running it.
-The viewers are standalone; they do not require an app login or a running API.
+The committed SVGs are the diagrams; they render directly in repository
+documentation and need no app login or running API.
 
-| Diagram | Use it to understand | Interactive viewer | Editable source |
-| --- | --- | --- | --- |
-| [System architecture](#system-architecture) | Browser, API, storage, and external-service boundaries | [HTML](system-architecture.html) | [JSON](system-architecture.architecture.json) |
-| [Statement import](#statement-import) | The two commits and recovery after an analytics failure | [HTML](statement-import.html) | [JSON](statement-import.sequence.json) |
-| [Financial calculations](#financial-calculations) | Tax, earnings periods, current health, and bill selection | [HTML](financial-calculations.html) | [JSON](financial-calculations.dataflow.json) |
-| [Release delivery](#release-delivery) | CI, migrations, Pages readiness, and Vercel's separate path | [HTML](release-delivery.html) | [JSON](release-delivery.workflow.json) |
+The interactive HTML viewers (Archify's search, pan/zoom, themes, export) are
+build output and are NOT committed -- `.gitignore` excludes them. Run
+`node build.mjs` to regenerate them locally from the JSON sources beside it.
+They were dropped from version control because four near-identical 15,000-line
+viewers are ~60,000 lines of generated markup that SonarCloud analyses as new
+code: they scored 93.3% duplication against a 3% gate and carried every
+reliability finding in the project (missing `<title>` and `lang` on each
+generated page). Hand-patching generated output would be undone by the next
+build, so the artifacts are regenerated on demand instead.
+
+| Diagram | Use it to understand | Editable source |
+| --- | --- | --- |
+| [System architecture](#system-architecture) | Browser, API, storage, and external-service boundaries | [JSON](system-architecture.architecture.json) |
+| [Statement import](#statement-import) | The two commits and recovery after an analytics failure | [JSON](statement-import.sequence.json) |
+| [Financial calculations](#financial-calculations) | Tax, earnings periods, current health, and bill selection | [JSON](financial-calculations.dataflow.json) |
+| [Release delivery](#release-delivery) | CI, migrations, Pages readiness, and Vercel's separate path | [JSON](release-delivery.workflow.json) |
 
 ## System architecture
 
@@ -142,11 +150,12 @@ node docs/diagrams/build.mjs --skill /path/to/archify
 # No skill installation needed: verify the checked-in artifacts and receipts.
 node docs/diagrams/build.mjs --check
 
-# Run separately in an environment that can launch Chrome.
+# Run separately in an environment that can launch Chrome, after a build has
+# produced the HTML locally (the viewers are not committed).
 node /path/to/archify/bin/archify.mjs visual-check docs/diagrams/system-architecture.html --json
 ```
 
-Run `visual-check` for each delivered HTML after regeneration. It checks four
+Run `visual-check` for each generated HTML after regeneration. It checks four
 desktop sizes and captures both themes. Inspect those screenshots separately;
 automated measurements do not prove visual polish.
 

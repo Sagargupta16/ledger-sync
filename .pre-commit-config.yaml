@@ -9,7 +9,12 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        # Archify's generated SVGs are byte-pinned by a delivery receipt that
+        # records their sha256. Stripping whitespace here rewrites them and the
+        # receipt check (`node docs/diagrams/build.mjs --check`) then fails.
+        exclude: ^docs/diagrams/.*\.svg$
       - id: end-of-file-fixer
+        exclude: ^docs/diagrams/.*\.svg$
       - id: check-yaml
       - id: check-json
         exclude: ^frontend/tsconfig.*\.json$

@@ -103,14 +103,26 @@ for (const [type, name] of diagrams) {
     || receipt.validation.errors || receipt.validation.warnings) {
     throw new Error(`${name}: receipt does not record full showcase acceptance`)
   }
-  for (const [kind, file] of [['specification', specification], ['artifact', artifact], ['preview', preview]]) {
+  // The HTML viewer is generated output and is gitignored, so a fresh checkout
+  // has only the specification and the SVG. Fingerprint what is present rather
+  // than failing on the intended state; a local build restores the HTML and the
+  // stricter comparison below runs again.
+  const artifactPresent = fs.existsSync(artifact)
+  const kinds = [['specification', specification], ['preview', preview]]
+  if (artifactPresent) kinds.splice(1, 0, ['artifact', artifact])
+  for (const [kind, file] of kinds) {
     const current = fingerprint(file)
     if (current.sha256 !== receipt[kind].sha256 || current.bytes !== receipt[kind].bytes) {
       throw new Error(`${name}: ${kind} differs from the delivery receipt`)
     }
   }
-  if (fs.readFileSync(preview, 'utf8') !== staticPreview(fs.readFileSync(artifact, 'utf8'))) {
+  if (artifactPresent
+    && fs.readFileSync(preview, 'utf8') !== staticPreview(fs.readFileSync(artifact, 'utf8'))) {
     throw new Error(`${name}: static preview no longer matches the delivered SVG`)
   }
-  console.log(`${name}: 9/9 showcase; specification, HTML, and SVG hashes match`)
+  console.log(
+    artifactPresent
+      ? `${name}: 9/9 showcase; specification, HTML, and SVG hashes match`
+      : `${name}: 9/9 showcase; specification and SVG hashes match (HTML not built)`,
+  )
 }
