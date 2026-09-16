@@ -26,6 +26,9 @@ export interface FYData {
   employmentTaxableIncome: number
   /** Known employee deductions for recorded salary months, not tax deductions. */
   recordedEmploymentCashDeductions?: number
+  /** Payroll-based reconstruction, when that FY has explicit salary settings. */
+  estimatedGrossEmploymentIncome?: number
+  estimatedEmploymentWithholding?: number
   hasEmploymentIncome: boolean
   salaryMonths: Set<string>
   transactions: Transaction[]
@@ -53,6 +56,8 @@ export interface TaxPlanningInput {
   recordedEmploymentIncome?: number
   /** Cash withheld from employment receipts, such as known period employee EPF. */
   recordedEmploymentCashDeductions?: number
+  estimatedGrossEmploymentIncome?: number
+  estimatedEmploymentWithholding?: number
   salaryMonthsCount: number
   hasEmploymentIncome: boolean
   incomeBasis: TaxIncomeBasis
@@ -123,8 +128,13 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
   const employmentCashDeductions = scope.hasEmploymentIncome && scope.incomeScopeComplete
     ? Math.max(0, input.recordedEmploymentCashDeductions ?? 0)
     : 0
+  const hasPayrollEstimate = scope.incomeBasis === 'net'
+    && Number.isFinite(input.estimatedGrossEmploymentIncome)
+    && Number.isFinite(input.estimatedEmploymentWithholding)
   const grossEmploymentIncome = scope.incomeBasis === 'net'
-    ? calculateGrossFromNet(scope.employmentIncome + employmentCashDeductions, options)
+    ? hasPayrollEstimate
+      ? Math.max(0, input.estimatedGrossEmploymentIncome!)
+      : calculateGrossFromNet(scope.employmentIncome + employmentCashDeductions, options)
     : scope.employmentIncome
   const grossTaxableIncome = scope.incomeBasis === 'net'
     ? grossEmploymentIncome + scope.otherIncome
@@ -134,7 +144,9 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     : employmentDeduction
   const taxResult = taxForIncome(grossTaxableIncome, { ...options, standardDeduction })
   const estimatedTaxPaid = scope.incomeBasis === 'net'
-    ? taxForIncome(grossEmploymentIncome, { ...options, standardDeduction }).totalTax
+    ? hasPayrollEstimate
+      ? Math.max(0, input.estimatedEmploymentWithholding!)
+      : taxForIncome(grossEmploymentIncome, { ...options, standardDeduction }).totalTax
     : null
 
   return {
@@ -151,7 +163,9 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     requestedIncomeBasis: input.incomeBasis,
     incomeBasis: scope.incomeBasis,
     incomeScopeComplete: scope.incomeScopeComplete,
-    withholdingAssumption: scope.incomeBasis === 'net' ? 'employment_only' as const : null,
+    withholdingAssumption: scope.incomeBasis === 'net'
+      ? hasPayrollEstimate ? 'annual_payroll' as const : 'employment_only' as const
+      : null,
     grossEmploymentIncome: scope.incomeScopeComplete ? grossEmploymentIncome : null,
     otherTaxableIncome: scope.incomeScopeComplete ? scope.otherIncome : null,
     employmentCashDeductions,
@@ -166,6 +180,7 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     professionalTax: taxResult.professionalTax,
     totalTax: taxResult.totalTax,
     estimatedTaxPaid,
+    actualTaxPaid: null,
     // Compatibility for paid-tax consumers; gross receipts do not prove payment.
     taxAlreadyPaid: estimatedTaxPaid ?? 0,
   }
@@ -212,6 +227,7 @@ export function computeAnnualTaxPlanning({
 export type TaxEmploymentOptions = Partial<Pick<
   TaxPlanningInput,
   'hasEmploymentIncome' | 'recordedEmploymentIncome' | 'recordedEmploymentCashDeductions'
+  | 'estimatedGrossEmploymentIncome' | 'estimatedEmploymentWithholding'
 >>
 
 /** Retains the first six positional arguments; employment details are named. */
@@ -228,12 +244,16 @@ export function computeTaxForFY(
     hasEmploymentIncome = salaryMonthsCount > 0,
     recordedEmploymentIncome,
     recordedEmploymentCashDeductions = 0,
+    estimatedGrossEmploymentIncome,
+    estimatedEmploymentWithholding,
   } = employment
   return computeTaxPlanning({
     selectedFY,
     recordedTaxableIncome,
     recordedEmploymentIncome,
     recordedEmploymentCashDeductions,
+    estimatedGrossEmploymentIncome,
+    estimatedEmploymentWithholding,
     salaryMonthsCount,
     regimeOverride,
     preferredRegime,

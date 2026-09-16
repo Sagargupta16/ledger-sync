@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import type { DefaultTooltipContentProps } from 'recharts'
 
 import { CHART_TEXT } from '@/constants/chartColors'
+import { formatChartDate } from '@/lib/chartDateLabels'
+import { formatPercent } from '@/lib/formatters'
 
 import { CHART_TOOLTIP_STYLE } from './ChartTooltip'
 
@@ -42,7 +44,9 @@ export default function ChartTooltipContent({
     })
   }
 
-  const heading = label == null ? null : (labelFormatter?.(label, payload) ?? label)
+  const heading = label == null ? null : (
+    labelFormatter?.(label, payload) ?? (typeof label === 'string' ? formatChartDate(label) : label)
+  )
   const Container = accessibilityLayer ? 'output' : 'div'
 
   return (
@@ -68,7 +72,7 @@ export default function ChartTooltipContent({
           if (Array.isArray(formatted)) [value, name] = formatted
           const color = entry.color ?? CHART_TEXT.muted
           const share = shareTotal && shareTotal > 0 && typeof entry.value === 'number'
-            ? `${((entry.value / shareTotal) * 100).toFixed(1)}% of total`
+            ? `${formatPercent((entry.value / shareTotal) * 100)} of total`
             : null
 
           return (

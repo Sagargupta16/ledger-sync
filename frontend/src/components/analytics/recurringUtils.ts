@@ -1,4 +1,5 @@
-import { MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey, MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
+import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import {
   normalizeFrequency,
   recurrenceCadence,
@@ -46,9 +47,12 @@ export type Frequency = RecurrenceFrequency
  * client-side ``detectPattern`` over the full ledger. We keep the component's
  * expense focus: income patterns (Salary, Stipend) are dropped so the
  * "monthly commitment" total stays meaningful. */
-export function adaptApiRecurring(rows: ApiRecurringTransaction[]): RecurringTransaction[] {
+export function adaptApiRecurring(
+  rows: ApiRecurringTransaction[],
+  asOfDateKey: string = getTodayKey(),
+): RecurringTransaction[] {
   return rows
-    .filter((r) => (r.type ?? '').toLowerCase() !== 'income')
+    .filter((r) => r.type === 'Expense' && isAcceptedRecurringCommitment(r, asOfDateKey))
     .map((r) => {
       // No `.toUpperCase()` here: casing is normalized inside the shared
       // helper. Two files pre-normalizing differently (this one upper-cased,

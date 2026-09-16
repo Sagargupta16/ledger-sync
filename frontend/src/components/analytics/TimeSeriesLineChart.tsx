@@ -1,12 +1,16 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Brush } from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { chartDateKey, formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
+import { tooltipLabelString } from '@/lib/chartUtils'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, ACTIVE_DOT, referenceLine,
+  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, ACTIVE_DOT, BRUSH_DEFAULTS, referenceLine,
 } from '@/components/ui/chartDefaults'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { chartDataTable } from '@/components/ui/chartDataTable'
@@ -33,6 +37,10 @@ export default function TimeSeriesLineChart({
   ariaLabel,
 }: TimeSeriesLineChartProps) {
   const { animate, isMobile } = useChartPresentation(chartData.length)
+  const dateKey = chartData.length > 0 && chartDateKey(String(chartData[0].period ?? ''))
+    ? 'period'
+    : 'displayPeriod'
+  const range = useChartRange(chartData.map((row) => String(row[dateKey] ?? '')))
 
   if (chartData.length === 0 || seriesKeys.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -51,14 +59,16 @@ export default function TimeSeriesLineChart({
           color: colorFor(index),
           value: typeof latest?.[key] === 'number' ? formatCurrency(latest[key]) : undefined,
         }))}
-        caption={latest?.displayPeriod ? `Latest: ${latest.displayPeriod}` : undefined}
+        caption={latest?.[dateKey] ? `Latest: ${formatChartDate(String(latest[dateKey]))}` : undefined}
       />
+      {chartData.length > 6 && <ChartRangeControls range={range} />}
       <ChartContainer height={height} ariaLabel={ariaLabel}>
         <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
           <CartesianGrid {...GRID_DEFAULTS} />
           <XAxis
-            dataKey="displayPeriod"
+            dataKey={dateKey}
             {...xAxisDefaults(chartData.length, { dateFormatter: true })}
+            tickFormatter={(value: string) => formatChartPeriod(value)}
             interval="preserveStartEnd"
             height={36}
           />
@@ -67,9 +77,7 @@ export default function TimeSeriesLineChart({
             {...chartTooltipProps}
             cursor={CHART_LINE_CURSOR_STYLE}
             content={<ChartTooltipContent />}
-            // `displayPeriod` is already a formatted bucket label ("Wk 12 '24",
-            // "Jan 24"), not a parseable date, so reformatting it would show
-            // "Invalid Date" on week and month buckets.
+            labelFormatter={(label) => formatChartDate(tooltipLabelString(label))}
             formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
             itemSorter={(item) => -(item.value as number)}
           />
@@ -94,6 +102,16 @@ export default function TimeSeriesLineChart({
               animationEasing="ease-out"
             />
           ))}
+          {chartData.length > 6 && (
+            <Brush
+              {...BRUSH_DEFAULTS}
+              dataKey={dateKey}
+              tickFormatter={(value: string) => formatChartPeriod(value)}
+              startIndex={range.startIndex}
+              endIndex={range.endIndex}
+              onChange={range.setRange}
+            />
+          )}
         </LineChart>
       </ChartContainer>
       {chartDataTable(
@@ -102,7 +120,7 @@ export default function TimeSeriesLineChart({
           {
             header: 'Period',
             rowHeader: true,
-            value: (row) => String(row.displayPeriod ?? ''),
+            value: (row) => formatChartDate(String(row[dateKey] ?? '')),
           },
           ...seriesKeys.map((key) => ({
             header: legendFormatter?.(key) ?? key,

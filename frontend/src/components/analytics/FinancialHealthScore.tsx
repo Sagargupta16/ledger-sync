@@ -15,17 +15,17 @@ import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
 import ErrorState from '@/components/shared/ErrorState'
+import { analysisPeriodLabel } from '@/lib/finance/analysisPeriod'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
   cfpInputsFromAnalysis,
-  computeMonthlyData,
-  computeAnalysis,
   calculateMetrics,
   getOverallStatus,
   getSummary,
 } from './health/healthScoreUtils'
 import { computeBalancePosition } from './health/healthScoreBalances'
+import { computeCurrentHealth } from './health/currentHealthAnalysis'
 import CFPScoreView from './health/CFPScoreView'
 import HealthIndicator from './health/HealthIndicator'
 
@@ -44,7 +44,7 @@ const EmptyState = memo(function EmptyState() {
   return (
     <div className="ledger-panel p-4 sm:p-5">
       <h3 className="mb-2 text-base font-semibold">Financial Health</h3>
-      <p className="text-muted-foreground">Need more transaction data to calculate health score.</p>
+      <p className="text-muted-foreground">Current health needs 3 completed months in the earnings window and 10 recorded transactions.</p>
     </div>
   )
 })
@@ -186,12 +186,12 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     )
   }, [balanceData?.accounts, classifications, investmentMappings])
 
-  const analysisData = useMemo(() => {
-    if (!transactions.length) return null
-    const result = computeMonthlyData(transactions, isInvestmentAccount, userFixedCategories.size > 0 ? userFixedCategories : undefined)
-    if (!result) return null
-    return computeAnalysis(result.months, result.monthlyData, balancePosition)
-  }, [transactions, isInvestmentAccount, userFixedCategories, balancePosition])
+  const currentHealth = useMemo(() => computeCurrentHealth(transactions, isInvestmentAccount, {
+    earningStartDate: preferences?.earning_start_date,
+    fixedCategories: userFixedCategories.size > 0 ? userFixedCategories : undefined,
+    balances: balancePosition,
+  }), [transactions, isInvestmentAccount, userFixedCategories, balancePosition, preferences?.earning_start_date])
+  const analysisData = currentHealth?.analysis
 
   const cfpCompositeScore = useMemo(() => {
     if (!analysisData) return 0
@@ -240,7 +240,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
         <span className="min-w-0 flex-1 basis-40">
           <span className="ledger-meta block text-text-secondary">Financial health</span>
           <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-            Score breakdowns and planning ratios for the last {analysisData.monthsAnalyzed} months
+            Current health · trailing 24 completed months, bounded by employment start
           </span>
         </span>
         <span className="order-last flex w-full flex-wrap items-center gap-x-4 gap-y-2 group-open/health:hidden sm:order-none sm:w-auto">
@@ -256,12 +256,21 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
           aria-hidden="true"
         />
       </summary>
+      <div className="border-t border-[var(--hairline-1)] px-4 py-3 text-xs leading-5 text-muted-foreground sm:px-5">
+        <p>Cashflow: {analysisPeriodLabel(currentHealth.period)}</p>
+        <p>
+          {currentHealth.earningStart.source === 'saved' ? 'Saved employment start' : currentHealth.earningStart.source === 'inferred' ? 'Inferred employment start' : 'Employment start unconfirmed'}
+          {currentHealth.earningStart.date ? `: ${currentHealth.earningStart.date}. ` : '. '}
+          Zero-income months after employment are included.
+        </p>
+        <p>{balancePosition ? 'Lifetime balances from all recorded accounts' : 'Lifetime balances estimated from all recorded flows'}; expenses and income use the recent window. Income stability uses its last 12 months.</p>
+      </div>
       <div className="grid grid-cols-1 gap-6 border-t border-[var(--hairline-1)] p-4 sm:p-5 lg:grid-cols-2">
         <section className="@container/finhealth min-w-0 lg:border-r lg:border-[var(--hairline-1)] lg:pr-6">
           <ScoreHeader
             title="FinHealth Score"
             score={overallScore}
-            subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            subtitle="Recent cashflow · lifetime assets"
             status={fhnStatus.label}
             color={fhnStatus.color}
           />
@@ -277,7 +286,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
           <ScoreHeader
             title="CFP Ratios"
             score={cfpCompositeScore}
-            subtitle={`Last ${analysisData.monthsAnalyzed} months`}
+            subtitle="Recent cashflow · lifetime assets"
             status={cfpStatus.label}
             color={cfpStatus.color}
           />

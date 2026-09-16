@@ -71,6 +71,16 @@ export function getRecurringFreshness(
   return age > reviewWindow ? 'needs-review' : 'recent'
 }
 
+/** Current bill sources share this rule; old detections stay available for review. */
+export function isAcceptedRecurringCommitment(
+  item: RecurringFreshnessInput & Pick<RecurringTransaction, 'pattern_kind'>,
+  asOfDateKey: string,
+): boolean {
+  if (item.pattern_kind !== 'commitment') return false
+  const freshness = getRecurringFreshness(item, asOfDateKey)
+  return freshness === 'confirmed' || freshness === 'recent'
+}
+
 function emptySubtotal(): RecurringMonthlySubtotal {
   return { monthlyExpense: 0, monthlyIncome: 0, count: 0 }
 }
@@ -104,7 +114,7 @@ export function summarizeRecurringCommitments(
     pausedExpenseCount: 0,
   }
   for (const item of items) {
-    if (item.pattern_kind === 'habit') continue
+    if (item.pattern_kind !== 'commitment') continue
     const monthly = toMonthlyAmount(item.expected_amount, item.frequency)
     if (!item.is_active) {
       if (item.type === 'Expense') {

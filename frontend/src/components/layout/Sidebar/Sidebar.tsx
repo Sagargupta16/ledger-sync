@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react'
+import { ChevronRight, LogOut, Menu, Search, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import ProfileModal from '@/components/shared/ProfileModal'
+import { getProfileInitials } from '@/components/shared/profileModalUtils'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import {
@@ -32,16 +33,6 @@ import SidebarItem from './SidebarItem'
 import SidebarSection from './SidebarSection'
 import ThemeToggle from './ThemeToggle'
 import MotionToggle from './MotionToggle'
-
-function getInitials(name?: string | null, email?: string): string {
-  const source = name?.trim() || email?.split('@')[0] || 'LS'
-  return source
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('')
-}
 
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -112,7 +103,7 @@ export default function Sidebar() {
     : user
 
   useEffect(() => {
-    if (!isMobileOpen) return
+    if (!isMobileOpen || showProfile) return
 
     const sidebar = sidebarRef.current
     const focusableSelector =
@@ -145,7 +136,7 @@ export default function Sidebar() {
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [closeMobile, isMobileOpen])
+  }, [closeMobile, isMobileOpen, showProfile])
 
   return (
     <>
@@ -284,13 +275,18 @@ export default function Sidebar() {
 
             <button
               type="button"
+              aria-label={isDemoMode ? 'Demo profile' : 'Open profile and account'}
+              aria-haspopup={isDemoMode ? undefined : 'dialog'}
+              aria-expanded={isDemoMode ? undefined : showProfile}
+              aria-controls={isDemoMode ? undefined : 'profile-account-dialog'}
+              disabled={isDemoMode}
               onClick={() => {
                 if (!isDemoMode) setShowProfile(true)
               }}
-              className="flex min-h-14 w-full items-center gap-2.5 border-t border-[var(--hairline-1)] px-3 text-left transition-colors duration-150 hover:bg-[var(--overlay-2)]"
+              className="flex min-h-14 w-full items-center gap-2.5 border-t border-[var(--hairline-1)] px-3 text-left transition-colors duration-150 enabled:hover:bg-[var(--overlay-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
-                {getInitials(displayUser?.full_name, displayUser?.email)}
+                {getProfileInitials(displayUser?.full_name, displayUser?.email)}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-medium text-foreground">
@@ -300,7 +296,7 @@ export default function Sidebar() {
                   {displayUser?.email || 'Personal workspace'}
                 </span>
               </span>
-              <ChevronDown className="size-3.5 shrink-0 text-text-quaternary" />
+              {!isDemoMode && <ChevronRight className="size-3.5 shrink-0 text-text-tertiary" aria-hidden="true" />}
             </button>
           </div>
         </div>

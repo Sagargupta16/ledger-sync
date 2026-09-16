@@ -10,9 +10,10 @@ import {
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
 import { rawColors } from '@/constants/colors'
-import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
-import { dropPartialMonth, formatMonthKey } from '@/lib/dateUtils'
-import { percentChange } from '@/lib/formatters'
+import { ROLLING_AVG_MONTHS } from '@/lib/chartUtils'
+import { dropPartialMonth } from '@/lib/dateUtils'
+import { analysisPeriodLabel, resolveEarningStart } from '@/lib/finance/analysisPeriod'
+import { computeIncomeMetrics } from '@/lib/finance/incomeMetrics'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
 import { calculationsApi } from '@/services/api/calculations'
 import { resolveIncomeClassification } from '@/store/preferencesStore'
@@ -41,6 +42,20 @@ export function useIncomeAnalysis() {
   const categoryFilter = searchParams.get('category')
   const preferencesQuery = usePreferences()
   const dateRangeQuery = useQuery(dataDateRangeOptions())
+  const savedEarningStart = resolveEarningStart(preferencesQuery.data?.earning_start_date, [])
+  const needsEarningEvidence = savedEarningStart.source !== 'saved'
+  // Focused read-only daily category aggregates, independent of chart/source
+  // selection. A gift or refund cannot establish the employment boundary.
+  const earningEvidenceQuery = useQuery({
+    queryKey: ['earning-start-evidence'],
+    queryFn: async () => (await calculationsApi.getCategoryDailySeries({ transaction_type: 'income' })).data.data,
+    enabled: preferencesQuery.isSuccess && needsEarningEvidence,
+    staleTime: Infinity,
+  })
+  const earningStart = useMemo(() => resolveEarningStart(
+    preferencesQuery.data?.earning_start_date,
+    (earningEvidenceQuery.data ?? []).map((row) => ({ ...row, type: 'Income' })),
+  ), [preferencesQuery.data?.earning_start_date, earningEvidenceQuery.data])
 
   const dateBounds = useMemo(
     () => ({
@@ -132,68 +147,16 @@ export function useIncomeAnalysis() {
     [income, isRangePartialOnly],
   )
 
-  const monthlyTrendData = useMemo<MonthlyIncomeDatum[]>(() => {
-    const complete = dropPartialMonth(income?.monthly_data ?? [], 'month')
-    const basis = complete.length > 0 ? complete : (income?.monthly_data ?? [])
-    return basis.map((datum) => ({
-      month: datum.month,
-      label: formatMonthKey(datum.month, { month: 'short', year: '2-digit' }),
-      income: datum.income,
-      // `null` -> `undefined`: recharts treats only `undefined` (and `null`) as a
-      // gap, and the shared count/caption helpers accept either.
-      incomeAvg: datum.income_avg_3m ?? undefined,
-    }))
-  }, [income])
-
-  /**
-   * How many rolling-average points the chart can actually draw. Dropping the
-   * partial month can strip the only complete window, and the leading months
-   * never had one, so this is regularly 0 or 1 -- and 1 paints nothing unless
-   * the chart switches to a dot. Same contract as Spending Analysis and Trends.
-   */
-  const rollingAvgPointCount = useMemo(
-    () => countRollingAvgPoints(monthlyTrendData, (datum) => datum.incomeAvg),
-    [monthlyTrendData],
-  )
-
-  const avgIncome = useMemo(() => {
-    if (monthlyTrendData.length === 0) return 0
-    return (
-      monthlyTrendData.reduce((sum, datum) => sum + datum.income, 0) /
-      monthlyTrendData.length
-    )
-  }, [monthlyTrendData])
-
-  const incomeSeries = useMemo(
-    () => monthlyTrendData.map((datum) => datum.income),
-    [monthlyTrendData],
-  )
-
-  /**
-   * Peak monthly income, or `undefined` when the only month available is the one
-   * in progress -- a partial month's running total is not a peak.
-   */
-  const peakIncome = useMemo(
-    () =>
-      hasPartialOnlyBasis || incomeSeries.length === 0
-        ? undefined
-        : Math.max(...incomeSeries),
-    [hasPartialOnlyBasis, incomeSeries],
-  )
-
-  /**
-   * First-to-last growth over complete months, or `undefined` when there are not
-   * two complete months to compare. The backend's `growth_rate` runs over every
-   * month it was given, so a window ending mid-month made the last point a stub
-   * and the rate a cliff -- but returning 0 in its place was its own lie: the
-   * card read a definite "0%" growth next to a real total. Abstain instead.
-   */
-  const growthRate = useMemo(() => {
-    if (hasPartialOnlyBasis) return undefined
-    const nonZero = incomeSeries.filter((value) => value > 0)
-    if (nonZero.length < 2) return undefined
-    return percentChange(nonZero[nonZero.length - 1], nonZero[0]) ?? undefined
-  }, [hasPartialOnlyBasis, incomeSeries])
+  const {
+    monthlyTrendData, rollingAvgPointCount, avgIncome, incomeSeries,
+    peakIncome, growthRate, averagePeriod,
+  } = useMemo(() => computeIncomeMetrics(income?.monthly_data ?? [], {
+    earningStartDate: earningStart.date,
+    startDate: dateRange.start_date,
+    endDate: dateRange.end_date && dateBounds.maxDate
+      ? (dateRange.end_date < dateBounds.maxDate ? dateRange.end_date : dateBounds.maxDate)
+      : dateRange.end_date ?? dateBounds.maxDate,
+  }), [income, earningStart.date, dateRange, dateBounds.maxDate])
 
   const clearCategoryFilter = () => {
     const next = new URLSearchParams(searchParams)
@@ -206,13 +169,16 @@ export function useIncomeAnalysis() {
     if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
     if (dateRangeQuery.isError) retries.push(dateRangeQuery.refetch())
     if (incomeQuery.isError) retries.push(incomeQuery.refetch())
+    if (needsEarningEvidence && earningEvidenceQuery.isError) retries.push(earningEvidenceQuery.refetch())
     void Promise.all(retries)
   }
 
   return {
     isLoading:
-      preferencesQuery.isPending || dateRangeQuery.isPending || incomeQuery.isPending,
-    isError: preferencesQuery.isError || dateRangeQuery.isError || incomeQuery.isError,
+      preferencesQuery.isPending || dateRangeQuery.isPending || incomeQuery.isPending ||
+      (needsEarningEvidence && earningEvidenceQuery.isPending),
+    isError: preferencesQuery.isError || dateRangeQuery.isError || incomeQuery.isError ||
+      (needsEarningEvidence && earningEvidenceQuery.isError),
     retry,
     categoryFilter,
     clearCategoryFilter,
@@ -233,5 +199,7 @@ export function useIncomeAnalysis() {
     rollingAvgMonths: ROLLING_AVG_MONTHS,
     avgIncome,
     incomeSeries,
+    earningsPeriodLabel: analysisPeriodLabel(averagePeriod),
+    earningStart,
   }
 }

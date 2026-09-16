@@ -60,16 +60,19 @@ export default function TaxPageActions({
       )}
 
       {isCurrentFY && hasSalaryData && (
-        <Button
-          type="button"
-          onClick={() => setShowProjection(!showProjection)}
-          variant={showProjection ? 'primary' : 'secondary'}
-          size="sm"
-          aria-pressed={showProjection}
-          className="w-full sm:w-auto"
-        >
-          {showProjection ? 'Showing Projection' : 'Project from Salary'}
-        </Button>
+        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
+          <legend className="sr-only">Calculation period</legend>
+          <Button type="button" size="sm" variant={showProjection ? 'primary' : 'ghost'}
+            aria-pressed={showProjection} onClick={() => setShowProjection(true)}
+            className="rounded-none border-0 px-3">
+            Full-year estimate
+          </Button>
+          <Button type="button" size="sm" variant={showProjection ? 'ghost' : 'primary'}
+            aria-pressed={!showProjection} onClick={() => setShowProjection(false)}
+            className="rounded-none border-0 px-3">
+            Income received
+          </Button>
+        </fieldset>
       )}
 
       <fieldset className="m-0 flex min-w-0 items-center justify-between gap-2 border-0 p-0 sm:justify-start">

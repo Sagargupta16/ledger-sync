@@ -72,11 +72,37 @@ export function applyProjectionTaxRegime(projection: ProjectedFYBreakdown, regim
 }
 
 /** Identified share receipts are never cash bonuses, including later settlements. */
-function recordedNetRsuReceipts(data: FYData): number {
+function recordedRsuReceipts(data: FYData) {
   return Object.values(data.incomeGroups).flatMap((group) => group.transactions)
     .filter((tx) => tx.category === 'Employment Income'
       && /^rsus?$/i.test(tx.subcategory ?? ''))
-    .reduce((total, tx) => total + tx.amount, 0)
+}
+
+/**
+ * When a vest price is missing, a unique same-day net receipt provides a better
+ * value estimate than today's stock price. Keep saved prices and units intact;
+ * this only values the withholding estimate, and remains marked estimated.
+ */
+function valueRecordedRsuEvents(events: ValuedRsuVesting[], data: FYData): ValuedRsuVesting[] {
+  const receiptsByDate = new Map<string, number[]>()
+  for (const tx of recordedRsuReceipts(data)) {
+    const date = tx.date.slice(0, 10)
+    receiptsByDate.set(date, [...(receiptsByDate.get(date) ?? []), tx.amount])
+  }
+  return events.map((event) => {
+    const receipts = receiptsByDate.get(event.date) ?? []
+    const sameDayVests = events.filter((candidate) => candidate.vested && candidate.date === event.date)
+    if (!event.vested || !event.isPriceEstimated || event.netQuantity <= 0
+      || sameDayVests.length !== 1 || receipts.length !== 1 || receipts[0] <= 0) return event
+    const price = receipts[0] / event.netQuantity
+    return {
+      ...event,
+      price,
+      grossValue: event.grossQuantity * price,
+      netValue: receipts[0],
+      withholdingValue: Math.max(0, event.grossQuantity * price - receipts[0]),
+    }
+  })
 }
 
 function recordedSalaryMonths(data: FYData | null, fyYear: number, fyStartMonth: number): number[] {
@@ -100,7 +126,7 @@ interface PayrollPlanningInput {
  * Recorded-income estimates remain separate from projected monthly rows.
  */
 export function buildPayrollPlanning({
-  projection, tax, fyData, fyStartMonth, isCurrentFY, useSalaryProjection,
+  projection, tax, fyData, fyStartMonth, isCurrentFY,
 }: Readonly<PayrollPlanningInput>) {
   const paidMonthIndices = recordedSalaryMonths(fyData, tax.fyYear, fyStartMonth)
   if (!projection) return { schedule: [], paidMonthIndices, paidEstimate: null }
@@ -120,14 +146,15 @@ export function buildPayrollPlanning({
     rsuVestingEvents: projection.rsuVestingEvents,
     monthlyCashDeductions: projection.cashDeductions / MONTHS_PER_YEAR,
   }
-  const canEstimatePaid = isCurrentFY && !useSalaryProjection && tax.incomeBasis === 'net'
+  const canEstimatePaid = isCurrentFY && tax.incomeBasis === 'net'
     && fyData !== null && paidMonthIndices.length > 0
   const paidEstimate = canEstimatePaid ? computeTaxPaidTillDate({
     ...shared,
+    rsuVestingEvents: valueRecordedRsuEvents(projection.rsuVestingEvents, fyData),
     baseAnnual,
     monthsPaid: paidMonthIndices.length,
     receivedNet: fyData.employmentTaxableIncome,
-    rsuNetIncludedInReceivedNet: recordedNetRsuReceipts(fyData),
+    rsuNetIncludedInReceivedNet: recordedRsuReceipts(fyData).reduce((total, tx) => total + tx.amount, 0),
   }) : null
 
   return { schedule, paidMonthIndices, paidEstimate }

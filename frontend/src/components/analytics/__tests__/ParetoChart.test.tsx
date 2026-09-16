@@ -93,7 +93,7 @@ describe('ParetoChart tooltip formatter', () => {
   it('still formats the spend series as currency', () => {
     render(<ParetoChart categoryBreakdown={{ Rent: 30_000, Food: 12_000 }} />)
 
-    expect(captured.tooltip?.formatter?.(1000, 'Spend')).toBe('₹1,000')
+    expect(captured.tooltip?.formatter?.(1000, 'Spend')).toBe('₹1,000.00')
   })
 
   it('does not fall back to the percentage branch for the dataKey string', () => {
@@ -101,7 +101,7 @@ describe('ParetoChart tooltip formatter', () => {
     // formatter matching on it would treat rupee values as percentages.
     render(<ParetoChart categoryBreakdown={{ Rent: 30_000 }} />)
 
-    expect(captured.tooltip?.formatter?.(1000, 'cumulativePct')).toBe('₹1,000')
+    expect(captured.tooltip?.formatter?.(1000, 'cumulativePct')).toBe('₹1,000.00')
   })
 })
 

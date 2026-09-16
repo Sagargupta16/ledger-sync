@@ -1,4 +1,5 @@
 import type { ViewMode } from '@/lib/dateUtils'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 
 /**
  * Generate all period keys for the x-axis based on view mode.
@@ -31,7 +32,7 @@ export function generateAllPeriods(
  * Format a raw period key into a human-readable display string.
  *
  * - monthly  : period unchanged (day number like "01")
- * - yearly   : short month name (e.g. "Jan", "Feb")
+ * - yearly   : short month and year (e.g. "Jan ’26")
  * - all_time : period unchanged (e.g. "2024-Q1")
  */
 export function formatDisplayPeriod(
@@ -40,9 +41,7 @@ export function formatDisplayPeriod(
   currentYear: number
 ): string {
   if (viewMode === 'yearly') {
-    return new Date(currentYear, Number.parseInt(period) - 1).toLocaleDateString('en-US', {
-      month: 'short',
-    })
+    return formatChartPeriod(`${currentYear}-${period.padStart(2, '0')}`)
   }
   // monthly and all_time both return the raw period
   return period
@@ -128,21 +127,5 @@ export function bucketDate(isoDate: string, granularity: Granularity): string {
  * Render a bucket key into a short, axis-friendly label.
  */
 export function formatBucketLabel(periodKey: string, granularity: Granularity): string {
-  if (granularity === 'month') {
-    const [year, month] = periodKey.split('-')
-    return new Date(Number(year), Number(month) - 1).toLocaleDateString('en-US', {
-      month: 'short',
-      year: '2-digit',
-    })
-  }
-  if (granularity === 'week') {
-    // "2024-W12" -> "Wk 12 '24"
-    const [year, weekStr] = periodKey.split('-W')
-    return `Wk ${weekStr} '${year.slice(2)}`
-  }
-  // day -> "Mar 15". Build from local Y/M/D parts so the label matches the
-  // bucket's calendar day (new Date('YYYY-MM-DD') is UTC midnight and would
-  // render the previous day for negative-offset users).
-  const [dy, dm, dd] = periodKey.slice(0, 10).split('-').map(Number)
-  return new Date(dy, dm - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatChartPeriod(periodKey, granularity === 'month')
 }

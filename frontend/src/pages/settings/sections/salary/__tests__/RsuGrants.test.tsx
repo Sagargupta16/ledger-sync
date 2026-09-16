@@ -72,10 +72,10 @@ describe('RSU received-unit settings', () => {
     expect(receivedInput()).toHaveValue(null)
     expect(receivedInput()).toHaveAttribute('placeholder', '17.2')
     expect(table.getByText('Estimated units')).toBeInTheDocument()
-    expect(table.getByText('₹2,580')).toBeInTheDocument()
-    expect(table.getByText('Gross ₹3,750')).toBeInTheDocument()
+    expect(table.getByText('₹2,580.00')).toBeInTheDocument()
+    expect(table.getByText('Gross ₹3,750.00')).toBeInTheDocument()
     expect(card.getByText('Estimated after-tax value')).toBeInTheDocument()
-    expect(card.getByText('₹2,580')).toBeInTheDocument()
+    expect(card.getByText('₹2,580.00')).toBeInTheDocument()
     expect(screen.getByText('17.2 shares')).toBeInTheDocument()
     expect(screen.getByText('Includes estimated units')).toBeInTheDocument()
     expect(screen.getByText(/30% tax plus 4% cess on that tax/)).toBeInTheDocument()
@@ -112,8 +112,8 @@ describe('RSU received-unit settings', () => {
 
     expect(receivedInput()).toHaveValue(0)
     expect(receivedInput()).toBeValid()
-    expect(within(screen.getByRole('table')).getByText('₹0')).toBeInTheDocument()
-    expect(within(screen.getByRole('table')).getByText('Gross ₹3,750')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('₹0.00')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('Gross ₹3,750.00')).toBeInTheDocument()
     expect(onUpdate).toHaveBeenLastCalledWith([{
       ...grant,
       vestings: [{ ...grant.vestings[0], net_quantity: 0 }],
@@ -123,7 +123,7 @@ describe('RSU received-unit settings', () => {
 
     expect(receivedInput()).toHaveValue(null)
     expect(within(screen.getByRole('table')).getByText('Estimated units')).toBeInTheDocument()
-    expect(within(screen.getByRole('table')).getByText('₹2,580')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('₹2,580.00')).toBeInTheDocument()
     expect(onUpdate).toHaveBeenLastCalledWith([{
       ...grant,
       vestings: [{ ...grant.vestings[0], net_quantity: null }],
@@ -138,14 +138,14 @@ describe('RSU received-unit settings', () => {
 
     fireEvent.change(gross, { target: { value: '50' } })
     expect(receivedInput()).toHaveAttribute('placeholder', '34.4')
-    expect(within(screen.getByRole('table')).getByText('₹5,160')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('₹5,160.00')).toBeInTheDocument()
 
     fireEvent.change(receivedInput(), { target: { value: '20' } })
     fireEvent.change(gross, { target: { value: '75' } })
 
     expect(receivedInput()).toHaveValue(20)
-    expect(within(screen.getByRole('table')).getByText('₹3,000')).toBeInTheDocument()
-    expect(within(screen.getByRole('table')).getByText('Gross ₹11,250')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('₹3,000.00')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('Gross ₹11,250.00')).toBeInTheDocument()
   })
 
   it('keeps explicit no-withholding records at the gross quantity', () => {
@@ -157,7 +157,7 @@ describe('RSU received-unit settings', () => {
     render(<GrantEditor initialGrant={saved} onUpdate={onUpdate} />)
 
     expect(receivedInput()).toHaveValue(25)
-    expect(within(screen.getByRole('table')).getByText('₹3,750')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('₹3,750.00')).toBeInTheDocument()
     expect(screen.getByText('25 shares')).toBeInTheDocument()
     expect(screen.queryByText('Includes estimated units')).not.toBeInTheDocument()
     expect(onUpdate).not.toHaveBeenCalled()
@@ -192,7 +192,7 @@ describe('RSU received-unit settings', () => {
       ...missing,
       vestings: [{ ...missing.vestings[0], price_at_vest: 16_000 }],
     }])
-    expect(within(screen.getByRole('table')).getByText('Vest-date ₹16,000')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('Vest-date ₹16,000.00')).toBeInTheDocument()
   })
 
   it('does not replace a current INR price with an unconverted foreign price', async () => {

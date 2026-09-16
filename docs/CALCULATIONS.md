@@ -1,8 +1,11 @@
 # Calculations and Data Processing
 
-Developer map and shared-finance contracts checked against source on 2026-09-10.
+Developer map and shared-finance contracts checked against source on 2026-09-16.
 Examples below are synthetic; payroll and forecast values retain their stated
 estimation limits.
+
+The [financial calculation diagram](diagrams/README.md#financial-calculations)
+shows how scoped inputs, shared calculations, and the displayed results connect.
 
 ## Developer Calculation Map
 
@@ -327,8 +330,15 @@ build future ranges separately.
 
 ### Earning start date
 
-The optional earning start date is a view filter only. It clamps chart and
-query start dates but does not delete or rewrite earlier ledger rows.
+`finance/analysisPeriod.ts` resolves a saved earning-start date first, otherwise
+the earliest supported employment-income classification. Gifts, allowances,
+refunds, scholarships, interest, and dividends do not establish employment.
+The display crop remains independent: toggling chart history does not change
+the earnings basis used by statistics or rewrite earlier ledger rows.
+
+Income averages use complete calendar months after that boundary, including
+zero-income gaps. Selected historical ranges remain historical. Current health
+uses at most the latest 24 completed months, ending before the current month.
 
 ## Upload and Reconciliation
 
@@ -636,6 +646,13 @@ income bucket first, and the result is the amount-weighted average gap in days
 between when money arrived and when it left.
 
 ### Financial-health inputs
+
+`health/currentHealthAnalysis.ts` separates recent cash flows from lifetime
+balance proxies. The current score uses at most 24 completed calendar months,
+clamped to the earning-start date; the stability inputs use the latest 12 of
+those months. It requires at least three analysis months and ten historical
+transactions. Missing months after earning starts remain zero-income months.
+Dashboard chart filters do not redefine this current-health window.
 
 The Financial Health summary and CFP detail both use
 `healthScoreAnalysis.cfpInputsFromAnalysis`. It supplies pooled totals and the
@@ -959,12 +976,12 @@ note fall back to category and subcategory.
 Requirements:
 
 - At least three occurrences
-- Mean day gap within a supported band
+- Median day gap within a supported band
 - Confidence at or above the user's threshold
 
 Frequency bands:
 
-| Mean gap | Frequency |
+| Median gap | Frequency |
 | --- | --- |
 | 4 to under 11 days | Weekly |
 | 11 to under 20 | Biweekly |
@@ -977,16 +994,29 @@ Frequency bands:
 Confidence is:
 
 ```text
-max(0, 100 - standard_deviation(day_gaps) * cadence_penalty)
+median_gap = median(day_gaps)
+periods_for_gap = max(1, round(gap / median_gap))
+residual_for_gap = abs(gap - periods_for_gap * median_gap)
+skip_rate = sum(periods_for_gap - 1) / number_of_gaps
+confidence = max(0, 100 - median(residuals) * cadence_penalty - 25 * skip_rate)
 ```
 
-Wider cadences use a smaller penalty. Expected amount and amount variance use
-the sample mean and sample standard deviation. Monthly-like frequencies infer
+Wider cadences use a smaller penalty. Expected amount uses the median; amount
+variance uses `1.4826 * median(abs(amount - median_amount))`. Monthly-like frequencies infer
 an expected day from the modal day, with special handling for late-month
 clamping.
 
 User-confirmed rows are preserved during a refresh and have their observed
-statistics updated.
+statistics updated. Manually entered amounts and due days remain user-owned.
+Normalization removes explicit billing month/year suffixes while retaining
+payee names and other identifying numbers.
+
+Detection alone does not establish a bill. Automatic commitments also need
+obligation wording, at least three occurrences, confidence of at least 70, and
+supported periodic cadence. Refunds and security deposits are excluded from
+obligation evidence. Weekly and fortnightly commitments require a consistent
+calendar phase. The read API applies the conservative interpretation to legacy
+rollups without changing stored choices; confirmed classifications take precedence.
 
 ### Commitment freshness and trust
 
@@ -1004,6 +1034,12 @@ commitments, including needs-review and unassessed detections. Their subtotals
 explain how much of the headline needs attention; they do not subtract possible
 obligations. Repeat-spending habits stay outside commitment totals. Paused
 expenses are separate and are not labeled savings or cancellations.
+
+Those full summary totals are distinct from scheduling. Recurring and Bill
+Calendar use `isAcceptedRecurringCommitment`: active confirmed commitments, or
+recent unconfirmed rows already classified as commitments by the API. They exclude habits
+and stale automatic detections. A confirmed bill without a usable schedule is
+shown as unscheduled rather than assigned an invented date.
 
 `recurrenceFrequency.ts` keeps money annualization separate from calendar
 stepping: daily uses 365 occurrences/year, weekly 52, biweekly 26, monthly 12,
@@ -1118,6 +1154,18 @@ Missing employment scope falls back to gross mode with
 `incomeScopeComplete: false`, rather than guessing a net basis for the whole ledger. `estimatedTaxPaid`
 remains an inference, not a payroll receipt.
 
+With an explicit salary configuration for the selected FY, net receipts can
+instead use the annual payroll model to estimate withholding on income received
+so far. A partial-year annual-slab calculation must not stand in for payroll
+withholding. Tax Planning defaults to the full-year view when the current FY
+has salary inputs, with a separate received-income view. The withholding panel
+separates estimated cash payroll TDS, share withholding, and actual tax paid;
+unknown actual TDS is `null`, displayed as a blank value rather than zero.
+
+The payroll override is accepted only when it covers the recorded receipts.
+Unmatched RSU receipts retain the complete-receipt fallback and an incomplete
+coverage warning, so missing vesting entries cannot silently lower taxable income.
+
 `taxHistory.ts` groups transactions into FYs and retains employment, other
 taxable, and non-taxable classifications. The yearly chart's legacy `paidTax`
 key represents calculated liability on recorded income. It must be labeled
@@ -1231,6 +1279,11 @@ Each vesting has a date, gross `quantity`, optional `price_at_vest`, and optiona
 - Historical FX failures do not use the present-day fallback table. The locked
   price remains unset, so the UI honestly falls back to the grant's current
   price as an estimate. Past vestings never receive projected appreciation.
+- Received-income reconciliation can infer an estimated historical price from
+  exactly one RSU receipt and one matching vesting on the same date, using the
+  receipt divided by received units. Ambiguous same-day matches do not establish
+  a price. This does not change a saved price or turn estimated withholding into
+  an actual.
 - An upcoming vesting uses the grant's current price and projection assumptions
   where applicable.
 - `valueRsuVestings` returns one canonical event with gross/net units and values,

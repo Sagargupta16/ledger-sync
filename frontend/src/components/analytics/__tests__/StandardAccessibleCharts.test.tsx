@@ -52,7 +52,7 @@ describe('accessible chart data', () => {
 
     expect(screen.getByRole('columnheader', { name: 'SALARY' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'BONUS' })).toBeInTheDocument()
-    expect(tableRows()).toEqual([['Jan 26', '₹1,000', '₹250']])
+    expect(tableRows()).toEqual([['January 2026', '₹1,000.00', '₹250.00']])
   })
 
   it('exposes radar dimensions and scores without relying on the SVG', () => {
@@ -94,7 +94,7 @@ describe('chart tooltip readings', () => {
     )
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'assertive')
-    expect(screen.getByRole('status')).toHaveTextContent('Jan 26')
+    expect(screen.getByRole('status')).toHaveTextContent('January 2026')
     rerender(
       <ChartTooltipContent
         active
@@ -103,8 +103,8 @@ describe('chart tooltip readings', () => {
         payload={[{ graphicalItemId: 'income', name: 'Income', value: 20 }]}
       />,
     )
-    expect(screen.getByRole('status')).toHaveTextContent('Feb 26')
-    expect(screen.getByRole('status')).not.toHaveTextContent('Jan 26')
+    expect(screen.getByRole('status')).toHaveTextContent('February 2026')
+    expect(screen.getByRole('status')).not.toHaveTextContent('January 2026')
   })
 
   it.each([null, undefined])('omits readings suppressed by a formatter returning %s', (suppressed) => {
@@ -139,7 +139,7 @@ describe('chart tooltip readings', () => {
     )
 
     const tooltip = screen.getByRole('tooltip')
-    expect(within(tooltip).getByText('Jan 26')).toBeInTheDocument()
+    expect(within(tooltip).getByText('January 2026')).toBeInTheDocument()
     expect(within(tooltip).getByText('0 INR')).toBeInTheDocument()
     expect(within(tooltip).getByText('-42 INR')).toBeInTheDocument()
   })

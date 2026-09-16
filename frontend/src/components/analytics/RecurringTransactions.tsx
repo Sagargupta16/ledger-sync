@@ -5,6 +5,7 @@ import { RefreshCw, AlertCircle, CheckCircle, Calendar, DollarSign } from 'lucid
 
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { getTodayKey } from '@/lib/dateUtils'
 
 import { adaptApiRecurring, sumMonthlyCommitment } from './recurringUtils'
 
@@ -16,10 +17,16 @@ export default function RecurringTransactions() {
   // Commitments only: this component sums a "Monthly Fixed Costs" figure, and
   // habit rows (repeated meals, weekly groceries) are not fixed costs.
   const { data: apiRecurring = [], isLoading } = useRecurringTransactions({
+    active_only: true,
+    min_confidence: 0,
     pattern_kind: 'commitment',
   })
 
-  const recurringTransactions = useMemo(() => adaptApiRecurring(apiRecurring), [apiRecurring])
+  const asOfDateKey = getTodayKey()
+  const recurringTransactions = useMemo(
+    () => adaptApiRecurring(apiRecurring, asOfDateKey),
+    [apiRecurring, asOfDateKey],
+  )
 
   // Calculate totals
   // Sums the adapter's `monthlyAmount`. The three-branch chain this replaced
@@ -69,7 +76,7 @@ export default function RecurringTransactions() {
         <div className="text-center py-8">
           <p className="text-muted-foreground mb-2">No recurring patterns detected yet.</p>
           <p className="text-xs text-muted-foreground">
-            Recurring transactions are detected when similar amounts appear at regular intervals (monthly, quarterly, yearly).
+            Confirmed bills and recent detections for rent, household help, utilities, and subscriptions appear here.
           </p>
         </div>
       ) : (
@@ -109,10 +116,14 @@ export default function RecurringTransactions() {
               {item.isActive && (
                 <div className="mt-2 flex flex-col gap-1 border-t border-border pt-2 text-xs sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-muted-foreground">
-                    Last: {formatDate(item.lastDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
+                    Last: {item.lastDate
+                      ? formatDate(item.lastDate, { year: 'numeric', month: 'numeric', day: 'numeric' })
+                      : 'No payment recorded'}
                   </span>
                   <span className="text-app-teal">
-                    Next expected: {formatDate(item.expectedNextDate, { year: 'numeric', month: 'numeric', day: 'numeric' })}
+                    Next expected: {item.expectedNextDate
+                      ? formatDate(item.expectedNextDate, { year: 'numeric', month: 'numeric', day: 'numeric' })
+                      : 'Date not set'}
                   </span>
                 </div>
               )}

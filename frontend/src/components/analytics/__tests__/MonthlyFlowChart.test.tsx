@@ -16,6 +16,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { MonthlyFlowDatum } from '@/hooks/useDashboardMetrics'
+import { formatChartDate } from '@/lib/chartDateLabels'
 
 import MonthlyFlowChart from '../MonthlyFlowChart'
 
@@ -32,7 +33,7 @@ describe('MonthlyFlowChart', () => {
     const table = screen.getByRole('table', { hidden: true })
     expect(table).toBeInTheDocument()
     for (const row of MONTHS) {
-      expect(screen.getByText(row.label)).toBeInTheDocument()
+      expect(screen.getByText(formatChartDate(row.month))).toBeInTheDocument()
     }
   })
 

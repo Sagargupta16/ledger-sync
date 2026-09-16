@@ -3,23 +3,25 @@ import { Button } from '@/components/ui'
 
 interface LogoutButtonProps {
   isPending: boolean
+  disabled?: boolean
   onLogout: () => void
 }
 
-export function LogoutButton({ isPending, onLogout }: Readonly<LogoutButtonProps>) {
+export function LogoutButton({ isPending, disabled, onLogout }: Readonly<LogoutButtonProps>) {
   return (
-    <div className="px-6 py-4 border-t border-border">
+    <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[var(--hairline-1)] bg-[var(--overlay-1)] px-4 py-3 sm:px-6">
+      <p className="text-xs text-muted-foreground">Your current session</p>
       <Button
         type="button"
-        variant="ghost"
-        size="lg"
+        variant="secondary"
+        size="sm"
         onClick={onLogout}
-        disabled={isPending}
-        className="w-full rounded-lg bg-app-red/10 text-app-red hover:bg-app-red/15 hover:text-app-red"
+        disabled={disabled}
+        isLoading={isPending}
+        icon={<LogOut className="size-4" />}
       >
-        <LogOut size={16} aria-hidden="true" />
-        <span>{isPending ? 'Signing out...' : 'Sign Out'}</span>
+        {isPending ? 'Signing out...' : 'Sign out'}
       </Button>
-    </div>
+    </footer>
   )
 }

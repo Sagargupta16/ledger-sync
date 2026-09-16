@@ -38,6 +38,8 @@ const ALL_MONTHS = [
 export interface TdsMonthRow {
   /** Short month label, e.g. "Apr". */
   month: string
+  /** Calendar period preserves the year across the April-to-March boundary. */
+  period?: string
   /** 0-based index within the fiscal year (0 = FY start month). */
   monthIndex: number
   /** Taxable income credited this month (regular + configured extras). */
@@ -121,6 +123,8 @@ export interface TaxPaidTillDate {
   rsuWithholding: number
   rsuRecordedWithholding: number
   rsuEstimatedWithholding: number
+  /** Receipt value not covered by configured vested shares at their valuation. */
+  unmatchedRsuNetReceipts?: number
 }
 
 export interface TaxPaidTillDateParams {
@@ -219,6 +223,7 @@ export function computeTaxPaidTillDate(params: TaxPaidTillDateParams): TaxPaidTi
     rsuWithholding: rsu.withholdingValue,
     rsuRecordedWithholding: rsu.recordedWithholding,
     rsuEstimatedWithholding: rsu.estimatedWithholding,
+    unmatchedRsuNetReceipts: Math.max(0, rsuNetIncludedInReceivedNet - rsu.netValue),
   }
 }
 
@@ -298,6 +303,7 @@ export function buildTdsSchedule(params: TdsScheduleParams): TdsMonthRow[] {
 
     rows.push({
       month: monthLabel(fyStartMonth, i),
+      period: `${fyStartYear + Math.floor((fyStartMonth - 1 + i) / MONTHS_PER_YEAR)}-${String((fyStartMonth - 1 + i) % MONTHS_PER_YEAR + 1).padStart(2, '0')}`,
       monthIndex: i,
       monthIncome,
       projectedAnnual,

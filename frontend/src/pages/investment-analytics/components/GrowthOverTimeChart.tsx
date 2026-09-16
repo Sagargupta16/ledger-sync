@@ -15,6 +15,10 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
@@ -65,6 +69,7 @@ export function GrowthOverTimeChart({
   const gradientId = useId().replaceAll(':', '')
   const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const { animate: animateSeries, isMobile } = useChartPresentation(filteredGrowthData.length * INVESTMENT_CATEGORIES.length)
+  const range = useChartRange(filteredGrowthData.map((row) => String(row.date)))
   const firstPoint = filteredGrowthData[0]
   const lastPoint = filteredGrowthData.at(-1)
   const latestBalance = INVESTMENT_CATEGORIES.reduce((sum, category) => sum + Number(lastPoint?.[category] ?? 0), 0)
@@ -108,6 +113,7 @@ export function GrowthOverTimeChart({
               }))}
               caption={`As of ${formatDate(String(lastPoint?.date ?? ''), { day: 'numeric', month: 'short', year: 'numeric' })}`}
             />
+            {filteredGrowthData.length > 6 && <ChartRangeControls range={range} label="Investment growth chart range" />}
             <motion.div
               initial={motionEnabled ? { opacity: 0, y: 12 } : false}
               whileInView={{ opacity: 1, y: 0 }}
@@ -143,14 +149,13 @@ export function GrowthOverTimeChart({
                     height={44}
                     dataKey="date"
                     {...(spansYears && {
-                      tickFormatter: (value: string) => formatDate(value, { month: 'short', year: '2-digit' }),
+                      tickFormatter: (value: string) => formatChartPeriod(value, true),
                     })}
                   />
                   <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
                   <Tooltip
                     {...chartTooltipProps}
-                    contentStyle={{ ...chartTooltipProps.contentStyle, maxWidth: 'min(320px, calc(100vw - 144px))' }}
-                    itemStyle={{ ...chartTooltipProps.itemStyle, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                    content={<ChartTooltipContent />}
                     formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
                     // recharts 3.10 widened labelFormatter's label to ReactNode; at
                     // runtime it is the `date` axis tick value. formatDate returns
@@ -182,20 +187,16 @@ export function GrowthOverTimeChart({
                       animationEasing="ease-out"
                     />
                   ))}
-                  {/* Drag-to-zoom across the timeline. Default window is the most
-                  recent third so the chart reads at full fidelity on first
-                  paint without forcing the user to scroll. */}
                   {filteredGrowthData.length > 6 && (
                     <Brush
                       {...BRUSH_DEFAULTS}
                       dataKey="date"
                       tickFormatter={(value: string) =>
-                        formatDate(value, { month: 'short', year: '2-digit' })
+                        formatChartPeriod(value, true)
                       }
-                      startIndex={Math.max(
-                        0,
-                        filteredGrowthData.length - Math.ceil(filteredGrowthData.length / 3),
-                      )}
+                      startIndex={range.startIndex}
+                      endIndex={range.endIndex}
+                      onChange={range.setRange}
                     />
                   )}
                 </AreaChart>
@@ -203,7 +204,6 @@ export function GrowthOverTimeChart({
             </motion.div>
             <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
               <p>Contributions and withdrawals change these balances; this is not an investment return.</p>
-              {filteredGrowthData.length > 6 && <p className="font-mono text-[10px]">Drag the handles to zoom</p>}
             </div>
             {chartDataTable(
               filteredGrowthData,

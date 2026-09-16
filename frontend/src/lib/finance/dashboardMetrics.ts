@@ -1,6 +1,7 @@
 import { percentChange } from '@/lib/formatters'
 import { completeMonthKeys, savingsRatePercentFromNet } from '@/lib/savingsRate'
 import type { MonthlyAggregation } from '@/services/api/calculations'
+import { addMonthsToMonthKey } from '@/lib/dateUtils'
 
 export interface MonthlyChanges {
   income: number | undefined
@@ -24,6 +25,7 @@ function monthLabel(key: string): string {
 export function computeMonthlyChanges(
   monthly: MonthlyAggregation | undefined,
   now: Date = new Date(),
+  earningStartDate?: string | null,
 ): MonthlyChanges {
   const empty: MonthlyChanges = {
     income: undefined,
@@ -35,15 +37,17 @@ export function computeMonthlyChanges(
   if (!monthly) return empty
   const periods = completeMonthKeys(Object.keys(monthly), now).sort((a, b) => a.localeCompare(b))
   const currentKey = periods.at(-1)
-  const previousKey = periods.at(-2)
-  if (!currentKey || !previousKey) return empty
+  if (!currentKey) return empty
+  const previousKey = addMonthsToMonthKey(currentKey, -1)
+  if (previousKey < periods[0]) return empty
 
   const current = monthly[currentKey]
-  const previous = monthly[previousKey]
+  const previous = monthly[previousKey] ?? { income: 0, expense: 0, net_savings: 0 }
   const currentRate = savingsRatePercentFromNet(current.net_savings, current.income)
   const previousRate = savingsRatePercentFromNet(previous.net_savings, previous.income)
   return {
-    income: roundedChange(current.income, previous.income),
+    income: earningStartDate && previousKey < earningStartDate.slice(0, 7)
+      ? undefined : roundedChange(current.income, previous.income),
     expense: roundedChange(Math.abs(current.expense), Math.abs(previous.expense)),
     savings: roundedChange(current.net_savings, previous.net_savings),
     savingsRate: currentRate === null || previousRate === null

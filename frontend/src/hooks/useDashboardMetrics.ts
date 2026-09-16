@@ -27,6 +27,7 @@ import {
 } from '@/lib/preferencesUtils'
 import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
+import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
 import { computeDataDateRange, filterTransactionsByDateRange } from '@/lib/transactionUtils'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
@@ -315,7 +316,9 @@ export function useDashboardMetrics(): DashboardMetrics {
   }, [monthlyFlowAll])
 
   // ------ MoM changes ------
-  const momChanges = useMemo(() => computeMonthlyChanges(monthlyData), [monthlyData])
+  const momChanges = useMemo(() => computeMonthlyChanges(
+    monthlyData, new Date(), resolveEarningStart(preferences?.earning_start_date, allTransactions ?? []).date,
+  ), [monthlyData, preferences?.earning_start_date, allTransactions])
 
   return {
     viewMode,

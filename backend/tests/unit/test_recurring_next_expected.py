@@ -82,7 +82,7 @@ class TestMonthlyDayClamping:
 
 
 class TestOtherFrequencies:
-    """Non-monthly cadences step by their fixed day count."""
+    """Day cadences use days; longer cadences use calendar months."""
 
     @pytest.mark.parametrize(
         ("freq", "days"),
@@ -90,8 +90,6 @@ class TestOtherFrequencies:
             ("daily", 1),
             ("weekly", 7),
             ("biweekly", 14),
-            ("quarterly", 91),
-            ("yearly", 365),
         ],
     )
     def test_steps_by_frequency_days(self, freq: str, days: int) -> None:
@@ -99,9 +97,24 @@ class TestOtherFrequencies:
         delta = _next(last, freq, None) - last
         assert delta.days == days
 
-    def test_monthly_without_an_expected_day_falls_back_to_the_day_step(self) -> None:
+    def test_monthly_without_an_expected_day_uses_the_last_day(self) -> None:
         last = datetime(2026, 3, 15, tzinfo=UTC)
-        assert (_next(last, "monthly", None) - last).days == 30
+        assert _next(last, "monthly", None) == datetime(2026, 4, 15, tzinfo=UTC)
+
+    @pytest.mark.parametrize(
+        ("frequency", "last", "day", "expected"),
+        [
+            ("bimonthly", (2026, 12, 31), 31, (2027, 2, 28)),
+            ("quarterly", (2026, 1, 31), 31, (2026, 4, 30)),
+            ("semiannual", (2026, 8, 31), 31, (2027, 2, 28)),
+            ("yearly", (2028, 2, 29), 29, (2029, 2, 28)),
+            ("monthly", (2026, 1, 31), None, (2026, 2, 28)),
+        ],
+    )
+    def test_calendar_cadences_do_not_drift_into_a_different_month(
+        self, frequency, last, day, expected
+    ) -> None:
+        assert _next(datetime(*last, tzinfo=UTC), frequency, day) == datetime(*expected, tzinfo=UTC)
 
     def test_frequency_is_matched_case_insensitively(self) -> None:
         last = datetime(2026, 3, 15, tzinfo=UTC)

@@ -14,6 +14,7 @@ import {
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 import { percentChange } from '@/lib/formatters'
 import { savingsRatePercentFromNet, savingsRatePercentOr } from '@/lib/savingsRate'
+import { analysisPeriodLabel, fillAnalysisMonths, resolveAnalysisPeriod, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { getTrendDirection } from './trendsUtils'
 import type { TrendMetrics } from './types'
 
@@ -82,10 +83,22 @@ export function useTrendsForecasts() {
    * CURRENT month, so a bucket dated a month out would survive and become
    * `latest` -- the synthetic `2026-08` test fixture takes exactly that path.
    */
-  const completeMonthlyTrends = useMemo(
-    () => dropPartialMonth(capSeriesToToday(filteredMonthlyTrends, 'month'), 'month'),
-    [filteredMonthlyTrends],
-  )
+  const earningStart = useMemo(() => resolveEarningStart(
+    preferences?.earning_start_date, allTransactions,
+  ), [preferences?.earning_start_date, allTransactions])
+  const completeMonthlyTrends = useMemo(() => {
+    const rows = dropPartialMonth(capSeriesToToday(filteredMonthlyTrends, 'month'), 'month')
+    const period = resolveAnalysisPeriod(filteredMonthlyTrends.map((row) => row.month))
+    return fillAnalysisMonths(rows, period.months, (month) => ({ month, income: 0, expenses: 0, surplus: 0 }))
+  }, [filteredMonthlyTrends])
+  const averagePeriod = useMemo(() => resolveAnalysisPeriod(
+    completeMonthlyTrends.map((row) => row.month),
+    { earningStartDate: earningStart.date, startDate: dateRange.start_date },
+  ), [completeMonthlyTrends, earningStart.date, dateRange.start_date])
+  const analysisMonthlyTrends = useMemo(() => fillAnalysisMonths(
+    completeMonthlyTrends, averagePeriod.months,
+    (month) => ({ month, income: 0, expenses: 0, surplus: 0 }),
+  ), [completeMonthlyTrends, averagePeriod])
 
   const partialMonth = useMemo(() => {
     const inProgress = filteredMonthlyTrends.find((t) => isPartialMonth(t.month))
@@ -95,11 +108,11 @@ export function useTrendsForecasts() {
   }, [filteredMonthlyTrends])
 
   const metrics = useMemo(() => {
-    if (completeMonthlyTrends.length < 1) {
+    if (analysisMonthlyTrends.length < 1) {
       return { spending: DEFAULT_METRICS, income: DEFAULT_METRICS, savings: DEFAULT_METRICS }
     }
 
-    const trends = completeMonthlyTrends
+    const trends = analysisMonthlyTrends
     const latest = trends.at(-1)
     if (!latest) {
       return { spending: DEFAULT_METRICS, income: DEFAULT_METRICS, savings: DEFAULT_METRICS }
@@ -150,14 +163,14 @@ export function useTrendsForecasts() {
         lowest: Math.min(...surpluses),
       },
     }
-  }, [completeMonthlyTrends])
+  }, [analysisMonthlyTrends])
 
   /**
    * How many complete months every average above divides by. Surfaced because
    * the cards label a figure "Average" without saying over what, so a 3-month
    * ledger and a 90-month one read identically.
    */
-  const averageMonthCount = completeMonthlyTrends.length
+  const averageMonthCount = analysisMonthlyTrends.length
 
   const chartData = useMemo(() => {
     if (!completeMonthlyTrends.length) return []
@@ -270,14 +283,16 @@ export function useTrendsForecasts() {
           i + 1 >= ROLLING_AVG_MONTHS
             ? monthlyTrendChartData.slice(i + 1 - ROLLING_AVG_MONTHS, i + 1)
             : null
+        const earningWindow = window && (!earningStart.date || window[0].month >= earningStart.date.slice(0, 7))
+          ? window : null
         return {
           ...d,
-          incomeAvg: window ? mean(window.map((w) => w.income)) : undefined,
+          incomeAvg: earningWindow ? mean(earningWindow.map((w) => w.income)) : undefined,
           expensesAvg: window ? mean(window.map((w) => w.expenses)) : undefined,
-          savingsAvg: window ? mean(window.map((w) => w.savings)) : undefined,
+          savingsAvg: earningWindow ? mean(earningWindow.map((w) => w.savings)) : undefined,
         }
       }),
-    [monthlyTrendChartData],
+    [monthlyTrendChartData, earningStart.date],
   )
 
   /**
@@ -330,6 +345,8 @@ export function useTrendsForecasts() {
     timeFilterProps,
     metrics,
     averageMonthCount,
+    earningsPeriodLabel: analysisPeriodLabel(averagePeriod),
+    earningStart,
     rollingAvgMonths: ROLLING_AVG_MONTHS,
     partialMonth,
     chartData,

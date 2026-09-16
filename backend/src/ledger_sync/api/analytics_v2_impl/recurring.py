@@ -8,10 +8,12 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-from sqlalchemy import desc
+from pydantic import BaseModel, Field
+from sqlalchemy import desc, or_
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.analytics.recurring import effective_pattern_kind
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
     MerchantIntelligence,
     RecurrenceFrequency,
@@ -25,12 +27,8 @@ _FREQUENCY_DAYS = {
     "daily": 1,
     "weekly": 7,
     "biweekly": 14,
-    "monthly": 30,
-    "bimonthly": 61,
-    "quarterly": 91,
-    "semiannual": 182,
-    "yearly": 365,
 }
+_FREQUENCY_MONTHS = {"monthly": 1, "bimonthly": 2, "quarterly": 3, "semiannual": 6, "yearly": 12}
 
 
 def _compute_next_expected(
@@ -42,23 +40,14 @@ def _compute_next_expected(
     if not last_occurrence or not frequency:
         return None
     freq = frequency.lower()
-    if freq == "monthly" and expected_day:
-        month = last_occurrence.month
-        year = last_occurrence.year
-        while True:
-            month += 1
-            if month > 12:
-                month = 1
-                year += 1
-            # Clamp to the target month's real length, not a flat 28. A bill due
-            # on the 31st was reported as due on the 28th in every 31-day month,
-            # so the bill calendar and the missed-payment check both fired three
-            # days early -- and in February the two happen to agree anyway.
-            max_day = calendar.monthrange(year, month)[1]
-            day = min(expected_day, max_day)
-            candidate = last_occurrence.replace(year=year, month=month, day=day)
-            if candidate > last_occurrence:
-                return candidate.isoformat()
+    months = _FREQUENCY_MONTHS.get(freq)
+    if months:
+        year, month_index = divmod(
+            last_occurrence.year * 12 + last_occurrence.month - 1 + months, 12
+        )
+        month = month_index + 1
+        day = min(max(expected_day or last_occurrence.day, 1), calendar.monthrange(year, month)[1])
+        return last_occurrence.replace(year=year, month=month, day=day).isoformat()
     days = _FREQUENCY_DAYS.get(freq)
     if days:
         return (last_occurrence + timedelta(days=days)).isoformat()
@@ -103,11 +92,17 @@ def get_recurring_transactions(
     if active_only:
         query = query.filter(RecurringTransaction.is_active.is_(True))
     if min_confidence:
-        query = query.filter(RecurringTransaction.confidence_score >= min_confidence)
-    if pattern_kind:
-        query = query.filter(RecurringTransaction.pattern_kind == pattern_kind)
-
-    recurring = query.all()
+        query = query.filter(
+            or_(
+                RecurringTransaction.is_user_confirmed.is_(True),
+                RecurringTransaction.confidence_score >= min_confidence,
+            )
+        )
+    # Old rollups may call periodic shopping a commitment. Apply the same
+    # interpretation as detection before filtering, without a DB refresh/write.
+    recurring = [
+        r for r in query.all() if pattern_kind is None or effective_pattern_kind(r) == pattern_kind
+    ]
 
     return {
         "data": [
@@ -125,15 +120,11 @@ def get_recurring_transactions(
                 "confidence": r.confidence_score,
                 "occurrences": r.occurrences_detected,
                 "last_occurrence": (r.last_occurrence.isoformat() if r.last_occurrence else None),
-                "next_expected": _compute_next_expected(
-                    r.last_occurrence,
-                    r.frequency.value if r.frequency else None,
-                    r.expected_day,
-                ),
+                "next_expected": _next_expected_for_record(r),
                 "times_missed": r.times_missed,
                 "is_active": r.is_active,
                 "is_confirmed": r.is_user_confirmed,
-                "pattern_kind": r.pattern_kind,
+                "pattern_kind": effective_pattern_kind(r),
             }
             for r in recurring
         ],
@@ -143,12 +134,36 @@ def get_recurring_transactions(
             "total_monthly_recurring": sum(
                 float(r.expected_amount)
                 for r in recurring
-                if r.frequency and r.frequency.value == "monthly" and r.pattern_kind == "commitment"
+                if r.frequency
+                and r.frequency.value == "monthly"
+                and effective_pattern_kind(r) == "commitment"
             ),
-            "commitment_count": sum(1 for r in recurring if r.pattern_kind == "commitment"),
-            "habit_count": sum(1 for r in recurring if r.pattern_kind == "habit"),
+            "commitment_count": sum(
+                1 for r in recurring if effective_pattern_kind(r) == "commitment"
+            ),
+            "habit_count": sum(1 for r in recurring if effective_pattern_kind(r) == "habit"),
         },
     }
+
+
+def _next_expected_for_record(record: RecurringTransaction) -> str | None:
+    """Manual monthly commitments can have a due day without any ledger history."""
+    if effective_pattern_kind(record) != "commitment":
+        return None
+    frequency = record.frequency.value if record.frequency else None
+    if (
+        record.last_occurrence is None
+        and record.is_user_confirmed
+        and frequency == "monthly"
+        and record.expected_day
+    ):
+        today = ledger_now().replace(hour=0, minute=0, second=0, microsecond=0)
+        day = min(max(record.expected_day, 1), calendar.monthrange(today.year, today.month)[1])
+        due = today.replace(day=day)
+        if due >= today:
+            return due.isoformat()
+        return _compute_next_expected(today, frequency, record.expected_day)
+    return _compute_next_expected(record.last_occurrence, frequency, record.expected_day)
 
 
 class RecurringTransactionUpdate(BaseModel):
@@ -237,7 +252,7 @@ class RecurringTransactionCreate(BaseModel):
     frequency: str
     amount: float
     category: str | None = None
-    expected_day: int | None = None
+    expected_day: int | None = Field(default=None, ge=1, le=31)
 
 
 @router.post(

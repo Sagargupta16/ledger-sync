@@ -7,26 +7,14 @@ export interface ProfileDisplay {
   providerLabel: string
 }
 
-/**
- * Builds a setExpanded handler for a reset row that, when opened,
- * collapses the sibling reset row and clears the shared confirm text.
- */
-export function makeExclusiveResetToggle(
-  setSelf: (v: boolean) => void,
-  setSibling: (v: boolean) => void,
-  setConfirmText: (v: string) => void,
-) {
-  return (v: boolean) => {
-    setSelf(v)
-    if (v) {
-      setSibling(false)
-      setConfirmText('')
-    }
-  }
+export function getProfileInitials(name?: string | null, email?: string): string {
+  const source = name?.trim() || email?.split('@')[0] || 'LS'
+  return source.split(/[\s._-]+/).filter(Boolean).slice(0, 2)
+    .map((part) => part[0]?.toUpperCase()).join('')
 }
 
 export function deriveProfileDisplay(user: User | null | undefined): ProfileDisplay {
-  const initials = user ? (user.full_name || user.email)[0].toUpperCase() : '?'
+  const initials = getProfileInitials(user?.full_name, user?.email)
   const displayName = user?.full_name || user?.email.split('@')[0] || 'User'
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, {

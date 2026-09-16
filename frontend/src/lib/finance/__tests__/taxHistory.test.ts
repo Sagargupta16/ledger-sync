@@ -48,6 +48,96 @@ describe('recorded withholding reconciliation', () => {
 })
 
 describe('known recorded employment deductions by FY', () => {
+  it.each([false, true])('preserves unmatched RSU receipts with an existing vest: %s', (hasVest) => {
+    const salaryStructure = {
+      '2025-26': { ...DEFAULT_SALARY_COMPONENTS, base_salary_annual: 3_000_000 },
+    }
+    const cash = Array.from({ length: 5 }, (_, index) =>
+      salaryReceipt(`2025-${String(index + 4).padStart(2, '0')}-28`))
+    const shares: Transaction[] = [
+      { ...salaryReceipt('2025-08-15', 500_000), subcategory: 'RSUs' },
+      ...(hasVest ? [{ ...salaryReceipt('2025-04-15', 172_000), subcategory: 'RSUs' }] : []),
+    ]
+    const grouped = groupTransactionsByFY([...cash, ...shares], 4, classification, 0, salaryStructure, {
+      salaryStructure,
+      rsuGrants: hasVest ? [{
+        id: 'synthetic-rsu', stock_name: 'TEST', stock_price: 10_000,
+        grant_date: null, notes: null,
+        vestings: [{ date: '2025-04-15', quantity: 25, net_quantity: 17.2, price_at_vest: 10_000 }],
+      }] : [],
+      growthAssumptions: DEFAULT_GROWTH_ASSUMPTIONS,
+      preferredRegime: 'new', salaryIsNetOfTds: true,
+    })
+    const data = grouped['FY 2025-26']
+    expect(data.estimatedGrossEmploymentIncome).toBeUndefined()
+    expect(data.estimatedEmploymentWithholding).toBeUndefined()
+    expect(computePaidTax('FY 2025-26', data, null, 'new', true)).toBeGreaterThan(1000)
+  })
+
+  it('uses annual payroll plus dated RSU withholding for partial-year tax flows', () => {
+    const salaryStructure = {
+      '2025-26': { ...DEFAULT_SALARY_COMPONENTS, base_salary_annual: 3_000_000 },
+    }
+    const cash = Array.from({ length: 5 }, (_, index) =>
+      salaryReceipt(`2025-${String(index + 4).padStart(2, '0')}-28`))
+    const shares: Transaction = {
+      ...salaryReceipt('2025-08-15', 172_000), subcategory: 'RSUs',
+    }
+    const options = {
+      salaryStructure,
+      rsuGrants: [{
+        id: 'synthetic-rsu', stock_name: 'TEST', stock_price: 10_000,
+        grant_date: null, notes: null,
+        vestings: [{ date: '2025-08-15', quantity: 25, net_quantity: 17.2, price_at_vest: 10_000 }],
+      }],
+      growthAssumptions: DEFAULT_GROWTH_ASSUMPTIONS,
+      preferredRegime: 'new', salaryIsNetOfTds: true,
+    }
+    const grouped = groupTransactionsByFY([...cash, shares], 4, classification, 0, salaryStructure, options)
+    expect(grouped['FY 2025-26'].estimatedGrossEmploymentIncome).toBeCloseTo(1_500_000, 1)
+    expect(computePaidTax('FY 2025-26', grouped['FY 2025-26'], null, 'new', true))
+      .toBe(277_250)
+
+    const beforeVesting = groupTransactionsByFY(cash.slice(0, 4), 4, classification, 0, salaryStructure, {
+      ...options, startDate: '2025-04-01', endDate: '2025-07-31',
+    })
+    expect(computePaidTax('FY 2025-26', beforeVesting['FY 2025-26'], null, 'new', true))
+      .toBe(159_400)
+    expect(grouped['FY 2025-26'].estimatedEmploymentWithholding).toBeGreaterThan(78_000)
+
+    // Today's stock price is not the vest-date price. The recorded net share
+    // receipt can value an estimate without changing the user's saved grant.
+    const missingPriceOptions = {
+      ...options,
+      rsuGrants: [{
+        ...options.rsuGrants[0],
+        stock_price: 9_000,
+        vestings: [{ ...options.rsuGrants[0].vestings[0], price_at_vest: null }],
+      }],
+    }
+    const withEstimatedPrice = groupTransactionsByFY(
+      [...cash, shares], 4, classification, 0, salaryStructure, missingPriceOptions,
+    )
+    expect(withEstimatedPrice['FY 2025-26'].estimatedGrossEmploymentIncome).toBeCloseTo(1_500_000, 1)
+    expect(computePaidTax('FY 2025-26', withEstimatedPrice['FY 2025-26'], null, 'new', true))
+      .toBe(277_250)
+    expect(missingPriceOptions.rsuGrants[0].vestings[0].price_at_vest).toBeNull()
+
+    const noMarketPrice = groupTransactionsByFY(
+      [...cash, shares], 4, classification, 0, salaryStructure, {
+        ...missingPriceOptions,
+        rsuGrants: [{ ...missingPriceOptions.rsuGrants[0], stock_price: 0 }],
+      },
+    )
+    expect(noMarketPrice['FY 2025-26'].estimatedGrossEmploymentIncome).toBeCloseTo(1_500_000, 1)
+
+    const ambiguousReceipts = groupTransactionsByFY(
+      [...cash, shares, { ...shares, id: 'unmatched', amount: 500_000 }],
+      4, classification, 0, salaryStructure, missingPriceOptions,
+    )
+    expect(ambiguousReceipts['FY 2025-26'].estimatedGrossEmploymentIncome).toBeUndefined()
+  })
+
   it('restores exactly twelve configured EPF deductions for twelve post-EPF salary receipts', () => {
     const grouped = groupTransactionsByFY(
       fullYearReceipts, 4, classification, 0, { '2026-27': { epf_monthly: 3_600 } },

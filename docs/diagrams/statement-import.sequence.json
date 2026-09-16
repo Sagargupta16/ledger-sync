@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Statement import and analytics",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 800]
+  },
+  "participants": [
+    { "id": "import-browser", "type": "frontend", "label": "Browser", "sublabel": "Parse + review" },
+    { "id": "upload-router", "type": "backend", "label": "Upload API", "sublabel": "JWT + validation" },
+    { "id": "sync-engine", "type": "backend", "label": "SyncEngine", "sublabel": "Reconciliation" },
+    { "id": "ledger-store", "type": "database", "label": "Database", "sublabel": "User-scoped data" },
+    { "id": "analytics-engine", "type": "backend", "label": "Analytics", "sublabel": "Derived rollups" }
+  ],
+  "segments": [
+    { "from": 158, "to": 439, "label": "Ledger transaction" },
+    { "from": 465, "to": 619, "label": "Analytics transaction" },
+    { "from": 647, "to": 709, "label": "UI refresh" }
+  ],
+  "messages": [
+    { "id": "send-rows", "from": "import-browser", "to": "upload-router", "y": 180, "label": "POST /api/upload", "variant": "emphasis" },
+    { "id": "begin-import", "from": "upload-router", "to": "sync-engine", "y": 240, "label": "import_rows", "variant": "emphasis" },
+    { "id": "commit-ledger", "from": "sync-engine", "to": "ledger-store", "y": 300, "label": "Ledger + log COMMIT", "variant": "emphasis" },
+    { "id": "ledger-persisted", "from": "ledger-store", "to": "sync-engine", "y": 360, "label": "Durable ledger", "variant": "return" },
+    { "id": "import-statistics", "from": "sync-engine", "to": "upload-router", "y": 420, "label": "Import stats", "variant": "return" },
+    { "id": "refresh-insights", "from": "upload-router", "to": "analytics-engine", "y": 480, "label": "Refresh rollups" },
+    { "id": "commit-derived", "from": "analytics-engine", "to": "ledger-store", "y": 540, "label": "Analytics COMMIT" },
+    { "id": "analytics-outcome", "from": "analytics-engine", "to": "upload-router", "y": 600, "label": "ready / failed", "variant": "return" },
+    { "id": "publish-import", "from": "upload-router", "to": "import-browser", "y": 680, "label": "200 + analytics status", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "upload-router", "from": 180, "to": 690, "type": "backend" },
+    { "participant": "sync-engine", "from": 240, "to": 430, "type": "backend" },
+    { "participant": "ledger-store", "from": 300, "to": 366, "type": "database" },
+    { "participant": "analytics-engine", "from": 480, "to": 610, "type": "backend" },
+    { "participant": "ledger-store", "from": 540, "to": 580, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Before sending", "items": ["SheetJS parses the file locally into INR rows.", "The user confirms a complete ledger snapshot."] },
+    { "dot": "emerald", "title": "Atomic ledger", "items": ["Normalize, hash occurrences, reconcile both legs.", "Missing rows are soft-deleted; ledger errors roll back."] },
+    { "dot": "amber", "title": "Recoverable insights", "items": ["A refresh failure preserves the committed import.", "Retry /api/analytics/v2/refresh, then refetch queries."] }
+  ]
+}

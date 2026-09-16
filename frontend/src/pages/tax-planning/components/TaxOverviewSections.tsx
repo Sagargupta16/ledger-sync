@@ -11,6 +11,7 @@ import { fadeUpItem } from '@/constants/animations'
 
 import type { TaxPlanningModel } from '../useTaxPlanning'
 import TdsScheduleChart from './TdsScheduleChart'
+import WithholdingSummary from './WithholdingSummary'
 
 interface Props {
   planning: TaxPlanningModel
@@ -26,11 +27,18 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
           grossTaxableIncome={planning.display.gross}
           totalTax={planning.display.totalTax}
           isProjecting={planning.useSalaryProjection}
-          prevNetTaxableIncome={planning.useSalaryProjection ? null : planning.prevFYDisplay?.net}
-          prevGrossTaxableIncome={planning.prevFYDisplay?.gross}
-          prevTotalTax={planning.prevFYDisplay?.totalTax}
+          prevNetTaxableIncome={planning.isCurrentFY || planning.useSalaryProjection ? null : planning.prevFYDisplay?.net}
+          prevGrossTaxableIncome={planning.isCurrentFY ? null : planning.prevFYDisplay?.gross}
+          prevTotalTax={planning.isCurrentFY ? null : planning.prevFYDisplay?.totalTax}
         />
       </motion.div>
+
+      {planning.paidTaxEstimate && (
+        <WithholdingSummary
+          estimate={planning.paidTaxEstimate}
+          salaryMonths={planning.paidMonthIndices.length}
+        />
+      )}
 
       {planning.salaryProjection && (
         <section aria-label="Cash and RSU compensation" className="ledger-panel p-4 sm:p-5">

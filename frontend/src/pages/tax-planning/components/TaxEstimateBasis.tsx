@@ -12,6 +12,8 @@ export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
   let incomeBasis = 'Gross taxable income recorded in your ledger'
   if (planning.useSalaryProjection) {
     incomeBasis = 'Employment forecast plus other recorded taxable income'
+  } else if (planning.taxComputation.withholdingAssumption === 'annual_payroll') {
+    incomeBasis = 'Recorded employment gross estimated from annual payroll and vested shares'
   } else if (planning.taxComputation.incomeBasis === 'net') {
     incomeBasis = 'Net employment receipts converted to estimated gross'
   }
@@ -43,9 +45,9 @@ export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
       </dl>
       {planning.taxComputation.incomeBasis === 'net' && !planning.useSalaryProjection && (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Withholding is estimated on employment income only. Other taxable income stays at its recorded gross amount.
-          Known employee deductions are restored before estimating gross salary.
-          These estimates do not establish how much tax was paid.
+          Employment receipts are restored to estimated gross, including known employee deductions.
+          Other taxable income stays at its recorded gross amount.
+          This view calculates liability on income received; the withholding estimate is shown separately.
         </p>
       )}
       {rules.fyStartYear !== planning.fyYear && (

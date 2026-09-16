@@ -1,0 +1,5 @@
+# Archify's machine-local browser profiles and inspection receipts.
+archify-validate-*/
+archify-visual-check-profile-*/
+*.visual-check.*
+*.review.png

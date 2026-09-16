@@ -6,7 +6,7 @@ import {
 } from '@/lib/taxCalculator'
 import { computeAnnualTaxPlanning, computeTaxForFY } from './taxPlanning'
 import { projectFiscalYear } from '@/lib/projectionCalculator'
-import { applyProjectionTaxRegime, taxPlanningDisplay } from './payrollPlanning'
+import { applyProjectionTaxRegime, buildPayrollPlanning, taxPlanningDisplay } from './payrollPlanning'
 import { withIncomeClassificationDefaults } from '@/store/preferencesStore'
 import type { Transaction } from '@/types'
 import type {
@@ -21,6 +21,17 @@ import type {
   TaxRegimeOverride,
   YearlyTaxDatum,
 } from './taxPlanning'
+
+export interface RecordedPayrollOptions {
+  salaryStructure: Record<string, SalaryComponents>
+  rsuGrants: RsuGrant[]
+  growthAssumptions: GrowthAssumptions
+  preferredRegime: string
+  regimeOverride?: TaxRegimeOverride
+  salaryIsNetOfTds: boolean
+  startDate?: string | null
+  endDate?: string | null
+}
 
 /** Create an empty FY data bucket */
 export function createEmptyFYData(): FYData {
@@ -116,6 +127,7 @@ export function groupTransactionsByFY(
   incomeClassification: IncomeClassification,
   epfTaxableFraction = 0,
   salaryStructure: Readonly<Record<string, Pick<SalaryComponents, 'epf_monthly'>>> = {},
+  payrollOptions?: RecordedPayrollOptions,
 ): Record<string, FYData> {
   const resolvedClassification = withIncomeClassificationDefaults(incomeClassification)
   const grouped: Record<string, FYData> = {}
@@ -142,8 +154,49 @@ export function groupTransactionsByFY(
       ? (configuredEpfByYear.get(parseFYStartYear(fy)) ?? 0)
         * Math.min(data.salaryMonths.size, MONTHS_PER_YEAR)
       : 0
+    if (payrollOptions?.salaryIsNetOfTds) {
+      attachRecordedPayrollEstimate(fy, data, fiscalYearStartMonth, payrollOptions)
+    }
   }
   return grouped
+}
+
+/** A partial year's annual tax is not its employer's year-to-date withholding. */
+function attachRecordedPayrollEstimate(
+  fy: string,
+  data: FYData,
+  fiscalYearStartMonth: number,
+  options: RecordedPayrollOptions,
+) {
+  // Historical salary settings must be explicit, never back-projected from a later year.
+  const hasConfiguredSalary = Object.keys(options.salaryStructure)
+    .some((key) => parseFYStartYear(key) === parseFYStartYear(fy))
+  if (!hasConfiguredSalary || !data.hasEmploymentIncome || data.salaryMonths.size === 0) return
+  const projection = projectFiscalYear(
+    fy.replace(/^FY\s+/i, ''), options.salaryStructure, options.rsuGrants,
+    options.growthAssumptions, fiscalYearStartMonth,
+  )
+  const tax = computeGroupedTax(
+    fy, data, options.regimeOverride ?? null, options.preferredRegime, true,
+  )
+  const { paidEstimate } = buildPayrollPlanning({
+    projection: {
+      ...projection,
+      rsuVestingEvents: projection.rsuVestingEvents.filter((event) =>
+        (!options.startDate || event.date >= options.startDate)
+        && (!options.endDate || event.date <= options.endDate)),
+    },
+    tax, fyData: data, fyStartMonth: fiscalYearStartMonth,
+    isCurrentFY: true, useSalaryProjection: false,
+  })
+  if (!paidEstimate) return
+  // A missing vest (or an unreconciled vest price) must never erase a ledger
+  // receipt. Keep the full-receipt tax basis until the share data reconciles.
+  if ((paidEstimate.unmatchedRsuNetReceipts ?? 0) > 0.01) return
+  if (paidEstimate.incomeReceived + 0.01
+    < data.employmentTaxableIncome + (data.recordedEmploymentCashDeductions ?? 0)) return
+  data.estimatedGrossEmploymentIncome = paidEstimate.incomeReceived
+  data.estimatedEmploymentWithholding = paidEstimate.taxPaid
 }
 
 function computeGroupedTax(
@@ -166,6 +219,8 @@ function computeGroupedTax(
       hasEmploymentIncome: fyData.hasEmploymentIncome,
       recordedEmploymentIncome: fyData.employmentTaxableIncome,
       recordedEmploymentCashDeductions: fyData.recordedEmploymentCashDeductions,
+      estimatedGrossEmploymentIncome: fyData.estimatedGrossEmploymentIncome,
+      estimatedEmploymentWithholding: fyData.estimatedEmploymentWithholding,
     },
   )
   return computed

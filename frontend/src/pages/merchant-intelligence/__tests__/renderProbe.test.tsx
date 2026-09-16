@@ -116,7 +116,7 @@ describe('MerchantIntelligencePage render probe', () => {
     expect(screen.getByRole('heading', { name: 'Merchant Intelligence' })).toBeInTheDocument()
     // 3 rows in, 2 usable: the "Unknown" placeholder row is dropped, so the
     // tracked totals must exclude its 116,644 spend and 360 payments.
-    expect(screen.getByText('868 payments, ₹13,02,500')).toBeInTheDocument()
+    expect(screen.getByText('868 payments, ₹13,02,500.00')).toBeInTheDocument()
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Which payees drive the spend' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Every payee' })).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('MerchantIntelligencePage render probe', () => {
     // leak, which is the reason both cards exist.
     // The figures are the animated KPI values; the payee names sit beside them
     // in the subtitles (see the free-text test below for why).
-    expect(metricValues()).toContain('₹12,41,500')
+    expect(metricValues()).toContain('₹12,41,500.00')
     expect(screen.getByText('Home (note), 95.3% of tracked spend')).toBeInTheDocument()
     expect(metricValues()).toContain('837 payments')
     expect(screen.getByText('Uber, avg ₹72.88')).toBeInTheDocument()
@@ -177,7 +177,7 @@ describe('MerchantIntelligencePage render probe', () => {
       },
     ])
     expect(metricValues()).not.toContain('Rent - Flat (1B Hyd) (note)')
-    expect(metricValues()).toContain('₹12,41,500')
+    expect(metricValues()).toContain('₹12,41,500.00')
     expect(metricValues()).toContain('31 payments')
     // The name still has to be visible -- just in a slot that is not animated.
     expect(

@@ -16,6 +16,9 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
+        # These checked, standalone Archify viewers embed their runtime/fonts.
+        # Keep all other files subject to the ordinary 500 KB limit.
+        exclude: ^docs/diagrams/(system-architecture|statement-import|financial-calculations|release-delivery)\.html$
       - id: detect-private-key
 
   # --- Python: Ruff (lint + format) ---

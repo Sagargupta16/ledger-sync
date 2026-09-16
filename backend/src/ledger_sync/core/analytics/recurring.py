@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from statistics import median
 
@@ -14,9 +15,6 @@ from ledger_sync.core._analytics_helpers import (
     infer_expected_day_of_month as _infer_expected_day_of_month,
 )
 from ledger_sync.core._analytics_helpers import (
-    normalize_note as _normalize_note,
-)
-from ledger_sync.core._analytics_helpers import (
     resolve_pattern_display as _resolve_pattern_display,
 )
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
@@ -27,6 +25,68 @@ from ledger_sync.db.models import (
     Transaction,
     TransactionType,
 )
+
+# Only explicit billing descriptors qualify automatically. Broad essential or
+# fixed-cost categories (Housing, Family, Food) are not evidence of a bill.
+_OBLIGATION = re.compile(
+    r"\b(?:rent|maid|cook|domestic help|house help|housekeeping|utilities|electricity|"
+    r"water bill|gas bill|broadband|internet|wi-?fi|postpaid|phone bill|mobile bill|"
+    r"subscriptions?|memberships?|insurance|premiums?|emi|loan repayment|"
+    r"school fees?|tuition|society maintenance|salary|stipend|pension|regular support|"
+    r"child support|alimony|epf|pf|ppf|nps|sip|"
+    r"netflix|spotify|youtube premium|amazon prime|icloud|google one|"
+    r"microsoft 365|adobe|chatgpt|claude|hotstar)\b",
+    re.IGNORECASE,
+)
+_NON_OBLIGATION = re.compile(
+    r"\b(?:refunds?|reimbursements?|cashbacks?|reversals?|security deposit)\b", re.IGNORECASE
+)
+_RECURRING_DATE_SUFFIX = re.compile(
+    r"\s+(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+    r"\s+\d{4}|\d{1,2}[/\-]\d{4})$"
+)
+_MIN_COMMITMENT_CONFIDENCE = 70
+_SHORT_CADENCE_DAYS = {RecurrenceFrequency.WEEKLY: 7, RecurrenceFrequency.BIWEEKLY: 14}
+
+
+def normalize_recurring_note(note: str | None) -> str | None:
+    """Remove explicit billing dates, retaining numbers and names identifying payees."""
+    text = " ".join((note or "").split()).lower()
+    return _RECURRING_DATE_SUFFIX.sub("", text).strip() or None
+
+
+def has_commitment_evidence(name: str, category: str, subcategory: str | None) -> bool:
+    """Require an obligation descriptor; periodic shopping and refunds remain habits."""
+    description = " ".join((name, category, subcategory or ""))
+    return bool(_OBLIGATION.search(description) and not _NON_OBLIGATION.search(description))
+
+
+def effective_pattern_kind(record: RecurringTransaction) -> str:
+    """Interpret legacy detections without changing stored or user-confirmed choices."""
+    if record.is_user_confirmed:
+        return record.pattern_kind
+    return (
+        "commitment"
+        if record.pattern_kind == "commitment"
+        and record.confidence_score >= _MIN_COMMITMENT_CONFIDENCE
+        and record.occurrences_detected >= 3
+        and has_commitment_evidence(record.pattern_name, record.category, record.subcategory)
+        else "habit"
+    )
+
+
+def _supports_short_cadence(dates: list[datetime], frequency: RecurrenceFrequency) -> bool:
+    """Require a weekly/fortnightly calendar phase, not merely a broad gap band."""
+    stride = _SHORT_CADENCE_DAYS.get(frequency)
+    if stride is None:
+        return False
+    phases = [day.toordinal() % stride for day in {value.date() for value in dates}]
+    best = max(
+        sum(min(abs(phase - anchor), stride - abs(phase - anchor)) <= 1 for phase in phases)
+        for anchor in range(stride)
+    )
+    return best / len(phases) >= 0.8
 
 
 class RecurringMixin(AnalyticsEngineBase):
@@ -76,7 +136,7 @@ class RecurringMixin(AnalyticsEngineBase):
     def _load_confirmed_recurring(self) -> dict[tuple[str, str], RecurringTransaction]:
         """Load user-confirmed recurring patterns keyed by (group label, type).
 
-        Detection groups transactions by ``normalize_note(txn.note)`` (falling
+        Detection groups transactions by ``normalize_recurring_note(txn.note)`` (falling
         back to the lowercased category/subcategory) PLUS the transaction type,
         while ``pattern_name`` stores the raw most-recent note (e.g. "Rent Mar
         2026"). Keying each confirmed record by BOTH the normalized name and the
@@ -102,7 +162,7 @@ class RecurringMixin(AnalyticsEngineBase):
         keyed: dict[tuple[str, str], RecurringTransaction] = {}
         for c in confirmed:
             txn_type = c.transaction_type.value
-            normalized = _normalize_note(c.pattern_name)
+            normalized = normalize_recurring_note(c.pattern_name)
             if normalized:
                 keyed[normalized, txn_type] = c
             keyed[c.pattern_name.lower(), txn_type] = c
@@ -125,7 +185,7 @@ class RecurringMixin(AnalyticsEngineBase):
 
         # Group by normalized note + type. Transactions without a note fall
         # back to category + subcategory so they still get detected.
-        patterns = _group_txns_by_pattern(transactions, _normalize_note)
+        patterns = _group_txns_by_pattern(transactions, normalize_recurring_note)
 
         # Delete only non-confirmed records; user-confirmed ones are preserved
         del_stmt = delete(RecurringTransaction).where(
@@ -203,16 +263,17 @@ class RecurringMixin(AnalyticsEngineBase):
         # commitment must stay one. ``expected_day`` is refreshed because the
         # bill calendar reads it: a rent payment that moves from the 20th to the
         # 1st must not keep rendering on the 20th forever. ``pattern_name``,
-        # ``frequency`` and ``expected_amount`` overrides live in the PATCH
-        # endpoint, so only the stats the detector owns are written here.
+        # and ``frequency`` stay user-owned. Manually created rows also own
+        # their amount and due day; matching history must not overwrite them.
         if (label, txn_type) in confirmed_names:
             existing = confirmed_names[label, txn_type]
             existing.occurrences_detected = info["occurrences"]
             existing.last_occurrence = info["last_occurrence"]
             existing.confidence_score = info["confidence"]
-            existing.expected_amount = info["expected_amount"]
-            existing.amount_variance = info["amount_variance"]
-            existing.expected_day = info["expected_day"]
+            if existing.account != "Manual":
+                existing.expected_amount = info["expected_amount"]
+                existing.amount_variance = info["amount_variance"]
+                existing.expected_day = info["expected_day"]
             existing.last_updated = datetime.now(UTC)
             return 1
 
@@ -229,7 +290,18 @@ class RecurringMixin(AnalyticsEngineBase):
             expected_day=info["expected_day"],
             confidence_score=info["confidence"],
             occurrences_detected=info["occurrences"],
-            pattern_kind=info["pattern_kind"],
+            pattern_kind=(
+                "commitment"
+                if confidence >= _MIN_COMMITMENT_CONFIDENCE
+                and (
+                    info["pattern_kind"] == "commitment"
+                    or _supports_short_cadence(dates, frequency)
+                )
+                and has_commitment_evidence(
+                    info["pattern_name"], info["category"], info["subcategory"]
+                )
+                else "habit"
+            ),
             last_occurrence=info["last_occurrence"],
             is_active=True,
             first_detected=datetime.now(UTC),

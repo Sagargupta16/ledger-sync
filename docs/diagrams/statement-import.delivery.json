@@ -1,0 +1,27 @@
+{
+  "generator": "Archify",
+  "type": "sequence",
+  "specification": {
+    "path": "statement-import.sequence.json",
+    "sha256": "41860c21707e73636ebee1db9fd5273be245cb0fda4fc07818f359eaafd61d17",
+    "bytes": 3186
+  },
+  "artifact": {
+    "path": "statement-import.html",
+    "sha256": "24d1192f29c04f02bc90d7974d7ba9b505e33de3f7f7337f0a7a2d4c641a53c4",
+    "bytes": 805705
+  },
+  "preview": {
+    "path": "statement-import.svg",
+    "sha256": "710303143c1535be2d3282501d4e5f02fce37663e94d04abce3b017c158a015e",
+    "bytes": 292475
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

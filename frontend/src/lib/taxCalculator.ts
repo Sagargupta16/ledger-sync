@@ -307,7 +307,9 @@ export function calculateGrossFromNet(
   for (let i = 0; i < maxIterations; i++) {
     const mid = (lo + hi) / 2
     const calculatedNet = netFor(mid)
-    if (Math.abs(calculatedNet - netIncome) < 1) {
+    // Sub-paise convergence prevents visible rounding drift when the inferred
+    // gross feeds payroll, year totals, and the cash-flow diagram separately.
+    if (Math.abs(calculatedNet - netIncome) < 0.00001) {
       return mid
     }
     if (calculatedNet < netIncome) {

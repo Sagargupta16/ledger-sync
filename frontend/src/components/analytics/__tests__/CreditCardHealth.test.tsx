@@ -106,7 +106,7 @@ describe('CreditCardHealth denominator', () => {
     // Measured debt is 5000 of 50000; unconfigured debt stays in the total only.
     expect(screen.getByText('10.0%')).toBeInTheDocument()
     const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
-    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000')
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000.00')
   })
 
   it('never invents a limit for an unconfigured card', async () => {
@@ -121,9 +121,9 @@ describe('CreditCardHealth denominator', () => {
 
     expect(screen.getByText(/0.0% utilization across 1 of 1 cards with limits set/)).toBeInTheDocument()
     const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
-    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('0')
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('0.00')
     const outstandingRow = screen.getByText('Outstanding').parentElement
-    expect(digitsOf(outstandingRow?.lastElementChild?.textContent ?? '')).toBe('0')
+    expect(digitsOf(outstandingRow?.lastElementChild?.textContent ?? '')).toBe('0.00')
     expect(screen.queryByText('25.0%')).not.toBeInTheDocument()
   })
 
@@ -135,7 +135,7 @@ describe('CreditCardHealth denominator', () => {
 
     expect(screen.getByText(/30.0% utilization across 2 of 2 cards with limits set/)).toBeInTheDocument()
     const totalRow = screen.getByText(/^Total outstanding, all/).parentElement
-    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000')
+    expect(digitsOf(totalRow?.lastElementChild?.textContent ?? '')).toBe('6000.00')
   })
 
   it('keeps a deliberate limit of 0 as 0 instead of falling through to 100000', async () => {

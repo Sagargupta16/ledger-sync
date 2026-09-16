@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   getRecurringFreshness,
+  isAcceptedRecurringCommitment,
   summarizeRecurringCommitments,
   type RecurringCalculationInput,
 } from '@/lib/recurringCalculations'
@@ -85,6 +86,16 @@ describe('getRecurringFreshness', () => {
 })
 
 describe('summarizeRecurringCommitments', () => {
+  it('only accepts confirmed or recent commitments for current bill sources', () => {
+    expect(isAcceptedRecurringCommitment(item(), AS_OF)).toBe(true)
+    expect(isAcceptedRecurringCommitment(item({ is_confirmed: true, last_occurrence: null }), AS_OF)).toBe(true)
+    expect(isAcceptedRecurringCommitment(item({ last_occurrence: '2028-01-01' }), AS_OF)).toBe(false)
+    expect(isAcceptedRecurringCommitment(item({ last_occurrence: null }), AS_OF)).toBe(false)
+    expect(isAcceptedRecurringCommitment(item({ is_active: false, is_confirmed: true }), AS_OF)).toBe(false)
+    expect(isAcceptedRecurringCommitment(item({ pattern_kind: 'habit', is_confirmed: true }), AS_OF)).toBe(false)
+    expect(isAcceptedRecurringCommitment(item({ pattern_kind: 'unknown' }), AS_OF)).toBe(false)
+  })
+
   it('preserves every active amount while separating review status and paused expenses', () => {
     const records = [
       item({ is_confirmed: true, last_occurrence: '2028-01-01' }),

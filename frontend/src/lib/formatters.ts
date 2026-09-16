@@ -6,13 +6,14 @@
  * - Exchange rate (for conversion from base currency)
  *
  * Usage:
- * - formatCurrency(value)        -> "$1,502" / "$12.50" (exact, drops only ".00")
+ * - formatCurrency(value)        -> "$1,502.00" / "$12.50" (two decimals)
  * - formatCurrencyCompact(value) -> "$1,502" (always rounded, for charts/cards)
  * - formatCurrencyShort(value)   -> "$1.5K" (abbreviated, for chart axes)
  */
 
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { getCurrencyMeta, BASE_CURRENCY, effectiveCurrencyCode } from '@/constants/currencies'
+import { formatChartPeriod } from './chartDateLabels'
 
 // Get current preferences (for non-React contexts)
 const getDisplayCurrency = () => usePreferencesStore.getState().displayCurrency
@@ -84,30 +85,6 @@ const addCurrencySymbol = (formatted: string): string => {
 }
 
 /**
- * How many fractional digits `value` actually needs.
- *
- * Returns the currency's `decimals` whenever the amount really has a non-zero
- * fraction at that precision, and 0 when it does not -- so "₹80,66,209.00"
- * renders as "₹80,66,209" while "₹12.50" keeps its paise. A currency declaring
- * `decimals: 0` (JPY, KRW) has no sub-unit and always gets 0.
- *
- * There is deliberately NO magnitude threshold here. Dropping the fraction of a
- * large amount would make displayed money stop adding up: a day header or a KPI
- * total and the rows underneath it are both rendered through this function, so
- * rounding one side and not the other produces visible arithmetic errors (an
- * exact 1,16,505.14 month total against category rows that display a 1,16,505.69
- * sum). Trailing ".00" is noise; a real fraction is data.
- */
-const significantFractionDigits = (value: number, decimals: number): number => {
-  if (decimals <= 0) return 0
-  const scale = 10 ** decimals
-  // Round on the absolute value so a half-sub-unit is detected symmetrically
-  // for both signs (Math.round breaks ties toward +Infinity).
-  const hasFraction = Math.round(Math.abs(value) * scale) % scale !== 0
-  return hasFraction ? decimals : 0
-}
-
-/**
  * Collapse a value that rounds away to nothing at `digits` precision onto a
  * plain 0. A float-sum residue such as -1e-9 would otherwise be rendered by
  * Intl as a signed "-₹0", so one page could show zero two different ways.
@@ -118,15 +95,14 @@ const collapseNegativeZero = (value: number, digits: number): number =>
 /**
  * Format currency for detailed displays, tables, tooltips and KPIs.
  *
- * Exact to the currency's sub-unit; only a zero fraction is dropped
- * (see `significantFractionDigits`).
+ * Always show two decimals, including whole amounts and converted currencies.
+ * This is a display rule; conversion and underlying ledger amounts are unchanged.
  * @param value - The numeric value to format
- * @returns Formatted string like "₹1,23,456.78", "₹182" or "₹12.50"
+ * @returns Formatted string like "₹1,23,456.78", "₹182.00" or "₹12.50"
  */
 export const formatCurrency = (value: number): string => {
-  const meta = getActiveCurrencyMeta()
   const converted = convertAmount(value)
-  const digits = significantFractionDigits(converted, meta.decimals)
+  const digits = 2
   const formatted = formatWithLocale(collapseNegativeZero(converted, digits), {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -204,22 +180,13 @@ export const percentChange = (current: number, previous: number): number | null 
 
 /**
  * Format a YYYY-MM-DD date string for chart axis ticks.
- * Adapts to data density: shows "Jan '24" for large ranges, "Jan 15" for shorter ones.
+ * Every date includes a year, even in sparse or short cross-year series.
  * @param dateStr - Date string in YYYY-MM-DD format
  * @param totalPoints - Total number of data points in the chart (for adaptive formatting)
  * @returns Formatted date string
  */
 export const formatDateTick = (dateStr: string, totalPoints: number): string => {
-  // Build from local Y/M/D parts: new Date('YYYY-MM-DD') is UTC midnight and
-  // toLocaleDateString renders local, shifting the axis day for negative-offset
-  // users. A non-date string falls through unchanged.
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
-  const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateStr)
-  if (Number.isNaN(date.getTime())) return dateStr
-  if (totalPoints > 365) {
-    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-  }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatChartPeriod(dateStr, totalPoints > 365)
 }
 
 /**

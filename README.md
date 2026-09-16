@@ -60,6 +60,9 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 
 ## Application Map
 
+Explore the [architecture and flow diagrams](docs/diagrams/README.md) for the
+system boundaries, import pipeline, financial calculations, and deployment.
+
 The router contains 3 public routes and 26 protected workspace pages.
 
 | Area | Pages |
@@ -269,6 +272,7 @@ changing production configuration.
 - [Page and Route Catalog](docs/PAGES.md)
 - [API Reference](docs/API.md)
 - [Architecture](docs/architecture.md)
+- [Architecture and flow diagrams](docs/diagrams/README.md)
 - [Calculation Map and Formula Reference](docs/CALCULATIONS.md)
 - [Database](docs/DATABASE.md)
 - [Development](docs/DEVELOPMENT.md)

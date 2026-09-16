@@ -62,17 +62,18 @@ beforeEach(() => {
   captured.brush = undefined
 })
 
-describe('MonthlyFlowChart mobile exploration', () => {
-  it('opens on six recent months and keeps all 47 source months in the chart and table', () => {
+describe('MonthlyFlowChart range exploration', () => {
+  it('opens on All and keeps all 47 source months in the chart and table', () => {
     render(<MonthlyFlowChart data={HISTORY} partialMonthLabel={null} />)
 
-    expect(captured.brush).toMatchObject({ startIndex: 41, endIndex: 46 })
+    expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 46 })
     expect(captured.data).toBe(HISTORY)
     expect(tableRows()).toHaveLength(47)
     const range = within(screen.getByRole('group', { name: 'Monthly chart range' }))
-    expect(range.getByText('Mar 26 to Aug 26')).toBeInTheDocument()
-    expect(range.getByText('Showing 6 of 47 months')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show later months' })).toBeDisabled()
+    expect(range.getByText(/October 2022 to August 2026/)).toBeInTheDocument()
+    expect(range.getByText(/47 of 47 points/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Show later dates' })).toBeDisabled()
   })
 
   it('updates the visible range and count when the brush explores earlier history', () => {
@@ -80,46 +81,47 @@ describe('MonthlyFlowChart mobile exploration', () => {
 
     act(() => captured.brush?.onChange?.({ startIndex: 0, endIndex: 11 }))
 
-    expect(screen.getByText('Oct 22 to Sept 23')).toBeInTheDocument()
-    expect(screen.getByText('Showing 12 of 47 months')).toBeInTheDocument()
+    expect(screen.getByText(/October 2022 to September 2023/)).toBeInTheDocument()
+    expect(screen.getByText(/12 of 47 points/)).toBeInTheDocument()
     expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 11 })
     expect(tableRows()).toHaveLength(47)
-    expect(screen.getByRole('button', { name: 'Show earlier months' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show earlier dates' })).toBeDisabled()
   })
 
   it('lets touch and keyboard users page through history without moving past either end', () => {
     render(<MonthlyFlowChart data={HISTORY} partialMonthLabel={null} />)
-    const earlier = screen.getByRole('button', { name: 'Show earlier months' })
-    const later = screen.getByRole('button', { name: 'Show later months' })
+    fireEvent.click(screen.getByRole('button', { name: '1Y' }))
+    const earlier = screen.getByRole('button', { name: 'Show earlier dates' })
+    const later = screen.getByRole('button', { name: 'Show later dates' })
 
     fireEvent.click(earlier)
-    expect(captured.brush).toMatchObject({ startIndex: 35, endIndex: 40 })
+    expect(captured.brush).toMatchObject({ startIndex: 23, endIndex: 34 })
     fireEvent.click(later)
-    expect(captured.brush).toMatchObject({ startIndex: 41, endIndex: 46 })
+    expect(captured.brush).toMatchObject({ startIndex: 35, endIndex: 46 })
     for (let index = 0; index < 8; index++) fireEvent.click(earlier)
-    expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 5 })
+    expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 11 })
     expect(earlier).toBeDisabled()
     expect(later).toBeEnabled()
     expect(tableRows()).toHaveLength(47)
   })
 
-  it('resets the window to the latest months when the selected period changes', () => {
+  it('resets the window to All when the supplied date domain changes', () => {
     const { rerender } = render(<MonthlyFlowChart data={HISTORY} partialMonthLabel={null} />)
     act(() => captured.brush?.onChange?.({ startIndex: 0, endIndex: 5 }))
 
     rerender(<MonthlyFlowChart data={HISTORY.slice(0, 12)} partialMonthLabel={null} />)
 
-    expect(captured.brush).toMatchObject({ startIndex: 6, endIndex: 11 })
-    expect(screen.getByText('Showing 6 of 12 months')).toBeInTheDocument()
+    expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 11 })
+    expect(screen.getByText(/12 of 12 points/)).toBeInTheDocument()
     expect(tableRows()).toHaveLength(12)
   })
 
-  it('retains the full desktop plot without mobile range controls', () => {
+  it('provides the same All default and presets on desktop', () => {
     captured.mobile = false
     render(<MonthlyFlowChart data={HISTORY} partialMonthLabel={null} />)
 
-    expect(captured.brush).toBeUndefined()
-    expect(screen.queryByRole('group', { name: 'Monthly chart range' })).not.toBeInTheDocument()
+    expect(captured.brush).toMatchObject({ startIndex: 0, endIndex: 46 })
+    expect(screen.getByRole('group', { name: 'Monthly chart range' })).toBeInTheDocument()
     expect(captured.data).toBe(HISTORY)
     expect(tableRows()).toHaveLength(47)
   })
