@@ -117,6 +117,7 @@ export function computeAnalysis(
   months: string[],
   monthlyData: Record<string, MonthlyBucket>,
   balances: BalancePosition | null = null,
+  balanceFlowTotals?: AnalysisResult['balanceFlowTotals'],
 ): AnalysisResult {
   const buckets = months.map((m) => monthlyData[m])
   const count = months.length
@@ -159,12 +160,12 @@ export function computeAnalysis(
   // investmentAllocationRatePercent. Transfers are the numerator here.
   const investmentToIncomeRatio = investmentAllocationRatePercent(totalNetInvestment, totalIncome)
 
-  const cumulativeNetSavings = totalIncome - totalExpense
+  const cumulativeNetSavings = balanceFlowTotals?.cumulativeNetSavings ?? totalIncome - totalExpense
   // Prefer the real liquid balance (bank + cash + wallets). Only when no
   // balance feed is available do we fall back to the old cumulative-flow
   // proxy -- which understates badly for anyone whose lifetime investing
   // exceeds their lifetime cash surplus (it clamps to 0).
-  const flowProxyLiquid = liquidAssetsFromFlows(cumulativeNetSavings, totalNetInvestment)
+  const flowProxyLiquid = liquidAssetsFromFlows(cumulativeNetSavings, balanceFlowTotals?.netInvestments ?? totalNetInvestment)
   const liquidSavings = balances ? balances.liquidAssets : flowProxyLiquid
   const emergencyFundMonths = avgMonthlyExpense > 0 ? liquidSavings / avgMonthlyExpense : 0
 
@@ -199,15 +200,16 @@ export function computeAnalysis(
   const recentBuckets = buckets.slice(-VOLATILITY_WINDOW)
   const recentSavingsRates = recentBuckets
     .map((m) => savingsRatePercentOr({ income: m.income, expense: m.expense }))
-    .filter((r) => r > 0)
   const savingsVolatilityCV = weightedCoefficientOfVariation(recentSavingsRates)
 
-  // Income CV over recent months that actually had income (a pre-earning month
-  // of Rs0 isn't "income instability"; it's no income yet).
-  const recentIncomes = recentBuckets.map((m) => m.income).filter((v) => v > 0)
+  // The earning boundary excludes student years. Zeroes AFTER that boundary
+  // are real gaps and must remain in the stability calculation.
+  const recentIncomes = recentBuckets.map((m) => m.income)
   const incomeCV = weightedCoefficientOfVariation(recentIncomes)
 
   return {
+    balanceFlowTotals,
+    hasRecentIncome: recentIncomes.some((income) => income > 0),
     monthsAnalyzed: count,
     savingsRate,
     essentialToIncomeRatio,
@@ -242,8 +244,9 @@ export function computeAnalysis(
  * `avgMonthlyExpense * monthsAnalyzed`, which is a lossy round-trip of sums the
  * analysis already had -- and it silently diverges the moment the two averages
  * stop sharing a divisor, shifting the weighted composite with no failing test.
- * `totalDebtOutstanding` stays a flow proxy (debt SERVICE summed over the
- * window, not a balance); it is only used when no real balance feed is attached.
+ * `totalDebtOutstanding` stays a flow proxy (recorded debt SERVICE, not a
+ * balance); current health supplies lifetime flows for this fallback. Period
+ * investment contributions remain separate from lifetime invested balances.
  */
 export function cfpInputsFromAnalysis(data: AnalysisResult): CFPScoreInputs {
   return {
@@ -255,7 +258,8 @@ export function cfpInputsFromAnalysis(data: AnalysisResult): CFPScoreInputs {
     avgMonthlyDebt: data.avgMonthlyDebt,
     cumulativeNetSavings: data.cumulativeNetSavings,
     netInvestments: data.totalInvestmentInflow - data.totalInvestmentOutflow,
-    totalDebtOutstanding: data.totalDebt,
+    balanceNetInvestments: data.balanceFlowTotals?.netInvestments,
+    totalDebtOutstanding: data.balanceFlowTotals?.totalDebtOutstanding ?? data.totalDebt,
     balances: data.balances,
   }
 }

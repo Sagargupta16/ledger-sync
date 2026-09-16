@@ -343,7 +343,7 @@ export default function DashboardPage() {
 
       <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
 
-      <FinancialHealthScore transactions={filteredTransactions} />
+      <FinancialHealthScore />
 
       <nav aria-label="Planning shortcuts" className="flex flex-wrap gap-x-6 gap-y-1 border-t border-[var(--hairline-1)] pt-3">
         {[

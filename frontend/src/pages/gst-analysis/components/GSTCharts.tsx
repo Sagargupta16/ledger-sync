@@ -20,6 +20,7 @@ import { fadeUpItem } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 import { tooltipLabelString } from '@/lib/chartUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import type { GSTSlabBreakdown, GSTSummary } from '@/lib/gstCalculator'
 
 import { GST_SLAB_COLORS } from '../constants'
@@ -146,7 +147,7 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
         {latestMonth && (
           <ChartSeriesLegend
             items={[{ key: 'gst', label: 'Estimated GST', color: rawColors.app.indigo, value: formatCurrency(latestMonth.gstAmount) }]}
-            caption={`Latest: ${latestMonth.monthLabel}`}
+            caption={`Latest: ${formatChartDate(latestMonth.month)}`}
           />
         )}
         {data.monthlyTrend.length <= 1 ? (
@@ -162,9 +163,9 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
           >
             <BarChart data={data.monthlyTrend} margin={{ top: 16, right: 4, bottom: 8, left: 0 }} barCategoryGap="24%">
               <CartesianGrid {...GRID_DEFAULTS} />
-              <XAxis dataKey="monthLabel" {...xAxisDefaults(data.monthlyTrend.length)} />
+              <XAxis dataKey="month" {...xAxisDefaults(data.monthlyTrend.length)} tickFormatter={(value: string) => formatChartPeriod(value)} />
               <YAxis {...yAxisDefaults({ width: 52 })} tickFormatter={(value: number) => formatCurrencyShort(value)} />
-              <Tooltip formatter={currencyTooltipFormatter} {...chartTooltipProps} />
+              <Tooltip formatter={currencyTooltipFormatter} {...chartTooltipProps} labelFormatter={(label) => formatChartDate(tooltipLabelString(label))} />
               {data.monthlyTrend.some((row) => row.gstAmount < 0) && referenceLine({ y: 0, variant: 'zero' })}
               <Bar
                 dataKey="gstAmount"
@@ -183,7 +184,7 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
         {data.monthlyTrend.length > 1 && chartDataTable(
           data.monthlyTrend,
           [
-            { header: 'Month', rowHeader: true, value: (row) => row.monthLabel },
+            { header: 'Month', rowHeader: true, value: (row) => formatChartDate(row.month) },
             { header: 'Estimated GST', value: (row) => formatCurrency(row.gstAmount) },
           ],
           'Monthly estimated GST: exact amounts',

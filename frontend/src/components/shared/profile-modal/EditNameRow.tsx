@@ -1,4 +1,5 @@
-import { Check, Pencil, X } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Pencil } from 'lucide-react'
 import { Button, Input } from '@/components/ui'
 
 interface EditNameRowProps {
@@ -15,21 +16,34 @@ interface EditNameRowProps {
 export function EditNameRow(props: Readonly<EditNameRowProps>) {
   const { fullName, isEditing, nameInput, isPending, onStartEdit, onCancelEdit, onChangeName, onSave } =
     props
+  const inputRef = useRef<HTMLInputElement>(null)
+  const editRef = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+  const canSave = Boolean(nameInput.trim()) && nameInput.trim() !== (fullName ?? '').trim() && !isPending
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    } else if (wasEditing.current) {
+      editRef.current?.focus()
+    }
+    wasEditing.current = isEditing
+  }, [isEditing])
 
   return (
-    <div className="rounded-lg border border-border bg-[var(--overlay-2)] p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Pencil size={14} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Display Name</span>
-        </div>
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium">Display name</span>
         {!isEditing && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            ref={editRef}
             onClick={onStartEdit}
-            className="px-2 text-xs text-app-blue hover:text-app-blue"
+            disabled={isPending}
+            icon={<Pencil className="size-3.5" />}
+            aria-label="Edit display name"
           >
             Edit
           </Button>
@@ -37,45 +51,51 @@ export function EditNameRow(props: Readonly<EditNameRowProps>) {
       </div>
 
       {isEditing ? (
-        <div className="flex items-center gap-2 mt-2">
-          <div className="min-w-0 flex-1">
-            <Input
-              type="text"
-              value={nameInput}
-              onChange={(e) => onChangeName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onSave()
-                if (e.key === 'Escape') onCancelEdit()
-              }}
-              autoFocus
-              aria-label="Display name"
-              placeholder="Your name"
-            />
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onSave}
+        <form className="mt-2 space-y-3" onSubmit={(event) => {
+          event.preventDefault()
+          if (canSave) onSave()
+        }}>
+          <Input
+            ref={inputRef}
+            type="text"
+            value={nameInput}
+            onChange={(e) => onChangeName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!isPending) onCancelEdit()
+              }
+            }}
+            aria-label="Display name"
+            autoComplete="name"
+            required
             disabled={isPending}
-            aria-label="Save name"
-            className="shrink-0 bg-app-blue/15 p-0 text-app-blue hover:bg-app-blue/25 hover:text-app-blue"
-          >
-            <Check size={14} aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onCancelEdit}
-            aria-label="Cancel"
-            className="shrink-0 bg-[var(--overlay-3)] p-0 text-muted-foreground"
-          >
-            <X size={14} aria-hidden="true" />
-          </Button>
-        </div>
+            placeholder="Your name"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={!canSave}
+              isLoading={isPending}
+            >
+              {isPending ? 'Saving...' : 'Save name'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onCancelEdit}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
       ) : (
-        <p className="text-sm text-foreground mt-1">{fullName || 'Not set'}</p>
+        <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{fullName || 'Not set'}</p>
       )}
     </div>
   )

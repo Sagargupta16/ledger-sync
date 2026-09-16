@@ -5,7 +5,8 @@ import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
@@ -94,7 +95,7 @@ export default function CashFlowForecast() {
               </linearGradient>
             </defs>
             <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis {...xAxisDefaults(forecastData.combined.length)} dataKey="label" />
+            <XAxis {...xAxisDefaults(forecastData.combined.length)} dataKey="label" tickFormatter={(value: string) => formatChartPeriod(value)} />
             <YAxis {...yAxisDefaults({ width: isMobile ? 48 : 56 })} />
             <Tooltip
               {...chartTooltipProps}
@@ -172,32 +173,32 @@ export default function CashFlowForecast() {
       <div className="grid grid-cols-1 border-t border-[var(--hairline-1)] sm:grid-cols-2 xl:grid-cols-4">
         <div className="p-4 sm:border-r sm:border-[var(--hairline-1)]">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg monthly income</p>
-          <p className="ledger-figure text-xl font-semibold text-app-green">{formatCurrencyShort(insights.avgIncome)}</p>
+          <p className="ledger-figure break-words text-xl font-semibold text-app-green">{formatCurrency(insights.avgIncome)}</p>
           <p className="mt-1 text-xs text-text-tertiary">
-            {insights.incomeGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.incomeGrowth).toFixed(1)}% monthly trend
+            {insights.incomeGrowth >= 0 ? '↑' : '↓'} {formatPercent(Math.abs(insights.incomeGrowth))} monthly trend
           </p>
         </div>
         <div className="border-t border-[var(--hairline-1)] p-4 sm:border-t-0 xl:border-r">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg living expenses</p>
-          <p className="ledger-figure text-xl font-semibold text-app-red">{formatCurrencyShort(insights.avgExpense)}</p>
+          <p className="ledger-figure break-words text-xl font-semibold text-app-red">{formatCurrency(insights.avgExpense)}</p>
           <p className="mt-1 text-xs text-text-tertiary">
-            {insights.expenseGrowth >= 0 ? '↑' : '↓'} {Math.abs(insights.expenseGrowth).toFixed(1)}% monthly trend
+            {insights.expenseGrowth >= 0 ? '↑' : '↓'} {formatPercent(Math.abs(insights.expenseGrowth))} monthly trend
           </p>
         </div>
         <div className="border-t border-[var(--hairline-1)] p-4 sm:border-r xl:border-t-0">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg recorded net savings</p>
-          <p className={`ledger-figure text-xl font-semibold ${insights.avgNetSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
-            {formatCurrencyShort(insights.avgNetSavings)}
+          <p className={`ledger-figure break-words text-xl font-semibold ${insights.avgNetSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
+            {formatCurrency(insights.avgNetSavings)}
           </p>
           <p className="mt-1 text-xs leading-5 text-text-tertiary">
-            From {formatCurrencyShort(insights.avgConsumptionSurplus)} consumption surplus
-            less {formatCurrencyShort(insights.avgCapitalLosses)} recorded capital losses per month
+            From {formatCurrency(insights.avgConsumptionSurplus)} consumption surplus
+            less {formatCurrency(insights.avgCapitalLosses)} recorded capital losses per month
           </p>
         </div>
         <div className="border-t border-[var(--hairline-1)] p-4 xl:border-t-0">
           <p className="ledger-meta mb-1 text-text-quaternary">12-month consumption surplus</p>
-          <p className={`ledger-figure text-xl font-semibold ${insights.projectedConsumptionSurplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
-            {insights.projectedConsumptionSurplus >= 0 ? '+' : ''}{formatCurrencyShort(insights.projectedConsumptionSurplus)}
+          <p className={`ledger-figure break-words text-xl font-semibold ${insights.projectedConsumptionSurplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
+            {insights.projectedConsumptionSurplus >= 0 ? '+' : ''}{formatCurrency(insights.projectedConsumptionSurplus)}
           </p>
           <p className="mt-1 text-xs text-text-tertiary">Projected before future capital losses</p>
         </div>

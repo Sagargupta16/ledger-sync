@@ -8,7 +8,9 @@ import { getDateKey } from '@/lib/dateUtils'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 import { computePaidTax, groupTransactionsByFY, reconcileTaxWithholding } from '@/lib/finance/taxHistory'
-import { selectSalaryStructure, usePreferencesStore } from '@/store/preferencesStore'
+import {
+  selectGrowthAssumptions, selectRsuGrants, selectSalaryStructure, usePreferencesStore,
+} from '@/store/preferencesStore'
 
 import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 import {
@@ -33,6 +35,8 @@ export function useIncomeExpenseFlow() {
   )
   const preferences = preferencesQuery.data
   const salaryStructure = usePreferencesStore(selectSalaryStructure)
+  const rsuGrants = usePreferencesStore(selectRsuGrants)
+  const growthAssumptions = usePreferencesStore(selectGrowthAssumptions)
   const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
   const isError = transactionsQuery.isError || preferencesQuery.isError
   const retry = () => {
@@ -174,6 +178,10 @@ export function useIncomeExpenseFlow() {
       incomeClassification,
       epfTaxableFraction,
       salaryStructure,
+      {
+        salaryStructure, rsuGrants, growthAssumptions, preferredRegime, salaryIsNetOfTds,
+        startDate: dateRange.start_date, endDate: dateRange.end_date,
+      },
     )
     const computedTax = Object.entries(byFY).reduce(
       (sum, [fy, fyData]) =>
@@ -228,6 +236,10 @@ export function useIncomeExpenseFlow() {
     preferredRegime,
     salaryIsNetOfTds,
     salaryStructure,
+    rsuGrants,
+    growthAssumptions,
+    dateRange.start_date,
+    dateRange.end_date,
   ])
 
   // The currently displayed view: overview, a category's subcategories, or an

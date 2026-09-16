@@ -267,6 +267,8 @@ export interface CFPScoreInputs {
   avgMonthlyDebt: number
   cumulativeNetSavings: number
   netInvestments: number
+  /** Lifetime invested flows for balance proxies; netInvestments stays period cashflow. */
+  balanceNetInvestments?: number
   totalDebtOutstanding: number
   /** Real balances; when present, override the flow-based asset proxy. */
   balances?: BalanceInputs | null
@@ -289,6 +291,7 @@ export function computeCFPScore(params: CFPScoreInputs): CFPScoreResult {
     avgMonthlyDebt,
     cumulativeNetSavings,
     netInvestments,
+    balanceNetInvestments = netInvestments,
     totalDebtOutstanding,
     balances,
   } = params
@@ -304,8 +307,8 @@ export function computeCFPScore(params: CFPScoreInputs): CFPScoreResult {
     netWorth = balances.netWorth
   } else {
     // Fallback proxy: liquid = net savings minus money locked in investments.
-    liquidAssets = liquidAssetsFromFlows(cumulativeNetSavings, netInvestments)
-    totalAssets = liquidAssets + Math.max(0, netInvestments)
+    liquidAssets = liquidAssetsFromFlows(cumulativeNetSavings, balanceNetInvestments)
+    totalAssets = liquidAssets + Math.max(0, balanceNetInvestments)
     // Net worth must subtract outstanding debt; otherwise solvency is always
     // 100% (netWorth === totalAssets) and debt has no effect on the score.
     netWorth = totalAssets - Math.max(0, totalDebtOutstanding)

@@ -18,6 +18,9 @@ import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import {
   GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
@@ -89,6 +92,10 @@ export default function StandardAreaChart({
 }: StandardAreaChartProps) {
   const chartId = useId().replaceAll(':', '')
   const { animate, isMobile } = useChartPresentation(data.length)
+  const rows = data as readonly Record<string, unknown>[]
+  const range = useChartRange(rows.map((row) => chartCellText(row[dataKey])))
+  const formatLabel = tooltipLabelFormatter ?? formatChartDate
+  const formatTick = xTickFormatter ?? ((value: string) => formatChartPeriod(value))
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -96,7 +103,6 @@ export default function StandardAreaChart({
 
   const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
   const yDefaults = yAxisDefaults({ width: isMobile ? 48 : 56 })
-  const rows = data as readonly Record<string, unknown>[]
   const formatValue = tooltipFormatter ?? formatCurrency
   const latest = rows.at(-1)
   const latestLabel = chartCellText(latest?.[dataKey])
@@ -115,9 +121,10 @@ export default function StandardAreaChart({
               value: typeof value === 'number' ? formatValue(value) : undefined,
             }
           })}
-          caption={latestLabel ? `Latest: ${tooltipLabelFormatter?.(latestLabel) ?? latestLabel}` : undefined}
+          caption={latestLabel ? `Latest: ${formatLabel(latestLabel)}` : undefined}
         />
       )}
+      {showBrush && data.length > 4 && <ChartRangeControls range={range} />}
       <ChartContainer height={height} ariaLabel={ariaLabel}>
         <AreaChart
           data={data}
@@ -133,7 +140,7 @@ export default function StandardAreaChart({
             dataKey={dataKey}
             {...xDefaults}
             interval={isMobile ? 'preserveStartEnd' : xDefaults.interval}
-            {...(xTickFormatter && { tickFormatter: xTickFormatter })}
+            tickFormatter={formatTick}
           />
           <YAxis {...yDefaults} />
           <Tooltip
@@ -141,7 +148,7 @@ export default function StandardAreaChart({
             cursor={CHART_LINE_CURSOR_STYLE}
             content={<ChartTooltipContent />}
             formatter={(value) => formatValue(typeof value === 'number' ? value : 0)}
-            {...(tooltipLabelFormatter && { labelFormatter: tooltipLabelFormatter as never })}
+            labelFormatter={(label) => formatLabel(chartCellText(label))}
           />
           {hasNegative && !referenceLines?.some((ref) => ref.y === 0) && referenceLine({ y: 0, variant: 'zero' })}
           {referenceLines?.map((ref) => (
@@ -189,19 +196,14 @@ export default function StandardAreaChart({
             <Brush
               {...BRUSH_DEFAULTS}
               dataKey={dataKey}
-              tickFormatter={xTickFormatter}
-              // Default to showing the most recent ~quarter of the data so the
-              // chart still reads at full fidelity on first paint.
-              startIndex={Math.max(0, data.length - Math.ceil(data.length / 4))}
+              tickFormatter={formatTick}
+              startIndex={range.startIndex}
+              endIndex={range.endIndex}
+              onChange={range.setRange}
             />
           )}
         </AreaChart>
       </ChartContainer>
-      {showBrush && data.length > 4 && (
-        <p className="mt-2 text-right text-[11px] text-muted-foreground">
-          Drag the handles to inspect a period.
-        </p>
-      )}
       {chartDataTable(
         rows,
         [
@@ -210,7 +212,7 @@ export default function StandardAreaChart({
             rowHeader: true,
             value: (row) => {
               const label = chartCellText(row[dataKey])
-              return xTickFormatter ? xTickFormatter(label) : label
+              return formatLabel(label)
             },
           },
           ...areas.map((area) => ({

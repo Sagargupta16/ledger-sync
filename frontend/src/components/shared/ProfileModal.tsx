@@ -1,7 +1,8 @@
-// ProfileModal -- full-screen modal showing user profile + account actions
+// ProfileModal -- profile details and account actions
 // (edit name, reset transactions, full reset, delete account, sign out).
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -15,12 +16,14 @@ import {
   useUpdateProfile,
 } from '@/hooks/api/useAuth'
 import { useAuthStore } from '@/store/authStore'
+import { useMotionStore } from '@/store/motionStore'
+import { DURATION, EASING } from '@/constants/animations'
 
 import { DangerActionRow } from './profile-modal/DangerActionRow'
 import { EditNameRow } from './profile-modal/EditNameRow'
 import { LogoutButton } from './profile-modal/LogoutButton'
-import { ProfileHeader } from './profile-modal/ProfileHeader'
-import { deriveProfileDisplay, makeExclusiveResetToggle } from './profileModalUtils'
+import { ProfileHeader, ProfileIdentity } from './profile-modal/ProfileHeader'
+import { deriveProfileDisplay } from './profileModalUtils'
 
 interface ProfileModalProps {
   readonly open: boolean
@@ -28,10 +31,11 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && <ProfileModalContent onClose={() => onOpenChange(false)} />}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
@@ -42,28 +46,67 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   const deleteAccount = useDeleteAccount()
   const resetAccount = useResetAccount()
   const navigate = useNavigate()
+  const modalRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(user?.full_name || '')
 
-  const [showTxResetConfirm, setShowTxResetConfirm] = useState(false)
-  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false)
-  const [resetConfirmText, setResetConfirmText] = useState('')
-
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [expandedAction, setExpandedAction] = useState<'transactions' | 'full' | 'delete' | null>(null)
+  const [confirmText, setConfirmText] = useState('')
+  const isBusy = updateProfile.isPending || resetAccount.isPending || deleteAccount.isPending || logout.isPending
+  const toggleAction = (action: 'transactions' | 'full' | 'delete', expanded: boolean) => {
+    setExpandedAction(expanded ? action : null)
+    setConfirmText('')
+  }
 
   const handleClose = useCallback(() => onClose(), [onClose])
+  const closeFromKeyboard = useEffectEvent(handleClose)
 
   useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    const modal = modalRef.current
+    document.body.style.overflow = 'hidden'
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), a[href], [tabindex="0"]'
+    modal?.querySelector<HTMLElement>(focusableSelector)?.focus()
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose()
+      if (e.defaultPrevented) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closeFromKeyboard()
+        return
+      }
+      if (e.key !== 'Tab' || !modal) return
+      const controls = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => !element.closest('[hidden], [inert], [aria-hidden="true"]'))
+      const first = controls[0]
+      const last = controls.at(-1)
+      if (!first) {
+        e.preventDefault()
+        modal.focus()
+      } else if (!modal.contains(document.activeElement)) {
+        e.preventDefault()
+        const nextFocus = e.shiftKey ? last : first
+        nextFocus?.focus()
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last?.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [handleClose])
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [])
 
   const handleSaveName = () => {
+    if (isBusy) return
     const trimmed = nameInput.trim()
     if (!trimmed) {
       toast.error('Name cannot be empty')
@@ -79,6 +122,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   }
 
   const handleReset = (mode: 'full' | 'transactions') => {
+    if (isBusy || expandedAction !== mode || confirmText !== 'RESET') return
     resetAccount.mutate(mode, {
       onSuccess: () => {
         const msg =
@@ -86,9 +130,8 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
             ? 'Transactions cleared. Preferences preserved.'
             : 'Account reset successfully. All data cleared.'
         toast.success(msg)
-        setShowTxResetConfirm(false)
-        setShowFullResetConfirm(false)
-        setResetConfirmText('')
+        setExpandedAction(null)
+        setConfirmText('')
         globalThis.location.reload()
       },
       onError: () => toast.error('Failed to reset account.'),
@@ -96,6 +139,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   }
 
   const handleDelete = () => {
+    if (isBusy || expandedAction !== 'delete' || confirmText !== 'DELETE') return
     deleteAccount.mutate(undefined, {
       onSuccess: () => {
         toast.success('Account deleted successfully')
@@ -132,123 +176,118 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
-      onClick={handleClose}
+      transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-3 sm:p-6"
+      onClick={(event) => { if (event.target === event.currentTarget) handleClose() }}
     >
       <motion.div
+        ref={modalRef}
+        id="profile-account-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Profile and account settings"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="w-full max-w-lg overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-0 shadow-[var(--glass-shadow-strong)]"
-        onClick={(e) => e.stopPropagation()}
+        aria-labelledby="profile-dialog-title"
+        aria-describedby="profile-dialog-description"
+        tabIndex={-1}
+        initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
+        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown text-foreground shadow-[var(--glass-shadow-strong)] sm:max-h-[calc(100dvh-3rem)]"
       >
-        <ProfileHeader
-          initials={initials}
-          displayName={displayName}
-          email={user?.email}
-          providerLabel={providerLabel}
-          memberSince={memberSince}
-          onClose={handleClose}
-        />
+        <ProfileHeader onClose={handleClose} />
 
-        <div className="px-6 py-4 space-y-3">
-          <EditNameRow
-            fullName={user?.full_name}
-            isEditing={isEditingName}
-            nameInput={nameInput}
-            isPending={updateProfile.isPending}
-            onStartEdit={() => {
-              setNameInput(user?.full_name ?? '')
-              setIsEditingName(true)
-            }}
-            onCancelEdit={() => setIsEditingName(false)}
-            onChangeName={setNameInput}
-            onSave={handleSaveName}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+          <ProfileIdentity
+            initials={initials}
+            displayName={displayName}
+            email={user?.email}
+            providerLabel={providerLabel}
+            memberSince={memberSince}
           />
+          <section aria-labelledby="profile-details-title">
+            <h3 id="profile-details-title" className="ledger-meta mb-3 text-text-tertiary">Profile details</h3>
+            <EditNameRow
+              fullName={user?.full_name}
+              isEditing={isEditingName}
+              nameInput={nameInput}
+              isPending={isBusy}
+              onStartEdit={() => {
+                setNameInput(user?.full_name ?? '')
+                setIsEditingName(true)
+              }}
+              onCancelEdit={() => setIsEditingName(false)}
+              onChangeName={setNameInput}
+              onSave={handleSaveName}
+            />
+          </section>
 
-          <DangerActionRow
-            expanded={showTxResetConfirm}
-            setExpanded={makeExclusiveResetToggle(
-              setShowTxResetConfirm,
-              setShowFullResetConfirm,
-              setResetConfirmText,
-            )}
-            Icon={RotateCcw}
-            title="Reset Transactions"
-            toneText="text-app-orange"
-            toneBorder="border-app-orange/15"
-            toneBg="bg-app-orange/5"
-            description="Clears all transactions, import history, and analytics. Your preferences, budgets, goals, and account classifications will be preserved."
-            confirmKeyword="RESET"
-            confirmKeywordBg="bg-app-orange/20"
-            confirmText={resetConfirmText}
-            setConfirmText={setResetConfirmText}
-            inputBorderFocus="focus:border-app-orange/50"
-            actionButton={{
-              label: 'Clear Transactions',
-              pendingLabel: 'Resetting...',
-              bgClass: 'bg-app-orange/90 hover:bg-app-orange',
-              onClick: () => handleReset('transactions'),
-              pending: resetAccount.isPending,
-            }}
-          />
+          <section aria-labelledby="profile-data-title" className="mt-6 border-t border-[var(--hairline-1)] pt-5">
+            <h3 id="profile-data-title" className="text-sm font-semibold">Data &amp; account</h3>
+            <p className="mt-1 mb-2 text-xs leading-5 text-muted-foreground">
+              Choose what to clear. Each action requires confirmation.
+            </p>
+            <div className="divide-y divide-[var(--hairline-1)]">
+              <DangerActionRow
+                expanded={expandedAction === 'transactions'}
+                setExpanded={(expanded) => toggleAction('transactions', expanded)}
+                disabled={isBusy}
+                Icon={RotateCcw}
+                title="Reset transactions"
+                summary="Start fresh with your imported transactions."
+                description="Clears all transactions, import history, and analytics. Your preferences, budgets, goals, and account classifications will be preserved."
+                confirmKeyword="RESET"
+                confirmText={confirmText}
+                setConfirmText={setConfirmText}
+                actionButton={{
+                  label: 'Clear transactions',
+                  pendingLabel: 'Resetting...',
+                  onClick: () => handleReset('transactions'),
+                  pending: resetAccount.isPending,
+                }}
+              />
 
-          <DangerActionRow
-            expanded={showFullResetConfirm}
-            setExpanded={makeExclusiveResetToggle(
-              setShowFullResetConfirm,
-              setShowTxResetConfirm,
-              setResetConfirmText,
-            )}
-            Icon={RotateCcw}
-            title="Complete Reset"
-            toneText="text-app-yellow"
-            toneBorder="border-app-yellow/15"
-            toneBg="bg-app-yellow/5"
-            description="Permanently deletes all data -- transactions, preferences, budgets, goals, import history, and analytics. Your account and login method will be preserved."
-            confirmKeyword="RESET"
-            confirmKeywordBg="bg-app-yellow/20"
-            confirmText={resetConfirmText}
-            setConfirmText={setResetConfirmText}
-            inputBorderFocus="focus:border-app-yellow/50"
-            actionButton={{
-              label: 'Yes, Reset Everything',
-              pendingLabel: 'Resetting...',
-              bgClass: 'bg-app-yellow/90 hover:bg-app-yellow',
-              onClick: () => handleReset('full'),
-              pending: resetAccount.isPending,
-            }}
-          />
+              <DangerActionRow
+                expanded={expandedAction === 'full'}
+                setExpanded={(expanded) => toggleAction('full', expanded)}
+                disabled={isBusy}
+                Icon={RotateCcw}
+                title="Reset all data"
+                summary="Clear your data and preferences; keep your login."
+                description="Permanently deletes all data, including transactions, preferences, budgets, goals, import history, and analytics. Your account and login method will be preserved."
+                confirmKeyword="RESET"
+                confirmText={confirmText}
+                setConfirmText={setConfirmText}
+                actionButton={{
+                  label: 'Reset all data',
+                  pendingLabel: 'Resetting...',
+                  onClick: () => handleReset('full'),
+                  pending: resetAccount.isPending,
+                }}
+              />
 
-          <DangerActionRow
-            expanded={showDeleteConfirm}
-            setExpanded={setShowDeleteConfirm}
-            Icon={Trash2}
-            title="Delete Account"
-            toneText="text-app-red"
-            toneBorder="border-app-red/15"
-            toneBg="bg-app-red/5"
-            description="Permanently delete your account and all associated data. This action cannot be undone."
-            confirmKeyword="DELETE"
-            confirmKeywordBg="bg-app-red/20"
-            confirmText={deleteConfirmText}
-            setConfirmText={setDeleteConfirmText}
-            inputBorderFocus="focus:border-app-red/50"
-            actionButton={{
-              label: 'Permanently Delete',
-              pendingLabel: 'Deleting...',
-              bgClass: 'bg-app-red/90 hover:bg-app-red',
-              onClick: handleDelete,
-              pending: deleteAccount.isPending,
-            }}
-          />
+              <DangerActionRow
+                expanded={expandedAction === 'delete'}
+                setExpanded={(expanded) => toggleAction('delete', expanded)}
+                disabled={isBusy}
+                Icon={Trash2}
+                title="Delete account"
+                summary="Permanently remove your account and its data."
+                description="Permanently delete your account and all associated data. This action cannot be undone."
+                confirmKeyword="DELETE"
+                confirmText={confirmText}
+                setConfirmText={setConfirmText}
+                actionButton={{
+                  label: 'Permanently delete account',
+                  pendingLabel: 'Deleting...',
+                  onClick: handleDelete,
+                  pending: deleteAccount.isPending,
+                }}
+              />
+            </div>
+          </section>
         </div>
 
-        <LogoutButton isPending={logout.isPending} onLogout={handleLogout} />
+        <LogoutButton isPending={logout.isPending} disabled={isBusy} onLogout={handleLogout} />
       </motion.div>
     </motion.div>
   )

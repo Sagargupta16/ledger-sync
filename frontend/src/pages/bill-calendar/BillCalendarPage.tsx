@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader } from '@/components/ui'
 
@@ -27,6 +29,15 @@ export default function BillCalendarPage() {
     <PageContainer className="md:space-y-6">
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
       <BillSummaryGrid summary={calendar.summary} isLoading={calendar.isLoading} />
+      {calendar.unscheduledBills.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Awaiting a due date: {calendar.unscheduledBills.map((bill) => bill.name).join(', ')}.{' '}
+          These bills are not included in the calendar total.{' '}
+          <Link className="text-primary underline underline-offset-4" to="/subscriptions">
+            Review recurring items
+          </Link>
+        </p>
+      )}
       <BillCalendarGrid
         now={calendar.now}
         viewYear={calendar.viewYear}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
 import { summarizePayrollSchedule } from '@/lib/finance/payrollPlanning'
 import {
   ChartContainer,
@@ -29,6 +30,7 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
     const salaryMonths = new Set(paidMonthIndices)
     return schedule.map((row) => ({
       ...row,
+      displayMonth: row.period ? formatMonthKey(row.period, { month: 'short', year: '2-digit' }) : row.month,
       fillOpacity: salaryMonths.has(row.monthIndex) ? 1 : 0.45,
       status: salaryMonths.has(row.monthIndex) ? 'Salary recorded; values projected' : 'Projection',
     }))
@@ -71,7 +73,7 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
             ? [{ key: 'shares', label: 'Share withholding', color: rawColors.app.purple, value: formatCurrency(summary.shareWithholding) }]
             : []),
         ]}
-        caption={`${schedule[0].month} to ${schedule.at(-1)?.month}`}
+        caption={`${bars[0].displayMonth} to ${bars.at(-1)?.displayMonth}`}
       />
       <ChartContainer
         height={isMobile ? 260 : 320}
@@ -79,7 +81,7 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
       >
         <BarChart data={bars} margin={{ top: 16, right: isMobile ? 4 : 12, bottom: 8, left: 0 }} barCategoryGap="24%">
           <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis dataKey="month" {...xAxisDefaults(schedule.length)} />
+          <XAxis dataKey="displayMonth" {...xAxisDefaults(schedule.length)} />
           <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 56 })} tickFormatter={(value: number) => formatCurrencyShort(value)} />
           <Tooltip
             {...chartTooltipProps}
@@ -131,7 +133,7 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
       {chartDataTable(
         bars,
         [
-          { header: 'Month', rowHeader: true, value: (row) => row.month },
+          { header: 'Month', rowHeader: true, value: (row) => row.displayMonth },
           { header: 'Basis', value: (row) => row.status },
           { header: 'Tax liability', value: (row) => formatCurrency(row.monthlyTds) },
           { header: 'Cash payroll TDS', value: (row) => formatCurrency(row.cashTds) },

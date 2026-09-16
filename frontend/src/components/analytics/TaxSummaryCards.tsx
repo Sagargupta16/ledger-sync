@@ -105,7 +105,7 @@ export default function TaxSummaryCards({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-kpi-label text-muted-foreground">
-              Estimated tax liability
+              {isProjecting ? 'Estimated annual tax liability' : 'Tax on recorded income'}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
@@ -114,7 +114,7 @@ export default function TaxSummaryCards({
               {!isLoading && <YoyBadge current={totalTax} previous={prevTotalTax} />}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {isProjecting ? 'Projected employment and other recorded taxable income' : 'Calculated under the selected regime'}
+              {isProjecting ? 'Full-year employment and other recorded taxable income' : 'Liability if no further taxable income is received this FY'}
             </p>
           </div>
         </div>

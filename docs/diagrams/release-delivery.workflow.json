@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Release paths to production",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": { "label": "Source control" },
+        "security": { "label": "Quality / readiness" },
+        "database": { "label": "Database" },
+        "cloud": { "label": "Deployment" }
+      }
+    }
+  },
+  "lanes": [
+    { "id": "source-control", "label": "Source control" },
+    { "id": "github-actions", "label": "GitHub Actions" },
+    { "id": "vercel-delivery", "label": "Backend + readiness" }
+  ],
+  "mainPath": ["pull-request", "pr-checks", "main-commit", "main-checks", "database-migrate", "pages-release"],
+  "nodes": [
+    { "id": "pull-request", "lane": "source-control", "col": 0, "type": "frontend", "label": "Pull request", "sublabel": "Feature branch" },
+    { "id": "pr-checks", "lane": "github-actions", "col": 1, "type": "security", "label": "PR checks", "sublabel": "Tests, types, scans" },
+    { "id": "main-commit", "lane": "source-control", "col": 2, "type": "frontend", "label": "Commit on main", "sublabel": "Reviewed change" },
+    { "id": "main-checks", "lane": "github-actions", "col": 3, "type": "security", "label": "Main CI", "sublabel": "Four blocking jobs" },
+    { "id": "database-migrate", "lane": "github-actions", "col": 4, "type": "database", "label": "Migrate database", "sublabel": "Alembic upgrade head", "width": 128 },
+    { "id": "pages-release", "lane": "github-actions", "col": 5, "type": "cloud", "label": "Publish Pages", "sublabel": "Both gates required" },
+    { "id": "vercel-release", "lane": "vercel-delivery", "col": 3, "type": "cloud", "label": "Vercel backend", "sublabel": "Independent deployment" },
+    { "id": "api-verification", "lane": "vercel-delivery", "col": 4, "type": "security", "label": "Backend ready", "sublabel": "Version + database", "width": 128 }
+  ],
+  "edges": [
+    { "id": "run-pr-ci", "from": "pull-request", "to": "pr-checks", "label": "Open / update" },
+    { "id": "merge-reviewed-pr", "from": "pr-checks", "to": "main-commit", "label": "Reviewed merge", "variant": "emphasis", "fromSide": "right" },
+    { "id": "main-pipeline", "from": "main-commit", "to": "main-checks", "label": "Push to main", "variant": "emphasis" },
+    { "id": "migration-gate", "from": "main-checks", "to": "database-migrate", "label": "All jobs pass", "variant": "emphasis" },
+    { "id": "pages-gate", "from": "database-migrate", "to": "pages-release", "label": "Migration passes", "variant": "emphasis" },
+    { "id": "backend-git-hook", "from": "main-commit", "to": "vercel-release", "label": "Git integration" },
+    { "id": "backend-health", "from": "vercel-release", "to": "api-verification", "label": "Health endpoints" },
+    { "id": "backend-pages-gate", "from": "api-verification", "to": "pages-release", "label": "Version + DB ready", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Four blocking CI jobs", "items": ["Frontend and backend quality checks.", "Native PostgreSQL migrations and security scan."] },
+    { "dot": "amber", "title": "Separate delivery paths", "items": ["Vercel does not wait for the Actions migration gate.", "Keep schema changes compatible across releases."] },
+    { "dot": "cyan", "title": "Backend readiness gate", "items": ["/health must match the frontend release version.", "/health/db must report a connected database."] }
+  ]
+}

@@ -33,6 +33,27 @@ function recordedSalary(employmentIncome: number): FYData {
 }
 
 describe('shared tax and payroll presentation', () => {
+  it('keeps withholding to date visible in the annual projection view', () => {
+    const projection = projectFiscalYear('2026-27', { '2026-27': salary }, [], DEFAULT_GROWTH_ASSUMPTIONS, 4)
+    const tax = computeTaxPlanning({
+      selectedFY: 'FY 2026-27', recordedTaxableIncome: 1_032_750,
+      recordedEmploymentIncome: 1_032_750, recordedEmploymentCashDeductions: 18_000,
+      salaryMonthsCount: 5, hasEmploymentIncome: true, incomeBasis: 'net',
+    })
+    const data = {
+      ...recordedSalary(1_032_750),
+      salaryMonths: new Set(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08']),
+    }
+    const input = { projection, tax, fyData: data, fyStartMonth: 4, isCurrentFY: true }
+    const recordedView = buildPayrollPlanning({ ...input, useSalaryProjection: false })
+    const annualView = buildPayrollPlanning({ ...input, useSalaryProjection: true })
+
+    expect(annualView.paidEstimate).not.toBeNull()
+    expect(annualView.paidEstimate).toEqual(recordedView.paidEstimate)
+    expect(annualView.paidEstimate?.cashTaxPaid).toBeCloseTo(478_200 * 5 / 12, 1)
+    expect(annualView.paidEstimate!.taxPaid).toBeGreaterThan(tax.totalTax)
+  })
+
   it.each([
     { regime: 'new' as const, tax: 556_200, cash: 2_561_650, credit: 82_150 },
     { regime: 'old' as const, tax: 805_800, cash: 2_332_850, credit: 61_350 },

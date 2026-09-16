@@ -47,6 +47,13 @@ export interface BalancePosition {
 }
 
 export interface AnalysisResult {
+  /** Lifetime flow proxies only used when observed balances are unavailable. */
+  balanceFlowTotals?: {
+    cumulativeNetSavings: number
+    netInvestments: number
+    totalDebtOutstanding: number
+  }
+  hasRecentIncome?: boolean
   monthsAnalyzed: number
   savingsRate: number
   essentialToIncomeRatio: number

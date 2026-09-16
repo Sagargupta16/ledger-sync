@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Financial calculation paths",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [680, 520]
+  },
+  "stages": [
+    { "label": "Scoped inputs" },
+    { "label": "Shared calculations" },
+    { "label": "Workspace results" }
+  ],
+  "nodes": [
+    { "id": "payroll-inputs", "type": "database", "label": "Salary + RSUs", "sublabel": "Receipts + preferences", "stage": 0, "row": 0, "width": 140, "height": 76 },
+    { "id": "tax-owners", "type": "backend", "label": "Payroll + tax", "sublabel": "FY rules + vestings", "stage": 1, "row": 0, "width": 140, "height": 76 },
+    { "id": "tax-results", "type": "frontend", "label": "Tax views", "sublabel": "Annual + received income", "stage": 2, "row": 0, "width": 140, "height": 76 },
+    { "id": "history-inputs", "type": "database", "label": "Ledger history", "sublabel": "Earning-start date", "stage": 0, "row": 1, "width": 140, "height": 76 },
+    { "id": "period-owners", "type": "backend", "label": "Analysis period", "sublabel": "Calendar months", "stage": 1, "row": 1, "width": 140, "height": 76 },
+    { "id": "health-results", "type": "frontend", "label": "Income + health", "sublabel": "24-month current health", "stage": 2, "row": 1, "width": 140, "height": 76 },
+    { "id": "recurring-inputs", "type": "database", "label": "Recurring rows", "sublabel": "Manual + detected", "stage": 0, "row": 2, "width": 140, "height": 76 },
+    { "id": "commitment-owners", "type": "backend", "label": "Select bills", "sublabel": "Confidence + freshness", "stage": 1, "row": 2, "width": 140, "height": 76 },
+    { "id": "calendar-results", "type": "frontend", "label": "Bill calendar", "sublabel": "Calendar cadence", "stage": 2, "row": 2, "width": 140, "height": 76 }
+  ],
+  "flows": [
+    { "id": "payroll-basis", "from": "payroll-inputs", "to": "tax-owners", "label": "Gross / net", "variant": "emphasis" },
+    { "id": "disclosed-tax", "from": "tax-owners", "to": "tax-results", "label": "Estimates", "variant": "emphasis" },
+    { "id": "earnings-basis", "from": "history-inputs", "to": "period-owners", "label": "Dated rows" },
+    { "id": "recent-metrics", "from": "period-owners", "to": "health-results", "label": "Periods" },
+    { "id": "select-obligations", "from": "recurring-inputs", "to": "commitment-owners", "label": "Evidence" },
+    { "id": "dated-bills", "from": "commitment-owners", "to": "calendar-results", "label": "Obligations" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Tax is a model", "items": ["Unknown actual TDS stays blank.", "Recorded share units and locked prices win."] },
+    { "dot": "cyan", "title": "Time has meaning", "items": ["Keep zero-income months after earning starts.", "Chart zoom never changes financial totals."] },
+    { "dot": "amber", "title": "A repeat is not a bill", "items": ["Automatic obligations need evidence and cadence.", "Manual confirmations remain authoritative."] }
+  ]
+}

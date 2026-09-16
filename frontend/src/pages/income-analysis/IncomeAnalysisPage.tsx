@@ -38,6 +38,8 @@ export default function IncomeAnalysisPage() {
     rollingAvgMonths,
     avgIncome,
     incomeSeries,
+    earningsPeriodLabel,
+    earningStart,
   } = useIncomeAnalysis()
 
   if (isError) {
@@ -86,6 +88,11 @@ export default function IncomeAnalysisPage() {
         cashbacksTotal={cashbacksTotal}
         cashbackShare={cashbackShare}
       />
+      <p className="text-xs leading-5 text-muted-foreground">
+        {noCompleteMonthBasis ? 'Income average: month so far; growth unavailable.' : `Income average and growth: ${earningsPeriodLabel}.`}
+        {' '}{earningStart.source === 'unknown' ? 'Employment start unconfirmed.' : `Employment start ${earningStart.date} (${earningStart.source}).`}
+        {' '}Zero-income months after employment are included. Chart history follows the selected period.
+      </p>
       <IncomeTrendSection
         data={monthlyTrendData}
         peakIncome={peakIncome}

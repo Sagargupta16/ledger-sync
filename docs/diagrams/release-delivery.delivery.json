@@ -1,0 +1,27 @@
+{
+  "generator": "Archify",
+  "type": "workflow",
+  "specification": {
+    "path": "release-delivery.workflow.json",
+    "sha256": "b9ae9680a0579411e6ee0127a34d5edeeb0cf8fae621a03af6103cad5c656948",
+    "bytes": 3494
+  },
+  "artifact": {
+    "path": "release-delivery.html",
+    "sha256": "f1750a98c5ee1d0c0e4f7b5e08d4c4277f70c8df6bb26acad5ed63b9c2102256",
+    "bytes": 807535
+  },
+  "preview": {
+    "path": "release-delivery.svg",
+    "sha256": "ac0dc914b9228259714a62a2e7bc6b9b6a6d622ed786b3b8a538cb44c9dfc1d2",
+    "bytes": 294315
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

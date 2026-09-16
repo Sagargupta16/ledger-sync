@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatChartDate } from '@/lib/chartDateLabels'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
@@ -27,7 +28,7 @@ import {
   BAR_RADIUS, BRUSH_DEFAULTS, referenceLine,
 } from '@/components/ui/chartDefaults'
 import { CHART_TEXT } from '@/constants/chartColors'
-import { barLabelFormatter, barLabelStyle } from '@/lib/chartUtils'
+import { barLabelFormatter, barLabelStyle, tooltipLabelString } from '@/lib/chartUtils'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 import {
@@ -51,6 +52,7 @@ interface StandardBarChartProps {
   readonly emptyMessage?: string
   /** Simple single-value formatter. */
   readonly tooltipFormatter?: (value: number) => string
+  readonly tooltipLabelFormatter?: (label: string) => string
   /**
    * Advanced formatter that also receives the hovered row payload.
    * Use when the tooltip needs fields beyond the bar value (e.g. "score: N -- avg: ₹X/mo").
@@ -135,6 +137,7 @@ export default function StandardBarChart({
   showLegend = true,
   emptyMessage,
   tooltipFormatter,
+  tooltipLabelFormatter,
   tooltipValueWithPayload,
   xTickFormatter,
   yTickFormatter,
@@ -224,6 +227,7 @@ export default function StandardBarChart({
           <Tooltip
             {...chartTooltipProps}
             content={<ChartTooltipContent />}
+            labelFormatter={(label) => (tooltipLabelFormatter ?? formatChartDate)(tooltipLabelString(label))}
             formatter={tooltipFormatterProp as never}
           />
           {referenceLines?.map(renderReferenceLine)}

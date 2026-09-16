@@ -76,13 +76,14 @@ export function getFortnightlyDays(tx: RecurringTransaction, year: number, month
 }
 
 export function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): number[] {
-  if (tx.expected_day == null) return []
-  return [clampDay(tx.expected_day, daysInMonth)]
+  const expectedDay = tx.expected_day ?? (tx.next_expected ? parseLocalDate(tx.next_expected).getDate() : null)
+  if (expectedDay == null || !Number.isFinite(expectedDay)) return []
+  return [clampDay(expectedDay, daysInMonth)]
 }
 
 /**
  * Days for a bill due every `strideMonths` months on `expected_day`, phased off
- * `next_expected` when it is known and off month 0 when it is not.
+ * `next_expected` or the last payment. A missing phase cannot supply a due month.
  */
 export function getEveryNthMonthDays(
   tx: RecurringTransaction,
@@ -91,11 +92,9 @@ export function getEveryNthMonthDays(
   strideMonths: number,
 ): number[] {
   if (tx.expected_day == null) return []
-  if (!tx.next_expected) {
-    if (month % strideMonths === 0) return [clampDay(tx.expected_day, daysInMonth)]
-    return []
-  }
-  const nextDate = parseLocalDate(tx.next_expected)
+  const anchor = tx.next_expected ?? tx.last_occurrence
+  if (!anchor) return []
+  const nextDate = parseLocalDate(anchor)
   const nextMonth = nextDate.getMonth()
   const diff = (((month - nextMonth) % MONTHS_IN_YEAR) + MONTHS_IN_YEAR) % MONTHS_IN_YEAR
   if (diff % strideMonths === 0) return [clampDay(tx.expected_day, daysInMonth)]
@@ -142,11 +141,7 @@ export function getBillDaysForMonth(
   const daysInMonth = getDaysInMonth(year, month)
   const frequency = normalizeFrequency(tx.frequency)
 
-  if (!frequency) {
-    // Unrecognized or absent frequency: best effort from `expected_day`.
-    if (tx.expected_day != null) return [clampDay(tx.expected_day, daysInMonth)]
-    return []
-  }
+  if (!frequency) return []
 
   switch (frequency) {
     case 'daily':

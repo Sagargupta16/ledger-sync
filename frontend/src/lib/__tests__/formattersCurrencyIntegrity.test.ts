@@ -40,7 +40,7 @@ describe('formatters never mislabel an unconverted amount', () => {
 
     expect(shown).not.toContain('AED')
     expect(shown).toContain(RUPEE)
-    expect(shown).toBe(`${RUPEE}1,00,000`)
+    expect(shown).toBe(`${RUPEE}1,00,000.00`)
   })
 
   it('applies no foreign symbol on a null rate, for every catalogued currency', () => {
@@ -77,7 +77,7 @@ describe('formatters never mislabel an unconverted amount', () => {
     const shown = formatCurrency(100000)
     expect(shown).toContain('$')
     expect(shown).not.toContain(RUPEE)
-    expect(shown).toBe('$1,036')
+    expect(shown).toBe('$1,036.00')
   })
 
   it('rejects a zero, negative or NaN rate instead of rendering it', () => {
@@ -85,7 +85,7 @@ describe('formatters never mislabel an unconverted amount', () => {
     // NaN would print "$NaN". All three are base currency, honestly labelled.
     for (const rate of [0, -0.02, Number.NaN]) {
       usePreferencesStore.setState({ displayCurrency: 'USD', exchangeRate: rate })
-      expect(formatCurrency(100000)).toBe(`${RUPEE}1,00,000`)
+      expect(formatCurrency(100000)).toBe(`${RUPEE}1,00,000.00`)
     }
   })
 
@@ -93,15 +93,14 @@ describe('formatters never mislabel an unconverted amount', () => {
     // Falling back on the symbol alone would leave international grouping on an
     // Indian-format amount ("₹100,000" instead of "₹1,00,000").
     usePreferencesStore.setState({ displayCurrency: 'USD', exchangeRate: null })
-    expect(formatCurrency(100000)).toBe(`${RUPEE}1,00,000`)
+    expect(formatCurrency(100000)).toBe(`${RUPEE}1,00,000.00`)
     // And the short units revert to lakh/crore rather than K/M.
     expect(formatCurrencyShort(10000000)).toContain('Cr')
     expect(formatCurrencyShort(10000000)).not.toContain('M')
   })
 
-  it('does not lose a 0-decimal currency\'s rule when it IS priced', () => {
-    // JPY has no sub-unit; that must still hold on the converted path.
+  it('uses two display decimals after conversion for every currency', () => {
     usePreferencesStore.setState({ displayCurrency: 'JPY', exchangeRate: 1.6965 })
-    expect(formatCurrency(1000)).toBe('¥1,697')
+    expect(formatCurrency(1000)).toBe('¥1,696.50')
   })
 })

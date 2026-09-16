@@ -9,6 +9,7 @@ import { BAR_RADIUS, referenceLine, yAxisDefaults, type ReferenceLineVariant } f
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { baselineLine, type BaselineOptions } from '@/components/ui/chartBaseline'
 import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
+import { formatChartDate } from '@/lib/chartDateLabels'
 
 export interface BarConfig {
   key: string
@@ -229,7 +230,7 @@ export function renderBarDataTable(
   return chartDataTable<Record<string, unknown>>(
     rows,
     [
-      { header: rowHeaderName, rowHeader: true, value: (row) => axisLabel(row[labelKey]) },
+      { header: rowHeaderName, rowHeader: true, value: (row) => formatChartDate(axisLabel(row[labelKey])) },
       ...bars.map((bar) => ({
         header: bar.label ?? bar.key,
         value: (row: Record<string, unknown>) => formatValue(Number(row[bar.key]) || 0),

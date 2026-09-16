@@ -53,7 +53,7 @@ describe('TaxYearChart', () => {
 
       expect(
         screen.getByRole('img', {
-          name: /Cumulative tax uses the right scale from ₹0 to ₹6,10,600/,
+          name: /Cumulative tax uses the right scale from ₹0\.00 to ₹6,10,600\.00/,
         }),
       ).toBeInTheDocument()
 

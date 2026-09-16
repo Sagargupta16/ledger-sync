@@ -61,6 +61,27 @@ beforeEach(() => {
 })
 
 describe('tax planning income and deduction integration', () => {
+  it('defaults to annual liability and reconstructs partial-year income from annual payroll withholding', () => {
+    mocks.transactions.mockReturnValue({
+      ...ready,
+      data: Array.from({ length: 5 }, (_, index) => ({
+        id: `paid-month-${index}`, date: `2026-${String(index + 4).padStart(2, '0')}-28`,
+        amount: 206_550, type: 'Income', category: 'Employment Income',
+        subcategory: 'Salary', account: 'Bank',
+      })),
+    })
+    const { result } = renderHook(() => useTaxPlanning())
+    expect(result.current.useSalaryProjection).toBe(true)
+    expect(result.current.display.totalTax).toBeCloseTo(478_200, 1)
+    expect(result.current.paidTaxEstimate?.taxPaid).toBeCloseTo(199_250, 1)
+    expect(result.current.taxComputation.grossEmploymentIncome).toBeCloseTo(1_250_000, 1)
+    expect(result.current.taxComputation.estimatedTaxPaid).toBeCloseTo(199_250, 1)
+    expect(result.current.taxComputation.actualTaxPaid).toBeNull()
+    act(() => result.current.setShowProjection(false))
+    expect(result.current.paidTaxEstimate?.taxPaid).toBeCloseTo(199_250, 1)
+    expect(result.current.display.totalTax).toBeLessThan(result.current.paidTaxEstimate!.taxPaid)
+  })
+
   it('uses configured period EPF for recorded-net reconstruction and the paid-tax estimate', () => {
     const transactions = Array.from({ length: 12 }, (_, index): Transaction => {
       const calendarMonth = index + 4

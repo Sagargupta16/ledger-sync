@@ -4,6 +4,10 @@ Current for Ledger Sync 2.24.1.
 
 ## Production Topology
 
+The [release delivery diagram](diagrams/README.md#release-delivery) shows the CI
+and migration dependencies, Pages' backend-readiness gate, and the separate
+Vercel deployment path.
+
 | Layer | Platform | Production address |
 | --- | --- | --- |
 | Frontend | GitHub Pages | `https://sagargupta.online/ledger-sync/` |

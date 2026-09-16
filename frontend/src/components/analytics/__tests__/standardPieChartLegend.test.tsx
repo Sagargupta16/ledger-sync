@@ -15,7 +15,7 @@ describe('StandardPieChart allocation legend', () => {
 
     const rows = within(screen.getByRole('list', { name: 'Chart categories' })).getAllByRole('listitem')
     expect(within(rows[0]).getByText('Rent')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('₹30,000')).toBeInTheDocument()
+    expect(within(rows[0]).getByText('₹30,000.00')).toBeInTheDocument()
     expect(within(rows[0]).getByText('60.0%')).toBeInTheDocument()
     expect(within(rows[1]).getByText('Food')).toBeInTheDocument()
     expect(within(rows[1]).getByText('24.0%')).toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('StandardPieChart allocation legend', () => {
     const rows = within(legend).getAllByRole('listitem')
     const other = rows.at(-1) as HTMLElement
     expect(within(other).getByText('Other (6 categories)')).toBeInTheDocument()
-    expect(within(other).getByText('₹21,000')).toBeInTheDocument()
+    expect(within(other).getByText('₹21,000.00')).toBeInTheDocument()
     expect(within(other).getByText('26.9%')).toBeInTheDocument()
     expect(within(other).queryByRole('button')).not.toBeInTheDocument()
     fireEvent.click(other)

@@ -1,0 +1,27 @@
+{
+  "generator": "Archify",
+  "type": "dataflow",
+  "specification": {
+    "path": "financial-calculations.dataflow.json",
+    "sha256": "21f0bba11c8ea61f3cde80fd1d47b0b7606b3deba6fc9e656a4692971311282b",
+    "bytes": 2987
+  },
+  "artifact": {
+    "path": "financial-calculations.html",
+    "sha256": "2365e48adea9fbda1fdee329073fe30d92b4b22749b2c00c80fdc93de9af7995",
+    "bytes": 806580
+  },
+  "preview": {
+    "path": "financial-calculations.svg",
+    "sha256": "165aea2f79642ed6ad3184737da4c49caad8aa2a49ea40bd3e60fe1259739cfd",
+    "bytes": 293398
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

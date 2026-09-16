@@ -62,10 +62,14 @@ const JULY_ONLY_RESPONSE = {
 const incomeResponseRef: {
   current: typeof INCOME_RESPONSE | typeof JULY_ONLY_RESPONSE
 } = { current: INCOME_RESPONSE }
+const earningPreferences: { earning_start_date: string | null; use_earning_start_date: boolean } = {
+  earning_start_date: null, use_earning_start_date: false,
+}
+const earningEvidence: { date: string; category: string; subcategory: string; amount: number }[] = []
 
 vi.mock('@/hooks/api/usePreferences', () => ({
   usePreferences: () => ({
-    data: { fiscal_year_start_month: 4, non_taxable_income_categories: ['Cashback'] },
+    data: { fiscal_year_start_month: 4, non_taxable_income_categories: ['Cashback'], ...earningPreferences },
     isPending: false,
     isError: false,
     isSuccess: true,
@@ -75,6 +79,7 @@ vi.mock('@/hooks/api/usePreferences', () => ({
 
 vi.mock('@/services/api/calculations', () => ({
   calculationsApi: {
+    getCategoryDailySeries: vi.fn(() => Promise.resolve({ data: { data: earningEvidence } })),
     getIncomeAnalysis: vi.fn(() => Promise.resolve({ data: incomeResponseRef.current })),
     getDataDateRange: vi.fn(() =>
       Promise.resolve({
@@ -93,6 +98,11 @@ function wrapper({ children }: { children: ReactNode }) {
   )
 }
 
+beforeEach(() => {
+  earningPreferences.earning_start_date = null
+  earningEvidence.length = 0
+})
+
 describe('useIncomeAnalysis -- in-progress month', () => {
   beforeEach(() => {
     incomeResponseRef.current = INCOME_RESPONSE
@@ -102,6 +112,30 @@ describe('useIncomeAnalysis -- in-progress month', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('uses the saved start with cropping disabled, retaining selected history and totals', async () => {
+    earningPreferences.earning_start_date = '2026-05-01'
+    const { result } = renderHook(() => useIncomeAnalysis(), { wrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.avgIncome).toBe(175000)
+    expect(result.current.monthlyTrendData).toHaveLength(3)
+    expect(result.current.monthlyTrendData[0].month).toBe('2026-04')
+    expect(result.current.totalIncome).toBe(460000)
+    expect(result.current.earningsPeriodLabel).toContain('May 2026')
+    expect(result.current.earningStart.source).toBe('saved')
+  })
+
+  it('infers employment from independent category aggregates, ignoring earlier gifts', async () => {
+    earningEvidence.push(
+      { date: '2019-01-01', category: 'Gift', subcategory: 'Allowance', amount: 1000 },
+      { date: '2026-05-01', category: 'Employment Income', subcategory: 'Salary', amount: 150000 },
+    )
+    const { result } = renderHook(() => useIncomeAnalysis(), { wrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.avgIncome).toBe(175000)
+    expect(result.current.earningStart).toEqual({ date: '2026-05-01', source: 'inferred' })
+    expect(result.current.monthlyTrendData).toHaveLength(3)
   })
 
   it('keeps the partial month in the period total', async () => {

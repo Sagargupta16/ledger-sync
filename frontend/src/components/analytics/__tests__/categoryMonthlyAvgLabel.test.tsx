@@ -131,14 +131,14 @@ describe('CategoryBreakdown monthly-average row label', () => {
 
     // Travel: 60,000 over 12 months is 5,000/mo, but the printed 30,000 is the
     // per-active-month mean -- so the row has to say "in 2 of 12 mo".
-    expect(screen.getByText(/₹30,000\/mo in 2 of 12 mo/)).toBeInTheDocument()
+    expect(screen.getByText(/₹30,000\.00\/mo in 2 of 12 mo/)).toBeInTheDocument()
     expect(screen.queryByText(/\/mo avg/)).not.toBeInTheDocument()
   })
 
   it('states the full window for a category active every month', () => {
     renderBreakdown()
 
-    expect(screen.getByText(/₹30,000\/mo over 12 mo/)).toBeInTheDocument()
+    expect(screen.getByText(/₹30,000\.00\/mo over 12 mo/)).toBeInTheDocument()
   })
 
   it('keeps the label on one line beside the subcategory count at phone width', () => {
@@ -150,8 +150,8 @@ describe('CategoryBreakdown monthly-average row label', () => {
     Object.defineProperty(globalThis.window, 'innerWidth', { value: 375, configurable: true })
     try {
       renderBreakdown()
-      const meta = screen.getByText(/₹30,000\/mo over 12 mo/)
-      expect(meta.textContent).toBe('1 subcategory · ₹30,000/mo over 12 mo')
+      const meta = screen.getByText(/₹30,000\.00\/mo over 12 mo/)
+      expect(meta.textContent).toBe('1 subcategory · ₹30,000.00/mo over 12 mo')
       expect(meta.className).toContain('truncate')
     } finally {
       Object.defineProperty(globalThis.window, 'innerWidth', {

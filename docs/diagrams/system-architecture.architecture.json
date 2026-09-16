@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Ledger Sync architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1120, 690],
+    "repository": {
+      "url": "https://github.com/Sagargupta16/ledger-sync",
+      "revision": "a3a0958edcda2c1e03b4e8d7e3cb30a6dcc55997",
+      "link_mode": "local-only"
+    }
+  },
+  "components": [
+    { "id": "static-host", "type": "cloud", "label": "GitHub Pages", "sublabel": "Static app shell", "pos": [40, 65], "size": [230, 82], "sources": [{ "path": ".github/workflows/deploy-frontend.yml" }] },
+    { "id": "identity-services", "type": "security", "label": "Identity providers", "sublabel": "Google / GitHub OAuth", "pos": [440, 65], "size": [230, 82], "sources": [{ "path": "backend/src/ledger_sync/api/oauth.py" }] },
+    { "id": "browser-workspace", "type": "frontend", "label": "Browser workspace", "sublabel": "React, Query, Zustand", "pos": [40, 305], "size": [230, 82], "sources": [{ "path": "frontend/src/App.tsx" }, { "path": "frontend/src/lib/fileParser.ts" }] },
+    { "id": "finance-api", "type": "backend", "label": "FastAPI on Vercel", "sublabel": "Auth + financial services", "pos": [440, 305], "size": [230, 82], "sources": [{ "path": "backend/src/ledger_sync/api/main.py", "line": 297 }, { "path": "backend/src/ledger_sync/api/deps.py" }] },
+    { "id": "relational-ledger", "type": "database", "label": "Neon PostgreSQL", "sublabel": "Ledger, preferences, rollups", "pos": [850, 305], "size": [230, 82], "sources": [{ "path": "backend/src/ledger_sync/db/session.py" }, { "path": "backend/src/ledger_sync/db/models.py" }] },
+    { "id": "direct-models", "type": "external", "label": "OpenAI / Anthropic", "sublabel": "Browser-direct BYOK", "pos": [40, 545], "size": [230, 82], "sources": [{ "path": "frontend/src/components/chat/useChat.ts" }] },
+    { "id": "proxied-services", "type": "external", "label": "Service APIs", "sublabel": "Bedrock, stock prices, FX", "pos": [440, 545], "size": [230, 82], "sources": [{ "path": "backend/src/ledger_sync/api/ai_chat.py" }, { "path": "backend/src/ledger_sync/api/exchange_rates.py" }, { "path": "backend/src/ledger_sync/api/stock_price.py" }] }
+  ],
+  "connections": [
+    { "id": "load-static-shell", "from": "static-host", "to": "browser-workspace", "label": "HTTPS assets", "labelDy": 90 },
+    { "id": "authenticated-json", "from": "browser-workspace", "to": "finance-api", "label": "Bearer-token JSON", "variant": "emphasis" },
+    { "id": "scoped-sql", "from": "finance-api", "to": "relational-ledger", "label": "SQLAlchemy + pooler", "variant": "emphasis" },
+    { "id": "oauth-exchange", "from": "finance-api", "to": "identity-services", "label": "OAuth code exchange", "variant": "security" },
+    { "id": "direct-chat", "from": "browser-workspace", "to": "direct-models", "label": "Personal-key chat", "labelDy": 90 },
+    { "id": "service-proxy", "from": "finance-api", "to": "proxied-services", "label": "Server-side requests", "labelDy": 90 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Static delivery", "items": ["Pages serves files; the browser calls the API origin.", "The PWA does not cache API responses."] },
+    { "dot": "rose", "title": "Account isolation", "items": ["JWT and token-version checks identify the user.", "Financial queries and AI tools filter by user_id."] },
+    { "dot": "emerald", "title": "Local development", "items": ["Vite proxies /api to the local FastAPI server.", "SQLite replaces Neon for local data and tests."] }
+  ]
+}

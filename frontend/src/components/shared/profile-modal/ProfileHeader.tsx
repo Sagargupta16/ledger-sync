@@ -1,50 +1,64 @@
-import { Shield, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui'
-interface ProfileHeaderProps {
+interface ProfileIdentityProps {
   initials: string
   displayName: string
   email: string | undefined
   providerLabel: string
   memberSince: string | null
-  onClose: () => void
 }
 
-export function ProfileHeader(props: Readonly<ProfileHeaderProps>) {
-  const { initials, displayName, email, providerLabel, memberSince, onClose } = props
-
+export function ProfileHeader({ onClose }: Readonly<{ onClose: () => void }>) {
   return (
-    <div className="relative border-b border-[var(--hairline-1)] bg-[var(--overlay-1)] px-6 pt-6 pb-5">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute right-4 top-4 size-11 p-0 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
-      >
-        <X size={16} className="text-text-tertiary" aria-hidden="true" />
-      </Button>
+    <header className="shrink-0 border-b border-[var(--hairline-1)] px-4 py-4 sm:px-6 sm:py-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 id="profile-dialog-title" className="text-lg font-semibold tracking-tight">Profile &amp; account</h2>
+          <p id="profile-dialog-description" className="mt-1 text-xs leading-5 text-muted-foreground">
+            Your identity, sign-in details, and account controls.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          aria-label="Close profile"
+          className="shrink-0 p-0"
+        >
+          <X size={16} className="text-text-tertiary" aria-hidden="true" />
+        </Button>
+      </div>
+    </header>
+  )
+}
 
-      <div className="flex items-center gap-4">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-md border border-app-blue/30 bg-app-blue/15">
-          <span className="ledger-figure text-lg font-semibold text-app-blue">{initials}</span>
+export function ProfileIdentity({ initials, displayName, email, providerLabel, memberSince }: Readonly<ProfileIdentityProps>) {
+  return (
+    <div className="mb-5 border-b border-[var(--hairline-1)] pb-5">
+      <div className="flex items-center gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background" aria-hidden="true">
+          <span className="text-sm font-semibold">{initials}</span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-foreground truncate">{displayName}</h2>
-          <p className="text-sm text-muted-foreground truncate">{email}</p>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--overlay-3)] border border-[var(--hairline-2)] text-xs text-muted-foreground">
-              <Shield size={10} />
-              {providerLabel}
-            </span>
-            {memberSince && (
-              <span className="text-xs text-text-tertiary">Since {memberSince}</span>
-            )}
-          </div>
+          <p className="break-words text-sm font-semibold [overflow-wrap:anywhere]">{displayName}</p>
+          <p className="mt-0.5 break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{email}</p>
         </div>
       </div>
+      <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-xs leading-5">
+        <div>
+          <dt className="text-text-tertiary">Sign-in method</dt>
+          <dd className="font-medium">{providerLabel}</dd>
+        </div>
+        {memberSince && (
+          <div>
+            <dt className="text-text-tertiary">Member since</dt>
+            <dd className="font-medium">{memberSince}</dd>
+          </div>
+        )}
+      </dl>
     </div>
   )
 }

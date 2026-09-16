@@ -255,6 +255,11 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
   else if (cv <= moderateMax) desc = 'Moderate variability'
   else desc = 'Volatile income'
 
+  if (data.hasRecentIncome === false || data.totalIncome <= 0) {
+    score = 0
+    desc = 'No income in the recent stability window'
+  }
+
   return {
     name: 'Income Stability',
     score: Math.round(clamp(score, 0, 100)),
@@ -266,7 +271,9 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     details: [
       `Income variability (CV): ${cv.toFixed(1)}%`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
-      cv <= stableMax ? 'Predictable income stream' : 'Consider building a larger buffer',
+      data.hasRecentIncome === false || data.totalIncome <= 0
+        ? 'No recent income to assess for consistency'
+        : cv <= stableMax ? 'Predictable income stream' : 'Consider building a larger buffer',
     ],
   }
 }

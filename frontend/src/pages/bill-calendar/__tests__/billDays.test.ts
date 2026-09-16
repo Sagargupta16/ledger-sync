@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { getBillDaysForMonth, getDailyDays, getDaysInMonth } from '../billDays'
-import { buildBillMap } from '../billUtils'
+import { buildBillMap as buildBillMapAt } from '../billUtils'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
+
+const buildBillMap = (rows: RecurringTransaction[], year: number, month: number) =>
+  buildBillMapAt(rows, year, month, '2026-07-02')
 
 /**
  * The calendar-expansion switch had no branch for `daily`, so a daily bill fell
@@ -136,14 +139,44 @@ describe('getBillDaysForMonth -- other cadences', () => {
     expect(days.length).toBeLessThanOrEqual(5)
   })
 
-  it('falls back to expected_day for an unrecognized frequency', () => {
-    expect(getBillDaysForMonth(bill({ frequency: 'hourly' }), NON_LEAP_YEAR, JULY)).toEqual([
-      EXPECTED_DAY,
-    ])
+  it('does not invent a monthly schedule for an unrecognized frequency', () => {
+    expect(getBillDaysForMonth(bill({ frequency: 'hourly' }), NON_LEAP_YEAR, JULY)).toEqual([])
+  })
+
+  it('does not invent the phase of a multi-month bill with no anchor', () => {
+    expect(getBillDaysForMonth(
+      bill({ frequency: 'quarterly', next_expected: null, last_occurrence: null }),
+      NON_LEAP_YEAR, JANUARY,
+    )).toEqual([])
+  })
+
+  it('uses the known next date when the monthly expected day is missing', () => {
+    expect(getBillDaysForMonth(bill({ expected_day: null }), NON_LEAP_YEAR, JULY))
+      .toEqual([EXPECTED_DAY])
+  })
+
+  it('compares weekly dates as calendar days even with a posting time', () => {
+    expect(getBillDaysForMonth(
+      bill({ frequency: 'weekly', next_expected: '2026-07-31T18:30:00' }),
+      NON_LEAP_YEAR, JULY,
+    )).toEqual([3, 10, 17, 24, 31])
   })
 })
 
 describe('buildBillMap with a daily bill', () => {
+  it('uses the same accepted expense commitments as the recurring overview', () => {
+    const map = buildBillMap([
+      bill({ id: 1, name: 'Rent' }),
+      bill({ id: 2, name: 'Lunch', pattern_kind: 'habit' }),
+      bill({ id: 3, name: 'Paused', is_active: false }),
+      bill({ id: 4, name: 'Salary', type: 'Income' }),
+      bill({ id: 5, name: 'Unknown', pattern_kind: 'unknown' }),
+      bill({ id: 6, name: 'Manual bill', is_confirmed: true, last_occurrence: null }),
+      bill({ id: 7, name: 'Old detection', last_occurrence: '2025-01-01' }),
+    ], NON_LEAP_YEAR, JULY)
+    expect([...map.values()].flat().map((entry) => entry.name)).toEqual(['Rent', 'Manual bill'])
+  })
+
   it('places one entry per day and keys them uniquely', () => {
     const map = buildBillMap([bill({ frequency: 'daily' })], NON_LEAP_YEAR, JULY)
     expect(map.size).toBe(DAYS_IN_JULY)

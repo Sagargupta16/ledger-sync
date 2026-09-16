@@ -17,6 +17,9 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
@@ -57,7 +60,7 @@ function NetWorthTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload.length) return null
 
   return (
-    <div role="tooltip" style={{ ...CHART_TOOLTIP_STYLE, maxWidth: 'min(320px, calc(100vw - 144px))' }}>
+    <div role="tooltip" style={CHART_TOOLTIP_STYLE}>
       <p className="mb-3 border-b border-border/60 pb-2 text-xs font-medium text-foreground">
         {formatDate(tooltipLabelString(label), { month: 'long', day: 'numeric', year: 'numeric' })}
       </p>
@@ -198,6 +201,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const { hasNegativeNetWorth, stackedAllowed, effectiveStacked, plotData, animatedPointCount } = getNetWorthChartView(props)
   const { animate: animateSeries, isMobile } = useChartPresentation(animatedPointCount)
+  const range = useChartRange(plotData.map((row) => String(row.date)))
   const firstPoint = filteredNetWorthData[0]
   const lastPoint = filteredNetWorthData.at(-1)
   const showProjectionLine = showProjection && monthlyGrowth > 0 && !effectiveStacked
@@ -306,6 +310,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               effectiveStacked={effectiveStacked}
               showProjectionLine={showProjectionLine}
             />
+            {plotData.length > 6 && <ChartRangeControls range={range} label="Net worth chart range" />}
             <motion.div
               initial={motionEnabled ? { opacity: 0, y: 12 } : false}
               whileInView={{ opacity: 1, y: 0 }}
@@ -346,7 +351,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     dataKey="date"
                     allowDuplicatedCategory={false}
                     {...((showProjectionLine || spansYears) && {
-                      tickFormatter: (value: string) => formatDate(value, { month: 'short', year: '2-digit' }),
+                      tickFormatter: (value: string) => formatChartPeriod(value, true),
                     })}
                   />
                   <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
@@ -475,32 +480,16 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                       strokeWidth={2}
                     />
                   )}
-                  {/* Drag-to-zoom on the x-axis. Default window: most-recent third
-                  of the HISTORY. When projecting, chartData appends 60 months
-                  of forecast -- a blind "last third" window would show ONLY
-                  the flat dashed projection with zero historical context, so
-                  anchor the window to start ~12 months before "now" instead. */}
                   {plotData.length > 6 && (
                     <Brush
                       {...BRUSH_DEFAULTS}
                       dataKey="date"
                       tickFormatter={(value: string) =>
-                        formatDate(value, { month: 'short', year: '2-digit' })
+                        formatChartPeriod(value, true)
                       }
-                      startIndex={(() => {
-                        if (!showProjectionLine) {
-                          return Math.max(0, plotData.length - Math.ceil(plotData.length / 3))
-                        }
-                        // Last historical point = last row with a non-null netWorth.
-                        let anchorIdx = chartData.length - 1
-                        for (let i = chartData.length - 1; i >= 0; i--) {
-                          if (chartData[i].netWorth != null) {
-                            anchorIdx = i
-                            break
-                          }
-                        }
-                        return Math.max(0, anchorIdx - 12)
-                      })()}
+                      startIndex={range.startIndex}
+                      endIndex={range.endIndex}
+                      onChange={range.setRange}
                     />
                   )}
                 </AreaChart>
@@ -513,7 +502,6 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                     : 'The trend starts at zero and accumulates recorded income less expenses. Account balance totals above can differ.'}
                   {effectiveStacked && ' Category bands use current account proportions.'}
               </p>
-              {plotData.length > 6 && <p className="font-mono text-[10px]">Drag the handles to zoom</p>}
             </div>
             {lastProjection && typeof lastProjection.projected === 'number' && (
               <motion.p

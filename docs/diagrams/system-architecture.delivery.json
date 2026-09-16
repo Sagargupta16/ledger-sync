@@ -1,0 +1,34 @@
+{
+  "generator": "Archify",
+  "type": "architecture",
+  "specification": {
+    "path": "system-architecture.architecture.json",
+    "sha256": "c96c9209a10126698372eab68d1ad8c9f4ac76beefa9bc491e063e3b8056b7b6",
+    "bytes": 3544
+  },
+  "artifact": {
+    "path": "system-architecture.html",
+    "sha256": "ae40be714980ef332456e16d281467829ac7aff76dc17ab09487dbc6727b07fb",
+    "bytes": 805891
+  },
+  "preview": {
+    "path": "system-architecture.svg",
+    "sha256": "770603de6fdb872615b3f6b96ace4c8d21bd0da9f0ffab86c42ba63cd95f4acd",
+    "bytes": 291620
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/Sagargupta16/ledger-sync",
+    "revision": "a3a0958edcda2c1e03b4e8d7e3cb30a6dcc55997",
+    "references": 12,
+    "linkMode": "local-only"
+  }
+}

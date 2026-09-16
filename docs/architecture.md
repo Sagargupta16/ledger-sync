@@ -2,9 +2,14 @@
 
 Architecture reference for the current Ledger Sync source.
 
-Source walkthrough updated on 2026-09-10. The local Graphify graph is a
+Source walkthrough updated on 2026-09-16. The local Graphify graph is a
 navigation aid; the application entry points, routes, services, stores, models,
 and workflows define the contracts below.
+
+Start with the [Archify diagram guide](diagrams/README.md): it includes
+source-linked architecture, an import sequence, financial calculation paths,
+and the production release workflow. SVG previews work in repository docs;
+standalone HTML files add search, zoom, and themes.
 
 ## System Overview
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  adaptApiRecurring,
+  adaptApiRecurring as adaptRecurringAt,
   checkIsActive,
   classifyFrequency,
   computeExpectedNextDate,
@@ -9,6 +9,8 @@ import {
   sumMonthlyCommitment,
 } from '@/components/analytics/recurringUtils'
 import type { RecurringTransaction as ApiRecurringTransaction } from '@/services/api/analyticsV2'
+
+const adaptApiRecurring = (rows: ApiRecurringTransaction[]) => adaptRecurringAt(rows, '2026-07-02')
 
 /**
  * The adapter used to collapse the backend's eight frequency bands into three
@@ -83,8 +85,8 @@ describe('adaptApiRecurring', () => {
     expect(row.monthlyAmount).toBeCloseTo((PER_OCCURRENCE * DAYS_PER_YEAR) / MONTHS_PER_YEAR, 10)
   })
 
-  it('falls back to monthly for an unrecognized frequency', () => {
-    const [row] = adaptApiRecurring([apiRow({ frequency: null })])
+  it('keeps a confirmed item even when its frequency is missing', () => {
+    const [row] = adaptApiRecurring([apiRow({ frequency: null, is_confirmed: true })])
     expect(row.frequency).toBe('monthly')
     expect(row.monthlyAmount).toBe(PER_OCCURRENCE)
   })
@@ -95,6 +97,28 @@ describe('adaptApiRecurring', () => {
       apiRow({ id: 2, type: 'Expense' }),
     ])
     expect(rows).toHaveLength(1)
+  })
+
+  it('excludes habits, paused items, and unknown kinds from fixed costs', () => {
+    const rows = adaptApiRecurring([
+      apiRow({ id: 1, pattern_kind: 'habit' }),
+      apiRow({ id: 2, is_active: false }),
+      apiRow({ id: 3, pattern_kind: 'unknown' }),
+      apiRow({ id: 4, name: 'Manual obligation', is_confirmed: true, last_occurrence: null }),
+    ])
+    expect(rows.map((row) => row.pattern)).toEqual(['Manual obligation'])
+  })
+
+  it('leaves obsolete detections for review while keeping distinct current payees', () => {
+    const rows = adaptApiRecurring([
+      apiRow({ name: 'Old rent', last_occurrence: '2025-12-01' }),
+      apiRow({ name: 'Rent - Home A' }),
+      apiRow({ name: 'Rent - Home B' }),
+      apiRow({ name: 'Confirmed old bill', is_confirmed: true, last_occurrence: '2024-01-01' }),
+    ])
+    expect(rows.map((row) => row.pattern)).toEqual([
+      'Rent - Home A', 'Rent - Home B', 'Confirmed old bill',
+    ])
   })
 })
 

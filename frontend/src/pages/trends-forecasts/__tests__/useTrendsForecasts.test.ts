@@ -44,6 +44,9 @@ interface MonthlyTrend {
 
 const monthlyTrends: MonthlyTrend[] = []
 const transactions: Transaction[] = []
+const earningPreferences: { earning_start_date: string | null; use_earning_start_date: boolean } = {
+  earning_start_date: null, use_earning_start_date: false,
+}
 
 function month(m: string, income: number, expenses: number): MonthlyTrend {
   return { month: m, income, expenses, surplus: income - expenses }
@@ -89,7 +92,7 @@ vi.mock('@/hooks/api/useTransactions', () => ({
 
 vi.mock('@/hooks/api/usePreferences', () => ({
   usePreferences: () => ({
-    data: { fiscal_year_start_month: 4, savings_goal_percent: 20 },
+    data: { fiscal_year_start_month: 4, savings_goal_percent: 20, ...earningPreferences },
     isPending: false,
     isError: false,
     isSuccess: true,
@@ -99,6 +102,7 @@ vi.mock('@/hooks/api/usePreferences', () => ({
 
 describe('useTrendsForecasts -- monthly average divisors', () => {
   beforeEach(() => {
+    earningPreferences.earning_start_date = null
     vi.useFakeTimers({ shouldAdvanceTime: true })
     // 2026-07-26: the real reference day. July is 26 of 31 days in.
     vi.setSystemTime(new Date(2026, 6, 26))
@@ -107,6 +111,22 @@ describe('useTrendsForecasts -- monthly average divisors', () => {
   afterEach(() => {
     vi.useRealTimers()
     seed([])
+  })
+
+  it('bounds averages by saved employment but retains selected chart history and empty months', () => {
+    earningPreferences.earning_start_date = '2026-05-01'
+    seed([
+      month('2026-04', 1000, 500),
+      month('2026-05', 100000, 40000),
+      month('2026-07', 10000, 5000),
+    ])
+    const { result } = renderHook(() => useTrendsForecasts())
+    expect(result.current.metrics.income.average).toBe(50000)
+    expect(result.current.metrics.income.current).toBe(0)
+    expect(result.current.metrics.income.changePercent).toBe(-100)
+    expect(result.current.averageMonthCount).toBe(2)
+    expect(result.current.monthlyTrendWithAvg.map((row) => row.month)).toEqual(['2026-04', '2026-05', '2026-06'])
+    expect(result.current.earningsPeriodLabel).toContain('May 2026')
   })
 
   it('averages a 3-month series over 3 months, not 12', () => {

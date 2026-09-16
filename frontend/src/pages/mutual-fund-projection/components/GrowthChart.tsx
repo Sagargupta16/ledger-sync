@@ -19,6 +19,7 @@ import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
+import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { useMotionStore } from '@/store/motionStore'
 
 import type { ChartDataPoint } from '../types'
@@ -50,8 +51,8 @@ function GrowthTooltip({ active, payload }: TooltipContentProps) {
   ]
 
   return (
-    <div role="tooltip" style={{ ...CHART_TOOLTIP_STYLE, maxWidth: 'min(320px, calc(100vw - 144px))' }}>
-      <p className="mb-2 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{point.month}</p>
+    <div role="tooltip" style={CHART_TOOLTIP_STYLE}>
+      <p className="mb-2 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{formatChartDate(point.month)}</p>
       <p className="mb-3 text-[10px] text-muted-foreground">
         {point.isHistorical ? 'Contribution history · allocated value' : 'Projection · scenario estimate'}
       </p>
@@ -154,6 +155,7 @@ function GrowthChartContent(props: Readonly<GrowthChartContentProps>) {
             <XAxis
               {...xAxisDefaults(chartData.length)}
               dataKey="month"
+              tickFormatter={(value: string) => formatChartPeriod(value)}
               interval="preserveStartEnd"
               minTickGap={isMobile ? 48 : 64}
               height={44}

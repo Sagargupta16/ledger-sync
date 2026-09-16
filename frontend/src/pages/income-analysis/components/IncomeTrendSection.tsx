@@ -1,12 +1,16 @@
 import { motion } from 'motion/react'
 import { TrendingUp } from 'lucide-react'
-import { Area, ComposedChart, CartesianGrid, Line, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, Brush, ComposedChart, CartesianGrid, Line, Tooltip, XAxis, YAxis } from 'recharts'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { BRUSH_DEFAULTS } from '@/components/ui/chartDefaults'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import {
   ACTIVE_DOT,
   ChartContainer,
@@ -51,6 +55,7 @@ export default function IncomeTrendSection({
 }: IncomeTrendSectionProps) {
   const dimensions = useChartDimensions()
   const { animate } = useChartPresentation(data.length)
+  const range = useChartRange(data.map((row) => row.month))
 
   return (
     <motion.section
@@ -97,9 +102,10 @@ export default function IncomeTrendSection({
                 </li>
               </ul>
               <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                {data[0].label} to {data.at(-1)?.label}
+                {formatChartPeriod(data[0].month)} to {formatChartPeriod(data.at(-1)!.month)}
               </p>
             </div>
+            {data.length > 6 && <ChartRangeControls range={range} label="Income chart range" />}
             <ChartContainer
               height={360}
               mobileHeight={260}
@@ -110,7 +116,8 @@ export default function IncomeTrendSection({
                 <CartesianGrid {...GRID_DEFAULTS} />
                 <XAxis
                   {...xAxisDefaults(data.length)}
-                  dataKey="label"
+                  dataKey="month"
+                  tickFormatter={(value: string) => formatChartPeriod(value)}
                   interval={dimensions.breakpoint === 'mobile' ? 'preserveStartEnd' : xAxisDefaults(data.length).interval}
                 />
                 <YAxis {...yAxisDefaults({ width: dimensions.breakpoint === 'mobile' ? 56 : 64 })} />
@@ -173,6 +180,9 @@ export default function IncomeTrendSection({
                   animationDuration={700}
                   animationEasing="ease-out"
                 />
+                {data.length > 6 && (
+                  <Brush {...BRUSH_DEFAULTS} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} startIndex={range.startIndex} endIndex={range.endIndex} onChange={range.setRange} />
+                )}
               </ComposedChart>
             </ChartContainer>
             <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-relaxed text-muted-foreground">

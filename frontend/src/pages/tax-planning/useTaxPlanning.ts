@@ -34,7 +34,7 @@ export function useTaxPlanning() {
   const allTransactions = transactionsQuery.data
   const preferences = preferencesQuery.data
   const [selectedFY, setSelectedFY] = useState<string>('')
-  const [showProjection, setShowProjection] = useState(false)
+  const [showProjection, setShowProjection] = useState(true)
 
   const salaryStructure = usePreferencesStore(selectSalaryStructure)
   const rsuGrants = usePreferencesStore(selectRsuGrants)
@@ -74,8 +74,10 @@ export function useTaxPlanning() {
         incomeClassification,
         epfTaxableFraction,
         salaryStructure,
+        { salaryStructure, rsuGrants, growthAssumptions, preferredRegime, regimeOverride, salaryIsNetOfTds },
       ),
-    [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction, salaryStructure],
+    [allTransactions, fiscalYearStartMonth, incomeClassification, epfTaxableFraction, salaryStructure,
+      rsuGrants, growthAssumptions, preferredRegime, regimeOverride, salaryIsNetOfTds],
   )
 
   const txFyList = useMemo(
@@ -136,6 +138,8 @@ export function useTaxPlanning() {
       hasEmploymentIncome: currentFYData?.hasEmploymentIncome ?? false,
       recordedEmploymentIncome: currentFYData?.employmentTaxableIncome ?? 0,
       recordedEmploymentCashDeductions: currentFYData?.recordedEmploymentCashDeductions ?? 0,
+      estimatedGrossEmploymentIncome: currentFYData?.estimatedGrossEmploymentIncome,
+      estimatedEmploymentWithholding: currentFYData?.estimatedEmploymentWithholding,
     },
   ), [
     effectiveFY, netTaxableIncome, salaryMonthsCount, regimeOverride,

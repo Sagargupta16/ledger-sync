@@ -52,11 +52,9 @@ export default function TrendsForecastsPage() {
       <TrendSummaryGrid metrics={trends.metrics} isLoading={trends.isLoading} />
       {!trends.isLoading && trends.averageMonthCount > 0 && (
         <p className="max-w-3xl text-sm leading-relaxed text-text-tertiary">
-          Averages and trends cover{' '}
-          <span className="font-medium text-foreground tabular-nums">
-            {trends.averageMonthCount}
-          </span>{' '}
-          completed {trends.averageMonthCount === 1 ? 'month' : 'months'} of data.{' '}
+          Averages: {trends.earningsPeriodLabel}.{' '}
+          {trends.earningStart.source === 'unknown' ? 'Employment start unconfirmed.' : `Employment start ${trends.earningStart.date} (${trends.earningStart.source}).`}{' '}
+          Zero-income months after employment are included. Chart history follows the selected period.{' '}
           {rollingAvgCaption(trends.rollingAvgPointCount, trends.rollingAvgMonths)}
         </p>
       )}

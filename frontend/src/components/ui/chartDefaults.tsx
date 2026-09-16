@@ -322,6 +322,7 @@ function renderBrushTraveller({
  */
 function buildBrushDefaults() {
   return {
+    ariaLabel: 'Chart date range. Use Custom for labelled start and end controls.',
     height: 34,
     travellerWidth: 16,
     traveller: (props: { x: number; y: number; width: number; height: number }) =>

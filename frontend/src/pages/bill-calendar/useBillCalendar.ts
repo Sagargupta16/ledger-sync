@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
-import { MS_PER_DAY } from '@/lib/dateUtils'
-import { buildBillMap, findNextUpcomingBill, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
+import { getTodayKey, MS_PER_DAY } from '@/lib/dateUtils'
+import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
+import { buildBillMap, findNextUpcomingBill, getBillDaysForMonth, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
 import type { PlacedBill } from './types'
 
 interface CalendarCell {
@@ -16,9 +17,17 @@ export function useBillCalendar() {
   // are not owed, so plotting them filled the grid with lunch purchases.
   const recurringQuery = useRecurringTransactions({
     active_only: true,
+    min_confidence: 0,
     pattern_kind: 'commitment',
   })
   const { data: recurringTransactions, isLoading, isError } = recurringQuery
+  const asOfDateKey = getTodayKey()
+  const acceptedBills = useMemo(
+    () => (recurringTransactions ?? []).filter(
+      (item) => item.type === 'Expense' && isAcceptedRecurringCommitment(item, asOfDateKey),
+    ),
+    [recurringTransactions, asOfDateKey],
+  )
 
   const now = useMemo(() => new Date(), [])
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
@@ -55,8 +64,13 @@ export function useBillCalendar() {
   }
 
   const billMap = useMemo(
-    () => buildBillMap(recurringTransactions ?? [], viewYear, viewMonth),
-    [recurringTransactions, viewYear, viewMonth],
+    () => buildBillMap(acceptedBills, viewYear, viewMonth, asOfDateKey),
+    [acceptedBills, viewYear, viewMonth, asOfDateKey],
+  )
+  const unscheduledBills = useMemo(
+    () => acceptedBills.filter((item) => !Array.from({ length: 12 }, (_, month) => month)
+      .some((month) => getBillDaysForMonth(item, viewYear, month).length > 0)),
+    [acceptedBills, viewYear],
   )
 
   const calendarGrid = useMemo<CalendarCell[]>(() => {
@@ -128,7 +142,7 @@ export function useBillCalendar() {
     return billMap.get(selectedDay) ?? []
   }, [billMap, selectedDay])
 
-  const hasAnyData = Boolean(recurringTransactions && recurringTransactions.length > 0)
+  const hasAnyData = acceptedBills.length > 0
   const isCurrentViewToday = viewYear === now.getFullYear() && viewMonth === now.getMonth()
   const retry = () => {
     void recurringQuery.refetch()
@@ -151,6 +165,7 @@ export function useBillCalendar() {
     isError,
     retry,
     hasAnyData,
+    unscheduledBills,
     isCurrentViewToday,
   }
 }

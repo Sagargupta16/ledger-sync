@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { PiggyBank } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Brush, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -8,6 +8,10 @@ import { chartDataTable } from '@/components/ui/chartDataTable'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { BRUSH_DEFAULTS } from '@/components/ui/chartDefaults'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import {
   ACTIVE_DOT,
   areaGradient,
@@ -23,7 +27,7 @@ import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { tooltipLabelString } from '@/lib/chartUtils'
-import { formatDate } from '@/lib/formatters'
+import { formatDate, formatPercent } from '@/lib/formatters'
 
 import type { useTrendsForecasts } from '../useTrendsForecasts'
 
@@ -42,6 +46,7 @@ export default function SavingsRateSection({
 }: SavingsRateSectionProps) {
   const dims = useChartDimensions()
   const { animate } = useChartPresentation(data.length)
+  const range = useChartRange(data.map((row) => row.date))
 
   return (
     <motion.section
@@ -70,7 +75,7 @@ export default function SavingsRateSection({
           <dl className="shrink-0 sm:text-right">
             <dt className="text-xs text-muted-foreground">Latest cumulative rate</dt>
             <dd className={`mt-1 font-mono text-3xl font-semibold tabular-nums ${(data.at(-1)?.savingsRate ?? 0) < 0 ? 'text-app-red' : 'text-app-blue'}`}>
-              {data.at(-1)?.savingsRate.toFixed(1)}%
+              {formatPercent(data.at(-1)?.savingsRate ?? 0)}
             </dd>
             <dd className="mt-1 text-xs text-muted-foreground">
               {formatDate(data.at(-1)?.date ?? '', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -96,6 +101,7 @@ export default function SavingsRateSection({
               0% break-even
             </li>
           </ul>
+          {data.length > 6 && <ChartRangeControls range={range} label="Savings rate chart range" />}
           <ChartContainer
             height={300}
             mobileHeight={260}
@@ -146,7 +152,7 @@ export default function SavingsRateSection({
                 formatter={(value) => {
                   const actual = typeof value === 'number' ? value : Number(value) || 0
                   const label =
-                    actual < 0 ? `${actual.toFixed(1)}% (deficit)` : `${actual.toFixed(1)}%`
+                    actual < 0 ? `${formatPercent(actual)} (deficit)` : formatPercent(actual)
                   return [label, 'Cumulative Savings Rate']
                 }}
               />
@@ -167,6 +173,9 @@ export default function SavingsRateSection({
                 animationDuration={700}
                 animationEasing="ease-out"
               />
+              {data.length > 6 && (
+                <Brush {...BRUSH_DEFAULTS} dataKey="date" tickFormatter={(value: string) => formatChartPeriod(value)} startIndex={range.startIndex} endIndex={range.endIndex} onChange={range.setRange} />
+              )}
             </AreaChart>
           </ChartContainer>
           {chartDataTable(

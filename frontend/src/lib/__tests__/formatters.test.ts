@@ -38,10 +38,9 @@ describe('formatters with currency conversion', () => {
     })
   })
 
-  describe('formatCurrency drops only a zero fraction', () => {
-    it('drops the ".00" at lakh scale (the KPI defect)', () => {
-      // Was "₹80,66,209.00" -- two zeros that only impede reading the magnitude.
-      expect(formatCurrency(8066209)).toBe('₹80,66,209')
+  describe('formatCurrency consistently shows two decimals', () => {
+    it('retains ".00" at lakh scale', () => {
+      expect(formatCurrency(8066209)).toBe('₹80,66,209.00')
     })
 
     it('keeps decimals on a large value that does have paise', () => {
@@ -50,8 +49,8 @@ describe('formatters with currency conversion', () => {
       expect(formatCurrency(1281.57)).toBe('₹1,281.57')
     })
 
-    it('drops decimals on a small exact-integer value', () => {
-      expect(formatCurrency(182)).toBe('₹182')
+    it('retains decimals on a small exact-integer value', () => {
+      expect(formatCurrency(182)).toBe('₹182.00')
     })
 
     it('keeps decimals on a small value with real paise', () => {
@@ -61,7 +60,7 @@ describe('formatters with currency conversion', () => {
 
     it('keeps decimals on both sides of the old 1,000 threshold', () => {
       expect(formatCurrency(999.99)).toBe('₹999.99')
-      expect(formatCurrency(1000)).toBe('₹1,000')
+      expect(formatCurrency(1000)).toBe('₹1,000.00')
       expect(formatCurrency(1000.25)).toBe('₹1,000.25')
     })
 
@@ -73,14 +72,14 @@ describe('formatters with currency conversion', () => {
       expect(parts.map((part) => formatCurrency(part))).toEqual([
         '₹1,281.57',
         '₹833.69',
-        '₹173',
+        '₹173.00',
       ])
       expect(formatCurrency(total)).toBe('₹2,288.26')
     })
 
     it('keeps one row internally consistent (budget limit/spent/remaining)', () => {
       // Was "Budget ₹5,000 / Spent ₹4,501 / Remaining ₹499.40" in a single row.
-      expect(formatCurrency(5000)).toBe('₹5,000')
+      expect(formatCurrency(5000)).toBe('₹5,000.00')
       expect(formatCurrency(4500.6)).toBe('₹4,500.60')
       expect(formatCurrency(5000 - 4500.6)).toBe('₹499.40')
     })
@@ -91,25 +90,21 @@ describe('formatters with currency conversion', () => {
       expect(formatCurrency(-45.75)).toBe('₹-45.75')
       expect(formatCurrency(-999.5)).toBe('₹-999.50')
       expect(formatCurrency(-5000.5)).toBe('₹-5,000.50')
-      expect(formatCurrency(-8066209)).toBe('₹-80,66,209')
+      expect(formatCurrency(-8066209)).toBe('₹-80,66,209.00')
     })
 
-    it('renders zero without decimals and without a sign', () => {
-      expect(formatCurrency(0)).toBe('₹0')
-      // Float-sum residue must not surface as "-₹0".
-      expect(formatCurrency(-0.0000001)).toBe('₹0')
-      expect(formatCurrency(-0)).toBe('₹0')
+    it('renders zero with two decimals and without a sign', () => {
+      expect(formatCurrency(0)).toBe('₹0.00')
+      expect(formatCurrency(-0.0000001)).toBe('₹0.00')
+      expect(formatCurrency(-0)).toBe('₹0.00')
     })
 
-    it('respects a 0-decimal currency (JPY has no sub-unit)', () => {
-      // Rate 1 isolates the decimals rule from the FX arithmetic. It must be a
-      // real rate, not null: a currency with no rate is no longer rendered as
-      // that currency at all (an unconvertible amount labelled with a foreign
-      // symbol was the AED money-lie), so a null here would format as INR.
+    it('uses the same detailed display precision for JPY', () => {
       usePreferencesStore.setState({ displayCurrency: 'JPY', exchangeRate: 1 })
-      expect(formatCurrency(1234.56)).toBe('¥1,235')
-      expect(formatCurrency(12.5)).toBe('¥13')
-      expect(formatCurrency(0.4)).toBe('¥0')
+      expect(formatCurrency(1234.56)).toBe('¥1,234.56')
+      expect(formatCurrency(12.5)).toBe('¥12.50')
+      expect(formatCurrency(0.4)).toBe('¥0.40')
+      expect(formatCurrency(1000)).toBe('¥1,000.00')
     })
 
     it('reads the fraction off the CONVERTED value, not the base value', () => {
@@ -117,7 +112,7 @@ describe('formatters with currency conversion', () => {
       // decided post-FX.
       usePreferencesStore.setState({ displayCurrency: 'USD', exchangeRate: 0.01187 })
       expect(formatCurrency(50000)).toBe('$593.50')
-      expect(formatCurrency(100000)).toBe('$1,187')
+      expect(formatCurrency(100000)).toBe('$1,187.00')
       expect(formatCurrency(8066209)).toBe('$95,745.90')
     })
 
@@ -126,7 +121,7 @@ describe('formatters with currency conversion', () => {
       // what is under test, and a rateless currency now renders as INR.
       usePreferencesStore.setState({ displayCurrency: 'SEK', exchangeRate: 1 })
       // sv-SE groups with a non-breaking space (U+00A0), not a plain space.
-      expect(formatCurrency(12345)).toBe('12 345kr')
+      expect(formatCurrency(12345)).toBe('12 345,00kr')
       expect(formatCurrency(123.45)).toBe('123,45kr')
     })
   })
@@ -193,12 +188,10 @@ describe('formatters with currency conversion', () => {
       expect(formatCurrencyCompact(1679.5)).toBe('₹1,680')
     })
 
-    it('formatCurrencyCompact agrees with formatCurrency on the rounded value', () => {
-      // Both formatters round half away from zero, so compact(v) must read the
-      // same as formatCurrency applied to that same rounded whole number.
+    it('compact and detailed rounding agree apart from decimal padding', () => {
       for (const value of [-2500.5, -1679.5, -0.4, 0, 1679.5, 8066209.45]) {
         const rounded = Math.sign(value) * Math.round(Math.abs(value))
-        expect(formatCurrencyCompact(value)).toBe(formatCurrency(rounded))
+        expect(`${formatCurrencyCompact(value)}.00`).toBe(formatCurrency(rounded))
       }
     })
 
@@ -226,7 +219,7 @@ describe('formatters with currency conversion', () => {
       // unconverted amount, which was the defect: see
       // formattersCurrencyIntegrity.test.ts.
       const result = formatCurrency(100000)
-      expect(result).toBe('₹1,00,000')
+      expect(result).toBe('₹1,00,000.00')
     })
   })
 })

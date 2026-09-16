@@ -1,0 +1,4 @@
+# Delivery receipts bind exact bytes across Windows and Unix checkouts.
+# No *.html rule: the generated viewers are gitignored, so git never sees them.
+*.json text eol=lf
+*.svg text eol=lf

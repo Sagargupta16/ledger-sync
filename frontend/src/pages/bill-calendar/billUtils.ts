@@ -1,5 +1,7 @@
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
+import { getTodayKey } from '@/lib/dateUtils'
+import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { getBillDaysForMonth, getDaysInMonth } from './billDays'
 import { CATEGORY_COLORS, type PlacedBill } from './types'
 
@@ -54,6 +56,7 @@ export function buildBillMap(
   transactions: RecurringTransaction[],
   year: number,
   month: number,
+  asOfDateKey: string = getTodayKey(),
 ): Map<number, PlacedBill[]> {
   const map = new Map<number, PlacedBill[]>()
 
@@ -64,6 +67,7 @@ export function buildBillMap(
   }
 
   for (const tx of transactions) {
+    if (tx.type !== 'Expense' || !isAcceptedRecurringCommitment(tx, asOfDateKey)) continue
     const days = getBillDaysForMonth(tx, year, month)
     for (const day of days) {
       addBill(day, {

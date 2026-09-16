@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { LineChart as LineChartIcon } from 'lucide-react'
 import {
   Area,
+  Brush,
   ComposedChart,
   CartesianGrid,
   Line,
@@ -17,6 +18,10 @@ import { chartDataTable } from '@/components/ui/chartDataTable'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { BRUSH_DEFAULTS } from '@/components/ui/chartDefaults'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import {
   ACTIVE_DOT,
   areaGradient,
@@ -70,6 +75,7 @@ export default function MonthlyTrendSection({
   onActiveLabelChange,
 }: MonthlyTrendSectionProps) {
   const dims = useChartDimensions()
+  const range = useChartRange(data.map((row) => row.month))
   const series = [
     {
       id: 'trendIncome',
@@ -98,7 +104,7 @@ export default function MonthlyTrendSection({
   ] as const
   const { animate: animateCharts } = useChartPresentation(data.length * series.length * 2)
   const maxVisibleLabels = MAX_VISIBLE_LABELS[dims.breakpoint]
-  const xAxisInterval = Math.max(0, Math.ceil(data.length / maxVisibleLabels) - 1)
+  const xAxisInterval = Math.max(0, Math.ceil((range.endIndex - range.startIndex + 1) / maxVisibleLabels) - 1)
 
   return (
     <motion.section
@@ -124,12 +130,13 @@ export default function MonthlyTrendSection({
         </div>
         {data.length > 0 && (
           <p className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-            {data[0].label} to {data.at(-1)?.label}
+            {formatChartPeriod(data[0].month)} to {formatChartPeriod(data.at(-1)!.month)}
           </p>
         )}
       </div>
 
       {isLoading && <ChartSkeleton height="h-80" />}
+      {!isLoading && data.length > 6 && <ChartRangeControls range={range} label="Monthly trends chart range" />}
       {!isLoading && data.length > 0 && (
         <div className="divide-y divide-border">
           {series.map(({ id, color, label, dataKey, avgKey, peak }) => (
@@ -185,7 +192,8 @@ export default function MonthlyTrendSection({
                     <CartesianGrid {...GRID_DEFAULTS} />
                     <XAxis
                       {...xAxisDefaults(data.length)}
-                      dataKey="label"
+                      dataKey="month"
+                      tickFormatter={(value: string) => formatChartPeriod(value)}
                       interval={xAxisInterval}
                     />
                     <YAxis
@@ -254,6 +262,9 @@ export default function MonthlyTrendSection({
                       animationDuration={700}
                       animationEasing="ease-out"
                     />
+                    {data.length > 6 && (
+                      <Brush {...BRUSH_DEFAULTS} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} startIndex={range.startIndex} endIndex={range.endIndex} onChange={range.setRange} />
+                    )}
                   </ComposedChart>
                 </ChartContainer>
                 {chartDataTable(

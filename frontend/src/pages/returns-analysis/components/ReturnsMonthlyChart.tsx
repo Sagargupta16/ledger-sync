@@ -23,6 +23,9 @@ import {
   yAxisDefaults,
 } from '@/components/ui'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import { useChartRange } from '@/components/ui/useChartRange'
+import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
@@ -76,8 +79,8 @@ function ComboTooltip({
   ]
 
   return (
-    <div role="tooltip" style={{ ...CHART_TOOLTIP_STYLE, maxWidth: 'min(320px, calc(100vw - 144px))' }}>
-      <p className="mb-3 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{point.month}</p>
+    <div role="tooltip" style={CHART_TOOLTIP_STYLE}>
+      <p className="mb-3 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{formatChartDate(point.month)}</p>
       <dl className="space-y-2">
         {rows.map((row) => (
           <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
@@ -106,6 +109,7 @@ export default function ReturnsMonthlyChart({
   // startIndex kicked in, which it does for any series over 6 months) every bar
   // wore the colour of a different month's profit or loss.
   const { animate: animateSeries, isMobile } = useChartPresentation(data.length * 2)
+  const range = useChartRange(data.map((row) => row.month))
   const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const bars = data.map((datum) => ({
     ...datum,
@@ -155,7 +159,7 @@ export default function ReturnsMonthlyChart({
             </div>
             {latest && (
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Latest month · {latest.month}</p>
+                <p className="text-xs text-muted-foreground">Latest month · {formatChartPeriod(latest.month)}</p>
                 <NetValue
                   value={latest.net}
                   className="mt-1 break-words font-mono text-lg font-semibold tabular-nums"
@@ -171,6 +175,7 @@ export default function ReturnsMonthlyChart({
             ]}
             caption={`Break-even at ${formatCurrency(0)}`}
           />
+          {data.length > 6 && <ChartRangeControls range={range} label="Investment returns chart range" />}
           <motion.div
             initial={motionEnabled ? { opacity: 0, y: 12 } : false}
             whileInView={{ opacity: 1, y: 0 }}
@@ -184,7 +189,7 @@ export default function ReturnsMonthlyChart({
             >
               <ComposedChart data={bars} margin={{ top: 20, right: 12, bottom: 8, left: 0 }}>
                 <CartesianGrid {...GRID_DEFAULTS} />
-                <XAxis {...xAxisDefaults(data.length)} dataKey="month" minTickGap={isMobile ? 36 : 56} interval="preserveStartEnd" height={44} />
+                <XAxis {...xAxisDefaults(data.length)} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} minTickGap={isMobile ? 36 : 56} interval="preserveStartEnd" height={44} />
                 <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
                 <Tooltip {...chartTooltipProps} content={ComboTooltip} />
                 <ReferenceLine
@@ -218,7 +223,10 @@ export default function ReturnsMonthlyChart({
                   <Brush
                     {...BRUSH_DEFAULTS}
                     dataKey="month"
-                    startIndex={Math.max(0, data.length - Math.ceil(data.length / 3))}
+                    tickFormatter={(value: string) => formatChartPeriod(value)}
+                    startIndex={range.startIndex}
+                    endIndex={range.endIndex}
+                    onChange={range.setRange}
                   />
                 )}
               </ComposedChart>
@@ -226,12 +234,11 @@ export default function ReturnsMonthlyChart({
           </motion.div>
           <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
             <p>Income and booked gains, less realised losses and broker costs.</p>
-            {data.length > 6 && <p className="font-mono text-[10px]">Drag the handles to zoom</p>}
           </div>
           {chartDataTable(
             data,
             [
-              { header: 'Month', rowHeader: true, value: (row) => row.month },
+              { header: 'Month', rowHeader: true, value: (row) => formatChartDate(row.month) },
               { header: 'Income', value: (row) => formatCurrency(row.income) },
               { header: 'Expenses', value: (row) => formatCurrency(row.expenses) },
               { header: 'Monthly net', value: (row) => formatCurrency(row.net) },
