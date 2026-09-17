@@ -10,7 +10,6 @@ responses.
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core import rules as rules_engine
@@ -42,7 +41,7 @@ def _to_rule_response(rule: CategorizationRule) -> CategorizationRuleResponse:
 
 
 @router.get("")
-async def list_rules(
+def list_rules(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> list[CategorizationRuleResponse]:
@@ -57,7 +56,7 @@ async def list_rules(
 
 
 @router.post("", status_code=201)
-async def create_rule(
+def create_rule(
     payload: CategorizationRuleCreateRequest,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -79,7 +78,7 @@ async def create_rule(
 
 
 @router.put("/{rule_id}", responses={404: {"description": "Rule not found"}})
-async def update_rule(
+def update_rule(
     rule_id: int,
     payload: CategorizationRuleUpdateRequest,
     current_user: CurrentUser,
@@ -107,7 +106,7 @@ async def update_rule(
 
 
 @router.delete("/{rule_id}", status_code=204)
-async def delete_rule(
+def delete_rule(
     rule_id: int,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -124,31 +123,30 @@ async def delete_rule(
 
 
 @router.post("/apply")
-async def apply_rules(
+def apply_rules(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> RulesApplyResponse:
     """Apply all active rules to the user's live non-transfer transactions.
 
-    Updated rows get NEW transaction_id values (category feeds the dedup
-    hash) and their tags are migrated server-side. Analytics tables bake
-    in categories, so a full analytics rebuild runs afterwards --
-    non-fatally: the apply itself still succeeds if the rebuild fails.
+    The rules engine invalidates changed dates in its write transaction.
+    Refresh afterwards is non-fatal: the apply still succeeds if analytics fail.
     """
-    matched, updated = rules_engine.apply_rules_retroactively(db, current_user.id)
+    user_id = current_user.id
+    matched, updated = rules_engine.apply_rules_retroactively(db, user_id)
 
     analytics_refreshed = True
     try:
-        analytics = AnalyticsEngine(db, user_id=current_user.id)
-        analytics.run_full_analytics(source_file="rules_apply")
-    except (OSError, RuntimeError, ValueError, OperationalError) as exc:
+        analytics = AnalyticsEngine(db, user_id=user_id)
+        analytics.refresh_analytics(source_file="rules_apply")
+    except Exception as exc:
         # Don't fail the apply if the analytics rebuild blows up -- the
         # category rewrites are already committed; the user can re-run
         # POST /api/analytics/v2/refresh.
         logger.warning(
-            "Post-apply analytics refresh failed for user_id=%s: %s",
-            current_user.id,
-            exc,
+            "Post-apply analytics refresh failed for user_id=%s (%s)",
+            user_id,
+            type(exc).__name__,
         )
         db.rollback()
         analytics_refreshed = False

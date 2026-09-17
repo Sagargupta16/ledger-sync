@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.db.models import User, UserPreferences
 
 # ----- Pydantic Models -----
@@ -437,8 +438,11 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
     )
 
 
-def _get_or_create_preferences(session: Session, user: User) -> UserPreferences:
-    """Get existing preferences or create defaults for a user."""
+def _get_or_create_preferences(
+    session: Session, user: User, *, commit: bool = True
+) -> UserPreferences:
+    """Get defaults under the user lock; mutation callers keep one transaction."""
+    lock_analytics_user(session, user.id)
     result = session.execute(select(UserPreferences).where(UserPreferences.user_id == user.id))
     prefs = result.scalar_one_or_none()
 
@@ -446,9 +450,36 @@ def _get_or_create_preferences(session: Session, user: User) -> UserPreferences:
         # Create default preferences for this user
         prefs = UserPreferences(user_id=user.id)
         session.add(prefs)
-        session.commit()
-        session.refresh(prefs)
+        session.flush()
+        if commit:
+            session.commit()
+            session.refresh(prefs)
 
+    return prefs
+
+
+def _apply_preference_updates(
+    session: Session, user: User, values: dict[str, Any]
+) -> UserPreferences:
+    """Persist one settings batch and its invalidation together, skipping no-op bumps."""
+    prefs = _get_or_create_preferences(session, user, commit=False)
+    session.refresh(prefs)
+    changed = False
+    for field, value in values.items():
+        previous = getattr(prefs, field)
+        if isinstance(value, (list, dict)):
+            if _parse_json_field(previous, default=None) == value:
+                continue
+            value = json.dumps(value)
+        elif previous == value:
+            continue
+        setattr(prefs, field, value)
+        changed = True
+    if changed:
+        mark_preferences_changed(session, user.id)
+    prefs.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(prefs)
     return prefs
 
 
@@ -470,12 +501,7 @@ def _update_section(
         Full preferences response after the update.
 
     """
-    prefs = _get_or_create_preferences(session, user)
-    for field, value in config.model_dump(mode="json").items():
-        if json_fields and field in json_fields:
-            value = json.dumps(value)
-        setattr(prefs, field, value)
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
+    # json_fields remains accepted for existing section callers. Collection
+    # values share the same JSON handling as the general preferences endpoint.
+    prefs = _apply_preference_updates(session, user, config.model_dump(mode="json"))
     return _model_to_response(prefs)

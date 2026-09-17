@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from hashlib import sha256
 from unittest.mock import patch
 
 from ledger_sync.db.models import ImportLog, MonthlySummary, Transaction, TransactionType
@@ -48,7 +49,7 @@ def _txn(
 def _import_log(user_id: int, days_ago: int, file_name: str) -> ImportLog:
     return ImportLog(
         user_id=user_id,
-        file_hash=f"{user_id:064d}",
+        file_hash=sha256(file_name.encode()).hexdigest(),
         file_name=file_name,
         imported_at=datetime.now(UTC) - timedelta(days=days_ago),
         rows_processed=8024,

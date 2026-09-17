@@ -154,11 +154,9 @@ def test_upload_reports_refresh_outcome_after_saving_ledger(
 ) -> None:
     client, session, user_a, _, _ = two_user_client
     monkeypatch.setattr(limiter, "enabled", False)
-    with patch("ledger_sync.api.upload.AnalyticsEngine") as analytics:
+    with patch("ledger_sync.services.upload_service.AnalyticsEngine") as analytics:
         if refresh_fails:
-            analytics.return_value.run_full_analytics.side_effect = RuntimeError(
-                "synthetic failure"
-            )
+            analytics.return_value.refresh_analytics.side_effect = RuntimeError("synthetic failure")
         response = client.post("/api/upload", json=_upload_payload())
 
     assert response.status_code == 200
@@ -166,7 +164,7 @@ def test_upload_reports_refresh_outcome_after_saving_ledger(
     assert body["success"] is True
     assert body["analytics_status"] == ("failed" if refresh_fails else "ready")
     assert body["stats"]["inserted"] == 1
-    analytics.return_value.run_full_analytics.assert_called_once()
+    analytics.return_value.refresh_analytics.assert_called_once()
     assert session.scalar(select(Transaction).where(Transaction.user_id == user_a.id)) is not None
     history = client.get(HISTORY_URL).json()
     assert history["total_count"] == 1
@@ -178,7 +176,7 @@ def test_upload_rejects_invalid_snapshot_and_preserves_history(
 ) -> None:
     client, session, _, _, _ = two_user_client
     monkeypatch.setattr(limiter, "enabled", False)
-    with patch("ledger_sync.api.upload.AnalyticsEngine"):
+    with patch("ledger_sync.services.upload_service.AnalyticsEngine"):
         assert client.post("/api/upload", json=_upload_payload()).status_code == 200
         invalid = _upload_payload()
         invalid["file_hash"] = "b" * 64

@@ -11,12 +11,13 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
     String,
     Text,
-    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -90,8 +91,8 @@ class RecurringTransaction(Base):
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     __table_args__ = (
+        Index("uq_recurring_transactions_user_id", "user_id", "id", unique=True),
         Index("ix_recurring_category_account", "category", "account"),
-        Index("ix_recurring_user", "user_id"),
     )
 
 
@@ -145,6 +146,11 @@ class ScheduledTransaction(Base):
     )
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "recurring_transaction_id"],
+            ["recurring_transactions.user_id", "recurring_transactions.id"],
+            name="fk_scheduled_user_recurring",
+        ),
         Index("ix_scheduled_user_active", "user_id", "is_active"),
         Index("ix_scheduled_user_active_due", "user_id", "is_active", "next_due_date"),
     )
@@ -171,7 +177,6 @@ class Anomaly(Base):
     # transaction should not leave orphaned anomalies pointing at nothing.
     transaction_id: Mapped[str | None] = mapped_column(
         String(64),
-        ForeignKey("transactions.transaction_id", ondelete="CASCADE"),
         nullable=True,
     )
 
@@ -202,9 +207,14 @@ class Anomaly(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "transaction_id"],
+            ["transactions.user_id", "transactions.transaction_id"],
+            name="fk_anomalies_user_transaction",
+            ondelete="CASCADE",
+        ),
         Index("ix_anomaly_type_severity", "anomaly_type", "severity"),
         Index("ix_anomaly_period", "period_key"),
-        Index("ix_anomaly_user", "user_id"),
     )
 
 
@@ -256,7 +266,24 @@ class Budget(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("user_id", "category", "subcategory", name="uq_budget_user_category"),
+        # Inactive budgets retain their scope, as under the original constraint.
+        Index(
+            "uq_budget_user_category_null",
+            "user_id",
+            "category",
+            unique=True,
+            sqlite_where=text("subcategory IS NULL"),
+            postgresql_where=text("subcategory IS NULL"),
+        ),
+        Index(
+            "uq_budget_user_category_subcategory",
+            "user_id",
+            "category",
+            "subcategory",
+            unique=True,
+            sqlite_where=text("subcategory IS NOT NULL"),
+            postgresql_where=text("subcategory IS NOT NULL"),
+        ),
         CheckConstraint("monthly_limit > 0", name="ck_budget_limit_positive"),
         Index("ix_budget_user_category", "user_id", "category"),
     )

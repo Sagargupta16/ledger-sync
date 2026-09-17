@@ -16,7 +16,7 @@ import anyio
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import ProviderUser
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ async def _fetch_rates(base: str, on_date: date | None = None) -> tuple[dict[str
     },
 )
 async def get_exchange_rates(
-    _current_user: CurrentUser,
+    _current_user: ProviderUser,
     # Constrained at the boundary rather than sanitised at each use. `base` is
     # echoed into two log lines and forwarded upstream, so an unbounded string
     # was log-forgeable (a newline injects a fake log record). A currency code is

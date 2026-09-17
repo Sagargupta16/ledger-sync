@@ -150,10 +150,7 @@ class NetWorthSnapshot(Base):
     source: Mapped[str] = mapped_column(String(50), default="upload")  # upload, manual, api
 
     # Unique per user per day — prevents duplicate snapshots on re-upload
-    __table_args__ = (
-        Index("ix_net_worth_user_date", "user_id", "snapshot_date"),
-        UniqueConstraint("user_id", "snapshot_date", name="uq_net_worth_user_date"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "snapshot_date", name="uq_net_worth_user_date"),)
 
 
 class InvestmentHolding(Base):

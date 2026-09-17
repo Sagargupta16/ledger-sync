@@ -20,8 +20,17 @@ from ledger_sync.core.analytics.fy_summaries import FYSummariesMixin
 from ledger_sync.core.analytics.merchants import MerchantsMixin
 from ledger_sync.core.analytics.net_worth import NetWorthMixin
 from ledger_sync.core.analytics.recurring import RecurringMixin
+from ledger_sync.core.analytics.refresh import (
+    AnalyticsVersion,
+    StaleAnalyticsRefreshError,
+    analytics_inputs_current,
+    analytics_is_current,
+    prepare_refresh,
+    publish_refresh,
+)
 from ledger_sync.core.analytics.summaries import SummariesMixin
 from ledger_sync.core.analytics.trends import TrendsMixin
+from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import AuditLog, TransactionType
 from ledger_sync.utils.logging import log_analytics_calculation, log_error
 
@@ -50,15 +59,19 @@ class AnalyticsEngine(
     """
 
     def run_full_analytics(self, source_file: str | None = None) -> dict[str, Any]:
-        """Run all analytics calculations after an upload.
+        """Force every analytics domain to rebuild, including recovery/repair."""
+        return self._run_analytics(source_file, force_full=True)
 
-        Args:
-            source_file: Optional source file name for audit logging
+    def refresh_analytics(self, source_file: str | None = None) -> dict[str, Any]:
+        """Refresh invalidated inputs; selectively recompute daily/monthly groups.
 
-        Returns:
-            Summary dict with counts/snapshots per analytics stage.
-
+        Other domains still rebuild in full after any invalidation. A current
+        generation skips all work. Callers must mark every relevant mutation in
+        its write transaction; legacy/unversioned data gets a full first build.
         """
+        return self._run_analytics(source_file, force_full=False)
+
+    def _run_analytics(self, source_file: str | None, *, force_full: bool) -> dict[str, Any]:
         self.logger.info("=" * 60)
         self.logger.info("ANALYTICS CALCULATION STARTED")
         self.logger.info("Source: %s", source_file or "manual trigger")
@@ -69,6 +82,39 @@ class AnalyticsEngine(
         start_time = time.time()
 
         try:
+            state = prepare_refresh(self.db, self._require_user_id())
+            version = AnalyticsVersion.from_state(state)
+            calculation_day = ledger_today()
+            if not force_full and analytics_is_current(state):
+                self.db.commit()
+                return {"refresh_mode": "skipped", "status": "current"}
+
+            affected_dates = (
+                None
+                if force_full or state.full_rebuild_required
+                else set(json.loads(state.dirty_dates))
+            )
+            # A clock-only refresh leaves static day/month summaries untouched.
+            # A changed generation without dirty scope must rebuild them.
+            if affected_dates == set() and not analytics_inputs_current(state):
+                affected_dates = None
+            affected_months = (
+                {day[:7] for day in affected_dates} if affected_dates is not None else None
+            )
+            results["refresh_mode"] = "full" if affected_dates is None else "selective_summaries"
+            if affected_dates == set():
+                results["refresh_mode"] = "clock_refresh"
+            summary_mode = (
+                "full" if affected_dates is None else "selective" if affected_dates else "skipped"
+            )
+            results["domain_modes"] = {
+                "daily_summaries": summary_mode,
+                "monthly_summaries": summary_mode,
+                "other_domains": "full",
+            }
+            # Constructor state may predate a waiting User lock. Reload before
+            # taking the shared transaction snapshot, including ORM identity maps.
+            self._load_preferences()
             # Load ALL transactions ONCE — shared across all analytics methods.
             # This eliminates 3+ duplicate full-table scans.
             all_transactions = self._user_transaction_query().all()
@@ -76,7 +122,9 @@ class AnalyticsEngine(
 
             # 0. Daily summaries (fastest, simple date grouping)
             t0 = time.time()
-            results["daily_summaries"] = self._calculate_daily_summaries(all_transactions)
+            results["daily_summaries"] = self._calculate_daily_summaries(
+                all_transactions, affected_dates
+            )
             log_analytics_calculation(
                 "Daily summaries",
                 results["daily_summaries"],
@@ -85,7 +133,9 @@ class AnalyticsEngine(
 
             # 1. Monthly summaries
             t0 = time.time()
-            results["monthly_summaries"] = self._calculate_monthly_summaries(all_transactions)
+            results["monthly_summaries"] = self._calculate_monthly_summaries(
+                all_transactions, affected_months
+            )
             log_analytics_calculation(
                 "Monthly summaries",
                 results["monthly_summaries"],
@@ -200,6 +250,9 @@ class AnalyticsEngine(
                 source_file=source_file,
             )
 
+            if ledger_today() != calculation_day:
+                raise StaleAnalyticsRefreshError("IST day changed while refreshing; retry refresh")
+            publish_refresh(self.db, self._require_user_id(), version)
             self.db.commit()
 
             total_time = (time.time() - start_time) * 1000

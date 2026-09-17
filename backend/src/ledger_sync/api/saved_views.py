@@ -36,7 +36,7 @@ def _to_view_response(view: SavedFilterView) -> SavedViewResponse:
 
 
 @router.get("")
-async def list_saved_views(
+def list_saved_views(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> list[SavedViewResponse]:
@@ -51,7 +51,7 @@ async def list_saved_views(
 
 
 @router.post("")
-async def save_view(
+def save_view(
     payload: SavedViewCreateRequest,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -85,7 +85,7 @@ async def save_view(
 
 
 @router.delete("/{view_id}", status_code=204)
-async def delete_saved_view(
+def delete_saved_view(
     view_id: int,
     current_user: CurrentUser,
     db: DatabaseSession,

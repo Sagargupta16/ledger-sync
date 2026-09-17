@@ -11,18 +11,30 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.analytics.refresh import (
+    lock_analytics_user,
+    mark_ledger_changed,
+    mark_preferences_changed,
+)
 from ledger_sync.core.auth import (
     create_tokens,
     verify_token,
 )
 from ledger_sync.db.models import (
     AccountClassification,
+    AnalyticsState,
     Anomaly,
     Budget,
     CategoryTrend,
+    CohortSpending,
+    DailySummary,
     FinancialGoal,
     FYSummary,
     ImportLog,
+    LedgerAccount,
+    LedgerAccountAlias,
+    LedgerCategory,
+    LedgerSubcategory,
     MerchantIntelligence,
     MonthlySummary,
     NetWorthSnapshot,
@@ -308,6 +320,8 @@ class AuthService:
         This action is irreversible. The user must already be authenticated.
         """
         user_id = user.id
+        lock_analytics_user(self.session, user_id)
+        self.session.query(AnalyticsState).filter(AnalyticsState.user_id == user_id).delete()
         self._delete_all_user_data(user_id)
         self.session.delete(user)
         self.session.commit()
@@ -325,14 +339,24 @@ class AuthService:
         # Transaction-derived data
         self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
         self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
-        self.session.query(RecurringTransaction).filter(
-            RecurringTransaction.user_id == user_id
-        ).delete()
         self.session.query(ScheduledTransaction).filter(
             ScheduledTransaction.user_id == user_id
         ).delete()
+        self.session.query(RecurringTransaction).filter(
+            RecurringTransaction.user_id == user_id
+        ).delete()
+
+        # Source dimensions belong to the imported ledger, not account settings.
+        self.session.query(LedgerSubcategory).filter(LedgerSubcategory.user_id == user_id).delete()
+        self.session.query(LedgerCategory).filter(LedgerCategory.user_id == user_id).delete()
+        self.session.query(LedgerAccountAlias).filter(
+            LedgerAccountAlias.user_id == user_id
+        ).delete()
+        self.session.query(LedgerAccount).filter(LedgerAccount.user_id == user_id).delete()
 
         # Analytics / aggregation tables
+        self.session.query(DailySummary).filter(DailySummary.user_id == user_id).delete()
+        self.session.query(CohortSpending).filter(CohortSpending.user_id == user_id).delete()
         self.session.query(MonthlySummary).filter(MonthlySummary.user_id == user_id).delete()
         self.session.query(CategoryTrend).filter(CategoryTrend.user_id == user_id).delete()
         self.session.query(TransferFlow).filter(TransferFlow.user_id == user_id).delete()
@@ -353,6 +377,10 @@ class AuthService:
                 budgets, goals, and account classifications.
         """
         user_id = user.id
+        lock_analytics_user(self.session, user_id)
+        mark_ledger_changed(self.session, user_id)
+        if not transactions_only:
+            mark_preferences_changed(self.session, user_id)
 
         if transactions_only:
             self._delete_transaction_data(user_id)

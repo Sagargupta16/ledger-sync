@@ -16,7 +16,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ledger_sync.api.deps import get_current_user
+from ledger_sync.api.deps import get_provider_identity
 from ledger_sync.api.stock_price import router as stock_price_router
 
 
@@ -28,7 +28,7 @@ def _ts(day: str) -> int:
 def _make_app(yahoo_payload: dict[str, Any]) -> FastAPI:
     app = FastAPI()
     app.include_router(stock_price_router)
-    app.dependency_overrides[get_current_user] = lambda: MagicMock(id=1)
+    app.dependency_overrides[get_provider_identity] = lambda: MagicMock(id=1)
 
     response = MagicMock()
     response.raise_for_status = MagicMock()

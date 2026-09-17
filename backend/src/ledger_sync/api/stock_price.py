@@ -12,7 +12,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from ledger_sync.api.deps import CurrentUser
+from ledger_sync.api.deps import ProviderUser
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="/api/stock-price", tags=["stock-price"])
@@ -63,7 +63,7 @@ def _historical_close(data: dict[str, Any], on_date: date) -> tuple[float, date]
 async def get_stock_price(
     symbol: str,
     request: Request,
-    _current_user: CurrentUser,
+    _current_user: ProviderUser,
     on_date: Annotated[
         date | None,
         Query(

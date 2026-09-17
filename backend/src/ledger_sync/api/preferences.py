@@ -28,10 +28,12 @@ from ledger_sync.api.preferences_helpers import (
     SpendingRuleConfig,
     UserPreferencesResponse,
     UserPreferencesUpdate,
+    _apply_preference_updates,
     _get_or_create_preferences,
     _model_to_response,
     _update_section,
 )
+from ledger_sync.core.analytics.refresh import mark_preferences_changed
 from ledger_sync.schemas.salary import (
     GrowthAssumptionsConfig,
     RsuGrantsConfig,
@@ -62,21 +64,7 @@ def update_preferences(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
-    prefs = _get_or_create_preferences(session, current_user)
-
-    # Apply updates for non-None fields
-    update_data = updates.model_dump(exclude_none=True)
-
-    for field, value in update_data.items():
-        # Convert lists/dicts to JSON strings for storage
-        if isinstance(value, (list, dict)):
-            value = json.dumps(value)
-        setattr(prefs, field, value)
-
-    prefs.updated_at = datetime.now(UTC)
-    session.commit()
-    session.refresh(prefs)
-
+    prefs = _apply_preference_updates(session, current_user, updates.model_dump(exclude_none=True))
     return _model_to_response(prefs)
 
 
@@ -86,7 +74,9 @@ def reset_preferences(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Reset all preferences to defaults (empty values for data-dependent fields)."""
-    prefs = _get_or_create_preferences(session, current_user)
+    prefs = _get_or_create_preferences(session, current_user, commit=False)
+    session.refresh(prefs)
+    previous = _model_to_response(prefs).model_dump(exclude={"created_at", "updated_at"})
 
     # Reset to defaults - data-dependent fields start empty
     prefs.fiscal_year_start_month = 4
@@ -150,6 +140,8 @@ def reset_preferences(
     prefs.salary_is_net_of_tds = True
     prefs.updated_at = datetime.now(UTC)
 
+    if _model_to_response(prefs).model_dump(exclude={"created_at", "updated_at"}) != previous:
+        mark_preferences_changed(session, current_user.id)
     session.commit()
     session.refresh(prefs)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -11,6 +12,7 @@ from sqlalchemy import delete
 
 from ledger_sync.core._analytics_helpers import mom_change_pct as _mom_change_pct
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_clock import to_ledger_time
 from ledger_sync.core.ledger_math import investment_transfer_delta
 from ledger_sync.db.models import (
     DailySummary,
@@ -26,11 +28,24 @@ class SummariesMixin(AnalyticsEngineBase):
     def _calculate_monthly_summaries(
         self,
         transactions: list[Transaction] | None = None,
+        affected_months: set[str] | None = None,
     ) -> int:
-        """Calculate and persist monthly summary aggregations."""
+        """Recompute changed months and repair the next populated month's MoM.
+
+        ``None`` rebuilds everything. MoM retains the existing API semantics:
+        compare against the preceding populated month, even across a gap.
+        """
+        if affected_months == set():
+            return 0
         if transactions is None:
             transactions = self._user_transaction_query().all()
 
+        existing = {
+            row.period_key: row
+            for row in self.db.query(MonthlySummary)
+            .filter(MonthlySummary.user_id == self._require_user_id())
+            .all()
+        }
         # Group by month
         monthly_data: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
@@ -52,20 +67,41 @@ class SummariesMixin(AnalyticsEngineBase):
         )
 
         for txn in transactions:
-            period_key = txn.date.strftime("%Y-%m")
+            ledger_date = to_ledger_time(txn.date)
+            period_key = ledger_date.strftime("%Y-%m")
+            if affected_months is not None and period_key not in affected_months:
+                continue
             amount = Decimal(str(txn.amount))
             self._categorize_transaction_for_summary(txn, monthly_data[period_key], amount)
-            monthly_data[period_key]["year"] = txn.date.year
-            monthly_data[period_key]["month"] = txn.date.month
+            monthly_data[period_key]["year"] = ledger_date.year
+            monthly_data[period_key]["month"] = ledger_date.month
 
-        # Upsert: merge existing rows instead of delete-then-reinsert.
-        # This is atomic -- no window where data is missing.
+        changed = set(existing) | set(monthly_data) if affected_months is None else affected_months
+        active = (set(existing) - changed) | set(monthly_data)
+        for period_key in set(existing) - active:
+            self.db.delete(existing[period_key])
+
+        # Deleting the last row in a month changes the next populated month's
+        # predecessor; inserting into a gap does too.
+        sorted_periods = sorted(active)
+        successors = set()
+        for changed_period in changed:
+            next_index = bisect_right(sorted_periods, changed_period)
+            if next_index < len(sorted_periods):
+                successors.add(sorted_periods[next_index])
         count = 0
-        sorted_periods = sorted(monthly_data.keys())
         prev_income = None
         prev_expenses = None
 
         for period_key in sorted_periods:
+            if period_key not in monthly_data:
+                row = existing[period_key]
+                if period_key in successors:
+                    row.income_change_pct = _mom_change_pct(row.total_income, prev_income)
+                    row.expense_change_pct = _mom_change_pct(row.total_expenses, prev_expenses)
+                    row.last_calculated = datetime.now(UTC)
+                prev_income, prev_expenses = row.total_income, row.total_expenses
+                continue
             data = monthly_data[period_key]
             total_income = data["total_income"]
             total_expenses = data["total_expenses"]
@@ -109,19 +145,12 @@ class SummariesMixin(AnalyticsEngineBase):
                 expense_change_pct,
                 total_txns,
                 now,
+                existing.get(period_key),
             )
             count += 1
 
             prev_income = total_income
             prev_expenses = total_expenses
-
-        # Remove stale periods that no longer have transactions
-        if self.user_id is not None:
-            stale = self.db.query(MonthlySummary).filter(
-                MonthlySummary.user_id == self.user_id,
-                MonthlySummary.period_key.notin_(sorted_periods),
-            )
-            stale.delete(synchronize_session=False)
 
         return count
 
@@ -138,16 +167,9 @@ class SummariesMixin(AnalyticsEngineBase):
         expense_change_pct: float,
         total_txns: int,
         now: datetime,
+        existing: MonthlySummary | None,
     ) -> None:
-        """Merge (insert or update) a single MonthlySummary row."""
-        existing = (
-            self.db.query(MonthlySummary)
-            .filter(
-                MonthlySummary.user_id == self.user_id,
-                MonthlySummary.period_key == period_key,
-            )
-            .first()
-        )
+        """Merge one row from the batched existing-summary lookup."""
 
         if existing:
             existing.total_income = total_income
@@ -300,12 +322,16 @@ class SummariesMixin(AnalyticsEngineBase):
     def _calculate_daily_summaries(
         self,
         transactions: list[Transaction] | None = None,
+        affected_dates: set[str] | None = None,
     ) -> int:
         """Calculate and persist daily summary aggregations.
 
         Groups all transactions by date and stores daily income/expense/net
         totals. Used by the YearInReview heatmap and daily trend charts.
         """
+        if affected_dates == set():
+            return 0
+        user_id = self._require_user_id()
         if transactions is None:
             transactions = self._user_transaction_query().all()
 
@@ -323,7 +349,9 @@ class SummariesMixin(AnalyticsEngineBase):
         )
 
         for txn in transactions:
-            date_key = txn.date.strftime("%Y-%m-%d")
+            date_key = to_ledger_time(txn.date).date().isoformat()
+            if affected_dates is not None and date_key not in affected_dates:
+                continue
             amount = Decimal(str(txn.amount))
             day = daily_data[date_key]
 
@@ -345,10 +373,10 @@ class SummariesMixin(AnalyticsEngineBase):
             elif txn.type == TransactionType.TRANSFER:
                 day["transfer_count"] += 1
 
-        # Delete existing for this user and bulk insert
-        del_stmt = delete(DailySummary)
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(DailySummary.user_id == self.user_id)
+        # Replace only affected days, including days emptied by a deletion.
+        del_stmt = delete(DailySummary).where(DailySummary.user_id == user_id)
+        if affected_dates is not None:
+            del_stmt = del_stmt.where(DailySummary.date.in_(affected_dates))
         self.db.execute(del_stmt)
 
         now = datetime.now(UTC)

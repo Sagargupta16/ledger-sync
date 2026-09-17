@@ -6,14 +6,17 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,14 +34,14 @@ def _live_index(name: str, *columns: str) -> Index:
 
     SQLite matches partial-index predicates near-textually against the query
     WHERE clause; SQLAlchemy's ``.is_(False)`` emits ``is_deleted IS 0`` on
-    SQLite, so the predicate must be the IS-form. Postgres proves predicate
-    implication instead, so the canonical ``= false`` form is used there.
+    SQLite. PostgreSQL also needs the matching ``IS false`` expression:
+    its planner does not prove this implies an index's ``= false`` predicate.
     """
     return Index(
         name,
         *columns,
         sqlite_where=text("is_deleted IS 0"),
-        postgresql_where=text("is_deleted = false"),
+        postgresql_where=text("is_deleted IS false"),
     )
 
 
@@ -49,6 +52,10 @@ class Transaction(Base):
 
     # Primary key - deterministic hash
     transaction_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Import identity is independent of mutable categorization and the public ID.
+    # NULL identifies legacy rows awaiting an exact, verified import match.
+    source_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fingerprint_version: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
 
     # User foreign key - links transaction to owner
     user_id: Mapped[int] = mapped_column(
@@ -65,6 +72,11 @@ class Transaction(Base):
     account: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    from_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    to_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    category_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    subcategory_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Transfer-specific fields (only used when type=Transfer)
     from_account: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -119,6 +131,56 @@ class Transaction(Base):
     #   - Postgres does implication proofs, and ``.is_(False)`` emits
     #     ``IS false``, which implies ``is_deleted = false``.
     __table_args__ = (
+        UniqueConstraint("user_id", "transaction_id", name="uq_transactions_user_id"),
+        Index("uq_transactions_source", "user_id", "source_fingerprint", unique=True),
+        ForeignKeyConstraint(
+            ["user_id", "account_id"],
+            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            name="fk_transactions_account_dimension",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "from_account_id"],
+            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            name="fk_transactions_from_account_dimension",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "to_account_id"],
+            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            name="fk_transactions_to_account_dimension",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "category_id"],
+            ["ledger_categories.user_id", "ledger_categories.id"],
+            name="fk_transactions_category_dimension",
+        ),
+        ForeignKeyConstraint(
+            ["user_id", "category_id", "subcategory_id"],
+            [
+                "ledger_subcategories.user_id",
+                "ledger_subcategories.category_id",
+                "ledger_subcategories.id",
+            ],
+            name="fk_transactions_subcategory_dimension",
+        ),
+        CheckConstraint(
+            "subcategory_id IS NULL OR category_id IS NOT NULL",
+            name="ck_transactions_subcategory_parent",
+        ),
+        CheckConstraint(
+            "amount >= 0 AND amount <= 9999999999999.99",
+            name="ck_transactions_amount_bounds",
+        ),
+        CheckConstraint("currency = 'INR'", name="ck_transactions_currency_inr"),
+        CheckConstraint("type IN ('INCOME', 'EXPENSE', 'TRANSFER')", name="ck_transactions_type"),
+        CheckConstraint(
+            "fingerprint_version IN (1, 2)", name="ck_transactions_fingerprint_version"
+        ),
+        CheckConstraint(
+            "source_fingerprint IS NULL OR "
+            "(fingerprint_version = 2 AND length(source_fingerprint) = 64 "
+            "AND trim(source_fingerprint, '0123456789abcdef') = '')",
+            name="ck_transactions_source_fingerprint",
+        ),
         # Primary analytics range scan: user's rows ordered/filtered by date.
         _live_index("ix_transactions_user_date", "user_id", "date"),
         # Type-filtered + date range (search endpoint, type rollups) -- type is
@@ -168,6 +230,10 @@ class ImportLog(Base):
     rows_updated: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_deleted: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_skipped: Mapped[int] = mapped_column(nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "file_hash", name="uq_import_logs_user_file_hash"),
+    )
 
     # Relationship back to user
     user: Mapped["User"] = relationship("User", back_populates="import_logs")

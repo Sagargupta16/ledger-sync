@@ -4,6 +4,7 @@ This module contains shared dependencies used across API endpoints.
 Centralizing dependencies here prevents circular imports and improves testability.
 """
 
+from dataclasses import dataclass
 from typing import Annotated
 
 import httpx
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.core.auth.tokens import verify_token
 from ledger_sync.db.models import User
-from ledger_sync.db.session import get_session
+from ledger_sync.db.session import SessionLocal, get_session
 
 # Security scheme
 security = HTTPBearer()
@@ -70,6 +71,26 @@ def get_current_user(
     return user
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderIdentity:
+    """Authenticated identity for routes that only call an external provider."""
+
+    id: int
+
+
+def get_provider_identity(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> ProviderIdentity:
+    """Finish authentication and release its connection before the provider call.
+
+    Keep this separate from get_current_user: ledger routes still share their
+    request session and ORM user. No ORM object escapes this short-lived scope.
+    """
+    with SessionLocal() as session:
+        user = get_current_user(credentials, session)
+        return ProviderIdentity(id=user.id)
+
+
 def get_optional_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_security)],
     session: Annotated[Session, Depends(get_session)],
@@ -109,6 +130,7 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 
 # Type aliases for dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
+ProviderUser = Annotated[ProviderIdentity, Depends(get_provider_identity)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 DatabaseSession = Annotated[Session, Depends(get_session)]
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]

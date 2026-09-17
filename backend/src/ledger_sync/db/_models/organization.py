@@ -1,7 +1,7 @@
 """CategorizationRule, TransactionTag, SavedFilterView models.
 
 Organization features: user-defined categorization rules applied at
-import time (pre-hash) and on demand, free-string transaction tags,
+import time (after source fingerprinting) and on demand, free-string transaction tags,
 and named saved filter views for the Transactions page.
 """
 
@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -94,7 +95,6 @@ class TransactionTag(Base):
     )
     transaction_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("transactions.transaction_id", ondelete="CASCADE"),
         nullable=False,
     )
     tag: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -108,6 +108,12 @@ class TransactionTag(Base):
     user: Mapped["User"] = relationship("User", back_populates="transaction_tags")
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "transaction_id"],
+            ["transactions.user_id", "transactions.transaction_id"],
+            name="fk_transaction_tags_user_transaction",
+            ondelete="CASCADE",
+        ),
         Index(
             "ix_transaction_tags_user_txn_tag",
             "user_id",

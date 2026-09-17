@@ -18,6 +18,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -179,7 +180,27 @@ class CategoryTrend(Base):
     __table_args__ = (
         Index("ix_category_trend_period_category", "period_key", "category"),
         Index("ix_category_trend_type", "transaction_type"),
-        Index("ix_category_trend_user", "user_id"),
+        Index(
+            "uq_category_trends_user_scope_null",
+            "user_id",
+            "period_key",
+            "category",
+            "transaction_type",
+            unique=True,
+            sqlite_where=text("subcategory IS NULL"),
+            postgresql_where=text("subcategory IS NULL"),
+        ),
+        Index(
+            "uq_category_trends_user_scope_subcategory",
+            "user_id",
+            "period_key",
+            "category",
+            "subcategory",
+            "transaction_type",
+            unique=True,
+            sqlite_where=text("subcategory IS NOT NULL"),
+            postgresql_where=text("subcategory IS NOT NULL"),
+        ),
     )
 
 
@@ -266,6 +287,18 @@ class MerchantIntelligence(Base):
 
     last_calculated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
+    # The extractor preserves descriptor case and distinguishes brands from
+    # descriptors even when their labels match.
+    __table_args__ = (
+        Index(
+            "uq_merchant_intelligence_user_label",
+            "user_id",
+            "merchant_name",
+            "label_kind",
+            unique=True,
+        ),
+    )
+
 
 class FYSummary(Base):
     """Fiscal year summary (April to March for India)."""
@@ -318,6 +351,10 @@ class FYSummary(Base):
         Boolean,
         default=False,
     )  # False if FY is still ongoing
+
+    __table_args__ = (
+        Index("uq_fy_summaries_user_fiscal_year", "user_id", "fiscal_year", unique=True),
+    )
 
 
 class CohortSpending(Base):

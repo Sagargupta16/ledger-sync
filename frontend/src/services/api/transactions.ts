@@ -15,6 +15,8 @@ export interface TransactionFilters {
   end_date?: string
   limit?: number
   offset?: number
+  /** Continue a date-sorted page using next_cursor; omit offset. */
+  cursor?: string
   sort?: string
   sort_order?: 'asc' | 'desc'
 }
@@ -25,6 +27,7 @@ export interface PaginatedResponse<T> {
   limit: number
   offset: number
   has_more: boolean
+  next_cursor?: string | null
 }
 
 export interface TagFacet {
@@ -90,10 +93,14 @@ export const transactionsService = {
     return response.data
   },
 
-  getTransactionsPaginated: async (filters?: TransactionFilters): Promise<PaginatedResponse<Transaction>> => {
+  getTransactionsPaginated: async (
+    filters?: TransactionFilters,
+    signal?: AbortSignal,
+  ): Promise<PaginatedResponse<Transaction>> => {
     const { sort, ...rest } = filters ?? {}
     const response = await apiClient.get<PaginatedResponse<Transaction>>('/api/transactions/search', {
       params: { ...rest, sort_by: sort, limit: rest.limit || 100 },
+      ...(signal ? { signal } : {}),
     })
     return response.data
   },
@@ -113,12 +120,13 @@ export const transactionsService = {
   },
 
   exportToCSV: async (filters: TransactionFilters = {}): Promise<Blob> => {
+    const { sort, ...rest } = filters
     // `<Blob>` matches `responseType: 'blob'`. Without it `response.data` is
     // `any`, so the promised `Blob` was an unchecked claim -- and this endpoint
     // really does answer `text/csv`, not JSON (verified live 2026-07-27), which
     // is exactly the case a wrong assertion here would hide.
     const response = await apiClient.get<Blob>('/api/transactions/export', {
-      params: filters,
+      params: { ...rest, sort_by: sort },
       responseType: 'blob',
     })
     return response.data

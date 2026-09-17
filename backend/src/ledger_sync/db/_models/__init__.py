@@ -19,6 +19,7 @@ from ledger_sync.db._models.analytics import (
     MonthlySummary,
     TransferFlow,
 )
+from ledger_sync.db._models.analytics_state import AnalyticsState
 from ledger_sync.db._models.enums import (
     AccountType,
     AnomalyType,
@@ -30,6 +31,12 @@ from ledger_sync.db._models.investments import (
     InvestmentHolding,
     NetWorthSnapshot,
     TaxRecord,
+)
+from ledger_sync.db._models.ledger_dimensions import (
+    LedgerAccount,
+    LedgerAccountAlias,
+    LedgerCategory,
+    LedgerSubcategory,
 )
 from ledger_sync.db._models.organization import (
     CategorizationRule,
@@ -57,6 +64,7 @@ __all__ = [
     "AIUsageLog",
     "AccountClassification",
     "AccountType",
+    "AnalyticsState",
     "Anomaly",
     "AnomalyType",
     "AuditLog",
@@ -71,6 +79,10 @@ __all__ = [
     "GoalStatus",
     "ImportLog",
     "InvestmentHolding",
+    "LedgerAccount",
+    "LedgerAccountAlias",
+    "LedgerCategory",
+    "LedgerSubcategory",
     "MerchantIntelligence",
     "MonthlySummary",
     "NetWorthSnapshot",
