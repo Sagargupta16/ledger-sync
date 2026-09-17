@@ -245,8 +245,13 @@ flowchart TB
   class reject,rollback,saved recovery
 ```
 
-The transaction hash includes user, date, amount, account, note, category,
-subcategory, type, and a duplicate occurrence suffix when needed.
+The version-2 source fingerprint uses canonical JSON encoding of user, date,
+amount, account, note, source category/subcategory, type, explicit transfer
+destination, currency, and duplicate occurrence. It is captured before user
+categorization rules. Public transaction IDs remain stable through category
+edits; legacy IDs are adopted only after verified matching. User-owned account
+and category dimensions provide stable references while retaining source labels
+on transaction rows.
 
 The reconciliation sweep is user-wide, including accounts or dates omitted
 from the replacement snapshot. Both transaction and transfer reconciliation
@@ -260,8 +265,10 @@ separate concern. The raw-file hash detects repeated files, while row hashes
 preserve legitimate duplicate occurrences and idempotence. PostgreSQL
 serializes concurrent imports for a user with a user-row lock.
 
-`SyncEngine` commits ledger changes and the import log together or rolls both
-back. The upload API then runs analytics separately and reports its status.
+`SyncEngine` commits ledger changes, the import log, and analytics invalidation
+together or rolls all of them back. Upload orchestration lives in
+`services/upload_service.py`; serialization and synchronous database work run in
+one worker phase. It then refreshes analytics separately and reports its status.
 A failed analytics refresh leaves the saved ledger intact. The frontend offers
 an analytics-only retry instead of a second import. An upload timeout can occur
 after persistence, so recovery first directs the user to import history.
@@ -291,9 +298,18 @@ flowchart TB
   class ledger,prefs,rollups store
 ```
 
-The composed engine shares one active-transaction load across its refresh
-stages, with additional domain queries where needed. It commits derived rows
-and the analytics audit together. A refresh failure rolls back that work,
+The composed engine uses durable ledger, preference, and algorithm versions.
+An unchanged generation on the same IST day skips recomputation. Dirty dates
+limit daily/monthly summary writes, including the following month's comparison
+values; other domains still rebuild from one shared active-transaction load.
+Unknown scope and changed preferences request a full rebuild.
+
+Writers and refreshes serialize on the user's database row. Refresh takes that
+lock before loading inputs, guards the publication version, and commits derived
+rows, publication metadata, and the analytics audit together. Multi-query
+analytics reads share a reader lock on PostgreSQL to avoid crossing publications.
+`/api/analytics/v2/freshness` reports current and published versions.
+A refresh failure rolls back that work,
 independently of the preceding import commit. Data Health exposes coverage and
 rollup freshness.
 
