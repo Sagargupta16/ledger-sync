@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # Database settings
     database_url: str = "sqlite:///./ledger_sync.db"
     database_echo: bool = False
+    # Explicit opt-in for local development only. Hosted schemas use Alembic.
+    db_bootstrap_on_startup: bool = False
 
     # Application settings
     log_level: str = "INFO"
@@ -144,6 +146,9 @@ class Settings(BaseSettings):
 
         """
         issues: list[str] = []
+
+        if self.db_bootstrap_on_startup and self.environment != "development":
+            issues.append("CRITICAL: db_bootstrap_on_startup is only allowed in development.")
 
         # JWT secret must be explicitly configured in ANY non-development environment
         if not self.jwt_secret_key:

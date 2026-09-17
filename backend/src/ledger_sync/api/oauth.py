@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from ledger_sync.api.deps import DatabaseSession, HttpClient
 from ledger_sync.api.rate_limit import limiter
@@ -323,7 +324,7 @@ async def google_callback(
             detail="Google OAuth is not configured",
         )
 
-    _validate_state(body, "google", session)
+    await run_in_threadpool(_validate_state, body, "google", session)
     redirect_uri = _get_redirect_uri("google")
 
     # Exchange authorization code for tokens
@@ -384,7 +385,8 @@ async def google_callback(
         )
 
     auth_service = AuthService(session)
-    return auth_service.oauth_login_or_register(
+    return await run_in_threadpool(
+        auth_service.oauth_login_or_register,
         email=email,
         full_name=user_info.get("name"),
         provider="google",
@@ -410,7 +412,7 @@ async def github_callback(
             detail="GitHub OAuth is not configured",
         )
 
-    _validate_state(body, "github", session)
+    await run_in_threadpool(_validate_state, body, "github", session)
     redirect_uri = _get_redirect_uri("github")
 
     # Exchange authorization code for access token
@@ -466,7 +468,8 @@ async def github_callback(
         )
 
     auth_service = AuthService(session)
-    return auth_service.oauth_login_or_register(
+    return await run_in_threadpool(
+        auth_service.oauth_login_or_register,
         email=email,
         full_name=user_info.get("name"),
         provider="github",

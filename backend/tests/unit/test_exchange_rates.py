@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from ledger_sync.api.deps import get_current_user
+from ledger_sync.api.deps import get_provider_identity
 from ledger_sync.api.exchange_rates import (
     _FALLBACK_RATES,
     _fetch_rates,
@@ -212,7 +212,7 @@ class TestBaseValidation:
     @pytest.mark.parametrize("bad", ["USD\nWARNING injected", "USDD", "", "US1", "../etc"])
     def test_non_currency_codes_are_rejected(self, bad):
         client = TestClient(app)
-        app.dependency_overrides[get_current_user] = FakeUser
+        app.dependency_overrides[get_provider_identity] = FakeUser
         try:
             assert client.get("/api/exchange-rates", params={"base": bad}).status_code == 422
         finally:
@@ -221,7 +221,7 @@ class TestBaseValidation:
     @pytest.mark.parametrize("good", ["USD", "inr", "EuR"])
     def test_three_letter_codes_are_accepted(self, good):
         client = TestClient(app)
-        app.dependency_overrides[get_current_user] = FakeUser
+        app.dependency_overrides[get_provider_identity] = FakeUser
         try:
             with patch(
                 "ledger_sync.api.exchange_rates._fetch_rates",

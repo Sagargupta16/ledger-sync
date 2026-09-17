@@ -14,6 +14,13 @@ from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.transaction_pagination import (
+    MAX_CURSOR_LENGTH,
+    TransactionsPageResponse,
+    cursor_context,
+    transaction_page,
+)
+from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     excluded_accounts_for,
@@ -26,9 +33,9 @@ from ledger_sync.schemas.transactions import (
     TransactionCreateRequest,
     TransactionFacetsResponse,
     TransactionResponse,
-    TransactionsListResponse,
     TransactionTagsUpdateRequest,
 )
+from ledger_sync.services.ledger_dimensions import sync_transaction_dimensions
 
 _TxQuery = SAQuery[Transaction]
 
@@ -79,8 +86,12 @@ class SearchFilters(BaseModel):
     type: Annotated[str | None, Query(description="Filter by type (Income/Expense/Transfer)")] = (
         None
     )
-    min_amount: Annotated[float | None, Query(description="Minimum amount")] = None
-    max_amount: Annotated[float | None, Query(description="Maximum amount")] = None
+    min_amount: Annotated[
+        float | None, Query(allow_inf_nan=False, description="Minimum amount")
+    ] = None
+    max_amount: Annotated[
+        float | None, Query(allow_inf_nan=False, description="Maximum amount")
+    ] = None
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None
     tag: Annotated[str | None, Query(max_length=100, description="Filter by exact tag")] = None
@@ -106,6 +117,27 @@ def _apply_search_filters(
     tx_query = _apply_date_and_amount_filters(tx_query, filters)
     tx_query = _apply_field_filters(tx_query, filters)
     return tx_query
+
+
+def _transaction_cursor_context(user: User, filters: SearchFilters, sort_order: str) -> str:
+    """Normalize no-op filters, type casing, and inclusive date bounds for signing."""
+    effective = filters.model_dump(mode="json")
+    for field in ("query", "category", "subcategory", "account", "tag"):
+        effective[field] = effective[field] or None
+    effective["type"] = filters.type.lower() if filters.type else None
+    for field in ("min_amount", "max_amount"):
+        if effective[field] == 0:
+            effective[field] = 0.0  # SQL compares negative and positive zero equally.
+    if filters.end_date is not None:
+        effective["end_date"] = inclusive_end(filters.end_date).isoformat()
+    return cursor_context(
+        {
+            "user_id": user.id,
+            "excluded_accounts": sorted(excluded_accounts_for(user)),
+            "filters": effective,
+            "sort_order": sort_order,
+        }
+    )
 
 
 def _apply_date_and_amount_filters(
@@ -182,8 +214,8 @@ def _apply_sorting(
     }
     sort_column = sort_column_map.get(sort_by, Transaction.date)
     if sort_order == "desc":
-        return tx_query.order_by(sort_column.desc())
-    return tx_query.order_by(sort_column.asc())
+        return tx_query.order_by(sort_column.desc(), Transaction.transaction_id.desc())
+    return tx_query.order_by(sort_column.asc(), Transaction.transaction_id.asc())
 
 
 def _apply_tag_filter(tx_query: _TxQuery, user_id: int, tag: str | None) -> _TxQuery:
@@ -313,15 +345,28 @@ router = APIRouter(prefix="", tags=["transactions"])
 
 
 @router.get("/api/transactions")
-async def get_transactions(
+def get_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
     limit: Annotated[int, Query(ge=1, le=1000, description="Maximum results to return")] = 100,
     offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
-) -> TransactionsListResponse:
+    cursor: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=MAX_CURSOR_LENGTH,
+            description="Signed next_cursor; omit offset",
+        ),
+    ] = None,
+) -> TransactionsPageResponse:
     """Get all non-deleted transactions (including transfers) with pagination.
+
+    For date/ID keyset traversal, pass the returned ``next_cursor`` and omit
+    ``offset``. Keep the same date filters. ``total`` remains an exact current
+    count; cursor offsets track rows traversed, not ranks after ledger edits.
+    Cursors do not freeze the ledger across requests.
 
     Args:
         current_user: Authenticated user
@@ -330,6 +375,7 @@ async def get_transactions(
         end_date: Optional end date filter (inclusive)
         limit: Maximum number of results to return
         offset: Number of results to skip (for pagination)
+        cursor: Optional continuation returned by an earlier date-sorted page
 
     Returns:
         Paginated list of transactions in JSON format
@@ -339,22 +385,27 @@ async def get_transactions(
     query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
 
-    # Get total count before pagination
-    total = query.count()
-
-    # Apply sorting and pagination
-    transactions = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
+    transactions, total, page_offset, has_more, next_cursor = transaction_page(
+        _apply_sorting(query, "date", "desc"),
+        limit=limit,
+        offset=offset,
+        cursor=cursor,
+        context=_transaction_cursor_context(
+            current_user, SearchFilters(start_date=start_date, end_date=end_date), "desc"
+        ),
+    )
 
     tags_map = _tags_for_transactions(
         db, current_user.id, [tx.transaction_id for tx in transactions]
     )
 
-    return TransactionsListResponse(
+    return TransactionsPageResponse(
         data=[_to_transaction_response(tx, tags_map.get(tx.transaction_id)) for tx in transactions],
         total=total,
         limit=limit,
-        offset=offset,
-        has_more=offset + limit < total,
+        offset=page_offset,
+        has_more=has_more,
+        next_cursor=next_cursor,
     )
 
 
@@ -364,7 +415,7 @@ async def get_transactions(
         413: {"description": f"Result set exceeds {MAX_ALL_TRANSACTIONS} rows"},
     },
 )
-async def get_all_transactions(
+def get_all_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
@@ -394,7 +445,7 @@ async def get_all_transactions(
 
     # Fetch one row past the cap: the sentinel proves the limit was exceeded
     # without paying for a COUNT(*) on every normal request.
-    transactions = query.order_by(Transaction.date.desc()).limit(MAX_ALL_TRANSACTIONS + 1).all()
+    transactions = _apply_sorting(query, "date", "desc").limit(MAX_ALL_TRANSACTIONS + 1).all()
 
     if len(transactions) > MAX_ALL_TRANSACTIONS:
         total = query.count()
@@ -411,7 +462,7 @@ async def get_all_transactions(
 
 
 @router.get("/api/transactions/facets")
-async def get_transaction_facets(
+def get_transaction_facets(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> TransactionFacetsResponse:
@@ -486,7 +537,7 @@ async def get_transaction_facets(
 
 
 @router.get("/api/transactions/search")
-async def search_transactions(
+def search_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
     filters: Annotated[SearchFilters, Depends()],
@@ -500,8 +551,21 @@ async def search_transactions(
         ),
     ] = "date",
     sort_order: Annotated[str, Query(pattern="^(asc|desc)$", description="Sort order")] = "desc",
+    cursor: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=MAX_CURSOR_LENGTH,
+            description="Signed next_cursor for date sort; omit offset",
+        ),
+    ] = None,
 ) -> dict[str, Any]:
     """Search and filter transactions with pagination.
+
+    ``next_cursor`` is available for date sorting in either direction. Pass
+    it with the same filters and sort direction, omitting ``offset``. Other
+    sorts retain offset pagination. A cursor is not a ledger snapshot:
+    editing sort/filter fields can move rows across its boundary.
 
     Args:
         current_user: Authenticated user
@@ -511,6 +575,7 @@ async def search_transactions(
         offset: Number of results to skip (for pagination)
         sort_by: Field to sort by
         sort_order: Sort direction (asc/desc)
+        cursor: Optional continuation returned by an earlier date-sorted page
 
     Returns:
         Dictionary with filtered transactions, total count, and pagination info
@@ -523,12 +588,18 @@ async def search_transactions(
     tx_query = _apply_search_filters(tx_query, filters)
     tx_query = _apply_tag_filter(tx_query, current_user.id, filters.tag)
 
-    # Get total count before pagination
-    total = tx_query.count()
-
-    # Apply sorting and pagination
-    tx_query = _apply_sorting(tx_query, sort_by, sort_order)
-    transactions = tx_query.offset(offset).limit(limit).all()
+    transactions, total, page_offset, has_more, next_cursor = transaction_page(
+        _apply_sorting(tx_query, sort_by, sort_order),
+        limit=limit,
+        offset=offset,
+        cursor=cursor,
+        context=(
+            _transaction_cursor_context(current_user, filters, sort_order)
+            if sort_by == "date"
+            else None
+        ),
+        sort_order=sort_order,
+    )
 
     tags_map = _tags_for_transactions(
         db, current_user.id, [tx.transaction_id for tx in transactions]
@@ -541,17 +612,20 @@ async def search_transactions(
         ],
         "total": total,
         "limit": limit,
-        "offset": offset,
-        "has_more": offset + limit < total,
+        "offset": page_offset,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
     }
 
 
 # --- CSV Export Endpoint ---
 @router.get("/api/transactions/export")
-async def export_transactions(
+def export_transactions(
     current_user: CurrentUser,
     db: DatabaseSession,
     filters: Annotated[SearchFilters, Depends()],
+    sort_by: Annotated[str, Query(pattern="^(date|amount|category|account)$")] = "date",
+    sort_order: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
 ) -> Response:
     """Export the current user's non-deleted transactions as CSV.
 
@@ -571,7 +645,7 @@ async def export_transactions(
     query = _base_transaction_query(db, current_user)
     query = _apply_search_filters(query, filters)
     query = _apply_tag_filter(query, current_user.id, filters.tag)
-    transactions = query.all()
+    transactions = _apply_sorting(query, sort_by, sort_order).all()
 
     tags_map = _all_tags_for_user(db, current_user.id)
 
@@ -634,6 +708,54 @@ async def export_transactions(
 _hasher = TransactionHasher()
 
 
+def _manual_duplicate_exists(
+    db: Session, fingerprint: str, identity_fields: dict[str, Any], *, legacy_account: str
+) -> bool:
+    """Recognize legacy manual rows without trusting ambiguous v1 field boundaries."""
+    # The former manual API hashed the display account even for transfers.
+    legacy_id = _hasher.generate_transaction_id(
+        **{**identity_fields, "account": legacy_account}, version=1
+    )
+    candidates = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == identity_fields["user_id"],
+            or_(
+                Transaction.transaction_id == fingerprint,
+                Transaction.source_fingerprint == fingerprint,
+                (Transaction.transaction_id == legacy_id)
+                & Transaction.source_fingerprint.is_(None),
+            ),
+        )
+        .all()
+    )
+    # Two primary-key candidates and one user-unique fingerprint at most.
+    for candidate in candidates:
+        if candidate.transaction_id == fingerprint or candidate.source_fingerprint == fingerprint:
+            return True
+        candidate_fingerprint = _hasher.generate_transaction_id(
+            # The matching legacy ID already binds the original submitted date
+            # encoding; storage may have discarded its timezone.
+            date=identity_fields["date"],
+            amount=candidate.amount,
+            account=(
+                candidate.from_account or candidate.account
+                if candidate.type == TransactionType.TRANSFER
+                else candidate.account
+            ),
+            note=candidate.note,
+            category=candidate.category,
+            subcategory=candidate.subcategory,
+            tx_type=candidate.type.value,
+            user_id=candidate.user_id,
+            to_account=candidate.to_account if candidate.type == TransactionType.TRANSFER else None,
+            currency=candidate.currency,
+        )
+        if candidate_fingerprint == fingerprint:
+            return True
+    return False
+
+
 @router.post(
     "/api/transactions",
     status_code=201,
@@ -643,7 +765,7 @@ _hasher = TransactionHasher()
         409: {"description": "Duplicate transaction already exists"},
     },
 )
-async def create_transaction(
+def create_transaction(
     current_user: CurrentUser,
     db: DatabaseSession,
     body: TransactionCreateRequest,
@@ -679,20 +801,27 @@ async def create_transaction(
     amount = Decimal(str(round(body.amount, 2)))
 
     # Generate deterministic transaction ID (same logic as ingest pipeline)
-    transaction_id = _hasher.generate_transaction_id(
-        date=body.date,
-        amount=amount,
-        account=body.account,
-        note=body.note,
-        category=body.category,
-        subcategory=body.subcategory,
-        tx_type=body.type,
-        user_id=current_user.id,
-    )
+    identity_fields: dict[str, Any] = {
+        "date": body.date,
+        "amount": amount,
+        "account": (
+            body.from_account or body.account
+            if tx_type == TransactionType.TRANSFER
+            else body.account
+        ),
+        "note": body.note,
+        "category": body.category,
+        "subcategory": body.subcategory,
+        "tx_type": body.type,
+        "user_id": current_user.id,
+        "to_account": body.to_account if tx_type == TransactionType.TRANSFER else None,
+        "currency": "INR",
+    }
+    transaction_id = _hasher.generate_transaction_id(**identity_fields)
 
-    # Check for duplicate
-    existing = db.get(Transaction, transaction_id)
-    if existing is not None:
+    # Serialize with imports and refresh before reading or changing this ledger.
+    lock_analytics_user(db, current_user.id)
+    if _manual_duplicate_exists(db, transaction_id, identity_fields, legacy_account=body.account):
         raise HTTPException(
             status_code=409,
             detail="A transaction with identical fields already exists.",
@@ -700,6 +829,8 @@ async def create_transaction(
 
     transaction = Transaction(
         transaction_id=transaction_id,
+        source_fingerprint=transaction_id,
+        fingerprint_version=2,
         user_id=current_user.id,
         date=body.date,
         amount=amount,
@@ -718,7 +849,10 @@ async def create_transaction(
         is_deleted=False,
     )
 
+    sync_transaction_dimensions(db, transaction)
     db.add(transaction)
+    # DateTime stores the submitted wall-clock day without a timezone.
+    mark_ledger_changed(db, current_user.id, [transaction.date.date()])
     db.commit()
     db.refresh(transaction)
 
@@ -735,7 +869,7 @@ async def create_transaction(
         422: {"description": "Validation error"},
     },
 )
-async def set_transaction_tags(
+def set_transaction_tags(
     transaction_id: str,
     payload: TransactionTagsUpdateRequest,
     current_user: CurrentUser,

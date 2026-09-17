@@ -278,7 +278,20 @@ def test_currency_correction_updates_existing_id(test_db_session, test_user, tra
     engine.import_rows(rows, "initial.csv", "initial")
     stored = test_db_session.scalar(select(Transaction))
     original_id = stored.transaction_id
-    stored.currency = "USD"
+    original_fingerprint = stored.source_fingerprint
+    connection = test_db_session.connection()
+    assert connection.dialect.name == "sqlite"
+    sqlite_connection = connection.connection.driver_connection
+    assert sqlite_connection.execute("PRAGMA ignore_check_constraints").fetchone() == (0,)
+    # Seed corruption predating the INR constraint, then restore enforcement
+    # before committing or exercising the actual reupload repair.
+    sqlite_connection.execute("PRAGMA ignore_check_constraints=ON")
+    try:
+        stored.currency = "USD"
+        test_db_session.flush()
+    finally:
+        sqlite_connection.execute("PRAGMA ignore_check_constraints=OFF")
+    assert sqlite_connection.execute("PRAGMA ignore_check_constraints").fetchone() == (0,)
     test_db_session.commit()
 
     stats = engine.import_rows(rows, "corrected.csv", "corrected")
@@ -287,4 +300,5 @@ def test_currency_correction_updates_existing_id(test_db_session, test_user, tra
     assert stats.inserted == stats.deleted == 0
     stored = test_db_session.scalar(select(Transaction))
     assert stored.transaction_id == original_id
+    assert stored.source_fingerprint == original_fingerprint
     assert stored.currency == "INR"

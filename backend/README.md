@@ -99,12 +99,30 @@ src/ledger_sync/
   cli/                 Typer CLI for file-based imports
   ingest/              CLI loaders, normalization, validation, hashing
   schemas/             Pydantic request and response models
-  services/            Cross-cutting services
+  services/            Upload, calculation, dimension, and authentication services
   config/              Runtime settings
   utils/               Logging and helpers
 ```
 
 `core/analytics_engine.py` is a compatibility facade. The active analytics implementation lives under `core/analytics/`.
+
+Keep HTTP validation and response mapping in `api/`, workflow coordination in
+`services/`, and financial logic in `core/`. `core/import_identity.py` owns
+versioned source matching; `core/import_labels.py` owns label canonicalization;
+`services/ledger_dimensions.py` resolves dimension IDs in batches. Import
+consumers use `ledger_sync.db.models`, the public model facade.
+
+Synchronous database work belongs in synchronous routes or a complete worker
+phase. Upload serialization, reconciliation, refresh, and rollback run together
+in `services/upload_service.py`. OAuth has separate provider-I/O and database
+phases. Provider-only price/rate requests release their authentication session
+before awaiting upstream HTTP. Do not share one SQLAlchemy session across
+concurrent tasks or carry an idle transaction through slow provider calls.
+
+The transaction API supports signed date cursors alongside offset pagination.
+Analytics refreshes track durable input versions and changed dates; unchanged
+generations can skip recomputation. See [the database reference](../docs/DATABASE.md)
+for identity, ownership, publication, and migration contracts.
 
 `core/ledger_clock.py` is the only source of "now" and "today". It returns naive IST wall-clock values that match the naive `Transaction.date` column, so month and financial-year windows do not slip a period between 18:30 and 24:00 UTC. Never anchor a user-facing window on `datetime.now(UTC)`.
 
@@ -129,6 +147,7 @@ Environment variables use their full `LEDGER_SYNC_` names.
 | `LEDGER_SYNC_ENVIRONMENT` | `development` | Runtime mode |
 | `LEDGER_SYNC_DATABASE_URL` | `sqlite:///./ledger_sync.db` | SQLAlchemy database URL |
 | `LEDGER_SYNC_DATABASE_ECHO` | `false` | SQL logging |
+| `LEDGER_SYNC_DB_BOOTSTRAP_ON_STARTUP` | `false` | Development-only table creation; use Alembic for migrations |
 | `LEDGER_SYNC_LOG_LEVEL` | `INFO` | Application log level |
 | `LEDGER_SYNC_FRONTEND_URL` | `http://localhost:5173` | OAuth callback base |
 | `LEDGER_SYNC_CORS_ORIGINS` | Local origins | JSON allowlist |
@@ -153,7 +172,10 @@ uv run mypy src/
 uv run pytest tests/ -v
 ```
 
-The current backend suite contains 818 tests across 63 files.
+The suite covers HTTP contracts, financial calculations, tenant isolation,
+upload idempotency, publication races, and populated migration paths. Set
+`LEDGER_SYNC_TEST_POSTGRES_URL` to a disposable local `ledger_sync_test*`
+database to include native PostgreSQL cases.
 
 ## Migrations
 

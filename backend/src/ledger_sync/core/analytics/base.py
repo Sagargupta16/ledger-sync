@@ -132,7 +132,7 @@ class AnalyticsEngineBase:
             stmt = select(UserPreferences)
             if self.user_id is not None:
                 stmt = stmt.where(UserPreferences.user_id == self.user_id)
-            stmt = stmt.limit(1)
+            stmt = stmt.limit(1).execution_options(populate_existing=True)
             result = self.db.execute(stmt)
             self._preferences = result.scalar_one_or_none()
             if self._preferences:
@@ -404,7 +404,7 @@ class AnalyticsEngineBase:
         if self.user_id is not None:
             query = query.filter(Transaction.user_id == self.user_id)
         query = apply_excluded_accounts_filter(query, self.excluded_accounts)
-        return query
+        return query.populate_existing()
 
     def _exclude_capital_losses[QueryT: Query[Any]](self, query: QueryT) -> QueryT:
         """Drop rows the user classified as realised investment losses.

@@ -2,8 +2,8 @@
 
 Database reference for Ledger Sync 2.24.1.
 
-Verified against SQLAlchemy metadata and the Alembic chain on 2026-07-27.
-The current model contains 26 tables.
+Updated for the 2026-09-17 schema changes. The current model contains 31
+application tables; Alembic also maintains its own version table.
 
 ## Runtime Databases
 
@@ -31,6 +31,8 @@ backend/src/ledger_sync/db/
     planning.py
     organization.py
     ai_usage.py
+    analytics_state.py
+    ledger_dimensions.py
   migrations/
     env.py
     versions/
@@ -56,6 +58,10 @@ re-exported through `_models/__init__.py` and `models.py`.
 | Table | Purpose |
 | --- | --- |
 | `transactions` | Active and soft-deleted income, expense, and transfer ledger rows |
+| `ledger_accounts` | Stable user-owned account identities |
+| `ledger_account_aliases` | Exact lowercased source labels mapped to account identities |
+| `ledger_categories` | Stable user-owned category identities |
+| `ledger_subcategories` | Subcategory identities qualified by owner and parent category |
 | `transaction_tags` | User-owned tags attached to transactions |
 | `import_logs` | File hash idempotency and reconciliation counts |
 | `column_mapping_logs` | Parser column-mapping diagnostics |
@@ -76,6 +82,7 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `fy_summaries` | Fiscal-year income, expense, tax, investment, and savings totals |
 | `net_worth_snapshots` | Daily asset, liability, and net-worth snapshots |
 | `investment_holdings` | Ledger-derived investment principal and value |
+| `analytics_state` | Input and published versions, dirty dates, and refresh status per user |
 
 ### Planning and review
 
@@ -97,55 +104,63 @@ Important columns:
 
 | Column | Meaning |
 | --- | --- |
-| `transaction_id` | Deterministic occurrence-aware hash |
+| `transaction_id` | Stable public ID; never rewritten by categorization |
+| `source_fingerprint`, `fingerprint_version` | Versioned, occurrence-aware source identity |
 | `user_id` | Owning user |
 | `date` | Transaction timestamp |
-| `amount` | `NUMERIC(15, 2)` positive amount |
-| `currency` | Currency code, default `INR` |
+| `amount` | `NUMERIC(15, 2)`, finite and between zero and 9,999,999,999,999.99 |
+| `currency` | Source currency, constrained to `INR`; conversion is display-only |
 | `type` | `Income`, `Expense`, or `Transfer` |
 | `account` | Primary account |
 | `category`, `subcategory` | Classification |
 | `from_account`, `to_account` | Transfer legs |
+| `account_id`, `from_account_id`, `to_account_id` | User-qualified references to ledger accounts |
+| `category_id`, `subcategory_id` | User-qualified references to category dimensions |
 | `note` | Optional description |
-| `source_file` | Last importing file name |
+| `source_file` | File or manual-entry source that introduced the row |
 | `last_seen_at` | Last reconciliation timestamp |
 | `is_deleted` | Soft-delete flag |
 | `created_at`, `updated_at` | Row timestamps |
 
 ### Transaction ID generation
 
-The normalized hash input is:
+New imports use SHA-256 over a canonical JSON array containing the version
+domain, user, date, amount, account, note, source category/subcategory, type,
+explicit transfer destination, source currency, and occurrence number. JSON
+preserves field boundaries even when source labels contain `|`. Strings retain
+the existing trimmed/lowercased hash normalization, amounts use two decimal
+places, and dates use ISO 8601.
 
-```text
-user_id
-| date
-| amount
-| account
-| note
-| category
-| subcategory
-| type
-| occurrence when greater than zero
-```
+Capture this fingerprint **before** applying categorization rules. The initial
+fingerprint also supplies a new row's public ID, but subsequent category edits
+change neither the ID nor the source fingerprint. Occurrence numbers preserve
+legitimate identical rows. A unique `(user_id, source_fingerprint)` index enforces
+source idempotency.
 
-Values are trimmed and lowercased where applicable. Amounts use two decimal
-places and dates use ISO 8601.
+Historical IDs remain unchanged. Existing rows initially have a NULL source
+fingerprint and version 1. Re-imports verify legacy field matches before
+adopting version 2. When an old categorization rule discarded source labels,
+the importer accepts only an exact, unambiguous one-to-one economic match.
+Ambiguous legacy duplicates reject the entire snapshot without moving tags or
+anomaly reviews. Do not replace this migration bridge with fuzzy matching.
 
-The first identical row uses occurrence zero and preserves the original hash
-shape. Later identical rows in the same import append occurrence 1, 2, and so
-on before hashing. This keeps legitimate duplicate transactions instead of
-silently collapsing them.
+Dimension keys use exact Python lowercasing, not fuzzy or Unicode casefold
+merging. Original labels remain on transactions for compatibility and audit.
+The five dimension columns are nullable for legacy-writer compatibility; current
+import and manual-create paths populate them in batches.
 
 ### Reconciliation
 
 For each authenticated user:
 
 1. Normalize incoming rows.
-2. Build deterministic IDs.
-3. Insert unknown IDs.
-4. Update changed category, subcategory, note, or type values.
+2. Lock the owning user, capture source fingerprints, then apply rules.
+3. Resolve dimension IDs and source identities with bounded batch queries.
+4. Insert unknown sources or update existing rows without changing public IDs.
 5. Refresh `last_seen_at` and restore a matching soft-deleted row.
 6. Mark active rows not seen in the current import as deleted.
+7. Record changed dates and commit the ledger, import log, and analytics version
+   together. A forced re-import updates the existing unique file log.
 
 The unseen-row sweep is user-wide, not limited to one `source_file`. Transfer
 pairs use separate reconciliation logic so incoming and outgoing source rows
@@ -164,8 +179,36 @@ The current composite indexes are optimized for user-scoped access:
 (user_id, to_account)
 ```
 
-Single-column legacy transaction indexes were removed because authenticated
-queries always include `user_id`.
+These six indexes are partial indexes over live rows. New migrations also remove
+four duplicate index pairs and the redundant net-worth date index, while adding
+the uniqueness needed for source identities and tenant-qualified relationships.
+PostgreSQL predicates use `is_deleted IS false` to match the SQLAlchemy queries.
+Native PostgreSQL 17.11 plans showed that the previous `= false` predicate was
+not selected for these `IS false` queries; equivalent boolean expressions are
+not automatically interchangeable for partial-index planning.
+Do not add an index for every column: additional indexes also tax every write.
+
+Date pagination orders by `(date, transaction_id)`. The transaction endpoint
+accepts a signed `cursor` bound to the authenticated user, effective filters,
+exclusions, and sort direction. It returns `next_cursor` while retaining offset
+pagination and exact totals. Cursors are continuations, not frozen snapshots;
+intervening edits can move rows across a page boundary.
+
+## Analytics publication
+
+`analytics_state` tracks ledger, preference, and algorithm versions separately
+from the last published versions. Writers lock the user before reading or
+mutating inputs and invalidate analytics in that same transaction. Refreshes
+take the same lock before loading inputs and publish all results in one commit.
+This prevents a stale worker from overwriting newer results.
+
+`refresh_analytics()` skips an unchanged generation on the same IST day.
+Otherwise it rebuilds affected daily summaries and affected monthly summaries
+plus their following month, whose comparison values depend on the changed
+month. Other analytics domains still rebuild from one shared active-ledger load.
+Unknown change scope, preference changes, algorithm changes, or an oversized
+dirty-day set request a full rebuild. `run_full_analytics()` remains an explicit
+recovery operation. `/api/analytics/v2/freshness` exposes publication status.
 
 ## User Preferences Storage
 
@@ -202,9 +245,14 @@ non-user-scoped table.
 User foreign keys use `ON DELETE CASCADE` in the current model. Important
 secondary relationships include:
 
-- `transaction_tags.transaction_id` cascades with its transaction.
-- `anomalies.transaction_id` cascades when the referenced transaction is
-  hard-deleted.
+- Tags and anomalies reference `(user_id, transaction_id)` together, so they
+  cannot point at another user's transaction; hard deletion cascades.
+- Dimension references include the owner, and subcategory references also
+  include their parent category.
+- Scheduled items reference `(user_id, recurring_id)` together. Detection
+  clears references before replacing unconfirmed patterns, preserving schedules.
+- Budget and category-trend uniqueness explicitly covers NULL subcategories;
+  fiscal-year, merchant, and import identities are also unique per user.
 - User account deletion explicitly clears domain rows before deleting the
   user, while database cascades provide defense in depth.
 
@@ -226,7 +274,7 @@ statement = (
         Transaction.user_id == current_user.id,
         Transaction.is_deleted.is_(False),
     )
-    .order_by(Transaction.date.desc())
+    .order_by(Transaction.date.desc(), Transaction.transaction_id.desc())
 )
 transactions = session.execute(statement).scalars().all()
 ```
@@ -324,9 +372,10 @@ one database's date function can pass local tests and fail in production.
 
 ## Initialization and Migrations
 
-Application startup calls `Base.metadata.create_all()`. This creates missing
-tables for a fresh local database, but it does not evolve existing columns,
-constraints, or indexes. Alembic remains required for schema upgrades.
+Application startup does not issue schema DDL. Run Alembic before starting the
+application. A development-only `LEDGER_SYNC_DB_BOOTSTRAP_ON_STARTUP=true` option
+can create missing tables from metadata, but it cannot evolve existing schema
+and is rejected outside development.
 
 Migration location:
 
@@ -402,6 +451,32 @@ fields. It preserves the user-scoped monthly uniqueness rule and adds the
 positive budget/goal checks. Duplicate OAuth owners or nonpositive existing
 amounts stop the revision before changes; resolve those records explicitly
 instead of merging accounts or rewriting amounts automatically.
+
+The September chain proceeds through `schema_integrity_2026`,
+`stable_import_identity_2026`, `analytics_versions_2026`,
+`ledger_dimensions_2026`, `transaction_invariants_2026`, and
+`scheduled_references_2026`, followed by `live_index_predicates_2026`.
+Preflight checks stop on duplicate keys, invalid
+financial values, orphan references, or cross-user references; they do not
+silently rewrite financial history. Dimension backfills preserve existing
+transaction IDs and annotations.
+
+For SQLite table rebuilds, use the Alembic command's dedicated connection.
+Relevant revisions refuse a connection with foreign keys enabled because a
+parent-table rebuild could otherwise cascade-delete child records. The
+migrations validate foreign keys after rebuilding; application connections
+continue enforcing them. Never toggle foreign-key enforcement inside an active
+transaction to bypass this guard.
+
+Deploy this chain and its matching backend as one coordinated release. Once
+version-2 imports exist, rolling back to a legacy writer is unsafe even though
+the new columns are additive. Test a restored database or Neon branch first.
+
+The final PostgreSQL index revision takes an exclusive transaction-table lock
+and replaces the six existing index definitions atomically, preserving their
+names and key columns. Reads and writes wait until commit; rehearse the entire
+upgrade against representative data and drain transaction traffic for rollout.
+Failure rolls back all replacements. SQLite is unchanged by that revision.
 
 ## Backup and Recovery
 

@@ -9,15 +9,17 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, update
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.analytics.recurring import effective_pattern_kind
+from ledger_sync.core.analytics.refresh import lock_analytics_user
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
     MerchantIntelligence,
     RecurrenceFrequency,
     RecurringTransaction,
+    ScheduledTransaction,
     TransactionType,
 )
 
@@ -205,6 +207,7 @@ def update_recurring_transaction(
     db: DatabaseSession,
 ) -> dict[str, Any]:
     """Update a detected recurring transaction (name, frequency, amount, status)."""
+    lock_analytics_user(db, current_user.id)
     record = (
         db.query(RecurringTransaction)
         .filter(
@@ -277,6 +280,7 @@ def create_recurring_transaction(
     if txn_type not in ("INCOME", "EXPENSE"):
         raise HTTPException(status_code=422, detail="Type must be Income or Expense")
 
+    lock_analytics_user(db, current_user.id)
     record = RecurringTransaction(
         user_id=current_user.id,
         pattern_name=body.name.strip(),
@@ -317,6 +321,7 @@ def delete_recurring_transaction(
     db: DatabaseSession,
 ) -> dict[str, Any]:
     """Delete a recurring transaction."""
+    lock_analytics_user(db, current_user.id)
     record = (
         db.query(RecurringTransaction)
         .filter(
@@ -327,6 +332,20 @@ def delete_recurring_transaction(
     )
     if not record:
         raise HTTPException(status_code=404, detail="Recurring transaction not found")
+    # A schedule owns its payment details independently of its detected source.
+    # Unlink before DELETE to satisfy the tenant-scoped FK without deleting or
+    # rewriting any schedule, including inactive schedules.
+    db.execute(
+        update(ScheduledTransaction)
+        .where(
+            ScheduledTransaction.user_id == current_user.id,
+            ScheduledTransaction.recurring_transaction_id == item_id,
+        )
+        .values(
+            recurring_transaction_id=None,
+            updated_at=ScheduledTransaction.updated_at,
+        )
+    )
     db.delete(record)
     db.commit()
     return {"status": "ok", "id": item_id}

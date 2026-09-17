@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.db.models import AccountClassification, AccountType, RecurringTransaction
 
 router = APIRouter(prefix="/api/account-classifications", tags=["account-classifications"])
@@ -21,7 +22,7 @@ class AccountStatusUpdate(BaseModel):
 
 
 @router.get("")
-async def get_all_classifications(
+def get_all_classifications(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> dict[str, str]:
@@ -38,7 +39,7 @@ async def get_all_classifications(
 
 
 @router.get("/closed")
-async def get_closed_accounts(
+def get_closed_accounts(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> list[str]:
@@ -51,7 +52,7 @@ async def get_closed_accounts(
 
 
 @router.put("/status")
-async def set_account_status(
+def set_account_status(
     body: AccountStatusUpdate,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -61,11 +62,13 @@ async def set_account_status(
     Creates the classification row (type Other) if the account was never
     classified, so unclassified accounts can still be closed.
     """
+    lock_analytics_user(db, current_user.id)
     stmt = select(AccountClassification).where(
         AccountClassification.account_name == body.account_name,
         AccountClassification.user_id == current_user.id,
     )
-    classification = db.execute(stmt).scalar()
+    classification = db.execute(stmt.execution_options(populate_existing=True)).scalar()
+    changed = classification is None or classification.is_closed != body.is_closed
 
     if not classification:
         classification = AccountClassification(
@@ -75,8 +78,9 @@ async def set_account_status(
         )
         db.add(classification)
 
-    classification.is_closed = body.is_closed
-    classification.closed_date = datetime.now(UTC) if body.is_closed else None
+    if changed:
+        classification.is_closed = body.is_closed
+        classification.closed_date = datetime.now(UTC) if body.is_closed else None
 
     # Apply the forward-looking consequences immediately instead of waiting
     # for the next analytics refresh: a closed account has no future cash
@@ -88,15 +92,17 @@ async def set_account_status(
         RecurringTransaction.account == body.account_name,
     )
     if body.is_closed:
-        recurring_query.filter(RecurringTransaction.is_active.is_(True)).update(
+        updated_recurring = recurring_query.filter(RecurringTransaction.is_active.is_(True)).update(
             {"is_active": False, "last_updated": datetime.now(UTC)}
         )
     else:
-        recurring_query.filter(
+        updated_recurring = recurring_query.filter(
             RecurringTransaction.is_active.is_(False),
             RecurringTransaction.is_user_confirmed.is_(True),
         ).update({"is_active": True, "last_updated": datetime.now(UTC)})
 
+    if changed or updated_recurring:
+        mark_preferences_changed(db, current_user.id)
     db.commit()
 
     return {
@@ -107,7 +113,7 @@ async def set_account_status(
 
 
 @router.get("/{account_name}")
-async def get_classification(
+def get_classification(
     account_name: str,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -137,7 +143,7 @@ async def get_classification(
 
 
 @router.post("", responses={422: {"description": "Validation error"}})
-async def create_or_update_classification(
+def create_or_update_classification(
     account_name: str,
     account_type: str,
     current_user: CurrentUser,
@@ -163,11 +169,13 @@ async def create_or_update_classification(
             detail=f"Invalid account type. Must be one of: {valid_types}",
         ) from err
 
+    lock_analytics_user(db, current_user.id)
     stmt = select(AccountClassification).where(
         AccountClassification.account_name == account_name,
         AccountClassification.user_id == current_user.id,
     )
-    classification = db.execute(stmt).scalar()
+    classification = db.execute(stmt.execution_options(populate_existing=True)).scalar()
+    changed = classification is None or classification.account_type != acc_type
 
     if classification:
         classification.account_type = acc_type
@@ -179,6 +187,8 @@ async def create_or_update_classification(
         )
         db.add(classification)
 
+    if changed:
+        mark_preferences_changed(db, current_user.id)
     db.commit()
     db.refresh(classification)
 
@@ -190,7 +200,7 @@ async def create_or_update_classification(
 
 
 @router.delete("/{account_name}")
-async def delete_classification(
+def delete_classification(
     account_name: str,
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -204,6 +214,7 @@ async def delete_classification(
         Success status
 
     """
+    lock_analytics_user(db, current_user.id)
     stmt = select(AccountClassification).where(
         AccountClassification.account_name == account_name,
         AccountClassification.user_id == current_user.id,
@@ -212,6 +223,7 @@ async def delete_classification(
 
     if classification:
         db.delete(classification)
+        mark_preferences_changed(db, current_user.id)
         db.commit()
 
     return {
@@ -221,7 +233,7 @@ async def delete_classification(
 
 
 @router.get("/type/{account_type}", responses={422: {"description": "Validation error"}})
-async def get_accounts_by_type(
+def get_accounts_by_type(
     account_type: str,
     current_user: CurrentUser,
     db: DatabaseSession,

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import OperationalError
+from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from ledger_sync import __version__
@@ -121,21 +122,18 @@ class UploadSizeLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Application lifespan: initialize database and the shared HTTP client."""
-    try:
-        settings.warn_if_development_secrets()
-        logger.info("Initializing database...")
-        init_db()
-        logger.info("Database initialized successfully")
-        logger.info("CORS allowed origins: %s", _cors_origins)
-    except Exception as exc:
-        logger.error("Database initialization failed: %s", exc)
-        raise
+    """Own HTTP resources; bootstrap local tables only when explicitly requested."""
+    settings.warn_if_development_secrets()
+    if settings.db_bootstrap_on_startup:
+        if settings.environment != "development":
+            raise RuntimeError("Database bootstrap is only allowed in development.")
+        await run_in_threadpool(init_db)
+        logger.info("Development database bootstrap completed")
+    logger.info("CORS allowed origins: %s", _cors_origins)
 
-    # Shared httpx client for OAuth calls — connection-pooled and reused
-    _app.state.http_client = httpx.AsyncClient(timeout=10.0)
-    yield
-    await _app.state.http_client.aclose()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        _app.state.http_client = client
+        yield
 
 
 app = FastAPI(
@@ -208,7 +206,7 @@ async def add_security_headers(
 @app.exception_handler(OperationalError)
 async def database_error_handler(_request: Request, exc: OperationalError) -> JSONResponse:
     """Handle database errors with structured response."""
-    logger.error("Database error: %s", exc)
+    logger.error("Database error: %s", type(exc).__name__)
     return JSONResponse(
         status_code=503,
         content={"error": "Database unavailable", "code": "DB_ERROR"},
@@ -216,15 +214,15 @@ async def database_error_handler(_request: Request, exc: OperationalError) -> JS
 
 
 @app.exception_handler(Exception)
-async def generic_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def generic_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler — no raw tracebacks in responses.
 
     Returns a unique error_id for log correlation instead of leaking
     internal details.
     """
     error_id = secrets.token_hex(8)
-    logger.error("Unhandled exception [%s]: %s: %s", error_id, type(exc).__name__, exc)
-    return JSONResponse(
+    logger.error("Unhandled exception [%s]: %s", error_id, type(exc).__name__)
+    response = JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
@@ -232,6 +230,17 @@ async def generic_error_handler(_request: Request, exc: Exception) -> JSONRespon
             "error_id": error_id,
         },
     )
+    # ServerErrorMiddleware sits outside user middleware. Match our fixed
+    # non-credentialed CORS policy here as well, preserving the FastAPI object
+    # and its dependency_overrides interface. Preflights remain middleware-owned.
+    origin = request.headers.get("origin")
+    if origin:
+        if "*" in _cors_origins:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+        elif origin in _cors_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers.add_vary_header("Origin")
+    return response
 
 
 # ─── Cache-Control Middleware ────────────────────────────────────────────────
@@ -278,7 +287,7 @@ async def add_timing_header(
     return response
 
 
-# ─── CORS (added last = outermost, so ALL responses get CORS headers) ────────
+# ─── CORS (outermost user middleware; fallback 500s handled above) ────────
 
 _cors_origins = list(settings.cors_origins)
 if settings.frontend_url:
@@ -335,7 +344,7 @@ async def health() -> HealthResponse:
 
 
 @app.get("/health/db", response_model=None)
-async def health_db() -> dict[str, str] | JSONResponse:
+def health_db() -> dict[str, str] | JSONResponse:
     """Database connectivity check."""
     from sqlalchemy import text
 
@@ -345,7 +354,7 @@ async def health_db() -> dict[str, str] | JSONResponse:
             conn.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
-        logger.error("Database health check failed: %s", e)
+        logger.error("Database health check failed: %s", type(e).__name__)
         return JSONResponse(
             status_code=503,
             content={"status": "error", "database": "unavailable"},

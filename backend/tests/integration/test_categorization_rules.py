@@ -1,5 +1,9 @@
 """Integration tests for the /api/categorization-rules endpoints.
 
+Rules change classification while preserving public IDs, source fingerprints,
+and annotation references. A retroactive batch commits atomically; import
+fingerprints are captured before rules, so raw reuploads remain idempotent.
+
 TestClient with dependency overrides for get_session and get_current_user.
 SQLite in-memory with StaticPool + check_same_thread=False so the test
 session and the request handler thread share one connection (and therefore
@@ -10,12 +14,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from hashlib import sha256
 from typing import Any
 
 import pytest
+from sqlalchemy import event, inspect
 from sqlalchemy.orm import Session
 
 from ledger_sync.core import rules as rules_engine
+from ledger_sync.core.analytics.refresh import get_analytics_state
 from ledger_sync.core.sync_engine import SyncEngine
 from ledger_sync.db.models import (
     Anomaly,
@@ -71,8 +78,14 @@ def _seed_txn(
     tx_type: TransactionType = TransactionType.EXPENSE,
     date: datetime | None = None,
 ) -> Transaction:
+    # Synthetic source identities must satisfy the database's SHA-256 shape.
+    transaction_id = (
+        tx_id if len(tx_id) == 64 else sha256(f"{user_id}:{tx_id}".encode()).hexdigest()
+    )
     txn = Transaction(
-        transaction_id=tx_id.ljust(64, "0")[:64],
+        transaction_id=transaction_id,
+        source_fingerprint=transaction_id,
+        fingerprint_version=2,
         user_id=user_id,
         date=date or datetime(2026, 6, 1, 12, 0, 0),  # noqa: DTZ001 - naive like SQLite storage
         amount=Decimal(str(amount)),
@@ -89,7 +102,8 @@ def _seed_txn(
     return txn
 
 
-def _recomputed_id(txn: Transaction, user_id: int, occurrence: int = 0) -> str:
+def _classification_fingerprint(txn: Transaction, user_id: int) -> str:
+    """Hash current display fields, which need not match the stored source identity."""
     return TransactionHasher().generate_transaction_id(
         date=txn.date,
         amount=txn.amount,
@@ -99,7 +113,8 @@ def _recomputed_id(txn: Transaction, user_id: int, occurrence: int = 0) -> str:
         subcategory=txn.subcategory,
         tx_type=txn.type.value,
         user_id=user_id,
-        occurrence=occurrence,
+        to_account=txn.to_account,
+        currency=txn.currency,
     )
 
 
@@ -196,10 +211,11 @@ def test_response_contract(rules_client) -> None:
 # --- POST /apply ---
 
 
-def test_apply_updates_category_and_rehashes_transaction_id(rules_client) -> None:
+def test_apply_changes_category_and_preserves_source_identity(rules_client) -> None:
     client, session, user_a, _, _ = rules_client
     seeded = _seed_txn(session, user_a.id, "seed1", note="swiggy order", category="Misc")
     old_id = seeded.transaction_id
+    source_fingerprint = seeded.source_fingerprint
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
 
     r = client.post("/api/categorization-rules/apply")
@@ -214,8 +230,10 @@ def test_apply_updates_category_and_rehashes_transaction_id(rules_client) -> Non
     row = session.query(Transaction).filter(Transaction.user_id == user_a.id).one()
     assert row.category == "Food"
     assert row.subcategory is None
-    assert row.transaction_id != old_id
-    assert row.transaction_id == _recomputed_id(row, user_a.id)
+    assert row.transaction_id == old_id
+    assert row.source_fingerprint == source_fingerprint
+    assert row.fingerprint_version == 2
+    assert row.transaction_id != _classification_fingerprint(row, user_a.id)
 
 
 def test_apply_skips_transfers_and_already_correct_rows(rules_client) -> None:
@@ -245,12 +263,14 @@ def test_apply_skips_transfers_and_already_correct_rows(rules_client) -> None:
     assert xfer.category == "Transfer: Cash -> Wallet"
 
 
-def test_apply_migrates_transaction_tags_to_new_id(rules_client) -> None:
+def test_apply_preserves_tag_rows_and_transaction_references(rules_client) -> None:
     client, session, user_a, _, _ = rules_client
     seeded = _seed_txn(session, user_a.id, "tagged1", note="swiggy order", category="Misc")
     old_id = seeded.transaction_id
-    session.add(TransactionTag(user_id=user_a.id, transaction_id=old_id, tag="work"))
+    tag = TransactionTag(user_id=user_a.id, transaction_id=old_id, tag="work")
+    session.add(tag)
     session.commit()
+    tag_id = tag.id
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
 
     r = client.post("/api/categorization-rules/apply")
@@ -258,17 +278,20 @@ def test_apply_migrates_transaction_tags_to_new_id(rules_client) -> None:
     assert r.json()["updated"] == 1
     session.expire_all()
     row = session.query(Transaction).filter(Transaction.user_id == user_a.id).one()
-    assert row.transaction_id != old_id
+    assert row.transaction_id == old_id
+    assert row.source_fingerprint == old_id
     tags = session.query(TransactionTag).filter(TransactionTag.user_id == user_a.id).all()
-    assert [(t.transaction_id, t.tag) for t in tags] == [(row.transaction_id, "work")]
+    assert [(t.id, t.transaction_id, t.tag) for t in tags] == [(tag_id, old_id, "work")]
 
 
-def test_apply_handles_occurrence_collision(rules_client) -> None:
+def test_apply_retains_distinct_source_rows_with_identical_final_classification(
+    rules_client,
+) -> None:
     client, session, user_a, _, _ = rules_client
-    # Identical (date, amount, account, note) so both rehash to the same
-    # base id once the rule sets the same category on both.
-    _seed_txn(session, user_a.id, "dupA", note="swiggy order", category="MiscA")
-    _seed_txn(session, user_a.id, "dupB", note="swiggy order", category="MiscB")
+    # The rule makes all display/hash fields equal, but these remain two records.
+    first = _seed_txn(session, user_a.id, "dupA", note="swiggy order", category="MiscA")
+    second = _seed_txn(session, user_a.id, "dupB", note="swiggy order", category="MiscB")
+    identities = {row.transaction_id: row.source_fingerprint for row in (first, second)}
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
 
     r = client.post("/api/categorization-rules/apply")
@@ -279,18 +302,19 @@ def test_apply_handles_occurrence_collision(rules_client) -> None:
     session.expire_all()
     rows = session.query(Transaction).filter(Transaction.user_id == user_a.id).all()
     assert len(rows) == 2
-    ids = {row.transaction_id for row in rows}
-    assert len(ids) == 2  # distinct final ids despite identical hash inputs
+    assert {row.transaction_id: row.source_fingerprint for row in rows} == identities
     assert all(row.category == "Food" for row in rows)
-    recomputed = {_recomputed_id(rows[0], user_a.id, occurrence=n) for n in (0, 1)}
-    assert ids == recomputed
+    assert len({_classification_fingerprint(row, user_a.id) for row in rows}) == 1
 
 
-def test_apply_rehash_avoids_soft_deleted_row_ids(rules_client) -> None:
+def test_apply_preserves_identity_when_classification_hash_matches_deleted_row(
+    rules_client,
+) -> None:
     client, session, user_a, _, _ = rules_client
     live = _seed_txn(session, user_a.id, "live1", note="swiggy order", category="Misc")
-    # A soft-deleted row already occupies the EXACT id the live row would
-    # rehash to at occurrence 0 (typical full-snapshot re-upload leftovers).
+    live_id = live.transaction_id
+    # A deleted row's ID matches the future display-field hash. Rules no longer
+    # rehash, so it must neither replace that ghost nor allocate an occurrence ID.
     ghost_id = TransactionHasher().generate_transaction_id(
         date=live.date,
         amount=live.amount,
@@ -309,8 +333,6 @@ def test_apply_rehash_avoids_soft_deleted_row_ids(rules_client) -> None:
 
     r = client.post("/api/categorization-rules/apply")
 
-    # Was a duplicate-PK IntegrityError (HTTP 500) before soft-deleted rows
-    # were included in the collision keyspace.
     assert r.status_code == 200, r.json()
     assert r.json()["updated"] == 1
     session.expire_all()
@@ -320,28 +342,31 @@ def test_apply_rehash_avoids_soft_deleted_row_ids(rules_client) -> None:
         .one()
     )
     assert row.category == "Food"
+    assert row.transaction_id == live_id
+    assert row.source_fingerprint == live_id
     assert row.transaction_id != ghost_id
-    assert row.transaction_id == _recomputed_id(row, user_a.id, occurrence=1)
+    assert _classification_fingerprint(row, user_a.id) == ghost_id
     ghost_row = session.get(Transaction, ghost_id)
     assert ghost_row is not None
     assert ghost_row.is_deleted is True
+    assert ghost_row.source_fingerprint == ghost_id
 
 
-def test_apply_migrates_anomalies_to_new_id(rules_client) -> None:
+def test_apply_preserves_anomaly_identity_review_and_transaction_reference(rules_client) -> None:
     client, session, user_a, _, _ = rules_client
     seeded = _seed_txn(session, user_a.id, "anom1", note="swiggy order", category="Misc")
     old_id = seeded.transaction_id
-    session.add(
-        Anomaly(
-            user_id=user_a.id,
-            anomaly_type=AnomalyType.HIGH_EXPENSE,
-            severity="high",
-            description="big spend",
-            transaction_id=old_id,
-            is_reviewed=True,
-        )
+    anomaly = Anomaly(
+        user_id=user_a.id,
+        anomaly_type=AnomalyType.HIGH_EXPENSE,
+        severity="high",
+        description="big spend",
+        transaction_id=old_id,
+        is_reviewed=True,
     )
+    session.add(anomaly)
     session.commit()
+    anomaly_id = anomaly.id
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
 
     matched, updated = rules_engine.apply_rules_retroactively(session, user_a.id)
@@ -350,29 +375,75 @@ def test_apply_migrates_anomalies_to_new_id(rules_client) -> None:
     session.expire_all()
     row = session.query(Transaction).filter(Transaction.user_id == user_a.id).one()
     anomaly = session.query(Anomaly).filter(Anomaly.user_id == user_a.id).one()
-    assert row.transaction_id != old_id
-    assert anomaly.transaction_id == row.transaction_id
+    assert row.transaction_id == old_id
+    assert row.source_fingerprint == old_id
+    assert anomaly.id == anomaly_id
+    assert anomaly.transaction_id == old_id
+    assert anomaly.is_reviewed is True
+    assert anomaly.description == "big spend"
 
 
-def test_apply_batches_across_commit_chunks_and_restores_expire_on_commit(
+@pytest.mark.parametrize("expire_on_commit", [True, False])
+def test_apply_bulk_commits_once_and_preserves_identity_and_expiration_setting(
+    rules_client, expire_on_commit: bool
+) -> None:
+    client, session, user_a, _, _ = rules_client
+    rows = [
+        _seed_txn(session, user_a.id, f"bulk{n:04d}", note=f"swiggy order {n}", category="Misc")
+        for n in range(501)
+    ]
+    identities = {row.transaction_id: row.source_fingerprint for row in rows}
+    client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
+    session.expire_on_commit = expire_on_commit
+    commits = []
+
+    def record_commit(committed_session: Session) -> None:
+        commits.append(committed_session)
+
+    event.listen(session, "after_commit", record_commit)
+    try:
+        matched, updated = rules_engine.apply_rules_retroactively(session, user_a.id)
+    finally:
+        event.remove(session, "after_commit", record_commit)
+
+    assert (matched, updated) == (501, 501)
+    assert commits == [session]
+    assert session.expire_on_commit is expire_on_commit
+    assert all(inspect(row).expired is expire_on_commit for row in rows)
+    session.expire_all()
+    rows = session.query(Transaction).filter(Transaction.user_id == user_a.id).all()
+    assert len(rows) == 501
+    assert all(row.category == "Food" for row in rows)
+    assert {row.transaction_id: row.source_fingerprint for row in rows} == identities
+
+
+def test_apply_bulk_rolls_back_all_classifications_and_invalidation_on_failure(
     rules_client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     client, session, user_a, _, _ = rules_client
-    monkeypatch.setattr(rules_engine, "_COMMIT_CHUNK", 2)
-    for n in range(5):
-        _seed_txn(session, user_a.id, f"bulk{n}", note=f"swiggy order {n}", category="Misc")
+    rows = [
+        _seed_txn(session, user_a.id, f"rollback{n}", note=f"swiggy order {n}", category="Misc")
+        for n in range(5)
+    ]
+    identities = {row.transaction_id: row.source_fingerprint for row in rows}
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
-    assert session.expire_on_commit is True  # sessionmaker default
+    assert get_analytics_state(session, user_a.id) is None
+    mark_changed = rules_engine.mark_ledger_changed
 
-    matched, updated = rules_engine.apply_rules_retroactively(session, user_a.id)
+    def fail_after_flush(*args: Any, **kwargs: Any) -> None:
+        mark_changed(*args, **kwargs)
+        session.flush()
+        raise RuntimeError("Synthetic invalidation failure")
 
-    assert (matched, updated) == (5, 5)
-    assert session.expire_on_commit is True  # restored after the pass
+    monkeypatch.setattr(rules_engine, "mark_ledger_changed", fail_after_flush)
+    with pytest.raises(RuntimeError, match="Synthetic invalidation failure"):
+        rules_engine.apply_rules_retroactively(session, user_a.id)
+
     session.expire_all()
     rows = session.query(Transaction).filter(Transaction.user_id == user_a.id).all()
-    assert len(rows) == 5
-    assert all(row.category == "Food" for row in rows)
-    assert all(row.transaction_id == _recomputed_id(row, user_a.id) for row in rows)
+    assert {row.transaction_id: row.source_fingerprint for row in rows} == identities
+    assert all(row.category == "Misc" and row.subcategory is None for row in rows)
+    assert get_analytics_state(session, user_a.id) is None
 
 
 def test_apply_with_no_active_rules_returns_zero_counts(rules_client) -> None:
@@ -406,7 +477,9 @@ def test_apply_only_touches_current_users_transactions(rules_client) -> None:
 # --- Import-time application ---
 
 
-def test_import_applies_rules_pre_hash_and_reupload_is_idempotent(rules_client) -> None:
+def test_import_captures_source_identity_before_rules_and_raw_reupload_is_idempotent(
+    rules_client,
+) -> None:
     client, session, user_a, _, _ = rules_client
     client.post("/api/categorization-rules", json=_rule_payload(subcategory=None))
     rows = [
@@ -428,11 +501,33 @@ def test_import_applies_rules_pre_hash_and_reupload_is_idempotent(rules_client) 
     assert first.inserted == 1
     stored = session.query(Transaction).filter(Transaction.user_id == user_a.id).one()
     assert stored.category == "Food"  # rule category, not the raw "Misc"
-    assert stored.transaction_id == _recomputed_id(stored, user_a.id)
+    raw_fingerprint = TransactionHasher().generate_transaction_id(
+        date=stored.date,
+        amount=Decimal("250.00"),
+        account="Cash",
+        note="swiggy order",
+        category="Misc",
+        subcategory=None,
+        tx_type="Expense",
+        user_id=user_a.id,
+    )
+    stored_id = stored.transaction_id
+    assert stored_id == stored.source_fingerprint == raw_fingerprint
+    assert stored.fingerprint_version == 2
+    assert stored_id != _classification_fingerprint(stored, user_a.id)
 
-    # Re-uploading the identical rows is a no-op: rules ran pre-hash both
-    # times, so the recomputed ids match and every row dedups.
+    # The second raw import resolves the same source identity, despite the
+    # category in storage differing from the source's original "Misc".
     second = engine.import_rows(rows, file_name="june.xlsx", file_hash="hash-1", force=True)
 
     assert second.inserted == 0
+    assert second.updated == 0
+    assert second.deleted == 0
     assert session.query(Transaction).filter(Transaction.user_id == user_a.id).count() == 1
+    session.expire_all()
+    stored = session.get(Transaction, stored_id)
+    assert stored is not None
+    assert stored.source_fingerprint == raw_fingerprint
+    assert stored.category == "Food"
+    assert stored.subcategory is None
+    assert stored.is_deleted is False

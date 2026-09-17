@@ -180,7 +180,20 @@ def test_sign_flipped_correction_row_does_not_shrink_its_bucket(
 ) -> None:
     # Income is stored positive; a negative correction row would otherwise
     # subtract from the bucket and understate the money at stake.
-    _add(test_db_session, test_user.id, "1", TransactionType.INCOME, "Salary", "Basic", "-500.00")
+    connection = test_db_session.connection()
+    assert connection.dialect.name == "sqlite"
+    sqlite_connection = connection.connection.driver_connection
+    assert sqlite_connection.execute("PRAGMA ignore_check_constraints").fetchone() == (0,)
+    # Seed historical corruption, then restore checks before exercising the endpoint.
+    sqlite_connection.execute("PRAGMA ignore_check_constraints=ON")
+    try:
+        _add(
+            test_db_session, test_user.id, "1", TransactionType.INCOME, "Salary", "Basic", "-500.00"
+        )
+        test_db_session.flush()
+    finally:
+        sqlite_connection.execute("PRAGMA ignore_check_constraints=OFF")
+    assert sqlite_connection.execute("PRAGMA ignore_check_constraints").fetchone() == (0,)
     test_db_session.commit()
 
     facets = _by_key(get_income_facets(test_user, test_db_session))

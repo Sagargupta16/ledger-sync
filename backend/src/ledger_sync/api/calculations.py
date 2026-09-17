@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import case, func
 
 from ledger_sync.api.calculations_helpers import (
@@ -12,8 +12,6 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_trends,
     _calculate_expense_averages,
     _compute_account_statistics,
-    _compute_category_monthly_history,
-    _compute_income_analysis,
     _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
@@ -39,6 +37,11 @@ from ledger_sync.db.models import (
     MonthlySummary,
     Transaction,
     TransactionType,
+)
+from ledger_sync.services.calculation_service import (
+    category_monthly_history,
+    income_analysis,
+    parse_month_keys,
 )
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
@@ -477,7 +480,9 @@ def get_financial_insights(
 def get_category_monthly_history(
     current_user: CurrentUser,
     db: DatabaseSession,
-    months: Annotated[str, Query(description="Comma-separated YYYY-MM keys, oldest first")],
+    months: Annotated[
+        str, Query(max_length=2400, description="Up to 120 comma-separated YYYY-MM keys")
+    ],
     transaction_type: OptionalTransactionType = None,
 ) -> dict[str, list[float]]:
     """Per-category spend aligned to a caller-supplied list of month keys.
@@ -487,15 +492,12 @@ def get_category_monthly_history(
     calendar), so buckets line up regardless of server timezone. Returns
     ``{ category_name: [m0, m1, ...] }`` (absolute sums, 0 for empty months).
     """
-    month_keys = [m.strip() for m in months.split(",") if m.strip()]
+    try:
+        month_keys = parse_month_keys(months)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
-
-    # Only need rows within the window's span; fetch all user rows of this type
-    # (the per-month bucketing drops anything outside the supplied keys).
-    transactions = (
-        build_transaction_query(db, current_user).filter(Transaction.type == tx_type).all()
-    )
-    return _compute_category_monthly_history(list(transactions), tx_type, month_keys)
+    return category_monthly_history(db, current_user, month_keys, tx_type)
 
 
 @router.get("/data-date-range")
@@ -594,10 +596,14 @@ def get_income_analysis(
     source. ``category`` mirrors the page's ``?category=`` deep-link filter.
     Replaces the full-ledger fetch on the Income Analysis page.
     """
-    query = build_transaction_query(db, current_user, start_date, end_date)
-    if category:
-        query = query.filter(Transaction.category == category)
-    return _compute_income_analysis(list(query.all()), cashback_categories or [])
+    return income_analysis(
+        db,
+        current_user,
+        start_date=start_date,
+        end_date=end_date,
+        cashback_categories=cashback_categories or [],
+        category=category,
+    )
 
 
 @router.get("/category-daily-series")

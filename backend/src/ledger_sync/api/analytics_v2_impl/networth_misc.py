@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import (
     Anomaly,
@@ -247,6 +248,7 @@ def review_anomaly(
     body: ReviewAnomalyRequest,
 ) -> dict[str, Any]:
     """Mark an anomaly as reviewed."""
+    lock_analytics_user(db, current_user.id)
     anomaly = (
         db.query(Anomaly)
         .filter(
@@ -311,6 +313,7 @@ def create_budget(
     body: CreateBudgetRequest,
 ) -> dict[str, Any]:
     """Create a new budget."""
+    lock_analytics_user(db, current_user.id)
     budget = Budget(
         user_id=current_user.id,
         category=body.category,
@@ -322,6 +325,7 @@ def create_budget(
         updated_at=datetime.now(UTC),
     )
     db.add(budget)
+    mark_preferences_changed(db, current_user.id)
     db.commit()
 
     return {"success": True, "budget_id": budget.id}

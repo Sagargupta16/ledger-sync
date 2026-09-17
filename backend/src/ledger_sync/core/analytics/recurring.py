@@ -6,7 +6,7 @@ import re
 from datetime import UTC, datetime
 from statistics import median
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select, update
 
 from ledger_sync.core._analytics_helpers import (
     group_txns_by_pattern as _group_txns_by_pattern,
@@ -22,6 +22,7 @@ from ledger_sync.core.query_helpers import closed_accounts_for
 from ledger_sync.db.models import (
     RecurrenceFrequency,
     RecurringTransaction,
+    ScheduledTransaction,
     Transaction,
     TransactionType,
 )
@@ -186,6 +187,27 @@ class RecurringMixin(AnalyticsEngineBase):
         # Group by normalized note + type. Transactions without a note fall
         # back to category + subcategory so they still get detected.
         patterns = _group_txns_by_pattern(transactions, normalize_recurring_note)
+
+        # Schedules own their amount, cadence, and dates even when their detected
+        # source is replaced. Detach only this user's disappearing sources before
+        # deletion; the FK intentionally never cascade-deletes a user's schedule.
+        user_id = self._require_user_id()
+        unconfirmed_sources = select(RecurringTransaction.id).where(
+            RecurringTransaction.user_id == user_id,
+            RecurringTransaction.is_user_confirmed.is_(False),
+        )
+        self.db.execute(
+            update(ScheduledTransaction)
+            .where(
+                ScheduledTransaction.user_id == user_id,
+                ScheduledTransaction.recurring_transaction_id.in_(unconfirmed_sources),
+            )
+            .values(
+                recurring_transaction_id=None,
+                # Internal detachment does not change the user's last edit.
+                updated_at=ScheduledTransaction.updated_at,
+            )
+        )
 
         # Delete only non-confirmed records; user-confirmed ones are preserved
         del_stmt = delete(RecurringTransaction).where(

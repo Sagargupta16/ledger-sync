@@ -106,8 +106,8 @@ jobs:
           "$pg_bin/createdb" -h 127.0.0.1 -p 55432 -U ledger_sync_test ledger_sync_test_migrations
           "$pg_bin/psql" -h 127.0.0.1 -p 55432 -U ledger_sync_test \
             -d ledger_sync_test_migrations -c "SELECT version();"
-      - name: PostgreSQL migrations, constraints, rollback guards, and concurrent AI quotas
-        run: uv run --no-sync --locked --no-build pytest tests/integration/test_migrations_from_scratch.py -q -k postgresql
+      - name: Integration tests with native PostgreSQL
+        run: uv run --no-sync --locked --no-build pytest tests/integration/ -q
       - name: Stop the owned native PostgreSQL cluster
         if: always()
         shell: bash

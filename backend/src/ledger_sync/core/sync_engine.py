@@ -5,20 +5,23 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.orm import Session
 
 from ledger_sync.core import rules
+from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
 from ledger_sync.core.analytics_engine import AnalyticsEngine
+from ledger_sync.core.import_identity import capture_source_identities
+from ledger_sync.core.import_labels import canonicalize_accounts, canonicalize_categories
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
-from ledger_sync.db.models import ImportLog, Transaction, User
+from ledger_sync.db.models import ImportLog
 from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
 from ledger_sync.ingest.normalizer import (
     DataNormalizer,
     NormalizationError,
-    format_transfer_category,
 )
 from ledger_sync.schemas.upload import MAX_UPLOAD_ROWS
+from ledger_sync.services.ledger_dimensions import attach_ledger_dimensions
 from ledger_sync.utils.logging import logger
 
 
@@ -63,7 +66,9 @@ class SyncEngine:
         """Return any existing import log, raising if it blocks a non-forced re-import."""
         # Serialize replacement snapshots for one user on PostgreSQL. The lock
         # lasts until the ledger and log commit together.
-        self.session.execute(select(User.id).where(User.id == self.user_id).with_for_update())
+        if self.user_id is None:
+            raise ValueError("user_id is required for imports")
+        lock_analytics_user(self.session, self.user_id)
         existing_import = self.check_already_imported(file_hash)
         if existing_import and not force:
             logger.info("File already imported at %s", existing_import.imported_at)
@@ -73,95 +78,13 @@ class SyncEngine:
             raise AlreadyImportedError(msg)
         return existing_import
 
-    def _existing_spellings(self, *columns: InstrumentedAttribute[str | None]) -> dict[str, str]:
-        """Map lowercased label -> the spelling already in this user's ledger.
-
-        First spelling seen per key wins, so re-uploads converge on stored data
-        instead of renaming history.
-        """
-        canonical: dict[str, str] = {}
-        if self.user_id is None:
-            return canonical
-        for column in columns:
-            stmt = (
-                select(column)
-                .where(Transaction.user_id == self.user_id, column.is_not(None))
-                .distinct()
-            )
-            for (name,) in self.session.execute(stmt):
-                canonical.setdefault(name.lower(), name)
-        return canonical
-
     def _canonicalize_account_casing(self, normalized_rows: list[dict[str, Any]]) -> None:
-        """Fold case-variant account names onto one canonical spelling.
-
-        "CC: Axis Google Flex" and "cc: axis google flex" are the same real
-        account; letting both through creates two accounts everywhere
-        downstream (balances, net worth, classifications). Canonical form is
-        chosen per lowercased key: the spelling already stored in this user's
-        transactions wins (so re-uploads converge on existing data), else the
-        first spelling seen in this batch. Runs BEFORE hashing because the
-        account name feeds the SHA-256 transaction_id.
-
-        Transfer rows keep ``category`` in sync (the label embeds the account
-        names) so the displayed label matches the folded accounts.
-
-        NOTE: that label is currently load-bearing for transfer IDENTITY and
-        must not be collapsed to a bare "Transfer" constant here on its own.
-        ``reconciler_transfers.reconcile_transfers_batch`` never passes
-        ``to_account`` to the hasher, so the destination reaches the SHA-256
-        only through this category string. Replace it with a constant and two
-        same-day same-amount transfers out of one account to DIFFERENT
-        destinations hash identically -- the second is then silently dropped as
-        a batch duplicate (measured: 6 real transfers lost out of 1,217 on a
-        live 8,181-row workbook; 0 of 1,211 on another, so the loss is
-        workbook-specific, not a safe rounding error). De-polluting the
-        category taxonomy requires threading ``to_account`` into the transfer
-        hash first.
-        """
-        canonical = self._existing_spellings(
-            Transaction.account, Transaction.from_account, Transaction.to_account
-        )
-
-        def fold(name: str | None) -> str | None:
-            if not name:
-                return name
-            return canonical.setdefault(name.lower(), name)
-
-        for row in normalized_rows:
-            row["account"] = fold(row.get("account"))
-            if row.get("is_transfer", False):
-                row["from_account"] = fold(row.get("from_account"))
-                row["to_account"] = fold(row.get("to_account"))
-                row["category"] = format_transfer_category(
-                    str(row["from_account"]), str(row["to_account"])
-                )
+        if self.user_id is not None:
+            canonicalize_accounts(self.session, self.user_id, normalized_rows)
 
     def _canonicalize_category_casing(self, normalized_rows: list[dict[str, Any]]) -> None:
-        """Fold case-variant category names onto one canonical spelling.
-
-        The account twin of this problem, for the category taxonomy.
-        ``DataNormalizer._standardize_category`` sees one label at a time and
-        (correctly) preserves user casing, so "GROCERIES" and "Groceries"
-        arrive as two labels and split every per-category total -- consumers
-        compare exactly (``Transaction.category == category`` in
-        ``api/calculations.py`` and ``api/transactions.py``).
-
-        Same canonical rule as accounts: the spelling already in this user's
-        ledger wins, else the first spelling in this batch. Runs BEFORE hashing
-        because ``category`` feeds the SHA-256 transaction_id.
-
-        Transfer rows are skipped -- their category is the generated
-        "Transfer: A -> B" label, already folded with the accounts it embeds.
-        """
-        canonical = self._existing_spellings(Transaction.category)
-
-        for row in normalized_rows:
-            if row.get("is_transfer", False):
-                continue
-            category = row.get("category")
-            if category:
-                row["category"] = canonical.setdefault(category.lower(), category)
+        if self.user_id is not None:
+            canonicalize_categories(self.session, self.user_id, normalized_rows)
 
     def _reconcile_and_log(
         self,
@@ -177,17 +100,19 @@ class SyncEngine:
         Shared tail of both import paths: splits rows by transfer flag,
         reconciles each batch, accumulates stats, and writes the ImportLog.
         """
-        # Apply the user's categorization rules BEFORE any hashing: category
-        # and subcategory feed the SHA-256 transaction_id, so mutating rows
-        # here keeps re-uploads deterministic (same raw row + same rules =
-        # same hash = dedup skip). apply_rules_to_row skips transfer rows.
+        # Source identity precedes mutable user categorization. Existing public
+        # IDs remain stable when rules or classifications change.
+        self._canonicalize_account_casing(normalized_rows)
+        self._canonicalize_category_casing(normalized_rows)
+        if self.user_id is None:
+            raise ValueError("user_id is required for imports")
+        capture_source_identities(normalized_rows, self.user_id)
         if self.user_id is not None:
             active_rules = rules.load_active_rules(self.session, self.user_id)
             if active_rules:
                 for row in normalized_rows:
                     rules.apply_rules_to_row(active_rules, row)
 
-        self._canonicalize_account_casing(normalized_rows)
         self._canonicalize_category_casing(normalized_rows)
         for row in normalized_rows:
             self.normalizer.validate_normalized_row(row)
@@ -197,8 +122,10 @@ class SyncEngine:
         logger.info("Found %d transactions and %d transfers", len(transactions), len(transfers))
 
         stats = ReconciliationStats()
+        self.reconciler.affected_dates.clear()
 
         try:
+            attach_ledger_dimensions(self.session, self.user_id, normalized_rows)
             stats.merge(
                 self.reconciler.reconcile_batch(
                     normalized_rows=transactions,
@@ -217,21 +144,19 @@ class SyncEngine:
 
             # The prior log, both ledger groups, and the replacement log are
             # committed as one unit, including empty-group soft deletions.
-            if existing_import:
-                self.session.delete(existing_import)
-
-            import_log = ImportLog(
-                user_id=self.user_id,
-                file_hash=file_hash,
-                file_name=source_file,
-                imported_at=import_time,
-                rows_processed=stats.processed,
-                rows_inserted=stats.inserted,
-                rows_updated=stats.updated,
-                rows_deleted=stats.deleted,
-                rows_skipped=stats.skipped,
-            )
+            # Reuse the unique import identity on forced imports. Inserting a
+            # replacement before a pending DELETE would violate its unique key.
+            import_log = existing_import or ImportLog(user_id=self.user_id, file_hash=file_hash)
+            import_log.file_name = source_file
+            import_log.imported_at = import_time
+            import_log.rows_processed = stats.processed
+            import_log.rows_inserted = stats.inserted
+            import_log.rows_updated = stats.updated
+            import_log.rows_deleted = stats.deleted
+            import_log.rows_skipped = stats.skipped
             self.session.add(import_log)
+            if stats.inserted or stats.updated or stats.deleted:
+                mark_ledger_changed(self.session, self.user_id, self.reconciler.affected_dates)
             self.session.commit()
         except Exception:
             self.session.rollback()
@@ -305,7 +230,7 @@ class SyncEngine:
         logger.info("Running post-import analytics...")
         try:
             analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
-            analytics_results = analytics_engine.run_full_analytics(source_file=source_file)
+            analytics_results = analytics_engine.refresh_analytics(source_file=source_file)
             logger.info("Analytics completed: %s", analytics_results)
         except Exception as e:
             self.session.rollback()

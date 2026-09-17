@@ -136,6 +136,8 @@ No production settings are provisioned by these workflows.
 CI tests `alembic upgrade head` from an empty SQLite database and an isolated
 native PostgreSQL cluster using the runner's installed binaries. It logs the
 server version, binds only loopback, and stops only the cluster it created.
+The PostgreSQL job runs the complete integration directory so migration,
+analytics publication, concurrency, and lifecycle tests share the same gate.
 It does not use containers or alter a pre-existing database service.
 The migration tests compare table and column coverage, primary keys,
 unique constraints, foreign keys and cascade rules, and check constraints
@@ -169,6 +171,38 @@ configured, use backward-compatible expand-and-contract changes:
 
 See [DATABASE.md](DATABASE.md) and the
 [migration notes](../backend/src/ledger_sync/db/migrations/MIGRATION_NOTES.md).
+
+### September 2026 ledger schema rollout
+
+The seven revisions after `identity_constraints_2026` end at
+`live_index_predicates_2026`. They introduce business-key constraints, stable
+import fingerprints, analytics versions, account/category dimensions,
+transaction invariants, scheduled-reference preservation, and corrected live
+index predicates. See the [implementation and validation report](research/2026-09-17-backend-optimization.md).
+
+This chain requires a coordinated migration and backend promotion:
+
+1. Rehearse the complete upgrade on a Neon branch copied from current
+   production data. Record preflight results, row/reference preservation, and
+   total lock time. Keep a verified restore point.
+2. Before merging, verify Vercel will hold the new production deployment until
+   this commit's database migrations succeed. The GitHub Actions dependency
+   graph alone does not control Vercel promotion.
+3. Drain transaction traffic and old workers. Run the migration through the
+   gated main-branch CI path and verify the database revision.
+4. Promote the matching backend commit, check `/health`, `/health/db`, and
+   `/api/auth/oauth/providers`, then let the dependent Pages deployment finish.
+5. Verify the exact deployed commit on both platforms and smoke-test sign-in,
+   transaction pagination, and import behavior before restoring traffic.
+
+The final revision takes an exclusive lock on `transactions` and atomically
+rebuilds six indexes. Reads and writes wait until commit. Its local synthetic
+timing is not a production downtime estimate; budget the complete migration
+transaction using the rehearsal.
+
+After version-2 import fingerprints have been written, use a forward corrective
+release or restore the application and database together. Rolling back only the
+backend can reintroduce incompatible transaction identities.
 
 ### AI configuration and encryption rollout
 

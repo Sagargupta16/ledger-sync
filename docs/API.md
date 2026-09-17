@@ -201,6 +201,15 @@ Common status codes:
 | `PUT`, `DELETE` | `/api/categorization-rules/{rule_id}` | Update or delete a rule |
 | `POST` | `/api/categorization-rules/apply` | Apply active rules to existing transactions |
 
+`GET /api/transactions` and date-sorted `/api/transactions/search` return an
+optional `next_cursor` alongside the existing `data`, `total`, `limit`, `offset`,
+and `has_more` fields. For sequential pages, send that value as `cursor` and
+omit `offset`. Keep the same filters, excluded-account settings, and sort
+direction. The signed cursor is bound to its user and query; invalid or
+mismatched values return 422. Non-date sorting and arbitrary page jumps retain
+offset pagination. Totals remain exact; pagination does not freeze the ledger
+against intervening edits.
+
 ### Analytics
 
 | Methods | Path | Purpose |
@@ -233,7 +242,8 @@ Common status codes:
 | `GET`, `POST` | `/api/analytics/v2/budgets` | List or create category budgets |
 | `GET`, `POST` | `/api/analytics/v2/goals` | List or create financial goals |
 | `PATCH`, `DELETE` | `/api/analytics/v2/goals/{goal_id}` | Update saved goal details/progress or delete the current user's goal |
-| `POST` | `/api/analytics/v2/refresh` | Recompute all persisted analytics |
+| `GET` | `/api/analytics/v2/freshness` | Current and published input versions, publication timestamp, and stale/current status |
+| `POST` | `/api/analytics/v2/refresh` | Refresh invalidated analytics; `?force_full=true` forces a recovery rebuild |
 
 ### Calculations and reports
 
@@ -372,10 +382,12 @@ Successful response:
 }
 ```
 
-The upload endpoint normalizes rows, creates occurrence-aware transaction
-hashes, and commits reconciliation and import history in one transaction.
+The upload endpoint normalizes rows, captures versioned source fingerprints
+before categorization rules, and commits reconciliation, import history, and
+analytics invalidation in one transaction. Category edits preserve public IDs.
 Empty transaction or transfer groups still participate in reconciliation.
-The API then runs one full analytics refresh. A failed refresh returns
+The API then refreshes analytics, skipping unchanged inputs or selectively
+rebuilding daily/monthly summaries when possible. A failed refresh returns
 `analytics_status: "failed"` with an explanation; the saved ledger remains
 committed. Retry only `POST /api/analytics/v2/refresh` in that case.
 An older server that omits the status is shown as unconfirmed by the current

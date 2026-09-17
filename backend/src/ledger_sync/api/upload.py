@@ -9,17 +9,16 @@ stay in sync with the raw transactions. The explicit POST
 """
 
 from datetime import UTC
-from typing import Annotated, Literal
+from typing import Annotated
 
-import anyio
 from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import desc, func, select
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import _user_key_func, limiter
-from ledger_sync.core.analytics import AnalyticsEngine
-from ledger_sync.core.sync_engine import AlreadyImportedError, SyncEngine
+from ledger_sync.core.sync_engine import AlreadyImportedError
 from ledger_sync.db.models import ImportLog
 from ledger_sync.ingest.normalizer import NormalizationError
 from ledger_sync.schemas.transactions import (
@@ -28,6 +27,7 @@ from ledger_sync.schemas.transactions import (
     UploadResponse,
 )
 from ledger_sync.schemas.upload import TransactionUploadRequest
+from ledger_sync.services.upload_service import process_upload
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
@@ -60,7 +60,7 @@ async def upload_transactions(
     Include every account and date to retain; missing entries are soft-deleted.
     The frontend validates and confirms the snapshot before sending JSON. This
     endpoint normalizes, hashes, reconciles the transactions, and then
-    triggers a full analytics refresh so pre-aggregated tables stay in
+    triggers a versioned analytics refresh so pre-aggregated tables stay in
     sync with the raw data. If the analytics step fails the upload still
     succeeds and the user can re-run POST /api/analytics/v2/refresh.
 
@@ -76,77 +76,22 @@ async def upload_transactions(
         HTTPException: If upload fails.
 
     """
-    logger.info(
-        "Processing %d rows from %s for user_id=%s",
-        len(payload.rows),
-        payload.file_name,
-        current_user.id,
-    )
-
     try:
-        engine = SyncEngine(db, user_id=current_user.id)
-        rows_as_dicts = [row.model_dump() for row in payload.rows]
-        stats = await anyio.to_thread.run_sync(
-            lambda: engine.import_rows(
-                rows=rows_as_dicts,
-                file_name=payload.file_name,
-                file_hash=payload.file_hash,
-                force=payload.force,
-            )
-        )
-
-        analytics_status: Literal["ready", "failed"] = "ready"
-        analytics_message = None
-        try:
-            analytics = AnalyticsEngine(db, user_id=current_user.id)
-            await anyio.to_thread.run_sync(
-                lambda: analytics.run_full_analytics(source_file=payload.file_name),
-            )
-        except Exception as exc:
-            # Don't fail the upload if the post-upload refresh blows up -- the
-            # raw data is safely persisted; the user can re-run /refresh.
-            # Any analytics error must preserve the successful ledger result.
-            # A failed refresh is retried separately, never by re-importing.
-            logger.warning(
-                "Post-upload analytics refresh failed for user_id=%s: %s",
-                current_user.id,
-                exc,
-            )
-            db.rollback()
-            analytics_status = "failed"
-            analytics_message = (
-                "Your ledger is saved. Insights could not be refreshed. Retry the refresh."
-            )
-
-        return UploadResponse(
-            success=True,
-            message=f"Successfully processed {payload.file_name}",
-            stats={
-                "processed": stats.processed,
-                "inserted": stats.inserted,
-                "updated": stats.updated,
-                "deleted": stats.deleted,
-                "unchanged": stats.skipped,
-            },
-            file_name=payload.file_name,
-            analytics_status=analytics_status,
-            analytics_message=analytics_message,
-        )
+        return await run_in_threadpool(process_upload, db, current_user.id, payload)
 
     except AlreadyImportedError as e:
-        logger.warning("File already imported: %s", e)
+        logger.warning("Upload rejected: already imported")
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     except NormalizationError as e:
-        logger.warning("Data format issue: %s", e)
+        logger.warning("Upload rejected: normalization error")
         raise HTTPException(
             status_code=400,
             detail=f"Data format issue: {e}",
         ) from e
 
     except (OSError, RuntimeError, SQLAlchemyError) as e:
-        db.rollback()
-        logger.error("Unexpected error processing upload: %s", e, exc_info=True)
+        logger.error("Upload processing failed (%s)", type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail="Failed to process data. Please try again.",

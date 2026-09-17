@@ -211,7 +211,13 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
         select(func.count()).select_from(stmt.order_by(None).subquery())
     ).scalar_one()
 
-    rows = db.execute(stmt.order_by(Transaction.date.desc()).limit(limit)).scalars().all()
+    rows = (
+        db.execute(
+            stmt.order_by(Transaction.date.desc(), Transaction.transaction_id.desc()).limit(limit)
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "transactions": [

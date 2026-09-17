@@ -492,6 +492,5 @@ class AuditLog(Base):
 
     __table_args__ = (
         Index("ix_audit_operation_entity", "operation", "entity_type"),
-        Index("ix_audit_created", "created_at"),
         Index("ix_audit_user", "user_id"),
     )

@@ -11,7 +11,6 @@ page. These tests lock in the behaviour the page depends on:
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -82,7 +81,7 @@ def _add(
 
 
 def _call(user: User, db: Session):
-    return asyncio.run(get_transaction_facets(user, db))
+    return get_transaction_facets(user, db)
 
 
 def test_facets_returns_distinct_options_and_type_counts(facets_db: Session) -> None:

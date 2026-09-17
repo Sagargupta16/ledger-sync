@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
 import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { toast } from 'sonner'
@@ -13,6 +12,7 @@ import Pagination from '@/components/transactions/Pagination'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
+import { useTransactionPage } from '@/hooks/api/useTransactionPage'
 import { getTodayKey } from '@/lib/dateUtils'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 import { isMotionReduced } from '@/store/motionStore'
@@ -23,7 +23,7 @@ function buildServerFilters(
   sorting: SortingState,
   currentPage: number,
   itemsPerPage: number,
-): ServiceFilters {
+): ServiceFilters & { limit: number; offset: number } {
   const sortField = sorting[0]?.id ?? 'date'
   const sortOrder: 'asc' | 'desc' = (sorting[0]?.desc ?? true) ? 'desc' : 'asc'
 
@@ -79,11 +79,7 @@ export default function TransactionsPage() {
 
   // Fetch filtered + sorted + paginated rows from the server. The response
   // carries the filtered total, so no separate count query is needed.
-  const pageQuery = useQuery({
-    queryKey: ['transactions-page', serverFilters],
-    queryFn: () => transactionsService.getTransactionsPaginated(serverFilters),
-    staleTime: Infinity,
-  })
+  const pageQuery = useTransactionPage(serverFilters)
   const page = pageQuery.data
   const filteredTransactions = page?.data ?? []
   const total = page?.total ?? facets?.total_count ?? 0
@@ -119,7 +115,9 @@ export default function TransactionsPage() {
   const handleExportCSV = async () => {
     setIsExporting(true)
     try {
-      const blob = await transactionsService.exportToCSV(filters)
+      const blob = await transactionsService.exportToCSV({
+        ...filters, sort: serverFilters.sort, sort_order: serverFilters.sort_order,
+      })
       const url = globalThis.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
