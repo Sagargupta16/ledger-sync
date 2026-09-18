@@ -17,12 +17,12 @@ from ledger_sync.core._analytics_helpers import (
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
-    AccountClassification,
     AccountType,
     InvestmentHolding,
     NetWorthSnapshot,
     Transaction,
 )
+from ledger_sync.services.account_settings import get_account_type_lookup
 
 
 def _ist_day_start() -> datetime:
@@ -52,10 +52,7 @@ class NetWorthMixin(AnalyticsEngineBase):
         account_balances = _compute_account_balances(all_transactions)
 
         # Categorize accounts
-        ac_query = self.db.query(AccountClassification)
-        if self.user_id is not None:
-            ac_query = ac_query.filter(AccountClassification.user_id == self.user_id)
-        classifications = {ac.account_name: ac.account_type.value for ac in ac_query.all()}
+        classifications = get_account_type_lookup(self.db, self._require_user_id())
 
         # Calculate totals by category
         totals = self._categorize_account_balances(account_balances, classifications)
@@ -301,7 +298,9 @@ class NetWorthMixin(AnalyticsEngineBase):
         }
 
         for account, balance in account_balances.items():
-            account_type = classifications.get(account, AccountType.OTHER_WALLETS.value)
+            account_type = classifications.get(
+                account, classifications.get(account.lower(), AccountType.OTHER_WALLETS.value)
+            )
             self._assign_balance_to_bucket(result, account, balance, account_type)
 
         return result

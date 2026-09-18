@@ -2,8 +2,15 @@
 
 Database reference for Ledger Sync 2.24.1.
 
-Updated for the 2026-09-17 schema changes. The current model contains 31
-application tables; Alembic also maintains its own version table.
+Updated for the 2026-09-18 domain storage implementation. The current model
+contains 34 application tables; Alembic also maintains its own version table.
+This describes the source checkout, not a confirmation of production deployment.
+
+For every column, default, key, relationship, index and source-code link, see
+the [complete schema dictionary](DATABASE_SCHEMA_REFERENCE.md). Its
+[JSON inventory](DATABASE_SCHEMA_REFERENCE.json) and
+[model-derived PostgreSQL DDL](DATABASE_MODEL_SCHEMA.sql) document the same
+source snapshot, with live-verification limits stated explicitly.
 
 ## Runtime Databases
 
@@ -33,6 +40,8 @@ backend/src/ledger_sync/db/
     ai_usage.py
     analytics_state.py
     ledger_dimensions.py
+    ai_settings.py
+    compensation.py
   migrations/
     env.py
     versions/
@@ -49,7 +58,8 @@ re-exported through `_models/__init__.py` and `models.py`.
 | Table | Purpose |
 | --- | --- |
 | `users` | OAuth identity, profile, active state, and token revocation version |
-| `user_preferences` | Fiscal year, classification, display, planning, salary, notification, and AI settings |
+| `user_preferences` | Fiscal year, income/category rules, display, planning, and notification settings |
+| `user_ai_settings` | AI mode, provider, model, encrypted personal key, and token limits |
 | `audit_logs` | User-scoped import and analytics audit records |
 | `ai_usage_log` | Provider, model, token, round, and cost usage |
 
@@ -58,14 +68,13 @@ re-exported through `_models/__init__.py` and `models.py`.
 | Table | Purpose |
 | --- | --- |
 | `transactions` | Active and soft-deleted income, expense, and transfer ledger rows |
-| `ledger_accounts` | Stable user-owned account identities |
+| `ledger_accounts` | Stable user-owned account identities, classification, closure, and credit limit |
 | `ledger_account_aliases` | Exact lowercased source labels mapped to account identities |
 | `ledger_categories` | Stable user-owned category identities |
 | `ledger_subcategories` | Subcategory identities qualified by owner and parent category |
 | `transaction_tags` | User-owned tags attached to transactions |
 | `import_logs` | File hash idempotency and reconciliation counts |
 | `column_mapping_logs` | Parser column-mapping diagnostics |
-| `account_classifications` | Account name to account type mapping |
 | `categorization_rules` | Ordered pattern-based category rules |
 | `saved_filter_views` | Named transaction filter objects |
 
@@ -94,6 +103,9 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `budgets` | Category budget limits and current tracking |
 | `financial_goals` | Goal target, progress, status, and dates |
 | `tax_records` | Imported or calculated fiscal-year tax records |
+| `salary_plans` | One typed compensation plan per owner and fiscal year |
+| `rsu_grants` | User-owned grants with preserved public grant IDs |
+| `rsu_vestings` | Individually identified vesting events belonging to an owner's grant |
 
 ## Transaction Model
 
@@ -212,8 +224,11 @@ recovery operation. `/api/analytics/v2/freshness` exposes publication status.
 
 ## User Preferences Storage
 
-`user_preferences` is one row per user. Several structured settings are JSON
-serialized into `TEXT` columns, then converted to typed objects by the API.
+`user_preferences` holds ordinary settings, with one row per owner. Historical
+databases may also contain an anonymous empty default row created before
+authentication existed. Migrations never infer an owner for configured data.
+Several small structured settings remain JSON serialized into `TEXT` columns,
+then converted to typed objects by the API.
 
 JSON-in-text fields include:
 
@@ -221,20 +236,65 @@ JSON-in-text fields include:
 - Investment account mappings
 - Taxable, investment-return, non-taxable, and other income categories
 - Enabled anomaly types
-- Credit-card limits
 - Fixed-expense categories
 - Excluded accounts
-- Salary structure
-- RSU grants
 - Growth assumptions
 
 Do not query these fields as normalized relational data. Update them through
 the preference API or serialize valid JSON in application code.
 
 AI keys are stored only as encrypted ciphertext in
-`ai_api_key_encrypted`. Current v2 writes use AES-256-GCM and HKDF-SHA256 with
+`user_ai_settings.ai_api_key_encrypted`. Ordinary preference queries do not read
+this table. Current v2 writes use AES-256-GCM and HKDF-SHA256 with
 `LEDGER_SYNC_ENCRYPTION_KEY`. Legacy PBKDF2 v1 ciphertexts are read-only
 compatibility data and are upgraded on reveal.
+
+### Account and compensation storage
+
+`ledger_accounts` is the authority for account type, closure date and credit
+limit. An unset type or limit is NULL; an explicit zero limit remains zero.
+Limits use `NUMERIC(15,2)`. Existing aliases continue to resolve to the same
+account, and every transaction retains its original label snapshot and ID.
+The old `account_classifications` table is retired after backfill verification.
+
+`salary_plans` is unique by `(user_id, fiscal_year)`. `rsu_grants` preserves the
+existing grant ID in `public_id`, unique within its owner. `rsu_vestings` has
+stable event IDs and an owner-qualified grant foreign key. Identical events
+remain separate occurrences. Salary and RSU decimals use unscaled PostgreSQL
+`NUMERIC`; SQLite uses exact decimal text rather than binary floats.
+
+The preferences API still assembles `credit_card_limits`, `salary_structure`
+and `rsu_grants` in their existing shapes. Vesting objects additionally expose
+an optional `id`, which clients should return on subsequent edits. Services
+validate writes; the preference coordinator owns the user lock, transaction
+and analytics invalidation. A transaction-only reset preserves these domains.
+A full reset clears them and creates fresh ordinary and AI defaults.
+
+These boundaries remove duplicated account settings, isolate AI credentials
+from ordinary reads, and allow compensation records to be changed independently.
+They do not guarantee lower latency for every endpoint: assembling all
+preferences now reads multiple domains. Compensation reads use three queries
+regardless of grant count, and account settings use batched identity lookups.
+
+### Coordinated deployment
+
+The revision chain is `account_settings_2026` -> `ai_settings_2026` ->
+`compensation_records_2026` -> `domain_storage_cutover_2026`. The first three
+copy source values, and the final revision checks equivalence before removing
+nine obsolete preference columns and the old classification table. Conflicting
+identities, invalid decimals, configured orphan rows, or changed copies stop
+the migration; they are not silently repaired.
+
+Run PostgreSQL migration and ownership tests before release. Quiesce old
+writers, take a recoverable backup/Neon branch, run the migration, deploy the
+matching backend, and verify preference edits, imports, AI configuration and
+resets before reopening traffic. The existing CI job now includes both domain
+migration suites and exact-decimal PostgreSQL tests. Automated migration alone
+does not coordinate old server instances; an old backend cannot run against
+the final schema. There is no automatic downgrade after new domain writes.
+
+Implementation and verification status:
+[domain storage plan](plans/2026-09-18-domain-storage.md).
 
 ## User Scoping and Cascades
 

@@ -225,7 +225,7 @@ class RecurringMixin(AnalyticsEngineBase):
         # the bill calendar / missed-payment logic stops expecting them.
         closed = closed_accounts_for(self.db, self.user_id)
         for existing in confirmed_names.values():
-            if existing.account in closed and existing.is_active:
+            if (existing.account or "").lower() in closed and existing.is_active:
                 existing.is_active = False
                 existing.last_updated = datetime.now(UTC)
 
@@ -234,7 +234,7 @@ class RecurringMixin(AnalyticsEngineBase):
             if len(txns) < 3:  # Need at least 3 occurrences
                 continue
 
-            if closed and all(t.account in closed for t in txns):
+            if closed and all((t.account or "").lower() in closed for t in txns):
                 continue
 
             count += self._upsert_recurring_pattern(

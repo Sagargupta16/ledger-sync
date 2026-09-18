@@ -7,17 +7,32 @@ Endpoints live in api/preferences.py (general) and api/preferences_ai.py
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from decimal import Decimal
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import HTTPException
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.db.models import User, UserPreferences
+from ledger_sync.services.account_settings import (
+    get_credit_card_limits,
+    replace_credit_card_limits,
+    validate_credit_limit,
+)
+from ledger_sync.services.compensation import (
+    read_compensation,
+    replace_rsu_grants,
+    replace_salary_structure,
+)
 
 # ----- Pydantic Models -----
+
+CreditLimit = Annotated[Decimal, BeforeValidator(validate_credit_limit)]
 
 
 class FiscalYearConfig(BaseModel):
@@ -159,7 +174,7 @@ class SpendingRuleConfig(BaseModel):
 class CreditCardLimitsConfig(BaseModel):
     """Credit card limit settings."""
 
-    credit_card_limits: dict[str, float] = Field(
+    credit_card_limits: dict[str, CreditLimit] = Field(
         description="Map of credit card name to credit limit amount",
     )
 
@@ -326,7 +341,7 @@ class UserPreferencesUpdate(BaseModel):
     savings_target_percent: float | None = None
 
     # 10. Credit Card Limits
-    credit_card_limits: dict[str, float] | None = None
+    credit_card_limits: dict[str, CreditLimit] | None = None
 
     # 11. Earning Start Date
     earning_start_date: str | None = None
@@ -385,8 +400,12 @@ def _parse_json_field(value: str | list[Any] | dict[str, Any], default: Any = No
     return value
 
 
-def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
-    """Convert SQLAlchemy model to Pydantic response."""
+def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferencesResponse:
+    """Read a coherent response, including after a writer's commit released its lock."""
+    lock_analytics_user(session, prefs.user_id, read_only=True)
+    if not session.is_modified(prefs):
+        session.refresh(prefs)
+    compensation = read_compensation(session, prefs.user_id)
     return UserPreferencesResponse(
         id=prefs.id,
         fiscal_year_start_month=prefs.fiscal_year_start_month,
@@ -413,7 +432,10 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         needs_target_percent=prefs.needs_target_percent,
         wants_target_percent=prefs.wants_target_percent,
         savings_target_percent=prefs.savings_target_percent,
-        credit_card_limits=_parse_json_field(prefs.credit_card_limits, {}),
+        credit_card_limits={
+            label: float(amount)
+            for label, amount in get_credit_card_limits(session, prefs.user_id).items()
+        },
         earning_start_date=prefs.earning_start_date,
         use_earning_start_date=prefs.use_earning_start_date,
         fixed_expense_categories=_parse_json_field(prefs.fixed_expense_categories),
@@ -430,8 +452,8 @@ def _model_to_response(prefs: UserPreferences) -> UserPreferencesResponse:
         epf_withdrawal_taxable=prefs.epf_withdrawal_taxable,
         epf_taxable_percent=prefs.epf_taxable_percent,
         salary_is_net_of_tds=prefs.salary_is_net_of_tds,
-        salary_structure=_parse_json_field(prefs.salary_structure, {}),
-        rsu_grants=_parse_json_field(prefs.rsu_grants, []),
+        salary_structure=compensation["salary_structure"],
+        rsu_grants=compensation["rsu_grants"],
         growth_assumptions=_parse_json_field(prefs.growth_assumptions, {}),
         created_at=prefs.created_at,
         updated_at=prefs.updated_at,
@@ -466,6 +488,13 @@ def _apply_preference_updates(
     session.refresh(prefs)
     changed = False
     for field, value in values.items():
+        if field in _DOMAIN_PREFERENCE_WRITERS:
+            try:
+                domain_changed = _DOMAIN_PREFERENCE_WRITERS[field](session, user.id, value)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            changed = domain_changed or changed
+            continue
         previous = getattr(prefs, field)
         if isinstance(value, (list, dict)):
             if _parse_json_field(previous, default=None) == value:
@@ -481,6 +510,13 @@ def _apply_preference_updates(
     session.commit()
     session.refresh(prefs)
     return prefs
+
+
+_DOMAIN_PREFERENCE_WRITERS: dict[str, Callable[[Session, int, Any], bool]] = {
+    "credit_card_limits": replace_credit_card_limits,
+    "salary_structure": replace_salary_structure,
+    "rsu_grants": replace_rsu_grants,
+}
 
 
 def _update_section(
@@ -504,4 +540,4 @@ def _update_section(
     # json_fields remains accepted for existing section callers. Collection
     # values share the same JSON handling as the general preferences endpoint.
     prefs = _apply_preference_updates(session, user, config.model_dump(mode="json"))
-    return _model_to_response(prefs)
+    return _model_to_response(prefs, session)

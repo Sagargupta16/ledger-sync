@@ -95,7 +95,9 @@ def scheduled_db(request, migration_connection):
     if request.param == "metadata":
         Base.metadata.create_all(connection)
     else:
-        command.upgrade(_config(connection), REVISION)
+        # Runtime lifecycle tests use the current application models/services.
+        # Frozen historical migration tests use before_scheduled_references.
+        command.upgrade(_config(connection), "head")
     connection.commit()
     if connection.dialect.name == "sqlite":
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")
@@ -245,11 +247,14 @@ def test_account_delete_and_reset_handle_linked_schedules(scheduled_db, operatio
         assert session.scalars(sa.select(RecurringTransaction.id)).all() == [20]
         assert session.scalars(sa.select(Transaction.user_id)).all() == [2]
         for model in dimensions:
+            expected_count = int(
+                operation == "transactions" and model in (LedgerAccount, LedgerAccountAlias)
+            )
             assert (
                 session.scalar(
                     sa.select(sa.func.count()).select_from(model).where(model.user_id == 1)
                 )
-                == 0
+                == expected_count
             )
             assert (
                 session.execute(sa.select(model.__table__).where(model.user_id == 2))

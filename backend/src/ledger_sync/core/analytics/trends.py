@@ -12,12 +12,12 @@ from sqlalchemy import delete
 from ledger_sync.core._analytics_helpers import monthly_type_totals as _monthly_type_totals
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.db.models import (
-    AccountClassification,
     CategoryTrend,
     Transaction,
     TransactionType,
     TransferFlow,
 )
+from ledger_sync.services.account_settings import get_account_type_lookup
 
 
 def _cat_trend_sort_key(
@@ -157,10 +157,7 @@ class TrendsMixin(AnalyticsEngineBase):
             )
 
         # Get account classifications for coloring
-        ac_query = self.db.query(AccountClassification)
-        if self.user_id is not None:
-            ac_query = ac_query.filter(AccountClassification.user_id == self.user_id)
-        classifications = {ac.account_name: ac.account_type.value for ac in ac_query.all()}
+        classifications = get_account_type_lookup(self.db, self._require_user_id())
 
         # Aggregate flows
         flows: dict[tuple[str, str], dict[str, Any]] = defaultdict(
@@ -200,8 +197,8 @@ class TrendsMixin(AnalyticsEngineBase):
                 ),
                 last_transfer_date=data["last_date"],
                 last_transfer_amount=data["last_amount"],
-                from_account_type=classifications.get(from_acc),
-                to_account_type=classifications.get(to_acc),
+                from_account_type=classifications.get(from_acc.lower()),
+                to_account_type=classifications.get(to_acc.lower()),
                 last_calculated=datetime.now(UTC),
             )
             self.db.add(flow)

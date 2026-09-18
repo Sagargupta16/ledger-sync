@@ -3,7 +3,7 @@
 Models are split by domain under ``ledger_sync.db._models``:
 
 - ``_models.user`` — User, UserPreferences, AuditLog
-- ``_models.transactions`` — Transaction, ImportLog, AccountClassification, ColumnMappingLog
+- ``_models.transactions`` -- Transaction, ImportLog, ColumnMappingLog
 - ``_models.investments`` — TaxRecord, NetWorthSnapshot, InvestmentHolding
 - ``_models.analytics`` — DailySummary, MonthlySummary, CategoryTrend, TransferFlow,
   MerchantIntelligence, FYSummary

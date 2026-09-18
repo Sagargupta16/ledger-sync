@@ -21,7 +21,6 @@ from ledger_sync.core.auth import (
     verify_token,
 )
 from ledger_sync.db.models import (
-    AccountClassification,
     AnalyticsState,
     Anomaly,
     Budget,
@@ -39,11 +38,15 @@ from ledger_sync.db.models import (
     MonthlySummary,
     NetWorthSnapshot,
     RecurringTransaction,
+    RsuGrantRecord,
+    RsuVestingRecord,
+    SalaryPlan,
     ScheduledTransaction,
     TaxRecord,
     Transaction,
     TransferFlow,
     User,
+    UserAISettings,
     UserPreferences,
 )
 from ledger_sync.schemas.auth import (
@@ -197,6 +200,7 @@ class AuthService:
             # Create default preferences
             preferences = UserPreferences(user_id=user.id)
             self.session.add(preferences)
+            self.session.add(UserAISettings(user_id=user.id))
             self.session.commit()
             logger.info("New OAuth user registered: user_id=%s via %s", user.id, provider)
 
@@ -306,10 +310,17 @@ class AuthService:
         self.session.query(Budget).filter(Budget.user_id == user_id).delete()
         self.session.query(FinancialGoal).filter(FinancialGoal.user_id == user_id).delete()
 
-        # Account classifications
-        self.session.query(AccountClassification).filter(
-            AccountClassification.user_id == user_id
+        # Account configuration now shares the stable ledger account identity.
+        self.session.query(LedgerAccountAlias).filter(
+            LedgerAccountAlias.user_id == user_id
         ).delete()
+        self.session.query(LedgerAccount).filter(LedgerAccount.user_id == user_id).delete()
+
+        # Independent configuration domains are preserved by a ledger-only reset.
+        self.session.query(RsuVestingRecord).filter(RsuVestingRecord.user_id == user_id).delete()
+        self.session.query(RsuGrantRecord).filter(RsuGrantRecord.user_id == user_id).delete()
+        self.session.query(SalaryPlan).filter(SalaryPlan.user_id == user_id).delete()
+        self.session.query(UserAISettings).filter(UserAISettings.user_id == user_id).delete()
 
         # User preferences
         self.session.query(UserPreferences).filter(UserPreferences.user_id == user_id).delete()
@@ -346,13 +357,10 @@ class AuthService:
             RecurringTransaction.user_id == user_id
         ).delete()
 
-        # Source dimensions belong to the imported ledger, not account settings.
+        # Category dimensions belong to the imported ledger. Account identities
+        # and aliases also own user settings, so a ledger-only reset keeps them.
         self.session.query(LedgerSubcategory).filter(LedgerSubcategory.user_id == user_id).delete()
         self.session.query(LedgerCategory).filter(LedgerCategory.user_id == user_id).delete()
-        self.session.query(LedgerAccountAlias).filter(
-            LedgerAccountAlias.user_id == user_id
-        ).delete()
-        self.session.query(LedgerAccount).filter(LedgerAccount.user_id == user_id).delete()
 
         # Analytics / aggregation tables
         self.session.query(DailySummary).filter(DailySummary.user_id == user_id).delete()
@@ -389,6 +397,7 @@ class AuthService:
             # Create fresh default preferences
             preferences = UserPreferences(user_id=user_id)
             self.session.add(preferences)
+            self.session.add(UserAISettings(user_id=user_id))
 
         # Bump token_version on any reset -- the user's data was materially
         # changed, so any outstanding session should be forced through refresh

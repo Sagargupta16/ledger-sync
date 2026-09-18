@@ -1,4 +1,4 @@
-"""Transaction, ImportLog, AccountClassification, ColumnMappingLog models."""
+"""Transaction, ImportLog, and ColumnMappingLog models."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db._models._constants import USER_FK
-from ledger_sync.db._models.enums import AccountType, TransactionType
+from ledger_sync.db._models.enums import TransactionType
 from ledger_sync.db.base import Base
 
 if TYPE_CHECKING:
@@ -241,53 +241,6 @@ class ImportLog(Base):
     def __repr__(self) -> str:
         """Return string representation."""
         return f"<ImportLog(id={self.id}, file={self.file_name}, imported_at={self.imported_at})>"
-
-
-class AccountClassification(Base):
-    """Account classification model - stores user-defined account types."""
-
-    __tablename__ = "account_classifications"
-
-    # Primary key
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    # User foreign key - scopes classification to owner
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False, index=True
-    )
-
-    # Account name and classification
-    account_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    account_type: Mapped[AccountType] = mapped_column(
-        Enum(AccountType),
-        nullable=False,
-        default=AccountType.OTHER_WALLETS,
-    )
-
-    # Closed accounts keep their history in analytics but stop being treated
-    # as alive: no recurring/bill expectations, no credit-card limit config,
-    # not offered in account pickers. closed_date is informational only.
-    is_closed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    closed_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    # Metadata
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(UTC)
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-    )
-
-    __table_args__ = (
-        Index("ix_account_classification_user_account", "user_id", "account_name", unique=True),
-    )
-
-    def __repr__(self) -> str:
-        """Return string representation."""
-        return f"<AccountClassification(account={self.account_name}, type={self.account_type})>"
 
 
 class ColumnMappingLog(Base):

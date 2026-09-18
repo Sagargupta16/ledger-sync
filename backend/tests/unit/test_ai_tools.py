@@ -35,6 +35,7 @@ from ledger_sync.db.models import (
     UserPreferences,
 )
 from ledger_sync.db.session import get_session
+from ledger_sync.services.compensation import replace_salary_structure
 
 TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
@@ -564,7 +565,7 @@ def test_list_budgets_returns_active_with_usage() -> None:
     assert result["budgets"][0]["usage_pct"] == pytest.approx(95.0)
 
 
-def test_get_preferences_summary_parses_salary_structure() -> None:
+def test_get_preferences_summary_reads_salary_plans_by_fiscal_year() -> None:
     app, session, user = _make_app_with_data()
     session.add(
         UserPreferences(
@@ -572,8 +573,15 @@ def test_get_preferences_summary_parses_salary_structure() -> None:
             currency_symbol="₹",
             display_currency="INR",
             fiscal_year_start_month=4,
-            salary_structure='{"basic": 50000, "hra": 20000, "ctc": 1200000, "notes": "ignored"}',
         )
+    )
+    replace_salary_structure(
+        session,
+        user.id,
+        {
+            "2025-26": {"base_salary_annual": "50000.123456789123456789", "hra_annual": "20000"},
+            "2026-27": {"base_salary_annual": "60000", "hra_annual": None},
+        },
     )
     session.commit()
 
@@ -583,9 +591,25 @@ def test_get_preferences_summary_parses_salary_structure() -> None:
     assert result["currency_symbol"] == "₹"
     assert result["fiscal_year_start_month"] == 4
     assert result["salary_structure_configured"] is True
-    # Whitelist keeps known salary fields and drops `notes`
-    assert "basic" in result["salary_components"]
-    assert "notes" not in result["salary_components"]
+    assert set(result["salary_components"]) == {"2025-26", "2026-27"}
+    assert result["salary_components"]["2025-26"]["base_salary_annual"] == (
+        "50000.123456789123456789"
+    )
+    assert result["salary_components"]["2026-27"]["hra_annual"] is None
+    assert "notes" not in result["salary_components"]["2025-26"]
+
+
+def test_get_preferences_summary_does_not_expose_another_owners_salary() -> None:
+    app, session, user = _make_app_with_data()
+    other = User(email="other-compensation@example.test", hashed_password="")
+    session.add_all([other, UserPreferences(user_id=user.id)])
+    session.flush()
+    replace_salary_structure(session, other.id, {"2025-26": {"base_salary_annual": "99999"}})
+    session.commit()
+    result = _exec(TestClient(app), "get_preferences_summary")
+    assert result["found"] is True
+    assert result["salary_structure_configured"] is False
+    assert result["salary_components"] == {}
 
 
 def test_list_tools_returns_fifteen_after_pr() -> None:

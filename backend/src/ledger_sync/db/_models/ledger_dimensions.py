@@ -2,13 +2,28 @@
 
 Names are the first observed spelling. Keys use Python ``str.lower()`` (not
 casefold, whitespace normalization, or fuzzy matching). These tables do not
-rename transaction labels or normalize preferences, classifications, or plans.
+rename transaction labels. Account settings live on the stable account identity.
 """
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, Integer, String, UniqueConstraint
+from datetime import UTC, datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ledger_sync.db._models._constants import USER_FK
+from ledger_sync.db._models.enums import AccountType
 from ledger_sync.db.base import Base
 
 
@@ -21,6 +36,21 @@ class LedgerAccount(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey(USER_FK, ondelete="CASCADE"), nullable=False)
     key: Mapped[str] = mapped_column(String(765), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # NULL is unconfigured, distinct from an explicitly selected Other Wallets.
+    account_type: Mapped[AccountType | None] = mapped_column(Enum(AccountType), nullable=True)
+    is_closed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    closed_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
+    # Legacy classification timestamps survive consolidation; imported identities
+    # without classification history may have no timestamps.
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, onupdate=lambda: datetime.now(UTC)
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "id", name="uq_ledger_accounts_user_id"),

@@ -9,15 +9,16 @@ from sqlalchemy import event, func, select
 from ledger_sync.core.analytics.engine import AnalyticsEngine
 from ledger_sync.core.analytics.refresh import analytics_is_current, get_analytics_state
 from ledger_sync.db.models import (
-    AccountClassification,
     AnalyticsState,
     AuditLog,
     CohortSpending,
     DailySummary,
+    LedgerAccount,
     Transaction,
     TransactionType,
     UserPreferences,
 )
+from ledger_sync.services.compensation import replace_rsu_grants
 
 
 def _publish(session, user):
@@ -88,7 +89,10 @@ def _publish(session, user):
             "/earning-start-date",
             {"earning_start_date": "2024-04-01", "use_earning_start_date": True},
         ),
-        ("/salary-structure", {"salary_structure": {"FY2026-27": {"basic": 200000}}}),
+        (
+            "/salary-structure",
+            {"salary_structure": {"2026-27": {"base_salary_annual": 200000}}},
+        ),
         ("/rsu-grants", {"rsu_grants": []}),
         ("/growth-assumptions", {"growth_assumptions": {}}),
     ],
@@ -98,7 +102,18 @@ def test_settings_sections_invalidate_only_actual_changes(two_user_client, path,
     # Seed non-empty values for the two collection-clear requests.
     prefs = session.scalar(select(UserPreferences).where(UserPreferences.user_id == user.id))
     if path == "/rsu-grants":
-        prefs.rsu_grants = '[{"id": "old"}]'
+        replace_rsu_grants(
+            session,
+            user.id,
+            [
+                {
+                    "id": "old",
+                    "stock_name": "Synthetic",
+                    "stock_price": 100,
+                    "vestings": [{"date": "2027-01-01", "quantity": 1}],
+                }
+            ],
+        )
     if path == "/growth-assumptions":
         prefs.growth_assumptions = '{"salary_growth_pct": 12}'
     session.commit()
@@ -198,9 +213,12 @@ def test_account_classification_lifecycle_invalidates_and_noops_do_not(two_user_
     close = {"account_name": "Bank", "is_closed": True}
     assert client.put("/api/account-classifications/status", json=close).status_code == 200
     assert get_analytics_state(session, user.id).preferences_version == 2
-    closed_at = session.scalar(select(AccountClassification.closed_date))
+    closed_query = select(LedgerAccount.closed_date).where(
+        LedgerAccount.user_id == user.id, LedgerAccount.key == "bank"
+    )
+    closed_at = session.scalar(closed_query)
     assert client.put("/api/account-classifications/status", json=close).status_code == 200
-    assert session.scalar(select(AccountClassification.closed_date)) == closed_at
+    assert session.scalar(closed_query) == closed_at
     assert get_analytics_state(session, user.id).preferences_version == 2
     assert (
         client.put(

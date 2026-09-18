@@ -9,6 +9,7 @@ IMPORTANT: every model module must be imported here so SQLAlchemy's
 """
 
 from ledger_sync.db._models._constants import CASCADE_ALL_DELETE_ORPHAN, USER_FK
+from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.db._models.ai_usage import AIUsageLog
 from ledger_sync.db._models.analytics import (
     CategoryTrend,
@@ -20,6 +21,7 @@ from ledger_sync.db._models.analytics import (
     TransferFlow,
 )
 from ledger_sync.db._models.analytics_state import AnalyticsState
+from ledger_sync.db._models.compensation import RsuGrantRecord, RsuVestingRecord, SalaryPlan
 from ledger_sync.db._models.enums import (
     AccountType,
     AnomalyType,
@@ -51,7 +53,6 @@ from ledger_sync.db._models.planning import (
     ScheduledTransaction,
 )
 from ledger_sync.db._models.transactions import (
-    AccountClassification,
     ColumnMappingLog,
     ImportLog,
     Transaction,
@@ -62,7 +63,6 @@ __all__ = [
     "CASCADE_ALL_DELETE_ORPHAN",
     "USER_FK",
     "AIUsageLog",
-    "AccountClassification",
     "AccountType",
     "AnalyticsState",
     "Anomaly",
@@ -88,6 +88,9 @@ __all__ = [
     "NetWorthSnapshot",
     "RecurrenceFrequency",
     "RecurringTransaction",
+    "RsuGrantRecord",
+    "RsuVestingRecord",
+    "SalaryPlan",
     "SavedFilterView",
     "ScheduledTransaction",
     "TaxRecord",
@@ -96,5 +99,6 @@ __all__ = [
     "TransactionType",
     "TransferFlow",
     "User",
+    "UserAISettings",
     "UserPreferences",
 ]

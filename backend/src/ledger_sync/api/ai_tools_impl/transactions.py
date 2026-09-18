@@ -10,11 +10,11 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.db.models import (
-    AccountClassification,
     Transaction,
     TransactionType,
     User,
 )
+from ledger_sync.services.account_settings import get_account_type_lookup
 
 from .registry import (
     LIST_ENTITIES_MAX_LIMIT,
@@ -92,12 +92,7 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
             if name:
                 counts[name] = counts.get(name, 0) + int(n)
 
-    classifications = {
-        c.account_name: c.account_type.value
-        for c in db.execute(
-            select(AccountClassification).where(AccountClassification.user_id == user.id)
-        ).scalars()
-    }
+    classifications = get_account_type_lookup(db, user.id)
 
     names = set(income) | set(expense) | set(transfer_in) | set(transfer_out) | set(counts)
     accounts: list[dict[str, Any]] = []
@@ -111,7 +106,7 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
         accounts.append(
             {
                 "name": name,
-                "type": classifications.get(name, "unclassified"),
+                "type": classifications.get(name.lower(), "unclassified"),
                 "balance": balance,
                 "transaction_count": counts.get(name, 0),
             }

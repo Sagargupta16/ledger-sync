@@ -14,7 +14,8 @@ from sqlalchemy.sql.selectable import Subquery
 
 from ledger_sync.config.settings import settings
 from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
-from ledger_sync.db.models import AccountClassification, Transaction, TransactionType, User
+from ledger_sync.db.models import Transaction, TransactionType, User
+from ledger_sync.services.account_settings import get_closed_account_keys
 
 # ---------------------------------------------------------------------------
 # Database-agnostic date formatting
@@ -273,7 +274,7 @@ def excluded_accounts_for(user: User) -> set[str]:
 
 
 def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:
-    """Return the names of accounts the user has marked closed.
+    """Return Python-lower canonical and alias keys for closed accounts.
 
     Closed accounts keep their history in analytics (unlike
     ``excluded_accounts``) but stop being treated as alive: recurring/bill
@@ -283,15 +284,7 @@ def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:
     """
     if user_id is None:
         return set()
-    rows = (
-        session.query(AccountClassification.account_name)
-        .filter(
-            AccountClassification.user_id == user_id,
-            AccountClassification.is_closed.is_(True),
-        )
-        .all()
-    )
-    return {r[0] for r in rows}
+    return get_closed_account_keys(session, user_id)
 
 
 def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:
