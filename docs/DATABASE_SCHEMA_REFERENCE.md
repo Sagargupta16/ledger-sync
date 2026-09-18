@@ -18,6 +18,15 @@ Prepared 2026-09-18. This reference covers **all 34 application tables, all 463 
 
 Companion files: [structured JSON](DATABASE_SCHEMA_REFERENCE.json), [model-derived PostgreSQL DDL](DATABASE_MODEL_SCHEMA.sql), [existing database guide](DATABASE.md).
 
+In the JSON, `source_files_sha256` is a **list of `{path, sha256}` objects**, not a
+path-keyed map. Keep it that way when regenerating. As a map, any digest whose path
+contained `auth` or `token` (for example `services/auth_service.py` or
+`20260704_1000_add_token_version_to_users.py`) paired a credential-looking key with a
+high-entropy value, so SonarCloud's `json:S6418` reported seven BLOCKER hard-coded-secret
+findings and dropped the security rating to E. The values are file-content digests, never
+secrets; putting the path in a value and the digest under `sha256` keeps the provenance
+record without tripping the rule.
+
 ## Database and evidence
 
 | Item | Value |
