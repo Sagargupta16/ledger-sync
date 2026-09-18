@@ -7,8 +7,8 @@ labels, including clearing obsolete IDs. Callers own the transaction/flush.
 
 Only exact lowercased labels share an identity. Empty/missing labels have no
 ID; a subcategory without a category remains an unnormalized label snapshot.
-Transfer category strings remain as supplied. Preferences, classifications,
-planning records and existing string-based API/analytics remain unchanged.
+Transfer category strings remain as supplied. Account settings reuse these
+identities; planning records and historical transaction labels remain unchanged.
 """
 
 from __future__ import annotations
@@ -127,6 +127,24 @@ def _resolve_accounts(
     )
     ids.update(_read_ids(db, aliases, user_id, list(missing), ("source_key",), "account_id"))
     return ids
+
+
+def ensure_account_ids(db: Session, user_id: int, labels: Sequence[str]) -> dict[str, int]:
+    """Resolve/create a batch of account identities without flushing or committing.
+
+    Labels retain their spelling; only Python lower determines identity. Callers
+    validate conflicting settings and acquire their user lock before invoking.
+    """
+    if user_id is None:
+        raise ValueError("Ledger accounts require a user.")
+    names: dict[tuple[str], str] = {}
+    for label in labels:
+        if not isinstance(label, str) or not label or len(label) > 255:
+            raise ValueError("Account names must contain between 1 and 255 characters.")
+        names.setdefault((label.lower(),), label)
+    with db.no_autoflush:
+        ids = _resolve_accounts(db, user_id, names)
+    return {label: ids[(label.lower(),)] for label in labels}
 
 
 def attach_ledger_dimensions(

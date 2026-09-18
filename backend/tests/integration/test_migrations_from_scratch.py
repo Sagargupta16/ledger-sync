@@ -166,10 +166,12 @@ def test_migrated_foreign_keys_match_orm(migrated_db: sa.Connection) -> None:
 def test_migrated_check_constraints_match_orm(migrated_db: sa.Connection) -> None:
     inspector = sa.inspect(migrated_db)
     for name, table in Base.metadata.tables.items():
+        emitted_ddl = str(sa.schema.CreateTable(table).compile(dialect=migrated_db.dialect))
         expected = {
             constraint.name
             for constraint in table.constraints
             if isinstance(constraint, sa.CheckConstraint)
+            and f"CONSTRAINT {constraint.name} " in emitted_ddl
         }
         actual = {constraint["name"] for constraint in inspector.get_check_constraints(name)}
         assert actual == expected, name
@@ -662,7 +664,7 @@ def test_ai_quota_reservations_serialize_across_workers(
     monkeypatch.setattr(settings, "ai_daily_message_limit", 1 if cap == "messages" else 100)
     user_id = _insert_user(connection, "quota@example.test")
     connection.execute(
-        Base.metadata.tables["user_preferences"]
+        Base.metadata.tables["user_ai_settings"]
         .insert()
         .values(
             user_id=user_id,

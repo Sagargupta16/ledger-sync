@@ -62,3 +62,62 @@ def test_bonus_mode_round_trip_preserves_zero_growth(
     saved = response.json()["growth_assumptions"]
     assert saved["bonus_growth_pct"] == 0
     assert saved["bonus_mode"] == mode
+
+
+def test_general_preferences_edit_targets_duplicate_vesting_id(two_user_client: Any) -> None:
+    client, _, _, _, _ = two_user_client
+    event = {"date": "2025-08-15", "quantity": 25, "net_quantity": "17.200123456789"}
+    response = client.put(
+        "/api/preferences",
+        json={
+            "rsu_grants": [
+                {
+                    "id": "synthetic-rsu",
+                    "stock_name": "TEST",
+                    "stock_price": "200.123456789",
+                    "vestings": [event, event],
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    saved = response.json()["rsu_grants"]
+    ids = [vesting["id"] for vesting in saved[0]["vestings"]]
+    assert len(set(ids)) == 2
+    saved[0]["vestings"] = [saved[0]["vestings"][1]]
+    saved[0]["vestings"][0]["net_quantity"] = "0"
+    response = client.put("/api/preferences", json={"rsu_grants": saved})
+    assert response.status_code == 200
+    actual = response.json()["rsu_grants"][0]["vestings"]
+    assert len(actual) == 1
+    assert actual[0]["id"] == ids[1]
+    assert Decimal(actual[0]["net_quantity"]) == 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"salary_structure": {"2025-26": {"unknown_compensation_field": 1}}},
+        {"salary_structure": {"2025-28": {}}},
+        {
+            "rsu_grants": [
+                {
+                    "id": "g1",
+                    "stock_name": "TEST",
+                    "stock_price": 1,
+                    "vestings": [
+                        {"date": "2025-08-15", "quantity": 1, "net_quantity": "1.00000000001"}
+                    ],
+                }
+            ]
+        },
+    ],
+)
+def test_invalid_general_compensation_returns_422(two_user_client: Any, payload: dict) -> None:
+    client, _, _, _, _ = two_user_client
+    before = client.get("/api/preferences").json()
+    response = client.put("/api/preferences", json=payload)
+    assert response.status_code == 422
+    after = client.get("/api/preferences").json()
+    assert after["salary_structure"] == before["salary_structure"]
+    assert after["rsu_grants"] == before["rsu_grants"]

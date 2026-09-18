@@ -39,6 +39,7 @@ from ledger_sync.schemas.salary import (
     RsuGrantsConfig,
     SalaryStructureConfig,
 )
+from ledger_sync.services.account_settings import replace_credit_card_limits
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 router.include_router(ai_router)
@@ -54,7 +55,7 @@ def get_preferences(
 ) -> UserPreferencesResponse:
     """Get current user preferences."""
     prefs = _get_or_create_preferences(session, current_user)
-    return _model_to_response(prefs)
+    return _model_to_response(prefs, session)
 
 
 @router.put("")
@@ -65,7 +66,7 @@ def update_preferences(
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
     prefs = _apply_preference_updates(session, current_user, updates.model_dump(exclude_none=True))
-    return _model_to_response(prefs)
+    return _model_to_response(prefs, session)
 
 
 @router.post("/reset")
@@ -76,7 +77,7 @@ def reset_preferences(
     """Reset all preferences to defaults (empty values for data-dependent fields)."""
     prefs = _get_or_create_preferences(session, current_user, commit=False)
     session.refresh(prefs)
-    previous = _model_to_response(prefs).model_dump(exclude={"created_at", "updated_at"})
+    previous = _model_to_response(prefs, session).model_dump(exclude={"created_at", "updated_at"})
 
     # Reset to defaults - data-dependent fields start empty
     prefs.fiscal_year_start_month = 4
@@ -121,7 +122,7 @@ def reset_preferences(
     prefs.needs_target_percent = 50.0
     prefs.wants_target_percent = 30.0
     prefs.savings_target_percent = 20.0
-    prefs.credit_card_limits = json.dumps({})
+    replace_credit_card_limits(session, current_user.id, {})
     prefs.earning_start_date = None
     prefs.use_earning_start_date = False
     prefs.fixed_expense_categories = json.dumps([])
@@ -140,12 +141,15 @@ def reset_preferences(
     prefs.salary_is_net_of_tds = True
     prefs.updated_at = datetime.now(UTC)
 
-    if _model_to_response(prefs).model_dump(exclude={"created_at", "updated_at"}) != previous:
+    if (
+        _model_to_response(prefs, session).model_dump(exclude={"created_at", "updated_at"})
+        != previous
+    ):
         mark_preferences_changed(session, current_user.id)
     session.commit()
     session.refresh(prefs)
 
-    return _model_to_response(prefs)
+    return _model_to_response(prefs, session)
 
 
 # ----- Section-specific endpoints for granular updates -----

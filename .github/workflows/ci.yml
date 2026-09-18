@@ -107,7 +107,11 @@ jobs:
           "$pg_bin/psql" -h 127.0.0.1 -p 55432 -U ledger_sync_test \
             -d ledger_sync_test_migrations -c "SELECT version();"
       - name: Integration tests with native PostgreSQL
-        run: uv run --no-sync --locked --no-build pytest tests/integration/ -q
+        run: >-
+          uv run --no-sync --locked --no-build pytest tests/integration/
+          tests/unit/test_ai_settings_migration.py
+          tests/unit/test_compensation_migration.py
+          tests/unit/test_compensation_records.py -q
       - name: Stop the owned native PostgreSQL cluster
         if: always()
         shell: bash

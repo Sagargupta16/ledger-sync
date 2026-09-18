@@ -2,15 +2,35 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+def _exact_storage_decimal(value: Decimal | None) -> Decimal | None:
+    """Reject only values outside unscaled PostgreSQL NUMERIC's exact capacity."""
+    if value is not None and (
+        not value.is_finite()
+        or int(value.as_tuple().exponent) < -16383
+        or value.adjusted() >= 131072
+    ):
+        raise ValueError("Decimal exceeds exact compensation storage limits.")
+    return value
+
+
+def _storage_text(value: str | None) -> str | None:
+    if value is not None and "\x00" in value:
+        raise ValueError("Compensation text cannot contain a NUL character.")
+    return value
 
 
 class SalaryComponents(BaseModel):
     """Compensation breakdown for a single fiscal year."""
+
+    model_config = ConfigDict(extra="forbid")
 
     base_salary_annual: Decimal = Decimal(0)
     hra_annual: Decimal | None = None
@@ -23,18 +43,43 @@ class SalaryComponents(BaseModel):
     special_allowance_annual: Decimal = Decimal(0)
     other_taxable_annual: Decimal = Decimal(0)
 
+    @field_validator("*")
+    @classmethod
+    def _exact_decimals(cls, value: Decimal | None) -> Decimal | None:
+        return _exact_storage_decimal(value)
+
 
 class SalaryStructureConfig(BaseModel):
     """Update payload for salary structure (keyed by FY string)."""
 
     salary_structure: dict[str, SalaryComponents]
 
+    @field_validator("salary_structure")
+    @classmethod
+    def _valid_fiscal_years(cls, value: dict[str, SalaryComponents]) -> dict[str, SalaryComponents]:
+        for fiscal_year in value:
+            if (
+                not re.fullmatch(r"[0-9]{4}-[0-9]{2}", fiscal_year)
+                or int(fiscal_year[-2:]) != (int(fiscal_year[:4]) + 1) % 100
+            ):
+                raise ValueError("Fiscal year must be YYYY-YY for consecutive years.")
+        return value
+
 
 class RsuVesting(BaseModel):
     """A single vesting event within an RSU grant."""
 
+    model_config = ConfigDict(extra="forbid")
+
+    id: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Stable event ID returned by storage; omit for a new vesting.",
+    )
     date: date
-    quantity: int = Field(gt=0, description="Shares that vested, BEFORE any tax withholding.")
+    quantity: int = Field(
+        gt=0, le=2147483647, description="Shares that vested, BEFORE any tax withholding."
+    )
     price_at_vest: Decimal | None = Field(
         default=None,
         gt=0,
@@ -53,6 +98,23 @@ class RsuVesting(BaseModel):
         ),
     )
 
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _quantity_is_not_boolean(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("Vesting quantity must be an integer share count, not a boolean.")
+        return value
+
+    @field_validator("price_at_vest", "net_quantity")
+    @classmethod
+    def _exact_decimals(cls, value: Decimal | None) -> Decimal | None:
+        return _exact_storage_decimal(value)
+
+    @field_validator("id")
+    @classmethod
+    def _valid_text(cls, value: str | None) -> str | None:
+        return _storage_text(value)
+
     @model_validator(mode="after")
     def _net_cannot_exceed_gross(self) -> RsuVesting:
         """Reject a net quantity above the gross vest.
@@ -70,18 +132,46 @@ class RsuVesting(BaseModel):
 class RsuGrant(BaseModel):
     """An RSU grant with its vesting schedule."""
 
-    id: str
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
     stock_name: str = Field(min_length=1)
     stock_price: Decimal = Field(gt=0)
     grant_date: date | None = None
     notes: str | None = None
     vestings: list[RsuVesting] = Field(min_length=1)
 
+    @field_validator("stock_price")
+    @classmethod
+    def _exact_price(cls, value: Decimal) -> Decimal:
+        _exact_storage_decimal(value)
+        return value
+
+    @field_validator("id", "stock_name", "notes")
+    @classmethod
+    def _valid_text(cls, value: str | None) -> str | None:
+        return _storage_text(value)
+
 
 class RsuGrantsConfig(BaseModel):
     """Update payload for RSU grants."""
 
     rsu_grants: list[RsuGrant]
+
+    @model_validator(mode="after")
+    def _unique_public_ids(self) -> RsuGrantsConfig:
+        grant_ids = [grant.id for grant in self.rsu_grants]
+        if len(grant_ids) != len(set(grant_ids)):
+            raise ValueError("RSU grant IDs must be unique within a user.")
+        event_ids = [
+            vesting.id
+            for grant in self.rsu_grants
+            for vesting in grant.vestings
+            if vesting.id is not None
+        ]
+        if len(event_ids) != len(set(event_ids)):
+            raise ValueError("RSU vesting IDs must not be repeated.")
+        return self
 
 
 class GrowthAssumptions(BaseModel):

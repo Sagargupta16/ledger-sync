@@ -12,6 +12,8 @@ export interface SalaryComponents {
 
 /** A single vesting event within an RSU grant. */
 export interface RsuVesting {
+  /** Stable storage identity; omitted until a new event is saved. */
+  id?: string
   date: string // YYYY-MM-DD
   /** Shares that vested, BEFORE any tax withholding. The tax basis. */
   quantity: number

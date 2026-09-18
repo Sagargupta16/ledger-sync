@@ -33,6 +33,9 @@ venv.bak/
 
 # Python Testing
 .pytest_cache/
+# Scratch SQLite databases the migration tests build per case. Untracked but not
+# previously ignored, so they surfaced in `git status` and could be committed.
+.pytest_tmp/
 .coverage
 .coverage.*
 htmlcov/
@@ -178,6 +181,7 @@ backups/
 !**/examples/**/*.csv
 !**/examples/**/*.tsv
 !**/examples/**/*.sql
+!docs/DATABASE_MODEL_SCHEMA.sql
 
 # Jupyter Notebook
 .ipynb_checkpoints

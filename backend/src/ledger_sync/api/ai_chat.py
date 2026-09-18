@@ -37,7 +37,6 @@ from typing import Any, Literal, Self
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
-from sqlalchemy import select
 
 from ledger_sync.api.ai_usage import (
     complete_usage,
@@ -45,11 +44,15 @@ from ledger_sync.api.ai_usage import (
     reserve_usage,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.api.preferences_ai import LEGACY_BEDROCK_PLACEHOLDER, rewrap_stored_ai_key
 from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.core.encryption import DecryptionError, decrypt_api_key
-from ledger_sync.db.models import UserPreferences
+from ledger_sync.db._models.ai_settings import UserAISettings
+from ledger_sync.services.ai_settings import (
+    LEGACY_BEDROCK_PLACEHOLDER,
+    get_ai_settings,
+    rewrap_stored_ai_key,
+)
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -172,7 +175,7 @@ class BedrockChatResponse(BaseModel):
     stop_reason: str | None = None
 
 
-def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
+def _get_bedrock_model_region(ai_settings: UserAISettings) -> tuple[str, str]:
     """Resolve Bedrock (model_id, region) based on the user's mode.
 
     app_bedrock -> the model + region configured at the app level, ignoring
@@ -180,14 +183,14 @@ def _get_bedrock_model_region(prefs: UserPreferences) -> tuple[str, str]:
 
     byok -> the user's configured Bedrock model. They own the AWS key.
     """
-    if prefs.ai_mode == "app_bedrock":
+    if ai_settings.ai_mode == "app_bedrock":
         return settings.ai_default_bedrock_model, settings.ai_default_bedrock_region
 
     # BYOK path
-    if prefs.ai_provider != "bedrock":
+    if ai_settings.ai_provider != "bedrock":
         raise HTTPException(status_code=400, detail="Bedrock not configured")
 
-    raw_model = prefs.ai_model or ""
+    raw_model = ai_settings.ai_model or ""
     if "|" in raw_model:
         model, region = raw_model.rsplit("|", 1)
     else:
@@ -276,16 +279,16 @@ def _build_converse_kwargs(payload: BedrockChatRequest, model_id: str) -> dict[s
     return kwargs
 
 
-def _resolve_user_bearer(prefs: UserPreferences, session: DatabaseSession) -> str | None:
-    if prefs.ai_mode != "byok" or prefs.ai_provider != "bedrock":
+def _resolve_user_bearer(ai_settings: UserAISettings, session: DatabaseSession) -> str | None:
+    if ai_settings.ai_mode != "byok" or ai_settings.ai_provider != "bedrock":
         return None
-    if not prefs.ai_api_key_encrypted:
+    if not ai_settings.ai_api_key_encrypted:
         raise HTTPException(
             status_code=400,
             detail="Enter a personal Bedrock key or select App Bedrock mode for shared access.",
         )
     try:
-        candidate, needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
+        candidate, needs_reencrypt = decrypt_api_key(ai_settings.ai_api_key_encrypted)
     except DecryptionError as exc:
         raise HTTPException(
             status_code=400,
@@ -297,7 +300,7 @@ def _resolve_user_bearer(prefs: UserPreferences, session: DatabaseSession) -> st
             detail="Enter a personal Bedrock key or select App Bedrock mode for shared access.",
         )
     if needs_reencrypt:
-        rewrap_stored_ai_key(session, prefs, candidate)
+        rewrap_stored_ai_key(session, ai_settings, candidate)
     return candidate
 
 
@@ -443,20 +446,17 @@ def bedrock_chat_proxy(
     session: DatabaseSession,
 ) -> BedrockChatResponse:
     """Call Bedrock Converse API and return the full assistant reply."""
-    result = session.execute(
-        select(UserPreferences).where(UserPreferences.user_id == current_user.id)
-    )
-    prefs = result.scalar_one_or_none()
-    if not prefs:
+    ai_settings = get_ai_settings(session, current_user.id)
+    if not ai_settings:
         raise HTTPException(status_code=400, detail="No preferences found")
 
-    model_id, region = _get_bedrock_model_region(prefs)
+    model_id, region = _get_bedrock_model_region(ai_settings)
 
     # BYOK Bedrock: if the user stored their own Bedrock API key (bearer
     # token), the call is signed with THEIR key -- they pay AWS directly and
     # the app's shared-key message cap does not apply (their own token caps
     # do). A missing key or legacy placeholder cannot spend shared credentials.
-    user_bearer = _resolve_user_bearer(prefs, session)
+    user_bearer = _resolve_user_bearer(ai_settings, session)
     funding_source: Literal["app", "personal"] = "personal" if user_bearer else "app"
 
     if user_bearer is None:

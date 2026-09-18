@@ -7,7 +7,8 @@ import httpx
 import pytest
 from sqlalchemy import event
 
-from ledger_sync.db.models import AccountClassification, AccountType, CategorizationRule
+from ledger_sync.db.models import AccountType, CategorizationRule
+from ledger_sync.services.account_settings import set_account_type
 
 
 @pytest.mark.parametrize(
@@ -49,13 +50,7 @@ from ledger_sync.db.models import AccountClassification, AccountType, Categoriza
 )
 def test_database_only_routes_use_worker_threads(two_user_client, method, path, options, status):
     client, session, user, _, _ = two_user_client
-    session.add(
-        AccountClassification(
-            user_id=user.id,
-            account_name="Synthetic",
-            account_type=AccountType.CASH,
-        )
-    )
+    set_account_type(session, user.id, "Synthetic", AccountType.CASH)
     rule = CategorizationRule(
         user_id=user.id,
         match_field="note",

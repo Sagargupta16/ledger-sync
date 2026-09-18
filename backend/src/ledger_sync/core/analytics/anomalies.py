@@ -55,17 +55,16 @@ from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
-    closed_accounts_for,
     fmt_year_month,
 )
 from ledger_sync.db.models import (
-    AccountClassification,
     Anomaly,
     AnomalyType,
     Budget,
     Transaction,
     TransactionType,
 )
+from ledger_sync.services.account_settings import get_closed_account_dates
 
 # Iglewicz-Hoaglin constant for modified Z-score: 0.6745 = Phi^-1(0.75),
 # makes MAD an unbiased estimator of sigma for normally distributed data.
@@ -417,48 +416,42 @@ class AnomaliesMixin(AnalyticsEngineBase):
         silently absorbing it. Only rows dated AFTER the recorded close
         date count; the account's own history never triggers it.
         """
-        closed = closed_accounts_for(self.db, self.user_id)
-        if not closed:
-            return
-
-        close_dates: dict[str, datetime] = {
-            row.account_name: row.closed_date
-            for row in self.db.query(AccountClassification)
-            .filter(
-                AccountClassification.user_id == self.user_id,
-                AccountClassification.is_closed.is_(True),
-                AccountClassification.closed_date.is_not(None),
-            )
-            .all()
-            # The SQL filter already excludes NULLs; this narrows for mypy.
-            if row.closed_date is not None
-        }
+        close_dates = get_closed_account_dates(self.db, self._require_user_id())
         if not close_dates:
             return
 
         sym = self._currency_symbol
-        for account, closed_at in close_dates.items():
-            late_txns = (
-                self._user_transaction_query()
-                .filter(Transaction.account == account, Transaction.date > closed_at)
-                .order_by(Transaction.date.desc())
-                .limit(5)
-                .all()
+        # One candidate query for all closed accounts avoids a query per account.
+        # Python lower matches the dimension keys even for Unicode source labels.
+        late_txns = (
+            self._user_transaction_query()
+            .filter(Transaction.date > min(close_dates.values()))
+            .order_by(Transaction.date.desc())
+        )
+        counts: dict[str, int] = {}
+        for txn in late_txns:
+            key = (txn.account or "").lower()
+            closed_at = close_dates.get(key)
+            if (
+                closed_at is None
+                or txn.date.replace(tzinfo=None) <= closed_at.replace(tzinfo=None)
+                or counts.get(key, 0) >= 5
+            ):
+                continue
+            counts[key] = counts.get(key, 0) + 1
+            anomalies.append(
+                {
+                    "type": AnomalyType.CLOSED_ACCOUNT_ACTIVITY,
+                    "severity": "medium",
+                    "description": (
+                        f"Activity on closed account {txn.account}: "
+                        f"{sym}{float(txn.amount):,.0f} ({txn.category}) "
+                        f"on {txn.date.strftime('%d %b %Y')}"
+                    ),
+                    "transaction_id": txn.transaction_id,
+                    "actual_value": Decimal(str(txn.amount)),
+                },
             )
-            for txn in late_txns:
-                anomalies.append(
-                    {
-                        "type": AnomalyType.CLOSED_ACCOUNT_ACTIVITY,
-                        "severity": "medium",
-                        "description": (
-                            f"Activity on closed account {account}: "
-                            f"{sym}{float(txn.amount):,.0f} ({txn.category}) "
-                            f"on {txn.date.strftime('%d %b %Y')}"
-                        ),
-                        "transaction_id": txn.transaction_id,
-                        "actual_value": Decimal(str(txn.amount)),
-                    },
-                )
 
     # ─── budget tracking (unchanged behavior; kept in this mixin) ─────────
 

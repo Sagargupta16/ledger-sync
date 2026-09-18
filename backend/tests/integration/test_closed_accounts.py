@@ -12,9 +12,10 @@ from decimal import Decimal
 
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.db.models import (
-    AccountClassification,
     Anomaly,
     AnomalyType,
+    LedgerAccount,
+    LedgerAccountAlias,
     RecurrenceFrequency,
     RecurringTransaction,
     Transaction,
@@ -73,11 +74,7 @@ def test_status_endpoint_closes_and_reopens(two_user_client) -> None:
     assert r.status_code == 200
     assert r.json()["is_closed"] is True
 
-    row = (
-        session.query(AccountClassification)
-        .filter_by(user_id=user_a.id, account_name="CC: Old Axis")
-        .one()
-    )
+    row = session.query(LedgerAccount).filter_by(user_id=user_a.id, name="CC: Old Axis").one()
     assert row.is_closed is True
     assert row.closed_date is not None
     assert client.get("/api/account-classifications/closed").json() == ["CC: Old Axis"]
@@ -127,9 +124,10 @@ def test_recurring_detection_skips_closed_accounts(two_user_client) -> None:
             )
         )
     session.add(
-        AccountClassification(
+        LedgerAccount(
             user_id=user_a.id,
-            account_name="CC: Old Axis",
+            key="cc: old axis",
+            name="CC: Old Axis",
             is_closed=True,
             closed_date=datetime.now(UTC),
         )
@@ -157,9 +155,10 @@ def test_anomaly_flags_activity_after_close_date_only(two_user_client) -> None:
         _txn(user_a.id, "after_close_01", "CC: Old Axis", closed_at + timedelta(days=20), 1200)
     )
     session.add(
-        AccountClassification(
+        LedgerAccount(
             user_id=user_a.id,
-            account_name="CC: Old Axis",
+            key="cc: old axis",
+            name="CC: Old Axis",
             is_closed=True,
             closed_date=closed_at,
         )
@@ -177,3 +176,34 @@ def test_anomaly_flags_activity_after_close_date_only(two_user_client) -> None:
     )
     assert [a.transaction_id for a in flagged] == ["after_close_01"]
     assert "CC: Old Axis" in flagged[0].description
+
+
+def test_closure_applies_to_alias_and_case_variant_consumers(two_user_client) -> None:
+    client, session, user_a, user_b, _ = two_user_client
+    client.post(
+        "/api/account-classifications",
+        params={"account_name": "İBANK", "account_type": "Bank Accounts"},
+    )
+    account = session.query(LedgerAccount).filter_by(user_id=user_a.id, name="İBANK").one()
+    session.add(
+        LedgerAccountAlias(
+            user_id=user_a.id, account_id=account.id, source_key="old bank", label="Old Bank"
+        )
+    )
+    recurring = _recurring(user_a.id, "OLD BANK", confirmed=True)
+    other = _recurring(user_b.id, "OLD BANK", confirmed=True)
+    session.add_all([recurring, other])
+    session.commit()
+    response = client.put(
+        "/api/account-classifications/status",
+        json={"account_name": "i̇bank", "is_closed": True},
+    )
+    assert response.json()["account_name"] == "İBANK"
+    assert recurring.is_active is False and other.is_active is True
+    after_close = datetime.now(UTC) + timedelta(days=1)
+    session.add(_txn(user_a.id, "alias-late", "OLD BANK", after_close, 10))
+    session.add(_txn(user_b.id, "other-late", "OLD BANK", after_close, 20))
+    session.commit()
+    anomalies = []
+    AnalyticsEngine(session, user_id=user_a.id)._detect_closed_account_activity(anomalies)
+    assert [anomaly["transaction_id"] for anomaly in anomalies] == ["alias-late"]

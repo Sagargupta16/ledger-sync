@@ -26,8 +26,9 @@ from ledger_sync.api.ai_usage import router as usage_router
 from ledger_sync.api.deps import get_current_user
 from ledger_sync.config.settings import settings
 from ledger_sync.core.ai_pricing import estimate_cost_usd
+from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.db.base import Base
-from ledger_sync.db.models import AIUsageLog, User, UserPreferences
+from ledger_sync.db.models import AIUsageLog, User
 from ledger_sync.db.session import get_session
 
 TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
@@ -131,7 +132,7 @@ def test_get_usage_returns_rollups() -> None:
 
 def test_get_usage_surfaces_configured_limits() -> None:
     app, session, user = _make_app()
-    session.add(UserPreferences(user_id=user.id, ai_daily_token_limit=10_000))
+    session.add(UserAISettings(user_id=user.id, ai_daily_token_limit=10_000))
     session.commit()
 
     client = TestClient(app)
@@ -198,7 +199,7 @@ def test_browser_usage_cannot_forge_server_funding_or_invalid_counters(fields: d
 @pytest.mark.parametrize("limit_field", ["ai_daily_token_limit", "ai_monthly_token_limit"])
 def test_zero_budget_blocks_without_prior_usage(limit_field: str) -> None:
     _app, session, user = _make_app()
-    session.add(UserPreferences(user_id=user.id, **{limit_field: 0}))
+    session.add(UserAISettings(user_id=user.id, **{limit_field: 0}))
     session.commit()
 
     with pytest.raises(HTTPException) as error:
@@ -212,7 +213,7 @@ def test_zero_budget_blocks_without_prior_usage(limit_field: str) -> None:
 
 def test_reservation_blocks_pending_tokens_then_settles_once() -> None:
     app, session, user = _make_app()
-    session.add(UserPreferences(user_id=user.id, ai_daily_token_limit=100))
+    session.add(UserAISettings(user_id=user.id, ai_daily_token_limit=100))
     session.commit()
     user_id = user.id
     previous_updated_at = user.updated_at
@@ -293,7 +294,7 @@ def test_concurrent_reservations_serialize_across_database_connections(
         session.flush()
         user_id = user.id
         session.add(
-            UserPreferences(
+            UserAISettings(
                 user_id=user_id,
                 ai_daily_token_limit=100 if cap == "tokens" else None,
             )

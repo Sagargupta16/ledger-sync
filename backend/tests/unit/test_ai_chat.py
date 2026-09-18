@@ -26,14 +26,16 @@ from sqlalchemy.pool import StaticPool
 from ledger_sync.api.ai_chat import router as ai_router
 from ledger_sync.api.ai_usage import count_app_messages_today
 from ledger_sync.api.deps import get_current_user
-from ledger_sync.api.preferences_ai import get_ai_key, rewrap_stored_ai_key
+from ledger_sync.api.preferences_ai import get_ai_key
 from ledger_sync.api.preferences_ai import router as ai_preferences_router
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.config.settings import settings
 from ledger_sync.core.encryption import decrypt_api_key, encrypt_api_key
+from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.db.base import Base
-from ledger_sync.db.models import AIUsageLog, User, UserPreferences
+from ledger_sync.db.models import AIUsageLog, User
 from ledger_sync.db.session import get_session
+from ledger_sync.services.ai_settings import rewrap_stored_ai_key
 
 TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
@@ -73,7 +75,7 @@ def _make_app() -> tuple[FastAPI, Session, User]:
     return app, session, user
 
 
-def _make_prefs(
+def _make_ai_settings(
     session: Session,
     user: User,
     *,
@@ -83,7 +85,7 @@ def _make_prefs(
     region: str = "us-east-1",
     api_key: str | None = None,
 ) -> None:
-    prefs = UserPreferences(
+    prefs = UserAISettings(
         user_id=user.id,
         ai_mode=mode or ("byok" if api_key else "app_bedrock"),
         ai_provider=provider,
@@ -94,7 +96,7 @@ def _make_prefs(
     session.commit()
 
 
-def test_no_preferences_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_ai_settings_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, _session, _user = _make_app()
     client = TestClient(app)
@@ -110,7 +112,7 @@ def test_no_preferences_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_non_bedrock_provider_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, session, user = _make_app()
-    _make_prefs(session, user, provider="openai", mode="byok")
+    _make_ai_settings(session, user, provider="openai", mode="byok")
     client = TestClient(app)
 
     resp = client.post(
@@ -130,7 +132,7 @@ def test_missing_aws_auth_returns_503_with_helpful_message(
     monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
     monkeypatch.delenv("AWS_PROFILE", raising=False)
     app, session, user = _make_app()
-    _make_prefs(session, user)
+    _make_ai_settings(session, user)
     client = TestClient(app)
 
     resp = client.post(
@@ -147,7 +149,7 @@ def test_successful_converse_returns_content(
 ) -> None:
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     client = TestClient(app)
 
     fake_bedrock_response: dict[str, Any] = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -183,7 +185,7 @@ def test_inference_failure_retains_reservation(
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
     app, session, user = _make_app()
-    _make_prefs(session, user)
+    _make_ai_settings(session, user)
     client = TestClient(app)
 
     mock_boto_client = MagicMock()
@@ -209,7 +211,7 @@ def test_tools_passed_as_tool_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """When the request includes `tools`, Bedrock must receive `toolConfig`."""
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, session, user = _make_app()
-    _make_prefs(session, user)
+    _make_ai_settings(session, user)
     client = TestClient(app)
 
     fake = {"output": {"message": {"content": [{"text": "ack"}]}}}
@@ -246,7 +248,7 @@ def test_app_bedrock_mode_uses_default_model_regardless_of_prefs(
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, session, user = _make_app()
     # User has an old BYOK row with a premium model, but mode is app_bedrock
-    _make_prefs(session, user, mode="app_bedrock", model="us.anthropic.claude-opus-4-7")
+    _make_ai_settings(session, user, mode="app_bedrock", model="us.anthropic.claude-opus-4-7")
     client = TestClient(app)
 
     fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -278,7 +280,7 @@ def test_app_bedrock_mode_enforces_daily_message_limit(
     monkeypatch.setattr(settings, "ai_daily_message_limit", 2)
 
     app, session, user = _make_app()
-    _make_prefs(session, user, mode="app_bedrock")
+    _make_ai_settings(session, user, mode="app_bedrock")
     client = TestClient(app)
 
     fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -318,7 +320,7 @@ def test_byok_without_personal_key_cannot_spend_shared_funding(
     monkeypatch.setattr(settings, "ai_daily_message_limit", 2)
 
     app, session, user = _make_app()
-    _make_prefs(session, user, mode="byok", api_key=stored_value)
+    _make_ai_settings(session, user, mode="byok", api_key=stored_value)
     client = TestClient(app)
 
     fake = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -342,7 +344,7 @@ def test_tool_use_and_tool_result_round_trip(monkeypatch: pytest.MonkeyPatch) ->
     on the way back are converted to the expected Bedrock shape."""
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, session, user = _make_app()
-    _make_prefs(session, user)
+    _make_ai_settings(session, user)
     client = TestClient(app)
 
     fake = {
@@ -436,7 +438,7 @@ def test_tool_use_and_tool_result_round_trip(monkeypatch: pytest.MonkeyPatch) ->
 )
 def test_invalid_chat_payload_never_invokes_provider(payload: dict) -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
 
     with patch("boto3.client") as provider:
         response = TestClient(app).post("/api/ai/bedrock/chat", json=payload)
@@ -452,7 +454,7 @@ def test_personal_bearer_is_used_and_does_not_exhaust_shared_cap(
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "synthetic-shared-bearer")
     monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     mock_boto = MagicMock()
     mock_boto.converse.return_value = {
         "output": {"message": {"content": [{"text": "OK"}]}},
@@ -470,7 +472,7 @@ def test_personal_bearer_is_used_and_does_not_exhaust_shared_cap(
         callback(request)
         assert request.headers["Authorization"] == "Bearer synthetic-personal-bearer"
 
-        prefs = session.query(UserPreferences).one()
+        prefs = session.query(UserAISettings).one()
         prefs.ai_mode = "app_bedrock"
         session.commit()
         assert client.post("/api/ai/bedrock/chat", json=body).status_code == 200
@@ -482,8 +484,8 @@ def test_personal_bearer_is_used_and_does_not_exhaust_shared_cap(
 
 def test_expected_input_and_output_budget_is_checked_before_provider() -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    prefs = session.query(UserPreferences).one()
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    prefs = session.query(UserAISettings).one()
     prefs.ai_daily_token_limit = 1_024
     session.commit()
 
@@ -505,8 +507,8 @@ def test_known_provider_rejection_releases_reservation(
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "synthetic-shared-bearer")
     monkeypatch.setattr(settings, "ai_daily_message_limit", 1)
     app, session, user = _make_app()
-    _make_prefs(session, user, mode="app_bedrock")
-    prefs = session.query(UserPreferences).one()
+    _make_ai_settings(session, user, mode="app_bedrock")
+    prefs = session.query(UserAISettings).one()
     prefs.ai_daily_token_limit = 3_000
     session.commit()
     mock_boto = MagicMock()
@@ -554,8 +556,8 @@ def test_client_creation_failure_releases_token_reservation(
     region: str, failure: Exception
 ) -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer", region=region)
-    prefs = session.query(UserPreferences).one()
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer", region=region)
+    prefs = session.query(UserAISettings).one()
     prefs.ai_daily_token_limit = 3_000
     session.commit()
     mock_boto = MagicMock()
@@ -596,7 +598,7 @@ def test_client_creation_failure_releases_token_reservation(
 
 def test_personal_auth_setup_failure_releases_reservation() -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     mock_boto = MagicMock()
     mock_boto.meta.events.register.side_effect = RuntimeError("private auth setup detail")
 
@@ -620,7 +622,7 @@ def test_normal_bedrock_use_rewraps_key_after_dedicated_key_transition(
     app, session, user = _make_app()
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "synthetic-shared-bearer")
     monkeypatch.setattr(settings, "encryption_key", "")
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     monkeypatch.setattr(settings, "encryption_key", "synthetic-new-dedicated-material")
     mock_boto = MagicMock()
     mock_boto.converse.return_value = {"output": {"message": {"content": [{"text": "OK"}]}}}
@@ -631,7 +633,7 @@ def test_normal_bedrock_use_rewraps_key_after_dedicated_key_transition(
         )
 
     assert response.status_code == 200
-    stored = session.query(UserPreferences).one().ai_api_key_encrypted
+    stored = session.query(UserAISettings).one().ai_api_key_encrypted
     monkeypatch.setattr(settings, "jwt_secret_key", "synthetic-rotated-jwt-material")
     assert decrypt_api_key(stored) == ("synthetic-personal-bearer", False)
 
@@ -641,7 +643,7 @@ def test_key_reveal_rewraps_and_sets_no_store(monkeypatch: pytest.MonkeyPatch) -
 
     _app, session, user = _make_app()
     monkeypatch.setattr(settings, "encryption_key", "")
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     monkeypatch.setattr(settings, "encryption_key", "synthetic-new-dedicated-material")
     response = Response()
 
@@ -649,7 +651,7 @@ def test_key_reveal_rewraps_and_sets_no_store(monkeypatch: pytest.MonkeyPatch) -
 
     assert result == {"api_key": "synthetic-personal-bearer"}
     assert "no-store" in response.headers["Cache-Control"]
-    stored = session.query(UserPreferences).one().ai_api_key_encrypted
+    stored = session.query(UserAISettings).one().ai_api_key_encrypted
     assert decrypt_api_key(stored) == ("synthetic-personal-bearer", False)
 
 
@@ -657,25 +659,25 @@ def test_rewrap_does_not_restore_a_concurrently_deleted_key() -> None:
     from sqlalchemy import update
 
     _app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    prefs = session.query(UserPreferences).one()
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    prefs = session.query(UserAISettings).one()
     session.execute(
-        update(UserPreferences)
-        .where(UserPreferences.id == prefs.id)
+        update(UserAISettings)
+        .where(UserAISettings.user_id == prefs.user_id)
         .values(ai_api_key_encrypted=None)
         .execution_options(synchronize_session=False)
     )
 
     rewrap_stored_ai_key(session, prefs, "synthetic-personal-bearer")
 
-    assert session.query(UserPreferences).one().ai_api_key_encrypted is None
+    assert session.query(UserAISettings).one().ai_api_key_encrypted is None
 
 
 @pytest.mark.parametrize("key_field", [{}, {"api_key": None}])
 def test_model_only_save_preserves_same_provider_key(key_field: dict) -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    previous = session.query(UserPreferences).one().ai_api_key_encrypted
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    previous = session.query(UserAISettings).one().ai_api_key_encrypted
 
     response = TestClient(app).put(
         "/api/preferences/ai-config",
@@ -690,7 +692,7 @@ def test_model_only_save_preserves_same_provider_key(key_field: dict) -> None:
     assert response.status_code == 200
     assert response.json()["has_key"] is True
     assert response.json()["funding_source"] == "personal"
-    prefs = session.query(UserPreferences).one()
+    prefs = session.query(UserAISettings).one()
     assert prefs.ai_api_key_encrypted == previous
     assert prefs.ai_model == "synthetic-new-model|us-west-2"
 
@@ -698,8 +700,8 @@ def test_model_only_save_preserves_same_provider_key(key_field: dict) -> None:
 @pytest.mark.parametrize("replacement", ["", "   ", "bedrock-uses-aws-credentials"])
 def test_blank_or_sentinel_save_cannot_overwrite_stored_key(replacement: str) -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    previous = session.query(UserPreferences).one().ai_api_key_encrypted
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    previous = session.query(UserAISettings).one().ai_api_key_encrypted
 
     response = TestClient(app).put(
         "/api/preferences/ai-config",
@@ -707,20 +709,20 @@ def test_blank_or_sentinel_save_cannot_overwrite_stored_key(replacement: str) ->
     )
 
     assert response.status_code == 422
-    assert session.query(UserPreferences).one().ai_api_key_encrypted == previous
+    assert session.query(UserAISettings).one().ai_api_key_encrypted == previous
 
 
 def test_provider_switch_without_new_key_preserves_previous_provider_and_key() -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    previous = session.query(UserPreferences).one().ai_api_key_encrypted
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    previous = session.query(UserAISettings).one().ai_api_key_encrypted
 
     response = TestClient(app).put(
         "/api/preferences/ai-config", json={"provider": "openai", "model": "synthetic-model"}
     )
 
     assert response.status_code == 400
-    prefs = session.query(UserPreferences).one()
+    prefs = session.query(UserAISettings).one()
     assert prefs.ai_provider == "bedrock"
     assert prefs.ai_api_key_encrypted == previous
 
@@ -729,13 +731,13 @@ def test_stale_model_only_save_does_not_restore_a_concurrently_replaced_key() ->
     from sqlalchemy import update
 
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    stale_prefs = session.query(UserPreferences).one()
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    stale_prefs = session.query(UserAISettings).one()
     replacement = encrypt_api_key("synthetic-replacement-openai-value")
     with Session(session.get_bind()) as writer:
         writer.execute(
-            update(UserPreferences)
-            .where(UserPreferences.id == stale_prefs.id)
+            update(UserAISettings)
+            .where(UserAISettings.user_id == stale_prefs.user_id)
             .values(ai_provider="openai", ai_api_key_encrypted=replacement)
         )
         writer.commit()
@@ -745,7 +747,7 @@ def test_stale_model_only_save_does_not_restore_a_concurrently_replaced_key() ->
     )
 
     assert response.status_code == 409
-    current = session.query(UserPreferences).one()
+    current = session.query(UserAISettings).one()
     assert current.ai_provider == "openai"
     assert current.ai_api_key_encrypted == replacement
 
@@ -764,15 +766,15 @@ def test_initial_byok_config_requires_key_then_stores_encrypted_replacement() ->
     assert response.json()["has_key"] is True
     assert response.json()["funding_source"] == "personal"
     assert "api_key" not in response.json()
-    stored = session.query(UserPreferences).one().ai_api_key_encrypted
+    stored = session.query(UserAISettings).one().ai_api_key_encrypted
     assert stored.startswith("ls-byok:v3:")
     assert decrypt_api_key(stored) == ("synthetic-personal-bearer", False)
 
 
 def test_app_mode_reports_shared_funding_without_deleting_personal_key() -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
-    previous = session.query(UserPreferences).one().ai_api_key_encrypted
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    previous = session.query(UserAISettings).one().ai_api_key_encrypted
     client = TestClient(app)
 
     response = client.patch("/api/preferences/ai-config/mode", json={"mode": "app_bedrock"})
@@ -780,10 +782,10 @@ def test_app_mode_reports_shared_funding_without_deleting_personal_key() -> None
     assert response.status_code == 200
     assert response.json()["has_key"] is True
     assert response.json()["funding_source"] == "app"
-    assert session.query(UserPreferences).one().ai_api_key_encrypted == previous
+    assert session.query(UserAISettings).one().ai_api_key_encrypted == previous
     restored = client.patch("/api/preferences/ai-config/mode", json={"mode": "byok"})
     assert restored.json()["funding_source"] == "personal"
-    assert session.query(UserPreferences).one().ai_api_key_encrypted == previous
+    assert session.query(UserAISettings).one().ai_api_key_encrypted == previous
 
 
 @pytest.mark.parametrize("stored_value", [None, "bedrock-uses-aws-credentials", "corrupt"])
@@ -791,23 +793,23 @@ def test_config_does_not_advertise_missing_or_unreadable_keys_as_personal(
     stored_value: str | None,
 ) -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, mode="byok", api_key=stored_value)
+    _make_ai_settings(session, user, mode="byok", api_key=stored_value)
     if stored_value == "corrupt":
-        session.query(UserPreferences).one().ai_api_key_encrypted = "invalid-ciphertext"
+        session.query(UserAISettings).one().ai_api_key_encrypted = "invalid-ciphertext"
         session.commit()
-    previous = session.query(UserPreferences).one().ai_api_key_encrypted
+    previous = session.query(UserAISettings).one().ai_api_key_encrypted
 
     response = TestClient(app).get("/api/preferences/ai-config")
 
     assert response.status_code == 200
     assert response.json()["has_key"] is False
     assert response.json()["funding_source"] is None
-    assert session.query(UserPreferences).one().ai_api_key_encrypted == previous
+    assert session.query(UserAISettings).one().ai_api_key_encrypted == previous
 
 
 def test_limit_patch_can_set_zero_or_clear_only_the_requested_budget() -> None:
     app, session, user = _make_app()
-    _make_prefs(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
     client = TestClient(app)
     response = client.patch(
         "/api/preferences/ai-config/limits",

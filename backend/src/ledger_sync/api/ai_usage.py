@@ -20,7 +20,9 @@ from sqlalchemy.orm import Session
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.config.settings import settings
 from ledger_sync.core.ai_pricing import estimate_cost_usd
-from ledger_sync.db.models import AIUsageLog, User, UserPreferences
+from ledger_sync.db._models.ai_settings import UserAISettings
+from ledger_sync.db.models import AIUsageLog, User
+from ledger_sync.services.ai_settings import get_ai_settings
 
 router = APIRouter(prefix="/api/ai/usage", tags=["ai-usage"])
 
@@ -172,8 +174,8 @@ def check_token_limits(
     A configured zero budget blocks calls even before any tokens are used.
     """
     limits = db.execute(
-        select(UserPreferences.ai_daily_token_limit, UserPreferences.ai_monthly_token_limit).where(
-            UserPreferences.user_id == user_id
+        select(UserAISettings.ai_daily_token_limit, UserAISettings.ai_monthly_token_limit).where(
+            UserAISettings.user_id == user_id
         )
     ).one_or_none()
     if limits is None:
@@ -322,9 +324,7 @@ def get_usage(
 ) -> dict[str, Any]:
     """Return today / month / all-time usage + current configured limits."""
     now = datetime.now(UTC)
-    prefs = session.execute(
-        select(UserPreferences).where(UserPreferences.user_id == current_user.id)
-    ).scalar_one_or_none()
+    ai_settings = get_ai_settings(session, current_user.id)
 
     today = _rollup_since(session, current_user.id, _start_of_day(now))
     month = _rollup_since(session, current_user.id, _start_of_month(now))
@@ -332,7 +332,7 @@ def get_usage(
     all_time = _rollup_since(session, current_user.id, datetime(1970, 1, 1, tzinfo=UTC))
 
     # App-mode message cap (only meaningful when the user is on app_bedrock)
-    mode = prefs.ai_mode if prefs else "app_bedrock"
+    mode = ai_settings.ai_mode if ai_settings else "app_bedrock"
     messages_today = (
         count_app_messages_today(session, current_user.id) if mode == "app_bedrock" else 0
     )
@@ -343,8 +343,8 @@ def get_usage(
         "month_to_date": month,
         "all_time": all_time,
         "limits": {
-            "daily": prefs.ai_daily_token_limit if prefs else None,
-            "monthly": prefs.ai_monthly_token_limit if prefs else None,
+            "daily": ai_settings.ai_daily_token_limit if ai_settings else None,
+            "monthly": ai_settings.ai_monthly_token_limit if ai_settings else None,
             # App-wide message cap surfaced here so the client can render
             # "X / 10 messages today" without knowing the setting.
             "app_daily_messages": settings.ai_daily_message_limit,

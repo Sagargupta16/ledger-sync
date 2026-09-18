@@ -16,6 +16,7 @@ from ledger_sync.db.models import (
     User,
     UserPreferences,
 )
+from ledger_sync.services.compensation import read_compensation
 
 from .registry import (
     LIST_ENTITIES_MAX_LIMIT,
@@ -345,20 +346,14 @@ register(
 
 def _exec_get_preferences_summary(user: User, db: Session, _args: dict[str, Any]) -> Any:
     """Return the user's key configuration so the LLM can reason about context:
-    currency, fiscal year start, salary structure basics, tax regime hint."""
+    currency, fiscal year start and salary components grouped by fiscal year."""
     prefs = db.execute(
         select(UserPreferences).where(UserPreferences.user_id == user.id)
     ).scalar_one_or_none()
     if not prefs:
         return {"found": False}
 
-    salary: dict[str, Any] = {}
-    try:
-        import json
-
-        salary = json.loads(prefs.salary_structure or "{}")
-    except ValueError:
-        salary = {}
+    salary = read_compensation(db, user.id)["salary_structure"]
 
     return {
         "found": True,
@@ -366,22 +361,7 @@ def _exec_get_preferences_summary(user: User, db: Session, _args: dict[str, Any]
         "display_currency": prefs.display_currency,
         "fiscal_year_start_month": prefs.fiscal_year_start_month,
         "salary_structure_configured": bool(salary),
-        "salary_components": {
-            k: v
-            for k, v in salary.items()
-            if k
-            in {
-                "basic",
-                "hra",
-                "special_allowance",
-                "bonus",
-                "lta",
-                "provident_fund",
-                "nps",
-                "gratuity",
-                "ctc",
-            }
-        },
+        "salary_components": salary,
     }
 
 

@@ -46,6 +46,25 @@ class TestSalaryComponents:
         assert "2025-26" in config.salary_structure
         assert config.salary_structure["2025-26"].base_salary_annual == Decimal("80000")
 
+    @pytest.mark.parametrize("fiscal_year", ["2025", "2025-27", "25-26", "", "2025-2026"])
+    def test_invalid_fiscal_year_is_rejected(self, fiscal_year):
+        with pytest.raises(ValidationError, match="Fiscal year"):
+            SalaryStructureConfig.model_validate({"salary_structure": {fiscal_year: {}}})
+
+    def test_unknown_field_is_not_silently_lost(self):
+        with pytest.raises(ValidationError, match="Extra inputs"):
+            SalaryComponents.model_validate({"unrecognized_allowance": "50.001"})
+
+    def test_high_precision_is_json_serializable_without_a_float(self):
+        amount = "123456789012345678901.123456789012345678901"
+        comp = SalaryComponents.model_validate({"base_salary_annual": amount})
+        assert comp.model_dump(mode="json")["base_salary_annual"] == amount
+
+    @pytest.mark.parametrize("amount", ["1E-16384", "1E131072", "NaN", "Infinity"])
+    def test_unrepresentable_decimal_is_rejected_instead_of_rounded(self, amount):
+        with pytest.raises(ValidationError):
+            SalaryComponents.model_validate({"base_salary_annual": amount})
+
 
 class TestRsuGrant:
     def test_valid_grant(self):
@@ -172,6 +191,36 @@ class TestRsuGrant:
             ]
         )
         assert len(config.rsu_grants) == 1
+
+    def test_vesting_id_is_an_optional_backwards_compatible_extension(self):
+        raw = {"date": "2026-03-15", "quantity": 25}
+        assert RsuVesting.model_validate(raw).id is None
+        assert RsuVesting.model_validate({**raw, "id": "stable-event"}).id == "stable-event"
+
+    @pytest.mark.parametrize("quantity", [True, False, 2147483648, "0.0001"])
+    def test_invalid_integral_share_count_is_rejected(self, quantity):
+        with pytest.raises(ValidationError):
+            RsuVesting.model_validate({"date": "2026-03-15", "quantity": quantity})
+
+    def test_duplicate_events_are_valid_but_duplicate_ids_are_not(self):
+        event = {"date": "2026-03-15", "quantity": 25}
+        grant = {"id": "g1", "stock_name": "TEST", "stock_price": "100", "vestings": [event, event]}
+        assert (
+            len(RsuGrantsConfig.model_validate({"rsu_grants": [grant]}).rsu_grants[0].vestings) == 2
+        )
+        grant["vestings"] = [{**event, "id": "same"}, {**event, "id": "same"}]
+        with pytest.raises(ValidationError, match="vesting IDs"):
+            RsuGrantsConfig.model_validate({"rsu_grants": [grant]})
+
+    def test_duplicate_grant_ids_are_rejected(self):
+        grant = {
+            "id": "g1",
+            "stock_name": "TEST",
+            "stock_price": "100",
+            "vestings": [{"date": "2026-03-15", "quantity": 25}],
+        }
+        with pytest.raises(ValidationError, match="grant IDs"):
+            RsuGrantsConfig.model_validate({"rsu_grants": [grant, grant]})
 
 
 class TestGrowthAssumptions:

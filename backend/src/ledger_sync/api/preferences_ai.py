@@ -11,15 +11,18 @@ from typing import Literal, Self
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import update
-from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.api.preferences_helpers import _get_or_create_preferences
 from ledger_sync.core.encryption import DecryptionError, decrypt_api_key, encrypt_api_key
-from ledger_sync.db.models import UserPreferences
+from ledger_sync.db._models.ai_settings import UserAISettings
+from ledger_sync.services.ai_settings import (
+    LEGACY_BEDROCK_PLACEHOLDER,
+    get_or_create_ai_settings,
+    has_personal_ai_key,
+    rewrap_stored_ai_key,
+)
 
 router = APIRouter()
-LEGACY_BEDROCK_PLACEHOLDER = "bedrock-uses-aws-credentials"
 
 
 class AIConfigUpdate(BaseModel):
@@ -90,37 +93,26 @@ class AILimitsUpdate(BaseModel):
     clear_monthly: bool = False
 
 
-def has_personal_ai_key(prefs: UserPreferences) -> bool:
-    """Inspect stored configuration without exposing or deleting the ciphertext."""
-    if not prefs.ai_api_key_encrypted:
-        return False
-    try:
-        value, _ = decrypt_api_key(prefs.ai_api_key_encrypted)
-    except DecryptionError:
-        return False
-    return bool(value.strip()) and value.strip() != LEGACY_BEDROCK_PLACEHOLDER
-
-
-def _config_response(prefs: UserPreferences) -> AIConfigResponse:
-    model = prefs.ai_model
+def _config_response(ai_settings: UserAISettings) -> AIConfigResponse:
+    model = ai_settings.ai_model
     region = None
     if model and "|" in model:
         model, region = model.rsplit("|", 1)
-    has_key = has_personal_ai_key(prefs)
+    has_key = has_personal_ai_key(ai_settings)
     funding_source: Literal["app", "personal"] | None = None
-    if prefs.ai_mode == "app_bedrock":
+    if ai_settings.ai_mode == "app_bedrock":
         funding_source = "app"
     elif has_key:
         funding_source = "personal"
     return AIConfigResponse(
-        mode=prefs.ai_mode,
-        provider=prefs.ai_provider,
+        mode=ai_settings.ai_mode,
+        provider=ai_settings.ai_provider,
         model=model,
         has_key=has_key,
         funding_source=funding_source,
         region=region,
-        daily_token_limit=prefs.ai_daily_token_limit,
-        monthly_token_limit=prefs.ai_monthly_token_limit,
+        daily_token_limit=ai_settings.ai_daily_token_limit,
+        monthly_token_limit=ai_settings.ai_monthly_token_limit,
     )
 
 
@@ -137,9 +129,9 @@ def update_ai_config(
     session: DatabaseSession,
 ) -> AIConfigResponse:
     """Update model settings, preserving the same provider's key unless replaced."""
-    prefs = _get_or_create_preferences(session, current_user)
+    ai_settings = get_or_create_ai_settings(session, current_user.id, for_update=True, commit=False)
     if config.api_key is None and (
-        prefs.ai_provider != config.provider or not has_personal_ai_key(prefs)
+        ai_settings.ai_provider != config.provider or not has_personal_ai_key(ai_settings)
     ):
         raise HTTPException(
             status_code=400,
@@ -154,14 +146,14 @@ def update_ai_config(
     stored_key = (
         encrypt_api_key(config.api_key)
         if config.api_key is not None
-        else prefs.ai_api_key_encrypted
+        else ai_settings.ai_api_key_encrypted
     )
-    statement = update(UserPreferences).where(UserPreferences.id == prefs.id)
+    statement = update(UserAISettings).where(UserAISettings.user_id == ai_settings.user_id)
     if config.api_key is None:
         # A stale model-only save must not restore a key/provider another request changed.
         statement = statement.where(
-            UserPreferences.ai_provider == config.provider,
-            UserPreferences.ai_api_key_encrypted == stored_key,
+            UserAISettings.ai_provider == config.provider,
+            UserAISettings.ai_api_key_encrypted == stored_key,
         )
     updated_id = session.execute(
         statement.values(
@@ -171,7 +163,7 @@ def update_ai_config(
             ai_mode="byok",
             updated_at=datetime.now(UTC),
         )
-        .returning(UserPreferences.id)
+        .returning(UserAISettings.user_id)
         .execution_options(synchronize_session=False)
     ).scalar_one_or_none()
     if updated_id is None:
@@ -181,8 +173,8 @@ def update_ai_config(
             detail="The stored provider or key changed. Reload AI settings before saving.",
         )
     session.commit()
-    session.refresh(prefs)
-    return _config_response(prefs)
+    session.refresh(ai_settings)
+    return _config_response(ai_settings)
 
 
 @router.get("/ai-config")
@@ -191,8 +183,8 @@ def get_ai_config(
     session: DatabaseSession,
 ) -> AIConfigResponse:
     """Get AI config (without the raw key)."""
-    prefs = _get_or_create_preferences(session, current_user)
-    return _config_response(prefs)
+    ai_settings = get_or_create_ai_settings(session, current_user.id)
+    return _config_response(ai_settings)
 
 
 @router.patch("/ai-config/mode")
@@ -206,12 +198,12 @@ def update_ai_mode(
     Switching to app_bedrock doesn't delete the stored BYOK key, so users
     can flip back. We only toggle the mode flag.
     """
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.ai_mode = update.mode
-    prefs.updated_at = datetime.now(UTC)
+    ai_settings = get_or_create_ai_settings(session, current_user.id, for_update=True, commit=False)
+    ai_settings.ai_mode = update.mode
+    ai_settings.updated_at = datetime.now(UTC)
     session.commit()
 
-    return _config_response(prefs)
+    return _config_response(ai_settings)
 
 
 @router.patch("/ai-config/limits")
@@ -225,19 +217,19 @@ def update_ai_limits(
     Pass `clear_daily`/`clear_monthly` to null out a previously-set limit.
     Otherwise only provided fields are updated.
     """
-    prefs = _get_or_create_preferences(session, current_user)
+    ai_settings = get_or_create_ai_settings(session, current_user.id, for_update=True, commit=False)
     if update.clear_daily:
-        prefs.ai_daily_token_limit = None
+        ai_settings.ai_daily_token_limit = None
     elif "daily_token_limit" in update.model_fields_set:
-        prefs.ai_daily_token_limit = update.daily_token_limit
+        ai_settings.ai_daily_token_limit = update.daily_token_limit
     if update.clear_monthly:
-        prefs.ai_monthly_token_limit = None
+        ai_settings.ai_monthly_token_limit = None
     elif "monthly_token_limit" in update.model_fields_set:
-        prefs.ai_monthly_token_limit = update.monthly_token_limit
-    prefs.updated_at = datetime.now(UTC)
+        ai_settings.ai_monthly_token_limit = update.monthly_token_limit
+    ai_settings.updated_at = datetime.now(UTC)
     session.commit()
 
-    return _config_response(prefs)
+    return _config_response(ai_settings)
 
 
 @router.get(
@@ -257,11 +249,11 @@ def get_ai_key(
     Sets strict no-store cache headers so the decrypted key never lands in
     intermediary proxy caches, browser disk cache, or service-worker storage.
     """
-    prefs = _get_or_create_preferences(session, current_user)
-    if not prefs.ai_api_key_encrypted:
+    ai_settings = get_or_create_ai_settings(session, current_user.id)
+    if not ai_settings.ai_api_key_encrypted:
         raise HTTPException(status_code=404, detail="No AI key configured")
     try:
-        decrypted, needs_reencrypt = decrypt_api_key(prefs.ai_api_key_encrypted)
+        decrypted, needs_reencrypt = decrypt_api_key(ai_settings.ai_api_key_encrypted)
     except DecryptionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -271,26 +263,11 @@ def get_ai_key(
             detail="No personal API key is configured; enter a key or select App Bedrock mode",
         )
     if needs_reencrypt:
-        rewrap_stored_ai_key(session, prefs, decrypted)
+        rewrap_stored_ai_key(session, ai_settings, decrypted)
 
     response.headers["Cache-Control"] = "no-store, no-cache, private, max-age=0"
     response.headers["Pragma"] = "no-cache"
     return {"api_key": decrypted}
-
-
-def rewrap_stored_ai_key(session: Session, prefs: UserPreferences, plaintext: str) -> None:
-    """Upgrade a ciphertext without overwriting a concurrently replaced/deleted key."""
-    previous = prefs.ai_api_key_encrypted
-    session.execute(
-        update(UserPreferences)
-        .where(
-            UserPreferences.id == prefs.id,
-            UserPreferences.ai_api_key_encrypted == previous,
-        )
-        .values(ai_api_key_encrypted=encrypt_api_key(plaintext))
-        .execution_options(synchronize_session=False)
-    )
-    session.commit()
 
 
 @router.delete("/ai-config")
@@ -299,10 +276,10 @@ def delete_ai_config(
     session: DatabaseSession,
 ) -> dict[str, str]:
     """Remove AI configuration and encrypted key."""
-    prefs = _get_or_create_preferences(session, current_user)
-    prefs.ai_provider = None
-    prefs.ai_model = None
-    prefs.ai_api_key_encrypted = None
-    prefs.updated_at = datetime.now(UTC)
+    ai_settings = get_or_create_ai_settings(session, current_user.id, for_update=True, commit=False)
+    ai_settings.ai_provider = None
+    ai_settings.ai_model = None
+    ai_settings.ai_api_key_encrypted = None
+    ai_settings.updated_at = datetime.now(UTC)
     session.commit()
     return {"status": "deleted"}
