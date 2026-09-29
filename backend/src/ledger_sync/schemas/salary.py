@@ -59,7 +59,7 @@ class SalaryStructureConfig(BaseModel):
     def _valid_fiscal_years(cls, value: dict[str, SalaryComponents]) -> dict[str, SalaryComponents]:
         for fiscal_year in value:
             if (
-                not re.fullmatch(r"[0-9]{4}-[0-9]{2}", fiscal_year)
+                not re.fullmatch(r"\d{4}-\d{2}", fiscal_year, re.ASCII)
                 or int(fiscal_year[-2:]) != (int(fiscal_year[:4]) + 1) % 100
             ):
                 raise ValueError("Fiscal year must be YYYY-YY for consecutive years.")

@@ -271,11 +271,14 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     details: [
       `Income variability (CV): ${cv.toFixed(1)}%`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
-      data.hasRecentIncome === false || data.totalIncome <= 0
-        ? 'No recent income to assess for consistency'
-        : cv <= stableMax ? 'Predictable income stream' : 'Consider building a larger buffer',
+      incomeConsistencyDetail(data, cv, stableMax),
     ],
   }
+}
+
+function incomeConsistencyDetail(data: AnalysisResult, cv: number, stableMax: number): string {
+  if (data.hasRecentIncome === false || data.totalIncome <= 0) return 'No recent income to assess for consistency'
+  return cv <= stableMax ? 'Predictable income stream' : 'Consider building a larger buffer'
 }
 
 export function calculateMetrics(

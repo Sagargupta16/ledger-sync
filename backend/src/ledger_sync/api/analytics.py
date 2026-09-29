@@ -15,6 +15,7 @@ from ledger_sync.api.analytics_helpers import (
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core import calculator
+from ledger_sync.core.query_helpers import capital_loss_keys_for
 from ledger_sync.core.time_filter import TimeRange
 from ledger_sync.db.models import TransactionType, User, UserPreferences
 
@@ -106,14 +107,16 @@ def get_behavior(
             "top_categories": [],
         }
 
-    # Use calculator for metrics
-    lifestyle_inf = calculator.calculate_lifestyle_inflation(transactions)
-    convenience_data = calculator.calculate_convenience_spending(transactions)
+    # Every metric here describes spending, so classified realised losses are
+    # dropped first, matching /overview and /charts/categories.
+    spending = calculator.exclude_capital_losses(transactions, capital_loss_keys_for(current_user))
+    lifestyle_inf = calculator.calculate_lifestyle_inflation(spending)
+    convenience_data = calculator.calculate_convenience_spending(spending)
     convenience_pct = convenience_data["convenience_pct"]
-    category_totals = calculator.group_by_category(transactions)
+    category_totals = calculator.group_by_category(spending)
 
     # Calculate average transaction size and frequency (specific to this endpoint)
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    expenses = [t for t in spending if t.type == TransactionType.EXPENSE]
     if not expenses:
         return {
             "avg_transaction_size": 0,
@@ -175,8 +178,9 @@ def get_trends(
             "consistency_measurable": False,
         }
 
-    # Use calculator for metrics
-    monthly_data = calculator.group_by_month(transactions)
+    # Classified realised losses leave ``expenses`` (they are not spending) but
+    # still reduce ``surplus``, as on /charts/monthly-trends.
+    monthly_data = calculator.group_by_month(transactions, capital_loss_keys_for(current_user))
     monthly_expenses = [data["expenses"] for data in monthly_data.values()]
     consistency_score = calculator.calculate_consistency_score(monthly_expenses)
     consistency_measurable = calculator.is_measurable_consistency(monthly_expenses)
@@ -187,7 +191,8 @@ def get_trends(
             "month": month,
             "income": data["income"],
             "expenses": data["expenses"],
-            "surplus": data["income"] - data["expenses"],
+            "capital_losses": data["capital_losses"],
+            "surplus": data["income"] - data["expenses"] - data["capital_losses"],
         }
         for month, data in sorted(monthly_data.items())
     ]
@@ -223,17 +228,20 @@ def get_yearly_wrapped(
     if not transactions:
         return {"insights": []}
 
-    # Use calculator for metrics
-    totals = calculator.calculate_totals(transactions)
-    monthly_data = calculator.group_by_month(transactions)
+    # Classified realised losses are not spending, but the savings rate and
+    # monthly surplus still net them off (the cash left), as the rollups do.
+    loss_keys = capital_loss_keys_for(current_user)
+    spending = calculator.exclude_capital_losses(transactions, loss_keys)
+    totals = calculator.calculate_totals(transactions, loss_keys)
+    monthly_data = calculator.group_by_month(transactions, loss_keys)
     best_worst = calculator.find_best_worst_months(monthly_data)
     savings_rate = calculator.calculate_savings_rate(
         totals["total_income"],
-        totals["total_expenses"],
+        totals["total_expenses"] + totals["capital_losses"],
     )
-    daily_rate = calculator.calculate_daily_spending_rate(transactions)
+    daily_rate = calculator.calculate_daily_spending_rate(spending)
 
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    expenses = [t for t in spending if t.type == TransactionType.EXPENSE]
     income_txns = [t for t in transactions if t.type == TransactionType.INCOME]
 
     insights = []
@@ -361,20 +369,24 @@ def get_kpis(
             "convenience_spending_pct": 0,
         }
 
-    totals = calculator.calculate_totals(transactions)
-    monthly_data = calculator.group_by_month(transactions)
+    # Spending metrics skip classified realised losses; the savings rate still
+    # nets them off because the cash left (monthly_summaries.savings_rate).
+    loss_keys = capital_loss_keys_for(current_user)
+    spending = calculator.exclude_capital_losses(transactions, loss_keys)
+    totals = calculator.calculate_totals(transactions, loss_keys)
+    monthly_data = calculator.group_by_month(spending)
     monthly_expenses = [data["expenses"] for data in monthly_data.values()]
-    category_totals = calculator.group_by_category(transactions)
-    spending_velocity = calculator.calculate_spending_velocity(transactions)
-    convenience_data = calculator.calculate_convenience_spending(transactions)
+    category_totals = calculator.group_by_category(spending)
+    spending_velocity = calculator.calculate_spending_velocity(spending)
+    convenience_data = calculator.calculate_convenience_spending(spending)
 
     return {
         "savings_rate": calculator.calculate_savings_rate(
             totals["total_income"],
-            totals["total_expenses"],
+            totals["total_expenses"] + totals["capital_losses"],
         ),
-        "daily_spending_rate": calculator.calculate_daily_spending_rate(transactions),
-        "monthly_burn_rate": calculator.calculate_monthly_burn_rate(transactions),
+        "daily_spending_rate": calculator.calculate_daily_spending_rate(spending),
+        "monthly_burn_rate": calculator.calculate_monthly_burn_rate(spending),
         "spending_velocity": spending_velocity["velocity_ratio"]
         * 100,  # Convert ratio to percentage
         "velocity_comparable": spending_velocity["historical_daily"] > 0,
@@ -383,7 +395,7 @@ def get_kpis(
         ),
         "consistency_score": calculator.calculate_consistency_score(monthly_expenses),
         "consistency_measurable": calculator.is_measurable_consistency(monthly_expenses),
-        "lifestyle_inflation": calculator.calculate_lifestyle_inflation(transactions),
+        "lifestyle_inflation": calculator.calculate_lifestyle_inflation(spending),
         "convenience_spending_pct": convenience_data["convenience_pct"],
     }
 

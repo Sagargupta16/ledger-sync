@@ -47,7 +47,7 @@ describe('computeNpsWeightedReturn', () => {
 })
 
 describe('projectNPS', () => {
-  it('matches a beginning-of-month annuity at the weighted nominal monthly rate', () => {
+  it('matches a beginning-of-month annuity at the CAGR-equivalent monthly rate', () => {
     const result = projectNPS({
       monthlyContribution: 100,
       equityPct: 50,
@@ -59,10 +59,12 @@ describe('projectNPS', () => {
       years: 1,
       currentBalance: 1000,
     })
-    // The mix yields 12% annually, or 1% per month. A closed-form annuity
-    // checks both the monthly timing and the loop without repeating it.
-    const growth = 1.01 ** 12
-    const maturity = Math.round(1000 * growth + 100 * ((growth - 1) / 0.01) * 1.01)
+    // The mix yields 12% annually, so the monthly rate is 1.12^(1/12) - 1
+    // (not 12%/12, which compounds to 12.68%). A closed-form annuity checks
+    // both the monthly timing and the loop without repeating it.
+    const monthly = 1.12 ** (1 / 12) - 1
+    const growth = (1 + monthly) ** 12
+    const maturity = Math.round(1000 * growth + 100 * ((growth - 1) / monthly) * (1 + monthly))
     expect(result.projectedValue).toBe(maturity)
     expect(result.totalContributed).toBe(2200)
     expect(result.totalReturns).toBe(maturity - 2200)

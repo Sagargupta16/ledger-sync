@@ -221,9 +221,10 @@ def test_tenant_fk_rejects_cross_user_and_missing_transactions(
     for user_id, transaction_id in ((2, "owned"), (1, "missing")):
         with pytest.raises(sa.exc.IntegrityError), legacy_db.begin_nested():
             _child(legacy_db, table_name, user_id=user_id, transaction_id=transaction_id)
+    table = sa.Table(table_name, sa.MetaData(), autoload_with=legacy_db)
+    reassign = table.update().where(table.c.id == child_id).values(user_id=2)
     with pytest.raises(sa.exc.IntegrityError), legacy_db.begin_nested():
-        table = sa.Table(table_name, sa.MetaData(), autoload_with=legacy_db)
-        legacy_db.execute(table.update().where(table.c.id == child_id).values(user_id=2))
+        legacy_db.execute(reassign)
     legacy_db.exec_driver_sql("DELETE FROM transactions WHERE transaction_id='owned'")
     table = sa.Table(table_name, sa.MetaData(), autoload_with=legacy_db)
     assert legacy_db.execute(sa.select(sa.func.count()).select_from(table)).scalar_one() == 0
@@ -420,10 +421,11 @@ def test_duplicate_preflight_preserves_data_and_schema(
     legacy_db.commit()
     before, schema_before = _snapshot(legacy_db), _schema(legacy_db)
     legacy_db.commit()
+    config = _config(legacy_db)
     with pytest.raises(
         RuntimeError, match=rf"{table_name}.*[Dd]uplicate|[Dd]uplicate.*{table_name}"
     ):
-        command.upgrade(_config(legacy_db), REVISION)
+        command.upgrade(config, REVISION)
     assert _snapshot(legacy_db) == before
     assert _schema(legacy_db) == schema_before
 
@@ -441,8 +443,9 @@ def test_ownership_preflight_preserves_data_and_schema(
     legacy_db.exec_driver_sql("PRAGMA foreign_keys=ON")
     before, schema_before = _snapshot(legacy_db), _schema(legacy_db)
     legacy_db.commit()
+    config = _config(legacy_db)
     with pytest.raises(RuntimeError, match=table_name):
-        command.upgrade(_config(legacy_db), REVISION)
+        command.upgrade(config, REVISION)
     assert _snapshot(legacy_db) == before
     assert _schema(legacy_db) == schema_before
 
@@ -454,8 +457,9 @@ def test_unknown_user_preflight_preserves_nullable_anomaly(legacy_db: sa.Connect
     legacy_db.exec_driver_sql("PRAGMA foreign_keys=ON")
     before, schema_before = _snapshot(legacy_db), _schema(legacy_db)
     legacy_db.commit()
+    config = _config(legacy_db)
     with pytest.raises(RuntimeError, match=r"anomalies user ownership.*999"):
-        command.upgrade(_config(legacy_db), REVISION)
+        command.upgrade(config, REVISION)
     assert _snapshot(legacy_db) == before
     assert _schema(legacy_db) == schema_before
 
@@ -475,8 +479,9 @@ def test_unexpected_duplicate_index_definition_fails_before_ddl(
     legacy_db.commit()
     before, schema_before = _snapshot(legacy_db), _schema(legacy_db)
     legacy_db.commit()
+    config = _config(legacy_db)
     with pytest.raises(RuntimeError, match=r"Cannot safely remove anomalies\.ix_anomaly_user"):
-        command.upgrade(_config(legacy_db), REVISION)
+        command.upgrade(config, REVISION)
     assert _snapshot(legacy_db) == before
     assert _schema(legacy_db) == schema_before
 
@@ -493,9 +498,10 @@ def test_migration_ddl_rolls_back_if_late_operation_fails(legacy_db: sa.Connecti
             raise RuntimeError("Synthetic DDL interruption")
 
     sa.event.listen(legacy_db, "before_cursor_execute", interrupt_cleanup)
+    config = _config(legacy_db)
     try:
         with pytest.raises(RuntimeError, match="Synthetic DDL interruption"):
-            command.upgrade(_config(legacy_db), REVISION)
+            command.upgrade(config, REVISION)
     finally:
         sa.event.remove(legacy_db, "before_cursor_execute", interrupt_cleanup)
         legacy_db.rollback()

@@ -93,13 +93,10 @@ def _same_legacy_fields(existing: Transaction, row: dict[str, Any]) -> bool:
     return True
 
 
-def load_identity_matches(
-    session: Session,
-    user_id: int,
-    rows: list[dict[str, Any]],
-    identities: list[ImportIdentity],
-) -> dict[str, Transaction]:
-    """Resolve source fingerprints and verified v1 IDs with bounded batch queries."""
+def _load_candidates(
+    session: Session, user_id: int, identities: list[ImportIdentity]
+) -> tuple[dict[str, Transaction], dict[str, Transaction]]:
+    """Batch-load rows keyed by source fingerprint and by transaction ID."""
     by_source: dict[str, Transaction] = {}
     by_id: dict[str, Transaction] = {}
     for start in range(0, len(identities), _CHUNK_SIZE):
@@ -119,7 +116,65 @@ def load_identity_matches(
             by_id[transaction.transaction_id] = transaction
             if transaction.source_fingerprint:
                 by_source[transaction.source_fingerprint] = transaction
+    return by_source, by_id
 
+
+def _source_label_sets(
+    rows: list[dict[str, Any]], post_rule_keys: list[str]
+) -> dict[str, set[tuple[str, str]]]:
+    """Distinct pre-rule category labels behind each post-rule identity."""
+    source_labels: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for row, key in zip(rows, post_rule_keys, strict=True):
+        source = _source_row(row)
+        source_labels[key].add(
+            (
+                _HASHER.normalize_for_hash(source.get("category")),
+                _HASHER.normalize_for_hash(source.get("subcategory")),
+            )
+        )
+    return source_labels
+
+
+def _match_row(
+    row: dict[str, Any],
+    identity: ImportIdentity,
+    by_source: dict[str, Transaction],
+    by_id: dict[str, Transaction],
+    *,
+    allow_post_rule_ids: bool,
+) -> Transaction | None:
+    """Find the stored row for one source row, preferring the strongest proof."""
+    match = by_source.get(identity.fingerprint)
+    if match is not None:
+        return match
+    raw_candidate = by_id.get(identity.legacy_source_id)
+    if (
+        raw_candidate is not None
+        and raw_candidate.source_fingerprint is None
+        and _same_legacy_fields(raw_candidate, _source_row(row))
+    ):
+        return raw_candidate
+    if not allow_post_rule_ids:
+        return None
+    for candidate_id in (identity.fingerprint, identity.legacy_id):
+        candidate = by_id.get(candidate_id)
+        if (
+            candidate is not None
+            and candidate.source_fingerprint is None
+            and _same_legacy_fields(candidate, row)
+        ):
+            return candidate
+    return None
+
+
+def load_identity_matches(
+    session: Session,
+    user_id: int,
+    rows: list[dict[str, Any]],
+    identities: list[ImportIdentity],
+) -> dict[str, Transaction]:
+    """Resolve source fingerprints and verified v1 IDs with bounded batch queries."""
+    by_source, by_id = _load_candidates(session, user_id, identities)
     matches: dict[str, Transaction] = {}
     claimed: set[str] = set()
     # Old writers counted occurrences AFTER rules. When rules collapse distinct
@@ -129,35 +184,15 @@ def load_identity_matches(
     post_rule_keys = [
         row_fingerprint(row, user_id) if has_legacy_candidates else "" for row in rows
     ]
-    source_labels: dict[str, set[tuple[str, str]]] = defaultdict(set)
-    if has_legacy_candidates:
-        for row, key in zip(rows, post_rule_keys, strict=True):
-            source = _source_row(row)
-            source_labels[key].add(
-                (
-                    _HASHER.normalize_for_hash(source.get("category")),
-                    _HASHER.normalize_for_hash(source.get("subcategory")),
-                )
-            )
+    source_labels = _source_label_sets(rows, post_rule_keys) if has_legacy_candidates else {}
     for row, identity, key in zip(rows, identities, post_rule_keys, strict=True):
-        match = by_source.get(identity.fingerprint)
-        if match is None:
-            source = _source_row(row)
-            raw_candidate = by_id.get(identity.legacy_source_id)
-            if (
-                raw_candidate is not None
-                and raw_candidate.source_fingerprint is None
-                and _same_legacy_fields(raw_candidate, source)
-            ):
-                match = raw_candidate
-        if match is None and has_legacy_candidates and len(source_labels[key]) == 1:
-            for candidate_id in (identity.fingerprint, identity.legacy_id):
-                candidate = by_id.get(candidate_id)
-                if candidate is None or candidate.source_fingerprint is not None:
-                    continue
-                if _same_legacy_fields(candidate, row):
-                    match = candidate
-                    break
+        match = _match_row(
+            row,
+            identity,
+            by_source,
+            by_id,
+            allow_post_rule_ids=has_legacy_candidates and len(source_labels[key]) == 1,
+        )
         if match is not None and match.transaction_id not in claimed:
             matches[identity.fingerprint] = match
             claimed.add(match.transaction_id)

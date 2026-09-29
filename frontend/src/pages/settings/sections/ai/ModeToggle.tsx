@@ -3,7 +3,7 @@ import { CheckCircle, Key, Zap } from 'lucide-react'
 import type { AIMode } from '@/services/api/aiConfig'
 import type { UsageResponse } from '@/services/api/aiUsage'
 
-import { FieldHint } from '../../sectionPrimitives'
+import { FieldHint } from '@/pages/settings/sectionPrimitives'
 
 interface ModeToggleProps {
   mode: AIMode

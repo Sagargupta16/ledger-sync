@@ -22,7 +22,10 @@ from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
+from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db.base import Base
+
+_NON_NEGATIVE_POSITION = "position >= 0"
 
 
 class CompensationDecimal(TypeDecorator[Decimal]):
@@ -57,11 +60,11 @@ class SalaryPlan(Base):
     __tablename__ = "salary_plans"
     __table_args__ = (
         UniqueConstraint("user_id", "fiscal_year", name="uq_salary_plans_user_fiscal_year"),
-        CheckConstraint("position >= 0", name="ck_salary_plans_position"),
+        CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_salary_plans_position"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(USER_FK, ondelete="CASCADE"))
     fiscal_year: Mapped[str] = mapped_column(Text)
     position: Mapped[int] = mapped_column(Integer, default=0)
     base_salary_annual: Mapped[Decimal] = mapped_column(CompensationDecimal(), default=Decimal(0))
@@ -82,7 +85,7 @@ class RsuGrantRecord(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "public_id", name="uq_rsu_grants_user_public_id"),
         UniqueConstraint("user_id", "id", name="uq_rsu_grants_user_id"),
-        CheckConstraint("position >= 0", name="ck_rsu_grants_position"),
+        CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_rsu_grants_position"),
         CheckConstraint(
             "stock_price > 0 AND stock_price < CAST('Infinity' AS NUMERIC)",
             name="ck_rsu_grants_stock_price",
@@ -90,7 +93,7 @@ class RsuGrantRecord(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(USER_FK, ondelete="CASCADE"))
     public_id: Mapped[str] = mapped_column(Text)
     position: Mapped[int] = mapped_column(Integer)
     stock_name: Mapped[str] = mapped_column(Text)
@@ -111,7 +114,7 @@ class RsuVestingRecord(Base):
             ondelete="CASCADE",
         ),
         Index("ix_rsu_vestings_user_grant_position", "user_id", "grant_id", "position"),
-        CheckConstraint("position >= 0", name="ck_rsu_vestings_position"),
+        CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_rsu_vestings_position"),
         CheckConstraint("quantity > 0", name="ck_rsu_vestings_quantity"),
         CheckConstraint(
             "price_at_vest IS NULL OR "
@@ -125,7 +128,7 @@ class RsuVestingRecord(Base):
     )
 
     id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(USER_FK, ondelete="CASCADE"))
     grant_id: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer)
     date: Mapped[calendar_date] = mapped_column(Date)

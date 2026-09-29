@@ -191,6 +191,78 @@ def _ensure_names(
             ids[tuple(row[:-1])] = row[-1]
 
 
+def _batch_label_names(
+    rows: Sequence[Any],
+) -> tuple[dict[tuple[Any, ...], str], dict[tuple[Any, ...], str]]:
+    account_names: dict[tuple[Any, ...], str] = {}
+    category_names: dict[tuple[Any, ...], str] = {}
+    for row in rows:
+        for field in _LABEL_FIELDS[:3]:
+            if row[field]:
+                account_names.setdefault((row[field].lower(),), row[field])
+        if row["category"]:
+            category_names.setdefault((row["category"].lower(),), row["category"])
+    return account_names, category_names
+
+
+def _ensure_aliases(
+    bind: sa.Connection,
+    alias_table: sa.Table,
+    user_id: int,
+    account_names: dict[tuple[Any, ...], str],
+    accounts: dict[tuple[Any, ...], int],
+    aliases: dict[tuple[Any, ...], int],
+) -> None:
+    new_aliases = [
+        {"user_id": user_id, "source_key": key[0], "label": label, "account_id": accounts[key]}
+        for key, label in account_names.items()
+        if key not in aliases
+    ]
+    insert = pg_insert if bind.dialect.name == "postgresql" else sqlite_insert
+    for start in range(0, len(new_aliases), _CHUNK):
+        chunk = new_aliases[start : start + _CHUNK]
+        bind.execute(
+            insert(alias_table)
+            .values(chunk)
+            .on_conflict_do_nothing(index_elements=["user_id", "source_key"])
+        )
+        for row in bind.execute(
+            sa.select(alias_table.c.source_key, alias_table.c.account_id).where(
+                alias_table.c.user_id == user_id,
+                alias_table.c.source_key.in_([item["source_key"] for item in chunk]),
+            )
+        ):
+            aliases[(row[0],)] = row[1]
+
+
+def _batch_subcategory_names(
+    rows: Sequence[Any], categories: dict[tuple[Any, ...], int]
+) -> dict[tuple[Any, ...], str]:
+    subcategory_names = {}
+    for row in rows:
+        if row["category"] and row["subcategory"]:
+            parent = categories[(row["category"].lower(),)]
+            subcategory_names.setdefault((parent, row["subcategory"].lower()), row["subcategory"])
+    return subcategory_names
+
+
+def _dimension_update(
+    row: Any,
+    aliases: dict[tuple[Any, ...], int],
+    categories: dict[tuple[Any, ...], int],
+    subcategories: dict[tuple[Any, ...], int],
+) -> dict[str, Any]:
+    category = categories.get(((row["category"] or "").lower(),))
+    return {
+        "_transaction_id": row["transaction_id"],
+        "account_id": aliases.get(((row["account"] or "").lower(),)),
+        "from_account_id": aliases.get(((row["from_account"] or "").lower(),)),
+        "to_account_id": aliases.get(((row["to_account"] or "").lower(),)),
+        "category_id": category,
+        "subcategory_id": subcategories.get((category, (row["subcategory"] or "").lower())),
+    }
+
+
 def _backfill_user(
     bind: sa.Connection, transactions: sa.Table, tables: dict[str, sa.Table], user_id: int
 ) -> None:
@@ -213,66 +285,19 @@ def _backfill_user(
         rows = bind.execute(query).mappings().all()
         if not rows:
             break
-        account_names: dict[tuple[Any, ...], str] = {}
-        category_names: dict[tuple[Any, ...], str] = {}
-        for row in rows:
-            for field in _LABEL_FIELDS[:3]:
-                if row[field]:
-                    account_names.setdefault((row[field].lower(),), row[field])
-            if row["category"]:
-                category_names.setdefault((row["category"].lower(),), row["category"])
+        account_names, category_names = _batch_label_names(rows)
         _ensure_names(bind, tables["accounts"], user_id, account_names, accounts, ("key",))
         _ensure_names(bind, tables["categories"], user_id, category_names, categories, ("key",))
-        new_aliases = [
-            {"user_id": user_id, "source_key": key[0], "label": label, "account_id": accounts[key]}
-            for key, label in account_names.items()
-            if key not in aliases
-        ]
-        insert = pg_insert if bind.dialect.name == "postgresql" else sqlite_insert
-        for start in range(0, len(new_aliases), _CHUNK):
-            chunk = new_aliases[start : start + _CHUNK]
-            bind.execute(
-                insert(tables["aliases"])
-                .values(chunk)
-                .on_conflict_do_nothing(index_elements=["user_id", "source_key"])
-            )
-            for row in bind.execute(
-                sa.select(tables["aliases"].c.source_key, tables["aliases"].c.account_id).where(
-                    tables["aliases"].c.user_id == user_id,
-                    tables["aliases"].c.source_key.in_([item["source_key"] for item in chunk]),
-                )
-            ):
-                aliases[(row[0],)] = row[1]
-        subcategory_names = {}
-        for row in rows:
-            if row["category"] and row["subcategory"]:
-                parent = categories[(row["category"].lower(),)]
-                subcategory_names.setdefault(
-                    (parent, row["subcategory"].lower()), row["subcategory"]
-                )
+        _ensure_aliases(bind, tables["aliases"], user_id, account_names, accounts, aliases)
         _ensure_names(
             bind,
             tables["subcategories"],
             user_id,
-            subcategory_names,
+            _batch_subcategory_names(rows, categories),
             subcategories,
             ("category_id", "key"),
         )
-        updates = []
-        for row in rows:
-            category = categories.get(((row["category"] or "").lower(),))
-            updates.append(
-                {
-                    "_transaction_id": row["transaction_id"],
-                    "account_id": aliases.get(((row["account"] or "").lower(),)),
-                    "from_account_id": aliases.get(((row["from_account"] or "").lower(),)),
-                    "to_account_id": aliases.get(((row["to_account"] or "").lower(),)),
-                    "category_id": category,
-                    "subcategory_id": subcategories.get(
-                        (category, (row["subcategory"] or "").lower())
-                    ),
-                }
-            )
+        updates = [_dimension_update(row, aliases, categories, subcategories) for row in rows]
         bind.execute(
             transactions.update()
             .where(
@@ -285,17 +310,7 @@ def _backfill_user(
         cursor = rows[-1]["transaction_id"]
 
 
-def upgrade() -> None:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    columns = {column["name"] for column in inspector.get_columns("transactions")}
-    foreign_keys = {key["name"] for key in inspector.get_foreign_keys("transactions")}
-    checks = {check["name"] for check in inspector.get_check_constraints("transactions")}
-    needs_rebuild = (
-        not set(_ID_FIELDS).issubset(columns)
-        or any(name not in foreign_keys for name, *_ in _FK_SPECS)
-        or _PARENT_CHECK not in checks
-    )
+def _lock_transactions(bind: sa.Connection, needs_rebuild: bool) -> None:
     if bind.dialect.name == "sqlite":
         if needs_rebuild and bind.exec_driver_sql("PRAGMA foreign_keys").scalar():
             raise RuntimeError(
@@ -310,21 +325,39 @@ def upgrade() -> None:
     else:
         raise RuntimeError("Ledger dimensions support SQLite and PostgreSQL only.")
 
+
+def _add_dimension_columns(columns: set[str], foreign_keys: set[str], checks: set[str]) -> None:
+    with op.batch_alter_table("transactions") as batch:
+        for field in _ID_FIELDS:
+            if field not in columns:
+                batch.add_column(sa.Column(field, sa.Integer, nullable=True))
+        for name, local, remote_table, remote in _FK_SPECS:
+            if name not in foreign_keys:
+                batch.create_foreign_key(name, remote_table, local, remote)
+        if _PARENT_CHECK not in checks:
+            batch.create_check_constraint(
+                _PARENT_CHECK, "subcategory_id IS NULL OR category_id IS NOT NULL"
+            )
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {column["name"] for column in inspector.get_columns("transactions")}
+    foreign_keys = {key["name"] for key in inspector.get_foreign_keys("transactions")}
+    checks = {check["name"] for check in inspector.get_check_constraints("transactions")}
+    needs_rebuild = (
+        not set(_ID_FIELDS).issubset(columns)
+        or any(name not in foreign_keys for name, *_ in _FK_SPECS)
+        or _PARENT_CHECK not in checks
+    )
+    _lock_transactions(bind, needs_rebuild)
+
     tables = _dimension_tables()
     for table in tables.values():
         table.create(bind, checkfirst=True)
     if needs_rebuild:
-        with op.batch_alter_table("transactions") as batch:
-            for field in _ID_FIELDS:
-                if field not in columns:
-                    batch.add_column(sa.Column(field, sa.Integer, nullable=True))
-            for name, local, remote_table, remote in _FK_SPECS:
-                if name not in foreign_keys:
-                    batch.create_foreign_key(name, remote_table, local, remote)
-            if _PARENT_CHECK not in checks:
-                batch.create_check_constraint(
-                    _PARENT_CHECK, "subcategory_id IS NULL OR category_id IS NOT NULL"
-                )
+        _add_dimension_columns(columns, foreign_keys, checks)
     transactions = sa.Table("transactions", sa.MetaData(), autoload_with=bind)
     users = (
         bind.execute(sa.select(transactions.c.user_id).distinct().order_by(transactions.c.user_id))

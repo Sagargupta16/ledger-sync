@@ -119,7 +119,8 @@ def test_pending_and_edited_transactions_resolve_without_autoflush_or_commit(dim
     _service().sync_transaction_dimensions(dimension_db, txn)
     assert sa.inspect(txn).pending  # helper never flushes the pending financial row
     first_category = txn.category_id
-    assert txn.account_id and txn.subcategory_id
+    assert txn.account_id
+    assert txn.subcategory_id
     dimension_db.flush()
     txn.category = "Work"
     txn.subcategory = None
@@ -139,8 +140,9 @@ def test_pending_and_edited_transactions_resolve_without_autoflush_or_commit(dim
 
 def test_foreign_tenant_transaction_is_rejected_before_writes(dimension_db):
     txn = Transaction(user_id=2, account="Bank", category="Food")
+    service = _service()
     with pytest.raises(ValueError, match="user"):
-        _service().sync_transactions_dimensions(dimension_db, 1, [txn])
+        service.sync_transactions_dimensions(dimension_db, 1, [txn])
     accounts = Base.metadata.tables["ledger_accounts"]
     assert dimension_db.scalar(sa.select(sa.func.count()).select_from(accounts)) == 0
 
@@ -149,18 +151,16 @@ def test_dimension_parent_and_alias_ownership_constraints(dimension_db):
     rows = [{"account": "Bank", "category": "Food", "subcategory": "Lunch"}]
     _service().attach_ledger_dimensions(dimension_db, 1, rows)
     models = import_module("ledger_sync.db._models.ledger_dimensions")
+    foreign_alias = sa.insert(models.LedgerAccountAlias).values(
+        user_id=2, account_id=rows[0]["account_id"], source_key="bank", label="BANK"
+    )
     with pytest.raises(sa.exc.IntegrityError), dimension_db.begin_nested():
-        dimension_db.execute(
-            sa.insert(models.LedgerAccountAlias).values(
-                user_id=2, account_id=rows[0]["account_id"], source_key="bank", label="BANK"
-            )
-        )
+        dimension_db.execute(foreign_alias)
+    foreign_subcategory = sa.insert(models.LedgerSubcategory).values(
+        user_id=2, category_id=rows[0]["category_id"], key="lunch", name="Lunch"
+    )
     with pytest.raises(sa.exc.IntegrityError), dimension_db.begin_nested():
-        dimension_db.execute(
-            sa.insert(models.LedgerSubcategory).values(
-                user_id=2, category_id=rows[0]["category_id"], key="lunch", name="Lunch"
-            )
-        )
+        dimension_db.execute(foreign_subcategory)
 
 
 @pytest.mark.parametrize(
@@ -172,8 +172,9 @@ def test_dimension_parent_and_alias_ownership_constraints(dimension_db):
 )
 def test_invalid_row_rejects_whole_batch_before_dimension_writes(dimension_db, bad_row, error):
     rows = [{"account": "Bank", "category": "Food"}, bad_row]
+    service = _service()
     with pytest.raises(error):
-        _service().attach_ledger_dimensions(dimension_db, 1, rows)
+        service.attach_ledger_dimensions(dimension_db, 1, rows)
     accounts = Base.metadata.tables["ledger_accounts"]
     assert dimension_db.scalar(sa.select(sa.func.count()).select_from(accounts)) == 0
     assert "account_id" not in rows[0]

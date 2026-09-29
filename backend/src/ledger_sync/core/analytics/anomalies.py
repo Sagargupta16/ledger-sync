@@ -106,6 +106,21 @@ _MONTH_BASELINE_WINDOW = 12
 # _LARGE_TXN_MIN_HISTORY so both detectors share the same warmup notion).
 _MONTH_BASELINE_MIN_HISTORY = 5
 
+# BUDGET_EXCEEDED descriptions read "Budget exceeded for <category>: <spent> /
+# <limit>". The amounts never contain ": ", so the category is everything
+# between the prefix and the last ": ".
+_BUDGET_EXCEEDED_PREFIX = "Budget exceeded for "
+
+
+def _budget_category_from_description(description: str) -> str | None:
+    """Recover the budget category a BUDGET_EXCEEDED description was written for."""
+    if not description.startswith(_BUDGET_EXCEEDED_PREFIX):
+        return None
+    category, separator, _amounts = description.removeprefix(_BUDGET_EXCEEDED_PREFIX).rpartition(
+        ": "
+    )
+    return category if separator else None
+
 
 class AnomaliesMixin(AnalyticsEngineBase):
     """Mixin: anomaly detection + monthly budget tracking."""
@@ -469,26 +484,30 @@ class AnomaliesMixin(AnalyticsEngineBase):
         if not budgets:
             return 0
 
-        # "Current month" is an IST month, because that is what
-        # ``fmt_year_month(Transaction.date)`` below produces -- the date column
-        # holds naive IST wall-clock values. Deriving the key from
-        # ``datetime.now(UTC)`` was wrong for the first 5.5 hours of every
-        # month: at 01:30 IST on 1 August it is still 31 July in UTC, so budget
-        # tracking read July's spend as the current month and could key a
-        # BUDGET_EXCEEDED anomaly to the month that had just ended.
+        # "Current month" is an IST month, because the date column holds naive
+        # IST wall-clock values. Deriving the key from ``datetime.now(UTC)`` was
+        # wrong for the first 5.5 hours of every month: at 01:30 IST on 1 August
+        # it is still 31 July in UTC, so budget tracking read July's spend as
+        # the current month and could key a BUDGET_EXCEEDED anomaly to the
+        # month that had just ended.
         #
         # ``now`` stays UTC: it only feeds the audit columns
         # (``budget.updated_at``, ``detected_at``), whose stored values are
         # naive UTC throughout the schema.
-        current_period = ledger_now().strftime("%Y-%m")
+        month_start = ledger_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month_start = (month_start + timedelta(days=32)).replace(day=1)
+        current_period = month_start.strftime("%Y-%m")
         now = datetime.now(UTC)
 
+        # A half-open date range selects exactly the rows whose YYYY-MM equals
+        # ``current_period`` and, unlike formatting the column, can use the
+        # date index.
         spending_query = (
             self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
             .filter(Transaction.user_id == user_id)
             .filter(Transaction.is_deleted.is_(False))
             .filter(Transaction.type == TransactionType.EXPENSE)
-            .filter(fmt_year_month(Transaction.date) == current_period)
+            .filter(Transaction.date >= month_start, Transaction.date < next_month_start)
         )
         # A realised loss must not consume a spending budget. Left in, a single
         # loss booked to a budgeted category blows that budget for the month and
@@ -501,10 +520,12 @@ class AnomaliesMixin(AnalyticsEngineBase):
         spending_map = {c.category: float(c.total) for c in current_spending}
 
         # Don't resurrect a budget-exceeded anomaly the user already reviewed
-        # for this period (same suppression rule as _detect_anomalies).
-        reviewed_budget_periods = {
-            r.period_key
-            for r in self.db.query(Anomaly.period_key)
+        # for this period and category. Keyed per category: reviewing one
+        # category's overrun must not silence another's. The category is read
+        # back from the description, the only column that carries it.
+        reviewed_budget_keys = {
+            (r.period_key, _budget_category_from_description(r.description))
+            for r in self.db.query(Anomaly.period_key, Anomaly.description)
             .filter(
                 Anomaly.user_id == user_id,
                 Anomaly.is_reviewed.is_(True),
@@ -525,13 +546,16 @@ class AnomaliesMixin(AnalyticsEngineBase):
             budget.updated_at = now
 
             # Check for budget exceeded anomaly
-            if budget.current_month_pct > 100 and current_period not in reviewed_budget_periods:
+            if (
+                budget.current_month_pct > 100
+                and (current_period, budget.category) not in reviewed_budget_keys
+            ):
                 anomaly = Anomaly(
                     user_id=self.user_id,
                     anomaly_type=AnomalyType.BUDGET_EXCEEDED,
                     severity="high",
                     description=(
-                        f"Budget exceeded for {budget.category}: "
+                        f"{_BUDGET_EXCEEDED_PREFIX}{budget.category}: "
                         f"{sym}{float(spent):,.0f} / {sym}{float(budget.monthly_limit):,.0f}"
                     ),
                     period_key=current_period,

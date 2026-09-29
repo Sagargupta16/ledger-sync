@@ -86,7 +86,17 @@ def test_individual_and_repeated_deletion_preserve_every_schedule_field(lifecycl
     assert result.status_code == 200, result.text
     assert result.json() == {"status": "ok", "id": 10}
     _assert_only_links_changed(before, _snapshot(connection), {100, 101})
-    assert session.get(RecurringTransaction, 10) is None
+    # A detected source is kept as a dismissed tombstone so refresh cannot
+    # recreate it; the API treats it as deleted.
+    tombstone = session.get(RecurringTransaction, 10)
+    assert tombstone is not None
+    assert tombstone.pattern_kind == "dismissed"
+    assert tombstone.is_user_confirmed is True
+    assert tombstone.is_active is False
+    assert (
+        client.get("/api/analytics/v2/recurring-transactions?active_only=false").json()["count"]
+        == 1
+    )
     assert client.delete("/api/analytics/v2/recurring-transactions/10").status_code == 404
     _assert_only_links_changed(before, _snapshot(connection), {100, 101})
     # Multiple manual deletions use the same per-item API and must each detach.
@@ -132,7 +142,7 @@ def test_failed_parent_delete_rolls_back_schedule_detachment(lifecycle_api):
     before = _snapshot(connection)
 
     def fail_delete(_conn, _cursor, statement, _parameters, _context, _many):
-        if statement.lstrip().upper().startswith("DELETE FROM RECURRING_TRANSACTIONS"):
+        if statement.lstrip().upper().startswith("UPDATE RECURRING_TRANSACTIONS"):
             raise RuntimeError("synthetic delete failure")
 
     event.listen(connection.engine, "before_cursor_execute", fail_delete)
@@ -142,4 +152,7 @@ def test_failed_parent_delete_rolls_back_schedule_detachment(lifecycle_api):
     finally:
         event.remove(connection.engine, "before_cursor_execute", fail_delete)
     assert _snapshot(connection) == before
-    assert session.get(RecurringTransaction, 10) is not None
+    session.expire_all()
+    record = session.get(RecurringTransaction, 10)
+    assert record is not None
+    assert record.pattern_kind != "dismissed"

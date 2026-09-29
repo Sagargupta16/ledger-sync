@@ -41,28 +41,6 @@ export const useLogout = () => {
 }
 
 /**
- * Hook to get current user (verify session)
- */
-export const useCurrentUser = () => {
-  const { isAuthenticated, accessToken, setUser } = useAuthStore()
-
-  return useQuery({
-    queryKey: AUTH_QUERY_KEY,
-    queryFn: async () => {
-      const signal = getSessionSignal()
-      const user = await authApi.getMe()
-      assertCurrentSession(signal)
-      setUser(user)
-      return user
-    },
-    enabled: isAuthenticated && !!accessToken,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: false,
-    refetchOnWindowFocus: false,
-  })
-}
-
-/**
  * Hook to initialize auth state on app load
  */
 export const useAuthInit = () => {

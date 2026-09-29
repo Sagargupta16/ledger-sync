@@ -28,6 +28,8 @@ from ledger_sync.db.base import Base
 if TYPE_CHECKING:
     from ledger_sync.db._models.user import User
 
+_LEDGER_ACCOUNT_KEY = ("ledger_accounts.user_id", "ledger_accounts.id")
+
 
 def _live_index(name: str, *columns: str) -> Index:
     """Partial index over non-deleted rows, with per-dialect predicates.
@@ -135,17 +137,17 @@ class Transaction(Base):
         Index("uq_transactions_source", "user_id", "source_fingerprint", unique=True),
         ForeignKeyConstraint(
             ["user_id", "account_id"],
-            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            _LEDGER_ACCOUNT_KEY,
             name="fk_transactions_account_dimension",
         ),
         ForeignKeyConstraint(
             ["user_id", "from_account_id"],
-            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            _LEDGER_ACCOUNT_KEY,
             name="fk_transactions_from_account_dimension",
         ),
         ForeignKeyConstraint(
             ["user_id", "to_account_id"],
-            ["ledger_accounts.user_id", "ledger_accounts.id"],
+            _LEDGER_ACCOUNT_KEY,
             name="fk_transactions_to_account_dimension",
         ),
         ForeignKeyConstraint(

@@ -31,8 +31,40 @@ from ledger_sync.core.analytics.refresh import (
 from ledger_sync.core.analytics.summaries import SummariesMixin
 from ledger_sync.core.analytics.trends import TrendsMixin
 from ledger_sync.core.ledger_clock import ledger_today
-from ledger_sync.db.models import AuditLog, TransactionType
+from ledger_sync.db.models import AnalyticsState, AuditLog, TransactionType
 from ledger_sync.utils.logging import log_analytics_calculation, log_error
+
+
+def _affected_dates(state: AnalyticsState, *, force_full: bool) -> set[str] | None:
+    """Dirty IST days to rebuild; ``None`` means rebuild everything.
+
+    An empty set is a clock-only refresh: inputs are current, so static day and
+    month rollups stay untouched. A changed generation without dirty scope must
+    rebuild them in full.
+    """
+    if force_full or state.full_rebuild_required:
+        return None
+    dirty: set[str] = set(json.loads(state.dirty_dates))
+    if not dirty and not analytics_inputs_current(state):
+        return None
+    return dirty
+
+
+def _refresh_modes(affected_dates: set[str] | None) -> tuple[str, dict[str, str]]:
+    """Describe the refresh for the audit log: overall mode plus per-domain modes."""
+    if affected_dates is None:
+        refresh_mode, scoped_mode = "full", "full"
+    elif affected_dates:
+        refresh_mode, scoped_mode = "selective_summaries", "selective"
+    else:
+        refresh_mode, scoped_mode = "clock_refresh", "skipped"
+    return refresh_mode, {
+        "daily_summaries": scoped_mode,
+        "monthly_summaries": scoped_mode,
+        "category_trends": scoped_mode,
+        "cohort_spending": "skipped" if scoped_mode == "skipped" else "full",
+        "other_domains": "full",
+    }
 
 
 class AnalyticsEngine(
@@ -63,9 +95,11 @@ class AnalyticsEngine(
         return self._run_analytics(source_file, force_full=True)
 
     def refresh_analytics(self, source_file: str | None = None) -> dict[str, Any]:
-        """Refresh invalidated inputs; selectively recompute daily/monthly groups.
+        """Refresh invalidated inputs; selectively recompute day/month-scoped rollups.
 
-        Other domains still rebuild in full after any invalidation. A current
+        Daily summaries, monthly summaries and category trends rebuild only the
+        dirty days/months. Other domains still rebuild in full after any
+        invalidation (cohorts are skipped on a clock-only refresh). A current
         generation skips all work. Callers must mark every relevant mutation in
         its write transaction; legacy/unversioned data gets a full first build.
         """
@@ -89,29 +123,11 @@ class AnalyticsEngine(
                 self.db.commit()
                 return {"refresh_mode": "skipped", "status": "current"}
 
-            affected_dates = (
-                None
-                if force_full or state.full_rebuild_required
-                else set(json.loads(state.dirty_dates))
-            )
-            # A clock-only refresh leaves static day/month summaries untouched.
-            # A changed generation without dirty scope must rebuild them.
-            if affected_dates == set() and not analytics_inputs_current(state):
-                affected_dates = None
+            affected_dates = _affected_dates(state, force_full=force_full)
             affected_months = (
                 {day[:7] for day in affected_dates} if affected_dates is not None else None
             )
-            results["refresh_mode"] = "full" if affected_dates is None else "selective_summaries"
-            if affected_dates == set():
-                results["refresh_mode"] = "clock_refresh"
-            summary_mode = (
-                "full" if affected_dates is None else "selective" if affected_dates else "skipped"
-            )
-            results["domain_modes"] = {
-                "daily_summaries": summary_mode,
-                "monthly_summaries": summary_mode,
-                "other_domains": "full",
-            }
+            results["refresh_mode"], results["domain_modes"] = _refresh_modes(affected_dates)
             # Constructor state may predate a waiting User lock. Reload before
             # taking the shared transaction snapshot, including ORM identity maps.
             self._load_preferences()
@@ -144,7 +160,9 @@ class AnalyticsEngine(
 
             # 2. Category trends
             t0 = time.time()
-            results["category_trends"] = self._calculate_category_trends(all_transactions)
+            results["category_trends"] = self._calculate_category_trends(
+                all_transactions, affected_months
+            )
             log_analytics_calculation(
                 "Category trends",
                 results["category_trends"],
@@ -232,9 +250,14 @@ class AnalyticsEngine(
                 (time.time() - t0) * 1000,
             )
 
-            # 10. Cohort spending (day-of-week / day-of-month / month-of-year)
+            # 10. Cohort spending (day-of-week / day-of-month / month-of-year).
+            # Always rebuilt from full history when inputs changed: every
+            # bucket's divisor spans the whole ledger's date range. A clock-only
+            # refresh has no ledger change, so the stored rows are current.
             t0 = time.time()
-            results["cohort_spending"] = self._calculate_cohort_spending(all_transactions)
+            results["cohort_spending"] = (
+                0 if affected_dates == set() else self._calculate_cohort_spending(all_transactions)
+            )
             log_analytics_calculation(
                 "Cohort spending",
                 results["cohort_spending"],

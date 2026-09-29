@@ -239,6 +239,41 @@ export function deriveMonthLabels(cells: DayCell[]) {
   return labels
 }
 
+/**
+ * Calendar-month indices (0-11) in display order: Jan..Dec for a calendar
+ * year, FY start..FY end for a fiscal year.
+ *
+ * `accumulateStats` buckets by calendar month (`cell.month`), so an FY view
+ * has to reorder BEFORE it slices off future months. Slicing calendar order
+ * directly showed Jan-Jun for an Apr-Mar FY in September: three future zero
+ * months charted, and Jul-Sep (real spending) dropped.
+ */
+export function periodMonthOrder(isFYMode: boolean, fiscalYearStartMonth: number): number[] {
+  return Array.from({ length: 12 }, (_, i) => (isFYMode ? (fiscalYearStartMonth - 1 + i) % 12 : i))
+}
+
+/**
+ * Calendar-month indices of the lowest- and highest-spend months, or -1.
+ *
+ * `excludeMonth` is the in-progress month: a month a few days old has barely
+ * any spend yet, so it always "won" best month. Best only considers months
+ * with spending (an empty month is no data, not frugality); ties keep the
+ * earliest index, matching the previous `indexOf` behaviour.
+ */
+export function bestWorstMonths(
+  monthlyExpense: readonly number[],
+  excludeMonth: number | null,
+): { best: number; worst: number } {
+  let best = -1
+  let worst = -1
+  for (const [i, value] of monthlyExpense.entries()) {
+    if (i === excludeMonth) continue
+    if (value > 0 && (best < 0 || value < monthlyExpense[best])) best = i
+    if (worst < 0 || value > monthlyExpense[worst]) worst = i
+  }
+  return { best, worst }
+}
+
 function laterPeak(
   current: { date: string; amount: number },
   date: string,

@@ -83,12 +83,37 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
         if fr
     }
 
-    # transaction count per account (account OR from_account OR to_account).
-    # Counted per role then summed; a transfer touches both endpoints, matching
-    # the previous OR-based count semantics.
+    # Transaction count per account: one per row whose account, from_account or
+    # to_account names it. Counted per role, and each role only counts when it
+    # names a DIFFERENT account from the roles before it -- transfers store
+    # ``account = from_account``, so a plain per-role sum counted every transfer
+    # twice for its source account.
+    roles = (
+        (Transaction.account, ()),
+        (
+            Transaction.from_account,
+            (
+                Transaction.from_account.is_not(None),
+                Transaction.from_account != Transaction.account,
+            ),
+        ),
+        (
+            Transaction.to_account,
+            (
+                Transaction.to_account.is_not(None),
+                Transaction.to_account != Transaction.account,
+                or_(
+                    Transaction.from_account.is_(None),
+                    Transaction.to_account != Transaction.from_account,
+                ),
+            ),
+        ),
+    )
     counts: dict[str, int] = {}
-    for col in (Transaction.account, Transaction.from_account, Transaction.to_account):
-        for name, n in db.execute(select(col, func.count()).where(*base).group_by(col)).all():
+    for col, distinct_from_earlier in roles:
+        for name, n in db.execute(
+            select(col, func.count()).where(*base, *distinct_from_earlier).group_by(col)
+        ).all():
             if name:
                 counts[name] = counts.get(name, 0) + int(n)
 
@@ -229,7 +254,7 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
         ],
         "returned": len(rows),
         "total_matching_filters": total,
-        "truncated": len(rows) >= limit,
+        "truncated": total > len(rows),
     }
 
 

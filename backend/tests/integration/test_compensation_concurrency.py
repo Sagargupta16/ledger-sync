@@ -184,6 +184,8 @@ def test_bulk_reload_uses_three_queries_and_preserves_other_owner_cache(compensa
             event.remove(compensation_engine, "before_cursor_execute", record)
         assert len(statements) == 3
         assert _values(result[1]) == (Decimal("200"), Decimal("123"), Decimal("100"))
-        assert current[1].stock_price == Decimal("123") and waiting.is_modified(current[1])
-        assert other[2].price_at_vest == Decimal("456") and waiting.is_modified(other[2])
+        assert current[1].stock_price == Decimal("123")
+        assert waiting.is_modified(current[1])
+        assert other[2].price_at_vest == Decimal("456")
+        assert waiting.is_modified(other[2])
         assert all(not inspect(row).expired_attributes for row in other)

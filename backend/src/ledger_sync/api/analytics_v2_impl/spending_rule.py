@@ -78,10 +78,11 @@ investment_account_mappings) and a rollup would drift if a user tunes those.
 
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -90,7 +91,14 @@ from sqlalchemy import and_, or_
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.expense_class import is_capital_loss
-from ledger_sync.core.query_helpers import as_naive, capital_loss_keys_for, inclusive_end
+from ledger_sync.core.ledger_clock import ledger_now
+from ledger_sync.core.query_helpers import (
+    apply_excluded_accounts_filter,
+    as_naive,
+    capital_loss_keys_for,
+    excluded_accounts_for,
+    inclusive_end,
+)
 from ledger_sync.db.models import (
     Transaction,
     TransactionType,
@@ -370,6 +378,13 @@ def _months_between(start: datetime, end: datetime) -> int:
     """Inclusive month count between two dates, min 1."""
     months = (end.year - start.year) * 12 + (end.month - start.month) + 1
     return max(months, 1)
+
+
+def _one_year_before(moment: datetime) -> datetime:
+    """Same wall-clock moment a year earlier; 29 Feb falls back to 28 Feb."""
+    year = moment.year - 1
+    day = min(moment.day, calendar.monthrange(year, moment.month)[1])
+    return moment.replace(year=year, day=day)
 
 
 def _matches_investment_pattern(text_lower: str, patterns: set[str]) -> bool:
@@ -726,9 +741,9 @@ def get_spending_rule_breakdown(
     # `TypeError: can't compare offset-naive and offset-aware datetimes` -- a
     # hard 500 on the `start_date`-only request shape, reproduced 2026-07-27.
     # Naive is the right target: `Transaction.date` carries no zone.
-    now = as_naive(datetime.now(UTC))
+    now = ledger_now()
     end = as_naive(end_date) if end_date else now
-    start = as_naive(start_date) if start_date else end.replace(year=end.year - 1)
+    start = as_naive(start_date) if start_date else _one_year_before(end)
     if start > end:
         # Swap silently -- the frontend can send them either way.
         start, end = end, start
@@ -773,9 +788,9 @@ def get_spending_rule_breakdown(
     # Pull every relevant txn in one shot. Volume is bounded by user history +
     # date range; per-user datasets are small enough that a single scan is
     # cheaper than three separate group-by queries.
-    txns = (
-        db.query(Transaction)
-        .filter(
+    # Excluded accounts are dropped here as on every other analytics path.
+    txns = apply_excluded_accounts_filter(
+        db.query(Transaction).filter(
             Transaction.user_id == current_user.id,
             Transaction.is_deleted.is_(False),
             Transaction.date >= start,
@@ -788,9 +803,9 @@ def get_spending_rule_breakdown(
                     Transaction.to_account.isnot(None),
                 ),
             ),
-        )
-        .all()
-    )
+        ),
+        excluded_accounts_for(current_user),
+    ).all()
 
     income_total, expense_total, bucket_totals, category_rows = _aggregate_txns(
         txns,

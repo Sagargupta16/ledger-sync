@@ -1,7 +1,6 @@
-import { motion } from 'motion/react'
 import { Banknote, Receipt } from 'lucide-react'
 
-import { DURATION, EASING } from '@/constants/animations'
+import ProgressBar from '@/components/shared/ProgressBar'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -53,20 +52,13 @@ function BreakdownColumn({
               </span>
             </div>
             {total > 0 && (
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--overlay-2)]">
-                <motion.div
-                  className="h-full origin-left rounded-full"
-                  role="progressbar"
-                  aria-label={`${item.label} share of ${title.toLowerCase()}`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round((item.value / total) * 100)}
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: Math.max(0, Math.min(item.value / total, 1)) }}
-                  transition={{ duration: DURATION.slow, ease: EASING.cinematic }}
-                  style={{ backgroundColor: barColor }}
-                />
-              </div>
+              <ProgressBar
+                value={item.value}
+                max={total}
+                height={6}
+                color={barColor}
+                ariaLabel={`${item.label} share of ${title.toLowerCase()}`}
+              />
             )}
           </div>
         ))}

@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+
+import { useQuery } from '@tanstack/react-query'
 
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { accountClassificationsService } from '@/services/api/accountClassifications'
 
 import {
   buildCombinedChartData,
+  buildMutualFundAccounts,
   calculateSIPProjection,
   computeGainsDisplay,
   computeInvestmentDuration,
@@ -12,7 +16,6 @@ import {
   detectMonthlySIPAmount,
   filterSipTransfers,
   findPrimaryAccount,
-  loadMutualFundAccountsData,
 } from './projectionUtils'
 import type { ChartDataPoint, MutualFundAccount } from './types'
 
@@ -31,25 +34,27 @@ export function useMutualFundProjection() {
   const [sipGrowthRate, setSipGrowthRate] = useState(0)
   const [userModifiedSIP, setUserModifiedSIP] = useState(false)
   const [currentValueInput, setCurrentValueInput] = useState(0)
-  const [mutualFundAccounts, setMutualFundAccounts] = useState<MutualFundAccount[]>([])
-  const [accountLoadError, setAccountLoadError] = useState(false)
 
-  useEffect(() => {
-    loadMutualFundAccountsData(balanceData as Record<string, unknown> | undefined)
-      .then((accounts) => {
-        setMutualFundAccounts(accounts)
-        setAccountLoadError(false)
-      })
-      .catch(() => {
-        setMutualFundAccounts([])
-        setAccountLoadError(true)
-      })
-  }, [balanceData])
+  // TanStack owns cancellation, retry and loading state; the old raw effect had
+  // no cancel guard, a retry that never re-ran it, and no loading flag.
+  const investmentAccountsQuery = useQuery({
+    queryKey: ['account-classifications', 'type', 'Investments'],
+    queryFn: () => accountClassificationsService.getAccountsByType('Investments'),
+    staleTime: Infinity,
+  })
+  const investmentAccountNames = investmentAccountsQuery.data?.accounts
+  const mutualFundAccounts = useMemo<MutualFundAccount[]>(
+    () => buildMutualFundAccounts(
+      balanceData as Record<string, unknown> | undefined,
+      investmentAccountNames ?? [],
+    ),
+    [balanceData, investmentAccountNames],
+  )
 
   const retry = () => {
-    setAccountLoadError(false)
     void balancesQuery.refetch()
     void transactionsQuery.refetch()
+    void investmentAccountsQuery.refetch()
   }
 
   const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
@@ -140,8 +145,8 @@ export function useMutualFundProjection() {
   const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
 
   return {
-    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading,
-    isError: balancesQuery.isError || transactionsQuery.isError || accountLoadError,
+    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading || investmentAccountsQuery.isLoading,
+    isError: balancesQuery.isError || transactionsQuery.isError || investmentAccountsQuery.isError,
     retry,
     primaryAccount,
     currentBalance,

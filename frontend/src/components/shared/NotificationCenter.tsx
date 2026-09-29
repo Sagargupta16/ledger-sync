@@ -3,13 +3,16 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Bell, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { sessionIdentity } from '@/lib/session'
 import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { useAuthStore } from '@/store/authStore'
 import {
   type Notification,
   type NotificationType,
   budgetNotifications,
   anomalyNotifications,
   upcomingNotifications,
+  dismissedStorageKey,
   loadDismissed,
   saveDismissed,
   getSeverityColor,
@@ -38,7 +41,9 @@ function SeverityDot({ severity }: Readonly<{ severity: Notification['severity']
 
 export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false)
-  const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed)
+  // AppLayout is keyed by user, so this remounts (and reloads) per identity.
+  const storageKey = useAuthStore((state) => dismissedStorageKey(sessionIdentity(state)))
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed(storageKey))
   const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -80,21 +85,21 @@ export default function NotificationCenter() {
       setDismissed((prev) => {
         const next = new Set(prev)
         next.add(id)
-        saveDismissed(next)
+        saveDismissed(storageKey, next)
         return next
       })
     },
-    [],
+    [storageKey],
   )
 
   const handleDismissAll = useCallback(() => {
     setDismissed((prev) => {
       const next = new Set(prev)
       for (const n of notifications) next.add(n.id)
-      saveDismissed(next)
+      saveDismissed(storageKey, next)
       return next
     })
-  }, [notifications])
+  }, [notifications, storageKey])
 
   // Click-outside handler
   useEffect(() => {

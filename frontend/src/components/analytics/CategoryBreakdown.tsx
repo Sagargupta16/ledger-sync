@@ -9,6 +9,7 @@ import { CHART_COLORS } from '@/constants/chartColors'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
+import ProgressBar from '@/components/shared/ProgressBar'
 import Sparkline from '@/components/shared/Sparkline'
 import { Money } from '@/components/ui'
 
@@ -153,7 +154,7 @@ export default function CategoryBreakdown({
 
       {/* Category rows */}
       <div className="space-y-1.5">
-        {categories.map((cat, i) => {
+        {categories.map((cat) => {
           const isExpanded = expandedCategory === cat.name
           const hasSubcategories = cat.subcategories.length > 0
 
@@ -228,23 +229,12 @@ export default function CategoryBreakdown({
                     title says so, so a filtered amount + full-year trend don't
                     read as contradicting each other. */}
                 <div className="mt-2 flex items-center gap-3">
-                  <div className="flex-1 h-1.5 rounded-full bg-[var(--overlay-2)] overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{
-                        backgroundColor: cat.color,
-                        width: `${cat.percent}%`,
-                        transformOrigin: 'left',
-                      }}
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{
-                        duration: 0.18,
-                        ease: 'easeOut',
-                        delay: Math.min(i * 0.015, 0.1),
-                      }}
-                    />
-                  </div>
+                  <ProgressBar
+                    value={cat.percent}
+                    color={cat.color}
+                    height={6}
+                    className="flex-1"
+                  />
                   {cat.monthlyHistory.length >= 2 && (
                     <Sparkline
                       variant="compact"
@@ -265,7 +255,7 @@ export default function CategoryBreakdown({
                     className="overflow-hidden"
                   >
                     <div className="ml-3 mr-1 sm:ml-6 sm:mr-2 py-1 space-y-0.5">
-                      {cat.subcategories.map((sub, si) => (
+                      {cat.subcategories.map((sub) => (
                         <div
                           key={sub.name}
                           className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-[var(--overlay-2)] transition-colors duration-150"
@@ -281,15 +271,11 @@ export default function CategoryBreakdown({
                           </span>
 
                           {/* Subcategory bar */}
-                          <div className="w-12 md:w-20 h-1 rounded-full bg-[var(--overlay-2)] overflow-hidden shrink-0">
-                            <motion.div
-                              className="h-full w-full origin-left rounded-full opacity-70"
-                              style={{ backgroundColor: cat.color }}
-                              initial={{ scaleX: 0 }}
-                              animate={{
-                                scaleX: Math.min(Math.max(sub.percent, 0), 100) / 100,
-                              }}
-                              transition={{ duration: 0.3, delay: si * 0.02 }}
+                          <div className="w-12 md:w-20 shrink-0">
+                            <ProgressBar
+                              value={sub.percent}
+                              color={`color-mix(in srgb, ${cat.color} 70%, transparent)`}
+                              height={4}
                             />
                           </div>
 

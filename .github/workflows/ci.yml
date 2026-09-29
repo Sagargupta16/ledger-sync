@@ -9,10 +9,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Least privilege by default; jobs that need more declare it themselves.
+permissions:
+  contents: read
+
 jobs:
   # Frontend: lint -> build (tsc -b) -> test, via the shared reusable workflow.
   frontend:
-    uses: Sagargupta16/shared-workflows/.github/workflows/node-ci.yml@main
+    uses: Sagargupta16/shared-workflows/.github/workflows/node-ci.yml@0ad621229daa4bdad5c5d2abd72124ce7a1805a9 # main
+    permissions:
+      contents: read
     with:
       working-directory: frontend
 
@@ -122,7 +128,7 @@ jobs:
           fi
 
   security:
-    uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@main
+    uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@0ad621229daa4bdad5c5d2abd72124ce7a1805a9 # main
     permissions:
       contents: read
       security-events: write

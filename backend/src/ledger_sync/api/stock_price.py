@@ -8,16 +8,21 @@ in vest-date prices for RSU vestings).
 
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
+from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 from pydantic import BaseModel
 
 from ledger_sync.api.deps import ProviderUser
+from ledger_sync.api.rate_limit import user_limiter
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="/api/stock-price", tags=["stock-price"])
 
 _YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+
+# Yahoo tickers: AMZN, BRK-B, RELIANCE.NS, ^NSEI, USDINR=X, GC=F.
+_SYMBOL_PATTERN = r"^[A-Za-z0-9.^=-]{1,20}$"
 
 # Look back a few days from the requested date so weekends/market holidays
 # still resolve to the most recent prior trading day's close.
@@ -56,12 +61,13 @@ def _historical_close(data: dict[str, Any], on_date: date) -> tuple[float, date]
 @router.get(
     "/{symbol}",
     responses={
-        400: {"description": "Invalid symbol"},
+        400: {"description": "on_date is in the future"},
         502: {"description": "Could not fetch price from upstream"},
     },
 )
+@user_limiter.limit("60/minute")
 async def get_stock_price(
-    symbol: str,
+    symbol: Annotated[str, Path(pattern=_SYMBOL_PATTERN)],
     request: Request,
     _current_user: ProviderUser,
     on_date: Annotated[
@@ -87,13 +93,11 @@ async def get_stock_price(
         price is as of (None for latest-price lookups).
 
     """
-    symbol = symbol.upper().strip()
-    if not symbol or len(symbol) > 10:
-        raise HTTPException(status_code=400, detail="Invalid symbol")
+    symbol = symbol.upper()
     if on_date is not None and on_date > datetime.now(tz=UTC).date():
         raise HTTPException(status_code=400, detail="on_date cannot be in the future")
 
-    url = _YAHOO_CHART_URL.format(symbol=symbol)
+    url = _YAHOO_CHART_URL.format(symbol=quote(symbol, safe=""))
     if on_date is None:
         params: dict[str, str | int] = {"interval": "1d", "range": "1d"}
     else:

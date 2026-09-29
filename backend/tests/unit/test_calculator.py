@@ -365,10 +365,11 @@ def test_velocity_no_historical_ratio_zero() -> None:
 def test_velocity_recent_and_historical_split() -> None:
     """One old expense (historical) + one recent expense produce a ratio.
 
-    today = max date = 2024-06-30. recent_cutoff = 2024-05-31.
-    Historical: a single expense on 2024-01-01 -> hist span 1 day -> 600/day.
+    today = max date = 2024-06-30. recent_cutoff = 2024-06-01.
+    Historical: a single expense on 2024-01-01; the window runs from it up to
+    the cutoff, quiet days included -> 152 days -> 600/152 per day.
     Recent: a single expense on 2024-06-30 -> 600/30 = 20/day.
-    ratio = 20 / 600.
+    ratio = 20 / (600/152).
     """
     txns = [
         tx(600, date=datetime(2024, 1, 1, tzinfo=UTC)),
@@ -376,8 +377,8 @@ def test_velocity_recent_and_historical_split() -> None:
     ]
     result = calculate_spending_velocity(txns, recent_days=30)
     assert result["recent_daily"] == pytest.approx(20.0)
-    assert result["historical_daily"] == pytest.approx(600.0)
-    assert result["velocity_ratio"] == pytest.approx(20.0 / 600.0)
+    assert result["historical_daily"] == pytest.approx(600.0 / 152)
+    assert result["velocity_ratio"] == pytest.approx(20.0 / (600.0 / 152))
 
 
 # ─── find_best_worst_months ─────────────────────────────────────────────

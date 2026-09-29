@@ -3,13 +3,16 @@
 import csv
 import io
 import json
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
+from itertools import batched
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import case, delete, exists, func, literal, or_
+from sqlalchemy import Row, case, delete, exists, func, literal, or_
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -64,6 +67,29 @@ END_DATE_DESC = "End date (inclusive)"
 # wrong money. Callers past the cap must narrow start_date/end_date or page
 # through /api/transactions.
 MAX_ALL_TRANSACTIONS = 25_000
+
+# The CSV export is unpaginated (the upload validator alone accepts 100,000
+# rows per file), so it streams in chunks of this many rows. One bind parameter
+# per row for the chunk's tag lookup stays far under SQLite's variable cap
+# (32,766) and PostgreSQL's (65,535).
+EXPORT_CHUNK_ROWS = 1000
+
+_EXPORT_HEADER = [
+    "id",
+    "date",
+    "amount",
+    "currency",
+    "type",
+    "category",
+    "subcategory",
+    "account",
+    "from_account",
+    "to_account",
+    "note",
+    "source_file",
+    "last_seen_at",
+    "tags",
+]
 
 
 # Map of transaction type strings to TransactionType enum values
@@ -262,29 +288,6 @@ def _tags_for_transactions(
     return tags_map
 
 
-def _all_tags_for_user(db: Session, user_id: int) -> dict[str, list[str]]:
-    """Batch-fetch every tag the user owns, keyed by transaction id.
-
-    Same shape and alphabetical ordering as ``_tags_for_transactions``, but
-    without an ``IN (...)`` list. The CSV export is unpaginated -- the upload
-    validator alone accepts 100,000 rows per file -- and binding one parameter
-    per exported row blows past SQLite's variable cap (32,766) and
-    PostgreSQL's (65,535). One user-scoped scan of ``transaction_tags`` costs
-    less than the ledger it annotates.
-    """
-    rows = (
-        db.query(TransactionTag.transaction_id, TransactionTag.tag)
-        .filter(TransactionTag.user_id == user_id)
-        .all()
-    )
-    tags_map: dict[str, list[str]] = {}
-    for txn_id, tag in rows:
-        tags_map.setdefault(txn_id, []).append(tag)
-    for tag_list in tags_map.values():
-        tag_list.sort()
-    return tags_map
-
-
 def _to_transaction_response(
     tx: Transaction,
     tags: list[str] | None = None,
@@ -307,6 +310,46 @@ def _to_transaction_response(
         is_transfer=tx.type.value == "Transfer",
         tags=tags or [],
     )
+
+
+# Exactly the columns ``_to_transaction_response`` and the CSV export read, for
+# the unpaginated paths that should not hydrate an ORM object per row.
+_RESPONSE_COLUMNS = (
+    Transaction.transaction_id,
+    Transaction.date,
+    Transaction.amount,
+    Transaction.currency,
+    Transaction.type,
+    Transaction.category,
+    Transaction.subcategory,
+    Transaction.account,
+    Transaction.from_account,
+    Transaction.to_account,
+    Transaction.note,
+    Transaction.source_file,
+    Transaction.last_seen_at,
+)
+
+
+def _row_to_response_dict(row: Row[Any]) -> dict[str, Any]:
+    """``_to_transaction_response`` for a ``_RESPONSE_COLUMNS`` row, as a plain dict."""
+    return {
+        "id": row.transaction_id,
+        "date": row.date.isoformat(),
+        "amount": float(row.amount),
+        "currency": row.currency,
+        "type": row.type.value,
+        "category": row.category,
+        "subcategory": row.subcategory or "",
+        "account": row.account,
+        "from_account": row.from_account,
+        "to_account": row.to_account,
+        "note": row.note or "",
+        "source_file": row.source_file,
+        "last_seen_at": row.last_seen_at.isoformat(),
+        "is_transfer": row.type.value == "Transfer",
+        "tags": [],
+    }
 
 
 def _base_transaction_query(db: Session, user: User) -> SAQuery[Transaction]:
@@ -411,6 +454,7 @@ def get_transactions(
 
 @router.get(
     "/api/transactions/all",
+    response_model=list[TransactionResponse],
     responses={
         413: {"description": f"Result set exceeds {MAX_ALL_TRANSACTIONS} rows"},
     },
@@ -420,7 +464,7 @@ def get_all_transactions(
     db: DatabaseSession,
     start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None,
     end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None,
-) -> list[TransactionResponse]:
+) -> list[dict[str, Any]]:
     """Return every non-deleted transaction in a single JSON array.
 
     Designed for the frontend analytics layer which needs the full dataset
@@ -444,10 +488,16 @@ def get_all_transactions(
     query = _apply_date_range(query, start_date, end_date)
 
     # Fetch one row past the cap: the sentinel proves the limit was exceeded
-    # without paying for a COUNT(*) on every normal request.
-    transactions = _apply_sorting(query, "date", "desc").limit(MAX_ALL_TRANSACTIONS + 1).all()
+    # without paying for a COUNT(*) on every normal request. Only the response
+    # columns are selected: no ORM identity-map entry per row.
+    rows = (
+        _apply_sorting(query, "date", "desc")
+        .with_entities(*_RESPONSE_COLUMNS)
+        .limit(MAX_ALL_TRANSACTIONS + 1)
+        .all()
+    )
 
-    if len(transactions) > MAX_ALL_TRANSACTIONS:
+    if len(rows) > MAX_ALL_TRANSACTIONS:
         total = query.count()
         raise HTTPException(
             status_code=413,
@@ -458,7 +508,9 @@ def get_all_transactions(
             ),
         )
 
-    return [_to_transaction_response(tx) for tx in transactions]
+    # ``response_model`` validates and serializes these dicts exactly as it did
+    # the TransactionResponse objects built from ORM rows.
+    return [_row_to_response_dict(row) for row in rows]
 
 
 @router.get("/api/transactions/facets")
@@ -641,65 +693,65 @@ def export_transactions(
     ``start_date``/``end_date`` are unchanged: ``SearchFilters`` already
     carries both, and ``_apply_date_and_amount_filters`` applies exactly the
     bounds ``_apply_date_range`` did (``>= start``, ``<= inclusive_end(end)``).
+
+    The body streams in ``EXPORT_CHUNK_ROWS`` chunks (see ``_export_csv_chunks``).
     """
     query = _base_transaction_query(db, current_user)
     query = _apply_search_filters(query, filters)
     query = _apply_tag_filter(query, current_user.id, filters.tag)
-    transactions = _apply_sorting(query, sort_by, sort_order).all()
-
-    tags_map = _all_tags_for_user(db, current_user.id)
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(
-        [
-            "id",
-            "date",
-            "amount",
-            "currency",
-            "type",
-            "category",
-            "subcategory",
-            "account",
-            "from_account",
-            "to_account",
-            "note",
-            "source_file",
-            "last_seen_at",
-            "tags",
-        ],
+    rows = (
+        _apply_sorting(query, sort_by, sort_order)
+        .with_entities(*_RESPONSE_COLUMNS)
+        .yield_per(EXPORT_CHUNK_ROWS)
     )
-    for tx in transactions:
-        writer.writerow(
-            [
-                tx.transaction_id,
-                tx.date.isoformat(),
-                float(tx.amount),
-                tx.currency,
-                tx.type.value,
-                tx.category,
-                tx.subcategory or "",
-                tx.account,
-                tx.from_account,
-                tx.to_account,
-                tx.note or "",
-                tx.source_file,
-                tx.last_seen_at.isoformat(),
-                # Same JSON array the API serves for this field
-                # (``TransactionResponse.tags``), so the column round-trips
-                # losslessly. A delimiter-joined string would not: tags are
-                # free strings, so any separator can legitimately appear
-                # inside a tag. Untagged rows carry "[]" rather than an empty
-                # cell so a reader can json.loads every row unconditionally.
-                json.dumps(tags_map.get(tx.transaction_id, [])),
-            ],
-        )
-    output.seek(0)
-    return Response(
-        content=output.read(),
+    return StreamingResponse(
+        _export_csv_chunks(db, current_user.id, rows),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=transactions.csv"},
     )
+
+
+def _export_csv_chunks(db: Session, user_id: int, rows: SAQuery[Any]) -> Iterator[str]:
+    """Yield the export CSV one bounded chunk at a time.
+
+    Rows arrive in ``EXPORT_CHUNK_ROWS`` batches and each batch fetches only its
+    own tags, so memory stays flat however large the ledger is, and the tag
+    ``IN (...)`` list stays far below SQLite's and PostgreSQL's bind limits.
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(_EXPORT_HEADER)
+    yield output.getvalue()
+    for chunk in batched(rows, EXPORT_CHUNK_ROWS, strict=False):  # last chunk may be short
+        tags_map = _tags_for_transactions(db, user_id, [row.transaction_id for row in chunk])
+        output = io.StringIO()
+        writer = csv.writer(output)
+        for row in chunk:
+            writer.writerow(
+                [
+                    row.transaction_id,
+                    row.date.isoformat(),
+                    float(row.amount),
+                    row.currency,
+                    row.type.value,
+                    row.category,
+                    row.subcategory or "",
+                    row.account,
+                    row.from_account,
+                    row.to_account,
+                    row.note or "",
+                    row.source_file,
+                    row.last_seen_at.isoformat(),
+                    # Same JSON array the API serves for this field
+                    # (``TransactionResponse.tags``), so the column round-trips
+                    # losslessly. A delimiter-joined string would not: tags are
+                    # free strings, so any separator can legitimately appear
+                    # inside a tag. Untagged rows carry "[]" rather than an empty
+                    # cell so a reader can json.loads every row unconditionally.
+                    json.dumps(tags_map.get(row.transaction_id, [])),
+                ],
+            )
+        yield output.getvalue()
 
 
 # --- Quick-Add Transaction Endpoint ---

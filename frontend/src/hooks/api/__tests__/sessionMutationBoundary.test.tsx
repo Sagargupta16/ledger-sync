@@ -91,7 +91,8 @@ const scenarios = [
     service: transactionsService.updateTransactionTags,
     run: (hooks: ReturnType<typeof useFinancialMutations>) =>
       hooks.tags.mutateAsync({ transactionId: 'account-701-transaction', tags: ['reviewed'] }),
-    invalidations: [['transactions'], ['transactions-page'], ['transaction-facets']],
+    // Not the whole ['transactions'] prefix: the full-ledger entry carries no tags.
+    invalidations: [['transactions', 'recent'], ['transactions-page'], ['transaction-facets']],
   },
   {
     name: 'saved view update',

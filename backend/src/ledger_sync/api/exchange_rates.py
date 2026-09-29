@@ -14,9 +14,10 @@ from typing import Annotated, Any
 
 import anyio
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
-from ledger_sync.api.deps import ProviderUser
+from ledger_sync.api.deps import HttpClient, ProviderUser
+from ledger_sync.api.rate_limit import user_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,10 @@ def _cache_is_fresh() -> bool:
     return bool((time.time() - fetched_at) < _CACHE_TTL)
 
 
-async def _fetch_rates(base: str, on_date: date | None = None) -> tuple[dict[str, float], str]:
-    """Fetch rates from frankfurter.dev, latest or for a specific date.
+async def _fetch_rates(
+    client: httpx.AsyncClient, base: str, on_date: date | None = None
+) -> tuple[dict[str, float], str]:
+    """Fetch rates from frankfurter.dev with the app's shared HTTP client.
 
     Returns the rate map plus the date frankfurter actually priced, which can
     precede ``on_date`` when it lands on a weekend or TARGET holiday.
@@ -91,20 +94,19 @@ async def _fetch_rates(base: str, on_date: date | None = None) -> tuple[dict[str
         else _FRANKFURTER_HISTORICAL_URL.format(on_date=on_date.isoformat())
     )
     last_err: Exception | None = None
-    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-        for attempt in range(_UPSTREAM_ATTEMPTS):
-            try:
-                resp = await client.get(url, params={"from": base})
-                resp.raise_for_status()
-                data = resp.json()
-                rates = data.get("rates", {})
-                if not isinstance(rates, dict):
-                    return {}, ""
-                return dict(rates), str(data.get("date", ""))
-            except (httpx.HTTPError, ValueError) as err:
-                last_err = err
-                if attempt < _UPSTREAM_ATTEMPTS - 1:
-                    await anyio.sleep(_UPSTREAM_RETRY_DELAY_SECONDS)
+    for attempt in range(_UPSTREAM_ATTEMPTS):
+        try:
+            resp = await client.get(url, params={"from": base}, timeout=10.0, follow_redirects=True)
+            resp.raise_for_status()
+            data = resp.json()
+            rates = data.get("rates", {})
+            if not isinstance(rates, dict):
+                return {}, ""
+            return dict(rates), str(data.get("date", ""))
+        except (httpx.HTTPError, ValueError) as err:
+            last_err = err
+            if attempt < _UPSTREAM_ATTEMPTS - 1:
+                await anyio.sleep(_UPSTREAM_RETRY_DELAY_SECONDS)
     raise last_err if last_err else RuntimeError("rate fetch failed")
 
 
@@ -115,8 +117,11 @@ async def _fetch_rates(base: str, on_date: date | None = None) -> tuple[dict[str
         502: {"description": "Unable to fetch rates from external API"},
     },
 )
+@user_limiter.limit("60/minute")
 async def get_exchange_rates(
+    request: Request,  # required by slowapi
     _current_user: ProviderUser,
+    client: HttpClient,
     # Constrained at the boundary rather than sanitised at each use. `base` is
     # echoed into two log lines and forwarded upstream, so an unbounded string
     # was log-forgeable (a newline injects a fake log record). A currency code is
@@ -134,6 +139,13 @@ async def get_exchange_rates(
         ),
     ] = None,
 ) -> dict[str, Any]:
+    """Return exchange rates for the given base currency."""
+    return await resolve_exchange_rates(client, base, on_date)
+
+
+async def resolve_exchange_rates(
+    client: httpx.AsyncClient, base: str = "INR", on_date: date | None = None
+) -> dict[str, Any]:
     """Return exchange rates for the given base currency.
 
     Uses a 24-hour in-memory cache. Falls back to stale cache or
@@ -150,7 +162,7 @@ async def get_exchange_rates(
         if on_date > datetime.now(tz=UTC).date():
             raise HTTPException(status_code=400, detail="on_date cannot be in the future")
         try:
-            rates, priced_on = await _fetch_rates(base, on_date)
+            rates, priced_on = await _fetch_rates(client, base, on_date)
         except (httpx.HTTPError, ValueError, KeyError) as err:
             logger.warning(
                 "Failed to fetch historical rates base=%s on_date=%s", base, on_date, exc_info=True
@@ -177,7 +189,7 @@ async def get_exchange_rates(
         }
 
     try:
-        rates, _ = await _fetch_rates(base)
+        rates, _ = await _fetch_rates(client, base)
         _rate_cache["rates"] = rates
         _rate_cache["base"] = base
         _rate_cache["fetched_at"] = time.time()

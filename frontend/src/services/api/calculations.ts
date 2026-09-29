@@ -10,6 +10,12 @@ export interface MasterCategories {
 export interface TotalsData {
   total_income: number
   total_expenses: number
+  /**
+   * Classified realised losses held out of `total_expenses`
+   * (`_totals_payload` in backend `api/calculations.py`). Optional because the
+   * demo generator does not send it.
+   */
+  capital_losses?: number
   net_savings: number
   savings_rate: number
   transaction_count: number

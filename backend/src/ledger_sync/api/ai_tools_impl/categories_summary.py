@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND
 from ledger_sync.db.models import (
     FinancialGoal,
     MonthlySummary,
@@ -84,24 +85,31 @@ def _exec_list_categories(user: User, db: Session, args: dict[str, Any]) -> Any:
         ),
     )
 
+    scope = (
+        Transaction.user_id == user.id,
+        Transaction.is_deleted.is_(False),
+        Transaction.type == TransactionType(txn_type),
+    )
     stmt = (
         select(
             Transaction.category,
             func.sum(Transaction.amount).label("total"),
             func.count().label("row_count"),
         )
-        .where(
-            Transaction.user_id == user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.type == TransactionType(txn_type),
-        )
+        .where(*scope)
         .group_by(Transaction.category)
         .order_by(func.sum(Transaction.amount).desc())
         .limit(limit)
     )
     stmt = apply_date_range(stmt, start, end)
     rows = db.execute(stmt).all()
-    grand_total = sum(to_decimal(r.total) for r in rows)
+    # The denominator is every matching category, not just the LIMITed top-N,
+    # so each share is of the real total rather than summing to 100% of a slice.
+    grand_total = to_decimal(
+        db.execute(
+            apply_date_range(select(func.sum(Transaction.amount)).where(*scope), start, end)
+        ).scalar_one()
+    )
     return {
         "categories": [
             {
@@ -210,7 +218,12 @@ register(
 
 def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
     active_only = bool(args.get("active_only", True))
-    stmt = select(RecurringTransaction).where(RecurringTransaction.user_id == user.id)
+    # "dismissed" is the tombstone for a detected pattern the user deleted: it
+    # stays stored so re-detection does not resurrect it, but is never listed.
+    stmt = select(RecurringTransaction).where(
+        RecurringTransaction.user_id == user.id,
+        RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+    )
     if active_only:
         stmt = stmt.where(RecurringTransaction.is_active.is_(True))
     stmt = stmt.order_by(RecurringTransaction.expected_amount.desc()).limit(LIST_ENTITIES_MAX_LIMIT)

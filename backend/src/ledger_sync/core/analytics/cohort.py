@@ -19,6 +19,7 @@ from decimal import Decimal
 from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.db.models import CohortSpending, Transaction, TransactionType
 
 
@@ -36,7 +37,15 @@ class CohortMixin(AnalyticsEngineBase):
         if transactions is None:
             transactions = self._user_transaction_query().all()
 
-        expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+        # A classified realised loss is not spending (same rule as the monthly
+        # and daily rollups), so it must not inflate a spending-pattern bucket.
+        loss_keys = self.capital_loss_keys
+        expenses = [
+            t
+            for t in transactions
+            if t.type == TransactionType.EXPENSE
+            and not is_capital_loss(t.category, t.subcategory, loss_keys)
+        ]
 
         rows = self._build_cohort_rows(expenses)
 

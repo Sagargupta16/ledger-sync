@@ -49,7 +49,7 @@ def _expire_clean_compensation(session: Session, owners: set[int]) -> None:
     queries reload these rows together, so refresh never adds a query per row.
     Unknown owners occur on expired objects and are safe to expire again.
     """
-    for cached in list(session.identity_map.values()):
+    for cached in session.identity_map.values():
         if not isinstance(cached, _COMPENSATION_MODELS):
             continue
         state = cast(InstanceState[Any], inspect(cached))

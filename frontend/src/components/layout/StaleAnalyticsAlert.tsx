@@ -75,7 +75,7 @@ export default function StaleAnalyticsAlert() {
             type="button"
             onClick={() => setDismissed(true)}
             aria-label="Dismiss out-of-date warning"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            className="inline-flex size-11 shrink-0 items-center lg:size-8 justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <X className="size-4" aria-hidden />
           </button>

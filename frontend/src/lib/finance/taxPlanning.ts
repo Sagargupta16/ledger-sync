@@ -104,6 +104,47 @@ function taxForIncome(grossIncome: number, options: GrossFromNetOptions) {
   )
 }
 
+type IncomeScope = ReturnType<typeof resolveIncomeScope>
+
+/** Gross employment income: payroll estimate, else grossed up from net receipts, else as recorded. */
+function resolveEmploymentGross(
+  input: Readonly<TaxPlanningInput>,
+  scope: IncomeScope,
+  options: GrossFromNetOptions,
+) {
+  const employmentCashDeductions = scope.hasEmploymentIncome && scope.incomeScopeComplete
+    ? Math.max(0, input.recordedEmploymentCashDeductions ?? 0)
+    : 0
+  const hasPayrollEstimate = scope.incomeBasis === 'net'
+    && Number.isFinite(input.estimatedGrossEmploymentIncome)
+    && Number.isFinite(input.estimatedEmploymentWithholding)
+  let grossEmploymentIncome = scope.employmentIncome
+  if (hasPayrollEstimate) {
+    grossEmploymentIncome = Math.max(0, input.estimatedGrossEmploymentIncome!)
+  } else if (scope.incomeBasis === 'net') {
+    grossEmploymentIncome = calculateGrossFromNet(scope.employmentIncome + employmentCashDeductions, options)
+  }
+  return { employmentCashDeductions, hasPayrollEstimate, grossEmploymentIncome }
+}
+
+/** Withholding implied by net receipts; null on a gross basis, where receipts prove no payment. */
+function estimateEmploymentTaxPaid(
+  input: Readonly<TaxPlanningInput>,
+  scope: IncomeScope,
+  hasPayrollEstimate: boolean,
+  grossEmploymentIncome: number,
+  options: GrossFromNetOptions,
+): number | null {
+  if (scope.incomeBasis !== 'net') return null
+  if (hasPayrollEstimate) return Math.max(0, input.estimatedEmploymentWithholding!)
+  return taxForIncome(grossEmploymentIncome, options).totalTax
+}
+
+function resolveWithholdingAssumption(incomeBasis: TaxIncomeBasis, hasPayrollEstimate: boolean) {
+  if (incomeBasis !== 'net') return null
+  return hasPayrollEstimate ? 'annual_payroll' as const : 'employment_only' as const
+}
+
 /** Net-of-TDS applies to employment receipts; other taxable receipts stay gross. */
 export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
   const fyYear = input.selectedFY ? parseFYStartYear(input.selectedFY) : 0
@@ -125,17 +166,11 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     isNewRegime,
     fyStartYear: fyYear,
   }
-  const employmentCashDeductions = scope.hasEmploymentIncome && scope.incomeScopeComplete
-    ? Math.max(0, input.recordedEmploymentCashDeductions ?? 0)
-    : 0
-  const hasPayrollEstimate = scope.incomeBasis === 'net'
-    && Number.isFinite(input.estimatedGrossEmploymentIncome)
-    && Number.isFinite(input.estimatedEmploymentWithholding)
-  const grossEmploymentIncome = scope.incomeBasis === 'net'
-    ? hasPayrollEstimate
-      ? Math.max(0, input.estimatedGrossEmploymentIncome!)
-      : calculateGrossFromNet(scope.employmentIncome + employmentCashDeductions, options)
-    : scope.employmentIncome
+  const {
+    employmentCashDeductions,
+    hasPayrollEstimate,
+    grossEmploymentIncome,
+  } = resolveEmploymentGross(input, scope, options)
   const grossTaxableIncome = scope.incomeBasis === 'net'
     ? grossEmploymentIncome + scope.otherIncome
     : input.recordedTaxableIncome
@@ -143,11 +178,9 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     ? Math.min(employmentDeduction, grossEmploymentIncome)
     : employmentDeduction
   const taxResult = taxForIncome(grossTaxableIncome, { ...options, standardDeduction })
-  const estimatedTaxPaid = scope.incomeBasis === 'net'
-    ? hasPayrollEstimate
-      ? Math.max(0, input.estimatedEmploymentWithholding!)
-      : taxForIncome(grossEmploymentIncome, { ...options, standardDeduction }).totalTax
-    : null
+  const estimatedTaxPaid = estimateEmploymentTaxPaid(
+    input, scope, hasPayrollEstimate, grossEmploymentIncome, { ...options, standardDeduction },
+  )
 
   return {
     selectedFY: input.selectedFY,
@@ -163,9 +196,7 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
     requestedIncomeBasis: input.incomeBasis,
     incomeBasis: scope.incomeBasis,
     incomeScopeComplete: scope.incomeScopeComplete,
-    withholdingAssumption: scope.incomeBasis === 'net'
-      ? hasPayrollEstimate ? 'annual_payroll' as const : 'employment_only' as const
-      : null,
+    withholdingAssumption: resolveWithholdingAssumption(scope.incomeBasis, hasPayrollEstimate),
     grossEmploymentIncome: scope.incomeScopeComplete ? grossEmploymentIncome : null,
     otherTaxableIncome: scope.incomeScopeComplete ? scope.otherIncome : null,
     employmentCashDeductions,

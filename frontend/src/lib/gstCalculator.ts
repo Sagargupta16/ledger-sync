@@ -243,7 +243,21 @@ export interface GSTSummary {
 
 /** Split a label into lowercase word tokens ("Food & Dining" -> [food, dining]). */
 function wordTokens(label: string): string[] {
-  return label.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  return label
+    .toLowerCase()
+    // Possessive "'s" is not a word: "Gold's Gym" must tokenize to [gold, gym],
+    // not [gold, s, gym].
+    .replaceAll(/['’]s\b/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map(singularToken)
+}
+
+/** Fold a simple plural so "Gift" meets the "Gifts" key and "Fees" meets "Fee". */
+function singularToken(word: string): string {
+  return word.length > 3 && word.endsWith('s') && !/(?:ss|us|is)$/.test(word)
+    ? word.slice(0, -1)
+    : word
 }
 
 /**
@@ -292,7 +306,8 @@ function cacheFor(rates: Record<string, number>): TableCache {
  * matched "Gold's Gym"). A key matches only when its full word sequence
  * appears as consecutive whole words in the label (or vice versa), so
  * "Public Transport" still matches a "Public Transport Pass" label while
- * "Business Services" no longer trips the "Bus" key.
+ * "Business Services" no longer trips the "Bus" key. Among several matching
+ * keys the longest wins (see `bestContainmentRate`).
  */
 function matchRate(
   label: string,
@@ -304,29 +319,37 @@ function matchRate(
   const memo = cache.resolved.get(lower)
   if (memo !== undefined) return memo
 
-  let result: number | null = null
-
-  // Exact match (case-insensitive)
+  // Exact match (case-insensitive), else word-boundary containment.
   const exact = cache.exact.get(lower)
-  if (exact !== undefined) {
-    result = exact
-  } else {
-    // Word-boundary containment: key words appear consecutively in the label,
-    // or label words appear consecutively in the key.
-    const labelWords = wordTokens(label)
-    for (const { words: keyWords, rate } of cache.tokenized) {
-      if (
-        containsSequence(labelWords, keyWords) ||
-        containsSequence(keyWords, labelWords)
-      ) {
-        result = rate
-        break
-      }
-    }
-  }
+  const result = exact ?? bestContainmentRate(wordTokens(label), cache.tokenized)
 
   cache.resolved.set(lower, result)
   return result
+}
+
+/**
+ * Word-boundary containment (key words appear consecutively in the label, or
+ * label words in the key), choosing the match that covers the MOST words.
+ * First-in-table-order let a short key win: "Gold" (3%) beat "Gym" in "Gold's
+ * Gym". On a tie the higher rate wins: a zero-rated person key ("Friends",
+ * "Family") next to a taxed purchase ("Dining with Friends", "Gift for Family")
+ * describes the purchase, not a money transfer.
+ */
+function bestContainmentRate(
+  labelWords: string[],
+  tokenized: ReadonlyArray<{ words: string[]; rate: number }>,
+): number | null {
+  let best: { length: number; rate: number } | null = null
+  for (const { words: keyWords, rate } of tokenized) {
+    let length = 0
+    if (containsSequence(labelWords, keyWords)) length = keyWords.length
+    else if (containsSequence(keyWords, labelWords)) length = labelWords.length
+    if (length === 0) continue
+    if (best === null || length > best.length || (length === best.length && rate > best.rate)) {
+      best = { length, rate }
+    }
+  }
+  return best?.rate ?? null
 }
 
 /** True when `needle` appears as a consecutive run inside `haystack`. */

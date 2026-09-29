@@ -44,9 +44,8 @@ export default function ChartTooltipContent({
     })
   }
 
-  const heading = label == null ? null : (
-    labelFormatter?.(label, payload) ?? (typeof label === 'string' ? formatChartDate(label) : label)
-  )
+  const defaultHeading = typeof label === 'string' ? formatChartDate(label) : label
+  const heading = label == null ? null : (labelFormatter?.(label, payload) ?? defaultHeading)
   const Container = accessibilityLayer ? 'output' : 'div'
 
   return (

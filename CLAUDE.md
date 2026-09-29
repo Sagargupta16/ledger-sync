@@ -30,46 +30,19 @@ pnpm run dev:backend    # uvicorn with --reload on port 8000
 pnpm run dev:frontend   # vite dev server
 ```
 
-### Backend (run from `backend/` directory)
+### Per-stack commands
 
-```bash
-uv run pytest tests/ -v                          # all tests
-uv run pytest tests/unit/test_hash_id.py         # single test file
-uv run pytest tests/unit/test_hash_id.py::test_hash_generation  # single test
-uv run pytest --cov=ledger_sync tests/           # with coverage
+Both stacks are driven by `package.json` scripts -- read the `scripts` block in the
+root `package.json` (setup/dev/lint/type-check/test/format/check, each with
+`:backend` and `:frontend` variants) and in `frontend/package.json`. Backend tooling
+is standard `uv run pytest|ruff|mypy` from `backend/`.
 
-uv run ruff check .                              # lint
-uv run ruff format src/ tests/                   # format
-uv run mypy src/                                 # type check
+The two things those files do NOT tell you:
 
-uv run alembic revision --autogenerate -m "msg"  # create migration
-uv run alembic upgrade head                      # apply migrations
-uv run alembic downgrade -1                      # only supported reversible revisions; see docs/DATABASE.md
-```
-
-### Frontend (run from `frontend/` directory)
-
-```bash
-pnpm test                # run tests (vitest, single run)
-pnpm run test:watch      # watch mode
-pnpm run lint            # eslint check
-pnpm run format          # eslint --fix
-pnpm run type-check      # tsc -b --noEmit
-pnpm run build           # tsc -b && vite build
-pnpm run clean           # clear dist and vite cache
-```
-
-### Formatting (both)
-
-```bash
-pnpm run format          # format backend (ruff format + ruff --fix) and frontend (eslint --fix)
-```
-
-### Full Check (lint + types + test for both stacks)
-
-```bash
-pnpm run check           # runs lint, type-check, and test in parallel
-```
+- `pnpm run check` is the gate before any feature is considered complete.
+- `uv run alembic downgrade -1` only works on the revisions that implement a real
+  reversal; most from 2026-03 onward are deliberately no-op. See
+  [`docs/DATABASE.md`](docs/DATABASE.md) before relying on it.
 
 ## Architecture
 
@@ -84,7 +57,7 @@ Layered architecture:
 - **`api/`** - FastAPI routers (auth, oauth, upload, transactions, analytics, analytics_v2, calculations, preferences, account_classifications, categorization_rules, saved_views, exchange_rates, rates, stock_price, meta, reports, ai_chat, ai_tools, ai_usage), with larger routers split into implementation modules. `rates.py` serves `/api/rates/instruments` from `config/instrument_rates.json` (EPF/PPF/NPS rates with `effective_from` + `source_url` metadata). Routers are registered in `main.py`. Financial endpoints require JWT auth via `CurrentUser`; health, OAuth initiation/callback, and token refresh are public exceptions. `oauth.py` handles browser-bound, one-use Google/GitHub authorization code exchange with S256 PKCE. AI configuration lives in `preferences_ai.py`. `ai_chat.py` proxies non-streaming Bedrock calls with app or personal bearer funding. `ai_tools.py` exposes `/api/ai/tools` and `/api/ai/tools/execute` for 15 read-only user-scoped tools with runtime argument validation. `ai_usage.py` reserves and settles Bedrock usage and records browser-direct usage reports.
 - **`core/`** - Business logic. `sync_engine.py` orchestrates `import_rows()` for JSON web uploads and `import_file()` for CLI file imports. `reconciler.py` handles user-scoped reconciliation and occurrence-aware SHA-256 IDs. `calculator.py` computes on-demand financial metrics. `analytics_engine.py` is a compatibility facade; the active analytics engine and rollup builders live under `core/analytics/`. `query_helpers.py` provides shared database-agnostic SQL aggregation helpers. `insights.py`, `report_generator.py`, and `time_filter.py` handle insights, reports, and date ranges. `ledger_clock.py` is the single source of naive IST `now`/`today`/month/FY boundaries -- never anchor a user-facing window on `datetime.now(UTC)`. `expense_class.py` holds the realised-capital-loss taxonomy that keeps trading losses out of consumption totals. `encryption.py` writes authenticated `ls-byok:v3:` AES-256-GCM envelopes derived with HKDF-SHA256 from `LEDGER_SYNC_ENCRYPTION_KEY`; authenticated legacy v1 PBKDF2 and v2 HKDF ciphertexts remain readable and can be rewrapped. `core/auth/` handles JWT token creation/verification.
 - **`ingest/`** - Data ingestion pipeline used by CLI: `excel_loader.py` -> `normalizer.py` -> `validator.py` -> `hash_id.py`. The web upload path bypasses the file loaders -- frontend parses files client-side and sends structured JSON; `normalizer.normalize_from_dict()` handles dict-based normalization.
-- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` is the public facade over `_models/`, split by domain across `user.py`, `transactions.py`, `organization.py`, `investments.py`, `analytics.py`, `planning.py`, and `ai_usage.py`. Consumer code imports from `ledger_sync.db.models`, never directly from `_models`. Financial data is user-scoped. Structured preference values such as salary structure, RSU grants, and growth assumptions are JSON-serialized into `TEXT` columns.
+- **`db/`** - SQLAlchemy 2.0 models and session factory. `models.py` is the public facade over `_models/`, split by domain across `user.py`, `transactions.py`, `organization.py`, `investments.py`, `analytics.py`, `analytics_state.py`, `planning.py`, `ledger_dimensions.py`, `compensation.py`, `ai_settings.py`, and `ai_usage.py`. Consumer code imports from `ledger_sync.db.models`, never directly from `_models`. Financial data is user-scoped. Since PR #250 (2026-09-18, revision `domain_storage_cutover_2026`) salary structure, RSU grants, AI settings, and credit-card limits live in their own tables (`_models/compensation.py`, `_models/ai_settings.py`, services in `services/`); the old `user_preferences` JSON columns were dropped. `growth_assumptions` is still JSON in a `TEXT` column.
 - **`schemas/`** - Pydantic models for request/response validation. Includes `upload.py` with `TransactionRow` and `TransactionUploadRequest` for whole-batch JSON validation, `goals.py` for goal mutations, and `salary.py` with `SalaryComponents`, `RsuGrant`, `GrowthAssumptions` schemas for tax projection inputs.
 - **`services/`** - Cross-router workflows, including immutable OAuth identity resolution in `auth_service.py` and user-scoped goal mutation behavior in `goal_service.py`.
 - **`config/settings.py`** - Pydantic BaseSettings. All env vars prefixed with `LEDGER_SYNC_` (e.g., `LEDGER_SYNC_DATABASE_URL`, `LEDGER_SYNC_JWT_SECRET_KEY`).
@@ -170,7 +143,7 @@ No hosted deployment result is implied by a local check.
 
 - **This repo is CRLF** (`core.autocrlf=true`, no `.gitattributes`; ~75 of 80 sampled source files). `sed -i` and Python `read_text`/`write_text` both normalize to LF and produce a diff touching every line. Use the Edit tool. `backend/uv.lock` is legitimately LF at HEAD -- check a file's own baseline before "fixing" it.
 - **`typescript-eslint` gates the TypeScript version.** 8.65.0 declares peer `typescript: >=4.8.4 <6.1.0` and hard-errors on TS 7 ("typescript-eslint does not support TS 7.0"), which breaks `pnpm run lint` repo-wide and therefore CI, since the shared `node-ci.yml` gates on lint with no `|| true`. TypeScript is deliberately pinned at 6.0.3; only 8.65.1-alpha builds attempt TS 7. Do not bump TypeScript until a stable typescript-eslint supports it.
-- **`react-router-dom` has no 8.x line.** GHSA-qwww-vcr4-c8h2 (high, RSC-mode CSRF) is patched only in the `react-router` package at 8.3.0, which in v8 replaces `react-router-dom`. "Upgrading" is a migration across all routed pages, not a version bump. Dependabot alert 105 stays open by decision; the advisory does not apply here because the app renders a client-side `BrowserRouter` with no RSC APIs and no `@react-router/*` server packages.
+- **`react-router-dom` has no 8.x line.** GHSA-qwww-vcr4-c8h2 (high, RSC-mode CSRF) is patched only in the `react-router` package at 8.3.0, which in v8 replaces `react-router-dom`. "Upgrading" is a migration across all routed pages, not a version bump. GitHub withdrew Dependabot alert 105 (the API returns HTTP 410 as of 2026-09-29); it never applied here because the app renders a client-side `BrowserRouter` with no RSC APIs and no `@react-router/*` server packages.
 - **Git worktrees belong at the repo root, never under `frontend/`.** A nested worktree gives typescript-eslint two tsconfig roots and the pre-commit hook then fails repo-wide with zero real lint problems.
 - **`backend/ledger_sync.db` is the LOCAL dev database, not production.** It holds real personal data and is gitignored: read-only SQL only, never commit it or anything derived from it, report shares and counts rather than balances or full account names. Production is Neon; its values differ from this file, so never present a local read as a prod fact.
 

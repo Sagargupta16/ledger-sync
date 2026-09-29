@@ -22,6 +22,20 @@ from ledger_sync.db.models import (
 )
 
 
+def _successor_periods(sorted_periods: list[str], changed: set[str]) -> set[str]:
+    """Next populated month after each changed month.
+
+    Deleting the last row in a month changes the next populated month's
+    predecessor; inserting into a gap does too.
+    """
+    successors = set()
+    for changed_period in changed:
+        next_index = bisect_right(sorted_periods, changed_period)
+        if next_index < len(sorted_periods):
+            successors.add(sorted_periods[next_index])
+    return successors
+
+
 class SummariesMixin(AnalyticsEngineBase):
     """Mixin: monthly and daily aggregation persistence."""
 
@@ -46,7 +60,44 @@ class SummariesMixin(AnalyticsEngineBase):
             .filter(MonthlySummary.user_id == self._require_user_id())
             .all()
         }
-        # Group by month
+        monthly_data = self._group_monthly_data(transactions, affected_months)
+
+        changed = set(existing) | set(monthly_data) if affected_months is None else affected_months
+        active = (set(existing) - changed) | set(monthly_data)
+        for period_key in set(existing) - active:
+            self.db.delete(existing[period_key])
+
+        sorted_periods = sorted(active)
+        successors = _successor_periods(sorted_periods, changed)
+        count = 0
+        prev_income: Decimal | None = None
+        prev_expenses: Decimal | None = None
+
+        for period_key in sorted_periods:
+            if period_key not in monthly_data:
+                row = existing[period_key]
+                if period_key in successors:
+                    row.income_change_pct = _mom_change_pct(row.total_income, prev_income)
+                    row.expense_change_pct = _mom_change_pct(row.total_expenses, prev_expenses)
+                    row.last_calculated = datetime.now(UTC)
+                prev_income, prev_expenses = row.total_income, row.total_expenses
+                continue
+            data = monthly_data[period_key]
+            self._write_monthly_summary(
+                period_key, data, prev_income, prev_expenses, existing.get(period_key)
+            )
+            count += 1
+            prev_income = data["total_income"]
+            prev_expenses = data["total_expenses"]
+
+        return count
+
+    def _group_monthly_data(
+        self,
+        transactions: list[Transaction],
+        affected_months: set[str] | None,
+    ) -> dict[str, dict[str, Any]]:
+        """Aggregate transactions by IST month, keeping only affected months."""
         monthly_data: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "total_income": Decimal(0),
@@ -65,7 +116,6 @@ class SummariesMixin(AnalyticsEngineBase):
                 "transfer_count": 0,
             },
         )
-
         for txn in transactions:
             ledger_date = to_ledger_time(txn.date)
             period_key = ledger_date.strftime("%Y-%m")
@@ -75,84 +125,61 @@ class SummariesMixin(AnalyticsEngineBase):
             self._categorize_transaction_for_summary(txn, monthly_data[period_key], amount)
             monthly_data[period_key]["year"] = ledger_date.year
             monthly_data[period_key]["month"] = ledger_date.month
+        return monthly_data
 
-        changed = set(existing) | set(monthly_data) if affected_months is None else affected_months
-        active = (set(existing) - changed) | set(monthly_data)
-        for period_key in set(existing) - active:
-            self.db.delete(existing[period_key])
+    def _write_monthly_summary(
+        self,
+        period_key: str,
+        data: dict[str, Any],
+        prev_income: Decimal | None,
+        prev_expenses: Decimal | None,
+        existing: MonthlySummary | None,
+    ) -> None:
+        """Derive one month's ratios and MoM changes, then upsert its row."""
+        total_income = data["total_income"]
+        total_expenses = data["total_expenses"]
+        capital_losses = data["capital_losses"]
+        # net_savings subtracts realised losses even though they are no
+        # longer expenses: the cash genuinely left, so month-end wealth
+        # really is lower and a savings figure that ignored it would not
+        # reconcile against account balances.
+        #
+        # savings_rate KEEPS ITS ORIGINAL DEFINITION -- net_savings over
+        # income -- so the published rate still equals net_savings /
+        # total_income on the same row. Redefining it to
+        # (income - expenses) / income while net_savings netted the loss off
+        # silently changed what a persisted historical series MEANS: the same
+        # column would step upward at the moment a user classified a
+        # category, with no rename and no label change to say why.
+        #
+        # The consumption-share question ("what share of income did I spend
+        # on goods and services") is answered by expense_ratio, which is
+        # already named for it and now excludes the loss because
+        # total_expenses does.
+        net_savings = total_income - total_expenses - capital_losses
+        savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
+        expense_ratio = float(total_expenses / total_income * 100) if total_income > 0 else 0
 
-        # Deleting the last row in a month changes the next populated month's
-        # predecessor; inserting into a gap does too.
-        sorted_periods = sorted(active)
-        successors = set()
-        for changed_period in changed:
-            next_index = bisect_right(sorted_periods, changed_period)
-            if next_index < len(sorted_periods):
-                successors.add(sorted_periods[next_index])
-        count = 0
-        prev_income = None
-        prev_expenses = None
+        income_change_pct = _mom_change_pct(total_income, prev_income)
+        expense_change_pct = _mom_change_pct(total_expenses, prev_expenses)
 
-        for period_key in sorted_periods:
-            if period_key not in monthly_data:
-                row = existing[period_key]
-                if period_key in successors:
-                    row.income_change_pct = _mom_change_pct(row.total_income, prev_income)
-                    row.expense_change_pct = _mom_change_pct(row.total_expenses, prev_expenses)
-                    row.last_calculated = datetime.now(UTC)
-                prev_income, prev_expenses = row.total_income, row.total_expenses
-                continue
-            data = monthly_data[period_key]
-            total_income = data["total_income"]
-            total_expenses = data["total_expenses"]
-            capital_losses = data["capital_losses"]
-            # net_savings subtracts realised losses even though they are no
-            # longer expenses: the cash genuinely left, so month-end wealth
-            # really is lower and a savings figure that ignored it would not
-            # reconcile against account balances.
-            #
-            # savings_rate KEEPS ITS ORIGINAL DEFINITION -- net_savings over
-            # income -- so the published rate still equals net_savings /
-            # total_income on the same row. Redefining it to
-            # (income - expenses) / income while net_savings netted the loss off
-            # silently changed what a persisted historical series MEANS: the same
-            # column would step upward at the moment a user classified a
-            # category, with no rename and no label change to say why.
-            #
-            # The consumption-share question ("what share of income did I spend
-            # on goods and services") is answered by expense_ratio, which is
-            # already named for it and now excludes the loss because
-            # total_expenses does.
-            net_savings = total_income - total_expenses - capital_losses
-            savings_rate = float(net_savings / total_income * 100) if total_income > 0 else 0
-            expense_ratio = float(total_expenses / total_income * 100) if total_income > 0 else 0
+        now = datetime.now(UTC)
+        total_txns = data["income_count"] + data["expense_count"] + data["transfer_count"]
 
-            income_change_pct = _mom_change_pct(total_income, prev_income)
-            expense_change_pct = _mom_change_pct(total_expenses, prev_expenses)
-
-            now = datetime.now(UTC)
-            total_txns = data["income_count"] + data["expense_count"] + data["transfer_count"]
-
-            self._upsert_monthly_summary(
-                period_key,
-                data,
-                total_income,
-                total_expenses,
-                net_savings,
-                savings_rate,
-                expense_ratio,
-                income_change_pct,
-                expense_change_pct,
-                total_txns,
-                now,
-                existing.get(period_key),
-            )
-            count += 1
-
-            prev_income = total_income
-            prev_expenses = total_expenses
-
-        return count
+        self._upsert_monthly_summary(
+            period_key,
+            data,
+            total_income,
+            total_expenses,
+            net_savings,
+            savings_rate,
+            expense_ratio,
+            income_change_pct,
+            expense_change_pct,
+            total_txns,
+            now,
+            existing,
+        )
 
     def _upsert_monthly_summary(
         self,
@@ -319,6 +346,27 @@ class SummariesMixin(AnalyticsEngineBase):
             destination_is_investment=self._is_investment_account(txn.to_account),  # type: ignore[attr-defined]
         )
 
+    def _accumulate_daily(self, txn: Transaction, day: dict[str, Any]) -> None:
+        """Add one transaction to its IST day's totals."""
+        amount = Decimal(str(txn.amount))
+        if txn.type == TransactionType.INCOME:
+            day["total_income"] += amount
+            day["income_count"] += 1
+        elif txn.type == TransactionType.EXPENSE:
+            # Same exclusion as the monthly rollup, for the same reason.
+            # Without it the YearInReview heatmap paints the day a realised
+            # loss was booked as the user's heaviest SPENDING day of the
+            # year, and ``top_category`` names the loss category as what
+            # they spent most on.
+            if self._is_capital_loss(txn):  # type: ignore[attr-defined]
+                day["capital_losses"] += amount
+                return
+            day["total_expenses"] += amount
+            day["expense_count"] += 1
+            day["expense_categories"][txn.category] += amount
+        elif txn.type == TransactionType.TRANSFER:
+            day["transfer_count"] += 1
+
     def _calculate_daily_summaries(
         self,
         transactions: list[Transaction] | None = None,
@@ -352,26 +400,7 @@ class SummariesMixin(AnalyticsEngineBase):
             date_key = to_ledger_time(txn.date).date().isoformat()
             if affected_dates is not None and date_key not in affected_dates:
                 continue
-            amount = Decimal(str(txn.amount))
-            day = daily_data[date_key]
-
-            if txn.type == TransactionType.INCOME:
-                day["total_income"] += amount
-                day["income_count"] += 1
-            elif txn.type == TransactionType.EXPENSE:
-                # Same exclusion as the monthly rollup, for the same reason.
-                # Without it the YearInReview heatmap paints the day a realised
-                # loss was booked as the user's heaviest SPENDING day of the
-                # year, and ``top_category`` names the loss category as what
-                # they spent most on.
-                if self._is_capital_loss(txn):  # type: ignore[attr-defined]
-                    day["capital_losses"] += amount
-                    continue
-                day["total_expenses"] += amount
-                day["expense_count"] += 1
-                day["expense_categories"][txn.category] += amount
-            elif txn.type == TransactionType.TRANSFER:
-                day["transfer_count"] += 1
+            self._accumulate_daily(txn, daily_data[date_key])
 
         # Replace only affected days, including days emptied by a deletion.
         del_stmt = delete(DailySummary).where(DailySummary.user_id == user_id)

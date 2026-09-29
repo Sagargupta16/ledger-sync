@@ -50,6 +50,11 @@ _RECURRING_DATE_SUFFIX = re.compile(
 _MIN_COMMITMENT_CONFIDENCE = 70
 _SHORT_CADENCE_DAYS = {RecurrenceFrequency.WEEKLY: 7, RecurrenceFrequency.BIWEEKLY: 14}
 
+# Tombstone kind for a detected pattern the user deleted. The row is kept
+# (confirmed, inactive) so detection recognises the pattern and does not
+# recreate it; every reader must exclude it so the API looks like a delete.
+DISMISSED_PATTERN_KIND = "dismissed"
+
 
 def normalize_recurring_note(note: str | None) -> str | None:
     """Remove explicit billing dates, retaining numbers and names identifying payees."""
@@ -289,6 +294,9 @@ class RecurringMixin(AnalyticsEngineBase):
         # their amount and due day; matching history must not overwrite them.
         if (label, txn_type) in confirmed_names:
             existing = confirmed_names[label, txn_type]
+            if existing.pattern_kind == DISMISSED_PATTERN_KIND:
+                # The user deleted this detected pattern; keep it deleted.
+                return 0
             existing.occurrences_detected = info["occurrences"]
             existing.last_occurrence = info["last_occurrence"]
             existing.confidence_score = info["confidence"]

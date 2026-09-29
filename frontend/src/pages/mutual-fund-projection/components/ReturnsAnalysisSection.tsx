@@ -1,6 +1,10 @@
 import { BarChart3 } from 'lucide-react'
 
+import { MS_PER_DAY, MS_PER_YEAR } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
+import { MIN_ANNUALISED_SPAN_DAYS } from '@/lib/xirr'
+
+const DAYS_PER_YEAR = MS_PER_YEAR / MS_PER_DAY
 
 interface ReturnsAnalysisSectionProps {
   currentValueInput: number
@@ -41,6 +45,9 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
     xirrSignPrefix,
     hasCurrentValueOverride,
   } = props
+  // calculateXIRR returns an absolute, not annualised, return under one year.
+  const isAnnualised = investmentDurationYears * DAYS_PER_YEAR >= MIN_ANNUALISED_SPAN_DAYS
+  const rateSuffix = isAnnualised ? '% p.a.' : '%'
 
   return (
     <section className="mt-6 border-t border-border pt-5" aria-labelledby="returns-analysis-title">
@@ -105,14 +112,16 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
 
         {hasCurrentValueOverride ? (
           <div className="flex flex-col justify-center">
-            <p className="text-sm text-muted-foreground">Annualized Return (XIRR)</p>
+            <p className="text-sm text-muted-foreground">
+              {isAnnualised ? 'Annualized Return (XIRR)' : 'Absolute Return (under 1 year)'}
+            </p>
             <p
               className={`ledger-figure break-words text-2xl font-bold ${xirrColorClass}`}
               aria-live="polite"
-              title={`${xirrSignPrefix}${xirrPercent.toFixed(2)}% p.a.`}
+              title={`${xirrSignPrefix}${xirrPercent.toFixed(2)}${rateSuffix}`}
             >
               {xirrSignPrefix}
-              {xirrPercent.toFixed(2)}% p.a.
+              {xirrPercent.toFixed(2)}{rateSuffix}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Over{' '}

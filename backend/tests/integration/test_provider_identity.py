@@ -64,6 +64,7 @@ def test_provider_auth_releases_connection_and_enforces_identity(
 
     if provider == "exchange":
         application.include_router(exchange_rates.router)
+        application.state.http_client = SimpleNamespace()
         monkeypatch.setattr(exchange_rates, "_rate_cache", {})
         monkeypatch.setattr(exchange_rates, "_fetch_rates", fetch)
         path = "/api/exchange-rates"

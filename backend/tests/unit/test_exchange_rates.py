@@ -5,21 +5,24 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import UTC, date, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from ledger_sync.api.deps import get_provider_identity
+from ledger_sync.api.deps import get_http_client, get_provider_identity
 from ledger_sync.api.exchange_rates import (
     _FALLBACK_RATES,
     _fetch_rates,
     _rate_cache,
-    get_exchange_rates,
+    resolve_exchange_rates,
 )
 from ledger_sync.api.main import app
+
+# Upstream calls are patched at `_fetch_rates`; the shared client is never used.
+_CLIENT = MagicMock(spec=httpx.AsyncClient)
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +47,7 @@ def test_fetch_and_cache_rates():
         new_callable=AsyncMock,
         return_value=(mock_rates, ""),
     ):
-        result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
+        result = asyncio.run(resolve_exchange_rates(_CLIENT, base="INR"))
     assert result["base"] == "INR"
     assert result["rates"] == mock_rates
     assert result["fetched_at"] is not None
@@ -62,7 +65,7 @@ def test_returns_cached_rates():
         "ledger_sync.api.exchange_rates._fetch_rates",
         new_callable=AsyncMock,
     ) as mock_fetch:
-        result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
+        result = asyncio.run(resolve_exchange_rates(_CLIENT, base="INR"))
     mock_fetch.assert_not_called()
     assert result["rates"]["USD"] == pytest.approx(0.012)
 
@@ -78,7 +81,7 @@ def test_stale_cache_on_api_failure():
         new_callable=AsyncMock,
         side_effect=httpx.HTTPError("API down"),
     ):
-        result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
+        result = asyncio.run(resolve_exchange_rates(_CLIENT, base="INR"))
     assert result["stale"] is True
     assert result["rates"]["USD"] == pytest.approx(0.011)
 
@@ -90,7 +93,7 @@ def test_fallback_rates_when_no_cache():
         new_callable=AsyncMock,
         side_effect=httpx.HTTPError("API down"),
     ):
-        result = asyncio.run(get_exchange_rates(_current_user=FakeUser(), base="INR"))
+        result = asyncio.run(resolve_exchange_rates(_CLIENT, base="INR"))
     assert result["fallback"] is True
     assert result["rates"] == _FALLBACK_RATES
 
@@ -112,7 +115,7 @@ class TestHistoricalRates:
             return_value=({"INR": 87.46}, "2025-08-15"),
         ):
             result = asyncio.run(
-                get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 15))
+                resolve_exchange_rates(_CLIENT, base="USD", on_date=date(2025, 8, 15))
             )
         assert result["historical"] is True
         assert result["rates"]["INR"] == pytest.approx(87.46)
@@ -127,7 +130,7 @@ class TestHistoricalRates:
             return_value=({"INR": 87.46}, "2025-08-15"),
         ):
             result = asyncio.run(
-                get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 16))
+                resolve_exchange_rates(_CLIENT, base="USD", on_date=date(2025, 8, 16))
             )
         assert result["as_of"] == "2025-08-15"
         assert result["requested_date"] == "2025-08-16"
@@ -144,14 +147,14 @@ class TestHistoricalRates:
             return_value=({"INR": 87.46}, "2025-08-15"),
         ) as fetch:
             result = asyncio.run(
-                get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 15))
+                resolve_exchange_rates(_CLIENT, base="USD", on_date=date(2025, 8, 15))
             )
         assert fetch.await_count == 1
         assert result["rates"]["INR"] == pytest.approx(87.46)
 
     def test_historical_failure_errors_instead_of_serving_todays_rate(self):
         """The fallback table is a present-day snapshot -- serving it IS the bug."""
-        call = get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=date(2025, 8, 15))
+        call = resolve_exchange_rates(_CLIENT, base="USD", on_date=date(2025, 8, 15))
         with (
             patch(
                 "ledger_sync.api.exchange_rates._fetch_rates",
@@ -169,7 +172,7 @@ class TestHistoricalRates:
     def test_future_date_rejected(self):
         # UTC, matching the handler's own `datetime.now(tz=UTC).date()` comparison.
         future = datetime.now(tz=UTC).date() + timedelta(days=1)
-        call = get_exchange_rates(_current_user=FakeUser(), base="USD", on_date=future)
+        call = resolve_exchange_rates(_CLIENT, base="USD", on_date=future)
         with pytest.raises(HTTPException) as exc:
             asyncio.run(call)
         assert exc.value.status_code == 400
@@ -190,11 +193,9 @@ class TestUpstreamRetry:
                 200, json={"date": "2025-08-15", "rates": {"INR": 87.46}}, request=request
             )
 
-        with (
-            patch("httpx.AsyncClient.get", new=flaky),
-            patch("ledger_sync.api.exchange_rates.anyio.sleep", new_callable=AsyncMock),
-        ):
-            rates, priced_on = asyncio.run(_fetch_rates("USD", date(2025, 8, 15)))
+        client = MagicMock(spec=httpx.AsyncClient, get=flaky)
+        with patch("ledger_sync.api.exchange_rates.anyio.sleep", new_callable=AsyncMock):
+            rates, priced_on = asyncio.run(_fetch_rates(client, "USD", date(2025, 8, 15)))
         assert calls["n"] == 2
         assert rates["INR"] == pytest.approx(87.46)
         assert priced_on == "2025-08-15"
@@ -213,6 +214,7 @@ class TestBaseValidation:
     def test_non_currency_codes_are_rejected(self, bad):
         client = TestClient(app)
         app.dependency_overrides[get_provider_identity] = FakeUser
+        app.dependency_overrides[get_http_client] = lambda: _CLIENT
         try:
             assert client.get("/api/exchange-rates", params={"base": bad}).status_code == 422
         finally:
@@ -222,6 +224,7 @@ class TestBaseValidation:
     def test_three_letter_codes_are_accepted(self, good):
         client = TestClient(app)
         app.dependency_overrides[get_provider_identity] = FakeUser
+        app.dependency_overrides[get_http_client] = lambda: _CLIENT
         try:
             with patch(
                 "ledger_sync.api.exchange_rates._fetch_rates",

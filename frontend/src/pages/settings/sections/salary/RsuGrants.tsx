@@ -12,8 +12,8 @@ import {
 } from '@/lib/rsuVesting'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
-import { FieldLabel } from '../../sectionPrimitives'
-import { inputClass } from '../../styles'
+import { FieldLabel } from '@/pages/settings/sectionPrimitives'
+import { inputClass } from '@/pages/settings/styles'
 import { VestingTable } from './VestingTable'
 import type { RsuPriceStatus } from './useRsuPrices'
 

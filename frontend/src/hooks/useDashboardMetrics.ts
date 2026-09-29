@@ -8,7 +8,16 @@
  */
 
 import { useState, useMemo } from 'react'
-import { useRecentTransactions, useMonthlyAggregation, useTotals } from '@/hooks/api/useAnalytics'
+import { useQuery } from '@tanstack/react-query'
+import {
+  dataDateRangeOptions,
+  earningStartEvidenceOptions,
+  incomeAnalysisOptions,
+  useCategoryBreakdown,
+  useRecentTransactions,
+  useMonthlyAggregation,
+  useTotals,
+} from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore, resolveIncomeClassification } from '@/store/preferencesStore'
@@ -20,16 +29,14 @@ import {
   getCurrentFY,
 } from '@/lib/dateUtils'
 import {
-  calculateIncomeByCategoryBreakdown,
   calculateExpenseByCategoryBreakdown,
-  calculateCashbacksTotal,
   INCOME_CATEGORY_COLORS,
 } from '@/lib/preferencesUtils'
 import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
-import { computeDataDateRange, filterTransactionsByDateRange } from '@/lib/transactionUtils'
+import { filterTransactionsByDateRange } from '@/lib/transactionUtils'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 
 // ---------------------------------------------------------------------------
@@ -78,9 +85,17 @@ export interface DashboardMetrics {
     net_savings: number
     savings_rate: number
   } | undefined
+  /** Every query, the full ledger included. */
   isLoading: boolean
+  /** The rollup-backed summary only; the ledger may still be in flight. */
+  isSummaryLoading: boolean
+  /** The full ledger behind the row-level metrics is still loading. */
+  isLedgerLoading: boolean
   isError: boolean
   retry: () => void
+
+  /** The selected window holds at least one transaction (any type). */
+  hasTransactionsInRange: boolean
 
   // Transactions filtered by selected time range
   filteredTransactions: import('@/types').Transaction[]
@@ -160,36 +175,96 @@ export function useDashboardMetrics(): DashboardMetrics {
   )
 
   // ------ Data fetching ------
+  //
+  // The KPIs, charts and breakdowns read rollups and SQL aggregates. The full
+  // ledger (~2.9 MB) is still fetched for the row-level metrics that no
+  // endpoint reproduces -- Age of Money's FIFO matching, Days of Buffering's
+  // lookback, investment-transfer classification -- but it no longer gates the
+  // summary, so the page paints without waiting for it.
   useRecentTransactions(5) // keep prefetch warm for other pages
   const totalsQuery = useTotals(dateRange)
   const monthlyQuery = useMonthlyAggregation(dateRange)
+  const dateRangeQuery = useQuery(dataDateRangeOptions())
   const transactionsQuery = useTransactions()
   const filteredTotals = totalsQuery.data
   const monthlyData = monthlyQuery.data
   const allTransactions = transactionsQuery.data
-  const isLoading =
+
+  // `?? []` per field was the bug: the backend column default is the JSON string
+  // "[]", so an unconfigured user sends four empty lists, and a cashback match
+  // against them reads 0. `resolveIncomeClassification` applies the group rule
+  // instead (defaults only when all four are empty; a populated sibling makes an
+  // empty list deliberate). The endpoint owns no fallback, so send the resolved list.
+  const cashbackCategories = useMemo(
+    () => (preferences ? resolveIncomeClassification(preferences).nonTaxable : []),
+    [preferences],
+  )
+  // Income by category + cashback total. `/income-analysis` sums |amount| of the
+  // window's Income rows per category and matches `Category::Subcategory`
+  // case-insensitively -- the same rules as the row-level helpers it replaces.
+  const incomeQuery = useQuery({
+    ...incomeAnalysisOptions({ ...dateRange, cashback_categories: cashbackCategories }),
+    enabled: preferencesQuery.isSuccess,
+  })
+  // Shares its cache entry with QuickInsights' identical request.
+  const expenseCategoryQuery = useCategoryBreakdown({ transaction_type: 'expense', ...dateRange })
+
+  // The saved employment start, else the first salary-like income -- inferred
+  // from daily income aggregates rather than the ledger.
+  const needsEarningEvidence = resolveEarningStart(preferences?.earning_start_date, []).source !== 'saved'
+  const earningEvidenceQuery = useQuery({
+    ...earningStartEvidenceOptions(),
+    enabled: preferencesQuery.isSuccess && needsEarningEvidence,
+  })
+
+  // `/category-breakdown` holds classified realised losses out of expense
+  // categories, while this pie has always charted every Expense row. Those two
+  // agree exactly when the window has no classified loss (`capital_losses` 0,
+  // which is every user who never set `capital_loss_categories`); otherwise the
+  // pie keeps its row-level computation so no displayed number moves.
+  const expenseFromRows = (filteredTotals?.capital_losses ?? 0) > 0
+
+  const isLedgerLoading = transactionsQuery.isLoading
+  const isSummaryLoading =
     totalsQuery.isLoading ||
     monthlyQuery.isLoading ||
-    transactionsQuery.isLoading ||
-    preferencesQuery.isLoading
+    dateRangeQuery.isLoading ||
+    preferencesQuery.isLoading ||
+    incomeQuery.isLoading ||
+    expenseCategoryQuery.isLoading ||
+    earningEvidenceQuery.isLoading ||
+    (expenseFromRows && isLedgerLoading)
+  const isLoading = isSummaryLoading || isLedgerLoading
   const isError =
     totalsQuery.isError ||
     monthlyQuery.isError ||
+    dateRangeQuery.isError ||
     transactionsQuery.isError ||
-    preferencesQuery.isError
+    preferencesQuery.isError ||
+    incomeQuery.isError ||
+    expenseCategoryQuery.isError ||
+    earningEvidenceQuery.isError
   const retry = () => {
     void Promise.all([
       totalsQuery.refetch(),
       monthlyQuery.refetch(),
+      dateRangeQuery.refetch(),
       transactionsQuery.refetch(),
       preferencesQuery.refetch(),
+      incomeQuery.refetch(),
+      expenseCategoryQuery.refetch(),
+      ...(needsEarningEvidence ? [earningEvidenceQuery.refetch()] : []),
     ])
   }
 
   // ------ Date boundaries for AnalyticsTimeFilter ------
+  // Same non-deleted, non-excluded rows as the ledger's min/max date.
   const dataDateRange = useMemo(
-    () => computeDataDateRange(allTransactions),
-    [allTransactions],
+    () => ({
+      minDate: dateRangeQuery.data?.min_date ?? undefined,
+      maxDate: dateRangeQuery.data?.max_date ?? undefined,
+    }),
+    [dateRangeQuery.data],
   )
 
   // ------ Filter transactions by selected time range ------
@@ -207,31 +282,27 @@ export function useDashboardMetrics(): DashboardMetrics {
     [filteredTransactions, investmentMappings],
   )
 
+  // Rows in the window, all types -- the same count the ledger filter produced.
+  const hasTransactionsInRange = (filteredTotals?.transaction_count ?? 0) > 0
+
   // ------ Income breakdown ------
   const incomeBreakdown = useMemo(() => {
-    if (filteredTransactions.length === 0) return null
-    return calculateIncomeByCategoryBreakdown(filteredTransactions)
-  }, [filteredTransactions])
+    if (!hasTransactionsInRange || !incomeQuery.data) return null
+    return incomeQuery.data.category_breakdown
+  }, [hasTransactionsInRange, incomeQuery.data])
 
-  // `?? []` per field was the bug: the backend column default is the JSON string
-  // "[]", so an unconfigured user sends four empty lists, and
-  // `calculateCashbacksTotal`'s `custom ?? getPrefs()...` override short-circuits
-  // the store defaults with them -- no key matches, so the cashback KPI reads 0.
-  // `resolveIncomeClassification` applies the group rule instead (defaults only
-  // when all four are empty; a populated sibling makes an empty list deliberate).
-  const cashbacksTotal = useMemo(() => {
-    if (filteredTransactions.length === 0 || !preferences) return 0
-    return calculateCashbacksTotal(
-      filteredTransactions,
-      resolveIncomeClassification(preferences),
-    )
-  }, [filteredTransactions, preferences])
+  const cashbacksTotal = hasTransactionsInRange ? incomeQuery.data?.cashbacks_total ?? 0 : 0
 
   // ------ Expense breakdown by category ------
   const expenseBreakdown = useMemo(() => {
-    if (filteredTransactions.length === 0) return null
-    return calculateExpenseByCategoryBreakdown(filteredTransactions)
-  }, [filteredTransactions])
+    if (!hasTransactionsInRange) return null
+    if (expenseFromRows) return calculateExpenseByCategoryBreakdown(filteredTransactions)
+    const categories = expenseCategoryQuery.data?.categories
+    if (!categories) return null
+    return Object.fromEntries(
+      Object.entries(categories).map(([category, { total }]) => [category, total]),
+    )
+  }, [hasTransactionsInRange, expenseFromRows, filteredTransactions, expenseCategoryQuery.data])
 
   // ------ Chart data ------
   const incomeChartData = useMemo(() => {
@@ -316,9 +387,15 @@ export function useDashboardMetrics(): DashboardMetrics {
   }, [monthlyFlowAll])
 
   // ------ MoM changes ------
+  const earningEvidence = earningEvidenceQuery.data
   const momChanges = useMemo(() => computeMonthlyChanges(
-    monthlyData, new Date(), resolveEarningStart(preferences?.earning_start_date, allTransactions ?? []).date,
-  ), [monthlyData, preferences?.earning_start_date, allTransactions])
+    monthlyData,
+    new Date(),
+    resolveEarningStart(
+      preferences?.earning_start_date,
+      (earningEvidence ?? []).map((row) => ({ ...row, type: 'Income' })),
+    ).date,
+  ), [monthlyData, preferences?.earning_start_date, earningEvidence])
 
   return {
     viewMode,
@@ -334,8 +411,11 @@ export function useDashboardMetrics(): DashboardMetrics {
     dateRange,
     filteredTotals,
     isLoading,
+    isSummaryLoading,
+    isLedgerLoading,
     isError,
     retry,
+    hasTransactionsInRange,
     filteredTransactions,
     incomeBreakdown,
     cashbacksTotal,

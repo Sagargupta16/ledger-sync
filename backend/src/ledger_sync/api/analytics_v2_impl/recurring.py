@@ -10,9 +10,14 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, or_, update
+from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.analytics.recurring import effective_pattern_kind
+from ledger_sync.core.analytics.recurring import (
+    DISMISSED_PATTERN_KIND,
+    effective_pattern_kind,
+    normalize_recurring_note,
+)
 from ledger_sync.core.analytics.refresh import lock_analytics_user
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
@@ -84,7 +89,10 @@ def get_recurring_transactions(
     """
     query = (
         db.query(RecurringTransaction)
-        .filter(RecurringTransaction.user_id == current_user.id)
+        .filter(
+            RecurringTransaction.user_id == current_user.id,
+            RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+        )
         .order_by(
             desc(RecurringTransaction.confidence_score),
             desc(RecurringTransaction.expected_amount),
@@ -180,6 +188,81 @@ class RecurringTransactionUpdate(BaseModel):
 
 
 _VALID_PATTERN_KINDS = {"commitment", "habit"}
+_MANUAL_ACCOUNT = "Manual"
+_USER_EDITABLE_FIELDS = (
+    "pattern_name",
+    "frequency",
+    "expected_amount",
+    "is_active",
+    "pattern_kind",
+)
+
+
+def _find_visible_record(db: Session, user_id: int, item_id: int) -> RecurringTransaction:
+    """Return the user's row, treating a dismissed tombstone as already deleted."""
+    record = (
+        db.query(RecurringTransaction)
+        .filter(
+            RecurringTransaction.id == item_id,
+            RecurringTransaction.user_id == user_id,
+            RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+        )
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Recurring transaction not found")
+    return record
+
+
+def _detection_keys(name: str) -> set[str]:
+    """Labels refresh matches a confirmed row by (see ``_load_confirmed_recurring``)."""
+    return {key for key in (normalize_recurring_note(name), name.lower()) if key}
+
+
+def _dismiss_detection_label(db: Session, record: RecurringTransaction, new_name: str) -> None:
+    """Keep a renamed detected pattern from being re-detected under its old name.
+
+    Refresh finds a confirmed row by its name. Once renamed, the old label no
+    longer matches it, so the next refresh would add a duplicate detected row
+    for the same transactions. A dismissed tombstone under the old name holds
+    that label instead; the renamed row keeps the user's name and values.
+    """
+    if record.account == _MANUAL_ACCOUNT:
+        return
+    new_keys = _detection_keys(new_name)
+    if _detection_keys(record.pattern_name) <= new_keys:
+        return
+    # Renaming back onto a label this row left behind reclaims that label.
+    for tombstone in db.query(RecurringTransaction).filter(
+        RecurringTransaction.user_id == record.user_id,
+        RecurringTransaction.transaction_type == record.transaction_type,
+        RecurringTransaction.pattern_kind == DISMISSED_PATTERN_KIND,
+    ):
+        if _detection_keys(tombstone.pattern_name) & new_keys:
+            db.delete(tombstone)
+    db.add(
+        RecurringTransaction(
+            user_id=record.user_id,
+            pattern_name=record.pattern_name,
+            category=record.category,
+            subcategory=record.subcategory,
+            account=record.account,
+            transaction_type=record.transaction_type,
+            frequency=record.frequency,
+            expected_amount=record.expected_amount,
+            amount_variance=record.amount_variance,
+            expected_day=record.expected_day,
+            confidence_score=record.confidence_score,
+            occurrences_detected=record.occurrences_detected,
+            pattern_kind=DISMISSED_PATTERN_KIND,
+            last_occurrence=record.last_occurrence,
+            is_active=False,
+            is_user_confirmed=True,
+            first_detected=record.first_detected,
+            last_updated=datetime.now(UTC),
+        )
+    )
+
 
 _VALID_FREQUENCIES = {
     "daily",
@@ -206,20 +289,19 @@ def update_recurring_transaction(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> dict[str, Any]:
-    """Update a detected recurring transaction (name, frequency, amount, status)."""
-    lock_analytics_user(db, current_user.id)
-    record = (
-        db.query(RecurringTransaction)
-        .filter(
-            RecurringTransaction.id == item_id,
-            RecurringTransaction.user_id == current_user.id,
-        )
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Recurring transaction not found")
+    """Update a detected recurring transaction (name, frequency, amount, status).
 
+    Any edit is a user decision, so the row becomes user-confirmed: refresh
+    deletes and re-derives unconfirmed rows, which would silently undo the edit.
+    An explicit ``is_confirmed`` in the body still wins.
+    """
+    lock_analytics_user(db, current_user.id)
+    record = _find_visible_record(db, current_user.id, item_id)
+
+    if any(getattr(body, field) is not None for field in _USER_EDITABLE_FIELDS):
+        record.is_user_confirmed = True
     if body.pattern_name is not None:
+        _dismiss_detection_label(db, record, body.pattern_name)
         record.pattern_name = body.pattern_name
     if body.frequency is not None:
         freq = body.frequency.lower()
@@ -286,7 +368,7 @@ def create_recurring_transaction(
         pattern_name=body.name.strip(),
         category=body.category or ("Income" if txn_type == "INCOME" else "Expense"),
         subcategory=None,
-        account="Manual",
+        account=_MANUAL_ACCOUNT,
         transaction_type=TransactionType(txn_type.capitalize()),
         frequency=RecurrenceFrequency(freq),
         expected_amount=Decimal(str(body.amount)),
@@ -320,18 +402,15 @@ def delete_recurring_transaction(
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> dict[str, Any]:
-    """Delete a recurring transaction."""
+    """Delete a recurring transaction.
+
+    A manually created row is removed. A detected row is kept as a dismissed
+    tombstone instead: deleting it outright lets the next refresh detect the
+    same pattern again. Every reader excludes tombstones, so the API response
+    is identical to a delete.
+    """
     lock_analytics_user(db, current_user.id)
-    record = (
-        db.query(RecurringTransaction)
-        .filter(
-            RecurringTransaction.id == item_id,
-            RecurringTransaction.user_id == current_user.id,
-        )
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Recurring transaction not found")
+    record = _find_visible_record(db, current_user.id, item_id)
     # A schedule owns its payment details independently of its detected source.
     # Unlink before DELETE to satisfy the tenant-scoped FK without deleting or
     # rewriting any schedule, including inactive schedules.
@@ -346,7 +425,13 @@ def delete_recurring_transaction(
             updated_at=ScheduledTransaction.updated_at,
         )
     )
-    db.delete(record)
+    if record.account == _MANUAL_ACCOUNT:
+        db.delete(record)
+    else:
+        record.pattern_kind = DISMISSED_PATTERN_KIND
+        record.is_user_confirmed = True
+        record.is_active = False
+        record.last_updated = datetime.now(UTC)
     db.commit()
     return {"status": "ok", "id": item_id}
 

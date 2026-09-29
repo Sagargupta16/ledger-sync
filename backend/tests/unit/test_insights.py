@@ -567,7 +567,14 @@ def test_velocity_up_branch() -> None:
 
 
 def test_velocity_down_branch() -> None:
-    insights = behavioral_insights(VOLATILITY_FLIP, "$", REFERENCE)
+    # Steady spending through April and May, then a single small expense in the
+    # recent 30-day window. (VOLATILITY_FLIP has a 100k expense inside the recent
+    # window, so it only read as "reduced" while the historical rate ignored the
+    # quiet days before that window.)
+    rows = [tx(10_000, on(2026, m, d)) for m in (4, 5) for d in (1, 11, 21)] + [
+        tx(1_000, on(2026, 7, 10))
+    ]
+    insights = behavioral_insights(rows, "$", REFERENCE)
     assert "lower" in described(insights, "Reduced Recent Spending")
 
 

@@ -147,14 +147,10 @@ def ensure_account_ids(db: Session, user_id: int, labels: Sequence[str]) -> dict
     return {label: ids[(label.lower(),)] for label in labels}
 
 
-def attach_ledger_dimensions(
-    db: Session, user_id: int, rows: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Mutate/return normalized rows with IDs in O(tables * distinct-key chunks)."""
-    if not rows:
-        return rows
-    if user_id is None:
-        raise ValueError("Ledger dimensions require a user.")
+def _collect_labels(
+    rows: list[dict[str, Any]], user_id: int
+) -> tuple[dict[tuple[Any, ...], str], dict[tuple[Any, ...], str]]:
+    """Validate rows and gather the first spelling of each account/category key."""
     accounts: dict[tuple[Any, ...], str] = {}
     categories: dict[tuple[Any, ...], str] = {}
     for row in rows:
@@ -169,16 +165,36 @@ def attach_ledger_dimensions(
                 accounts.setdefault((key,), row[field])
         if key := _label_key(row.get("category")):
             categories.setdefault((key,), row["category"])
+    return accounts, categories
+
+
+def _collect_subcategories(
+    rows: list[dict[str, Any]], category_ids: dict[tuple[Any, ...], int]
+) -> dict[tuple[Any, ...], str]:
+    """Gather subcategory labels under their resolved parent category IDs."""
+    subcategories: dict[tuple[Any, ...], str] = {}
+    for row in rows:
+        category_id = category_ids.get((_label_key(row.get("category")),))
+        key = _label_key(row.get("subcategory"))
+        if category_id is not None and key:
+            subcategories.setdefault((category_id, key), row["subcategory"])
+    return subcategories
+
+
+def attach_ledger_dimensions(
+    db: Session, user_id: int, rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Mutate/return normalized rows with IDs in O(tables * distinct-key chunks)."""
+    if not rows:
+        return rows
+    if user_id is None:
+        raise ValueError("Ledger dimensions require a user.")
+    accounts, categories = _collect_labels(rows, user_id)
 
     with db.no_autoflush:
         account_ids = _resolve_accounts(db, user_id, accounts)
         category_ids = _resolve_named(db, _CATEGORIES, user_id, categories, ("key",))
-        subcategories: dict[tuple[Any, ...], str] = {}
-        for row in rows:
-            category_id = category_ids.get((_label_key(row.get("category")),))
-            key = _label_key(row.get("subcategory"))
-            if category_id is not None and key:
-                subcategories.setdefault((category_id, key), row["subcategory"])
+        subcategories = _collect_subcategories(rows, category_ids)
         subcategory_ids = _resolve_named(
             db,
             _SUBCATEGORIES,

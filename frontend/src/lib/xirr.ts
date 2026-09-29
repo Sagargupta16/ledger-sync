@@ -14,16 +14,18 @@
  * across the bracket (always true for a real portfolio: all-in flows make
  * NPV -> +inf as rate -> -1, and NPV -> first-flow sign as rate -> inf).
  *
- * Returns the rate as a PERCENT (e.g. 12.5 means 12.5 % / year). Returns 0
- * when there are fewer than 2 cashflows or no sign change exists in the
- * bracket (degenerate flows, e.g. all inflows).
+ * Returns the rate as a PERCENT (e.g. 12.5 means 12.5 % / year). When the flows
+ * span less than 365 days it returns the ABSOLUTE (non-annualised) return
+ * instead, the SEBI/AMFI convention for sub-year periods. Returns 0 when there
+ * are fewer than 2 cashflows or no sign change exists (degenerate flows, e.g.
+ * all inflows). Losses deeper than -99.99% a year solve toward -100%.
  *
  * Convention: positive amount = cash INTO the investment (buy / SIP),
  * negative amount = cash OUT (withdrawal / current value treated as an
  * outflow on the end date). This matches Excel's XIRR.
  */
 
-import { MS_PER_YEAR } from '@/lib/dateUtils'
+import { MS_PER_DAY, MS_PER_YEAR } from '@/lib/dateUtils'
 
 export interface CashFlow {
   date: Date
@@ -33,6 +35,25 @@ export interface CashFlow {
 
 const RATE_MIN = -0.9999
 const RATE_MAX = 10
+/** Below one year a rate is not annualised (a 10-day +30% would read as 1,451,279% p.a.). */
+export const MIN_ANNUALISED_SPAN_DAYS = 365
+
+/**
+ * Gain over total invested, for spans too short to annualise. The first flow is
+ * always a contribution, so flows sharing its sign are money in and the rest is
+ * money out, whichever sign convention the caller uses.
+ */
+function absoluteReturnPercent(cashFlows: readonly CashFlow[]): number {
+  const inSign = Math.sign(cashFlows[0].amount)
+  let invested = 0
+  let returned = 0
+  for (const cf of cashFlows) {
+    if (Math.sign(cf.amount) === inSign) invested += Math.abs(cf.amount)
+    else returned += Math.abs(cf.amount)
+  }
+  if (invested === 0 || returned === 0) return 0
+  return ((returned - invested) / invested) * 100
+}
 
 interface TimedCashFlow {
   years: number
@@ -94,6 +115,16 @@ function solveWithBisection(
   let highNpv = calculateNpv(flows, high)
   if (!Number.isFinite(lowNpv) || !Number.isFinite(highNpv)) return null
 
+  // A loss deeper than -99.99% a year has its root below RATE_MIN; walk the
+  // lower bound toward -100% so it solves instead of reporting a flat 0%.
+  while (lowNpv * highNpv > 0 && 1 + low > 1e-12) {
+    const nextLow = -1 + (1 + low) / 10
+    const nextLowNpv = calculateNpv(flows, nextLow)
+    if (!Number.isFinite(nextLowNpv)) break
+    low = nextLow
+    lowNpv = nextLowNpv
+  }
+
   while (lowNpv * highNpv > 0 && high < 1e9) {
     high *= 10
     highNpv = calculateNpv(flows, high)
@@ -124,6 +155,10 @@ export function calculateXIRR(
   tolerance = 1e-7,
 ): number {
   if (cashFlows.length < 2) return 0
+
+  const times = cashFlows.map((cf) => cf.date.getTime())
+  const spanDays = (Math.max(...times) - Math.min(...times)) / MS_PER_DAY
+  if (spanDays < MIN_ANNUALISED_SPAN_DAYS) return absoluteReturnPercent(cashFlows)
 
   const firstDate = cashFlows[0].date
   const flows = cashFlows.map((cf) => ({

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_GROWTH_ASSUMPTIONS, DEFAULT_SALARY_COMPONENTS } from '@/types/salary'
 
-import SalaryStructureSection from '../../SalaryStructureSection'
+import SalaryStructureSection from '@/pages/settings/sections/SalaryStructureSection'
 
 afterEach(cleanup)
 

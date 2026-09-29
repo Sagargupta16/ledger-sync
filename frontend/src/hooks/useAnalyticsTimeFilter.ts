@@ -86,6 +86,12 @@ function isBounds(src: TimeFilterDateSource): src is { minDate?: string; maxDate
   return !!src && !Array.isArray(src)
 }
 
+/** A saved default the page does not offer (e.g. 'all_time') falls back to its first mode. */
+function allowedMode(mode: AnalyticsViewMode, availableModes: readonly AnalyticsViewMode[] | undefined) {
+  if (!availableModes?.length || availableModes.includes(mode)) return mode
+  return availableModes[0]
+}
+
 export function useAnalyticsTimeFilter(
   transactions: TimeFilterDateSource,
   options?: UseAnalyticsTimeFilterOptions,
@@ -96,9 +102,11 @@ export function useAnalyticsTimeFilter(
   const earningStartDate = usePreferencesStore((s) => s.earningStartDate)
   const useEarningStartDate = usePreferencesStore((s) => s.useEarningStartDate)
 
-  const defaultMode =
+  const defaultMode = allowedMode(
     options?.defaultViewMode ??
-    ((displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy')
+      ((displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'),
+    options?.availableModes,
+  )
 
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(defaultMode)
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
@@ -119,7 +127,7 @@ export function useAnalyticsTimeFilter(
     setSyncedFsm(fiscalYearStartMonth)
     setCurrentFY(getCurrentFY(fiscalYearStartMonth))
     if (!options?.defaultViewMode && displayPreferences.defaultTimeRange) {
-      setViewMode(displayPreferences.defaultTimeRange as AnalyticsViewMode)
+      setViewMode(allowedMode(displayPreferences.defaultTimeRange as AnalyticsViewMode, options?.availableModes))
     }
   }
 

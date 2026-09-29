@@ -23,7 +23,12 @@ export function useUpdateTransactionTags() {
       // Fire-and-forget: invalidateQueries resolves even if a refetch fails
       // (query-core swallows it), and the tag write itself surfaces via the
       // global MutationCache toast.
-      void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      //
+      // Not the whole `['transactions']` prefix: its main entry is the full
+      // ledger from `/transactions/all`, which serializes every row with an
+      // empty `tags` list, so a tag write cannot change it and invalidating it
+      // re-downloaded ~2.9 MB per tag edit. The paginated reads carry tags.
+      void queryClient.invalidateQueries({ queryKey: ['transactions', 'recent'] })
       void queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
       void queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
     },

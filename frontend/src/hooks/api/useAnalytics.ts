@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { analyticsService } from '@/services/api/analytics'
 import { calculationsApi } from '@/services/api/calculations'
@@ -82,6 +83,37 @@ export const dataDateRangeOptions = () =>
     ...STABLE,
   })
 
+/**
+ * `/income-analysis` for a window. The key carries every param the request
+ * sends, cashback list included, because staleTime is Infinity. The family name
+ * matches the Income page's key so preference invalidation reaches both.
+ */
+export const incomeAnalysisOptions = (params: {
+  start_date?: string
+  end_date?: string
+  cashback_categories: string[]
+}) =>
+  queryOptions({
+    queryKey: ['income-analysis', params] as const,
+    queryFn: async () => (await calculationsApi.getIncomeAnalysis(params)).data,
+    ...STABLE,
+  })
+
+/**
+ * Daily income sums per (category, subcategory): the evidence
+ * `resolveEarningStart` needs, without the full ledger. Same key and request as
+ * the Income page's evidence query, so the two share one cache entry. A day's
+ * sum is positive exactly when one of its rows is (amounts are stored >= 0), so
+ * the inferred start date matches the row-level result.
+ */
+export const earningStartEvidenceOptions = () =>
+  queryOptions({
+    queryKey: ['earning-start-evidence'] as const,
+    queryFn: async () =>
+      (await calculationsApi.getCategoryDailySeries({ transaction_type: 'income' })).data.data,
+    staleTime: Infinity,
+  })
+
 export const masterCategoriesOptions = () =>
   queryOptions({
     queryKey: ['calculations', 'master-categories'] as const,
@@ -119,6 +151,15 @@ export const useDataDateRange = () => {
     isError: query.isError,
     refetch: query.refetch,
   }
+}
+/**
+ * Referentially stable `{ minDate, maxDate }` for `useAnalyticsTimeFilter(bounds)`.
+ * Same non-deleted, non-excluded rows `/transactions/all` returns, so the bounds
+ * equal the min/max of the ledger array without sorting every row's date.
+ */
+export const useDataDateBounds = () => {
+  const { minDate, maxDate } = useDataDateRange()
+  return useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
 }
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())
 export const useIncomeFacets = () => useQuery(incomeFacetsOptions())

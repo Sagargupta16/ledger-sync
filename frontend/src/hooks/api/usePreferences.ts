@@ -8,17 +8,7 @@ import {
   preferencesService,
   type UserPreferences,
   type UserPreferencesUpdate,
-  type FiscalYearConfig,
-  type EssentialCategoriesConfig,
-  type InvestmentMappingsConfig,
-  type IncomeSourcesConfig,
-  type BudgetDefaultsConfig,
-  type DisplayPreferencesConfig,
   type AnomalySettingsConfig,
-  type RecurringSettingsConfig,
-  type SalaryStructureConfig,
-  type RsuGrantsConfig,
-  type GrowthAssumptionsConfig,
 } from '@/services/api/preferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { useAuthStore } from '@/store/authStore'
@@ -42,12 +32,31 @@ const PREFERENCE_DEPENDENTS = new Set([
   'categorization-rules',
 ])
 
-/** Mark every affected family stale, including inactive pages and filter variants. */
-export function invalidatePreferenceDependents(client: QueryClient, includePreferences = true) {
+/**
+ * The full-ledger family (`['transactions', ...]`, ~2.9 MB for `/transactions/all`).
+ * Of all preferences, only `excluded_accounts` changes what those endpoints
+ * return (`_base_transaction_query` in backend `api/transactions.py`), so a
+ * save that leaves it untouched must not force the whole ledger to re-download.
+ */
+const LEDGER_KEY = 'transactions'
+
+/**
+ * Mark every affected family stale, including inactive pages and filter variants.
+ *
+ * `includeLedger` defaults to true because callers such as rule application
+ * rewrite transaction categories; pass false only when the write provably
+ * cannot change ledger rows (no `excluded_accounts` change).
+ */
+export function invalidatePreferenceDependents(
+  client: QueryClient,
+  includePreferences = true,
+  includeLedger = true,
+) {
   return client.invalidateQueries({
     predicate: ({ queryKey }) =>
       typeof queryKey[0] === 'string' &&
-      (PREFERENCE_DEPENDENTS.has(queryKey[0]) || (includePreferences && queryKey[0] === 'preferences')),
+      ((PREFERENCE_DEPENDENTS.has(queryKey[0]) && (includeLedger || queryKey[0] !== LEDGER_KEY)) ||
+        (includePreferences && queryKey[0] === 'preferences')),
   })
 }
 
@@ -109,7 +118,11 @@ export function usePreferences() {
 /**
  * Update preferences (partial update)
  */
-function usePreferenceMutation<T>(save: (config: T) => Promise<UserPreferences>) {
+function usePreferenceMutation<T>(
+  save: (config: T) => Promise<UserPreferences>,
+  /** Whether this write can change the ledger rows (see `LEDGER_KEY`). */
+  touchesLedger: (config: T) => boolean,
+) {
   const queryClient = useQueryClient()
   const sessionSignal = getSessionSignal()
 
@@ -120,66 +133,29 @@ function usePreferenceMutation<T>(save: (config: T) => Promise<UserPreferences>)
       return save(config)
     },
     onMutate: () => sessionSignal,
-    onSuccess: async (data, _variables, signal) => {
+    onSuccess: async (data, variables, signal) => {
       if (!signal || !isCurrentSession(signal)) return
       await cachePreferences(queryClient, data, signal)
-      void invalidatePreferenceDependents(queryClient, false)
+      void invalidatePreferenceDependents(queryClient, false, touchesLedger(variables))
     },
   })
 }
 
 export function useUpdatePreferences() {
-  return usePreferenceMutation<UserPreferencesUpdate>((updates) => preferencesService.updatePreferences(updates))
+  return usePreferenceMutation<UserPreferencesUpdate>(
+    (updates) => preferencesService.updatePreferences(updates),
+    (updates) => 'excluded_accounts' in updates,
+  )
 }
 
 /**
  * Reset preferences to defaults
  */
 export function useResetPreferences() {
-  return usePreferenceMutation<void>(() => preferencesService.resetPreferences())
-}
-
-// Section-specific mutations share cache publication and invalidation.
-export function useUpdateFiscalYear() {
-  return usePreferenceMutation<FiscalYearConfig>(preferencesService.updateFiscalYear)
-}
-
-export function useUpdateEssentialCategories() {
-  return usePreferenceMutation<EssentialCategoriesConfig>(preferencesService.updateEssentialCategories)
-}
-
-export function useUpdateInvestmentMappings() {
-  return usePreferenceMutation<InvestmentMappingsConfig>(preferencesService.updateInvestmentMappings)
-}
-
-export function useUpdateIncomeSources() {
-  return usePreferenceMutation<IncomeSourcesConfig>(preferencesService.updateIncomeSources)
-}
-
-export function useUpdateBudgetDefaults() {
-  return usePreferenceMutation<BudgetDefaultsConfig>(preferencesService.updateBudgetDefaults)
-}
-
-export function useUpdateDisplayPreferences() {
-  return usePreferenceMutation<DisplayPreferencesConfig>(preferencesService.updateDisplayPreferences)
+  // A reset may clear excluded_accounts, so the ledger is always refreshed.
+  return usePreferenceMutation<void>(() => preferencesService.resetPreferences(), () => true)
 }
 
 export function useUpdateAnomalySettings() {
-  return usePreferenceMutation<AnomalySettingsConfig>(preferencesService.updateAnomalySettings)
-}
-
-export function useUpdateRecurringSettings() {
-  return usePreferenceMutation<RecurringSettingsConfig>(preferencesService.updateRecurringSettings)
-}
-
-export function useUpdateSalaryStructure() {
-  return usePreferenceMutation<SalaryStructureConfig>(preferencesService.updateSalaryStructure)
-}
-
-export function useUpdateRsuGrants() {
-  return usePreferenceMutation<RsuGrantsConfig>(preferencesService.updateRsuGrants)
-}
-
-export function useUpdateGrowthAssumptions() {
-  return usePreferenceMutation<GrowthAssumptionsConfig>(preferencesService.updateGrowthAssumptions)
+  return usePreferenceMutation<AnomalySettingsConfig>(preferencesService.updateAnomalySettings, () => false)
 }

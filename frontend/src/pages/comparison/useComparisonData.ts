@@ -62,12 +62,22 @@ export function useComparisonData() {
     () => getAvailableFYs(transactions, fiscalYearStartMonth),
     [transactions, fiscalYearStartMonth],
   )
-  const [fyA, setFyA] = useState(() => {
+  // Keep '' until the user picks, and derive the default from the LOADED
+  // options (as the month selectors do). A useState initialiser runs on the
+  // first render, before the ledger and the fiscal-year preference arrive, so
+  // both sides froze on the current FY with an April start and every delta read 0.
+  const defaultFYs = useMemo(() => {
     const curr = getCurrentFY(fiscalYearStartMonth)
     const idx = fyOptions.indexOf(curr)
-    return fyOptions[idx + 1] || fyOptions.at(-1) || curr
-  })
-  const [fyB, setFyB] = useState(() => getCurrentFY(fiscalYearStartMonth))
+    const b = idx === -1 ? fyOptions[0] || curr : curr
+    const a = idx === -1 ? fyOptions[1] || fyOptions.at(-1) || curr : fyOptions[idx + 1] || fyOptions.at(-1) || curr
+    return { a, b }
+  }, [fyOptions, fiscalYearStartMonth])
+  const [fyAChoice, setFyA] = useState('')
+  const [fyBChoice, setFyB] = useState('')
+  // A pick made under a different fiscal-year start is not a valid label now.
+  const fyA = fyOptions.includes(fyAChoice) ? fyAChoice : defaultFYs.a
+  const fyB = fyOptions.includes(fyBChoice) ? fyBChoice : defaultFYs.b
 
   // Build period summaries
   const buildSummary = useMemo(() => {

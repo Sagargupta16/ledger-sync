@@ -156,7 +156,8 @@ class TestOAuthIdentity:
             provider="google",
             provider_id="same-subject",
         )
-        token_stub.assert_called_once_with(test_user.id, test_user.email, test_user.token_version)
+        token_stub.assert_called_once()
+        assert token_stub.call_args.args == (test_user.id, test_user.email, test_user.token_version)
         assert test_db_session.query(User).count() == 1
 
     def test_missing_subject_cannot_link_a_legacy_account(

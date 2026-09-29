@@ -15,6 +15,8 @@ down_revision: str | None = "identity_constraints_2026"
 branch_labels: str | None = None
 depends_on: str | None = None
 
+_SUBCATEGORY_NULL = "subcategory IS NULL"
+_SUBCATEGORY_NOT_NULL = "subcategory IS NOT NULL"
 _BUSINESS_KEYS = {
     "budgets": ("user_id", "category", "subcategory"),
     "import_logs": ("user_id", "file_hash"),
@@ -185,15 +187,15 @@ def _add_business_keys() -> None:
             "uq_budget_user_category_null",
             ["user_id", "category"],
             unique=True,
-            sqlite_where=sa.text("subcategory IS NULL"),
-            postgresql_where=sa.text("subcategory IS NULL"),
+            sqlite_where=sa.text(_SUBCATEGORY_NULL),
+            postgresql_where=sa.text(_SUBCATEGORY_NULL),
         )
         batch.create_index(
             "uq_budget_user_category_subcategory",
             ["user_id", "category", "subcategory"],
             unique=True,
-            sqlite_where=sa.text("subcategory IS NOT NULL"),
-            postgresql_where=sa.text("subcategory IS NOT NULL"),
+            sqlite_where=sa.text(_SUBCATEGORY_NOT_NULL),
+            postgresql_where=sa.text(_SUBCATEGORY_NOT_NULL),
         )
 
     for name, table, columns in (
@@ -212,16 +214,16 @@ def _add_business_keys() -> None:
         "category_trends",
         ["user_id", "period_key", "category", "transaction_type"],
         unique=True,
-        sqlite_where=sa.text("subcategory IS NULL"),
-        postgresql_where=sa.text("subcategory IS NULL"),
+        sqlite_where=sa.text(_SUBCATEGORY_NULL),
+        postgresql_where=sa.text(_SUBCATEGORY_NULL),
     )
     op.create_index(
         "uq_category_trends_user_scope_subcategory",
         "category_trends",
         ["user_id", "period_key", "category", "subcategory", "transaction_type"],
         unique=True,
-        sqlite_where=sa.text("subcategory IS NOT NULL"),
-        postgresql_where=sa.text("subcategory IS NOT NULL"),
+        sqlite_where=sa.text(_SUBCATEGORY_NOT_NULL),
+        postgresql_where=sa.text(_SUBCATEGORY_NOT_NULL),
     )
 
 

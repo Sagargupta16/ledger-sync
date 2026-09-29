@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.db.models import AccountType, RecurringTransaction
 from ledger_sync.services.account_settings import (
@@ -63,7 +64,7 @@ def get_closed_accounts(current_user: CurrentUser, db: DatabaseSession) -> list[
     return get_closed_account_names(db, current_user.id)
 
 
-@router.put("/status")
+@router.put("/status", responses={422: {"description": "Validation error"}})
 def set_account_status(
     body: AccountStatusUpdate, current_user: CurrentUser, db: DatabaseSession
 ) -> dict[str, Any]:
@@ -87,6 +88,8 @@ def set_account_status(
     recurring_query = db.query(RecurringTransaction).filter(
         RecurringTransaction.user_id == current_user.id,
         RecurringTransaction.account.in_(matching_names),
+        # Tombstones of user-deleted detections are inactive + confirmed; never revive them.
+        RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
     )
     if body.is_closed:
         updated_recurring = recurring_query.filter(RecurringTransaction.is_active.is_(True)).update(
@@ -103,7 +106,7 @@ def set_account_status(
     return {"account_name": account.name, "is_closed": account.is_closed, "status": "success"}
 
 
-@router.get("/{account_name}")
+@router.get("/{account_name}", responses={422: {"description": "Validation error"}})
 def get_classification(
     account_name: str, current_user: CurrentUser, db: DatabaseSession
 ) -> dict[str, Any]:
@@ -143,7 +146,7 @@ def create_or_update_classification(
     }
 
 
-@router.delete("/{account_name}")
+@router.delete("/{account_name}", responses={422: {"description": "Validation error"}})
 def delete_classification(
     account_name: str, current_user: CurrentUser, db: DatabaseSession
 ) -> dict[str, Any]:

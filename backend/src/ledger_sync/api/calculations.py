@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import case, func
+from sqlalchemy.orm import Query as SAQuery
 
 from ledger_sync.api.calculations_helpers import (
     _build_category_analysis,
@@ -12,15 +13,13 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_trends,
     _calculate_expense_averages,
     _compute_account_statistics,
-    _compute_quick_insights,
     _find_unusual_spending,
     _format_largest_transaction,
-    _process_regular_transactions,
-    _process_transfer_transactions,
     _resolve_transaction_type,
     get_transactions,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.expense_class import capital_loss_sql_filter
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
     capital_loss_keys_for,
@@ -37,11 +36,14 @@ from ledger_sync.db.models import (
     MonthlySummary,
     Transaction,
     TransactionType,
+    User,
 )
 from ledger_sync.services.calculation_service import (
+    account_balances,
     category_monthly_history,
     income_analysis,
     parse_month_keys,
+    quick_insights,
 )
 
 router = APIRouter(prefix="/api/calculations", tags=["calculations"])
@@ -52,6 +54,26 @@ OptionalEndDate = Annotated[datetime | None, Query()]
 OptionalTransactionType = Annotated[
     str | None, Query(description="Filter by type: Income or Expense")
 ]
+
+INVALID_TRANSACTION_TYPE_RESPONSE: dict[int | str, dict[str, Any]] = {
+    422: {"description": "transaction_type is not 'income' or 'expense'"},
+}
+
+
+def _without_capital_losses(
+    query: SAQuery[Transaction], user: User, tx_type: TransactionType
+) -> SAQuery[Transaction]:
+    """Drop the user's classified realised-loss rows from an EXPENSE query.
+
+    Keeps the date-filtered paths in agreement with ``CategoryTrend`` (and the
+    no-date fast path built from it), which never counts a realised loss as a
+    spending category. Income queries and users who classified nothing are
+    returned unchanged.
+    """
+    if tx_type != TransactionType.EXPENSE:
+        return query
+    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
+    return query if not_a_loss is None else query.filter(not_a_loss)
 
 
 @router.get("/categories/master")
@@ -346,7 +368,7 @@ def get_yearly_aggregation(
     return yearly_data
 
 
-@router.get("/category-breakdown")
+@router.get("/category-breakdown", responses=INVALID_TRANSACTION_TYPE_RESPONSE)
 def get_category_breakdown(
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -392,6 +414,7 @@ def get_category_breakdown(
     query = build_transaction_query(db, current_user, start_date, end_date).filter(
         Transaction.type == tx_type
     )
+    query = _without_capital_losses(query, current_user, tx_type)
 
     base = query.subquery()
     cat_col = func.coalesce(base.c.category, "Uncategorized")
@@ -418,14 +441,12 @@ def get_account_balances(
     start_date: OptionalStartDate = None,
     end_date: OptionalEndDate = None,
 ) -> dict[str, Any]:
-    """Calculate current balance for each account including transfers."""
-    transactions = get_transactions(db, current_user, start_date, end_date)
+    """Calculate current balance for each account including transfers.
 
-    account_balances: dict[str, dict[str, Any]] = {}
-    _process_regular_transactions(transactions, account_balances)
-    _process_transfer_transactions(transactions, account_balances)
-
-    return _compute_account_statistics(account_balances)
+    Aggregated in SQL (income/expense by ``account``, transfers by
+    ``from_account`` and ``to_account``) instead of hydrating every row.
+    """
+    return _compute_account_statistics(account_balances(db, current_user, start_date, end_date))
 
 
 @router.get("/insights")
@@ -450,7 +471,7 @@ def get_financial_insights(
     most_frequent = max(category_counts.items(), key=lambda x: x[1]) if category_counts else ("", 0)
 
     average_daily_expense, average_monthly_expense = _calculate_expense_averages(
-        total_expenses, start_date, end_date
+        total_expenses, start_date, end_date, [tx.date for tx in transactions]
     )
     savings_rate = ((total_income - total_expenses) / total_income * 100) if total_income > 0 else 0
     largest = max(expenses, key=lambda tx: float(tx.amount)) if expenses else None
@@ -476,7 +497,10 @@ def get_financial_insights(
     }
 
 
-@router.get("/category-monthly-history")
+@router.get(
+    "/category-monthly-history",
+    responses={422: {"description": "Invalid month keys or transaction_type"}},
+)
 def get_category_monthly_history(
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -606,7 +630,7 @@ def get_income_analysis(
     )
 
 
-@router.get("/category-daily-series")
+@router.get("/category-daily-series", responses=INVALID_TRANSACTION_TYPE_RESPONSE)
 def get_category_daily_series(
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -628,6 +652,7 @@ def get_category_daily_series(
     query = build_transaction_query(db, current_user, start_date, end_date).filter(
         Transaction.type == tx_type
     )
+    query = _without_capital_losses(query, current_user, tx_type)
     if category:
         query = query.filter(Transaction.category == category)
 
@@ -675,10 +700,10 @@ def get_quick_insights(
     transfers, top income source, and most-expensive month -- the values the
     Dashboard band previously computed client-side over the full ledger.
     Income/expense totals and category breakdown stay on their existing
-    rollup-backed endpoints (``/totals``, ``/category-breakdown``).
+    rollup-backed endpoints (``/totals``, ``/category-breakdown``). Computed
+    from SQL aggregates; the median reads only the middle amounts.
     """
-    transactions = get_transactions(db, current_user, start_date, end_date)
-    return _compute_quick_insights(transactions)
+    return quick_insights(db, current_user, start_date, end_date)
 
 
 @router.get("/daily-net-worth")
@@ -768,7 +793,7 @@ def get_daily_net_worth(
     }
 
 
-@router.get("/top-categories")
+@router.get("/top-categories", responses=INVALID_TRANSACTION_TYPE_RESPONSE)
 def get_top_categories(
     current_user: CurrentUser,
     db: DatabaseSession,
@@ -788,6 +813,7 @@ def get_top_categories(
     query = build_transaction_query(db, current_user, start_date, end_date).filter(
         Transaction.type == tx_type
     )
+    query = _without_capital_losses(query, current_user, tx_type)
 
     base = query.subquery()
     cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")

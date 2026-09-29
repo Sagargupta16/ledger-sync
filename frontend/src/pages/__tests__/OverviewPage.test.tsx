@@ -24,6 +24,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  categoryBreakdownOptions,
+  dataDateRangeOptions,
+  earningStartEvidenceOptions,
+  incomeAnalysisOptions,
   monthlyAggregationOptions,
   recentTransactionsOptions,
   totalsOptions,
@@ -34,6 +38,7 @@ import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import type { Budget, FinancialGoal } from '@/services/api/analyticsV2'
 import type { MonthlyAggregation, TotalsData } from '@/services/api/calculations'
 import { useAuthStore } from '@/store/authStore'
+import { resolveIncomeClassification } from '@/store/preferencesStore'
 import type { Transaction, User } from '@/types'
 
 import OverviewPage from '../OverviewPage'
@@ -150,6 +155,28 @@ interface OverviewFixture {
   goals?: FinancialGoal[]
 }
 
+/** Seed the per-window category aggregates the summary reads for `range`. */
+function seedCategoryAggregates(
+  qc: QueryClient,
+  range: { start_date?: string; end_date?: string },
+  incomeByCategory: Record<string, number> = {},
+) {
+  const preferences = qc.getQueryData<ReturnType<typeof generateDemoPreferences>>(PREFERENCES_KEY)
+  const cashbackCategories = preferences ? resolveIncomeClassification(preferences).nonTaxable : []
+  qc.setQueryData(incomeAnalysisOptions({ ...range, cashback_categories: cashbackCategories }).queryKey, {
+    total_income: Object.values(incomeByCategory).reduce((sum, v) => sum + v, 0),
+    category_breakdown: incomeByCategory,
+    monthly_data: [],
+    cashbacks_total: 0,
+    peak_income: 0,
+    growth_rate: 0,
+  })
+  qc.setQueryData(categoryBreakdownOptions({ transaction_type: 'expense', ...range }).queryKey, {
+    categories: {},
+    total: 0,
+  })
+}
+
 function renderOverview(
   monthly: MonthlyAggregation,
   {
@@ -165,7 +192,18 @@ function renderOverview(
     token_type: 'bearer',
   })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  qc.setQueryData(PREFERENCES_KEY, { ...generateDemoPreferences(), id: GOAL_OWNER.id })
+  const preferences = { ...generateDemoPreferences(), id: GOAL_OWNER.id }
+  qc.setQueryData(PREFERENCES_KEY, preferences)
+  // The summary reads SQL aggregates, not the ledger: seed each one from the
+  // same fixture rows so the page sees one consistent ledger.
+  const dates = transactions.map((t) => t.date.slice(0, 10)).sort((a, b) => a.localeCompare(b))
+  qc.setQueryData(dataDateRangeOptions().queryKey, { min_date: dates[0] ?? null, max_date: dates.at(-1) ?? null })
+  const incomeByCategory: Record<string, number> = {}
+  for (const t of transactions) {
+    if (t.type === 'Income') incomeByCategory[t.category] = (incomeByCategory[t.category] ?? 0) + t.amount
+  }
+  seedCategoryAggregates(qc, ALL_TIME, incomeByCategory)
+  qc.setQueryData(earningStartEvidenceOptions().queryKey, [])
   qc.setQueryData(totalsOptions(ALL_TIME).queryKey, totals)
   qc.setQueryData(monthlyAggregationOptions(ALL_TIME).queryKey, monthly)
   qc.setQueryData(recentTransactionsOptions(5).queryKey, [])
@@ -240,6 +278,7 @@ describe('OverviewPage empty states and period semantics', () => {
     const { queryClient } = renderOverview(THROUGH_JUNE)
     queryClient.setQueryData(totalsOptions(julyToDate).queryKey, EMPTY_TOTALS)
     queryClient.setQueryData(monthlyAggregationOptions(julyToDate).queryKey, {})
+    seedCategoryAggregates(queryClient, julyToDate)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Monthly' }))
 
@@ -273,6 +312,7 @@ describe('OverviewPage empty states and period semantics', () => {
     })
     queryClient.setQueryData(totalsOptions(yearToDate).queryKey, TOTALS)
     queryClient.setQueryData(monthlyAggregationOptions(yearToDate).queryKey, THROUGH_JUNE)
+    seedCategoryAggregates(queryClient, yearToDate, { Salary: 120_000 })
 
     fireEvent.click(screen.getByRole('tab', { name: 'Yearly' }))
 

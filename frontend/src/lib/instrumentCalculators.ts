@@ -123,7 +123,8 @@ export function projectPPF(
 }
 
 /**
- * EPF projection with monthly compounding.
+ * EPF projection: interest accrues monthly on the running balance and is
+ * credited annually (EPFO practice), not compounded monthly.
  *
  * The monthly inflow into the EPF corpus is the employee share (12% statutory,
  * higher with VPF) plus the employer's EPF share, which is 12% of basic minus
@@ -155,10 +156,15 @@ export function projectEPF(
   const yearByYear: YearProjection[] = []
 
   for (let y = 1; y <= years; y++) {
+    // EPFO accrues simple interest monthly on the running balance and credits
+    // it once, at FY end, so interest does not compound within the year.
+    let accruedInterest = 0
     for (let m = 0; m < 12; m++) {
       totalContributed += monthlyContribution
-      balance = (balance + monthlyContribution) * (1 + monthlyRate)
+      balance += monthlyContribution
+      accruedInterest += balance * monthlyRate
     }
+    balance += accruedInterest
     yearByYear.push({
       year: y,
       contributed: Math.round(totalContributed),
@@ -225,7 +231,9 @@ export function projectNPS(params: NPSParams): ProjectionResult {
     govt_bond: govtReturn,
   })
 
-  const monthlyRate = weightedReturn / 12 / 100
+  // The weighted return is an annual CAGR, so the equivalent monthly rate is
+  // its 12th root; r/12 compounded monthly would overstate it (9.05% -> 9.44%).
+  const monthlyRate = (1 + weightedReturn / 100) ** (1 / 12) - 1
 
   let balance = currentBalance
   let totalContributed = currentBalance

@@ -187,7 +187,7 @@ def test_rule_collapsed_source_duplicates_reorder_without_changing_owner_or_iden
     assert {row.transaction_id: row.source_fingerprint for row in rows} == before
     assert all(row.category == "Same result" and not row.is_deleted for row in rows)
     test_db_session.refresh(other_row)
-    assert (other_row.transaction_id, other_row.source_fingerprint) == other_identity
+    assert other_identity == (other_row.transaction_id, other_row.source_fingerprint)
     assert other_row.category == "First"
     assert not other_row.is_deleted
 
@@ -215,11 +215,10 @@ def test_legacy_rule_collapsed_distinct_sources_reject_atomically(
         sources.reverse()
     # This otherwise valid addition also must disappear on rejection.
     sources.insert(0, _source(amount="250.00", category="New category", note="new purchase"))
+    engine = SyncEngine(test_db_session, test_user.id)
 
     with pytest.raises(NormalizationError, match=r"(?i)ambiguous|collision|conflict"):
-        SyncEngine(test_db_session, test_user.id).import_rows(
-            sources, "reordered.csv", "0" * 64, force=True
-        )
+        engine.import_rows(sources, "reordered.csv", "0" * 64, force=True)
 
     test_db_session.expire_all()
     assert _snapshot(test_db_session) == before
@@ -280,10 +279,9 @@ def test_lone_conflicting_legacy_pipe_candidate_rejects_without_economic_fallbac
 
     # A single economic match is insufficient when its v1 key matches but
     # its actual category field boundaries contradict the only source row.
+    engine = SyncEngine(test_db_session, test_user.id)
     with pytest.raises(NormalizationError, match=r"(?i)ambiguous|collision|conflict"):
-        SyncEngine(test_db_session, test_user.id).import_rows(
-            [different], "different.csv", "0" * 64, force=True
-        )
+        engine.import_rows([different], "different.csv", "0" * 64, force=True)
 
     test_db_session.expire_all()
     assert _snapshot(test_db_session) == before

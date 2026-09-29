@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.ledger_math import investment_transfer_delta
 from ledger_sync.db.models import FYSummary, Transaction, TransactionType
 
@@ -150,7 +151,13 @@ class FYSummariesMixin(AnalyticsEngineBase):
         now: datetime,
     ) -> FYSummary:
         """Build an FYSummary ORM record from calculated data."""
-        is_complete = bool(data["end_date"] and data["end_date"] < now)
+        # ``end_date`` is midnight on the FY's last day. The FY is complete once
+        # the next FY has started on the IST calendar, not at 05:30 IST on its
+        # last day (when that UTC midnight passes).
+        end_date = data["end_date"]
+        is_complete = bool(
+            end_date and end_date.replace(tzinfo=None) + timedelta(days=1) <= ledger_now()
+        )
 
         return FYSummary(
             user_id=self.user_id,

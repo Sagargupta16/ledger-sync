@@ -116,7 +116,8 @@ def test_rejected_snapshot_releases_transaction_in_worker(two_user_client, monke
         event.remove(session, "after_soft_rollback", capture_rollback)
     assert response.status_code == (409 if rejection == "duplicate" else 400)
     assert not session.in_transaction()
-    assert lock_threads and rollback_threads
+    assert lock_threads
+    assert rollback_threads
     assert all(thread == lock_threads[0] for thread in rollback_threads)
     legacy = session.get(Transaction, legacy_id)
     assert legacy.source_fingerprint is None

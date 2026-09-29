@@ -87,7 +87,8 @@ def test_exact_legacy_reimport_preserves_primary_id_and_tags(test_db_session, te
     assert (result.inserted, result.deleted) == (0, 0)
     stored = test_db_session.scalars(select(Transaction)).one()
     assert stored.transaction_id == old_id
-    assert stored.source_fingerprint and stored.source_fingerprint != old_id
+    assert stored.source_fingerprint
+    assert stored.source_fingerprint != old_id
     assert stored.fingerprint_version == 2
     assert test_db_session.scalars(select(TransactionTag)).one().transaction_id == old_id
 
@@ -145,8 +146,10 @@ def test_ambiguous_legacy_adoption_rejects_without_moving_annotations(test_db_se
     _legacy(test_db_session, test_user.id, _source(category="Food"))
     _legacy(test_db_session, test_user.id, _source(category="Food"), occurrence=1)
     before = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    engine = SyncEngine(test_db_session, test_user.id)
+    source = _source()
     with pytest.raises(NormalizationError, match="ambiguous source identities"):
-        SyncEngine(test_db_session, test_user.id).import_rows([_source()], "new.csv", "new")
+        engine.import_rows([source], "new.csv", "new")
     assert set(test_db_session.scalars(select(Transaction.transaction_id))) == before
     assert set(test_db_session.scalars(select(TransactionTag.transaction_id))) == before
     assert all(not row.is_deleted for row in test_db_session.scalars(select(Transaction)))

@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
+from urllib.parse import quote
 
 import pytest
 from fastapi import FastAPI
@@ -114,8 +115,20 @@ def test_future_on_date_returns_400() -> None:
     assert resp.status_code == 400
 
 
-def test_invalid_symbol_returns_400() -> None:
+@pytest.mark.parametrize("bad", ["THISISWAYTOOLONGSYMBOLX", "AMZN%3Fx%3D1", "AM ZN", "..%2Fquote"])
+def test_invalid_symbol_is_rejected(bad: str) -> None:
     app = _make_app(_latest_payload(1.0))
-    resp = TestClient(app).get("/api/stock-price/THISISWAYTOOLONG")
+    resp = TestClient(app).get(f"/api/stock-price/{bad}")
 
-    assert resp.status_code == 400
+    assert resp.status_code in {404, 422}
+    app.state.http_client.get.assert_not_called()
+
+
+@pytest.mark.parametrize("symbol", ["RELIANCE.NS", "^NSEI", "USDINR=X", "BRK-B"])
+def test_real_ticker_shapes_are_quoted_into_the_path(symbol: str) -> None:
+    app = _make_app(_latest_payload(1.0))
+    resp = TestClient(app).get(f"/api/stock-price/{symbol}")
+
+    assert resp.status_code == 200
+    url = app.state.http_client.get.await_args.args[0]
+    assert url.rsplit("/", 1)[1] == quote(symbol.upper(), safe="")

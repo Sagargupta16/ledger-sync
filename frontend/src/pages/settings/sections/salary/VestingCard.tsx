@@ -5,7 +5,7 @@ import { formatCurrency, getActiveLocale } from '@/lib/formatters'
 import { grossVestingValue, hasLockedVestingPrice, netVestingQuantity, netVestingValue, vestingPrice } from '@/lib/rsuVesting'
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
-import { inputClass } from '../../styles'
+import { inputClass } from '@/pages/settings/styles'
 import { dateToFY } from './fyHelpers'
 import type { VestingEntryProps } from './vestingTableTypes'
 

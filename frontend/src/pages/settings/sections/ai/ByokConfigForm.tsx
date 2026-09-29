@@ -3,8 +3,8 @@ import { Eye, EyeOff } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import type { AIConfig } from '@/services/api/aiConfig'
 
-import { FieldHint, FieldLabel } from '../../sectionPrimitives'
-import { inputClass, selectClass } from '../../styles'
+import { FieldHint, FieldLabel } from '@/pages/settings/sectionPrimitives'
+import { inputClass, selectClass } from '@/pages/settings/styles'
 import { MODELS, PROVIDERS, isBedrock } from './aiConstants'
 
 interface ByokConfigFormProps {

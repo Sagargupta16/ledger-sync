@@ -16,7 +16,7 @@ import secrets
 import time
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -28,6 +28,7 @@ from starlette.concurrency import run_in_threadpool
 from ledger_sync.api.deps import DatabaseSession, HttpClient
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.config.settings import settings
+from ledger_sync.core.auth.tokens import legacy_signing_key, purpose_key
 from ledger_sync.db.models import AuditLog
 from ledger_sync.schemas.auth import (
     OAuthAuthorization,
@@ -68,15 +69,26 @@ _UPGRADE_MESSAGE = (
 )
 
 
+_STATE_KEY_INFO = b"ledger-sync/oauth-state/v1"
+
+
 def _state_secret() -> bytes:
-    """Key used to sign state tokens (the server's JWT secret)."""
-    return settings.jwt_secret_key.encode()
+    """Key used to sign state tokens (an HKDF subkey of the JWT secret)."""
+    return purpose_key(_STATE_KEY_INFO)
 
 
-def _sign_state(payload: str) -> str:
+def _sign_state(payload: str, key: bytes | None = None) -> str:
     """Return the base64url HMAC-SHA256 of a state payload."""
-    digest = hmac.new(_state_secret(), payload.encode(), hashlib.sha256).digest()
+    digest = hmac.new(key or _state_secret(), payload.encode(), hashlib.sha256).digest()
     return base64.urlsafe_b64encode(digest).decode().rstrip("=")
+
+
+def _state_signature_matches(signature: str, signed: str) -> bool:
+    """Accept the subkey, then the raw secret that signed pre-subkey attempts."""
+    return any(
+        hmac.compare_digest(signature, _sign_state(signed, key))
+        for key in (_state_secret(), legacy_signing_key())
+    )
 
 
 def _generate_state(provider: str, code_challenge: str, session: Session) -> str:
@@ -120,7 +132,6 @@ def _validate_state(body: OAuthCallbackRequest, provider: str, session: Session)
         ) from None
 
     payload = body.state.rsplit(".", 1)[0]
-    expected_signature = _sign_state(f"{payload}.{_get_redirect_uri(provider)}")
     expected_challenge = (
         base64.urlsafe_b64encode(hashlib.sha256(body.code_verifier.encode("ascii")).digest())
         .decode()
@@ -128,7 +139,7 @@ def _validate_state(body: OAuthCallbackRequest, provider: str, session: Session)
     )
     if (
         state_provider != provider
-        or not hmac.compare_digest(signature, expected_signature)
+        or not _state_signature_matches(signature, f"{payload}.{_get_redirect_uri(provider)}")
         or not hmac.compare_digest(challenge, expected_challenge)
     ):
         raise HTTPException(
@@ -220,6 +231,23 @@ def get_oauth_providers(
     ]
 
 
+def _frontend_restart_url(provider: str, query: str) -> str:
+    """Build the restart redirect only from the configured frontend and a known provider."""
+    if provider == "google":
+        known_provider = "google"
+    elif provider == "github":
+        known_provider = "github"
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown provider")
+    frontend = urlsplit(settings.frontend_url)
+    if frontend.scheme not in {"https", "http"} or not frontend.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sign-in redirect is not configured",
+        )
+    return f"{_get_redirect_uri(known_provider)}?{query}"
+
+
 @router.get("/v2/{provider}/restart")
 def restart_oauth(provider: Literal["google", "github"]) -> RedirectResponse:
     """Load the current frontend before starting a new browser-bound attempt."""
@@ -233,7 +261,7 @@ def restart_oauth(provider: Literal["google", "github"]) -> RedirectResponse:
         }
     )
     return RedirectResponse(
-        f"{_get_redirect_uri(provider)}?{query}",
+        _frontend_restart_url(provider, query),
         status_code=status.HTTP_303_SEE_OTHER,
         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
     )

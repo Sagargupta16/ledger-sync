@@ -8,7 +8,7 @@ import calendar
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ledger_sync.db.models import (
@@ -81,6 +81,41 @@ def _pct_change(current: float, previous: float) -> float:
     return ((current - previous) / abs(previous)) * 100
 
 
+def _top_categories(
+    db: Session,
+    user: User,
+    period_key: str,
+    txn_type: TransactionType,
+    limit: int = 5,
+) -> list[tuple[str, float, float]]:
+    """Top categories for one month as ``(category, amount, pct_of_type_total)``.
+
+    CategoryTrend holds one row per (category, subcategory), so subcategory rows
+    are summed per category before ranking; limiting raw rows could list one
+    category several times and push a larger category out of the top five.
+    """
+    amount = func.sum(CategoryTrend.total_amount)
+    rows = (
+        db.query(
+            CategoryTrend.category,
+            amount.label("amount"),
+            func.sum(CategoryTrend.pct_of_monthly_total).label("percentage"),
+        )
+        .filter(
+            and_(
+                CategoryTrend.user_id == user.id,
+                CategoryTrend.period_key == period_key,
+                CategoryTrend.transaction_type == txn_type,
+            )
+        )
+        .group_by(CategoryTrend.category)
+        .order_by(amount.desc(), CategoryTrend.category)
+        .limit(limit)
+        .all()
+    )
+    return [(row.category, float(row.amount), float(row.percentage)) for row in rows]
+
+
 def query_report_data(
     db: Session,
     user: User,
@@ -108,54 +143,25 @@ def query_report_data(
 
     total_income = float(summary.total_income) if summary else 0.0
     total_expenses = float(summary.total_expenses) if summary else 0.0
-    net_savings = total_income - total_expenses
+    # The row's own net_savings also nets off classified realised losses, so it
+    # agrees with the row's savings_rate (income - expenses alone does not).
+    net_savings = float(summary.net_savings) if summary else 0.0
     savings_rate = float(summary.savings_rate) if summary else 0.0
 
     # --- Top 5 expense categories ---
-    expense_trends = (
-        db.query(CategoryTrend)
-        .filter(
-            and_(
-                CategoryTrend.user_id == user.id,
-                CategoryTrend.period_key == period_key,
-                CategoryTrend.transaction_type == TransactionType.EXPENSE,
-            )
-        )
-        .order_by(CategoryTrend.total_amount.desc())
-        .limit(5)
-        .all()
-    )
-
     top_expense_categories = [
-        {
-            "category": trend.category,
-            "amount": float(trend.total_amount),
-            "percentage": float(trend.pct_of_monthly_total),
-        }
-        for trend in expense_trends
+        {"category": category, "amount": amount, "percentage": percentage}
+        for category, amount, percentage in _top_categories(
+            db, user, period_key, TransactionType.EXPENSE
+        )
     ]
 
     # --- Top 5 income sources ---
-    income_trends = (
-        db.query(CategoryTrend)
-        .filter(
-            and_(
-                CategoryTrend.user_id == user.id,
-                CategoryTrend.period_key == period_key,
-                CategoryTrend.transaction_type == TransactionType.INCOME,
-            )
-        )
-        .order_by(CategoryTrend.total_amount.desc())
-        .limit(5)
-        .all()
-    )
-
     top_income_sources = [
-        {
-            "category": trend.category,
-            "amount": float(trend.total_amount),
-        }
-        for trend in income_trends
+        {"category": category, "amount": amount}
+        for category, amount, _percentage in _top_categories(
+            db, user, period_key, TransactionType.INCOME
+        )
     ]
 
     # --- Previous month for comparison ---
@@ -175,7 +181,7 @@ def query_report_data(
 
     prev_income = float(prev_summary.total_income) if prev_summary else 0.0
     prev_expenses = float(prev_summary.total_expenses) if prev_summary else 0.0
-    prev_savings = prev_income - prev_expenses
+    prev_savings = float(prev_summary.net_savings) if prev_summary else 0.0
 
     comparison = {
         "prev_month_name": calendar.month_name[prev_month],

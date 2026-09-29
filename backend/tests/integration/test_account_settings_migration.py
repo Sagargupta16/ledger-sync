@@ -200,8 +200,10 @@ def test_backfill_retains_history_owners_aliases_and_legacy_sources(account_db):
         "BANK_ACCOUNTS",
         Decimal("987.65"),
     )
-    assert rows[2]["name"] == "New Wallet" and rows[2]["account_type"] is None
-    assert rows[2]["credit_limit"] == Decimal(0) and rows[2]["is_closed"] is False
+    assert rows[2]["name"] == "New Wallet"
+    assert rows[2]["account_type"] is None
+    assert rows[2]["credit_limit"] == Decimal(0)
+    assert rows[2]["is_closed"] is False
     for name in tables:
         assert connection.execute(queries[name]).all() == snapshots[name]
     assert (
@@ -305,8 +307,10 @@ def test_equivalent_classifications_preserve_closure_and_audit_timestamps(accoun
         .mappings()
         .one()
     )
-    assert card["is_closed"] is True and card["closed_date"] == late
-    assert card["created_at"] == early and card["updated_at"] == late
+    assert card["is_closed"] is True
+    assert card["closed_date"] == late
+    assert card["created_at"] == early
+    assert card["updated_at"] == late
     settings_only = (
         connection.execute(sa.select(accounts).where(accounts.c.name == "Settings Only"))
         .mappings()

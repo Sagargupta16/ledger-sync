@@ -1,6 +1,6 @@
 import axios, { AxiosHeaders, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { API_BASE_URL } from '@/constants'
-import { useAuthStore, getAccessToken, getRefreshToken } from '@/store/authStore'
+import { useAuthStore, adoptPersistedTokens, getAccessToken, getRefreshToken } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
 import { getDemoTransactions } from '@/lib/demo/seedDemoCache'
 import { assertCurrentSession, endSession, getSessionSignal, isCurrentSession } from '@/lib/session'
@@ -235,6 +235,8 @@ function refreshAccessToken(signal: AbortSignal): Promise<string> {
   assertCurrentSession(signal)
   if (pendingRefresh?.signal === signal) return pendingRefresh.promise
 
+  // Refresh tokens are single-use: start from the newest pair any tab stored.
+  adoptPersistedTokens()
   const refreshToken = getRefreshToken()
   if (!refreshToken) {
     endSession()

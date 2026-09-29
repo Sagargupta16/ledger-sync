@@ -79,10 +79,12 @@ describe('observed cash flow and forecast scope', () => {
       '2026-03': { income: 100_000, expense: 30_000, net_savings: 40_000 },
     }, APRIL_START)!
 
+    // Seeded from the 40k average expense with the -20%/month trend capped at
+    // -5% and halved: 40,000 x 0.975 = 39,000, so surplus 61,000.
     expect(result.forecast[0]).toMatchObject({
-      consumptionSurplus: 73_000,
-      lower: 66_468,
-      upper: 79_532,
+      consumptionSurplus: 61_000,
+      lower: 54_468,
+      upper: 67_532,
       rangeWidth: 13_064,
     })
   })

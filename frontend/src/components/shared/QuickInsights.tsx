@@ -108,8 +108,7 @@ function InsightCard({
   return (
     <motion.div
       {...reveal}
-      className="ledger-cell flex min-h-28 items-start gap-3 p-4"
-      style={{ flexBasis: '13rem', minWidth: 'min(100%, 13rem)' }}
+      className="ledger-cell flex min-h-28 min-w-[min(100%,13rem)] basis-52 items-start gap-3 p-4"
     >
       <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
         <item.icon className={`size-3.5 ${item.color}`} aria-hidden="true" />

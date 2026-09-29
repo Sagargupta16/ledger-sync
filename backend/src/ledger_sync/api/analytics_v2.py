@@ -10,8 +10,9 @@ thin facade that mounts them.
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics_freshness import lock_analytics_read
 from ledger_sync.api.analytics_freshness import router as freshness_router
@@ -22,7 +23,9 @@ from ledger_sync.api.analytics_v2_impl import (
     summaries_router,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import user_limiter
 from ledger_sync.core.analytics_engine import AnalyticsEngine
+from ledger_sync.db.models import User
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
@@ -39,9 +42,20 @@ router.include_router(freshness_router, dependencies=[Depends(lock_analytics_rea
     "/refresh",
     responses={500: {"description": "Analytics refresh failed"}},
 )
-def refresh_analytics(
+@user_limiter.limit("10/minute")
+def refresh_analytics_endpoint(
+    request: Request,  # required by slowapi
     current_user: CurrentUser,
     db: DatabaseSession,
+    force_full: bool = False,
+) -> dict[str, Any]:
+    """Refresh invalidated analytics; force_full also repairs current rollups."""
+    return refresh_analytics(current_user, db, force_full=force_full)
+
+
+def refresh_analytics(
+    current_user: User,
+    db: Session,
     force_full: bool = False,
 ) -> dict[str, Any]:
     """Refresh invalidated analytics; force_full also repairs current rollups.

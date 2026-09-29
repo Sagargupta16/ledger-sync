@@ -151,12 +151,11 @@ class Settings(BaseSettings):
             issues.append("CRITICAL: db_bootstrap_on_startup is only allowed in development.")
 
         # JWT secret must be explicitly configured in ANY non-development environment
-        if not self.jwt_secret_key:
-            if self.environment != "development":
-                issues.append(
-                    "CRITICAL: jwt_secret_key is not configured. "
-                    "Set LEDGER_SYNC_JWT_SECRET_KEY environment variable!"
-                )
+        if not self.jwt_secret_key and self.environment != "development":
+            issues.append(
+                "CRITICAL: jwt_secret_key is not configured. "
+                "Set LEDGER_SYNC_JWT_SECRET_KEY environment variable!"
+            )
 
         # JWT secret should be sufficiently long
         if self.jwt_secret_key and len(self.jwt_secret_key) < 32:

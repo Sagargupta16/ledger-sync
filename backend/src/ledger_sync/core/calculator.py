@@ -12,6 +12,7 @@ from decimal import Decimal
 from statistics import mean, pstdev
 from typing import Any
 
+from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.core.ledger_math import compute_account_balances
 from ledger_sync.db.models import Transaction, TransactionType
 
@@ -23,21 +24,59 @@ def _to_decimal(amount: float | str | Decimal) -> Decimal:
     return Decimal(str(amount))
 
 
-def calculate_totals(transactions: list[Transaction]) -> dict[str, float]:
-    """Calculate total income and expenses."""
+def _is_loss_row(t: Transaction, loss_keys: set[str] | None) -> bool:
+    """True for an EXPENSE row the user classified as a realised capital loss."""
+    if not loss_keys or t.type != TransactionType.EXPENSE:
+        return False
+    return is_capital_loss(t.category, t.subcategory, loss_keys)
+
+
+def exclude_capital_losses(
+    transactions: list[Transaction], loss_keys: set[str] | None
+) -> list[Transaction]:
+    """Drop classified realised capital losses, which are not spending.
+
+    Same rule as ``expense_sum_col(loss_keys=...)`` on the SQL paths. Returns
+    *transactions* unchanged when nothing is classified.
+    """
+    if not loss_keys:
+        return transactions
+    return [t for t in transactions if not _is_loss_row(t, loss_keys)]
+
+
+def calculate_totals(
+    transactions: list[Transaction], loss_keys: set[str] | None = None
+) -> dict[str, float]:
+    """Calculate total income and expenses.
+
+    With *loss_keys* (``capital_loss_keys_for``), classified realised losses
+    leave ``total_expenses`` for their own ``capital_losses`` figure, and
+    ``net_change`` still nets them off because the cash left. Without it the
+    result is unchanged.
+    """
     total_income = sum(
         (_to_decimal(t.amount) for t in transactions if t.type == TransactionType.INCOME),
         Decimal(0),
     )
-    total_expenses = sum(
-        (_to_decimal(t.amount) for t in transactions if t.type == TransactionType.EXPENSE),
+    capital_losses = sum(
+        (_to_decimal(t.amount) for t in transactions if _is_loss_row(t, loss_keys)),
         Decimal(0),
     )
-    return {
+    total_expenses = (
+        sum(
+            (_to_decimal(t.amount) for t in transactions if t.type == TransactionType.EXPENSE),
+            Decimal(0),
+        )
+        - capital_losses
+    )
+    totals = {
         "total_income": float(total_income),
         "total_expenses": float(total_expenses),
-        "net_change": float(total_income - total_expenses),
+        "net_change": float(total_income - total_expenses - capital_losses),
     }
+    if loss_keys is not None:
+        totals["capital_losses"] = float(capital_losses)
+    return totals
 
 
 def calculate_savings_rate(total_income: float, total_expenses: float) -> float:
@@ -76,29 +115,41 @@ def calculate_monthly_burn_rate(transactions: list[Transaction]) -> float:
     return float(total_spent / months_span) if months_span > 0 else 0.0
 
 
-def group_by_month(transactions: list[Transaction]) -> dict[str, dict[str, float]]:
-    """Group transactions by month with income/expense breakdown."""
+def group_by_month(
+    transactions: list[Transaction], loss_keys: set[str] | None = None
+) -> dict[str, dict[str, float]]:
+    """Group transactions by month with income/expense breakdown.
+
+    With *loss_keys*, each month also carries ``capital_losses`` (the shape of
+    ``analytics_helpers._get_sql_monthly_data``) and ``expenses`` excludes them.
+    """
     monthly_data: dict[str, dict[str, Decimal]] = defaultdict(
-        lambda: {"income": Decimal(0), "expenses": Decimal(0)},
+        lambda: {"income": Decimal(0), "expenses": Decimal(0), "capital_losses": Decimal(0)},
     )
     for t in transactions:
         month_key = t.date.strftime("%Y-%m")
         if t.type == TransactionType.INCOME:
             monthly_data[month_key]["income"] += _to_decimal(t.amount)
+        elif _is_loss_row(t, loss_keys):
+            monthly_data[month_key]["capital_losses"] += _to_decimal(t.amount)
         elif t.type == TransactionType.EXPENSE:
             monthly_data[month_key]["expenses"] += _to_decimal(t.amount)
 
-    return {
-        k: {"income": float(v["income"]), "expenses": float(v["expenses"])}
-        for k, v in monthly_data.items()
-    }
+    if loss_keys is None:
+        return {
+            k: {"income": float(v["income"]), "expenses": float(v["expenses"])}
+            for k, v in monthly_data.items()
+        }
+    return {k: {name: float(value) for name, value in v.items()} for k, v in monthly_data.items()}
 
 
-def group_by_category(transactions: list[Transaction]) -> dict[str, float]:
-    """Group expense transactions by category."""
+def group_by_category(
+    transactions: list[Transaction], loss_keys: set[str] | None = None
+) -> dict[str, float]:
+    """Group expense transactions by category, skipping classified capital losses."""
     category_totals: dict[str, Decimal] = defaultdict(Decimal)
     for t in transactions:
-        if t.type == TransactionType.EXPENSE:
+        if t.type == TransactionType.EXPENSE and not _is_loss_row(t, loss_keys):
             category_totals[t.category] += _to_decimal(t.amount)
     return {k: float(v) for k, v in category_totals.items()}
 
@@ -230,10 +281,14 @@ def calculate_spending_velocity(
 
     historical_daily = 0.0
     if historical_expenses:
-        hist_dates = [t.date for t in historical_expenses]
-        hist_days = (max(hist_dates) - min(hist_dates)).days + 1
+        # The historical window runs from the first expense up to the recent
+        # window, quiet trailing days included. Ending it at the last historical
+        # expense dropped those days and inflated the historical rate, which
+        # produced false "reduced spending" insights.
+        first_day = min(t.date for t in historical_expenses).date()
+        hist_days = max((recent_cutoff.date() - first_day).days, 1)
         hist_total = sum((_to_decimal(t.amount) for t in historical_expenses), Decimal(0))
-        historical_daily = float(hist_total / hist_days) if hist_days > 0 else 0.0
+        historical_daily = float(hist_total / hist_days)
 
     velocity_ratio = (recent_daily / historical_daily) if historical_daily > 0 else 0.0
     return {

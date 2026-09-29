@@ -7,9 +7,18 @@ import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { useBudgetStore } from '@/store/budgetStore'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { Button, Input } from '@/components/ui'
+import { ProgressBar } from '@/components/shared'
+import { colors } from '@/constants/colors'
 
-import { computeBudgetStatus, getStatusColor, getProgressColor } from './budgetUtils'
+import { computeBudgetStatus, getStatusColor, type BudgetStatusLevel } from './budgetUtils'
 import AddBudgetForm from './components/AddBudgetForm'
+
+const PROGRESS_COLORS: Record<BudgetStatusLevel, string> = {
+  safe: colors.app.green,
+  warning: colors.app.yellow,
+  danger: colors.app.orange,
+  exceeded: colors.app.red,
+}
 
 /** First/last day of the current calendar month as YYYY-MM-DD (local). */
 function currentMonthRange(): { start_date: string; end_date: string } {
@@ -227,12 +236,11 @@ export default function BudgetTracker() {
               </div>
 
               {/* Progress Bar */}
-              <div className="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
-                <div
-                  className={`h-full transition-colors duration-500 ${getProgressColor(budget.status)}`}
-                  style={{ width: `${Math.min(100, budget.percentage)}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={budget.percentage}
+                color={PROGRESS_COLORS[budget.status]}
+                className="mb-2"
+              />
 
               <div className="flex justify-between text-xs">
                 <span>Spent: {formatCurrency(budget.spent)}</span>
