@@ -73,8 +73,8 @@ export function useComparisonData() {
     const a = idx === -1 ? fyOptions[1] || fyOptions.at(-1) || curr : fyOptions[idx + 1] || fyOptions.at(-1) || curr
     return { a, b }
   }, [fyOptions, fiscalYearStartMonth])
-  const [fyAChoice, setFyA] = useState('')
-  const [fyBChoice, setFyB] = useState('')
+  const [fyAChoice, setFyAChoice] = useState('')
+  const [fyBChoice, setFyBChoice] = useState('')
   // A pick made under a different fiscal-year start is not a valid label now.
   const fyA = fyOptions.includes(fyAChoice) ? fyAChoice : defaultFYs.a
   const fyB = fyOptions.includes(fyBChoice) ? fyBChoice : defaultFYs.b
@@ -262,7 +262,7 @@ export function useComparisonData() {
     fyA, fyB,
     setMonthA, setMonthB,
     setYearA, setYearB,
-    setFyA, setFyB,
+    setFyA: setFyAChoice, setFyB: setFyBChoice,
     periodA, periodB, partialPeriod,
     expenseDeltas, incomeDeltas,
     distributionA, distributionB,

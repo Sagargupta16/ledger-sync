@@ -39,7 +39,7 @@ function contentSecurityPolicy(): Plugin {
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob: https:",
           "font-src 'self' data:",
-          `connect-src 'self' https:${apiOrigin.startsWith('http:') ? ` ${apiOrigin}` : ''}`,
+          ["connect-src 'self' https:", ...(apiOrigin.startsWith('http:') ? [apiOrigin] : [])].join(' '),
           "worker-src 'self'",
           "manifest-src 'self'",
           "object-src 'none'",

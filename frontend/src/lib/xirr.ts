@@ -105,33 +105,53 @@ function solveWithNewton(
   return null
 }
 
+interface RateBound {
+  rate: number
+  npv: number
+}
+
+/**
+ * A loss deeper than -99.99% a year has its root below RATE_MIN; walk the
+ * lower bound toward -100% so it solves instead of reporting a flat 0%.
+ */
+function extendLowerBound(flows: readonly TimedCashFlow[], low: RateBound, highNpv: number): RateBound {
+  let bound = low
+  while (bound.npv * highNpv > 0 && 1 + bound.rate > 1e-12) {
+    const rate = -1 + (1 + bound.rate) / 10
+    const npv = calculateNpv(flows, rate)
+    if (!Number.isFinite(npv)) break
+    bound = { rate, npv }
+  }
+  return bound
+}
+
+/** Grow the upper bound until the bracket changes sign; null when NPV stops being finite. */
+function extendUpperBound(flows: readonly TimedCashFlow[], high: RateBound, lowNpv: number): RateBound | null {
+  let bound = high
+  while (lowNpv * bound.npv > 0 && bound.rate < 1e9) {
+    const rate = bound.rate * 10
+    const npv = calculateNpv(flows, rate)
+    if (!Number.isFinite(npv)) return null
+    bound = { rate, npv }
+  }
+  return bound
+}
+
 function solveWithBisection(
   flows: readonly TimedCashFlow[],
   tolerance: number,
 ): number | null {
-  let low = RATE_MIN
-  let high = RATE_MAX
-  let lowNpv = calculateNpv(flows, low)
-  let highNpv = calculateNpv(flows, high)
-  if (!Number.isFinite(lowNpv) || !Number.isFinite(highNpv)) return null
+  const initialLowNpv = calculateNpv(flows, RATE_MIN)
+  const initialHighNpv = calculateNpv(flows, RATE_MAX)
+  if (!Number.isFinite(initialLowNpv) || !Number.isFinite(initialHighNpv)) return null
 
-  // A loss deeper than -99.99% a year has its root below RATE_MIN; walk the
-  // lower bound toward -100% so it solves instead of reporting a flat 0%.
-  while (lowNpv * highNpv > 0 && 1 + low > 1e-12) {
-    const nextLow = -1 + (1 + low) / 10
-    const nextLowNpv = calculateNpv(flows, nextLow)
-    if (!Number.isFinite(nextLowNpv)) break
-    low = nextLow
-    lowNpv = nextLowNpv
-  }
+  const lowBound = extendLowerBound(flows, { rate: RATE_MIN, npv: initialLowNpv }, initialHighNpv)
+  const highBound = extendUpperBound(flows, { rate: RATE_MAX, npv: initialHighNpv }, lowBound.npv)
+  if (highBound === null || lowBound.npv * highBound.npv > 0) return null
 
-  while (lowNpv * highNpv > 0 && high < 1e9) {
-    high *= 10
-    highNpv = calculateNpv(flows, high)
-    if (!Number.isFinite(highNpv)) return null
-  }
-  if (lowNpv * highNpv > 0) return null
-
+  let low = lowBound.rate
+  let lowNpv = lowBound.npv
+  let high = highBound.rate
   for (let iteration = 0; iteration < 200; iteration++) {
     const midpoint = (low + high) / 2
     const midpointNpv = calculateNpv(flows, midpoint)

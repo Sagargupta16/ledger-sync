@@ -134,15 +134,11 @@ export default function DashboardPage() {
   // Age of Money. With the classifications already loaded above, only transfers
   // that cross the spendable-cash boundary move money in or out of the FIFO
   // pool; a move between the user's own cash accounts changes nothing.
-  const ageOfMoney = useMemo(
-    () => filteredTransactions?.length
-      ? computeAgeOfMoney(
-          filteredTransactions,
-          accountClassifications ? spendableAccountTest(accountClassifications) : undefined,
-        )
-      : null,
-    [filteredTransactions, accountClassifications],
-  )
+  const ageOfMoney = useMemo(() => {
+    if (!filteredTransactions?.length) return null
+    const isSpendable = accountClassifications ? spendableAccountTest(accountClassifications) : undefined
+    return computeAgeOfMoney(filteredTransactions, isSpendable)
+  }, [filteredTransactions, accountClassifications])
   const daysOfBuffering = useMemo(() => {
     if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
       return null

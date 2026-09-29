@@ -287,7 +287,7 @@ def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:
     return get_closed_account_keys(session, user_id)
 
 
-def excluded_accounts_criteria(excluded: set[str]) -> tuple[ColumnElement[bool], ...]:
+def excluded_accounts_criteria(excluded: set[str]) -> list[ColumnElement[bool]]:
     """The WHERE clauses dropping *excluded* accounts; empty when nothing is excluded.
 
     Transfers store ``account = from_account``, so a check on ``account``
@@ -301,12 +301,12 @@ def excluded_accounts_criteria(excluded: set[str]) -> tuple[ColumnElement[bool],
     apply one predicate.
     """
     if not excluded:
-        return ()
-    return (
+        return []
+    return [
         Transaction.account.notin_(excluded),
         Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
         Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
-    )
+    ]
 
 
 def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:

@@ -17,6 +17,19 @@ import { assertCurrentSession } from '@/lib/session'
 import type { LocalRule } from './types'
 import { normalizeArray } from './helpers'
 
+/** True when a saved rule differs from its draft (or no longer exists on the server). */
+function ruleChanged(server: CategorizationRule | undefined, rule: LocalRule, sortOrder: number): boolean {
+  if (server === undefined) return true
+  return (
+    server.match_field !== rule.match_field ||
+    server.pattern !== rule.pattern ||
+    server.category !== rule.category ||
+    server.subcategory !== rule.subcategory ||
+    server.is_active !== rule.is_active ||
+    server.sort_order !== sortOrder
+  )
+}
+
 export async function settleWrites(writes: Promise<unknown>[]): Promise<void> {
   const results = await Promise.allSettled(writes)
   const failure = results.find((result) => result.status === 'rejected')
@@ -74,16 +87,9 @@ export async function syncCategorizationRules(
       }))
       return
     }
-    const server = serverById.get(rule.id)
-    const changed =
-      !server ||
-      server.match_field !== rule.match_field ||
-      server.pattern !== rule.pattern ||
-      server.category !== rule.category ||
-      server.subcategory !== rule.subcategory ||
-      server.is_active !== rule.is_active ||
-      server.sort_order !== idx
-    if (changed) ruleOps.push(categorizationRulesService.updateRule(rule.id, input))
+    if (ruleChanged(serverById.get(rule.id), rule, idx)) {
+      ruleOps.push(categorizationRulesService.updateRule(rule.id, input))
+    }
   })
   for (const server of serverRules) {
     if (!localIds.has(server.id)) ruleOps.push(categorizationRulesService.deleteRule(server.id))
