@@ -1,12 +1,13 @@
 [project]
 name = "ledger-sync"
-version = "2.24.1"
+version = "2.25.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "sqlalchemy>=2.0.51",
+    # <2.1: SQLAlchemy 2.1.1's order_by typing fails mypy (18 arg-type errors, 2026-09-29).
+    "sqlalchemy>=2.0.51,<2.1",
     "alembic>=1.18.4",
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",

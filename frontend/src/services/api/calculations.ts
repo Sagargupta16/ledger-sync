@@ -10,6 +10,12 @@ export interface MasterCategories {
 export interface TotalsData {
   total_income: number
   total_expenses: number
+  /**
+   * Classified realised losses held out of `total_expenses`
+   * (`_totals_payload` in backend `api/calculations.py`). Optional because the
+   * demo generator does not send it.
+   */
+  capital_losses?: number
   net_savings: number
   savings_rate: number
   transaction_count: number
@@ -107,6 +113,29 @@ export interface QuickInsightsData {
   most_expensive_month: { period: string; amount: number } | null
 }
 
+/** One day of `/daily-net-worth`: Income and Expense sums (transfers count as 0). */
+export interface DailyNetWorthDay {
+  date: string
+  income: number
+  expense: number
+}
+
+/** A running cash-flow point; `net_worth` is seeded with `opening_balance`. */
+export interface DailyNetWorthPoint extends DailyNetWorthDay {
+  net_worth: number
+}
+
+/**
+ * `GET /api/calculations/daily-net-worth` (`get_daily_net_worth` in backend
+ * `api/calculations.py`). Every day with a non-deleted, non-excluded row appears,
+ * transfer-only days included, and every Expense row counts (no loss split).
+ */
+export interface DailyNetWorthData {
+  daily_data: Record<string, DailyNetWorthDay>
+  cumulative_data: DailyNetWorthPoint[]
+  opening_balance: number
+}
+
 export const calculationsApi = {
   getMasterCategories: () =>
     apiClient.get<MasterCategories>('/api/calculations/categories/master'),
@@ -138,6 +167,10 @@ export const calculationsApi = {
   /** Every income (category, subcategory) bucket with its row count and sum. */
   getIncomeFacets: () =>
     apiClient.get<IncomeFacetsData>('/api/calculations/income-facets'),
+
+  /** Daily income/expense sums plus the running cash-flow series, oldest first. */
+  getDailyNetWorth: (params?: DateRangeParams) =>
+    apiClient.get<DailyNetWorthData>('/api/calculations/daily-net-worth', { params }),
 
   /** Min/max transaction date (YYYY-MM-DD) for time-filter nav bounds. */
   getDataDateRange: () =>

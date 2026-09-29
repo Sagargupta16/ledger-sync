@@ -1,6 +1,5 @@
 """Account authority, exact limits, identity retention and bulk access."""
 
-from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -8,6 +7,7 @@ from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.refresh import get_analytics_state, lock_analytics_user
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import AccountType, LedgerAccount, LedgerAccountAlias
 from ledger_sync.services.account_settings import (
     get_account,
@@ -54,7 +54,8 @@ def test_classification_and_closure_do_not_rewrite_transaction_snapshots(
     attach_ledger_dimensions(db, test_user.id, rows)
     before = [row.copy() for row in rows]
     account, changed = set_account_closed(db, test_user.id, "i̇bank", True)
-    assert changed and account.account_type is None
+    assert changed
+    assert account.account_type is None
     closed_date = account.closed_date
     account_id = account.id
     assert not set_account_closed(db, test_user.id, "İBANK", True)[1]
@@ -64,7 +65,8 @@ def test_classification_and_closure_do_not_rewrite_transaction_snapshots(
     assert get_classification_map(db, test_user.id) == {"İBANK": "Bank Accounts"}
     assert set_account_type(db, test_user.id, "İBANK", None)[1]
     assert account.id == account_id
-    assert account.is_closed and account.closed_date == closed_date
+    assert account.is_closed
+    assert account.closed_date == closed_date
     assert get_credit_card_limits(db, test_user.id) == {"İBANK": Decimal("0.10")}
     assert rows == before
     assert (
@@ -173,7 +175,8 @@ def test_type_api_keeps_wire_shape_and_clear_retains_closure_and_limits(two_user
     assert client.delete("/api/account-classifications/my card").status_code == 200
     assert client.get("/api/account-classifications").json() == {}
     assert client.get("/api/account-classifications/My Card").json()["account_type"] == "Other"
-    assert account.id == identity and account.is_closed
+    assert account.id == identity
+    assert account.is_closed
     assert account.closed_date == closed_date
     assert get_credit_card_limits(db, user.id) == {"My Card": Decimal("5000")}
     current["user"] = other
@@ -189,7 +192,9 @@ def test_status_repeat_preserves_timestamp_and_unconfigured_type(two_user_client
     account = get_account(db, user.id, "unconfigured")
     assert account.account_type is None
     closed_date = account.closed_date
-    assert closed_date is not None and closed_date <= datetime.now(UTC).replace(tzinfo=None)
+    assert closed_date is not None
+    # closed_date is naive IST, the same clock as Transaction.date.
+    assert closed_date <= ledger_now()
     assert client.put("/api/account-classifications/status", json=body).status_code == 200
     assert account.closed_date == closed_date
 

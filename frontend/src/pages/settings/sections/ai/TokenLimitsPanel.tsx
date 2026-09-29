@@ -1,8 +1,8 @@
 import type { UsageResponse } from '@/services/api/aiUsage'
 import Button from '@/components/ui/Button'
 
-import { FieldHint, FieldLegend } from '../../sectionPrimitives'
-import { inputClass } from '../../styles'
+import { FieldHint, FieldLegend } from '@/pages/settings/sectionPrimitives'
+import { inputClass } from '@/pages/settings/styles'
 import { formatTokens } from './aiConstants'
 
 interface TokenLimitsPanelProps {

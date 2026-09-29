@@ -199,7 +199,8 @@ def test_closure_applies_to_alias_and_case_variant_consumers(two_user_client) ->
         json={"account_name": "i̇bank", "is_closed": True},
     )
     assert response.json()["account_name"] == "İBANK"
-    assert recurring.is_active is False and other.is_active is True
+    assert recurring.is_active is False
+    assert other.is_active is True
     after_close = datetime.now(UTC) + timedelta(days=1)
     session.add(_txn(user_a.id, "alias-late", "OLD BANK", after_close, 10))
     session.add(_txn(user_b.id, "other-late", "OLD BANK", after_close, 20))

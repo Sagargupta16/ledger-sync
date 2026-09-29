@@ -94,8 +94,9 @@ def test_cutover_refuses_to_drop_source_when_backfill_disagrees(migration_connec
     command.upgrade(_config(connection), "compensation_records_2026")
     connection.exec_driver_sql(tamper)
     connection.commit()
+    config = _config(connection)
     with pytest.raises(RuntimeError):
-        command.upgrade(_config(connection), "head")
+        command.upgrade(config, "head")
     connection.rollback()
     inspector = sa.inspect(connection)
     assert "account_classifications" in inspector.get_table_names()

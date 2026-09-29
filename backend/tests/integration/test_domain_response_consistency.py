@@ -183,7 +183,8 @@ def test_clean_ordinary_preferences_are_refreshed_with_the_response(
         prefs = reader.scalar(
             sa.select(UserPreferences).where(UserPreferences.user_id == database.user_id)
         )
-        assert prefs is not None and prefs.number_format == "international"
+        assert prefs is not None
+        assert prefs.number_format == "international"
         assert not reader.is_modified(prefs)
         with database.session() as writer:
             user = writer.get(User, database.user_id)

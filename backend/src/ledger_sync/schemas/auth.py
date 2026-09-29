@@ -19,6 +19,8 @@ class TokenData(BaseModel):
 
     user_id: int | None = None
     email: str | None = None
+    tv: int | None = None
+    jti: str | None = None  # refresh-token issuance record; None on legacy tokens
 
 
 class Token(BaseModel):
@@ -37,12 +39,13 @@ class TokenPayload(BaseModel):
     exp: datetime
     type: str  # "access" or "refresh"
     tv: int | None = None  # token_version, None on pre-2026-07 tokens (soft-accept)
+    jti: str | None = None  # refresh-token issuance record, None on pre-rotation tokens
 
 
 class RefreshTokenRequest(BaseModel):
     """Request model for token refresh."""
 
-    refresh_token: str
+    refresh_token: str = Field(..., max_length=4096)
 
 
 # =============================================================================
@@ -68,7 +71,7 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     """User profile update request."""
 
-    full_name: str | None = None
+    full_name: str | None = Field(default=None, max_length=255)
 
 
 # =============================================================================

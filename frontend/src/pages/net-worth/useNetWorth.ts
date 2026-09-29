@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useAccountBalances, useDataDateRange } from '@/hooks/api/useAnalytics'
+import { useDailyNetWorth } from '@/hooks/api/useCalculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
@@ -27,14 +27,19 @@ import {
 
 export function useNetWorth() {
   const balancesQuery = useAccountBalances()
-  const transactionsQuery = useTransactions()
+  // All-time daily cash flow (server-aggregated) instead of the full ledger.
+  const dailyQuery = useDailyNetWorth()
+  const dateRangeQuery = useDataDateRange()
   const preferencesQuery = usePreferences()
   const classificationsQuery = useAccountClassifications()
   const balanceData = balancesQuery.data
-  const transactions = useMemo(
-    () => transactionsQuery.data ?? [],
-    [transactionsQuery.data],
+  const dailyCashFlow = useMemo(
+    () => dailyQuery.data?.cumulative_data ?? [],
+    [dailyQuery.data],
   )
+  // Same non-deleted, non-excluded rows as the ledger, so identical nav bounds.
+  const { minDate, maxDate } = dateRangeQuery
+  const dateBounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
   const preferences = preferencesQuery.data
   const classifications = useMemo(
     () => classificationsQuery.data ?? {},
@@ -47,23 +52,26 @@ export function useNetWorth() {
     new Set(),
   )
 
-  const { dateRange, partialPeriod, timeFilterProps } = useAnalyticsTimeFilter(transactions, {
+  const { dateRange, partialPeriod, timeFilterProps } = useAnalyticsTimeFilter(dateBounds, {
     defaultViewMode: 'all_time',
   })
 
   const isLoading =
     balancesQuery.isLoading ||
-    transactionsQuery.isLoading ||
+    dailyQuery.isLoading ||
+    dateRangeQuery.isLoading ||
     preferencesQuery.isLoading ||
     classificationsQuery.isLoading
   const isError =
     balancesQuery.isError ||
-    transactionsQuery.isError ||
+    dailyQuery.isError ||
+    dateRangeQuery.isError ||
     preferencesQuery.isError ||
     classificationsQuery.isError
   const retry = () => {
     void balancesQuery.refetch()
-    void transactionsQuery.refetch()
+    void dailyQuery.refetch()
+    void dateRangeQuery.refetch()
     void preferencesQuery.refetch()
     void classificationsQuery.refetch()
   }
@@ -118,10 +126,10 @@ export function useNetWorth() {
   const netWorthData = useMemo(
     () =>
       capSeriesToToday(
-        computeNetWorthTimeSeries(transactions, allCategories, categoryProportions),
+        computeNetWorthTimeSeries(dailyCashFlow, allCategories, categoryProportions),
         'date',
       ),
-    [transactions, allCategories, categoryProportions],
+    [dailyCashFlow, allCategories, categoryProportions],
   )
 
   const filteredNetWorthData = useMemo(() => {

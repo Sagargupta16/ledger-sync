@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ProgressBar from '@/components/shared/ProgressBar'
 import {
   BAR_RADIUS,
   ChartContainer,
@@ -106,15 +107,11 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
               >
                 <span className="font-mono text-xs font-semibold tabular-nums text-foreground">{slab.slab}%</span>
                 <div className="min-w-0">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--overlay-2)]" aria-hidden="true">
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: Math.max(0, Math.min(share / 100, 1)) }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                      className="h-full w-full origin-left rounded-full"
-                      style={{ backgroundColor: GST_SLAB_COLORS[slab.slab] ?? rawColors.app.blue }}
-                    />
-                  </div>
+                  <ProgressBar
+                    value={share}
+                    color={GST_SLAB_COLORS[slab.slab] ?? rawColors.app.blue}
+                    height={6}
+                  />
                 </div>
                 <span className="text-right">
                   <span className="block font-mono text-xs font-semibold tabular-nums text-foreground">{formatCurrency(slab.gstAmount)}</span>

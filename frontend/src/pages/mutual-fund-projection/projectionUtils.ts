@@ -1,4 +1,3 @@
-import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { calculateXIRR } from '@/lib/xirr'
 import { addMonthsToKey, formatMonthKey, MS_PER_YEAR } from '@/lib/dateUtils'
 import {
@@ -162,12 +161,11 @@ export function detectMonthlySIPAmount(
   return monthlySIPs.at(-1)?.amount ?? 0
 }
 
-/** Load mutual fund accounts from balance data and account classifications. */
-export async function loadMutualFundAccountsData(
+/** Mutual fund accounts from balance data and the user's Investments accounts. */
+export function buildMutualFundAccounts(
   balanceData: Record<string, unknown> | null | undefined,
-): Promise<MutualFundAccount[]> {
-  const { accounts: investmentAccounts } =
-    await accountClassificationsService.getAccountsByType('Investments')
+  investmentAccounts: readonly string[],
+): MutualFundAccount[] {
   const accountsByName = (balanceData as { accounts?: Record<string, { balance: number }> })
     ?.accounts ?? {}
 

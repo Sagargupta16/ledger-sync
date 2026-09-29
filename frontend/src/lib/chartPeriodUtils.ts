@@ -2,33 +2,6 @@ import type { ViewMode } from '@/lib/dateUtils'
 import { formatChartPeriod } from '@/lib/chartDateLabels'
 
 /**
- * Generate all period keys for the x-axis based on view mode.
- *
- * - monthly  : day strings "01" .. "28"/"29"/"30"/"31"
- * - yearly   : month strings "01" .. "12"
- * - all_time : sorted keys from groupedData (e.g. "2024-Q1")
- */
-export function generateAllPeriods(
-  viewMode: ViewMode,
-  currentMonth: string,
-  groupedData: Record<string, Record<string, number>>
-): string[] {
-  if (viewMode === 'monthly') {
-    const year = Number.parseInt(currentMonth.substring(0, 4))
-    const month = Number.parseInt(currentMonth.substring(5, 7))
-    const daysInMonth = new Date(year, month, 0).getDate()
-    return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'))
-  }
-
-  if (viewMode === 'yearly') {
-    return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
-  }
-
-  // all_time — use whatever keys exist in the grouped data, sorted
-  return Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
-}
-
-/**
  * Format a raw period key into a human-readable display string.
  *
  * - monthly  : period unchanged (day number like "01")

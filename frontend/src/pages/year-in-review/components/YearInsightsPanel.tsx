@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { Flame, Sun, Moon, TrendingDown, TrendingUp, BarChart3 } from 'lucide-react'
 
+import ProgressBar from '@/components/shared/ProgressBar'
 import { formatCurrencyCompact } from '@/lib/formatters'
 import { rawColors } from '@/constants/colors'
 
@@ -101,15 +102,13 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
           </div>
           {/* Single accent bar -- streak length relative to a 30-day mark
               (replaces 30 identical dots that redundantly encoded one number). */}
-          <div className="mt-2 h-1.5 w-full rounded-full bg-[var(--overlay-3)] overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(100, (stats.maxStreak / 30) * 100)}%`,
-                backgroundColor: getStreakColor(stats.maxStreak),
-              }}
-            />
-          </div>
+          <ProgressBar
+            value={stats.maxStreak}
+            max={30}
+            height={6}
+            color={getStreakColor(stats.maxStreak)}
+            className="mt-2"
+          />
         </div>
       )}
 

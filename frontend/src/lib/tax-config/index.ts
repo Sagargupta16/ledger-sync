@@ -64,7 +64,35 @@ const OLD_REGIME_BASE: RegimeConfig = {
   standardDeduction: 50_000,
 }
 
-// ─── FY 2023-24 and earlier (Budget 2023 new regime) ────────────────────────
+// ─── FY 2020-21 to FY 2022-23 (original Section 115BAC, Finance Act 2020) ───
+// Optional regime with 2.5L-wide slabs. No standard deduction (Finance Act
+// 2023 added it from FY 2023-24). Section 87A: rebate up to 12,500 for total
+// income up to 5L, same as the old regime. Surcharge followed the old-regime
+// bands, including 37% above 5 Cr: the 25% cap for the new regime arrived with
+// Finance Act 2023. Cess is 4%. Not modelled: the 15% surcharge cap on
+// dividends and listed-equity capital gains.
+
+const NEW_REGIME_115BAC_ORIGINAL: RegimeConfig = {
+  slabs: [
+    { lower: 0, upper: 250_000, rate: 0 },
+    { lower: 250_000, upper: 500_000, rate: 5 },
+    { lower: 500_000, upper: 750_000, rate: 10 },
+    { lower: 750_000, upper: 1_000_000, rate: 15 },
+    { lower: 1_000_000, upper: 1_250_000, rate: 20 },
+    { lower: 1_250_000, upper: 1_500_000, rate: 25 },
+    { lower: 1_500_000, upper: Infinity, rate: 30 },
+  ],
+  surcharge: [
+    { above: 50_000_000, rate: 0.37 },
+    { above: 20_000_000, rate: 0.25 },
+    { above: 10_000_000, rate: 0.15 },
+    { above: 5_000_000, rate: 0.1 },
+  ],
+  rebate87A: { maxIncome: 500_000, maxRebate: 12_500 },
+  standardDeduction: 0,
+}
+
+// ─── FY 2023-24 (Budget 2023 new regime) ────────────────────────────────────
 
 const NEW_REGIME_FY2023: RegimeConfig = {
   slabs: [
@@ -129,6 +157,36 @@ const NEW_REGIME_FY2025: RegimeConfig = {
 
 const FY_CONFIGS: FYTaxConfig[] = [
   {
+    fyStartYear: 2020,
+    fyLabel: 'FY 2020-21',
+    source: 'Finance Act 2020 (Section 115BAC)',
+    effectiveFrom: '2020-04-01',
+    oldRegime: OLD_REGIME_BASE,
+    newRegime: NEW_REGIME_115BAC_ORIGINAL,
+    professionalTaxPerMonth: 200,
+    cessRate: 0.04,
+  },
+  {
+    fyStartYear: 2021,
+    fyLabel: 'FY 2021-22',
+    source: 'Finance Act 2021 (Section 115BAC unchanged)',
+    effectiveFrom: '2021-04-01',
+    oldRegime: OLD_REGIME_BASE,
+    newRegime: NEW_REGIME_115BAC_ORIGINAL,
+    professionalTaxPerMonth: 200,
+    cessRate: 0.04,
+  },
+  {
+    fyStartYear: 2022,
+    fyLabel: 'FY 2022-23',
+    source: 'Finance Act 2022 (Section 115BAC unchanged)',
+    effectiveFrom: '2022-04-01',
+    oldRegime: OLD_REGIME_BASE,
+    newRegime: NEW_REGIME_115BAC_ORIGINAL,
+    professionalTaxPerMonth: 200,
+    cessRate: 0.04,
+  },
+  {
     fyStartYear: 2023,
     fyLabel: 'FY 2023-24',
     source: 'Budget 2023 (Feb 2023)',
@@ -163,8 +221,8 @@ const FY_CONFIGS: FYTaxConfig[] = [
 /**
  * Get tax config for a specific FY. If the requested FY is newer than any
  * known config, returns the latest known one (so the app keeps working
- * after a year rollover until this file is updated). For years older than
- * the oldest config, falls back to the oldest known config.
+ * after a year rollover until this file is updated). Years before FY 2020-21
+ * (when the new regime did not exist) fall back to the oldest known config.
  */
 export function getTaxConfig(fyStartYear: number): FYTaxConfig {
   // Newest-first lookup so we find the most recent applicable config.

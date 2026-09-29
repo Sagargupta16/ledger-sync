@@ -71,6 +71,7 @@ class InsightEngine:
         preferences: SupportsCurrencySymbol | None = None,
         *,
         today: date | None = None,
+        loss_keys: set[str] | None = None,
     ) -> None:
         """Bind the display currency and the reference date for this run.
 
@@ -79,10 +80,16 @@ class InsightEngine:
                 pre-existing caller uses -- keeps the shipped default symbol.
             today: Reference date for deciding which month is still in
                 progress. Defaults to the IST ledger clock.
+            loss_keys: The user's classified realised-loss keys
+                (``capital_loss_keys_for``). Those rows are not spending, so the
+                spending, category and behaviour insights never see them; the
+                best-month surplus still nets them off because the cash left.
+                ``None`` or empty keeps the pre-existing behaviour.
 
         """
         self._symbol = resolve_currency_symbol(preferences)
         self._today = today if today is not None else ledger_today()
+        self._loss_keys = loss_keys
 
     def generate_all_insights(self, transactions: list[Transaction]) -> list[dict[str, str]]:
         """Generate all available insights.
@@ -94,14 +101,14 @@ class InsightEngine:
             List of insight dictionaries with title, description, severity
 
         """
+        spending = calculator.exclude_capital_losses(transactions, self._loss_keys)
         insights: list[dict[str, str]] = []
-        for generate in (
-            spending_insights,
-            category_insights,
-            temporal_insights,
-            behavioral_insights,
-        ):
-            insights.extend(generate(transactions, self._symbol, self._today))
+        for generate in (spending_insights, category_insights):
+            insights.extend(generate(spending, self._symbol, self._today))
+        insights.extend(
+            temporal_insights(transactions, self._symbol, self._today, loss_keys=self._loss_keys)
+        )
+        insights.extend(behavioral_insights(spending, self._symbol, self._today))
         return insights
 
     @staticmethod

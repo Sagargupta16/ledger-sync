@@ -13,7 +13,7 @@ interface PreferencesResponse {
  * With tool calling we no longer pre-fetch summaries, categories, net worth,
  * etc. -- the LLM fetches whatever it needs on demand via tools. The context
  * is now minimal:
- *   - user's display currency so amounts are formatted correctly
+ *   - tool amounts are INR; the display currency is context only
  *   - today's date (ISO) so "last month" etc. anchor correctly
  *   - a fiscal-year hint for Indian FY users
  *   - tool-use guidance + an anti-hallucination nudge
@@ -30,23 +30,30 @@ export async function buildFinancialContext(): Promise<string> {
     console.warn('[chatContext] failed to fetch preferences:', err)
   }
 
-  const currency = prefs?.currency_symbol ?? '₹'
   const displayCurrency = prefs?.display_currency ?? 'INR'
+  const displaySymbol = prefs?.currency_symbol ?? '₹'
   const fyStart = prefs?.fiscal_year_start_month ?? 4
   // Local calendar day, not UTC: toISOString() can be a day off for users east
   // of UTC late in the evening, which would skew "this month"/"last month" tool
   // queries the model makes.
   const today = toLocalDateKey(new Date())
 
+  // Tool results are raw INR ledger amounts; the backend never converts them to
+  // the display currency. Labelling them with the display symbol (e.g. $) would
+  // misstate every figure by the exchange rate.
+  const displayNote = displayCurrency === 'INR'
+    ? ''
+    : ` The user's app display currency is ${displayCurrency} (${displaySymbol}), but no conversion is applied to tool data: never label tool amounts with ${displaySymbol} or convert them yourself.`
+
   return [
-    `You are the finance assistant for a user of Ledger Sync. All amounts are in ${currency} (${displayCurrency}).`,
+    `You are the finance assistant for a user of Ledger Sync. Every amount returned by the tools is in Indian Rupees (INR, ₹).${displayNote}`,
     `Today is ${today}. The user's fiscal year starts in month ${fyStart} (${monthName(fyStart)}).`,
     '',
     'You have tools for accessing the user\'s actual financial data: accounts, transactions, monthly summaries, spending by category, net worth, recurring bills, and goals.',
     'Rules:',
     '- Always use tools to look up real numbers. Never invent or estimate amounts.',
     '- For questions like "last month", "this year", "how much did I spend on X", call the relevant tool with a concrete date range.',
-    `- Format currency as ${currency}{amount} with Indian-style grouping (e.g. ${currency}1,25,000).`,
+    '- Format amounts as INR with Indian-style grouping (e.g. ₹1,25,000).',
     '- If a tool returns no results, say so plainly. Do not fill in plausible-looking numbers.',
     '- Keep replies concise. Use bullet lists for multi-item answers.',
   ].join('\n')

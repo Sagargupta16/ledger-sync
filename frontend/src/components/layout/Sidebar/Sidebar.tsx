@@ -18,6 +18,7 @@ import { exitDemoMode } from '@/lib/demo'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
+import type { Anomaly, Budget, RecurringTransaction } from '@/services/api/analyticsV2'
 
 import BrandHeader from './BrandHeader'
 import CurrencySwitcher from './CurrencySwitcher'
@@ -33,6 +34,36 @@ import SidebarItem from './SidebarItem'
 import SidebarSection from './SidebarSection'
 import ThemeToggle from './ThemeToggle'
 import MotionToggle from './MotionToggle'
+
+function countAlertBadges(
+  anomalies: readonly Anomaly[],
+  budgets: readonly Budget[],
+  recurring: readonly RecurringTransaction[],
+  now: Date,
+): Record<string, number> {
+  const counts: Record<string, number> = {}
+
+  const anomalyCount = anomalies.filter(
+    (item) => !item.is_dismissed && !item.is_reviewed,
+  ).length
+  if (anomalyCount > 0) counts[ROUTES.ANOMALIES] = anomalyCount
+
+  const budgetCount = budgets.filter(
+    (item) => item.usage_pct >= item.alert_threshold,
+  ).length
+  if (budgetCount > 0) counts[ROUTES.BUDGETS] = budgetCount
+
+  const billCount = recurring.filter((item) => {
+    if (!item.next_expected) return false
+    const days = Math.ceil(
+      (new Date(item.next_expected).getTime() - now.getTime()) / 86_400_000,
+    )
+    return days >= 0 && days <= 7
+  }).length
+  if (billCount > 0) counts[ROUTES.BILL_CALENDAR] = billCount
+
+  return counts
+}
 
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -55,31 +86,10 @@ export default function Sidebar() {
     pattern_kind: 'commitment',
   })
 
-  const badgeCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    const now = new Date()
-
-    const anomalyCount = anomalies.filter(
-      (item) => !item.is_dismissed && !item.is_reviewed,
-    ).length
-    if (anomalyCount > 0) counts[ROUTES.ANOMALIES] = anomalyCount
-
-    const budgetCount = budgets.filter(
-      (item) => item.usage_pct >= item.alert_threshold,
-    ).length
-    if (budgetCount > 0) counts[ROUTES.BUDGETS] = budgetCount
-
-    const billCount = recurring.filter((item) => {
-      if (!item.next_expected) return false
-      const days = Math.ceil(
-        (new Date(item.next_expected).getTime() - now.getTime()) / 86_400_000,
-      )
-      return days >= 0 && days <= 7
-    }).length
-    if (billCount > 0) counts[ROUTES.BILL_CALENDAR] = billCount
-
-    return counts
-  }, [anomalies, budgets, recurring])
+  const badgeCounts = useMemo(
+    () => countAlertBadges(anomalies, budgets, recurring, new Date()),
+    [anomalies, budgets, recurring],
+  )
 
   const closeMobile = useCallback(() => {
     setIsMobileOpen(false)

@@ -124,8 +124,8 @@ describe('computeNetWorthTimeSeries', () => {
   it('splits positive net worth across the supplied categories', () => {
     const series = computeNetWorthTimeSeries(
       [
-        { date: '2026-01-31', type: 'Income', amount: 100 },
-        { date: '2026-02-28', type: 'Expense', amount: 40 },
+        { date: '2026-01-31', income: 100, expense: 0 },
+        { date: '2026-02-28', income: 0, expense: 40 },
       ],
       ['Bank Accounts', 'Investments'],
       { 'Bank Accounts': 0.75, Investments: 0.25 },

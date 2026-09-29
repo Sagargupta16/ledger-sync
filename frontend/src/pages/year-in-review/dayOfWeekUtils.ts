@@ -2,8 +2,7 @@ import { toLocalDateKey } from '@/lib/dateUtils'
 import { computeWeekdaySpending } from '@/lib/finance/spendingStatistics'
 
 import type { DayCell } from './components/DayOfWeekChart'
-
-export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+import { DAYS } from './types'
 
 export interface DayOfWeekPoint {
   readonly day: string

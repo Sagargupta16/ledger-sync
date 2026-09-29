@@ -1,6 +1,5 @@
 """Transaction contracts on fresh metadata and migrated SQLite/PostgreSQL schemas."""
 
-from collections.abc import Generator
 from decimal import Decimal
 
 import pytest
@@ -47,7 +46,7 @@ def _ledger(connection: sa.Connection, identity: str = "owned", **overrides: obj
 @pytest.fixture(params=["metadata", "migration"])
 def invariant_db(
     request: pytest.FixtureRequest, migration_connection: sa.Connection
-) -> Generator[sa.Connection]:
+) -> sa.Connection:
     connection = migration_connection
     if request.param == "metadata":
         Base.metadata.create_all(connection)
@@ -57,7 +56,7 @@ def invariant_db(
     if connection.dialect.name == "sqlite":
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")
     _seed_users(connection)
-    yield connection
+    return connection
 
 
 @pytest.fixture
@@ -71,8 +70,9 @@ def test_amount_bounds_allow_zero_and_reject_invalid_values(invariant_db: sa.Con
     _ledger(invariant_db, "zero", amount=Decimal("0.00"))
     _ledger(invariant_db, "maximum", amount=Decimal("9999999999999.99"))
     for index, amount in enumerate(("-0.01", "10000000000000.00", "NaN", "Infinity", "-Infinity")):
+        invalid_amount = Decimal(amount)
         with pytest.raises(sa.exc.DBAPIError), invariant_db.begin_nested():
-            _ledger(invariant_db, f"invalid-{index}", amount=Decimal(amount))
+            _ledger(invariant_db, f"invalid-{index}", amount=invalid_amount)
     assert invariant_db.exec_driver_sql("SELECT COUNT(*) FROM transactions").scalar_one() == 2
 
 
@@ -131,7 +131,8 @@ def test_actual_manual_and_normalized_transfer_shapes() -> None:
     manual = TransactionCreateRequest(
         date=MOMENT, amount=12.34, type="Transfer", account="Bank", category="Move"
     )
-    assert manual.from_account is None and manual.to_account is None
+    assert manual.from_account is None
+    assert manual.to_account is None
     normalized = DataNormalizer().normalize_from_dict(
         {
             "date": "2026-09-17",
@@ -207,8 +208,9 @@ def test_invalid_history_fails_preflight_without_data_or_schema_changes(
     before = _snapshot(connection)
     checks_before = sa.inspect(connection).get_check_constraints("transactions")
     connection.commit()
+    config = _config(connection)
     with pytest.raises(RuntimeError, match=constraint):
-        command.upgrade(_config(connection), REVISION)
+        command.upgrade(config, REVISION)
     connection.rollback()
     assert _snapshot(connection) == before
     assert sa.inspect(connection).get_check_constraints("transactions") == checks_before
@@ -224,8 +226,9 @@ def test_sqlite_rebuild_refuses_enabled_foreign_keys(before_invariants: sa.Conne
     connection.exec_driver_sql("PRAGMA foreign_keys=ON")
     before, schema_before = _snapshot(connection), _schema(connection)
     connection.commit()
+    config = _config(connection)
     with pytest.raises(RuntimeError, match="foreign_keys=OFF"):
-        command.upgrade(_config(connection), REVISION)
+        command.upgrade(config, REVISION)
     assert _snapshot(connection) == before
     assert _schema(connection) == schema_before
     assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
@@ -242,8 +245,9 @@ def test_nonfinite_history_fails_preflight(before_invariants: sa.Connection) -> 
         "SELECT transaction_id, CAST(amount AS TEXT) FROM transactions"
     ).all()
     connection.commit()
+    config = _config(connection)
     with pytest.raises(RuntimeError, match="ck_transactions_amount_bounds"):
-        command.upgrade(_config(connection), REVISION)
+        command.upgrade(config, REVISION)
     connection.rollback()
     assert (
         connection.exec_driver_sql(
@@ -275,9 +279,10 @@ def test_interrupted_ddl_rolls_back_rows_checks_and_revision(
             raise RuntimeError("Synthetic invariant DDL interruption")
 
     sa.event.listen(connection, "before_cursor_execute", interrupt)
+    config = _config(connection)
     try:
         with pytest.raises(RuntimeError, match="Synthetic invariant DDL interruption"):
-            command.upgrade(_config(connection), REVISION)
+            command.upgrade(config, REVISION)
     finally:
         sa.event.remove(connection, "before_cursor_execute", interrupt)
         connection.rollback()

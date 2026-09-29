@@ -160,9 +160,12 @@ def test_pg_preflight_rejects_drift_before_replacing_any_index(migration_connect
     before = connection.exec_driver_sql(
         "SELECT indexrelid FROM pg_index WHERE indrelid='transactions'::regclass ORDER BY 1"
     ).all()
-    with pytest.raises(RuntimeError, match="preflight"):
-        with Operations.context(MigrationContext.configure(connection)):
-            _migration().upgrade()
+    migration = _migration()
+    with (
+        pytest.raises(RuntimeError, match="preflight"),
+        Operations.context(MigrationContext.configure(connection)),
+    ):
+        migration.upgrade()
     # The rejection itself happened before any DDL, even before caller rollback.
     assert (
         connection.exec_driver_sql(

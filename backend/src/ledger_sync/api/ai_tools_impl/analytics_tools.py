@@ -61,6 +61,8 @@ def _exec_get_fy_summary(user: User, db: Session, args: dict[str, Any]) -> Any:
             "other": to_decimal(row.other_income),
         },
         "expenses": to_decimal(row.total_expenses),
+        # Held outside ``expenses`` but netted from ``net_savings``.
+        "capital_losses": to_decimal(row.capital_losses),
         "tax_paid": to_decimal(row.tax_paid),
         "investments_made": to_decimal(row.investments_made),
         "net_savings": to_decimal(row.net_savings),
@@ -216,31 +218,43 @@ def _exec_get_cash_flow(user: User, db: Session, args: dict[str, Any]) -> Any:
     )
     # Build tabular + aggregate views. Tracking totals in parallel with the
     # list avoids Any-typed comprehensions that mypy rejects.
+    # ``expenses`` excludes classified realised losses while ``net`` nets them,
+    # so the loss is published alongside, as /monthly-aggregation does.
     total_income = 0.0
     total_expenses = 0.0
+    total_losses = 0.0
     total_net = 0.0
     series: list[dict[str, Any]] = []
     for r in reversed(rows):
         income = to_decimal(r.total_income)
         expenses = to_decimal(r.total_expenses)
+        losses = to_decimal(r.capital_losses)
         net = to_decimal(r.net_savings)
         total_income += income
         total_expenses += expenses
+        total_losses += losses
         total_net += net
         series.append(
             {
                 "period": r.period_key,
                 "income": income,
                 "expenses": expenses,
+                "capital_losses": losses,
                 "net": net,
                 "savings_rate": r.savings_rate,
             }
         )
     n = len(series)
-    totals = {"income": total_income, "expenses": total_expenses, "net": total_net}
+    totals = {
+        "income": total_income,
+        "expenses": total_expenses,
+        "capital_losses": total_losses,
+        "net": total_net,
+    }
     avg = {
         "income": total_income / n if n else 0,
         "expenses": total_expenses / n if n else 0,
+        "capital_losses": total_losses / n if n else 0,
         "net": total_net / n if n else 0,
     }
     return {"series": series, "totals": totals, "averages": avg, "months": n}

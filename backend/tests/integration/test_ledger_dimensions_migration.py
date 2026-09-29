@@ -277,11 +277,14 @@ def test_backfill_keeps_all_financial_rows_labels_and_children(migration_connect
     assert rows[2]["category_id"] != rows[0]["category_id"]
     assert rows[3]["subcategory_id"] != rows[0]["subcategory_id"]
     assert rows[4]["account_id"] == rows[5]["account_id"]  # Python lower, including Unicode
-    assert rows[4]["category_id"] is None and rows[4]["subcategory_id"] is None
+    assert rows[4]["category_id"] is None
+    assert rows[4]["subcategory_id"] is None
     assert rows[-2]["account_id"] == rows[0]["account_id"]
     assert rows[-2]["subcategory_id"] == rows[0]["subcategory_id"]
-    assert rows[-1]["account_id"] is not None and rows[-1]["account_id"] != rows[0]["account_id"]
-    assert rows[-1]["category_id"] is not None and rows[-1]["category_id"] != rows[0]["category_id"]
+    assert rows[-1]["account_id"] is not None
+    assert rows[-1]["account_id"] != rows[0]["account_id"]
+    assert rows[-1]["category_id"] is not None
+    assert rows[-1]["category_id"] != rows[0]["category_id"]
     assert rows[-1]["subcategory_id"] is not None
     for values in (
         {"account_id": rows[2]["account_id"]},
@@ -292,8 +295,9 @@ def test_backfill_keeps_all_financial_rows_labels_and_children(migration_connect
         {"category_id": None, "subcategory_id": rows[0]["subcategory_id"]},
     ):
         table = sa.Table("transactions", sa.MetaData(), autoload_with=connection)
+        statement = table.update().where(table.c.transaction_id == "a").values(**values)
         with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
-            connection.execute(table.update().where(table.c.transaction_id == "a").values(**values))
+            connection.execute(statement)
     assert connection.execute(sa.text("SELECT * FROM transaction_tags")).all() == children
 
 
@@ -354,7 +358,8 @@ def test_cli_migration_engine_uses_safe_sqlite_default(tmp_path):
         command.upgrade(config, "ledger_dimensions_2026")
     finally:
         sa.event.remove(sa.Engine, "connect", record_foreign_keys)
-    assert pragma_values and all(value == 0 for value in pragma_values)
+    assert pragma_values
+    assert all(value == 0 for value in pragma_values)
     engine = sa.create_engine(url)
     with engine.connect() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")

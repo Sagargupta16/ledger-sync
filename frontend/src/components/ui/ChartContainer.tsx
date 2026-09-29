@@ -82,8 +82,7 @@ export default function ChartContainer({
     <div
       role="img"
       aria-label={ariaLabel}
-      className="relative min-w-0 max-w-full"
-      style={{ width: '100%', height: '100%' }}
+      className="relative size-full min-w-0 max-w-full"
     >
       {container}
     </div>

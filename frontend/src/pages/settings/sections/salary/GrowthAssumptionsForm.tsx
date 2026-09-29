@@ -2,8 +2,8 @@ import { TrendingUp } from 'lucide-react'
 
 import type { GrowthAssumptions } from '@/types/salary'
 
-import { FieldLabel, Toggle } from '../../sectionPrimitives'
-import { inputClass } from '../../styles'
+import { FieldLabel, Toggle } from '@/pages/settings/sectionPrimitives'
+import { inputClass } from '@/pages/settings/styles'
 
 interface GrowthAssumptionsFormProps {
   growth: GrowthAssumptions

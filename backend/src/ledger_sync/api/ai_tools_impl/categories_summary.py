@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND
 from ledger_sync.db.models import (
     FinancialGoal,
     MonthlySummary,
@@ -26,9 +27,11 @@ from .registry import (
     LIST_RECENT_MONTHS_MAX_LIMIT,
     ToolSpec,
     apply_date_range,
+    ledger_scope,
     parse_date,
     register,
     to_decimal,
+    without_capital_losses,
 )
 from .schemas import (
     CategorySpendingArguments,
@@ -51,11 +54,15 @@ def _exec_get_monthly_summary(user: User, db: Session, args: dict[str, Any]) -> 
     ).scalar_one_or_none()
     if not row:
         return {"period": period, "found": False}
+    # ``expenses`` excludes classified realised losses and ``net_savings`` still
+    # nets them off, so publish the loss too (as /monthly-aggregation does);
+    # without it income - expenses - net_savings had no visible explanation.
     return {
         "period": period,
         "found": True,
         "income": to_decimal(row.total_income),
         "expenses": to_decimal(row.total_expenses),
+        "capital_losses": to_decimal(row.capital_losses),
         "net_savings": to_decimal(row.net_savings),
         "savings_rate": row.savings_rate,
         "transaction_count": row.total_transactions,
@@ -84,24 +91,32 @@ def _exec_list_categories(user: User, db: Session, args: dict[str, Any]) -> Any:
         ),
     )
 
+    tx_type = TransactionType(txn_type)
+
+    def _scoped(stmt: Select[Any]) -> Select[Any]:
+        # Same population as /api/calculations/top-categories: excluded
+        # accounts dropped and, for spending, classified realised losses too.
+        stmt = ledger_scope(user, stmt).where(Transaction.type == tx_type)
+        if tx_type == TransactionType.EXPENSE:
+            stmt = without_capital_losses(stmt, user)
+        return apply_date_range(stmt, start, end)
+
     stmt = (
-        select(
-            Transaction.category,
-            func.sum(Transaction.amount).label("total"),
-            func.count().label("row_count"),
-        )
-        .where(
-            Transaction.user_id == user.id,
-            Transaction.is_deleted.is_(False),
-            Transaction.type == TransactionType(txn_type),
+        _scoped(
+            select(
+                Transaction.category,
+                func.sum(Transaction.amount).label("total"),
+                func.count().label("row_count"),
+            )
         )
         .group_by(Transaction.category)
         .order_by(func.sum(Transaction.amount).desc())
         .limit(limit)
     )
-    stmt = apply_date_range(stmt, start, end)
     rows = db.execute(stmt).all()
-    grand_total = sum(to_decimal(r.total) for r in rows)
+    # The denominator is every matching category, not just the LIMITed top-N,
+    # so each share is of the real total rather than summing to 100% of a slice.
+    grand_total = to_decimal(db.execute(_scoped(select(func.sum(Transaction.amount)))).scalar_one())
     return {
         "categories": [
             {
@@ -136,16 +151,18 @@ def _exec_get_category_spending(user: User, db: Session, args: dict[str, Any]) -
         raise HTTPException(400, "category is required")
     start = parse_date(args.get("start_date"))
     end = parse_date(args.get("end_date"))
-    stmt = select(
-        func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        func.count().label("row_count"),
+    stmt = ledger_scope(
+        user,
+        select(
+            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+            func.count().label("row_count"),
+        ),
     ).where(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
         Transaction.type == TransactionType.EXPENSE,
         Transaction.category.ilike(f"%{category}%"),
     )
-    stmt = apply_date_range(stmt, start, end)
+    # Spending, as /category-breakdown counts it: classified losses excluded.
+    stmt = apply_date_range(without_capital_losses(stmt, user), start, end)
     row = db.execute(stmt).one()
     return {
         "category": category,
@@ -210,7 +227,12 @@ register(
 
 def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
     active_only = bool(args.get("active_only", True))
-    stmt = select(RecurringTransaction).where(RecurringTransaction.user_id == user.id)
+    # "dismissed" is the tombstone for a detected pattern the user deleted: it
+    # stays stored so re-detection does not resurrect it, but is never listed.
+    stmt = select(RecurringTransaction).where(
+        RecurringTransaction.user_id == user.id,
+        RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+    )
     if active_only:
         stmt = stmt.where(RecurringTransaction.is_active.is_(True))
     stmt = stmt.order_by(RecurringTransaction.expected_amount.desc()).limit(LIST_ENTITIES_MAX_LIMIT)
@@ -307,6 +329,7 @@ def _exec_list_recent_months(user: User, db: Session, args: dict[str, Any]) -> A
                 "period": r.period_key,
                 "income": to_decimal(r.total_income),
                 "expenses": to_decimal(r.total_expenses),
+                "capital_losses": to_decimal(r.capital_losses),
                 "net_savings": to_decimal(r.net_savings),
                 "savings_rate": r.savings_rate,
             }

@@ -117,8 +117,9 @@ def test_user_id_is_only_primary_key_and_foreign_key_cascades(ai_session: Sessio
     user = _user(ai_session)
     user_id = user.id
     get_or_create_ai_settings(ai_session, user_id)
+    duplicate = UserAISettings.__table__.insert().values(user_id=user_id)
     with pytest.raises(IntegrityError):
-        ai_session.execute(UserAISettings.__table__.insert().values(user_id=user_id))
+        ai_session.execute(duplicate)
     ai_session.rollback()
 
     ai_session.execute(User.__table__.delete().where(User.id == user_id))
@@ -151,7 +152,8 @@ def test_rewrap_only_updates_owner_and_preserves_replacement(ai_session: Session
 
     owner_settings = get_ai_settings(ai_session, owner.id)
     other_settings = get_ai_settings(ai_session, other.id)
-    assert owner_settings is not None and other_settings is not None
+    assert owner_settings is not None
+    assert other_settings is not None
     assert owner_settings.ai_api_key_encrypted == replacement
     assert other_settings.ai_api_key_encrypted == original
 

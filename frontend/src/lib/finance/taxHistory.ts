@@ -1,9 +1,6 @@
 import { classifyIncomeType } from '@/lib/preferencesUtils'
-import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
-import {
-  getFYFromDate,
-  parseFYStartYear,
-} from '@/lib/taxCalculator'
+import { getFYFromDate, MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { parseFYStartYear } from '@/lib/taxCalculator'
 import { computeAnnualTaxPlanning, computeTaxForFY } from './taxPlanning'
 import { projectFiscalYear } from '@/lib/projectionCalculator'
 import { applyProjectionTaxRegime, buildPayrollPlanning, taxPlanningDisplay } from './payrollPlanning'

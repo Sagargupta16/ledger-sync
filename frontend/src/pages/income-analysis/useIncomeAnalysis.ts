@@ -37,6 +37,12 @@ export interface MonthlyIncomeDatum {
   readonly incomeAvg: number | undefined
 }
 
+/** The earlier of two `YYYY-MM-DD` keys, or whichever one is present. */
+function earlierDateKey(a: string | null | undefined, b: string | null | undefined) {
+  if (a && b) return a < b ? a : b
+  return a ?? b
+}
+
 export function useIncomeAnalysis() {
   const [searchParams, setSearchParams] = useSearchParams()
   const categoryFilter = searchParams.get('category')
@@ -153,9 +159,7 @@ export function useIncomeAnalysis() {
   } = useMemo(() => computeIncomeMetrics(income?.monthly_data ?? [], {
     earningStartDate: earningStart.date,
     startDate: dateRange.start_date,
-    endDate: dateRange.end_date && dateBounds.maxDate
-      ? (dateRange.end_date < dateBounds.maxDate ? dateRange.end_date : dateBounds.maxDate)
-      : dateRange.end_date ?? dateBounds.maxDate,
+    endDate: earlierDateKey(dateRange.end_date, dateBounds.maxDate),
   }), [income, earningStart.date, dateRange, dateBounds.maxDate])
 
   const clearCategoryFilter = () => {

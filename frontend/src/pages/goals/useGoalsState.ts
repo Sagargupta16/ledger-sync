@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 
 import { useGoals, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useTotals } from '@/hooks/api/useAnalytics'
-import { parseLocalDate } from '@/lib/dateUtils'
+import { dropPartialMonth, monthKeysBetween, parseLocalDate } from '@/lib/dateUtils'
 import { generateDemoGoals } from '@/lib/demo/generateDerivedData'
 import { useDemoStore } from '@/store/demoStore'
 
@@ -53,10 +53,16 @@ export default function useGoalsState() {
 
   const netSavings = totals?.net_savings ?? 0
 
+  // Complete calendar months only: the month in progress is dropped (it has
+  // not had its full income or spend yet), and a month with no summary row is
+  // a zero-savings month, not a month to skip.
   const avgMonthlySavings = useMemo(() => {
-    if (monthlySummaries.length === 0) return null
-    const totalSavings = monthlySummaries.reduce((sum, m) => sum + m.savings.net, 0)
-    return totalSavings / monthlySummaries.length
+    const complete = dropPartialMonth(monthlySummaries, 'period')
+    if (complete.length === 0) return null
+    const periods = complete.map((m) => m.period).sort((a, b) => a.localeCompare(b))
+    const calendarMonths = monthKeysBetween(periods[0], periods.at(-1) ?? periods[0]).length
+    const totalSavings = complete.reduce((sum, m) => sum + m.savings.net, 0)
+    return totalSavings / Math.max(1, calendarMonths)
   }, [monthlySummaries])
 
   const totalAllocated = useMemo(() => {

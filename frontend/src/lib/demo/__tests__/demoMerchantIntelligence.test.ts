@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { countKinds, filterByKind, usableMerchants } from '@/pages/merchant-intelligence/merchantUtils'
 
-import { generateDemoMerchantIntelligence } from '../demoComputedReads'
+import { generateDemoMerchantIntelligence } from '../demoFlowReads'
 import { generateDemoTransactions } from '../generateTransactions'
 
 const rows = generateDemoMerchantIntelligence(generateDemoTransactions())

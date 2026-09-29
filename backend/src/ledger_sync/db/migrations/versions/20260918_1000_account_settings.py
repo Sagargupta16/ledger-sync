@@ -33,6 +33,9 @@ depends_on: str | None = None
 
 _TYPES = ("CASH", "BANK_ACCOUNTS", "CREDIT_CARDS", "INVESTMENTS", "LOANS", "OTHER_WALLETS")
 _CHUNK = 150
+# (owner, existing account ID) or, for an account still to create, (owner, key).
+type _Identity = tuple[int, int | str]
+type _Key = tuple[int, str]
 
 
 def _label(value: Any) -> str:
@@ -105,21 +108,26 @@ def _prepare(bind: sa.Connection) -> None:
         raise RuntimeError("Account settings support SQLite and PostgreSQL only.")
 
 
-def _preflight(bind: sa.Connection) -> tuple[dict, dict, dict]:
-    metadata = sa.MetaData()
-    accounts = sa.Table("ledger_accounts", metadata, autoload_with=bind)
-    aliases = sa.Table("ledger_account_aliases", metadata, autoload_with=bind)
-    legacy = sa.Table("account_classifications", metadata, autoload_with=bind)
-    prefs = sa.Table("user_preferences", metadata, autoload_with=bind)
-    users = set(bind.execute(sa.text("SELECT id FROM users")).scalars())
-    existing = {
+def _existing_accounts(
+    bind: sa.Connection, accounts: sa.Table, users: set[int]
+) -> tuple[dict[_Identity, dict[str, Any]], dict[_Key, _Identity]]:
+    existing: dict[_Identity, dict[str, Any]] = {
         (row.user_id, row.id): dict(row) for row in bind.execute(sa.select(accounts)).mappings()
     }
-    keys: dict[tuple[int, str], tuple[int, int | str]] = {}
+    keys: dict[_Key, _Identity] = {}
     for identity, account in existing.items():
         if account["user_id"] not in users or account["key"] != _label(account["name"]):
             raise RuntimeError("Invalid account owner or canonical key; no settings were changed.")
         keys[(account["user_id"], account["key"])] = identity
+    return existing, keys
+
+
+def _existing_alias_keys(
+    bind: sa.Connection,
+    aliases: sa.Table,
+    existing: dict[_Identity, dict[str, Any]],
+    keys: dict[_Key, _Identity],
+) -> set[_Key]:
     alias_keys = set()
     for alias in bind.execute(sa.select(aliases)).mappings():
         key = (alias.user_id, alias.source_key)
@@ -132,80 +140,102 @@ def _preflight(bind: sa.Connection) -> tuple[dict, dict, dict]:
             raise RuntimeError("Ambiguous or cross-owner account alias; no settings were changed.")
         keys[key] = identity
         alias_keys.add(key)
+    return alias_keys
 
-    plan: dict[tuple[int, int | str], dict[str, Any]] = {}
-    new_aliases: dict[tuple[int, str], tuple[str, tuple[int, int | str]]] = {}
 
-    def target(user_id: int, label: str) -> dict[str, Any]:
-        if user_id not in users:
+class _SettingsPlan:
+    """Target accounts and aliases accumulated while reading legacy settings."""
+
+    def __init__(self, users: set[int], keys: dict[_Key, _Identity], alias_keys: set[_Key]) -> None:
+        self.users = users
+        self.keys = keys
+        self.alias_keys = alias_keys
+        self.accounts: dict[_Identity, dict[str, Any]] = {}
+        self.new_aliases: dict[_Key, tuple[str, _Identity]] = {}
+
+    def target(self, user_id: int, label: str) -> dict[str, Any]:
+        if user_id not in self.users:
             raise RuntimeError("Legacy settings reference an unknown owner; no changes were made.")
         key = (user_id, _label(label))
-        identity = keys.get(key, key)
-        if key not in alias_keys:
-            new_aliases.setdefault(key, (label, identity))
-        return plan.setdefault(
+        identity = self.keys.get(key, key)
+        if key not in self.alias_keys:
+            self.new_aliases.setdefault(key, (label, identity))
+        return self.accounts.setdefault(
             identity,
             {"user_id": user_id, "name": label, "key": key[1], "values": {}},
         )
 
-    for row in bind.execute(sa.select(legacy).order_by(legacy.c.id)).mappings():
-        if row.account_type not in _TYPES or row.is_closed not in (False, True):
-            raise RuntimeError("Invalid legacy classification or closure state.")
-        entry = target(row.user_id, row.account_name)
-        values = entry["values"]
-        incoming = {
-            "account_type": row.account_type,
-            "is_closed": row.is_closed,
-            "closed_date": row.closed_date,
-        }
-        if "account_type" in values and any(
-            values[key] != value for key, value in incoming.items()
-        ):
+
+def _merge_classification(plan: _SettingsPlan, row: Any) -> None:
+    if row.account_type not in _TYPES or row.is_closed not in (False, True):
+        raise RuntimeError("Invalid legacy classification or closure state.")
+    entry = plan.target(row.user_id, row.account_name)
+    values = entry["values"]
+    incoming = {
+        "account_type": row.account_type,
+        "is_closed": row.is_closed,
+        "closed_date": row.closed_date,
+    }
+    if "account_type" in values and any(values[key] != value for key, value in incoming.items()):
+        raise RuntimeError(
+            "Conflicting legacy classifications/closure metadata resolve to one account; "
+            "resolve explicitly with the owner before migration. No data was changed."
+        )
+    values.update(incoming)
+    for field, choose in (("created_at", min), ("updated_at", max)):
+        candidates = [value for value in (values.get(field), row[field]) if value is not None]
+        values[field] = choose(candidates) if candidates else None
+
+
+def _merge_credit_limits(plan: _SettingsPlan, row: Any) -> None:
+    limits = _read_limits(row.credit_card_limits)
+    # The original preferences revision seeded an anonymous default row.
+    # An empty map has no settings to transfer and no owner to infer.
+    if row.user_id is None and not limits:
+        return
+    if row.user_id not in plan.users:
+        raise RuntimeError("Legacy credit limits reference an unknown owner.")
+    for label, raw_amount in limits.items():
+        values = plan.target(row.user_id, label)["values"]
+        amount = _limit(raw_amount)
+        if "credit_limit" in values and values["credit_limit"] != amount:
             raise RuntimeError(
-                "Conflicting legacy classifications/closure metadata resolve to one account; "
-                "resolve explicitly with the owner before migration. No data was changed."
+                "Conflicting legacy credit limits resolve to one account; no data was changed."
             )
-        values.update(incoming)
-        for field, choose in (("created_at", min), ("updated_at", max)):
-            candidates = [value for value in (values.get(field), row[field]) if value is not None]
-            values[field] = choose(candidates) if candidates else None
+        values["credit_limit"] = amount
 
-    for row in bind.execute(sa.select(prefs.c.user_id, prefs.c.credit_card_limits)).mappings():
-        limits = _read_limits(row.credit_card_limits)
-        # The original preferences revision seeded an anonymous default row.
-        # An empty map has no settings to transfer and no owner to infer.
-        if row.user_id is None and not limits:
-            continue
-        if row.user_id not in users:
-            raise RuntimeError("Legacy credit limits reference an unknown owner.")
-        for label, raw_amount in limits.items():
-            values = target(row.user_id, label)["values"]
-            amount = _limit(raw_amount)
-            if "credit_limit" in values and values["credit_limit"] != amount:
-                raise RuntimeError(
-                    "Conflicting legacy credit limits resolve to one account; no data was changed."
-                )
-            values["credit_limit"] = amount
 
+def _check_existing_settings(current: dict[str, Any], values: dict[str, Any]) -> None:
     # A create_all-first or repeated run must not overwrite already configured
     # target metadata. Default False is neutral only while type/date are unset.
-    for identity, entry in plan.items():
-        current = existing.get(identity, {})
-        values = entry["values"]
-        for field in ("account_type", "closed_date", "credit_limit"):
-            if (
-                current.get(field) is not None
-                and field in values
-                and current[field] != values[field]
-            ):
-                raise RuntimeError("Existing account settings conflict with legacy data.")
-        if (
-            "is_closed" in values
-            and (current.get("is_closed") or current.get("account_type") is not None)
-            and current.get("is_closed") != values["is_closed"]
-        ):
-            raise RuntimeError("Existing account closure conflicts with legacy data.")
-    return existing, plan, new_aliases
+    for field in ("account_type", "closed_date", "credit_limit"):
+        if current.get(field) is not None and field in values and current[field] != values[field]:
+            raise RuntimeError("Existing account settings conflict with legacy data.")
+    if (
+        "is_closed" in values
+        and (current.get("is_closed") or current.get("account_type") is not None)
+        and current.get("is_closed") != values["is_closed"]
+    ):
+        raise RuntimeError("Existing account closure conflicts with legacy data.")
+
+
+def _preflight(bind: sa.Connection) -> tuple[dict, dict, dict]:
+    metadata = sa.MetaData()
+    accounts = sa.Table("ledger_accounts", metadata, autoload_with=bind)
+    aliases = sa.Table("ledger_account_aliases", metadata, autoload_with=bind)
+    legacy = sa.Table("account_classifications", metadata, autoload_with=bind)
+    prefs = sa.Table("user_preferences", metadata, autoload_with=bind)
+    users = set(bind.execute(sa.text("SELECT id FROM users")).scalars())
+    existing, keys = _existing_accounts(bind, accounts, users)
+    alias_keys = _existing_alias_keys(bind, aliases, existing, keys)
+    plan = _SettingsPlan(users, keys, alias_keys)
+    for row in bind.execute(sa.select(legacy).order_by(legacy.c.id)).mappings():
+        _merge_classification(plan, row)
+    for row in bind.execute(sa.select(prefs.c.user_id, prefs.c.credit_card_limits)).mappings():
+        _merge_credit_limits(plan, row)
+    for identity, entry in plan.accounts.items():
+        _check_existing_settings(existing.get(identity, {}), entry["values"])
+    return existing, plan.accounts, plan.new_aliases
 
 
 def _add_columns(bind: sa.Connection) -> None:

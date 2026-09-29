@@ -112,8 +112,7 @@ describe('positive included asset allocation', () => {
       categoryProportions: { 'Bank Accounts': 1 },
     })
     const series = computeNetWorthTimeSeries([
-      { date: '2025-01-31', type: 'Income', amount: 100_000 },
-      { date: '2025-01-31', type: 'Expense', amount: 40_000 },
+      { date: '2025-01-31', income: 100_000, expense: 40_000 },
     ], summary.assetCategories, summary.categoryProportions)
     expect(series[0]).toMatchObject({ netWorth: 60_000, 'Bank Accounts': 60_000 })
   })
@@ -150,10 +149,11 @@ describe('positive included asset allocation', () => {
   })
 
   it('keeps cash-flow scope distinct from account balances and ignores transfers in totals', () => {
+    // `/daily-net-worth` reports a transfer-only day with zero income and expense.
     const series = computeNetWorthTimeSeries([
-      { date: '2025-01-01', type: 'Income', amount: 50_000 },
-      { date: '2025-02-01', type: 'Transfer', amount: 20_000 },
-      { date: '2025-03-01', type: 'Expense', amount: 70_000 },
+      { date: '2025-01-01', income: 50_000, expense: 0 },
+      { date: '2025-02-01', income: 0, expense: 0 },
+      { date: '2025-03-01', income: 0, expense: 70_000 },
     ], ['Bank Accounts'], { 'Bank Accounts': 1 })
     expect(series.at(-1)).toMatchObject({
       netWorth: -20_000,

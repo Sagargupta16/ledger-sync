@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { useDataDateBounds } from '@/hooks/api/useAnalytics'
 import { useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
@@ -10,8 +11,10 @@ import {
   accumulateStats,
   aggregateDayTotals,
   aggregateFromDailySummaries,
+  bestWorstMonths,
   buildDayCells,
   deriveMonthLabels,
+  periodMonthOrder,
 } from './heatmapUtils'
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
@@ -43,14 +46,25 @@ export function useYearInReview() {
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
 
-  const dataDateRange = useMemo(() => {
-    if (transactions.length === 0) return { minDate: undefined, maxDate: undefined }
-    // Explicit comparator (S2871): the default `.sort()` coerces to string and
-    // compares code units, which is right for fixed-width date keys only by
-    // accident. Matches the ~15 other date sorts in this codebase.
-    const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
-    return { minDate: dates[0], maxDate: dates[dates.length - 1] }
-  }, [transactions])
+  // currentFY is seeded once from the default start month (4) before
+  // /api/preferences resolves, and useState initializers never re-run, so a
+  // non-April fiscal year stayed on the April window. Resync during render when
+  // preferences arrive -- the same pattern as useAnalyticsTimeFilter -- but only
+  // until the user picks a period, so a deliberate choice is never overwritten.
+  const [userInteracted, setUserInteracted] = useState(false)
+  const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
+  if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
+    setSyncedFsm(fiscalYearStartMonth)
+    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+  }
+  const markInteracted = <T,>(setter: (v: T) => void) => (v: T) => {
+    setUserInteracted(true)
+    setter(v)
+  }
+
+  // Bounds from /data-date-range: same non-deleted, non-excluded rows as the
+  // ledger, without sorting every row's date on the client.
+  const dataDateRange = useDataDateBounds()
 
   const selectedYear = useMemo(() => {
     if (viewMode === 'fy') {
@@ -100,11 +114,15 @@ export function useYearInReview() {
 
   const stats = useMemo(() => {
     const acc = accumulateStats(grid)
-    const { totalExpense, totalIncome, daysWithExpense, monthlyExpense } = acc
+    const { totalExpense, totalIncome, elapsedDays, monthlyExpense } = acc
 
-    const bestMonth = monthlyExpense.indexOf(Math.min(...monthlyExpense.filter((e) => e > 0)))
-    const worstMonth = monthlyExpense.indexOf(Math.max(...monthlyExpense))
-    const dailyAvg = daysWithExpense > 0 ? totalExpense / daysWithExpense : 0
+    // The month holding today is still in progress, so it cannot be ranked
+    // against complete months.
+    const inProgressMonth = grid.find((cell) => cell.isToday)?.month ?? null
+    const { best: bestMonth, worst: worstMonth } = bestWorstMonths(monthlyExpense, inProgressMonth)
+    // Per elapsed day, not per spending day: dividing by days WITH spending
+    // skipped every zero-spend day and overstated the average.
+    const dailyAvg = elapsedDays > 0 ? totalExpense / elapsedDays : 0
 
     return {
       ...acc,
@@ -133,11 +151,11 @@ export function useYearInReview() {
     } else if (selectedYear === nowYear) {
       cutoff = nowMonth + 1
     }
-    return MONTHS_SHORT.slice(0, cutoff).map((m, i) => {
-      const spending = stats.monthlyExpense[i]
-      const earning = stats.monthlyIncome[i]
+    return periodMonthOrder(isFYMode, fiscalYearStartMonth).slice(0, cutoff).map((monthIndex) => {
+      const spending = stats.monthlyExpense[monthIndex]
+      const earning = stats.monthlyIncome[monthIndex]
       return {
-        name: m,
+        name: MONTHS_SHORT[monthIndex],
         Spending: spending,
         Earning: earning,
         // Net cash flow per month (positive = saved, negative = overspent).
@@ -166,13 +184,13 @@ export function useYearInReview() {
     hoveredDay,
     setHoveredDay,
     viewMode,
-    setViewMode,
+    setViewMode: markInteracted(setViewMode),
     currentYear,
-    setCurrentYear,
+    setCurrentYear: markInteracted(setCurrentYear),
     currentMonth,
-    setCurrentMonth,
+    setCurrentMonth: markInteracted(setCurrentMonth),
     currentFY,
-    setCurrentFY,
+    setCurrentFY: markInteracted(setCurrentFY),
     dataDateRange,
     fiscalYearStartMonth,
     selectedYear,

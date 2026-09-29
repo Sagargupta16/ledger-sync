@@ -45,8 +45,8 @@ commands.
 
 ### Local configuration
 
-Copy `backend/.env.example` to `backend/.env` and change only the values needed
-for local development. Never commit `backend/.env`.
+Copy the root [`.env.example`](../.env.example) to `backend/.env` and change only
+the values needed for local development. Never commit `backend/.env`.
 
 The backend automatically creates an ephemeral JWT secret in development. At
 least one OAuth provider is required for real sign-in:

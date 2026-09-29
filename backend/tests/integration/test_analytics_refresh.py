@@ -239,7 +239,7 @@ def test_failure_keeps_published_rollups_and_dirty_generation(
     state = get_analytics_state(session, test_user.id)
     published = state.published_ledger_version
 
-    def fail(_transactions):
+    def fail(*_args):
         raise RuntimeError("fixture domain failed")
 
     monkeypatch.setattr(engine, "_calculate_category_trends", fail)

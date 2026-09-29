@@ -1,5 +1,6 @@
 import { CanceledError } from 'axios'
 import type { QueryClient } from '@tanstack/react-query'
+import { clearDismissedNotifications } from '@/components/shared/notificationData'
 import { useAuthStore, type AuthState } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { usePreferencesStore } from '@/store/preferencesStore'
@@ -42,6 +43,7 @@ export function clearSessionData(client: QueryClient = queryClient, resetStores 
     useAccountStore.getState().reset()
     useInvestmentAccountStore.getState().reset()
     usePreferencesStore.getState().reset()
+    clearDismissedNotifications()
   }
 }
 
@@ -51,7 +53,8 @@ export function endSession(client: QueryClient = queryClient): void {
   useAuthStore.getState().logout()
 }
 
-function identity(state: AuthState): string {
+/** Stable per-account (or `demo` / `anonymous`) identity for session-scoped storage. */
+export function sessionIdentity(state: AuthState): string {
   if (!state.accessToken) return 'anonymous'
   if (state.accessToken === 'demo-token') return 'demo'
   return `${state.user?.auth_provider ?? ''}:${state.user?.id ?? 'pending'}`
@@ -60,5 +63,5 @@ function identity(state: AuthState): string {
 // Observe the store itself so OAuth login, direct logout and demo transitions
 // all use the same boundary, including callers outside the authentication hooks.
 useAuthStore.subscribe((state, previous) => {
-  if (identity(state) !== identity(previous)) clearSessionData()
+  if (sessionIdentity(state) !== sessionIdentity(previous)) clearSessionData()
 })

@@ -231,18 +231,86 @@ export function computeBufferBreakdown(
   return { days: Math.max(0, Math.round(liquid.netLiquid / burn.mean)), liquid, burn }
 }
 
+/** Build a spendable-account test from the user's classifications. */
+export function spendableAccountTest(
+  classifications: Readonly<Record<string, string>>,
+): (accountName: string) => boolean {
+  return (accountName) => isSpendableAccount(accountName, classifications[accountName])
+}
+
+interface AgeOfMoneyTransaction {
+  type: string
+  amount: number
+  date: string
+  from_account?: string | null
+  to_account?: string | null
+}
+
+const TRANSFER_TYPES: ReadonlySet<string> = new Set(['Transfer', 'Transfer-In', 'Transfer-Out'])
+
+/**
+ * How a transfer moves money relative to the spendable pool.
+ *
+ * With a spendable-account test, only moves that cross the pool boundary count:
+ * cash -> investment (SIP, PPF) leaves it, a redemption back to cash re-enters
+ * it, and a move between the user's own cash accounts changes nothing. Without
+ * one, a transfer cannot be placed, so every outgoing transfer is treated as
+ * leaving the pool: dropping a real SIP outflow lets income sit in the FIFO
+ * queue forever and the age grows without bound.
+ */
+function transferDirection(
+  tx: AgeOfMoneyTransaction,
+  isSpendable: ((accountName: string) => boolean) | undefined,
+): 'out' | 'in' | 'none' {
+  if (!isSpendable || !tx.from_account || !tx.to_account) {
+    return tx.type === 'Transfer-In' ? 'none' : 'out'
+  }
+  const fromCash = isSpendable(tx.from_account)
+  const toCash = isSpendable(tx.to_account)
+  if (fromCash && !toCash) return 'out'
+  if (!fromCash && toCash) return 'in'
+  return 'none'
+}
+
+/** Dequeue `amount` from the oldest buckets; returns the amount-weighted age sum. */
+function dequeue(queue: IncomeBucket[], amount: number, date: string): { ageSum: number; matched: number } {
+  let remaining = amount
+  let ageSum = 0
+  let matched = 0
+  const spendTime = new Date(date).getTime()
+
+  while (remaining > 0 && queue.length > 0) {
+    const bucket = queue[0]
+    const take = Math.min(remaining, bucket.remaining)
+    const ageDays = Math.max(0, (spendTime - new Date(bucket.date).getTime()) / MS_PER_DAY)
+
+    ageSum += take * ageDays
+    matched += take
+    bucket.remaining -= take
+    remaining -= take
+
+    if (bucket.remaining <= 0) queue.shift()
+  }
+  return { ageSum, matched }
+}
+
 /**
  * Compute the "Age of Money" using FIFO matching.
  *
- * For each expense, dequeue from the oldest income bucket first.
- * Track the weighted average age (expense_date - income_date).
+ * Income (and money re-entering the spendable pool) is enqueued; each expense
+ * dequeues from the oldest bucket first and the weighted average age
+ * (expense_date - income_date) is reported. Transfers that leave the pool also
+ * dequeue, so invested money stops ageing in the queue, but only expenses feed
+ * the average: the figure stays "how old is the money you spend".
  *
+ * @param isSpendable optional test (see `spendableAccountTest`) that lets
+ *   internal cash-to-cash moves be ignored instead of treated as outflows
  * @returns Average age in days, or null if insufficient data
  */
 export function computeAgeOfMoney(
-  transactions: Array<{ type: string; amount: number; date: string }>,
+  transactions: ReadonlyArray<AgeOfMoneyTransaction>,
+  isSpendable?: (accountName: string) => boolean,
 ): number | null {
-  // Sort all transactions by date
   const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date))
 
   const queue: IncomeBucket[] = []
@@ -250,30 +318,17 @@ export function computeAgeOfMoney(
   let totalMatched = 0
 
   for (const tx of sorted) {
+    const amount = Math.abs(tx.amount)
     if (tx.type === 'Income') {
-      queue.push({ date: tx.date, remaining: Math.abs(tx.amount) })
-      continue
-    }
-
-    if (tx.type !== 'Expense') continue
-
-    let remaining = Math.abs(tx.amount)
-    const expenseDate = new Date(tx.date)
-
-    while (remaining > 0 && queue.length > 0) {
-      const bucket = queue[0]
-      const matched = Math.min(remaining, bucket.remaining)
-      const incomeDate = new Date(bucket.date)
-      const ageDays = Math.max(0, (expenseDate.getTime() - incomeDate.getTime()) / MS_PER_DAY)
-
-      ageSum += matched * ageDays
-      totalMatched += matched
-      bucket.remaining -= matched
-      remaining -= matched
-
-      if (bucket.remaining <= 0) {
-        queue.shift()
-      }
+      queue.push({ date: tx.date, remaining: amount })
+    } else if (tx.type === 'Expense') {
+      const result = dequeue(queue, amount, tx.date)
+      ageSum += result.ageSum
+      totalMatched += result.matched
+    } else if (TRANSFER_TYPES.has(tx.type)) {
+      const direction = transferDirection(tx, isSpendable)
+      if (direction === 'out') dequeue(queue, amount, tx.date)
+      else if (direction === 'in') queue.push({ date: tx.date, remaining: amount })
     }
   }
 

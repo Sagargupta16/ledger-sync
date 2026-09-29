@@ -19,7 +19,6 @@ from ledger_sync.db.session import SessionLocal, get_session
 
 # Security scheme
 security = HTTPBearer()
-optional_security = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
@@ -91,37 +90,6 @@ def get_provider_identity(
         return ProviderIdentity(id=user.id)
 
 
-def get_optional_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_security)],
-    session: Annotated[Session, Depends(get_session)],
-) -> User | None:
-    """Get the current user if authenticated, otherwise return None.
-
-    Useful for endpoints that work differently for authenticated/unauthenticated users.
-
-    Args:
-        credentials: Optional HTTP Bearer token
-        session: Database session
-
-    Returns:
-        User object if authenticated, None otherwise
-
-    """
-    if credentials is None:
-        return None
-
-    token_data = verify_token(credentials.credentials, token_type="access")
-    if token_data is None or token_data.user_id is None:
-        return None
-
-    user = session.execute(select(User).where(User.id == token_data.user_id)).scalar_one_or_none()
-
-    if user is None or not user.is_active:
-        return None
-
-    return user
-
-
 def get_http_client(request: Request) -> httpx.AsyncClient:
     """Get the shared httpx client from app state (created in lifespan)."""
     client: httpx.AsyncClient = request.app.state.http_client
@@ -131,6 +99,5 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 # Type aliases for dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
 ProviderUser = Annotated[ProviderIdentity, Depends(get_provider_identity)]
-OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 DatabaseSession = Annotated[Session, Depends(get_session)]
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]

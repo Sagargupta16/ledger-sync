@@ -60,15 +60,14 @@ describe('calculateXIRR', () => {
     expect(rate).toBeCloseTo(-99.5, 0)
   })
 
-  it('solves an extreme short-horizon gain via bisection when Newton leaves the bracket', () => {
-    // 2x in one month annualizes to ~409,500% -- outside the 1000% bracket
-    // cap, so the solver returns the bracket-capped estimate rather than 0.
-    // What matters: a huge REAL gain never displays as 0%.
+  it('reports a sub-year gain as an absolute return instead of annualising it', () => {
+    // 2x in one month would annualise to ~409,500%. Under 365 days the rate is
+    // the absolute gain on money invested, so a huge real gain reads +100%.
     const rate = calculateXIRR([
       { date: new Date('2025-01-01'), amount: 10_000 },
       { date: new Date('2025-02-01'), amount: -20_000 },
     ])
-    expect(rate).toBeGreaterThan(500) // enormous, definitely not 0
+    expect(rate).toBeCloseTo(100, 6)
   })
 
   it('still fast-paths a normal gain through Newton', () => {

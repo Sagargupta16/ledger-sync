@@ -1,30 +1,52 @@
-import { useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Wallet, CreditCard, Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import StandardPieChart from '@/components/analytics/StandardPieChart'
-import MonthlyFlowChart from '@/components/analytics/MonthlyFlowChart'
 import InvestmentFlowSummary from '@/components/analytics/InvestmentFlowSummary'
 
 import PieLegend from '@/components/shared/PieLegend'
 import { capPieSlices } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import QuickInsights from '@/components/shared/QuickInsights'
-import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import LoadingSkeleton, { ChartSkeleton, PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
-import { FinancialHealthScore } from '@/components/analytics'
 import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
 import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
 import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { computeAgeOfMoney, computeDaysOfBuffering, computeLiquidPosition } from '@/lib/ageOfMoneyCalculator'
+import {
+  computeAgeOfMoney,
+  computeDaysOfBuffering,
+  computeLiquidPosition,
+  spendableAccountTest,
+} from '@/lib/ageOfMoneyCalculator'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
+
+// Dashboard is an eager route, so anything it imports statically is
+// modulepreloaded on every entry, including the anonymous Home page. The chart
+// components are what pull recharts in; loading them on demand keeps it off the
+// first-load path. Each fallback matches its component's footprint.
+const StandardPieChart = lazy(() => import('@/components/analytics/StandardPieChart'))
+const MonthlyFlowChart = lazy(() => import('@/components/analytics/MonthlyFlowChart'))
+const FinancialHealthScore = lazy(() => import('@/components/analytics/FinancialHealthScore'))
+
+const PIE_FALLBACK = <LoadingSkeleton className="h-[180px] w-full" />
+
+/** Same shape as FinancialHealthScore's own loading state. */
+function HealthScoreFallback() {
+  return (
+    <div className="ledger-panel animate-pulse p-4 sm:p-5">
+      <div className="mb-4 h-8 w-1/3 rounded bg-muted" />
+      <div className="h-32 rounded bg-muted" />
+    </div>
+  )
+}
 
 function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
   hasHistory: boolean
@@ -61,7 +83,7 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    filteredTransactions, isLoading, isError, retry,
+    filteredTransactions, isSummaryLoading, isLedgerLoading, hasTransactionsInRange, isError, retry,
     incomeBreakdown, cashbacksTotal,
     incomeChartData,
     expenseChartData,
@@ -94,11 +116,6 @@ export default function DashboardPage() {
     [fixedCommitments, today],
   )
 
-  // Age of Money & Days of Buffering
-  const ageOfMoney = useMemo(
-    () => filteredTransactions?.length ? computeAgeOfMoney(filteredTransactions) : null,
-    [filteredTransactions],
-  )
   // Days of Buffering runs on LIQUID balances only (cash / bank / wallets).
   // Feeding lifetime income-minus-expense here counted investments (PPF, MF,
   // stocks) as spendable and inflated the runway (~754 days vs the real
@@ -114,6 +131,14 @@ export default function DashboardPage() {
     staleTime: Infinity,
   })
   const accountClassifications = classificationsQuery.data
+  // Age of Money. With the classifications already loaded above, only transfers
+  // that cross the spendable-cash boundary move money in or out of the FIFO
+  // pool; a move between the user's own cash accounts changes nothing.
+  const ageOfMoney = useMemo(() => {
+    if (!filteredTransactions?.length) return null
+    const isSpendable = accountClassifications ? spendableAccountTest(accountClassifications) : undefined
+    return computeAgeOfMoney(filteredTransactions, isSpendable)
+  }, [filteredTransactions, accountClassifications])
   const daysOfBuffering = useMemo(() => {
     if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
       return null
@@ -135,8 +160,10 @@ export default function DashboardPage() {
   const incomeSlices = useMemo(() => capPieSlices(incomeChartData), [incomeChartData])
   const expenseSlices = useMemo(() => capPieSlices(expenseChartData), [expenseChartData])
 
+  // The summary gates the page; the full ledger only feeds Age of Money, Days of
+  // Buffering and the investment-transfer panel, which fill in when it lands.
   const pageLoading =
-    isLoading ||
+    isSummaryLoading ||
     recurringQuery.isLoading ||
     balanceQuery.isLoading ||
     classificationsQuery.isLoading
@@ -170,7 +197,7 @@ export default function DashboardPage() {
 
   // First-run: no transactions at all. Show a single full-page prompt to upload
   // instead of a grid of empty widgets.
-  if (!filteredTransactions?.length) {
+  if (!hasTransactionsInRange) {
     return (
       <DashboardEmpty hasHistory={Boolean(dataDateRange.maxDate)} onViewAll={() => setViewMode('all_time')} />
     )
@@ -212,7 +239,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
+      <Suspense fallback={<ChartSkeleton />}>
+        <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
+      </Suspense>
 
       <section className="space-y-3">
         <div>
@@ -255,17 +284,19 @@ export default function DashboardPage() {
           </h2>
           {expenseChartData.length > 0 ? (
             <div className="dashboard-source-body">
-              <StandardPieChart
-                data={expenseChartData}
-                height={180}
-                showLegend={false}
-                ariaLabel="Expense sources pie chart"
-                centerValue={formatCurrencyShort(expenseTotal)}
-                centerLabel="Total"
-                onSliceClick={(name) => {
-                  void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                }}
-              />
+              <Suspense fallback={PIE_FALLBACK}>
+                <StandardPieChart
+                  data={expenseChartData}
+                  height={180}
+                  showLegend={false}
+                  ariaLabel="Expense sources pie chart"
+                  centerValue={formatCurrencyShort(expenseTotal)}
+                  centerLabel="Total"
+                  onSliceClick={(name) => {
+                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                  }}
+                />
+              </Suspense>
               <div className="space-y-1">
                 <PieLegend
                   slices={expenseSlices}
@@ -296,20 +327,22 @@ export default function DashboardPage() {
           </h2>
           {incomeChartData.length > 0 ? (
             <div className="dashboard-source-body">
-              <StandardPieChart
-                data={incomeChartData}
-                height={180}
-                showLegend={false}
-                ariaLabel="Income sources pie chart"
-                centerValue={formatCurrencyShort(incomeTotal)}
-                centerLabel="Total"
-                // `void navigate(...)`: react-router types it `void |
-                // Promise<void>`, and these props expect a void return. Same
-                // convention as CommandPalette and ProfileModal.
-                onSliceClick={(name) => {
-                  void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                }}
-              />
+              <Suspense fallback={PIE_FALLBACK}>
+                <StandardPieChart
+                  data={incomeChartData}
+                  height={180}
+                  showLegend={false}
+                  ariaLabel="Income sources pie chart"
+                  centerValue={formatCurrencyShort(incomeTotal)}
+                  centerLabel="Total"
+                  // `void navigate(...)`: react-router types it `void |
+                  // Promise<void>`, and these props expect a void return. Same
+                  // convention as CommandPalette and ProfileModal.
+                  onSliceClick={(name) => {
+                    void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                  }}
+                />
+              </Suspense>
               <div className="space-y-1">
                 <PieLegend
                   slices={incomeSlices}
@@ -341,9 +374,15 @@ export default function DashboardPage() {
 
       </div>
 
-      <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
+      {isLedgerLoading && hasInvestmentMappings ? (
+        <LoadingSkeleton className="h-32 w-full" />
+      ) : (
+        <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
+      )}
 
-      <FinancialHealthScore />
+      <Suspense fallback={<HealthScoreFallback />}>
+        <FinancialHealthScore />
+      </Suspense>
 
       <nav aria-label="Planning shortcuts" className="flex flex-wrap gap-x-6 gap-y-1 border-t border-[var(--hairline-1)] pt-3">
         {[

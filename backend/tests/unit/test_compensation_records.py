@@ -309,7 +309,9 @@ def test_invalid_updates_are_422_and_apply_neither_section(compensation_session,
         )
     assert error.value.status_code == 422
     assert read_compensation(session, 1) == before
-    assert not session.new and not session.dirty and not session.deleted
+    assert not session.new
+    assert not session.dirty
+    assert not session.deleted
 
 
 @pytest.mark.parametrize(
@@ -356,16 +358,20 @@ def test_database_owner_fk_and_salary_uniqueness(compensation_session):
     replace_rsu_grants(session, 1, [grant()])
     session.commit()
     parent_id = session.scalar(select(RsuGrantRecord.id))
-    with pytest.raises(IntegrityError), session.begin_nested():
-        session.add(SalaryPlan(user_id=1, fiscal_year="2025-26", position=0))
+    savepoint = session.begin_nested()
+    session.add(SalaryPlan(user_id=1, fiscal_year="2025-26", position=0))
+    with pytest.raises(IntegrityError):
         session.flush()
-    with pytest.raises(IntegrityError), session.begin_nested():
-        session.add(
-            RsuVestingRecord(
-                user_id=2, grant_id=parent_id, position=0, date=date(2026, 1, 1), quantity=1
-            )
+    savepoint.rollback()
+    savepoint = session.begin_nested()
+    session.add(
+        RsuVestingRecord(
+            user_id=2, grant_id=parent_id, position=0, date=date(2026, 1, 1), quantity=1
         )
+    )
+    with pytest.raises(IntegrityError):
         session.flush()
+    savepoint.rollback()
     session.execute(delete(User).where(User.id == 1))
     session.flush()
     assert read_compensation(session, 1) == {"salary_structure": {}, "rsu_grants": []}

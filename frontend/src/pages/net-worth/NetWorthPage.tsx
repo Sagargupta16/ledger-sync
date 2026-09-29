@@ -77,8 +77,8 @@ export default function NetWorthPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[1.15fr_1fr_1fr]">
-        <div className="sm:col-span-2 lg:col-span-1 [&>*]:h-full">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.15fr_1fr_1fr]">
+        <div className="col-span-2 lg:col-span-1 [&>*]:h-full">
           <MetricCard
             title="Net Worth"
             value={formatCurrency(m.netWorth)}

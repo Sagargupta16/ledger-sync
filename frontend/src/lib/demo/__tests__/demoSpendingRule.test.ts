@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { generateDemoSpendingRule } from '../demoComputedReads'
+import { generateDemoSpendingRule } from '../demoSpendingRule'
 import { generateDemoTransactions } from '../generateTransactions'
 
 /**

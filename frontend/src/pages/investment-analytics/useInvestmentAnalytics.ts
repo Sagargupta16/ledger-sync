@@ -4,6 +4,7 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { capSeriesToToday, getTodayKey } from '@/lib/dateUtils'
 import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 import {
   investmentAccountTest,
@@ -29,6 +30,16 @@ export function useInvestmentAnalytics() {
     () => transactionsQuery.data ?? [],
     [transactionsQuery.data],
   )
+  /**
+   * Rows dated today or earlier. The ledger carries forward-dated accruals (a
+   * month-end EPF booking entered days ahead), and the portfolio value is a
+   * position AS OF TODAY: counting a contribution that has not happened yet
+   * inflated the total, and the XIRR terminal value built on it.
+   */
+  const pastTransactions = useMemo(() => {
+    const today = getTodayKey()
+    return transactions.filter((tx) => tx.date.slice(0, 10) <= today)
+  }, [transactions])
   const preferences = preferencesQuery.data
 
   const investmentMappings = useMemo(
@@ -61,7 +72,7 @@ export function useInvestmentAnalytics() {
   }, [investmentMappings])
 
   const filteredInvestmentTotals = useMemo(() => {
-    if (!transactions.length || !investmentAccounts.length) {
+    if (!pastTransactions.length || !investmentAccounts.length) {
       return {
         byAccount: {},
         byCategory: {} as Record<InvestmentCategory, number>,
@@ -81,7 +92,7 @@ export function useInvestmentAnalytics() {
       Stocks: 0,
     }
 
-    transactions.forEach((tx) => {
+    pastTransactions.forEach((tx) => {
       processInvestmentTransaction(
         tx,
         isInvestment,
@@ -93,16 +104,18 @@ export function useInvestmentAnalytics() {
 
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)
     return { byAccount, byCategory, total }
-  }, [transactions, investmentAccounts, isInvestment, accountToCategory])
+  }, [pastTransactions, investmentAccounts, isInvestment, accountToCategory])
 
   const totalInvestmentValue = filteredInvestmentTotals.total
 
+  // Same as-of-today row set as the value above: the terminal cash flow is that
+  // value, so a future contribution in the flows would count against it twice.
   const portfolioXIRR = useMemo((): number => {
-    if (!investmentAccounts.length || !transactions.length) return 0
+    if (!investmentAccounts.length || !pastTransactions.length) return 0
 
     const cashflows: CashFlow[] = []
 
-    for (const tx of transactions) {
+    for (const tx of pastTransactions) {
       if (tx.type !== 'Transfer') continue
       const d = new Date(tx.date)
       if (Number.isNaN(d.getTime())) continue
@@ -115,7 +128,7 @@ export function useInvestmentAnalytics() {
     cashflows.sort((a, b) => a.date.getTime() - b.date.getTime())
 
     return calculateXIRR(cashflows)
-  }, [transactions, investmentAccounts, isInvestment, totalInvestmentValue])
+  }, [pastTransactions, investmentAccounts, isInvestment, totalInvestmentValue])
 
   const netInvestmentPL = useMemo(() => computeNetInvestmentPL(transactions), [transactions])
   const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
@@ -174,8 +187,13 @@ export function useInvestmentAnalytics() {
       }))
   }, [filteredInvestmentTotals, accountToCategory, totalInvestmentValue])
 
+  // HISTORICAL series, so it stops at today. The all-time view has no end date
+  // to clip it, and a forward-dated accrual otherwise drew a point in the future.
   const dailyGrowthData = useMemo(
-    () => buildDailyGrowthSeries(transactions, investmentAccounts, accountToCategory),
+    () => capSeriesToToday(
+      buildDailyGrowthSeries(transactions, investmentAccounts, accountToCategory),
+      'fullDate',
+    ),
     [transactions, investmentAccounts, accountToCategory],
   )
 

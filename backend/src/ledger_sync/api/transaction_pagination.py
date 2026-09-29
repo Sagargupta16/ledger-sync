@@ -4,7 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
-import re
+import string
 from datetime import datetime
 from typing import Any, Literal
 
@@ -13,12 +13,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import tuple_
 from sqlalchemy.orm import Query
 
-from ledger_sync.config.settings import settings
+from ledger_sync.core.auth.tokens import legacy_signing_key, purpose_key
 from ledger_sync.db.models import Transaction
 from ledger_sync.schemas.transactions import TransactionsListResponse
 
 MAX_CURSOR_LENGTH = 1024
 _CURSOR_DOMAIN = b"ledger-sync:transaction-page:v1:"
+_CURSOR_KEY_INFO = b"ledger-sync/transaction-cursor/v1"
+_BASE64URL_CHARS = frozenset(string.ascii_letters + string.digits + "_-")
+_HEX_CHARS = frozenset("0123456789abcdef")
 
 
 class TransactionsPageResponse(TransactionsListResponse):
@@ -51,12 +54,32 @@ def cursor_context(values: dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
-def _signature(payload: str) -> str:
+def _signature(payload: str, key: bytes | None = None) -> str:
     return hmac.new(
-        settings.jwt_secret_key.encode(),
+        key or purpose_key(_CURSOR_KEY_INFO),
         _CURSOR_DOMAIN + payload.encode("ascii"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def _signature_matches(payload: str, signature: str) -> bool:
+    """Accept the cursor subkey, then the raw secret that signed older cursors."""
+    return any(
+        hmac.compare_digest(_signature(payload, key), signature)
+        for key in (purpose_key(_CURSOR_KEY_INFO), legacy_signing_key())
+    )
+
+
+def _is_cursor_shape(token: str) -> bool:
+    """``<base64url payload>.<64 lowercase hex>``, checked without a regex."""
+    payload, separator, signature = token.partition(".")
+    return (
+        separator == "."
+        and bool(payload)
+        and all(char in _BASE64URL_CHARS for char in payload)
+        and len(signature) == 64
+        and all(char in _HEX_CHARS for char in signature)
+    )
 
 
 def _encode_cursor(transaction: Transaction, context: str, offset: int) -> str:
@@ -72,12 +95,10 @@ def _encode_cursor(transaction: Transaction, context: str, offset: int) -> str:
 
 def _decode_cursor(token: str, context: str) -> _DateCursor:
     try:
-        if len(token) > MAX_CURSOR_LENGTH or not re.fullmatch(
-            r"[A-Za-z0-9_-]+\.[0-9a-f]{64}", token
-        ):
+        if len(token) > MAX_CURSOR_LENGTH or not _is_cursor_shape(token):
             raise ValueError("Invalid cursor encoding")
         payload, signature = token.split(".")
-        if not hmac.compare_digest(_signature(payload), signature):
+        if not _signature_matches(payload, signature):
             raise ValueError("Invalid cursor signature")
         decoded = base64.b64decode(
             payload + "=" * (-len(payload) % 4), altchars=b"-_", validate=True

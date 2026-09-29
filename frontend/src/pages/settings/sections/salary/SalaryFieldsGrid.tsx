@@ -4,8 +4,8 @@ import Button from '@/components/ui/Button'
 import type { SalaryComponents } from '@/types/salary'
 import { formatCurrency } from '@/lib/formatters'
 
-import { FieldLabel } from '../../sectionPrimitives'
-import { inputClass } from '../../styles'
+import { FieldLabel } from '@/pages/settings/sectionPrimitives'
+import { inputClass } from '@/pages/settings/styles'
 
 interface SalaryFieldsGridProps {
   fyKeys: string[]

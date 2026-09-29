@@ -643,7 +643,9 @@ def test_key_reveal_rewraps_and_sets_no_store(monkeypatch: pytest.MonkeyPatch) -
 
     _app, session, user = _make_app()
     monkeypatch.setattr(settings, "encryption_key", "")
-    _make_ai_settings(session, user, api_key="synthetic-personal-bearer")
+    _make_ai_settings(
+        session, user, provider="openai", region="", api_key="synthetic-personal-bearer"
+    )
     monkeypatch.setattr(settings, "encryption_key", "synthetic-new-dedicated-material")
     response = Response()
 

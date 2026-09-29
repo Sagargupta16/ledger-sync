@@ -16,6 +16,7 @@ import time
 import tracemalloc
 from datetime import UTC, datetime
 from decimal import Decimal
+from functools import partial
 from unittest.mock import patch
 
 
@@ -178,7 +179,7 @@ def main():
         async with runtime.lifespan(FastAPI()):
             pass
 
-    with patch.object(runtime, "init_db", lambda: Base.metadata.create_all(engine)):
+    with patch.object(runtime, "init_db", partial(Base.metadata.create_all, engine)):
         asyncio.run(startup())
     report["startup_schema_statements"] = {"before": old_count, "after": len(statements)}
     report["ten_ms_event_loop_tick_ms"] = {

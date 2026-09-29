@@ -13,8 +13,8 @@
  * value from `selectFiscalYearStartMonth`.
  */
 
-import { FY_START_MONTH, getFYFromDate } from '@/lib/taxCalculator'
-import { getTodayKey } from '@/lib/dateUtils'
+import { FY_START_MONTH } from '@/lib/taxCalculator'
+import { getFYFromDate, getTodayKey } from '@/lib/dateUtils'
 
 export function parseBareStartYear(fy: string): number {
   return Number.parseInt(fy.split('-')[0] || '0', 10)

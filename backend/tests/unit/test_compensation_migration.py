@@ -282,8 +282,10 @@ def test_bootstrap_ownerless_exact_empty_defaults_are_preserved_without_inferred
     seed(connection, preferences, user_id=None)
     seed(connection, preferences, salary='{"2025-26":{}}', user_id=1, row_id=2)
     salary, grants, vestings = migration._preflight(connection)
-    assert len(salary) == 1 and salary[0]["user_id"] == 1
-    assert grants == [] and vestings == []
+    assert len(salary) == 1
+    assert salary[0]["user_id"] == 1
+    assert grants == []
+    assert vestings == []
     migration.upgrade()
     assert connection.execute(
         sa.select(

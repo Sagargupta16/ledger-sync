@@ -52,8 +52,7 @@ export default function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--hairline-2)] bg-[var(--sidebar-bg)] lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
     >
       <ul className="flex items-stretch justify-around px-2 pt-1.5">
         {TABS.map((tab) => {

@@ -18,6 +18,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import AccountType, LedgerAccount, LedgerAccountAlias
 from ledger_sync.services.ledger_dimensions import ensure_account_ids
 
@@ -57,7 +58,8 @@ def _index(db: Session, user_id: int) -> tuple[list[LedgerAccount], dict[str, Le
         # A preferences request may hold accounts loaded before waiting for the
         # user lock. Expiration itself issues no SQL; the following bulk SELECT
         # reloads them together. populate_existing would discard pending edits.
-        for cached in list(db.identity_map.values()):
+        # ``values()`` already returns a list snapshot, so expiring is safe.
+        for cached in db.identity_map.values():
             if not isinstance(cached, LedgerAccount):
                 continue
             state = inspect(cached)
@@ -137,12 +139,16 @@ def set_account_type(
 def set_account_closed(
     db: Session, user_id: int, label: str, is_closed: bool
 ) -> tuple[LedgerAccount, bool]:
-    """Set closure independently of type; repeat requests preserve closed_date."""
+    """Set closure independently of type; repeat requests preserve closed_date.
+
+    ``closed_date`` is naive IST like ``Transaction.date``, the value it is
+    compared against; ``updated_at`` stays a naive-UTC audit stamp.
+    """
     account = _ensure_account(db, user_id, label)
     changed = account.is_closed != is_closed
     if changed:
         account.is_closed = is_closed
-        account.closed_date = datetime.now(UTC) if is_closed else None
+        account.closed_date = ledger_now() if is_closed else None
         account.updated_at = datetime.now(UTC)
     return account, changed
 
@@ -176,6 +182,39 @@ def get_credit_card_limits(db: Session, user_id: int) -> dict[str, Decimal]:
     }
 
 
+def _normalize_credit_limits(
+    limits: Mapping[str, Decimal | int | float | str | None],
+) -> dict[str, tuple[str, Decimal | None]]:
+    """Validate every label and value; equal case-variant duplicates collapse."""
+    normalized: dict[str, tuple[str, Decimal | None]] = {}
+    for label, value in limits.items():
+        key = _validate_label(label)
+        amount = validate_credit_limit(value)
+        if key in normalized and normalized[key][1] != amount:
+            raise ValueError("Conflicting credit limits for case-variant account labels.")
+        normalized.setdefault(key, (label, amount))
+    return normalized
+
+
+def _resolve_credit_limit_targets(
+    normalized: Mapping[str, tuple[str, Decimal | None]],
+    by_key: Mapping[str, LedgerAccount],
+) -> tuple[dict[int, Decimal | None], dict[str, Decimal]]:
+    """Split limits into existing account ids and labels that need an account."""
+    by_id: dict[int, Decimal | None] = {}
+    missing: dict[str, Decimal] = {}
+    for key, (label, amount) in normalized.items():
+        account = by_key.get(key)
+        if account is None:
+            if amount is not None:
+                missing[label] = amount
+            continue
+        if account.id in by_id and by_id[account.id] != amount:
+            raise ValueError("Conflicting credit limits for aliases of one account.")
+        by_id[account.id] = amount
+    return by_id, missing
+
+
 def replace_credit_card_limits(
     db: Session,
     user_id: int,
@@ -187,26 +226,9 @@ def replace_credit_card_limits(
     duplicate labels are harmless. Returns whether values actually changed, for
     the caller's analytics invalidation. No implicit classification is assigned.
     """
-    normalized: dict[str, tuple[str, Decimal | None]] = {}
-    for label, value in limits.items():
-        key = _validate_label(label)
-        amount = validate_credit_limit(value)
-        if key in normalized and normalized[key][1] != amount:
-            raise ValueError("Conflicting credit limits for case-variant account labels.")
-        normalized.setdefault(key, (label, amount))
-
+    normalized = _normalize_credit_limits(limits)
     accounts, by_key = _index(db, user_id)
-    by_id: dict[int, Decimal | None] = {}
-    missing: dict[str, Decimal] = {}
-    for key, (label, amount) in normalized.items():
-        account = by_key.get(key)
-        if account is None:
-            if amount is not None:
-                missing[label] = amount
-        else:
-            if account.id in by_id and by_id[account.id] != amount:
-                raise ValueError("Conflicting credit limits for aliases of one account.")
-            by_id[account.id] = amount
+    by_id, missing = _resolve_credit_limit_targets(normalized, by_key)
 
     # All collision checks above run before ensure_account_ids can insert rows.
     if missing:

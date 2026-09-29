@@ -9,6 +9,26 @@ from ledger_sync.db.models import LedgerAccount, LedgerAccountAlias, LedgerCateg
 from ledger_sync.ingest.normalizer import format_transfer_category
 
 
+def _add_legacy_account_names(session: Session, user_id: int, canonical: dict[str, str]) -> None:
+    """Compatibility with legacy writers/fixtures that have no dimension IDs."""
+    legacy = session.execute(
+        select(Transaction.account, Transaction.from_account, Transaction.to_account)
+        .where(
+            Transaction.user_id == user_id,
+            or_(
+                Transaction.account_id.is_(None),
+                and_(Transaction.from_account.is_not(None), Transaction.from_account_id.is_(None)),
+                and_(Transaction.to_account.is_not(None), Transaction.to_account_id.is_(None)),
+            ),
+        )
+        .distinct()
+    )
+    for values in legacy:
+        for name in values:
+            if name:
+                canonical.setdefault(name.lower(), name)
+
+
 def canonicalize_accounts(session: Session, user_id: int, rows: list[dict[str, Any]]) -> None:
     """Fold known source aliases without scanning the transaction history."""
     canonical = dict(
@@ -29,26 +49,8 @@ def canonicalize_accounts(session: Session, user_id: int, rows: list[dict[str, A
     fields = ("account", "from_account", "to_account")
     requested = {row[field].lower() for row in rows for field in fields if row.get(field)}
     if requested - canonical.keys():
-        # Compatibility with legacy writers/fixtures that have no dimension IDs.
         # Fully migrated known accounts never need this query.
-        legacy = session.execute(
-            select(Transaction.account, Transaction.from_account, Transaction.to_account)
-            .where(
-                Transaction.user_id == user_id,
-                or_(
-                    Transaction.account_id.is_(None),
-                    and_(
-                        Transaction.from_account.is_not(None), Transaction.from_account_id.is_(None)
-                    ),
-                    and_(Transaction.to_account.is_not(None), Transaction.to_account_id.is_(None)),
-                ),
-            )
-            .distinct()
-        )
-        for values in legacy:
-            for name in values:
-                if name:
-                    canonical.setdefault(name.lower(), name)
+        _add_legacy_account_names(session, user_id, canonical)
     for row in rows:
         for field in fields:
             if row.get(field):

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getFYFromDate } from '@/lib/taxCalculator'
+import { getFYFromDate } from '@/lib/dateUtils'
 
 import { currentFYLabel, dateToFY, nextFY, parseBareStartYear } from '../fyHelpers'
 

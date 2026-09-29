@@ -76,6 +76,7 @@ class TrendsMixin(AnalyticsEngineBase):
     def _calculate_category_trends(
         self,
         all_transactions: list[Transaction] | None = None,
+        affected_months: set[str] | None = None,
     ) -> int:
         """Calculate category + subcategory trends over time.
 
@@ -83,7 +84,80 @@ class TrendsMixin(AnalyticsEngineBase):
         we grouped by ``(period, category, type)`` and overwrote ``subcategory``
         with the last-seen value, which scrambled subcategory totals across
         months (e.g. Cashbacks under the wrong subcategory heading).
+
+        ``affected_months=None`` rebuilds every row. Otherwise only rows in the
+        affected months are replaced, and later rows whose MoM predecessor may
+        have moved get their MoM fields repaired. Every value is taken from the
+        same in-memory full computation, so the result equals a full rebuild.
         """
+        if affected_months == set():
+            return 0
+        desired = self._desired_category_trends(all_transactions)
+        if affected_months is None or not self._apply_selective_category_trends(
+            desired, affected_months
+        ):
+            # Delete existing for this user and insert new
+            del_stmt = delete(CategoryTrend)
+            if self.user_id is not None:
+                del_stmt = del_stmt.where(CategoryTrend.user_id == self.user_id)
+            self.db.execute(del_stmt)
+            self.db.add_all(desired.values())
+            return len(desired)
+        return sum(1 for key in desired if key[0] in affected_months)
+
+    def _apply_selective_category_trends(
+        self,
+        desired: dict[tuple[str, str, str | None, str], CategoryTrend],
+        affected_months: set[str],
+    ) -> bool:
+        """Rewrite affected months and repair later MoM values in place.
+
+        Rows before the earliest affected month depend only on earlier, unchanged
+        months, so they are left alone. Returns False (caller rebuilds in full)
+        when an unaffected stored month does not match the computation, which
+        means the stored rows predate a change the dirty set did not record.
+        """
+        first_affected = min(affected_months)
+        stored = (
+            self.db.query(CategoryTrend)
+            .filter(
+                CategoryTrend.user_id == self._require_user_id(),
+                CategoryTrend.period_key >= first_affected,
+            )
+            .all()
+        )
+        stored_by_key = {
+            (row.period_key, row.category, row.subcategory, row.transaction_type.value): row
+            for row in stored
+        }
+        expected_unaffected = {
+            key for key in desired if key[0] >= first_affected and key[0] not in affected_months
+        }
+        stored_unaffected = {key for key in stored_by_key if key[0] not in affected_months}
+        if expected_unaffected != stored_unaffected or len(stored_by_key) != len(stored):
+            return False
+
+        for key, row in stored_by_key.items():
+            if key[0] in affected_months:
+                self.db.delete(row)
+                continue
+            # Totals, counts and shares depend on this month alone; only the MoM
+            # fields read the preceding populated month.
+            fresh = desired[key]
+            if row.mom_change != fresh.mom_change or row.mom_change_pct != fresh.mom_change_pct:
+                row.mom_change = fresh.mom_change
+                row.mom_change_pct = fresh.mom_change_pct
+                row.last_calculated = fresh.last_calculated
+        # Deletes must reach the database before replacement rows share a key.
+        self.db.flush()
+        self.db.add_all(trend for key, trend in desired.items() if key[0] in affected_months)
+        return True
+
+    def _desired_category_trends(
+        self,
+        all_transactions: list[Transaction] | None,
+    ) -> dict[tuple[str, str, str | None, str], CategoryTrend]:
+        """Compute every CategoryTrend row (unsaved) from the full ledger."""
         # Transfers are excluded because they are the same rupee twice; a
         # classified realised loss is excluded because it is a negative
         # investment return rather than spending. Without the second filter the
@@ -110,13 +184,7 @@ class TrendsMixin(AnalyticsEngineBase):
 
         monthly_totals = _monthly_type_totals(transactions)
 
-        # Delete existing for this user and insert new
-        del_stmt = delete(CategoryTrend)
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(CategoryTrend.user_id == self.user_id)
-        self.db.execute(del_stmt)
-
-        count = 0
+        desired: dict[tuple[str, str, str | None, str], CategoryTrend] = {}
         # MoM change is computed at the (category, subcategory, type) granularity
         # so a "Food & Dining / Groceries" row compares to the prior month's
         # "Food & Dining / Groceries" row, not "Food & Dining / Restaurants".
@@ -127,7 +195,7 @@ class TrendsMixin(AnalyticsEngineBase):
             total = sum(amounts, Decimal(0))
             monthly_type_total = monthly_totals[period_key].get(txn_type, Decimal(0))
             prev_key = (category, subcategory, txn_type)
-            trend = _build_category_trend(
+            desired[key] = _build_category_trend(
                 user_id=self.user_id,
                 period_key=period_key,
                 category=category,
@@ -138,11 +206,9 @@ class TrendsMixin(AnalyticsEngineBase):
                 monthly_type_total=monthly_type_total,
                 prev_total=prev_amounts.get(prev_key),
             )
-            self.db.add(trend)
-            count += 1
             prev_amounts[prev_key] = total
 
-        return count
+        return desired
 
     def _calculate_transfer_flows(
         self,

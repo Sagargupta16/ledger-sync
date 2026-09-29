@@ -244,12 +244,21 @@ def get_ai_key(
     session: DatabaseSession,
     response: Response,
 ) -> dict[str, str]:
-    """Decrypt and return the API key for frontend LLM calls.
+    """Decrypt and return the API key for browser-direct LLM calls.
+
+    Only OpenAI and Anthropic are called from the browser. A personal Bedrock
+    bearer token is an AWS credential used server-side by the chat proxy, so it
+    is never revealed.
 
     Sets strict no-store cache headers so the decrypted key never lands in
     intermediary proxy caches, browser disk cache, or service-worker storage.
     """
     ai_settings = get_or_create_ai_settings(session, current_user.id)
+    if ai_settings.ai_provider == "bedrock":
+        raise HTTPException(
+            status_code=404,
+            detail="Bedrock keys are used by the server and are never revealed",
+        )
     if not ai_settings.ai_api_key_encrypted:
         raise HTTPException(status_code=404, detail="No AI key configured")
     try:

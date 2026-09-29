@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ledger_sync.api.ai_tools_impl import REGISTRY  # triggers tool registration
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import user_limiter
 
 router = APIRouter(prefix="/api/ai/tools", tags=["ai-tools"])
 
@@ -56,17 +57,23 @@ def list_tools(_current_user: CurrentUser) -> dict[str, Any]:
         422: {"description": "Tool arguments do not match the declared schema"},
     },
 )
+@user_limiter.limit("120/minute")
 def execute_tool(
+    request: Request,  # required by slowapi
     current_user: CurrentUser,
-    request: ToolExecuteRequest,
+    payload: ToolExecuteRequest,
     session: DatabaseSession,
 ) -> dict[str, Any]:
-    """Execute a registered tool against the current user's data."""
-    spec = REGISTRY.get(request.name)
+    """Execute a registered tool against the current user's data.
+
+    The limit sits above real chat use: six model rounds per message, each
+    round running its requested tools in parallel.
+    """
+    spec = REGISTRY.get(payload.name)
     if spec is None:
-        raise HTTPException(404, f"Unknown tool: {request.name}")
+        raise HTTPException(404, f"Unknown tool: {payload.name}")
     try:
-        arguments = spec.validate_arguments(request.arguments)
+        arguments = spec.validate_arguments(payload.arguments)
     except ValidationError as exc:
         raise HTTPException(
             422,
@@ -77,5 +84,5 @@ def execute_tool(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(400, f"Tool {request.name} could not be completed") from exc
-    return {"name": request.name, "result": result}
+        raise HTTPException(400, f"Tool {payload.name} could not be completed") from exc
+    return {"name": payload.name, "result": result}

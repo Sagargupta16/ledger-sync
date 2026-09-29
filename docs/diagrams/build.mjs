@@ -61,7 +61,7 @@ function staticPreview(html) {
   // Resolve the fixed light palette for this passive export, preserving geometry.
   const palette = new Map()
   for (const selector of [/:root,\s*\[data-theme="dark"\]\s*\{([^}]+)\}/, /\[data-theme="light"\]\s*\{([^}]+)\}/]) {
-    for (const [, key, value] of styles.match(selector)[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    for (const [, key, value] of selector.exec(styles)[1].matchAll(/(--[\w-]+)\s*:([^;]+);/g)) {
       palette.set(key, value.trim())
     }
   }

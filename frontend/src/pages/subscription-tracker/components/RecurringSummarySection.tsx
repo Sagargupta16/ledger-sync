@@ -8,9 +8,41 @@ import {
 
 import { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import SummaryCard from '@/components/shared/SummaryCard'
+import { DataTable, Money, type DataTableColumn } from '@/components/ui'
 import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
 
 import type { RecurringSummary } from '../types'
+
+interface FreshnessRow {
+  readonly label: string
+  readonly subtotal: RecurringSummary['current']
+}
+
+const FRESHNESS_COLUMNS: readonly DataTableColumn<FreshnessRow>[] = [
+  {
+    key: 'label',
+    header: 'Included in totals',
+    mobilePrimary: true,
+    cell: ({ label, subtotal }) => (
+      <span className="text-xs font-medium text-foreground">
+        <span className="block">{label}</span>
+        <span className="mt-0.5 block font-normal text-text-tertiary">{subtotal.count} items</span>
+      </span>
+    ),
+  },
+  {
+    key: 'expense',
+    header: 'Expense/mo',
+    align: 'right',
+    cell: ({ subtotal }) => <Money value={subtotal.monthlyExpense} className="text-xs" />,
+  },
+  {
+    key: 'income',
+    header: 'Income/mo',
+    align: 'right',
+    cell: ({ subtotal }) => <Money value={subtotal.monthlyIncome} className="text-xs" />,
+  },
+]
 
 interface RecurringSummarySectionProps {
   readonly isLoading: boolean
@@ -102,36 +134,13 @@ export default function RecurringSummarySection({
               Every active commitment stays in the totals. Review older detections to confirm whether they still recur.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <caption className="sr-only">Monthly commitment estimates by freshness</caption>
-              <thead className="text-text-tertiary">
-                <tr>
-                  <th scope="col" className="pb-2 pr-3 font-medium">Included in totals</th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-medium">Expense/mo</th>
-                  <th scope="col" className="pb-2 text-right font-medium">Income/mo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {freshnessRows.map(({ label, subtotal }) => (
-                  <tr key={label} className="border-t border-border/50">
-                    <th scope="row" className="py-2.5 pr-3 font-medium text-foreground">
-                      <span className="block">{label}</span>
-                      <span className="mt-0.5 block font-normal text-text-tertiary">
-                        {subtotal.count} items
-                      </span>
-                    </th>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-foreground">
-                      {formatCurrency(subtotal.monthlyExpense)}
-                    </td>
-                    <td className="py-2.5 text-right tabular-nums text-foreground">
-                      {formatCurrency(subtotal.monthlyIncome)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={FRESHNESS_COLUMNS}
+            rows={freshnessRows}
+            rowKey={(row) => row.label}
+            ariaLabel="Monthly commitment estimates by freshness"
+            mobileCards
+          />
         </section>
       )}
 

@@ -139,8 +139,7 @@ export default function HomePage() {
         </section>
 
         <footer
-          className="border-t border-border py-8"
-          style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
+          className="border-t border-border pt-8 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"
         >
           <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <p className="inline-flex items-center justify-center gap-1.5 text-sm text-text-tertiary">

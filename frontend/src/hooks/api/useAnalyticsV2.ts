@@ -16,19 +16,14 @@ const STABLE_STALE_TIME = Infinity
 import type {
   Anomaly,
   Budget,
-  CategoryTrend,
   CohortSpendingData,
   CreateGoalRequest,
   DailySummary,
   FinancialGoal,
-  FYSummary,
-  InvestmentHolding,
   MerchantIntelligence,
   MonthlySummary,
-  NetWorthSnapshot,
   RecurringTransaction,
   SpendingRuleResponse,
-  TransferFlow,
   UpdateGoalRequest,
 } from '@/services/api/analyticsV2'
 
@@ -108,38 +103,11 @@ export function useCohortSpending() {
   })
 }
 
-// Investment Holdings
-export function useInvestmentHoldings(params?: ServiceParams<'getInvestmentHoldings'>) {
-  return useQuery<InvestmentHolding[], Error>({
-    queryKey: analyticsV2Keys.investmentHoldings(params),
-    queryFn: () => analyticsV2Service.getInvestmentHoldings(params),
-    staleTime: STABLE_STALE_TIME,
-  })
-}
-
 // Monthly Summaries
 export function useMonthlySummaries(params?: ServiceParams<'getMonthlySummaries'>) {
   return useQuery<MonthlySummary[], Error>({
     queryKey: analyticsV2Keys.monthlySummaries(params),
     queryFn: () => analyticsV2Service.getMonthlySummaries(params),
-    staleTime: STABLE_STALE_TIME,
-  })
-}
-
-// Category Trends
-export function useCategoryTrends(params?: ServiceParams<'getCategoryTrends'>) {
-  return useQuery<CategoryTrend[], Error>({
-    queryKey: analyticsV2Keys.categoryTrends(params),
-    queryFn: () => analyticsV2Service.getCategoryTrends(params),
-    staleTime: STABLE_STALE_TIME,
-  })
-}
-
-// Transfer Flows
-export function useTransferFlows() {
-  return useQuery<TransferFlow[], Error>({
-    queryKey: analyticsV2Keys.transferFlows(),
-    queryFn: () => analyticsV2Service.getTransferFlows(),
     staleTime: STABLE_STALE_TIME,
   })
 }
@@ -231,24 +199,6 @@ export function useMerchantIntelligence(params?: ServiceParams<'getMerchantIntel
   return useQuery<MerchantIntelligence[], Error>({
     queryKey: analyticsV2Keys.merchantIntelligence(params),
     queryFn: () => analyticsV2Service.getMerchantIntelligence(params),
-    staleTime: STABLE_STALE_TIME,
-  })
-}
-
-// Net Worth Snapshots
-export function useNetWorthSnapshots(params?: ServiceParams<'getNetWorthSnapshots'>) {
-  return useQuery<NetWorthSnapshot[], Error>({
-    queryKey: analyticsV2Keys.netWorth(params),
-    queryFn: () => analyticsV2Service.getNetWorthSnapshots(params),
-    staleTime: STABLE_STALE_TIME,
-  })
-}
-
-// Fiscal Year Summaries
-export function useFYSummaries() {
-  return useQuery<FYSummary[], Error>({
-    queryKey: analyticsV2Keys.fySummaries(),
-    queryFn: () => analyticsV2Service.getFYSummaries(),
     staleTime: STABLE_STALE_TIME,
   })
 }

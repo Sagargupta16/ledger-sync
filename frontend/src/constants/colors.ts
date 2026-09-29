@@ -134,6 +134,10 @@ function buildRawColors() {
     // theme -- the accent background is bright enough that white text has
     // AA contrast in both themes.
     onAccent: r('--color-on-accent', '#ffffff'),
+    // Page canvas, for surfaces outside CSS (e.g. the mobile theme-color meta).
+    surface: {
+      background: r('--color-background', '#0b1012'),
+    },
     // Chart-only neutrals/surfaces. CSS var() can't be used in SVG presentation
     // attributes, so these resolve the --chart-* tokens to concrete strings for
     // Recharts. Fallbacks are the historical dark values so SSR/no-DOM is safe.
@@ -191,6 +195,7 @@ export function refreshRawColors(): void {
   Object.assign(rawColors.financial, next.financial)
   Object.assign(rawColors.text, next.text)
   Object.assign(rawColors.chart, next.chart)
+  Object.assign(rawColors.surface, next.surface)
   for (const listener of rawColorsListeners) listener()
 }
 

@@ -61,14 +61,38 @@ export interface CashFlowForecastModel {
   insights: CashFlowForecastInsights
 }
 
+/** Largest monthly trend (either direction) the projection will compound. */
+export const MAX_MONTHLY_GROWTH = 0.05
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+}
+
+/**
+ * Theil-Sen trend (median of pairwise slopes) as a monthly rate relative to the
+ * fitted start of the window. One bonus or one-off month cannot move a median,
+ * whereas the old first-to-last measure let a single outlier set the trend.
+ * Linear data still reads exactly: 100k -> 110k over 5 steps is 2% a month.
+ */
+function robustMonthlyRate(values: readonly number[]): number {
+  const slopes: number[] = []
+  for (let i = 0; i < values.length; i++) {
+    for (let j = i + 1; j < values.length; j++) slopes.push((values[j] - values[i]) / (j - i))
+  }
+  const slope = median(slopes)
+  const fittedStart = median(values.map((value, index) => value - slope * index))
+  if (fittedStart <= 0) return 0
+  const rate = slope / fittedStart
+  return Math.min(MAX_MONTHLY_GROWTH, Math.max(-MAX_MONTHLY_GROWTH, rate))
+}
+
 export function computeGrowthRate(series: readonly { income: number; expense: number }[]) {
   if (series.length <= 1) return { incomeGrowth: 0, expenseGrowth: 0 }
-  const first = series[0]
-  const last = series.at(-1) ?? first
-  const periods = series.length - 1
   return {
-    incomeGrowth: first.income > 0 ? (last.income - first.income) / first.income / periods : 0,
-    expenseGrowth: first.expense > 0 ? (last.expense - first.expense) / first.expense / periods : 0,
+    incomeGrowth: robustMonthlyRate(series.map((month) => month.income)),
+    expenseGrowth: robustMonthlyRate(series.map((month) => month.expense)),
   }
 }
 
@@ -109,13 +133,16 @@ function summarizeRecent(months: readonly ObservedCashFlowMonth[]) {
 }
 
 function projectMonths(
-  lastComplete: ObservedCashFlowMonth,
+  lastMonth: string,
+  base: { avgIncome: number; avgExpense: number },
   growth: ReturnType<typeof computeGrowthRate>,
   surplusStandardDeviation: number,
 ): ProjectedCashFlowMonth[] {
   const forecast: ProjectedCashFlowMonth[] = []
-  let income = lastComplete.income
-  let expense = lastComplete.expense
+  // Seed from the lookback average, not the last month: a single bonus month
+  // would otherwise become the baseline for all twelve projections.
+  let income = base.avgIncome
+  let expense = base.avgExpense
 
   for (let horizon = 1; horizon <= CASH_FLOW_FORECAST_ASSUMPTIONS.horizonMonths; horizon++) {
     // Preserve the existing half-trend model and horizon-scaled illustrative range.
@@ -126,7 +153,7 @@ function projectMonths(
     const lower = Math.round(consumptionSurplus - band)
     const upper = Math.round(consumptionSurplus + band)
     forecast.push({
-      month: addMonthsToMonthKey(lastComplete.month, horizon),
+      month: addMonthsToMonthKey(lastMonth, horizon),
       income: Math.round(income),
       expense: Math.round(expense),
       consumptionSurplus: Math.round(consumptionSurplus),
@@ -165,7 +192,7 @@ export function buildCashFlowForecast(
   const recent = completeMonths.slice(-CASH_FLOW_FORECAST_ASSUMPTIONS.lookbackMonths)
   const { surplusStandardDeviation, ...averages } = summarizeRecent(recent)
   const growth = computeGrowthRate(recent)
-  const forecast = projectMonths(lastComplete, growth, surplusStandardDeviation)
+  const forecast = projectMonths(lastComplete.month, averages, growth, surplusStandardDeviation)
   const deficitIndex = forecast.findIndex((month) => month.consumptionSurplus < 0)
 
   return {

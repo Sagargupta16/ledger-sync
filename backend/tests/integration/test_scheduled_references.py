@@ -155,8 +155,9 @@ def test_detector_without_owner_cannot_unlink_or_delete_any_sources(scheduled_db
     _schedule(connection, 100, 10)
     connection.commit()
     with Session(connection) as session:
+        detector = RecurringMixin(session)
         with pytest.raises(RuntimeError, match="user_id"):
-            RecurringMixin(session)._detect_recurring_transactions([])
+            detector._detect_recurring_transactions([])
         assert session.get(RecurringTransaction, 10) is not None
         assert session.get(ScheduledTransaction, 100).recurring_transaction_id == 10
 
@@ -171,16 +172,16 @@ def test_fk_rejects_bad_sources_and_parent_delete_but_user_cascade_still_works(s
     for source_id in (999, 20):
         with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
             _schedule(connection, 102, source_id)
-        with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
-            connection.execute(
-                sa.update(ScheduledTransaction.__table__)
-                .where(ScheduledTransaction.id == 100)
-                .values(recurring_transaction_id=source_id)
-            )
-    with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
-        connection.execute(
-            sa.delete(RecurringTransaction.__table__).where(RecurringTransaction.id == 10)
+        relink = (
+            sa.update(ScheduledTransaction.__table__)
+            .where(ScheduledTransaction.id == 100)
+            .values(recurring_transaction_id=source_id)
         )
+        with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
+            connection.execute(relink)
+    delete_parent = sa.delete(RecurringTransaction.__table__).where(RecurringTransaction.id == 10)
+    with pytest.raises(sa.exc.IntegrityError), connection.begin_nested():
+        connection.execute(delete_parent)
     assert len(_schedules(connection)) == 3
     connection.execute(sa.delete(User.__table__).where(User.id == 1))
     assert [row["id"] for row in _schedules(connection)] == [200]
@@ -295,11 +296,12 @@ def test_migration_preflight_rejects_cross_user_and_orphan_refs_without_repair(
     _schedule(connection, 100, bad_source)
     connection.commit()
     before = _schedules(connection)
+    migration = _migration()
     with (
         pytest.raises(RuntimeError, match=r"scheduled.*100"),
         Operations.context(MigrationContext.configure(connection)),
     ):
-        _migration().upgrade()
+        migration.upgrade()
     connection.rollback()
     assert _schedules(connection) == before
     indexes = sa.inspect(connection).get_indexes("recurring_transactions")
@@ -343,11 +345,12 @@ def test_sqlite_rebuild_guard_preserves_valid_existing_schedules(before_schedule
     connection.commit()
     connection.exec_driver_sql("PRAGMA foreign_keys=ON")
     before = _schedules(connection)
+    migration = _migration()
     with (
         pytest.raises(RuntimeError, match="dedicated SQLite connection"),
         Operations.context(MigrationContext.configure(connection)),
     ):
-        _migration().upgrade()
+        migration.upgrade()
     connection.rollback()
     assert _schedules(connection) == before
     assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1

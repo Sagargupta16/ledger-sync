@@ -41,6 +41,8 @@ _SALARY_DEFAULTS = {
 }
 _GRANT_FIELDS = {"id", "stock_name", "stock_price", "grant_date", "notes", "vestings"}
 _VESTING_FIELDS = {"id", "date", "quantity", "price_at_vest", "net_quantity"}
+_USER_FK = "users.id"
+_NON_NEGATIVE_POSITION = "position >= 0"
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -112,7 +114,7 @@ def _salary_rows(user_id: int, raw: Any) -> list[dict[str, Any]]:
     rows = []
     for position, (fiscal_year, components) in enumerate(_json(raw, dict).items()):
         if (
-            not re.fullmatch(r"[0-9]{4}-[0-9]{2}", fiscal_year)
+            not re.fullmatch(r"\d{4}-\d{2}", fiscal_year, re.ASCII)
             or int(fiscal_year[-2:]) != (int(fiscal_year[:4]) + 1) % 100
         ):
             raise ValueError("Invalid fiscal year; expected YYYY-YY for consecutive years.")
@@ -244,19 +246,19 @@ def _create_tables(bind: sa.Connection) -> tuple[sa.Table, sa.Table, sa.Table]:
         "salary_plans",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+            "user_id", sa.Integer(), sa.ForeignKey(_USER_FK, ondelete="CASCADE"), nullable=False
         ),
         sa.Column("fiscal_year", sa.Text(), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
         *(sa.Column(field, numeric, nullable=field == "hra_annual") for field in _SALARY_DEFAULTS),
         sa.UniqueConstraint("user_id", "fiscal_year", name="uq_salary_plans_user_fiscal_year"),
-        sa.CheckConstraint("position >= 0", name="ck_salary_plans_position"),
+        sa.CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_salary_plans_position"),
     )
     grants = op.create_table(
         "rsu_grants",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+            "user_id", sa.Integer(), sa.ForeignKey(_USER_FK, ondelete="CASCADE"), nullable=False
         ),
         sa.Column("public_id", sa.Text(), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
@@ -266,7 +268,7 @@ def _create_tables(bind: sa.Connection) -> tuple[sa.Table, sa.Table, sa.Table]:
         sa.Column("notes", sa.Text(), nullable=True),
         sa.UniqueConstraint("user_id", "public_id", name="uq_rsu_grants_user_public_id"),
         sa.UniqueConstraint("user_id", "id", name="uq_rsu_grants_user_id"),
-        sa.CheckConstraint("position >= 0", name="ck_rsu_grants_position"),
+        sa.CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_rsu_grants_position"),
         *(
             [
                 sa.CheckConstraint(
@@ -282,7 +284,7 @@ def _create_tables(bind: sa.Connection) -> tuple[sa.Table, sa.Table, sa.Table]:
         "rsu_vestings",
         sa.Column("id", sa.Text(), primary_key=True),
         sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+            "user_id", sa.Integer(), sa.ForeignKey(_USER_FK, ondelete="CASCADE"), nullable=False
         ),
         sa.Column("grant_id", sa.Integer(), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
@@ -296,7 +298,7 @@ def _create_tables(bind: sa.Connection) -> tuple[sa.Table, sa.Table, sa.Table]:
             name="fk_rsu_vestings_owner_grant",
             ondelete="CASCADE",
         ),
-        sa.CheckConstraint("position >= 0", name="ck_rsu_vestings_position"),
+        sa.CheckConstraint(_NON_NEGATIVE_POSITION, name="ck_rsu_vestings_position"),
         sa.CheckConstraint("quantity > 0", name="ck_rsu_vestings_quantity"),
         *(
             [
@@ -320,10 +322,7 @@ def _create_tables(bind: sa.Connection) -> tuple[sa.Table, sa.Table, sa.Table]:
     return salary, grants, vestings
 
 
-def upgrade() -> None:
-    if op.get_context().as_sql:
-        raise RuntimeError("Compensation backfill requires an online validation connection.")
-    bind = op.get_bind()
+def _lock_sources(bind: sa.Connection) -> None:
     if bind.dialect.name == "postgresql":
         bind.exec_driver_sql("LOCK TABLE users IN EXCLUSIVE MODE")
         bind.exec_driver_sql("LOCK TABLE user_preferences IN SHARE ROW EXCLUSIVE MODE")
@@ -334,15 +333,26 @@ def upgrade() -> None:
             bind.exec_driver_sql("UPDATE user_preferences SET id=id WHERE 1=0")
     else:
         raise RuntimeError("Compensation records support PostgreSQL and SQLite only.")
+
+
+def _decimals_as_text(rows: list[dict[str, Any]]) -> None:
+    for row in rows:
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                row[key] = str(value)
+
+
+def upgrade() -> None:
+    if op.get_context().as_sql:
+        raise RuntimeError("Compensation backfill requires an online validation connection.")
+    bind = op.get_bind()
+    _lock_sources(bind)
     if {"salary_plans", "rsu_grants", "rsu_vestings"} & set(sa.inspect(bind).get_table_names()):
         raise RuntimeError("Compensation destination tables already exist; refusing to overwrite.")
     salary_rows, grant_rows, vesting_rows = _preflight(bind)
     salary, grants, vestings = _create_tables(bind)
     if bind.dialect.name == "sqlite":
-        for row in [*salary_rows, *grant_rows, *vesting_rows]:
-            for key, value in row.items():
-                if isinstance(value, Decimal):
-                    row[key] = str(value)
+        _decimals_as_text([*salary_rows, *grant_rows, *vesting_rows])
     if salary_rows:
         bind.execute(salary.insert(), salary_rows)
     if grant_rows:

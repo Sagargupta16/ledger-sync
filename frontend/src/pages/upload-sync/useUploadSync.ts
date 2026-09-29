@@ -8,6 +8,7 @@ import { useUpload } from '@/hooks/api/useUpload'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { FileParseError, parseFile, type ParseResult } from '@/lib/fileParser'
 import { getApiErrorMessage } from '@/lib/errorUtils'
+import { assertCurrentSession, getSessionSignal, isCurrentSession } from '@/lib/session'
 import { uploadService } from '@/services/api/upload'
 
 export type UploadPhase = 'parsing' | 'review' | 'processing' | 'analytics' | null
@@ -190,14 +191,21 @@ export function useUploadSync() {
 
   const handleRetryAnalytics = async () => {
     if (!success || busy.current) return
+    // Capture the session first: a refresh that resolves after logout or an
+    // account switch must not invalidate or report into the next session.
+    const sessionSignal = getSessionSignal()
     busy.current = true
     setPhase('analytics')
     try {
+      assertCurrentSession(sessionSignal)
       await uploadService.refreshAnalytics()
+      if (!isCurrentSession(sessionSignal)) return
       await queryClient.invalidateQueries()
+      if (!isCurrentSession(sessionSignal)) return
       setSuccess({ ...success, analyticsStatus: 'ready', analyticsMessage: null })
       toast.success('Insights refreshed')
     } catch (error) {
+      if (!isCurrentSession(sessionSignal)) return
       setSuccess({
         ...success,
         analyticsStatus: 'failed',

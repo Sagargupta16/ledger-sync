@@ -12,7 +12,7 @@
  * runtime.
  */
 
-import { refreshRawColors } from '@/constants/colors'
+import { rawColors, refreshRawColors } from '@/constants/colors'
 
 export type ThemeMode = 'dark' | 'light'
 
@@ -76,17 +76,18 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
 
   root.dataset.theme = resolved
 
-  // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
-  // active theme on a live toggle, mirroring the pre-paint script in index.html.
-  // Values match the --color-background tokens in index.css.
-  const bar = resolved === 'light' ? '#eaf0f7' : '#0b1012'
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar)
-  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
-
   // Re-resolve the chart color tokens (Recharts/SVG read concrete values, not
   // var()) so charts repaint with the active theme's palette. Runs after the
   // data-theme switch so getComputedStyle sees the new token values.
   refreshRawColors()
+
+  // Keep the mobile browser chrome (theme-color / color-scheme) tracking the
+  // active theme on a live toggle, mirroring the pre-paint script in index.html.
+  // The value is the resolved --color-background token from index.css.
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', rawColors.surface.background)
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved)
 }
 
 /** Persist the mode and apply it immediately. Returns the resolved theme. */

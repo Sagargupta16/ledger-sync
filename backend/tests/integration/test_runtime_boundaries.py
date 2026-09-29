@@ -45,7 +45,9 @@ def test_cors_on_normal_and_unhandled_responses(monkeypatch, path, origin, wildc
         assert response.status_code == (500 if path == "/failure" else 200)
         if origin and wildcard:
             assert response.headers["access-control-allow-origin"] == "*"
-            assert "vary" not in response.headers
+            # Starlette 1.7+ adds a cache-safe Vary: Origin to wildcard responses;
+            # the unhandled-error response is built outside CORS and has none.
+            assert response.headers.get("vary") in (None, "Origin")
         elif origin == "http://localhost:5173":
             assert response.headers["access-control-allow-origin"] == origin
             assert "Origin" in response.headers["vary"]
@@ -102,7 +104,8 @@ def test_saved_view_database_work_runs_off_event_loop():
         ) as client:
             response = await client.get("/api/saved-views")
         assert response.status_code == 200
-        assert threads and all(thread != loop_thread for thread in threads)
+        assert threads
+        assert all(thread != loop_thread for thread in threads)
 
     asyncio.run(check())
 
@@ -138,11 +141,13 @@ def test_bootstrap_requires_explicit_development_setting(monkeypatch, environmen
         application = FastAPI()
         if environment == "development":
             async with main.lifespan(application):
-                assert threads and threads[0] != loop_thread
+                assert threads
+                assert threads[0] != loop_thread
             assert application.state.http_client.is_closed
         else:
+            lifespan = main.lifespan(application)
             with pytest.raises(RuntimeError, match="only allowed in development"):
-                async with main.lifespan(application):
+                async with lifespan:
                     pytest.fail("Hosted startup must not bootstrap the schema")
             assert threads == []
             assert any(
@@ -157,9 +162,11 @@ def test_http_client_closes_when_lifespan_body_raises(monkeypatch):
     application = FastAPI()
 
     async def check():
+        lifespan = main.lifespan(application)
+        shutdown_error = RuntimeError("synthetic shutdown")
         with pytest.raises(RuntimeError, match="synthetic shutdown"):
-            async with main.lifespan(application):
-                raise RuntimeError("synthetic shutdown")
+            async with lifespan:
+                raise shutdown_error
         assert application.state.http_client.is_closed
 
     asyncio.run(check())
@@ -181,7 +188,8 @@ def test_database_health_query_runs_off_event_loop(monkeypatch):
         ) as client:
             response = await client.get("/db")
         assert response.status_code == 200
-        assert threads and threads[0] != loop_thread
+        assert threads
+        assert threads[0] != loop_thread
 
     asyncio.run(check())
 

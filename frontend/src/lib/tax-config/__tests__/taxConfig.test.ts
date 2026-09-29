@@ -25,7 +25,7 @@ describe('getTaxConfig', () => {
 
   it('falls back to oldest known config for ancient years', () => {
     const cfg = getTaxConfig(1990)
-    expect(cfg.fyStartYear).toBe(2023)
+    expect(cfg.fyStartYear).toBe(2020)
   })
 
   it('keeps the old regime deduction at 50k when the new regime rises to 75k', () => {

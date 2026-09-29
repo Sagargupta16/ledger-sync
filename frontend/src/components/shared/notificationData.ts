@@ -1,7 +1,7 @@
 import { Bell, Wallet2, AlertTriangle, CalendarClock } from 'lucide-react'
 import { rawColors } from '@/constants/colors'
 import { formatCurrencyCompact } from '@/lib/formatters'
-import { MS_PER_DAY } from '@/lib/dateUtils'
+import { getDateKey, getTodayKey, inclusiveDaySpan } from '@/lib/dateUtils'
 import type { Budget, Anomaly, RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,31 @@ export interface Notification {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DISMISSED_KEY = 'ledger-sync-dismissed-notifications'
+/**
+ * Dismissals are stored per session identity (`<prefix>:<provider>:<id>` or
+ * `<prefix>:demo`), so one account's dismissals never hide another's alerts.
+ * The bare prefix was the old global key; `clearDismissedNotifications` drops
+ * it along with every per-identity key.
+ */
+const DISMISSED_KEY_PREFIX = 'ledger-sync-dismissed-notifications'
+
+export function dismissedStorageKey(identity: string): string {
+  return `${DISMISSED_KEY_PREFIX}:${identity}`
+}
+
+/** Remove every stored dismissal (all identities plus the legacy global key). */
+export function clearDismissedNotifications(): void {
+  try {
+    const keys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith(DISMISSED_KEY_PREFIX)) keys.push(key)
+    }
+    for (const key of keys) localStorage.removeItem(key)
+  } catch (e) {
+    console.warn('[clearDismissedNotifications] Failed to clear localStorage:', e)
+  }
+}
 
 /**
  * Severity thresholds for notifications. Kept here as named constants so the
@@ -37,28 +61,33 @@ const DUE_SOON_DAYS = 7 // only surface upcoming bills within this window
 const DUE_HIGH_DAYS = 1 // due today/tomorrow -> high severity
 const DUE_MEDIUM_DAYS = 3 // due within 3 days -> medium severity
 
-export function loadDismissed(): Set<string> {
+export function loadDismissed(storageKey: string): Set<string> {
   try {
-    const raw = localStorage.getItem(DISMISSED_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (raw) return new Set(JSON.parse(raw) as string[])
   } catch (e) { console.warn('[loadDismissed] Failed to read localStorage:', e) }
   return new Set()
 }
 
-export function saveDismissed(ids: Set<string>) {
+export function saveDismissed(storageKey: string, ids: Set<string>) {
   try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]))
+    localStorage.setItem(storageKey, JSON.stringify([...ids]))
   } catch (e) {
     console.warn('[saveDismissed] Failed to write localStorage:', e)
   }
 }
 
-function daysUntil(dateStr: string | null): number | null {
+/**
+ * Whole local calendar days from today to `dateStr` (0 = today). Compares
+ * date keys, not instants: `new Date('YYYY-MM-DD')` is UTC midnight, which
+ * with a ceil against local "now" called a bill due today "due tomorrow" (or
+ * vice versa) depending on the time zone and hour.
+ */
+function daysUntil(dateStr: string | null, todayKey: string): number | null {
   if (!dateStr) return null
-  const target = new Date(dateStr)
-  const now = new Date()
-  const diff = target.getTime() - now.getTime()
-  return Math.ceil(diff / MS_PER_DAY)
+  const targetKey = getDateKey(dateStr)
+  if (targetKey < todayKey) return -(inclusiveDaySpan(targetKey, todayKey) - 1)
+  return inclusiveDaySpan(todayKey, targetKey) - 1
 }
 
 function getSeverityFromPct(pct: number): Notification['severity'] {
@@ -110,14 +139,17 @@ export function relativeTime(dateStr: string): string {
 // Notification generators
 // ---------------------------------------------------------------------------
 
-export function budgetNotifications(budgets: Budget[]): Notification[] {
+export function budgetNotifications(budgets: Budget[], todayKey: string = getTodayKey()): Notification[] {
+  // Budgets are monthly: the month in the ID lets a dismissal cover only this
+  // month's alert, not every future month's.
+  const period = todayKey.slice(0, 7)
   return budgets
     .filter((b) => b.usage_pct >= b.alert_threshold)
     .map((b) => {
       const pct = Math.round(b.usage_pct)
       const severity: Notification['severity'] = getSeverityFromPct(pct)
       return {
-        id: `budget-${b.id}`,
+        id: `budget-${b.id}-${period}`,
         type: 'budget',
         title: 'Budget Alert',
         message:
@@ -155,14 +187,18 @@ export function anomalyNotifications(anomalies: Anomaly[]): Notification[] {
     })
 }
 
-export function upcomingNotifications(recurring: RecurringTransaction[]): Notification[] {
+export function upcomingNotifications(
+  recurring: RecurringTransaction[],
+  todayKey: string = getTodayKey(),
+): Notification[] {
   const results: Notification[] = []
   for (const r of recurring) {
-    const days = daysUntil(r.next_expected)
+    const days = daysUntil(r.next_expected, todayKey)
     if (days === null || days < 0 || days > DUE_SOON_DAYS) continue
     const amount = formatCurrencyCompact(r.expected_amount)
     results.push({
-      id: `upcoming-${r.id}`,
+      // The due date in the ID scopes a dismissal to this cycle only.
+      id: `upcoming-${r.id}-${getDateKey(r.next_expected ?? '')}`,
       type: 'upcoming',
       title: 'Upcoming Payment',
       message: getDueMessage(r.name, amount, days),

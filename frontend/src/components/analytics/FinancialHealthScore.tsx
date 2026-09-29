@@ -15,7 +15,7 @@ import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
 import ErrorState from '@/components/shared/ErrorState'
-import { analysisPeriodLabel } from '@/lib/finance/analysisPeriod'
+import { analysisPeriodLabel, type EarningStart } from '@/lib/finance/analysisPeriod'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
@@ -99,6 +99,12 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
       />
     </div>
   )
+}
+
+const EARNING_START_LABELS: Record<EarningStart['source'], string> = {
+  saved: 'Saved employment start',
+  inferred: 'Inferred employment start',
+  unknown: 'Employment start unconfirmed',
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -259,7 +265,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       <div className="border-t border-[var(--hairline-1)] px-4 py-3 text-xs leading-5 text-muted-foreground sm:px-5">
         <p>Cashflow: {analysisPeriodLabel(currentHealth.period)}</p>
         <p>
-          {currentHealth.earningStart.source === 'saved' ? 'Saved employment start' : currentHealth.earningStart.source === 'inferred' ? 'Inferred employment start' : 'Employment start unconfirmed'}
+          {EARNING_START_LABELS[currentHealth.earningStart.source]}
           {currentHealth.earningStart.date ? `: ${currentHealth.earningStart.date}. ` : '. '}
           Zero-income months after employment are included.
         </p>
