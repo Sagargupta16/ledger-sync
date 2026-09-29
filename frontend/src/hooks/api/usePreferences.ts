@@ -30,6 +30,7 @@ const PREFERENCE_DEPENDENTS = new Set([
   'category-monthly-history',
   'category-daily-series',
   'categorization-rules',
+  'earning-start-evidence',
 ])
 
 /**

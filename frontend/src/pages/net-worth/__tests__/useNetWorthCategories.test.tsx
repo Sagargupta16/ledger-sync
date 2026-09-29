@@ -62,6 +62,18 @@ const balancesRef: {
 } = { current: balances }
 const transactionsRef = { current: TRANSACTIONS }
 
+/** The ledger as `/daily-net-worth` days (every row here is dated 2026-06-30). */
+function dailyNetWorth(rows: readonly Transaction[]) {
+  const income = rows.filter((row) => row.type === 'Income').reduce((s, row) => s + row.amount, 0)
+  const expense = rows.filter((row) => row.type === 'Expense').reduce((s, row) => s + row.amount, 0)
+  const day = { date: '2026-06-30', income, expense }
+  return {
+    daily_data: { [day.date]: day },
+    cumulative_data: [{ ...day, net_worth: income - expense }],
+    opening_balance: 0,
+  }
+}
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useAccountBalances: () => ({
     data: balancesRef.current,
@@ -69,11 +81,18 @@ vi.mock('@/hooks/api/useAnalytics', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useDataDateRange: () => ({
+    minDate: '2026-06-30',
+    maxDate: '2026-06-30',
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }))
 
-vi.mock('@/hooks/api/useTransactions', () => ({
-  useTransactions: () => ({
-    data: transactionsRef.current,
+vi.mock('@/hooks/api/useCalculations', () => ({
+  useDailyNetWorth: () => ({
+    data: dailyNetWorth(transactionsRef.current),
     isLoading: false,
     isError: false,
     refetch: vi.fn(),

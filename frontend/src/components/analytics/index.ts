@@ -12,7 +12,6 @@ export { default as TopMerchants } from './TopMerchants'
 export { default as PeriodComparison } from './PeriodComparison'
 export { default as CashFlowForecast } from './CashFlowForecast'
 export { default as CreditCardHealth } from './CreditCardHealth'
-export { default as BudgetTracker } from './BudgetTracker'
 
 // Behavioral analytics
 export { default as CohortSpendingAnalysis } from './CohortSpendingAnalysis'

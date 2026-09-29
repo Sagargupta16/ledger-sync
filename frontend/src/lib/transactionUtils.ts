@@ -2,11 +2,11 @@
  * Shared transaction utility functions
  *
  * Used by DashboardPage, SpendingAnalysisPage, and other analytics views
- * to compute date ranges, filter transactions, and aggregate category data.
+ * to compute date ranges and aggregate category data. Date-range filtering
+ * lives in `@/lib/dateUtils` (`filterTransactionsByDateRange`).
  */
 
 import type { Transaction } from '@/types'
-import { filterTransactionsByDateRange as dateFilterImpl } from '@/lib/dateUtils'
 import { isSpending } from '@/lib/expenseClassification'
 
 /**
@@ -19,21 +19,6 @@ export function computeDataDateRange(
   if (!transactions || transactions.length === 0) return { minDate: undefined, maxDate: undefined }
   const dates = transactions.map((t) => t.date.substring(0, 10)).sort((a, b) => a.localeCompare(b))
   return { minDate: dates[0], maxDate: dates.at(-1) }
-}
-
-/**
- * Filter transactions by an optional start/end date range.
- * Delegates to the generic implementation in dateUtils, with a null-safe wrapper.
- */
-export function filterTransactionsByDateRange(
-  transactions: Transaction[] | undefined,
-  dateRange: { start_date?: string | null; end_date?: string | null },
-): Transaction[] {
-  if (!transactions) return []
-  return dateFilterImpl(transactions, {
-    start_date: dateRange.start_date ?? undefined,
-    end_date: dateRange.end_date ?? undefined,
-  })
 }
 
 /**

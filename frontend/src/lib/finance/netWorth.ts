@@ -258,30 +258,33 @@ export function summarizeNetWorthAccounts(
   }
 }
 
+/** One calendar day's Income and Expense totals; a transfer-only day is zeros. */
+export interface DailyCashFlow {
+  date: string
+  income: number
+  expense: number
+}
+
 /**
  * Cumulative income less all expenses. `netWorth` is the existing chart field
  * name; this is cash-flow history, not a reconstruction of account balances.
  * Category bands allocate positive cash flow using supplied present-day shares.
+ *
+ * `days` is the all-time `/daily-net-worth` series: one entry per day with any
+ * row (transfers included at zero), every Expense row counted, excluded
+ * accounts already removed, so the running total starts from zero.
  */
 export function computeNetWorthTimeSeries(
-  transactions: readonly { date: string; type: string; amount: number }[],
+  days: readonly DailyCashFlow[],
   allCategories: readonly string[],
   categoryProportions: Readonly<Record<string, number>>,
 ): Array<Record<string, number | string>> {
-  const dailyMap: Record<string, { income: number; expense: number }> = {}
-  for (const tx of transactions) {
-    const day = tx.date.slice(0, 10)
-    if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
-    if (tx.type === 'Income') dailyMap[day].income += tx.amount
-    else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
-  }
-
   let cumulativeIncome = 0
   let cumulativeExpenses = 0
   let netWorth = 0
-  return Object.entries(dailyMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { income, expense }]) => {
+  return [...days]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(({ date, income, expense }) => {
       cumulativeIncome += income
       cumulativeExpenses += expense
       netWorth += income - expense

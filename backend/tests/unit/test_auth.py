@@ -10,7 +10,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import update
 
-from ledger_sync.api import oauth
+from ledger_sync.api import oauth, oauth_state
 from ledger_sync.api.deps import get_http_client
 from ledger_sync.api.main import app
 from ledger_sync.core.auth.passwords import get_password_hash, verify_password
@@ -94,7 +94,7 @@ class TestTokens:
 def token_stub(monkeypatch):
     tokens = Token(access_token="synthetic-access", refresh_token="synthetic-refresh")
     stub = Mock(return_value=tokens)
-    monkeypatch.setattr("ledger_sync.services.auth_service.create_tokens", stub)
+    monkeypatch.setattr("ledger_sync.services.auth_refresh.create_tokens", stub)
     return stub
 
 
@@ -334,7 +334,7 @@ class TestOAuthFlow:
         client, _session, provider_client, token_stub = oauth_client
         body = _start_oauth(client)
         expiry = int(body["state"].split(".")[-2])
-        monkeypatch.setattr(oauth.time, "time", lambda: expiry)
+        monkeypatch.setattr(oauth_state.time, "time", lambda: expiry)
         response = client.post("/api/auth/oauth/google/callback", json=body)
         assert response.status_code == 400
         assert "expired" in response.json()["detail"]

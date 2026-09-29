@@ -57,14 +57,34 @@ const TRENDS = {
   consistency_score: 80,
 }
 
+/** TRANSACTIONS as `/daily-net-worth` days: Income/Expense sums per date. */
+const DAILY_NET_WORTH = (() => {
+  const days = new Map<string, { date: string; income: number; expense: number; net_worth: number }>()
+  for (const row of TRANSACTIONS) {
+    const day = days.get(row.date) ?? { date: row.date, income: 0, expense: 0, net_worth: 0 }
+    if (row.type === 'Income') day.income += row.amount
+    else if (row.type === 'Expense') day.expense += row.amount
+    days.set(row.date, day)
+  }
+  return { daily_data: Object.fromEntries(days), cumulative_data: [...days.values()], opening_balance: 0 }
+})()
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useTrends: () => ({ data: TRENDS, isPending: false, isError: false, refetch: vi.fn() }),
+  useDataDateRange: () => ({
+    minDate: '2026-06-30',
+    maxDate: '2026-07-31',
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }))
 
-vi.mock('@/hooks/api/useTransactions', () => ({
-  useTransactions: () => ({
-    data: TRANSACTIONS,
-    isPending: false,
+vi.mock('@/hooks/api/useCalculations', () => ({
+  useDailyNetWorth: () => ({ data: DAILY_NET_WORTH, isPending: false, isError: false, refetch: vi.fn() }),
+  useEarningStartEvidence: () => ({
+    data: TRANSACTIONS.filter((row) => row.type === 'Income'),
+    isLoading: false,
     isError: false,
     refetch: vi.fn(),
   }),

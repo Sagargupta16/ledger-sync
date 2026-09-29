@@ -1,50 +1,52 @@
-"""Transaction API endpoints for listing, searching, creating, and exporting transactions."""
+"""Transaction API endpoints for listing, searching, creating, and exporting transactions.
 
-import csv
-import io
-import json
-from collections.abc import Iterator
-from datetime import UTC, datetime
-from decimal import Decimal
-from itertools import batched
+Routes only. Filters/sorting live in ``transactions_impl.filters``, response
+shaping and the CSV stream in ``transactions_impl.serialize``, facets in
+``transactions_impl.facets`` and the two writes in ``transactions_impl.writes``.
+"""
+
+from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from sqlalchemy import Row, case, delete, exists, func, literal, or_
-from sqlalchemy.orm import Query as SAQuery
-from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.transaction_pagination import (
     MAX_CURSOR_LENGTH,
     TransactionsPageResponse,
-    cursor_context,
     transaction_page,
 )
-from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
-from ledger_sync.core.query_helpers import (
-    apply_excluded_accounts_filter,
-    excluded_accounts_for,
-    inclusive_end,
+from ledger_sync.api.transactions_impl.facets import transaction_facets
+from ledger_sync.api.transactions_impl.filters import (
+    END_DATE_DESC,
+    START_DATE_DESC,
+    SearchFilters,
+    _apply_date_range,
+    _apply_search_filters,
+    _apply_sorting,
+    _apply_tag_filter,
+    _base_transaction_query,
+    _transaction_cursor_context,
 )
-from ledger_sync.db.models import Transaction, TransactionTag, TransactionType, User
-from ledger_sync.ingest.hash_id import TransactionHasher
+from ledger_sync.api.transactions_impl.serialize import (
+    _RESPONSE_COLUMNS,
+    EXPORT_CHUNK_ROWS,
+    _export_csv_chunks,
+    _tags_for_transactions,
+    _to_transaction_response,
+    capped_response_dicts,
+)
+from ledger_sync.api.transactions_impl.writes import (
+    create_manual_transaction,
+    replace_transaction_tags,
+)
 from ledger_sync.schemas.transactions import (
-    TagFacet,
     TransactionCreateRequest,
     TransactionFacetsResponse,
     TransactionResponse,
     TransactionTagsUpdateRequest,
 )
-from ledger_sync.services.ledger_dimensions import sync_transaction_dimensions
-
-_TxQuery = SAQuery[Transaction]
-
-# Query description constants
-START_DATE_DESC = "Start date (inclusive)"
-END_DATE_DESC = "End date (inclusive)"
 
 # Hard safety cap for the unpaginated /api/transactions/all response.
 #
@@ -67,322 +69,6 @@ END_DATE_DESC = "End date (inclusive)"
 # wrong money. Callers past the cap must narrow start_date/end_date or page
 # through /api/transactions.
 MAX_ALL_TRANSACTIONS = 25_000
-
-# The CSV export is unpaginated (the upload validator alone accepts 100,000
-# rows per file), so it streams in chunks of this many rows. One bind parameter
-# per row for the chunk's tag lookup stays far under SQLite's variable cap
-# (32,766) and PostgreSQL's (65,535).
-EXPORT_CHUNK_ROWS = 1000
-
-_EXPORT_HEADER = [
-    "id",
-    "date",
-    "amount",
-    "currency",
-    "type",
-    "category",
-    "subcategory",
-    "account",
-    "from_account",
-    "to_account",
-    "note",
-    "source_file",
-    "last_seen_at",
-    "tags",
-]
-
-
-# Map of transaction type strings to TransactionType enum values
-_TRANSACTION_TYPE_MAP: dict[str, TransactionType] = {
-    "income": TransactionType.INCOME,
-    "expense": TransactionType.EXPENSE,
-    "transfer": TransactionType.TRANSFER,
-}
-
-
-class SearchFilters(BaseModel):
-    """Query parameters for filtering transactions in the search endpoint."""
-
-    model_config = {"extra": "forbid"}
-
-    query: Annotated[str | None, Query(description="Search in notes, category, account")] = None
-    category: Annotated[str | None, Query(description="Filter by category")] = None
-    subcategory: Annotated[str | None, Query(description="Filter by subcategory")] = None
-    account: Annotated[str | None, Query(description="Filter by account")] = None
-    type: Annotated[str | None, Query(description="Filter by type (Income/Expense/Transfer)")] = (
-        None
-    )
-    min_amount: Annotated[
-        float | None, Query(allow_inf_nan=False, description="Minimum amount")
-    ] = None
-    max_amount: Annotated[
-        float | None, Query(allow_inf_nan=False, description="Maximum amount")
-    ] = None
-    start_date: Annotated[datetime | None, Query(description=START_DATE_DESC)] = None
-    end_date: Annotated[datetime | None, Query(description=END_DATE_DESC)] = None
-    tag: Annotated[str | None, Query(max_length=100, description="Filter by exact tag")] = None
-
-
-def _apply_search_filters(
-    tx_query: _TxQuery,
-    filters: SearchFilters,
-) -> _TxQuery:
-    """Apply all search filters from a SearchFilters instance to a SQLAlchemy query.
-
-    Handles date range, amount range, category, subcategory, account,
-    transaction type, and free-text search filters.
-
-    Args:
-        tx_query: Base SQLAlchemy query to filter
-        filters: Validated search filter parameters
-
-    Returns:
-        Filtered SQLAlchemy query
-
-    """
-    tx_query = _apply_date_and_amount_filters(tx_query, filters)
-    tx_query = _apply_field_filters(tx_query, filters)
-    return tx_query
-
-
-def _transaction_cursor_context(user: User, filters: SearchFilters, sort_order: str) -> str:
-    """Normalize no-op filters, type casing, and inclusive date bounds for signing."""
-    effective = filters.model_dump(mode="json")
-    for field in ("query", "category", "subcategory", "account", "tag"):
-        effective[field] = effective[field] or None
-    effective["type"] = filters.type.lower() if filters.type else None
-    for field in ("min_amount", "max_amount"):
-        if effective[field] == 0:
-            effective[field] = 0.0  # SQL compares negative and positive zero equally.
-    if filters.end_date is not None:
-        effective["end_date"] = inclusive_end(filters.end_date).isoformat()
-    return cursor_context(
-        {
-            "user_id": user.id,
-            "excluded_accounts": sorted(excluded_accounts_for(user)),
-            "filters": effective,
-            "sort_order": sort_order,
-        }
-    )
-
-
-def _apply_date_and_amount_filters(
-    tx_query: _TxQuery,
-    filters: SearchFilters,
-) -> _TxQuery:
-    """Apply date range and amount range filters."""
-    if filters.start_date:
-        tx_query = tx_query.filter(Transaction.date >= filters.start_date)
-    if filters.end_date:
-        tx_query = tx_query.filter(Transaction.date <= inclusive_end(filters.end_date))
-    if filters.min_amount is not None:
-        tx_query = tx_query.filter(Transaction.amount >= filters.min_amount)
-    if filters.max_amount is not None:
-        tx_query = tx_query.filter(Transaction.amount <= filters.max_amount)
-    return tx_query
-
-
-def _apply_field_filters(
-    tx_query: _TxQuery,
-    filters: SearchFilters,
-) -> _TxQuery:
-    """Apply category, subcategory, account, type, and text search filters."""
-    if filters.category:
-        tx_query = tx_query.filter(Transaction.category == filters.category)
-    if filters.subcategory:
-        tx_query = tx_query.filter(Transaction.subcategory == filters.subcategory)
-    if filters.account:
-        tx_query = tx_query.filter(
-            (Transaction.account == filters.account)
-            | (Transaction.from_account == filters.account)
-            | (Transaction.to_account == filters.account),
-        )
-    if filters.type:
-        tx_type = _TRANSACTION_TYPE_MAP.get(filters.type.lower())
-        if tx_type is not None:
-            tx_query = tx_query.filter(Transaction.type == tx_type)
-        else:
-            tx_query = tx_query.filter(literal(False))  # Invalid type returns empty
-    if filters.query:
-        search_term = f"%{filters.query}%"
-        tx_query = tx_query.filter(
-            or_(
-                Transaction.note.ilike(search_term),
-                Transaction.category.ilike(search_term),
-                Transaction.account.ilike(search_term),
-                Transaction.subcategory.ilike(search_term),
-            )
-        )
-    return tx_query
-
-
-def _apply_sorting(
-    tx_query: _TxQuery,
-    sort_by: str,
-    sort_order: str,
-) -> _TxQuery:
-    """Apply column sorting to a SQLAlchemy query.
-
-    Args:
-        tx_query: SQLAlchemy query to sort
-        sort_by: Column name to sort by (date, amount, category, account)
-        sort_order: Sort direction ('asc' or 'desc')
-
-    Returns:
-        Sorted SQLAlchemy query
-
-    """
-    sort_column_map = {
-        "date": Transaction.date,
-        "amount": Transaction.amount,
-        "category": Transaction.category,
-        "account": Transaction.account,
-    }
-    sort_column = sort_column_map.get(sort_by, Transaction.date)
-    if sort_order == "desc":
-        return tx_query.order_by(sort_column.desc(), Transaction.transaction_id.desc())
-    return tx_query.order_by(sort_column.asc(), Transaction.transaction_id.asc())
-
-
-def _apply_tag_filter(tx_query: _TxQuery, user_id: int, tag: str | None) -> _TxQuery:
-    """Filter to transactions carrying *tag* via an EXISTS subquery.
-
-    Exact string match, DB-agnostic. No-op when *tag* is unset.
-    """
-    if not tag:
-        return tx_query
-    return tx_query.filter(
-        exists().where(
-            (TransactionTag.user_id == user_id)
-            & (TransactionTag.transaction_id == Transaction.transaction_id)
-            & (TransactionTag.tag == tag)
-        )
-    )
-
-
-def _tags_for_transactions(
-    db: Session,
-    user_id: int,
-    transaction_ids: list[str],
-) -> dict[str, list[str]]:
-    """Batch-fetch tags for a page of transactions in one query.
-
-    Returns a ``{transaction_id: [tags...]}`` map with each tag list
-    sorted alphabetically. Missing ids simply have no entry.
-    """
-    if not transaction_ids:
-        return {}
-    rows = (
-        db.query(TransactionTag.transaction_id, TransactionTag.tag)
-        .filter(
-            TransactionTag.user_id == user_id,
-            TransactionTag.transaction_id.in_(transaction_ids),
-        )
-        .all()
-    )
-    tags_map: dict[str, list[str]] = {}
-    for txn_id, tag in rows:
-        tags_map.setdefault(txn_id, []).append(tag)
-    for tag_list in tags_map.values():
-        tag_list.sort()
-    return tags_map
-
-
-def _to_transaction_response(
-    tx: Transaction,
-    tags: list[str] | None = None,
-) -> TransactionResponse:
-    """Convert a Transaction model to a TransactionResponse."""
-    return TransactionResponse(
-        id=tx.transaction_id,
-        date=tx.date.isoformat(),
-        amount=float(tx.amount),
-        currency=tx.currency,
-        type=tx.type.value,
-        category=tx.category,
-        subcategory=tx.subcategory or "",
-        account=tx.account,
-        from_account=tx.from_account,
-        to_account=tx.to_account,
-        note=tx.note or "",
-        source_file=tx.source_file,
-        last_seen_at=tx.last_seen_at.isoformat(),
-        is_transfer=tx.type.value == "Transfer",
-        tags=tags or [],
-    )
-
-
-# Exactly the columns ``_to_transaction_response`` and the CSV export read, for
-# the unpaginated paths that should not hydrate an ORM object per row.
-_RESPONSE_COLUMNS = (
-    Transaction.transaction_id,
-    Transaction.date,
-    Transaction.amount,
-    Transaction.currency,
-    Transaction.type,
-    Transaction.category,
-    Transaction.subcategory,
-    Transaction.account,
-    Transaction.from_account,
-    Transaction.to_account,
-    Transaction.note,
-    Transaction.source_file,
-    Transaction.last_seen_at,
-)
-
-
-def _row_to_response_dict(row: Row[Any]) -> dict[str, Any]:
-    """``_to_transaction_response`` for a ``_RESPONSE_COLUMNS`` row, as a plain dict."""
-    return {
-        "id": row.transaction_id,
-        "date": row.date.isoformat(),
-        "amount": float(row.amount),
-        "currency": row.currency,
-        "type": row.type.value,
-        "category": row.category,
-        "subcategory": row.subcategory or "",
-        "account": row.account,
-        "from_account": row.from_account,
-        "to_account": row.to_account,
-        "note": row.note or "",
-        "source_file": row.source_file,
-        "last_seen_at": row.last_seen_at.isoformat(),
-        "is_transfer": row.type.value == "Transfer",
-        "tags": [],
-    }
-
-
-def _base_transaction_query(db: Session, user: User) -> SAQuery[Transaction]:
-    """Create base query for non-deleted, non-excluded transactions for user.
-
-    Honours the user's ``excluded_accounts`` preference via
-    ``excluded_accounts_for`` so the raw transactions endpoints stay
-    consistent with the analytics pipeline.
-    """
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-    )
-    return apply_excluded_accounts_filter(query, excluded_accounts_for(user))
-
-
-def _apply_date_range(
-    query: SAQuery[Transaction],
-    start_date: datetime | None,
-    end_date: datetime | None,
-) -> SAQuery[Transaction]:
-    """Apply explicit date-range filters to a transaction query.
-
-    Earning-start is deliberately NOT applied here: transactions
-    endpoints return factual raw data, and the caller supplies the
-    window it wants. View-layer clamping belongs on the client.
-    """
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= inclusive_end(end_date))
-    return query
-
 
 router = APIRouter(prefix="", tags=["transactions"])
 
@@ -486,31 +172,8 @@ def get_all_transactions(
     """
     query = _base_transaction_query(db, current_user)
     query = _apply_date_range(query, start_date, end_date)
-
-    # Fetch one row past the cap: the sentinel proves the limit was exceeded
-    # without paying for a COUNT(*) on every normal request. Only the response
-    # columns are selected: no ORM identity-map entry per row.
-    rows = (
-        _apply_sorting(query, "date", "desc")
-        .with_entities(*_RESPONSE_COLUMNS)
-        .limit(MAX_ALL_TRANSACTIONS + 1)
-        .all()
-    )
-
-    if len(rows) > MAX_ALL_TRANSACTIONS:
-        total = query.count()
-        raise HTTPException(
-            status_code=413,
-            detail=(
-                f"{total} transactions match this request, above the "
-                f"{MAX_ALL_TRANSACTIONS}-row limit of /api/transactions/all. "
-                "Narrow start_date/end_date, or page through /api/transactions."
-            ),
-        )
-
-    # ``response_model`` validates and serializes these dicts exactly as it did
-    # the TransactionResponse objects built from ORM rows.
-    return [_row_to_response_dict(row) for row in rows]
+    # The cap is read here, at call time, so it stays one module-level knob.
+    return capped_response_dicts(query, MAX_ALL_TRANSACTIONS)
 
 
 @router.get("/api/transactions/facets")
@@ -525,67 +188,7 @@ def get_transaction_facets(
     This computes all of that with ``DISTINCT`` / ``GROUP BY`` so the browser
     receives a few hundred bytes instead of the whole ledger.
     """
-    base = _base_transaction_query(db, current_user)
-
-    # Categories are split by whether the label is ever used on a non-transfer
-    # row. Transfers carry a routing label in `category` ("Transfer: Bank: HDFC
-    # -> Stocks: Groww"), which is not a spending category at all: it is a
-    # per-account-pair string, so it grows with accounts^2 and swamps the real
-    # list. On the reference ledger that is 118 routing labels against 17 real
-    # categories, i.e. the dropdown was 87% noise. A label used by BOTH a
-    # transfer and a real row counts as real, so nothing legitimate is hidden.
-    category_rows = (
-        base.with_entities(
-            Transaction.category,
-            func.min(case((Transaction.type == TransactionType.TRANSFER, 1), else_=0)).label(
-                "transfer_only"
-            ),
-        )
-        .group_by(Transaction.category)
-        .all()
-    )
-    categories = [row[0] for row in category_rows if row[0] and not row.transfer_only]
-    transfer_categories = [row[0] for row in category_rows if row[0] and row.transfer_only]
-
-    accounts = [
-        row[0] for row in base.with_entities(Transaction.account).distinct().all() if row[0]
-    ]
-
-    count_rows = base.with_entities(Transaction.type, func.count()).group_by(Transaction.type).all()
-    counts: dict[TransactionType, int] = {row[0]: row[1] for row in count_rows}
-
-    income = counts.get(TransactionType.INCOME, 0)
-    expense = counts.get(TransactionType.EXPENSE, 0)
-    transfer = counts.get(TransactionType.TRANSFER, 0)
-
-    # Tag facets: distinct tags with live-transaction counts. Joins to
-    # transactions so soft-deleted rows drop out, and honours the same
-    # excluded-accounts preference as the other facets.
-    tag_query = (
-        db.query(TransactionTag.tag, func.count())
-        .join(Transaction, Transaction.transaction_id == TransactionTag.transaction_id)
-        .filter(
-            TransactionTag.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-        )
-    )
-    tag_query = apply_excluded_accounts_filter(tag_query, excluded_accounts_for(current_user))
-    tag_rows = tag_query.group_by(TransactionTag.tag).all()
-    tag_facets = [
-        TagFacet(name=name, count=count)
-        for name, count in sorted(tag_rows, key=lambda r: (-r[1], r[0]))
-    ]
-
-    return TransactionFacetsResponse(
-        categories=sorted(categories, key=lambda s: s.lower()),
-        transfer_categories=sorted(transfer_categories, key=lambda s: s.lower()),
-        accounts=sorted(accounts, key=lambda s: s.lower()),
-        tags=tag_facets,
-        income_count=income,
-        expense_count=expense,
-        transfer_count=transfer,
-        total_count=income + expense + transfer,
-    )
+    return transaction_facets(db, current_user)
 
 
 @router.get("/api/transactions/search")
@@ -711,101 +314,7 @@ def export_transactions(
     )
 
 
-def _export_csv_chunks(db: Session, user_id: int, rows: SAQuery[Any]) -> Iterator[str]:
-    """Yield the export CSV one bounded chunk at a time.
-
-    Rows arrive in ``EXPORT_CHUNK_ROWS`` batches and each batch fetches only its
-    own tags, so memory stays flat however large the ledger is, and the tag
-    ``IN (...)`` list stays far below SQLite's and PostgreSQL's bind limits.
-    """
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(_EXPORT_HEADER)
-    yield output.getvalue()
-    for chunk in batched(rows, EXPORT_CHUNK_ROWS, strict=False):  # last chunk may be short
-        tags_map = _tags_for_transactions(db, user_id, [row.transaction_id for row in chunk])
-        output = io.StringIO()
-        writer = csv.writer(output)
-        for row in chunk:
-            writer.writerow(
-                [
-                    row.transaction_id,
-                    row.date.isoformat(),
-                    float(row.amount),
-                    row.currency,
-                    row.type.value,
-                    row.category,
-                    row.subcategory or "",
-                    row.account,
-                    row.from_account,
-                    row.to_account,
-                    row.note or "",
-                    row.source_file,
-                    row.last_seen_at.isoformat(),
-                    # Same JSON array the API serves for this field
-                    # (``TransactionResponse.tags``), so the column round-trips
-                    # losslessly. A delimiter-joined string would not: tags are
-                    # free strings, so any separator can legitimately appear
-                    # inside a tag. Untagged rows carry "[]" rather than an empty
-                    # cell so a reader can json.loads every row unconditionally.
-                    json.dumps(tags_map.get(row.transaction_id, [])),
-                ],
-            )
-        yield output.getvalue()
-
-
 # --- Quick-Add Transaction Endpoint ---
-
-# Shared hasher instance (stateless, safe to reuse)
-_hasher = TransactionHasher()
-
-
-def _manual_duplicate_exists(
-    db: Session, fingerprint: str, identity_fields: dict[str, Any], *, legacy_account: str
-) -> bool:
-    """Recognize legacy manual rows without trusting ambiguous v1 field boundaries."""
-    # The former manual API hashed the display account even for transfers.
-    legacy_id = _hasher.generate_transaction_id(
-        **{**identity_fields, "account": legacy_account}, version=1
-    )
-    candidates = (
-        db.query(Transaction)
-        .filter(
-            Transaction.user_id == identity_fields["user_id"],
-            or_(
-                Transaction.transaction_id == fingerprint,
-                Transaction.source_fingerprint == fingerprint,
-                (Transaction.transaction_id == legacy_id)
-                & Transaction.source_fingerprint.is_(None),
-            ),
-        )
-        .all()
-    )
-    # Two primary-key candidates and one user-unique fingerprint at most.
-    for candidate in candidates:
-        if candidate.transaction_id == fingerprint or candidate.source_fingerprint == fingerprint:
-            return True
-        candidate_fingerprint = _hasher.generate_transaction_id(
-            # The matching legacy ID already binds the original submitted date
-            # encoding; storage may have discarded its timezone.
-            date=identity_fields["date"],
-            amount=candidate.amount,
-            account=(
-                candidate.from_account or candidate.account
-                if candidate.type == TransactionType.TRANSFER
-                else candidate.account
-            ),
-            note=candidate.note,
-            category=candidate.category,
-            subcategory=candidate.subcategory,
-            tx_type=candidate.type.value,
-            user_id=candidate.user_id,
-            to_account=candidate.to_account if candidate.type == TransactionType.TRANSFER else None,
-            currency=candidate.currency,
-        )
-        if candidate_fingerprint == fingerprint:
-            return True
-    return False
 
 
 @router.post(
@@ -840,75 +349,7 @@ def create_transaction(
         HTTPException: If the transaction type is invalid or a duplicate exists
 
     """
-    # Map string type to enum
-    tx_type = _TRANSACTION_TYPE_MAP.get(body.type.lower())
-    if tx_type is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transaction type: {body.type}. "
-            "Expected one of: Income, Expense, Transfer.",
-        )
-
-    now = datetime.now(UTC)
-    amount = Decimal(str(round(body.amount, 2)))
-
-    # Generate deterministic transaction ID (same logic as ingest pipeline)
-    identity_fields: dict[str, Any] = {
-        "date": body.date,
-        "amount": amount,
-        "account": (
-            body.from_account or body.account
-            if tx_type == TransactionType.TRANSFER
-            else body.account
-        ),
-        "note": body.note,
-        "category": body.category,
-        "subcategory": body.subcategory,
-        "tx_type": body.type,
-        "user_id": current_user.id,
-        "to_account": body.to_account if tx_type == TransactionType.TRANSFER else None,
-        "currency": "INR",
-    }
-    transaction_id = _hasher.generate_transaction_id(**identity_fields)
-
-    # Serialize with imports and refresh before reading or changing this ledger.
-    lock_analytics_user(db, current_user.id)
-    if _manual_duplicate_exists(db, transaction_id, identity_fields, legacy_account=body.account):
-        raise HTTPException(
-            status_code=409,
-            detail="A transaction with identical fields already exists.",
-        )
-
-    transaction = Transaction(
-        transaction_id=transaction_id,
-        source_fingerprint=transaction_id,
-        fingerprint_version=2,
-        user_id=current_user.id,
-        date=body.date,
-        amount=amount,
-        currency="INR",
-        type=tx_type,
-        category=body.category,
-        subcategory=body.subcategory,
-        account=body.account,
-        from_account=body.from_account,
-        to_account=body.to_account,
-        note=body.note,
-        source_file="manual_entry",
-        last_seen_at=now,
-        created_at=now,
-        updated_at=now,
-        is_deleted=False,
-    )
-
-    sync_transaction_dimensions(db, transaction)
-    db.add(transaction)
-    # DateTime stores the submitted wall-clock day without a timezone.
-    mark_ledger_changed(db, current_user.id, [transaction.date.date()])
-    db.commit()
-    db.refresh(transaction)
-
-    return _to_transaction_response(transaction)
+    return create_manual_transaction(db, current_user, body)
 
 
 # --- Transaction Tags Endpoint ---
@@ -948,48 +389,5 @@ def set_transaction_tags(
             user (or is soft-deleted); 422 on tag length/count violations
 
     """
-    transaction = (
-        db.query(Transaction)
-        .filter(
-            Transaction.transaction_id == transaction_id,
-            Transaction.user_id == current_user.id,
-            Transaction.is_deleted.is_(False),
-        )
-        .first()
-    )
-    if transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    # Normalize: trim, drop empties, reject overlong, dedupe preserving order.
-    tags: list[str] = []
-    for raw in payload.tags:
-        tag = raw.strip()
-        if not tag:
-            continue
-        if len(tag) > 50:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Tag exceeds 50 characters: {tag[:50]}...",
-            )
-        if tag not in tags:
-            tags.append(tag)
-    if len(tags) > 10:
-        raise HTTPException(status_code=422, detail="A transaction can have at most 10 tags")
-
-    db.execute(
-        delete(TransactionTag).where(
-            TransactionTag.user_id == current_user.id,
-            TransactionTag.transaction_id == transaction_id,
-        )
-    )
-    for tag in tags:
-        db.add(
-            TransactionTag(
-                user_id=current_user.id,
-                transaction_id=transaction_id,
-                tag=tag,
-            )
-        )
-    db.commit()
-
+    tags = replace_transaction_tags(db, current_user, transaction_id, payload.tags)
     return {"transaction_id": transaction_id, "tags": tags}

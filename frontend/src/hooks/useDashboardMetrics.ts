@@ -27,6 +27,7 @@ import {
   getCurrentYear,
   getCurrentMonth,
   getCurrentFY,
+  filterTransactionsByDateRange,
 } from '@/lib/dateUtils'
 import {
   calculateExpenseByCategoryBreakdown,
@@ -36,7 +37,6 @@ import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
-import { filterTransactionsByDateRange } from '@/lib/transactionUtils'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 
 // ---------------------------------------------------------------------------

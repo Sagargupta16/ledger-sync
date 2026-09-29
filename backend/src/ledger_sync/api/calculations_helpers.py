@@ -7,14 +7,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
 
-from ledger_sync.core.query_helpers import build_transaction_query
-from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
+from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType
 
 #: Window of the income trend's rolling average, in complete months. Mirrors the
 #: client-side ``ROLLING_AVG_MONTHS`` on Spending Analysis and Trends.
@@ -224,17 +221,6 @@ def _compute_quick_insights(transactions: list[Transaction]) -> dict[str, Any]:
     }
 
 
-def _format_largest_transaction(largest: Transaction | None) -> dict[str, Any] | None:
-    """Format largest transaction data."""
-    if not largest:
-        return None
-    return {
-        "amount": float(largest.amount),
-        "category": largest.category or "",
-        "date": largest.date.isoformat(),
-    }
-
-
 _CATEGORY_TRANSACTION_TYPES = {
     "income": TransactionType.INCOME,
     "expense": TransactionType.EXPENSE,
@@ -340,80 +326,3 @@ def _compute_account_statistics(
             "negative_accounts": negative_accounts,
         },
     }
-
-
-def _build_category_analysis(
-    expenses: list[Transaction],
-) -> tuple[dict[str, float], dict[str, int]]:
-    """Accumulate expense totals and counts per category."""
-    category_totals: dict[str, float] = {}
-    category_counts: dict[str, int] = {}
-    for tx in expenses:
-        cat = tx.category or "Uncategorized"
-        category_totals[cat] = category_totals.get(cat, 0) + float(tx.amount)
-        category_counts[cat] = category_counts.get(cat, 0) + 1
-    return category_totals, category_counts
-
-
-def _find_unusual_spending(
-    expenses: list[Transaction],
-    category_totals: dict[str, float],
-    category_counts: dict[str, int],
-) -> list[dict[str, Any]]:
-    """Identify transactions exceeding 2x their category average, returning top 5."""
-    # Pre-group by category once (O(n)) instead of scanning all expenses per category (O(c*n))
-    by_category: dict[str, list[Transaction]] = defaultdict(list)
-    for tx in expenses:
-        by_category[tx.category or "Uncategorized"].append(tx)
-
-    unusual: list[dict[str, Any]] = []
-    for category, total in category_totals.items():
-        avg_amount = total / category_counts[category]
-        threshold = avg_amount * 2
-
-        for tx in by_category.get(category, []):
-            tx_amount = float(tx.amount)
-            if tx_amount > threshold:
-                unusual.append(
-                    {
-                        "category": category,
-                        "amount": tx_amount,
-                        "average_amount": avg_amount,
-                        "deviation": ((tx_amount - avg_amount) / avg_amount * 100),
-                        "date": tx.date.isoformat(),
-                    },
-                )
-    # Stable sort: equal deviations keep their discovery order.
-    unusual.sort(key=lambda item: item["deviation"], reverse=True)
-    return unusual[:5]
-
-
-def _calculate_expense_averages(
-    total_expenses: float,
-    start_date: datetime | None,
-    end_date: datetime | None,
-    transaction_dates: list[datetime],
-) -> tuple[float, float]:
-    """Return (average_daily_expense, average_monthly_expense).
-
-    A missing bound falls back to the first/last transaction date in the
-    window, so an unfiltered call averages over the real data span instead of
-    a fixed 30 days. Days are inclusive: Jan 1 to Jan 31 is 31 days.
-    """
-    first = start_date or (min(transaction_dates) if transaction_dates else None)
-    last = end_date or (max(transaction_dates) if transaction_dates else None)
-    day_count = max((last.date() - first.date()).days + 1, 1) if first and last else 1
-    month_count = max(day_count / 30.44, 1)  # 365.25/12 avg days per month
-    average_daily = total_expenses / day_count
-    average_monthly = total_expenses / month_count if month_count > 0 else 0
-    return average_daily, average_monthly
-
-
-def get_transactions(
-    db: Session,
-    user: User,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-) -> list[Transaction]:
-    """Get non-deleted transactions for a user, optionally filtered by date range."""
-    return list(build_transaction_query(db, user, start_date, end_date).all())

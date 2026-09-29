@@ -1,27 +1,43 @@
-"""V2 endpoints: recurring transactions CRUD + merchant intelligence."""
+"""V2 endpoints: recurring transactions CRUD + merchant intelligence.
+
+Shared rules live in ``recurring_rules``; merchant intelligence lives in
+``merchant_intelligence`` and is mounted on this router after the CRUD routes,
+so the route order is unchanged.
+"""
 
 from __future__ import annotations
 
-import calendar
-import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, or_, update
-from sqlalchemy.orm import Session
 
+from ledger_sync.api.analytics_v2_impl.merchant_intelligence import (
+    router as merchant_intelligence_router,
+)
+
+# Re-exported: tests import the date estimator from this module.
+from ledger_sync.api.analytics_v2_impl.recurring_rules import (
+    _MANUAL_ACCOUNT,
+    _USER_EDITABLE_FIELDS,
+    _VALID_FREQUENCIES,
+    _VALID_PATTERN_KINDS,
+    _dismiss_detection_label,
+    _find_visible_record,
+    _next_expected_for_record,
+)
+from ledger_sync.api.analytics_v2_impl.recurring_rules import (
+    _compute_next_expected as _compute_next_expected,
+)
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.analytics.recurring import (
     DISMISSED_PATTERN_KIND,
     effective_pattern_kind,
-    normalize_recurring_note,
 )
 from ledger_sync.core.analytics.refresh import lock_analytics_user
-from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import (
-    MerchantIntelligence,
     RecurrenceFrequency,
     RecurringTransaction,
     ScheduledTransaction,
@@ -29,36 +45,6 @@ from ledger_sync.db.models import (
 )
 
 router = APIRouter()
-
-_FREQUENCY_DAYS = {
-    "daily": 1,
-    "weekly": 7,
-    "biweekly": 14,
-}
-_FREQUENCY_MONTHS = {"monthly": 1, "bimonthly": 2, "quarterly": 3, "semiannual": 6, "yearly": 12}
-
-
-def _compute_next_expected(
-    last_occurrence: datetime | None,
-    frequency: str | None,
-    expected_day: int | None,
-) -> str | None:
-    """Estimate the next expected date from last occurrence + frequency."""
-    if not last_occurrence or not frequency:
-        return None
-    freq = frequency.lower()
-    months = _FREQUENCY_MONTHS.get(freq)
-    if months:
-        year, month_index = divmod(
-            last_occurrence.year * 12 + last_occurrence.month - 1 + months, 12
-        )
-        month = month_index + 1
-        day = min(max(expected_day or last_occurrence.day, 1), calendar.monthrange(year, month)[1])
-        return last_occurrence.replace(year=year, month=month, day=day).isoformat()
-    days = _FREQUENCY_DAYS.get(freq)
-    if days:
-        return (last_occurrence + timedelta(days=days)).isoformat()
-    return None
 
 
 @router.get("/recurring-transactions")
@@ -156,26 +142,6 @@ def get_recurring_transactions(
     }
 
 
-def _next_expected_for_record(record: RecurringTransaction) -> str | None:
-    """Manual monthly commitments can have a due day without any ledger history."""
-    if effective_pattern_kind(record) != "commitment":
-        return None
-    frequency = record.frequency.value if record.frequency else None
-    if (
-        record.last_occurrence is None
-        and record.is_user_confirmed
-        and frequency == "monthly"
-        and record.expected_day
-    ):
-        today = ledger_now().replace(hour=0, minute=0, second=0, microsecond=0)
-        day = min(max(record.expected_day, 1), calendar.monthrange(today.year, today.month)[1])
-        due = today.replace(day=day)
-        if due >= today:
-            return due.isoformat()
-        return _compute_next_expected(today, frequency, record.expected_day)
-    return _compute_next_expected(record.last_occurrence, frequency, record.expected_day)
-
-
 class RecurringTransactionUpdate(BaseModel):
     """Partial update for a recurring transaction."""
 
@@ -185,95 +151,6 @@ class RecurringTransactionUpdate(BaseModel):
     is_confirmed: bool | None = None
     is_active: bool | None = None
     pattern_kind: str | None = None
-
-
-_VALID_PATTERN_KINDS = {"commitment", "habit"}
-_MANUAL_ACCOUNT = "Manual"
-_USER_EDITABLE_FIELDS = (
-    "pattern_name",
-    "frequency",
-    "expected_amount",
-    "is_active",
-    "pattern_kind",
-)
-
-
-def _find_visible_record(db: Session, user_id: int, item_id: int) -> RecurringTransaction:
-    """Return the user's row, treating a dismissed tombstone as already deleted."""
-    record = (
-        db.query(RecurringTransaction)
-        .filter(
-            RecurringTransaction.id == item_id,
-            RecurringTransaction.user_id == user_id,
-            RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
-        )
-        .first()
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Recurring transaction not found")
-    return record
-
-
-def _detection_keys(name: str) -> set[str]:
-    """Labels refresh matches a confirmed row by (see ``_load_confirmed_recurring``)."""
-    return {key for key in (normalize_recurring_note(name), name.lower()) if key}
-
-
-def _dismiss_detection_label(db: Session, record: RecurringTransaction, new_name: str) -> None:
-    """Keep a renamed detected pattern from being re-detected under its old name.
-
-    Refresh finds a confirmed row by its name. Once renamed, the old label no
-    longer matches it, so the next refresh would add a duplicate detected row
-    for the same transactions. A dismissed tombstone under the old name holds
-    that label instead; the renamed row keeps the user's name and values.
-    """
-    if record.account == _MANUAL_ACCOUNT:
-        return
-    new_keys = _detection_keys(new_name)
-    if _detection_keys(record.pattern_name) <= new_keys:
-        return
-    # Renaming back onto a label this row left behind reclaims that label.
-    for tombstone in db.query(RecurringTransaction).filter(
-        RecurringTransaction.user_id == record.user_id,
-        RecurringTransaction.transaction_type == record.transaction_type,
-        RecurringTransaction.pattern_kind == DISMISSED_PATTERN_KIND,
-    ):
-        if _detection_keys(tombstone.pattern_name) & new_keys:
-            db.delete(tombstone)
-    db.add(
-        RecurringTransaction(
-            user_id=record.user_id,
-            pattern_name=record.pattern_name,
-            category=record.category,
-            subcategory=record.subcategory,
-            account=record.account,
-            transaction_type=record.transaction_type,
-            frequency=record.frequency,
-            expected_amount=record.expected_amount,
-            amount_variance=record.amount_variance,
-            expected_day=record.expected_day,
-            confidence_score=record.confidence_score,
-            occurrences_detected=record.occurrences_detected,
-            pattern_kind=DISMISSED_PATTERN_KIND,
-            last_occurrence=record.last_occurrence,
-            is_active=False,
-            is_user_confirmed=True,
-            first_detected=record.first_detected,
-            last_updated=datetime.now(UTC),
-        )
-    )
-
-
-_VALID_FREQUENCIES = {
-    "daily",
-    "weekly",
-    "biweekly",
-    "monthly",
-    "bimonthly",
-    "quarterly",
-    "semiannual",
-    "yearly",
-}
 
 
 @router.patch(
@@ -436,67 +313,5 @@ def delete_recurring_transaction(
     return {"status": "ok", "id": item_id}
 
 
-@router.get("/merchant-intelligence")
-def get_merchant_intelligence(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    min_transactions: Annotated[int, Query(ge=1, description="Minimum transaction count")] = 3,
-    recurring_only: Annotated[bool, Query(description="Only show recurring merchants")] = False,
-    label_kind: Annotated[
-        str | None,
-        Query(description="Filter by label kind: 'brand' (recognised payee) or 'descriptor'"),
-    ] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-) -> dict[str, Any]:
-    """Get merchant/vendor intelligence.
-
-    Shows:
-    - Top merchants by spend
-    - Transaction patterns per merchant
-    - Recurring merchant detection
-
-    Each row carries ``label_kind``: ``brand`` rows are recognised payees,
-    ``descriptor`` rows are the transaction note itself. A "top merchants"
-    surface should filter to ``brand`` or label descriptors as descriptions --
-    "Juice - Pineapple" is what was bought, not who was paid.
-    """
-    query = (
-        db.query(MerchantIntelligence)
-        .filter(MerchantIntelligence.user_id == current_user.id)
-        .order_by(desc(MerchantIntelligence.total_spent))
-    )
-
-    if min_transactions:
-        query = query.filter(MerchantIntelligence.transaction_count >= min_transactions)
-    if recurring_only:
-        query = query.filter(MerchantIntelligence.is_recurring.is_(True))
-    if label_kind:
-        query = query.filter(MerchantIntelligence.label_kind == label_kind)
-
-    merchants = query.limit(limit).all()
-
-    return {
-        "data": [
-            {
-                "merchant": m.merchant_name,
-                "label_kind": m.label_kind,
-                "aliases": json.loads(m.merchant_aliases) if m.merchant_aliases else [],
-                "category": m.primary_category,
-                "subcategory": m.primary_subcategory,
-                "total_spent": float(m.total_spent),
-                "transaction_count": m.transaction_count,
-                "avg_transaction": float(m.avg_transaction),
-                "first_transaction": (
-                    m.first_transaction.isoformat() if m.first_transaction else None
-                ),
-                "last_transaction": (
-                    m.last_transaction.isoformat() if m.last_transaction else None
-                ),
-                "months_active": m.months_active,
-                "avg_days_between": m.avg_days_between,
-                "is_recurring": m.is_recurring,
-            }
-            for m in merchants
-        ],
-        "count": len(merchants),
-    }
+# Mounted after the CRUD routes so merchant intelligence stays last, as before.
+router.include_router(merchant_intelligence_router)

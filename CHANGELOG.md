@@ -6,14 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## Unreleased
+## 2.25.0 - 2026-09-29
+
+Covers #244 through #250 plus the full-repo audit sweep: domain tables for settings, stable ledger imports, centralized financial calculations, and 61 audit findings plus 114 SonarCloud issues fixed without schema changes.
 
 ### Added
 
 - A persisted Full/Reduced motion preference is available from both the sidebar and Display Preferences.
 - Inter and JetBrains Mono are self-hosted for consistent interface and financial metadata typography.
+- Chart range controls scope time-series charts to a window, and the tax page shows a payroll and RSU withholding summary (#247).
+- Account classifications, AI settings, and salary/RSU/growth inputs live in their own tables instead of JSON preference columns (#250).
+- Refresh tokens rotate on every use and are single-use, with a 60-second grace window for concurrent tabs; reuse after the window revokes every session. Existing sessions upgrade on their next refresh.
+- The Pages build ships a Content-Security-Policy with hashed inline scripts, and analytics refresh, AI tool execution, and the stock and exchange-rate proxies are rate limited per user.
 
 ### Changed
+
+- Snapshot imports validate complete INR ledgers before atomic reconciliation, and OAuth plus queued mutations are bound to the initiating session (#245).
+- Tax, payroll, investment, net-worth, forecast, and projection formulas have single shared owners (#246).
+- Imports keep stable transaction identities, analytics refresh only affected periods, and deep transaction pages use signed cursors (#249).
+- The dashboard paints its summary without waiting for the full ledger, Net Worth and Trends read server-side daily totals, and the anonymous home page no longer preloads the chart library (eager JavaScript 1,315 KB to 843 KB raw).
+- Account balances, quick insights, `/insights`, and the full-ledger endpoint aggregate or project in SQL instead of building an ORM object per row, and CSV export streams.
+- Preference and tag saves no longer re-download the full ledger unless excluded accounts changed.
+- Category trends rebuild only affected months; the largest backend routers and frontend modules are split below 400 lines with unchanged routes and exports.
+- Dependencies updated within current majors (React 19.3, Vite 8.3, Motion 13.4, Starlette 1.7, PyJWT 2.15, Alembic 1.20); SQLAlchemy stays below 2.1 and TypeScript at 6.0.3.
 
 - Desktop routes now use a framed ledger workspace with a measured grid, active scan lines, colored KPI rails, and clearer route transitions; mobile stays edge-to-edge.
 - Route, section, list, and chart motion now share a restrained token system with one owner for each entrance.
@@ -27,6 +42,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Accessible chart data tables are no longer hidden by outer image roles, transaction pagination fits 320px screens, and merchant note labels remain visible without clipping the merchant name.
 - Reduced mode no longer pauses CSS reveals on their invisible first frame.
+- Renaming, pausing, or deleting a detected recurring pattern now survives the next analytics refresh.
+- Realised capital losses stay out of spending on every endpoint and AI tool, including date-filtered category breakdowns, KPIs, wrapped, behavior, trends, cohorts, and insights.
+- Date-range filters include the whole end day, `/spending-rule` honours excluded accounts and no longer fails on 29 February, and FY completeness and account close dates use IST.
+- Reviewing one budget anomaly no longer hides other categories' alerts; monthly report savings reconcile and top categories are grouped by category.
+- AI chat labels tool amounts as INR regardless of display currency, and a personal Bedrock bearer key is never returned to the browser.
+- Cash-flow forecasts no longer compound one bonus month, XIRR reports steep losses and short holdings correctly, Age of Money dequeues outgoing transfers, EPF credits interest annually, NPS uses an equivalent monthly rate, and FY 2020-21 to 2022-23 new-regime tax uses the original 115BAC rules.
+- Year in Review orders FY months from the FY start and divides daily averages by elapsed days; Comparison no longer opens with both periods equal; goal ETAs ignore the partial month; bill reminder dismissals are per cycle and per user.
+- KPI grids use two columns on phones and the stale-analytics dismiss button is a 44px tap target.
 
 ## 2.24.1 - 2026-09-02
 

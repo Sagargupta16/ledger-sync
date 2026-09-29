@@ -8,28 +8,38 @@ Handles the server-side of the OAuth authorization code flow:
    then creates/links a local user and returns JWT tokens.
 """
 
-import base64
-import hashlib
-import hmac
 import logging
 import secrets
-import time
-from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import delete, update
-from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from ledger_sync.api.deps import DatabaseSession, HttpClient
+
+# State signing lives in ``oauth_state`` and provider helpers in
+# ``oauth_providers``; the router and the callbacks stay here.
+from ledger_sync.api.oauth_providers import (
+    _GITHUB_USER_URL,
+    _GOOGLE_USERINFO_URL,
+    _UPGRADE_MESSAGE,
+    _bearer,
+    _configured_providers,
+    _frontend_restart_url,
+    _provider_identity,
+    _require_pkce_client,
+)
+from ledger_sync.api.oauth_state import (
+    _STATE_TTL,
+    _generate_state,
+    _get_redirect_uri,
+    _validate_state,
+)
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.config.settings import settings
-from ledger_sync.core.auth.tokens import legacy_signing_key, purpose_key
-from ledger_sync.db.models import AuditLog
 from ledger_sync.schemas.auth import (
     OAuthAuthorization,
     OAuthCallbackRequest,
@@ -44,171 +54,14 @@ logger = logging.getLogger("ledger_sync.oauth")
 
 router = APIRouter(prefix="/api/auth/oauth", tags=["oauth"])
 
-# ─── Provider Configurations ──────────────────────────────────────────────────
+# ─── Provider endpoints the callbacks call ────────────────────────────────────
 
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-_GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
-_GOOGLE_SCOPES = "openid email profile"
-
-_GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 _GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
-_GITHUB_USER_URL = "https://api.github.com/user"
 _GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
-_GITHUB_SCOPES = "read:user user:email"
-
-_GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-
-# State is signed and bound to the provider, redirect, and browser-held verifier.
-# Audit records make consumption atomic across serverless instances without cookies.
-
-_STATE_TTL = 600  # 10 minutes
-_STATE_OPERATION = "oauth_login"
-_STATE_ENTITY = "oauth_state"
-_UPGRADE_MESSAGE = (
-    "Sign-in was updated. Refresh this page, then choose Sign in to start a new secure attempt."
-)
-
-
-_STATE_KEY_INFO = b"ledger-sync/oauth-state/v1"
-
-
-def _state_secret() -> bytes:
-    """Key used to sign state tokens (an HKDF subkey of the JWT secret)."""
-    return purpose_key(_STATE_KEY_INFO)
-
-
-def _sign_state(payload: str, key: bytes | None = None) -> str:
-    """Return the base64url HMAC-SHA256 of a state payload."""
-    digest = hmac.new(key or _state_secret(), payload.encode(), hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(digest).decode().rstrip("=")
-
-
-def _state_signature_matches(signature: str, signed: str) -> bool:
-    """Accept the subkey, then the raw secret that signed pre-subkey attempts."""
-    return any(
-        hmac.compare_digest(signature, _sign_state(signed, key))
-        for key in (_state_secret(), legacy_signing_key())
-    )
-
-
-def _generate_state(provider: str, code_challenge: str, session: Session) -> str:
-    """Record a short-lived initiation and sign its browser/provider binding."""
-    now = int(time.time())
-    cutoff = datetime.fromtimestamp(now - _STATE_TTL, UTC).replace(tzinfo=None)
-    session.execute(
-        delete(AuditLog).where(
-            AuditLog.operation == _STATE_OPERATION,
-            AuditLog.entity_type == _STATE_ENTITY,
-            AuditLog.user_id.is_(None),
-            AuditLog.created_at <= cutoff,
-        )
-    )
-    nonce = secrets.token_urlsafe(24)
-    attempt = AuditLog(
-        operation=_STATE_OPERATION,
-        entity_type=_STATE_ENTITY,
-        entity_id=nonce,
-        action="pending",
-        created_at=datetime.fromtimestamp(now, UTC).replace(tzinfo=None),
-    )
-    session.add(attempt)
-    session.flush()
-    payload = f"{attempt.id}.{nonce}.{provider}.{code_challenge}.{now + _STATE_TTL}"
-    signature = _sign_state(f"{payload}.{_get_redirect_uri(provider)}")
-    session.commit()
-    return f"{payload}.{signature}"
-
-
-def _validate_state(body: OAuthCallbackRequest, provider: str, session: Session) -> None:
-    """Validate browser proof and consume this attempt before any provider call."""
-    try:
-        attempt_id, nonce, state_provider, challenge, expiry, signature = body.state.split(".")
-        record_id = int(attempt_id)
-        expires_at = int(expiry)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid sign-in attempt. Please start sign-in again.",
-        ) from None
-
-    payload = body.state.rsplit(".", 1)[0]
-    expected_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(body.code_verifier.encode("ascii")).digest())
-        .decode()
-        .rstrip("=")
-    )
-    if (
-        state_provider != provider
-        or not _state_signature_matches(signature, f"{payload}.{_get_redirect_uri(provider)}")
-        or not hmac.compare_digest(challenge, expected_challenge)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Sign-in does not match this browser or provider. Please start again.",
-        )
-    if int(time.time()) >= expires_at:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This sign-in attempt has expired. Please start sign-in again.",
-        )
-
-    consumed_id = session.execute(
-        update(AuditLog)
-        .where(
-            AuditLog.id == record_id,
-            AuditLog.operation == _STATE_OPERATION,
-            AuditLog.entity_type == _STATE_ENTITY,
-            AuditLog.user_id.is_(None),
-            AuditLog.entity_id == nonce,
-            AuditLog.action == "pending",
-        )
-        .values(action="consumed")
-        .returning(AuditLog.id)
-    ).scalar_one_or_none()
-    if consumed_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This sign-in attempt was already used. Please start sign-in again.",
-        )
-    # Commit independently of token exchange so failures cannot resurrect state.
-    session.commit()
-
-
-def _get_redirect_uri(provider: str) -> str:
-    """Build the OAuth redirect URI that points to the frontend callback page."""
-    return f"{settings.frontend_url.rstrip('/')}/auth/callback/{provider}"
 
 
 # ─── Provider Config Endpoint ─────────────────────────────────────────────────
-
-
-def _configured_providers() -> list[OAuthProviderConfig]:
-    """Build enabled providers without creating an authentication attempt."""
-    providers: list[OAuthProviderConfig] = []
-
-    if settings.google_client_id and settings.google_client_secret:
-        providers.append(
-            OAuthProviderConfig(
-                provider="google",
-                client_id=settings.google_client_id,
-                authorize_url=_GOOGLE_AUTHORIZE_URL,
-                scope=_GOOGLE_SCOPES,
-                redirect_uri=_get_redirect_uri("google"),
-            )
-        )
-
-    if settings.github_client_id and settings.github_client_secret:
-        providers.append(
-            OAuthProviderConfig(
-                provider="github",
-                client_id=settings.github_client_id,
-                authorize_url=_GITHUB_AUTHORIZE_URL,
-                scope=_GITHUB_SCOPES,
-                redirect_uri=_get_redirect_uri("github"),
-            )
-        )
-
-    return providers
 
 
 @router.get("/providers")
@@ -231,23 +84,6 @@ def get_oauth_providers(
     ]
 
 
-def _frontend_restart_url(provider: str, query: str) -> str:
-    """Build the restart redirect only from the configured frontend and a known provider."""
-    if provider == "google":
-        known_provider = "google"
-    elif provider == "github":
-        known_provider = "github"
-    else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown provider")
-    frontend = urlsplit(settings.frontend_url)
-    if frontend.scheme not in {"https", "http"} or not frontend.netloc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Sign-in redirect is not configured",
-        )
-    return f"{_get_redirect_uri(known_provider)}?{query}"
-
-
 @router.get("/v2/{provider}/restart")
 def restart_oauth(provider: Literal["google", "github"]) -> RedirectResponse:
     """Load the current frontend before starting a new browser-bound attempt."""
@@ -265,17 +101,6 @@ def restart_oauth(provider: Literal["google", "github"]) -> RedirectResponse:
         status_code=status.HTTP_303_SEE_OTHER,
         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
     )
-
-
-async def _require_pkce_client(request: Request) -> None:
-    """Give old callbacks actionable recovery before required-field validation."""
-    try:
-        body = await request.json()
-    except ValueError:
-        # Leave malformed or absent JSON to FastAPI's request validation.
-        return
-    if isinstance(body, dict) and body.get("code_verifier") is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_UPGRADE_MESSAGE)
 
 
 @router.post("/{provider}/authorize")
@@ -317,21 +142,6 @@ async def _oauth_get(
         logger.warning("%s: %s", error_detail, resp.status_code)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail)
     return resp.json()  # type: ignore[no-any-return]
-
-
-def _bearer(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
-
-
-def _provider_identity(user_info: dict[str, Any]) -> str:
-    """Require an immutable provider subject before considering verified email."""
-    subject = user_info.get("id")
-    if isinstance(subject, bool) or not isinstance(subject, (str, int)) or not str(subject).strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The sign-in provider did not return a valid account identity.",
-        )
-    return str(subject)
 
 
 # ─── Google OAuth ──────────────────────────────────────────────────────────────

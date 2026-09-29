@@ -121,7 +121,7 @@ describe('write request shapes', () => {
   }
 
   it('sends the anomaly review payload as a body, not query params', () => {
-    const call = callBody(WRITE_SOURCES['../analyticsV2.ts'], 'async reviewAnomaly')
+    const call = callBody(WRITE_SOURCES['../analyticsV2Anomalies.ts'], 'async reviewAnomaly')
     // `data` is the second positional argument, which is where axios puts a body.
     expect(call.replace(/\s+/g, ' ')).toContain('review`, data,')
     expect(call).not.toContain('params:')

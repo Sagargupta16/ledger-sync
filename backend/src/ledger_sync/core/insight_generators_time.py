@@ -30,18 +30,28 @@ if TYPE_CHECKING:
     from ledger_sync.db.models import Transaction
 
 
-def temporal_insights(transactions: list[Transaction], sym: str, today: date) -> list[Insight]:
+def temporal_insights(
+    transactions: list[Transaction],
+    sym: str,
+    today: date,
+    *,
+    loss_keys: set[str] | None = None,
+) -> list[Insight]:
     """Recent-window spending trend and the best month by surplus.
 
     Every figure here is an average or a ranking, so the whole generator runs on
     completed months. With only the in-progress month present the completed set
     is empty and both halves abstain, which is the honest answer.
+
+    With *loss_keys*, classified realised losses leave each month's
+    ``expenses`` (the trend compares spending) but ``find_best_worst_months``
+    still subtracts them from the surplus, as ``/api/analytics/overview`` does.
     """
     insights: list[Insight] = []
     if not transactions:
         return insights
 
-    monthly_data = completed_monthly_data(calculator.group_by_month(transactions), today)
+    monthly_data = completed_monthly_data(calculator.group_by_month(transactions, loss_keys), today)
     if len(monthly_data) >= RECENT_MONTHS_WINDOW:
         sorted_months = sorted(monthly_data.items())
         recent = sorted_months[-RECENT_MONTHS_WINDOW:]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -17,6 +17,13 @@ from fastapi import HTTPException
 from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.expense_class import capital_loss_sql_filter
+from ledger_sync.core.query_helpers import (
+    capital_loss_keys_for,
+    excluded_accounts_criteria,
+    excluded_accounts_for,
+    inclusive_end,
+)
 from ledger_sync.db.models import Transaction, User
 
 from .schemas import ToolArguments
@@ -79,11 +86,36 @@ def parse_date(s: str | None) -> datetime | None:
 def apply_date_range(
     stmt: Select[Any], start: datetime | None, end: datetime | None
 ) -> Select[Any]:
+    """Inclusive ``[start, end]`` day window, same end rule as the REST endpoints."""
     if start is not None:
         stmt = stmt.where(Transaction.date >= start)
     if end is not None:
-        stmt = stmt.where(Transaction.date < end + timedelta(days=1))
+        stmt = stmt.where(Transaction.date <= inclusive_end(end))
     return stmt
+
+
+def ledger_scope(user: User, stmt: Select[Any]) -> Select[Any]:
+    """Live rows for *user*, minus their excluded accounts.
+
+    The REST reads (``build_transaction_query``, the transactions endpoints)
+    all drop excluded accounts; a tool that did not answered the chat with
+    balances and totals the rest of the app deliberately hides.
+    """
+    return stmt.where(
+        Transaction.user_id == user.id,
+        Transaction.is_deleted.is_(False),
+        *excluded_accounts_criteria(excluded_accounts_for(user)),
+    )
+
+
+def without_capital_losses(stmt: Select[Any], user: User) -> Select[Any]:
+    """Drop the user's classified realised losses from an EXPENSE statement.
+
+    Same rule ``/category-breakdown`` applies: a realised loss is a negative
+    investment return, not a spending category. No-op when nothing is classified.
+    """
+    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
+    return stmt if not_a_loss is None else stmt.where(not_a_loss)
 
 
 def to_decimal(v: Decimal | float | None) -> float:

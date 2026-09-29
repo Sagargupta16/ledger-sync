@@ -5,9 +5,9 @@ import {
   TAX_SLABS_NEW_FY2025,
   getTaxSlabs,
   getStandardDeduction,
-  getFYFromDate,
   parseFYStartYear,
 } from '../taxCalculator'
+import { getFYFromDate } from '../dateUtils'
 
 describe('calculateTax - base slabs', () => {
   it('taxes income below first slab at 0', () => {

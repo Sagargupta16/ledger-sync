@@ -89,30 +89,6 @@ export const getInvestmentType = (
 }
 
 /**
- * Calculate income breakdown by tax treatment type from a list of transactions
- */
-export const calculateIncomeBreakdown = (
-  transactions: Transaction[],
-  incomeClassification?: IncomeClassification
-): Record<IncomeType, number> => {
-  const breakdown: Record<IncomeType, number> = {
-    taxable: 0,
-    investmentReturns: 0,
-    cashback: 0,
-    other: 0,
-  }
-
-  transactions
-    .filter((t) => t.type === 'Income')
-    .forEach((t) => {
-      const incomeType = classifyIncomeType(t, incomeClassification)
-      breakdown[incomeType] += Math.abs(t.amount ?? 0)
-    })
-
-  return breakdown
-}
-
-/**
  * Calculate income breakdown by actual data category (for display in charts)
  */
 export const calculateIncomeByCategoryBreakdown = (
@@ -223,36 +199,6 @@ export const calculateInvestmentBreakdown = (
 }
 
 /**
- * Get fiscal year dates based on user preference
- * @param fiscalYearStartMonth - Month number (1-12, e.g., 4 for April)
- * @param forYear - Optional year to get FY for (defaults to current FY)
- */
-export const getFiscalYearDates = (
-  fiscalYearStartMonth?: number,
-  forYear?: number
-): { startDate: Date; endDate: Date; fyLabel: string } => {
-  const startMonth = fiscalYearStartMonth ?? getPrefs().fiscalYearStartMonth
-  const now = new Date()
-  const currentYear = forYear ?? now.getFullYear()
-  const currentMonth = now.getMonth() + 1 // 1-12
-
-  // Determine FY start year
-  let fyStartYear = currentYear
-  if (currentMonth < startMonth) {
-    fyStartYear = currentYear - 1
-  }
-
-  const startDate = new Date(fyStartYear, startMonth - 1, 1)
-  const endDate = new Date(fyStartYear + 1, startMonth - 1, 0) // Last day of month before start month next year
-
-  // FY label (e.g., "FY 2025-26" for April 2025 - March 2026)
-  const shortEndYear = (fyStartYear + 1).toString().slice(-2)
-  const fyLabel = `FY ${fyStartYear}-${shortEndYear}`
-
-  return { startDate, endDate, fyLabel }
-}
-
-/**
  * Income type display names (now by tax treatment)
  */
 export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
@@ -260,16 +206,6 @@ export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
   investmentReturns: 'Investment Returns',
   cashback: 'Cashbacks & Refunds',
   other: 'Other Income',
-}
-
-/**
- * Income type colors for charts
- */
-export const INCOME_TYPE_COLORS: Record<IncomeType, string> = {
-  taxable: rawColors.app.green,
-  investmentReturns: rawColors.app.orange,
-  cashback: rawColors.app.teal,
-  other: rawColors.text.tertiary,
 }
 
 /**

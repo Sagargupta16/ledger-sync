@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import func, select
 
-from ledger_sync.api import transactions as transactions_api
+from ledger_sync.api.transactions_impl import writes as transactions_writes
 from ledger_sync.core.analytics.refresh import get_analytics_state
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import Transaction, TransactionType
@@ -202,13 +202,13 @@ def test_legacy_manual_transfer_accounts_are_checked_before_deduplication(
 
 def test_failed_invalidation_rolls_back_the_manual_insert(two_user_client, monkeypatch):
     client, session, user, _, _ = two_user_client
-    mark = transactions_api.mark_ledger_changed
+    mark = transactions_writes.mark_ledger_changed
 
     def failing_mark(*args, **kwargs):
         mark(*args, **kwargs)
         raise RuntimeError("Synthetic invalidation failure")
 
-    monkeypatch.setattr(transactions_api, "mark_ledger_changed", failing_mark)
+    monkeypatch.setattr(transactions_writes, "mark_ledger_changed", failing_mark)
     with pytest.raises(RuntimeError, match="Synthetic invalidation failure"):
         client.post(URL, json=BODY)
     # The production get_session dependency rolls back on any exception.

@@ -72,6 +72,19 @@ function seed(months: MonthlyTrend[], txns: Transaction[] = []): void {
   transactions.push(...txns)
 }
 
+/** The seeded ledger as `/daily-net-worth` days: Income/Expense sums per date. */
+function dailyNetWorth(rows: readonly Transaction[]) {
+  const days = new Map<string, { date: string; income: number; expense: number; net_worth: number }>()
+  for (const row of rows) {
+    const day = days.get(row.date) ?? { date: row.date, income: 0, expense: 0, net_worth: 0 }
+    if (row.type === 'Income') day.income += row.amount
+    else if (row.type === 'Expense') day.expense += row.amount
+    days.set(row.date, day)
+  }
+  const cumulative = [...days.values()].sort((a, b) => a.date.localeCompare(b.date))
+  return { daily_data: Object.fromEntries(days), cumulative_data: cumulative, opening_balance: 0 }
+}
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useTrends: () => ({
     data: { monthly_trends: monthlyTrends, surplus_trend: [], consistency_score: 0 },
@@ -79,12 +92,24 @@ vi.mock('@/hooks/api/useAnalytics', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useDataDateRange: () => {
+    const dates = transactions.map((row) => row.date).sort((a, b) => a.localeCompare(b))
+    return { minDate: dates[0], maxDate: dates.at(-1), isLoading: false, isError: false, refetch: vi.fn() }
+  },
 }))
 
-vi.mock('@/hooks/api/useTransactions', () => ({
-  useTransactions: () => ({
-    data: transactions,
+vi.mock('@/hooks/api/useCalculations', () => ({
+  useDailyNetWorth: () => ({
+    data: dailyNetWorth(transactions),
     isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useEarningStartEvidence: () => ({
+    data: transactions
+      .filter((row) => row.type === 'Income')
+      .map(({ date, category, subcategory, amount }) => ({ date, category, subcategory, amount })),
+    isLoading: false,
     isError: false,
     refetch: vi.fn(),
   }),

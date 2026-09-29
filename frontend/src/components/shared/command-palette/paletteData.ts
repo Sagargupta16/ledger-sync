@@ -68,25 +68,6 @@ export function fuzzyMatch(text: string, query: string): boolean {
   return text.toLowerCase().includes(query.toLowerCase())
 }
 
-export function searchTransactions(
-  transactions: Transaction[] | undefined,
-  q: string,
-  limit = 5,
-): TransactionResult[] {
-  const results: TransactionResult[] = []
-  if (!transactions || transactions.length === 0) return results
-
-  for (const tx of transactions) {
-    if (results.length >= limit) break
-    const matchNote = tx.note && fuzzyMatch(tx.note, q)
-    const matchCategory = tx.category && fuzzyMatch(tx.category, q)
-    if (matchNote || matchCategory) {
-      results.push({ kind: 'transaction', transaction: tx })
-    }
-  }
-  return results
-}
-
 export const overlayVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },

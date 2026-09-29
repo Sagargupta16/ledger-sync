@@ -134,14 +134,6 @@ export function isValidationError(error: unknown): boolean {
 }
 
 /**
- * Check if an error is an authentication error (401 status)
- */
-export function isAuthError(error: unknown): boolean {
-  const apiError = error as ApiError
-  return apiError.response?.status === 401
-}
-
-/**
  * Check if an error is a forbidden error (403 status)
  */
 export function isForbiddenError(error: unknown): boolean {

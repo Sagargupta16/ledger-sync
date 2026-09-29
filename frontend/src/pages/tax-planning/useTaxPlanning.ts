@@ -3,7 +3,6 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   FY_START_MONTH,
-  getFYFromDate,
   parseFYStartYear,
 } from '@/lib/taxCalculator'
 import { projectFiscalYear, projectMultipleYears } from '@/lib/projectionCalculator'
@@ -13,7 +12,7 @@ import {
   taxPlanningDisplay,
   taxOverviewMetrics,
 } from '@/lib/finance/payrollPlanning'
-import { getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { getFYFromDate, getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
   usePreferencesStore,

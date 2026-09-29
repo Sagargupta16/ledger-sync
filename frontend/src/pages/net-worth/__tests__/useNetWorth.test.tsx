@@ -58,6 +58,25 @@ const TRANSACTIONS: Transaction[] = [
 
 const transactionsRef: { current: Transaction[] } = { current: TRANSACTIONS }
 
+/** The ledger above as `/daily-net-worth` days: Income/Expense sums per date. */
+function dailyNetWorth(rows: readonly Transaction[]) {
+  const days = new Map<string, { date: string; income: number; expense: number }>()
+  for (const row of rows) {
+    const day = days.get(row.date) ?? { date: row.date, income: 0, expense: 0 }
+    if (row.type === 'Income') day.income += row.amount
+    else if (row.type === 'Expense') day.expense += row.amount
+    days.set(row.date, day)
+  }
+  let netWorth = 0
+  const cumulative = [...days.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((day) => {
+      netWorth += day.income - day.expense
+      return { ...day, net_worth: netWorth }
+    })
+  return { daily_data: Object.fromEntries(days), cumulative_data: cumulative, opening_balance: 0 }
+}
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useAccountBalances: () => ({
     data: balances,
@@ -65,11 +84,29 @@ vi.mock('@/hooks/api/useAnalytics', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useDataDateRange: () => {
+    const dates = transactionsRef.current.map((row) => row.date).sort((a, b) => a.localeCompare(b))
+    return {
+      minDate: dates[0],
+      maxDate: dates.at(-1),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }
+  },
 }))
 
-vi.mock('@/hooks/api/useTransactions', () => ({
-  useTransactions: () => ({
-    data: transactionsRef.current,
+// One response object per ledger, like a settled query, so memos stay stable.
+const dailyCache = new WeakMap<readonly Transaction[], ReturnType<typeof dailyNetWorth>>()
+function cachedDailyNetWorth(rows: Transaction[]) {
+  const hit = dailyCache.get(rows) ?? dailyNetWorth(rows)
+  dailyCache.set(rows, hit)
+  return hit
+}
+
+vi.mock('@/hooks/api/useCalculations', () => ({
+  useDailyNetWorth: () => ({
+    data: cachedDailyNetWorth(transactionsRef.current),
     isLoading: false,
     isError: false,
     refetch: vi.fn(),

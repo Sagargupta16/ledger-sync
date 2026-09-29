@@ -8,7 +8,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, case, func, literal, not_
+from sqlalchemy import ColumnElement, and_, case, func, literal, not_
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
@@ -287,22 +287,37 @@ def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:
     return get_closed_account_keys(session, user_id)
 
 
-def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:
-    """Drop rows whose ``account``, ``from_account``, or ``to_account`` is excluded.
+def excluded_accounts_criteria(excluded: set[str]) -> tuple[ColumnElement[bool], ...]:
+    """The WHERE clauses dropping *excluded* accounts; empty when nothing is excluded.
 
     Transfers store ``account = from_account``, so a check on ``account``
     alone misses the credit side -- a transfer landing in an excluded
     account would silently leak through. The from/to clauses close that
     gap. ``is_(None)`` keeps plain income/expense rows (which have null
-    transfer endpoints) from being dropped. No-op when *excluded* is empty.
+    transfer endpoints) from being dropped.
+
+    Shared by ``apply_excluded_accounts_filter`` (legacy ``Query``) and the
+    2.0-style ``select()`` statements the AI tools build, so both call styles
+    apply one predicate.
     """
     if not excluded:
-        return query
-    return query.filter(
+        return ()
+    return (
         Transaction.account.notin_(excluded),
         Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
         Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
     )
+
+
+def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:
+    """Drop rows whose ``account``, ``from_account``, or ``to_account`` is excluded.
+
+    See ``excluded_accounts_criteria`` for the predicate. No-op when *excluded*
+    is empty.
+    """
+    if not excluded:
+        return query
+    return query.filter(*excluded_accounts_criteria(excluded))
 
 
 def build_transaction_query(
@@ -320,7 +335,11 @@ def build_transaction_query(
     * ``user_id`` filter
     * ``is_deleted = False`` filter
     * Earning-start-date clamping (**opt-in** via *apply_earning_start=True*)
-    * Optional *start_date* / *end_date* range filters
+    * Optional *start_date* / *end_date* range filters. *end_date* is inclusive
+      of its whole day (``inclusive_end``), the same rule the transactions
+      endpoints apply: a date-only bound parses to midnight, and ``<=`` against
+      it dropped every same-day row that carries a time. A bound that already
+      has a time component (``23:59:59.999999`` month ends) is kept as-is.
     * Excluded-accounts filter (**default on**) -- drops rows whose
       ``account``, ``from_account``, or ``to_account`` matches the
       user's ``excluded_accounts`` preference. Without this, transfers
@@ -349,7 +368,7 @@ def build_transaction_query(
     if start_date:
         query = query.filter(Transaction.date >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date)
+        query = query.filter(Transaction.date <= inclusive_end(end_date))
 
     if apply_excluded_accounts:
         query = apply_excluded_accounts_filter(query, excluded_accounts_for(user))

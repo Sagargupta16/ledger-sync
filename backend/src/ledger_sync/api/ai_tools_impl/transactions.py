@@ -22,6 +22,7 @@ from .registry import (
     SEARCH_TRANSACTIONS_MAX_LIMIT,
     ToolSpec,
     apply_date_range,
+    ledger_scope,
     parse_date,
     register,
     to_decimal,
@@ -42,21 +43,25 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
     Uses a fixed set of GROUP BY aggregates merged in Python rather than 5
     queries per account, so a user with N accounts costs O(1) round-trips (was
     5N+1 -- painful on Neon free-tier connection latency for the chat tool path).
-    """
-    base = (Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
 
+    Every read goes through ``ledger_scope``, so an excluded account is absent
+    here exactly as it is from ``/api/calculations/account-balances``.
+    """
     # income & expense by primary account, in one grouped query.
     # to_decimal() returns a float (JSON-friendly magnitude), matching the
     # previous per-account computation.
     income: dict[str, float] = {}
     expense: dict[str, float] = {}
     for acc, ttype, total in db.execute(
-        select(
-            Transaction.account,
-            Transaction.type,
-            func.coalesce(func.sum(Transaction.amount), 0),
+        ledger_scope(
+            user,
+            select(
+                Transaction.account,
+                Transaction.type,
+                func.coalesce(func.sum(Transaction.amount), 0),
+            ),
         )
-        .where(*base, Transaction.type.in_((TransactionType.INCOME, TransactionType.EXPENSE)))
+        .where(Transaction.type.in_((TransactionType.INCOME, TransactionType.EXPENSE)))
         .group_by(Transaction.account, Transaction.type)
     ).all():
         if not acc:
@@ -67,8 +72,11 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
     transfer_in: dict[str, float] = {
         to: to_decimal(total)
         for to, total in db.execute(
-            select(Transaction.to_account, func.coalesce(func.sum(Transaction.amount), 0))
-            .where(*base, Transaction.type == TransactionType.TRANSFER)
+            ledger_scope(
+                user,
+                select(Transaction.to_account, func.coalesce(func.sum(Transaction.amount), 0)),
+            )
+            .where(Transaction.type == TransactionType.TRANSFER)
             .group_by(Transaction.to_account)
         ).all()
         if to
@@ -76,8 +84,11 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
     transfer_out: dict[str, float] = {
         fr: to_decimal(total)
         for fr, total in db.execute(
-            select(Transaction.from_account, func.coalesce(func.sum(Transaction.amount), 0))
-            .where(*base, Transaction.type == TransactionType.TRANSFER)
+            ledger_scope(
+                user,
+                select(Transaction.from_account, func.coalesce(func.sum(Transaction.amount), 0)),
+            )
+            .where(Transaction.type == TransactionType.TRANSFER)
             .group_by(Transaction.from_account)
         ).all()
         if fr
@@ -112,7 +123,9 @@ def _exec_list_accounts(user: User, db: Session, _args: dict[str, Any]) -> Any:
     counts: dict[str, int] = {}
     for col, distinct_from_earlier in roles:
         for name, n in db.execute(
-            select(col, func.count()).where(*base, *distinct_from_earlier).group_by(col)
+            ledger_scope(user, select(col, func.count()))
+            .where(*distinct_from_earlier)
+            .group_by(col)
         ).all():
             if name:
                 counts[name] = counts.get(name, 0) + int(n)
@@ -187,10 +200,8 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     min_amount = args.get("min_amount")
     max_amount = args.get("max_amount")
 
-    stmt = select(Transaction).where(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-    )
+    # Excluded accounts are hidden from /api/transactions/search, so here too.
+    stmt = ledger_scope(user, select(Transaction))
 
     if query:
         like = f"%{query}%"

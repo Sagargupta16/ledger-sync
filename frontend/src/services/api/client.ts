@@ -24,23 +24,30 @@ import {
   generateDemoDataHealth,
 } from '@/lib/demo/generateDerivedData'
 import {
-  generateDemoAccountClassifications,
-  generateDemoAccountsByType,
-  generateDemoCategoryDailySeries,
-  generateDemoCategoryMonthlyHistory,
-  generateDemoCohortSpending,
-  generateDemoDailySummaries,
   generateDemoDataDateRange,
   generateDemoFacets,
   generateDemoIncomeFacets,
+  generateDemoQuickInsights,
+  generateDemoSearch,
+} from '@/lib/demo/demoComputedReads'
+import {
+  generateDemoCategoryDailySeries,
+  generateDemoCategoryMonthlyHistory,
+  generateDemoCohortSpending,
+  generateDemoDailyNetWorth,
+  generateDemoDailySummaries,
+} from '@/lib/demo/demoDailyReads'
+import {
   generateDemoInvestmentHoldings,
   generateDemoMerchantIntelligence,
-  generateDemoQuickInsights,
-  generateDemoSavedViews,
-  generateDemoSearch,
-  generateDemoSpendingRule,
   generateDemoTransferFlows,
-} from '@/lib/demo/demoComputedReads'
+} from '@/lib/demo/demoFlowReads'
+import { generateDemoSpendingRule } from '@/lib/demo/demoSpendingRule'
+import {
+  generateDemoAccountClassifications,
+  generateDemoAccountsByType,
+  generateDemoSavedViews,
+} from '@/lib/demo/demoAccountReads'
 import { generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
 import { generateDemoExportBlob } from '@/lib/demo/demoExport'
 import { generateDemoIncomeAnalysis } from '@/lib/demo/demoIncomeAnalysis'
@@ -76,6 +83,7 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/calculations/category-breakdown', (txs, params) => generateDemoCategoryBreakdown(txs, params)],
   ['/calculations/quick-insights', (txs) => generateDemoQuickInsights(txs)],
   ['/calculations/data-date-range', (txs) => generateDemoDataDateRange(txs)],
+  ['/calculations/daily-net-worth', (txs, params) => generateDemoDailyNetWorth(txs, params)],
   ['/calculations/income-analysis', (txs, params) => generateDemoIncomeAnalysis(txs, params)],
   ['/calculations/income-facets', (txs) => generateDemoIncomeFacets(txs)],
   [
@@ -98,7 +106,7 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // Analytics V2 -- specific endpoints first, generic {data: []} last.
   ['/analytics/v2/spending-rule', (txs, params) => generateDemoSpendingRule(txs, params)],
   ['/analytics/v2/cohort-spending', (txs) => ({ data: generateDemoCohortSpending(txs) })],
-  ['/analytics/v2/daily-summaries', (txs) => wrap(generateDemoDailySummaries(txs))],
+  ['/analytics/v2/daily-summaries', (txs, params) => wrap(generateDemoDailySummaries(txs, params))],
   ['/analytics/v2/transfer-flows', (txs) => wrap(generateDemoTransferFlows(txs))],
   ['/analytics/v2/merchant-intelligence', (txs) => wrap(generateDemoMerchantIntelligence(txs))],
   ['/analytics/v2/investment-holdings', (txs) => wrap(generateDemoInvestmentHoldings(txs))],

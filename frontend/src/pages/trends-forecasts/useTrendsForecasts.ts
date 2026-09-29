@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useTrends } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useDataDateRange, useTrends } from '@/hooks/api/useAnalytics'
+import { useDailyNetWorth, useEarningStartEvidence } from '@/hooks/api/useCalculations'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import {
   capSeriesToToday,
   dropPartialMonth,
   formatMonthKey,
-  getDateKey,
   getMonthProgress,
   isPartialMonth,
 } from '@/lib/dateUtils'
@@ -40,18 +39,32 @@ const mean = (values: readonly number[]): number =>
 export function useTrendsForecasts() {
   const preferencesQuery = usePreferences()
   const trendsQuery = useTrends('all_time')
-  const transactionsQuery = useTransactions()
+  // Server-aggregated daily Income/Expense sums and nav bounds, not the ledger.
+  const dailyQuery = useDailyNetWorth()
+  const dateRangeQuery = useDataDateRange()
 
   const { data: preferences } = preferencesQuery
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
   const { data: trendsData } = trendsQuery
-  const { data: allTransactions = [] } = transactionsQuery
+  // The saved employment start, else the first salary-like income day.
+  const needsEarningEvidence = resolveEarningStart(preferences?.earning_start_date, []).source !== 'saved'
+  const earningEvidenceQuery = useEarningStartEvidence(preferencesQuery.isSuccess && needsEarningEvidence)
   const isLoading =
-    preferencesQuery.isPending || trendsQuery.isPending || transactionsQuery.isPending
+    preferencesQuery.isPending ||
+    trendsQuery.isPending ||
+    dailyQuery.isPending ||
+    dateRangeQuery.isLoading ||
+    earningEvidenceQuery.isLoading
   const isError =
-    preferencesQuery.isError || trendsQuery.isError || transactionsQuery.isError
+    preferencesQuery.isError ||
+    trendsQuery.isError ||
+    dailyQuery.isError ||
+    dateRangeQuery.isError ||
+    earningEvidenceQuery.isError
 
-  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions, {
+  const { minDate, maxDate } = dateRangeQuery
+  const dateBounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
+  const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(dateBounds, {
     availableModes: ['all_time', 'fy', 'yearly'],
   })
 
@@ -83,9 +96,11 @@ export function useTrendsForecasts() {
    * CURRENT month, so a bucket dated a month out would survive and become
    * `latest` -- the synthetic `2026-08` test fixture takes exactly that path.
    */
+  const earningEvidence = earningEvidenceQuery.data
   const earningStart = useMemo(() => resolveEarningStart(
-    preferences?.earning_start_date, allTransactions,
-  ), [preferences?.earning_start_date, allTransactions])
+    preferences?.earning_start_date,
+    (earningEvidence ?? []).map((row) => ({ ...row, type: 'Income' })),
+  ), [preferences?.earning_start_date, earningEvidence])
   const completeMonthlyTrends = useMemo(() => {
     const rows = dropPartialMonth(capSeriesToToday(filteredMonthlyTrends, 'month'), 'month')
     const period = resolveAnalysisPeriod(filteredMonthlyTrends.map((row) => row.month))
@@ -190,16 +205,19 @@ export function useTrendsForecasts() {
     })
   }, [completeMonthlyTrends])
 
-  const filteredTransactions = useMemo(() => {
-    if (!allTransactions.length) return []
+  /**
+   * Days of the selected window from the all-time `/daily-net-worth` series,
+   * which has one entry per day with any row (transfer-only days at zero).
+   * Filtering days by key equals filtering rows by date, then grouping.
+   */
+  const filteredDays = useMemo(() => {
+    const days = dailyQuery.data?.cumulative_data ?? []
     const startDate = dateRange.start_date
-    if (!startDate) return allTransactions
-
-    return allTransactions.filter((t) => {
-      const txDate = getDateKey(t.date)
-      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
-    })
-  }, [allTransactions, dateRange])
+    if (!startDate) return days
+    return days.filter(
+      (d) => d.date >= startDate && (!dateRange.end_date || d.date <= dateRange.end_date),
+    )
+  }, [dailyQuery.data, dateRange])
 
   /**
    * Running (cumulative) savings rate by day. HISTORICAL, so it stops at today.
@@ -225,20 +243,10 @@ export function useTrendsForecasts() {
    * now read one field and the y-axis extends below zero to show it.
    */
   const dailySavingsData = useMemo(() => {
-    if (!filteredTransactions.length) return []
-
-    const dailyMap: Record<string, { income: number; expense: number }> = {}
-    for (const tx of filteredTransactions) {
-      const day = tx.date.substring(0, 10)
-      if (!dailyMap[day]) dailyMap[day] = { income: 0, expense: 0 }
-      if (tx.type === 'Income') dailyMap[day].income += tx.amount
-      else if (tx.type === 'Expense') dailyMap[day].expense += tx.amount
-    }
+    if (!filteredDays.length) return []
 
     const sortedDays = capSeriesToToday(
-      Object.entries(dailyMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, totals]) => ({ date, ...totals })),
+      [...filteredDays].sort((a, b) => a.date.localeCompare(b.date)),
       'date',
     )
     let cumIncome = 0
@@ -250,7 +258,7 @@ export function useTrendsForecasts() {
       const savingsRate = savingsRatePercentOr({ income: cumIncome, expense: cumExpense })
       return { date, savingsRate }
     })
-  }, [filteredTransactions])
+  }, [filteredDays])
 
   const monthlyTrendChartData = useMemo(() => {
     if (!completeMonthlyTrends.length) return []
@@ -333,7 +341,9 @@ export function useTrendsForecasts() {
     const retries: Array<Promise<unknown>> = []
     if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
     if (trendsQuery.isError) retries.push(trendsQuery.refetch())
-    if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
+    if (dailyQuery.isError) retries.push(dailyQuery.refetch())
+    if (dateRangeQuery.isError) retries.push(dateRangeQuery.refetch())
+    if (earningEvidenceQuery.isError) retries.push(earningEvidenceQuery.refetch())
     void Promise.all(retries)
   }
 

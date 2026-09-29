@@ -57,15 +57,8 @@ export const TAX_SLABS_OLD_REGIME: TaxSlab[] = getTaxConfig(
   new Date().getUTCFullYear(),
 ).oldRegime.slabs
 
-/** NEW TAX REGIME — FY 2024-25 (Budget 2024 revision) */
-export const TAX_SLABS_NEW_FY2024: TaxSlab[] = getTaxConfig(2024).newRegime.slabs
-
 /** NEW TAX REGIME — FY 2025-26 onwards (Budget 2025 revision) */
 export const TAX_SLABS_NEW_FY2025: TaxSlab[] = getTaxConfig(2025).newRegime.slabs
-
-// Backward-compatible aliases
-export const TAX_SLABS_OLD = TAX_SLABS_NEW_FY2024
-export const TAX_SLABS_NEW = TAX_SLABS_NEW_FY2025
 
 /** Old-regime slabs for the given FY. */
 export function getOldRegimeSlabs(fyStartYear: number = new Date().getUTCFullYear()): TaxSlab[] {
@@ -325,47 +318,6 @@ export function calculateGrossFromNet(
 // ────────────────────────────────────────────
 // Fiscal Year Helpers
 // ────────────────────────────────────────────
-
-/**
- * Derive the FY label (e.g. "FY 2025-26") from a date string.
- *
- * @param date  ISO date string (YYYY-MM-DD)
- * @param fiscalYearStartMonth  1-indexed month when FY begins (default 4 = April)
- */
-export function getFYFromDate(
-  date: string,
-  fiscalYearStartMonth: number = FY_START_MONTH,
-): string {
-  // Parse the YYYY-MM-DD components directly. `new Date('2025-04-01')` parses
-  // as UTC midnight but getFullYear()/getMonth() return LOCAL components, so a
-  // 1st-of-month date can read as the previous month (wrong FY) for negative-
-  // offset users. Reading the string avoids any timezone dependence.
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(date)
-  let year: number
-  let month: number
-  if (isoMatch) {
-    year = Number(isoMatch[1])
-    month = Number(isoMatch[2]) // 1-indexed
-  } else {
-    const d = new Date(date)
-    year = d.getUTCFullYear()
-    month = d.getUTCMonth() + 1
-  }
-
-  if (month >= fiscalYearStartMonth) {
-    return `FY ${year}-${(year + 1).toString().slice(-2)}`
-  }
-  return `FY ${year - 1}-${year.toString().slice(-2)}`
-}
-
-/**
- * Get the tax slabs applicable for a given FY start year.
- *
- * FY 2025-26 onward uses the new regime; earlier years use the old one.
- */
-export function getTaxSlabsForFY(fyStartYear: number): TaxSlab[] {
-  return fyStartYear >= 2025 ? TAX_SLABS_NEW : TAX_SLABS_OLD
-}
 
 /**
  * Get the standard deduction for the selected FY and regime.
