@@ -1,9 +1,7 @@
 import { useCallback } from 'react'
 
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
+  useTable,
   flexRender,
   type Row,
   type SortingState,
@@ -20,7 +18,12 @@ import { getSemanticTextClass } from '@/constants/chartColors'
 
 import TagChips from './TagChips'
 import TagEditor from './TagEditor'
-import { transactionColumns, type TransactionTableMeta } from './transactionColumns'
+import {
+  transactionColumns,
+  transactionTableFeatures,
+  type TransactionTableFeatures,
+  type TransactionTableMeta,
+} from './transactionColumns'
 
 interface TransactionTableProps {
   transactions: Transaction[]
@@ -47,8 +50,10 @@ function getCellClass(columnId: string): string {
   return ''
 }
 
-function groupRowsByDate(rows: Row<Transaction>[]): Record<string, Row<Transaction>[]> {
-  return rows.reduce<Record<string, Row<Transaction>[]>>((groups, row) => {
+type TransactionRow = Row<TransactionTableFeatures, Transaction>
+
+function groupRowsByDate(rows: TransactionRow[]): Record<string, TransactionRow[]> {
+  return rows.reduce<Record<string, TransactionRow[]>>((groups, row) => {
     const dateKey = row.original.date.substring(0, 10)
     groups[dateKey] ??= []
     groups[dateKey].push(row)
@@ -77,12 +82,10 @@ export default function TransactionTable({
     [onSortingChange, sorting],
   )
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: transactionTableFeatures,
     data: transactions,
     columns: transactionColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     state: {
       sorting,
     },
@@ -219,7 +222,7 @@ export default function TransactionTable({
                   key={row.id}
                   className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
                 >
-                  {row.getVisibleCells().map((cell) => {
+                  {row.getAllCells().map((cell) => {
                     const cellClass = getCellClass(cell.column.id)
                     return (
                       <td key={cell.id} className={`px-4 py-3 text-[13px] ${cellClass}`}>
