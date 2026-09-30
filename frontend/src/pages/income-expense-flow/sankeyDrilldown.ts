@@ -60,16 +60,24 @@ export const SANKEY_TOP_N = 8
  * `metric_rules.is_tax_paid` twin. The exact category "Taxes", or income tax,
  * TDS, advance tax, self-assessment, tax paid or professional tax on the
  * category or subcategory. A bare "tax" word is not enough ("Property Tax" and
- * "Road Tax" are living costs) and notes are never read.
+ * "Road Tax" are living costs) and notes are never read. The backend keeps the
+ * same vocabulary as one pattern; it is split in two here only to keep each
+ * alternation small.
  */
 const TAX_PAID_CATEGORY = 'Taxes'
-const TAX_PAID_PATTERN =
-  /\b(?:income[\s-]?tax(?:es)?|tds|advance[\s-]?tax|self[\s-]?assessment|tax(?:es)?[\s-]?paid|professional[\s-]?tax)\b/i
+const TAX_PAID_PATTERNS = [
+  // A named tax: income tax(es), advance tax, professional tax.
+  /\b(?:income[\s-]?tax(?:es)?|advance[\s-]?tax|professional[\s-]?tax)\b/i,
+  // A payment: TDS, self-assessment, tax(es) paid.
+  /\b(?:tds|self[\s-]?assessment|tax(?:es)?[\s-]?paid)\b/i,
+]
+
+const namesTaxPaid = (text: string): boolean => TAX_PAID_PATTERNS.some((pattern) => pattern.test(text))
 
 export const isTaxCategory = (category: string, subcategory?: string | null): boolean =>
   category === TAX_PAID_CATEGORY ||
-  TAX_PAID_PATTERN.test(category) ||
-  (!!subcategory && TAX_PAID_PATTERN.test(subcategory))
+  namesTaxPaid(category) ||
+  (!!subcategory && namesTaxPaid(subcategory))
 
 /**
  * Label for the computed at-source TDS entry in the Tax branch.

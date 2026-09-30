@@ -229,9 +229,10 @@ def income_keys(items: Iterable[str]) -> frozenset[str]:
 #: Default investment-return vocabulary, used when the user has not configured
 #: their own ``investment_returns_categories``. "returns" is deliberately the
 #: plural only: the singular also reads "Deposit Return", which is money coming
-#: back, not a return on an investment.
+#: back, not a return on an investment. Capital gains and mutual fund gains
+#: share the one "gains" tail.
 _INVESTMENT_INCOME_RE = re.compile(
-    r"\b(?:interest|dividends?|capital[\s-]?gains?|mutual[\s-]?funds?[\s-]?gains?|returns)\b",
+    r"\b(?:interest|dividends?|(?:capital|mutual[\s-]?funds?)[\s-]?gains?|returns)\b",
     re.IGNORECASE,
 )
 

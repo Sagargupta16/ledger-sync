@@ -31,7 +31,7 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-async def rate_limit_error_handler(request: Request, exc: Exception) -> Response:
+def rate_limit_error_handler(request: Request, exc: Exception) -> Response:
     """429 with slowapi's rate-limit headers and the app's ``detail`` error shape."""
     if not isinstance(exc, RateLimitExceeded):
         raise exc
@@ -44,7 +44,7 @@ async def rate_limit_error_handler(request: Request, exc: Exception) -> Response
     return injected
 
 
-async def validation_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+def validation_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     """FastAPI's 422 body, with each rejected input echoed safely.
 
     A JSON ``NaN`` or ``Infinity`` is correctly rejected, but the default
@@ -58,7 +58,7 @@ async def validation_error_handler(_request: Request, exc: Exception) -> JSONRes
     )
 
 
-async def database_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+def database_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Handle database errors with structured response."""
     if not isinstance(exc, OperationalError):
         raise exc

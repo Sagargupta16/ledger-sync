@@ -80,7 +80,7 @@ from __future__ import annotations
 
 import calendar
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
@@ -130,16 +130,17 @@ def _parse_json_pref(raw: str | None, fallback: Any) -> Any:
         return fallback
 
 
-def _complete_months_between(start: datetime, end: datetime, in_progress: str | None) -> int:
+def _complete_months_between(start: datetime, end: datetime, today: date) -> int:
     """Complete calendar months from *start* to *end* inclusive.
 
     The ``core.calculator.fill_complete_months`` rule: every calendar month in
     the range counts, empty ones included, except the month still in progress
-    (*in_progress*, a ``YYYY-MM`` key or None). 0 when the whole range sits
-    inside that month.
+    on *today*. 0 when the whole range sits inside that month.
     """
     months = (end.year - start.year) * 12 + (end.month - start.month) + 1
-    if in_progress is not None and month_key(start) <= in_progress <= month_key(end):
+    # (year, month) tuples order exactly as the zero-padded ``month_key`` strings.
+    covers_today = (start.year, start.month) <= (today.year, today.month) <= (end.year, end.month)
+    if covers_today and is_partial_month(month_key(today), today):
         months -= 1
     return months
 
@@ -225,7 +226,7 @@ def get_spending_rule_breakdown(
     # include the month in progress.
     today = now.date()
     in_progress = month_key(today) if is_partial_month(month_key(today), today) else None
-    months_in_range = _complete_months_between(start, end, in_progress)
+    months_in_range = _complete_months_between(start, end, today)
     # A date-only `end` parses to midnight, which as a `<=` bound would drop
     # that whole day. Kept separate from `end` so `period.end` in the response
     # still echoes the range the caller asked for, not the internal bound.

@@ -31,10 +31,13 @@ interface ConfirmDialogProps {
   readonly onConfirm: () => void | Promise<void>
 }
 
-export default function ConfirmDialog(props: ConfirmDialogProps) {
+/** The mounted dialog's props: `open` only decides whether it is mounted. */
+type ConfirmDialogContentProps = Omit<ConfirmDialogProps, 'open'>
+
+export default function ConfirmDialog({ open, ...contentProps }: ConfirmDialogProps) {
   return (
     <AnimatePresence>
-      {props.open && <ConfirmDialogContent {...props} />}
+      {open && <ConfirmDialogContent {...contentProps} />}
     </AnimatePresence>
   )
 }
@@ -47,7 +50,7 @@ function ConfirmDialogContent({
   cancelLabel = 'Cancel',
   variant = 'danger',
   onConfirm,
-}: ConfirmDialogProps) {
+}: ConfirmDialogContentProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
 

@@ -76,6 +76,17 @@ def write_doc(path: Path, text: str) -> None:
 GITHUB = "../"
 OUT = ROOT / "docs"
 
+# Table roles shared by several INFO entries.
+USER_CONFIGURATION = "User configuration"
+DERIVED_IDENTITY_CATALOG = "Derived identity catalog"
+USER_COMPENSATION_CONFIGURATION = "User compensation configuration"
+REBUILDABLE_AGGREGATE = "Rebuildable aggregate"
+
+# Markdown fragments repeated across the generated reference.
+MERMAID_FENCE = "```mermaid"
+FLOWCHART_LR = "flowchart LR"
+THREE_COLUMN_RULE = "| --- | --- | --- |"
+
 # Purpose, grain, and actual usage are editorial descriptions of the inspected source.
 GROUPS = {
     "Identity, settings and diagnostics": [
@@ -133,7 +144,7 @@ INFO = {
     "user_preferences": (
         "Display, category classification, budget, tax and growth preferences.",
         "At most one preferences row per user.",
-        "User configuration",
+        USER_CONFIGURATION,
         (
             "A unique user_id enforces one-to-one ownership. The remaining flexible "
             "lists/objects are JSON encoded in TEXT. Account limits, AI configuration, salary "
@@ -144,7 +155,7 @@ INFO = {
     "user_ai_settings": (
         "AI funding mode, provider/model selection, encrypted credentials and token limits.",
         "At most one AI settings row per user.",
-        "User configuration",
+        USER_CONFIGURATION,
         (
             "user_id is both PK and owner FK. Credentials are encrypted ciphertext; no values "
             "are read by this generator. NULL token limits mean unlimited and zero blocks calls. "
@@ -217,7 +228,7 @@ INFO = {
     "ledger_account_aliases": (
         "Source account labels mapped to stable account identities.",
         "One lowercased source label per user.",
-        "Derived identity catalog",
+        DERIVED_IDENTITY_CATALOG,
         (
             "Multiple aliases can reference one account. The FK includes user_id. No "
             "alias-management or account-merging API is defined by this model."
@@ -226,7 +237,7 @@ INFO = {
     "ledger_categories": (
         "Stable category identities.",
         "One lowercased category key per user.",
-        "Derived identity catalog",
+        DERIVED_IDENTITY_CATALOG,
         (
             "Transaction label snapshots remain intact. Budgets, rules and existing summaries "
             "still use text category labels rather than category foreign keys."
@@ -235,7 +246,7 @@ INFO = {
     "ledger_subcategories": (
         "Stable subcategory identities within a category.",
         "One lowercased subcategory key per user and parent category.",
-        "Derived identity catalog",
+        DERIVED_IDENTITY_CATALOG,
         (
             "The parent FK includes owner and category. Transaction references include owner, "
             "parent category and subcategory, preventing mismatched parentage."
@@ -244,7 +255,7 @@ INFO = {
     "salary_plans": (
         "Exact salary components for each fiscal year.",
         "One user and fiscal year.",
-        "User compensation configuration",
+        USER_COMPENSATION_CONFIGURATION,
         (
             "The unique owner/fiscal-year key preserves plan identity across edits. Position "
             "retains API object order. CompensationDecimal stores unscaled NUMERIC in PostgreSQL "
@@ -255,7 +266,7 @@ INFO = {
     "rsu_grants": (
         "Stable public grant identities, stock-price assumptions and grant metadata.",
         "One public grant ID per user.",
-        "User compensation configuration",
+        USER_COMPENSATION_CONFIGURATION,
         (
             "The internal integer ID differs from public_id returned as API id. Public IDs are "
             "unique within their owner. Prices retain original precision without currency "
@@ -266,7 +277,7 @@ INFO = {
     "rsu_vestings": (
         "Individually identified RSU vesting events and received-share actuals.",
         "One vesting event, including legitimate identical repeats.",
-        "User compensation configuration",
+        USER_COMPENSATION_CONFIGURATION,
         (
             "The TEXT primary key receives an application-generated UUID; it is not a sequence "
             "or timestamp. The composite (user_id, grant_id) FK enforces parent ownership. "
@@ -280,7 +291,7 @@ INFO = {
     "categorization_rules": (
         "Ordered rules that assign category and subcategory.",
         "One rule per user; multiple rules are allowed.",
-        "User configuration",
+        USER_CONFIGURATION,
         (
             "API validates match_field as note or account. Matching is case-insensitive "
             "contains, ordered by sort_order then id; first match wins. Import fingerprints are "
@@ -300,7 +311,7 @@ INFO = {
     "saved_filter_views": (
         "Saved Transactions-page filter configurations.",
         "One named view per user.",
-        "User configuration",
+        USER_CONFIGURATION,
         (
             "filters is opaque JSON text. The frontend owns its FilterValues keys; POST upserts "
             "by name. A saved view does not copy transaction rows."
@@ -378,7 +389,7 @@ INFO = {
     "daily_summaries": (
         "Daily totals and counts for charts/heatmaps.",
         "One user and YYYY-MM-DD day.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "date is a string key, not PostgreSQL DATE. The unique user/date index prevents "
             "duplicate daily cells. Values are calculated in application code."
@@ -387,7 +398,7 @@ INFO = {
     "monthly_summaries": (
         "Monthly income, consumption, transfers, savings and comparisons.",
         "One user and YYYY-MM month.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "Capital losses are separate from consumption expenses but still reduce cash "
             "savings. Amounts and percentages are stored, not computed by database triggers."
@@ -396,7 +407,7 @@ INFO = {
     "category_trends": (
         "Monthly category/subcategory metrics by transaction type.",
         "One user/month/category/optional-subcategory/type cell.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "NULL-aware uniqueness uses two partial indexes. Category/subcategory values are "
             "text snapshots, not dimension FKs."
@@ -405,7 +416,7 @@ INFO = {
     "cohort_spending": (
         "Average spending by weekday, day of month or month of year.",
         "One user/dimension/bucket cell.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "Occurrences count actual eligible calendar periods, including zero-spend periods. "
             "avg_amount = total_amount / max(1, occurrences). This is temporal grouping, not a "
@@ -415,7 +426,7 @@ INFO = {
     "transfer_flows": (
         "All-time transfers between account-label pairs.",
         "One user/from-account/to-account pair.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "The pair is unique per user. Labels and account types support flow/Sankey views. "
             "There are no account-dimension FKs here."
@@ -424,7 +435,7 @@ INFO = {
     "merchant_intelligence": (
         "Merchant or description-level spending and recurrence statistics.",
         "One user/merchant_name/label_kind cell.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "brand is a recognized merchant label; descriptor is a purchase description and "
             "should not be presented as a confirmed payee. Descriptor case remains significant. "
@@ -434,7 +445,7 @@ INFO = {
     "fy_summaries": (
         "Fiscal-year income, spending, tax, investment and savings totals.",
         "One user/fiscal_year cell.",
-        "Rebuildable aggregate",
+        REBUILDABLE_AGGREGATE,
         (
             "Fiscal-year boundaries depend on preferences, with April as the default start. "
             "fiscal_year and tax_records.financial_year are text keys, not linked by an FK."
@@ -933,20 +944,29 @@ def constraint_dialects(constraint):
     return [condition.dialect] if isinstance(condition.dialect, str) else list(condition.dialect)
 
 
+def assigned_names(node):
+    """Names a module-level statement assigns; empty for anything but an assignment."""
+    if isinstance(node, ast.Assign):
+        return [target.id for target in node.targets if isinstance(target, ast.Name)]
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        return [node.target.id]
+    return []
+
+
+def revision_values(path):
+    """The literal ``revision`` and ``down_revision`` a migration module assigns."""
+    values = {}
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        for target in assigned_names(node):
+            if target in {"revision", "down_revision"}:
+                values[target] = ast.literal_eval(node.value)
+    return values
+
+
 def migration_revisions():
     revisions = {}
     for path in sorted((ROOT / "backend/src/ledger_sync/db/migrations/versions").glob("20*.py")):
-        values = {}
-        for node in ast.parse(path.read_text(encoding="utf-8")).body:
-            if isinstance(node, ast.Assign):
-                targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
-            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                targets = [node.target.id]
-            else:
-                continue
-            for target in targets:
-                if target in {"revision", "down_revision"}:
-                    values[target] = ast.literal_eval(node.value)
+        values = revision_values(path)
         if "revision" in values:
             if values["revision"] in revisions:
                 raise SystemExit(f"Duplicate revision id: {values['revision']}")
@@ -1413,8 +1433,8 @@ md += [
         f"{data['counts']['foreign_keys']}-link register follows the dictionary."
     ),
     "",
-    "```mermaid",
-    "flowchart LR",
+    MERMAID_FENCE,
+    FLOWCHART_LR,
     '  U["users"] -->|owner| T["transactions"]',
     '  U -->|one per user| P["user_preferences"]',
     '  U -->|one per user| AI["user_ai_settings"]',
@@ -1428,15 +1448,15 @@ md += [
     '  T -->|optional transaction link; hard-delete CASCADE| AN["anomalies"]',
     "```",
     "",
-    "```mermaid",
-    "flowchart LR",
+    MERMAID_FENCE,
+    FLOWCHART_LR,
     '  U["users"] -->|owner| R["recurring_transactions"]',
     '  U -->|owner| S["scheduled_transactions"]',
     "  R -->|user_id + recurring_transaction_id; optional; NO ACTION| S",
     "```",
     "",
-    "```mermaid",
-    "flowchart LR",
+    MERMAID_FENCE,
+    FLOWCHART_LR,
     '  U["users"] -->|owner; unique fiscal year| SP["salary_plans"]',
     '  U -->|owner; unique public grant ID| G["rsu_grants"]',
     '  U -->|owner| V["rsu_vestings"]',
@@ -1614,7 +1634,7 @@ md += [
     ),
     "",
     "| PostgreSQL enum type | Python enum | Database label → API value |",
-    "| --- | --- | --- |",
+    THREE_COLUMN_RULE,
 ]
 for name, e in sorted(enum_types.items()):
     md.append(
@@ -1736,7 +1756,7 @@ md += [
     ),
     "",
     "| Child columns | Parent columns | Delete action |",
-    "| --- | --- | --- |",
+    THREE_COLUMN_RULE,
 ]
 for t in tables:
     for f in t["foreign_keys"]:
@@ -1760,7 +1780,7 @@ md += [
     ),
     "",
     "| Fields | JSON shape | Storage |",
-    "| --- | --- | --- |",
+    THREE_COLUMN_RULE,
     (
         "| Preference category lists, excluded_accounts, anomaly_types_enabled | Array of "
         "strings; income/fixed-expense/loss classification commonly uses `Category::Subcategory` "
@@ -1857,7 +1877,7 @@ md += [
     "Expected structure from `CREATE TABLE ... AS SELECT * FROM import_logs WITH NO DATA`:",
     "",
     "| Column | Expected type | Expected NULL/default/key behavior |",
-    "| --- | --- | --- |",
+    THREE_COLUMN_RULE,
 ]
 for c in next(t for t in tables if t["name"] == "import_logs")["columns"]:
     md.append(f"| `{c['name']}` | `{c['type']}` | Nullable; no copied default, PK, UNIQUE or FK. |")

@@ -317,6 +317,17 @@ def _top(totals: dict[str, Decimal]) -> tuple[str, Decimal] | None:
     return max(totals.items(), key=lambda kv: kv[1]) if totals else None
 
 
+def _biggest_expense(expenses: Query[Transaction]) -> dict[str, Any]:
+    """The single largest expense's magnitude and category, zero and blank when none."""
+    biggest = (
+        expenses.with_entities(_MAGNITUDE, Transaction.category).order_by(_MAGNITUDE.desc()).first()
+    )
+    return {
+        "amount": float(biggest[0]) if biggest else 0.0,
+        "category": (biggest[1] or "") if biggest else "",
+    }
+
+
 def quick_insights(
     db: Session,
     user: User,
@@ -360,9 +371,6 @@ def quick_insights(
     total_spending = float(days["total"]) if count else 0
     weekend = by_weekday[0] + by_weekday[6]
     peak_day = max(by_weekday, key=lambda d: by_weekday[d]) if count else 0
-    biggest = (
-        expenses.with_entities(_MAGNITUDE, Transaction.category).order_by(_MAGNITUDE.desc()).first()
-    )
     has_cashback = income["cashback_count"] or shared_count
     net_cashback = float(income["cashback"] - (shared_total or Decimal(0))) if has_cashback else 0
     top_income = _top(income["by_category"])
@@ -373,10 +381,7 @@ def quick_insights(
         "net_cashback": net_cashback,
         "cashback_count": income["cashback_count"],
         "median_expense": _median_expense(expenses, count),
-        "biggest_expense": {
-            "amount": float(biggest[0]) if biggest else 0.0,
-            "category": (biggest[1] or "") if biggest else "",
-        },
+        "biggest_expense": _biggest_expense(expenses),
         "avg_expense": (total_spending / count) if count else 0.0,
         "total_spending": total_spending,
         "expense_count": count,

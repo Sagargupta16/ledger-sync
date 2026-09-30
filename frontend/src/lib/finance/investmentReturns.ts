@@ -48,9 +48,10 @@ function costKind(text: string): InvestmentReturnKind | null {
  * Default investment-income vocabulary (interest, dividends, capital gains,
  * mutual fund gains, returns), the backend `metric_rules._INVESTMENT_INCOME_RE`
  * twin. "returns" is plural only: "Deposit Return" is money coming back.
+ * Capital gains and mutual fund gains share the one "gains" tail.
  */
 const INVESTMENT_INCOME_PATTERN =
-  /\b(?:interest|dividends?|capital[\s-]?gains?|mutual[\s-]?funds?[\s-]?gains?|returns)\b/i
+  /\b(?:interest|dividends?|(?:capital|mutual[\s-]?funds?)[\s-]?gains?|returns)\b/i
 
 /** Which income rows are investment income, resolved once per preference set. */
 export interface InvestmentReturnRules {

@@ -94,11 +94,18 @@ def execute_tool(
         raise HTTPException(400, f"Tool {payload.name} could not be completed") from exc
     except Exception as exc:
         session.rollback()
-        error_id = secrets.token_hex(8)
-        # Type and correlation id only: a database error's message carries the
-        # statement parameters, which are the user's financial data.
-        logger.error("AI tool %s failed [%s]: %s", payload.name, error_id, type(exc).__name__)
-        raise HTTPException(
-            500, f"Tool {payload.name} failed unexpectedly (error id {error_id})"
-        ) from exc
+        raise _unexpected_failure(spec.name, exc) from exc
     return {"name": payload.name, "result": result}
+
+
+def _unexpected_failure(tool_name: str, exc: Exception) -> HTTPException:
+    """Log a failed tool by type and correlation id, and build its 500.
+
+    Deliberately not ``logger.exception``: the traceback ends in the exception
+    message, and a database error's message carries the statement parameters,
+    which are the user's financial data. *tool_name* is the registered spec's
+    own name, never the raw request text.
+    """
+    error_id = secrets.token_hex(8)
+    logger.error("AI tool %s failed [%s]: %s", tool_name, error_id, type(exc).__name__)
+    return HTTPException(500, f"Tool {tool_name} failed unexpectedly (error id {error_id})")

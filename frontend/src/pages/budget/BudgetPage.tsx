@@ -181,11 +181,7 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
               {formatDateShort(data.period.start)} to {formatDateShort(data.period.end)}
             </dd>
             <dd className="mt-0.5 text-xs text-text-tertiary">
-              {/* Averages use complete months only, so a range inside the
-                  current month has none yet -- say so instead of "0 months". */}
-              {data.period.months === 0
-                ? 'Current month in progress'
-                : `${data.period.months} complete ${data.period.months === 1 ? 'month' : 'months'}`}
+              {completeMonthsLabel(data.period.months)}
             </dd>
           </div>
           <div className="ledger-cell p-3">
@@ -264,4 +260,11 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
 // day where `new Date(iso)` read it as UTC midnight.
 function formatDateShort(iso: string): string {
   return formatDate(iso, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Averages use complete months only, so a range inside the current month has
+// none yet -- say so instead of "0 months".
+function completeMonthsLabel(months: number): string {
+  if (months === 0) return 'Current month in progress'
+  return `${months} complete ${months === 1 ? 'month' : 'months'}`
 }

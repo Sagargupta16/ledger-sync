@@ -48,6 +48,12 @@ function textFromBlocks(blocks: Block[]): string {
     .join('')
 }
 
+/** The error to show for a failed send; null for an abort, which is not a failure. */
+function sendErrorMessage(err: unknown): string | null {
+  if (err instanceof DOMException && err.name === 'AbortError') return null
+  return err instanceof Error ? err.message : 'Failed to send message'
+}
+
 interface ResolvedCredentials {
   provider: string
   model: string
@@ -174,8 +180,8 @@ export function useChat(
         // A stopped or cleared run was already tidied by stop()/clear().
         if (isCurrent()) {
           setMessages(withoutPendingReply)
-          const aborted = err instanceof DOMException && err.name === 'AbortError'
-          if (!aborted) setError(err instanceof Error ? err.message : 'Failed to send message')
+          const message = sendErrorMessage(err)
+          if (message !== null) setError(message)
         }
       } finally {
         if (isCurrent()) {
