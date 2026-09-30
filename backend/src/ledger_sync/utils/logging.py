@@ -7,8 +7,8 @@ Provides structured logging with:
 """
 
 import logging
+import secrets
 import sys
-from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -94,23 +94,6 @@ def get_analytics_logger() -> logging.Logger:
     return logging.getLogger("ledger_sync.analytics")
 
 
-def log_import_start(source_file: str) -> None:
-    """Log the start of an import operation."""
-    logger = get_analytics_logger()
-    logger.info("=" * 60)
-    logger.info("IMPORT STARTED: %s", source_file)
-    logger.info("Timestamp: %s", datetime.now(tz=UTC).isoformat())
-    logger.info("=" * 60)
-
-
-def log_import_stats(stats: dict[str, object]) -> None:
-    """Log import statistics."""
-    logger = get_analytics_logger()
-    logger.info("Import Statistics:")
-    for key, value in stats.items():
-        logger.info("  %s: %s", key, value)
-
-
 def log_analytics_calculation(
     calculation_name: str,
     count: int,
@@ -122,35 +105,26 @@ def log_analytics_calculation(
     logger.info("  + %s: %s records%s", calculation_name, count, duration_str)
 
 
-def log_column_mapping(original: str, mapped: str, source_file: str | None = None) -> None:
-    """Log a column name mapping (for tracking Excel format changes)."""
-    logger = get_analytics_logger()
-    file_str = f" in {source_file}" if source_file else ""
-    logger.debug("Column mapping%s: '%s' -> '%s'", file_str, original, mapped)
-
-
-def log_warning(message: str, context: dict[str, object] | None = None) -> None:
-    """Log a warning with optional context."""
-    logger = get_analytics_logger()
-    logger.warning(message)
-    if context:
-        for key, value in context.items():
-            logger.warning("  %s: %s", key, value)
-
-
 def log_error(
     message: str,
     exception: Exception | None = None,
     context: dict[str, object] | None = None,
-) -> None:
-    """Log an error with optional exception and context."""
+) -> str:
+    """Log an error with optional exception and context; return its error id.
+
+    Only the exception type is logged, never its message: database errors
+    embed the SQL bound parameters (ledger amounts, notes, emails) in theirs.
+    The returned id correlates this record with whatever the caller reports.
+    """
     logger = get_analytics_logger()
-    logger.error(message)
+    error_id = secrets.token_hex(8)
+    logger.error("%s [error_id=%s]", message, error_id)
     if exception:
-        logger.error("  Exception: %s: %s", type(exception).__name__, exception)
+        logger.error("  Exception: %s [error_id=%s]", type(exception).__name__, error_id)
     if context:
         for key, value in context.items():
             logger.error("  %s: %s", key, value)
+    return error_id
 
 
 # Default logger instance

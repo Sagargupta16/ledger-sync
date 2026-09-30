@@ -57,6 +57,20 @@ function pushExpense(ctx: MonthCtx, tmpl: Template, day: number): void {
   })
 }
 
+/**
+ * Occurrences this month for a template expected `freq` times a month.
+ *
+ * Below one a month, `freq` is the PROBABILITY of one occurrence. Rounding a
+ * +-30% jitter instead meant anything under 0.5 a month (brokerage fees, bank
+ * fees, repairs) rounded to zero every month and never produced a row, while
+ * 0.8 rounded to exactly one every month. One uniform draw either way, so the
+ * seeded sequence stays deterministic.
+ */
+function monthlyCount(freq: number, draw: number): number {
+  if (freq < 1) return draw < freq ? 1 : 0
+  return Math.max(0, Math.round(freq + (draw - 0.5) * freq * 0.6))
+}
+
 export function generateMonthlyExpenses(ctx: MonthCtx): void {
   const { rng, daysInMonth } = ctx
 
@@ -66,8 +80,8 @@ export function generateMonthlyExpenses(ctx: MonthCtx): void {
     } else if (tmpl.freq !== undefined) {
       // Festival months also see slightly MORE purchases, not just larger ones.
       const freqBoost = ctx.festival && FESTIVAL_SPIKE_SUBCATS.has(tmpl.subcategory) ? 1.3 : 1
-      const count = Math.round(tmpl.freq * freqBoost + (rng.next() - 0.5) * tmpl.freq * 0.6)
-      for (let j = 0; j < Math.max(0, count); j++) {
+      const count = monthlyCount(tmpl.freq * freqBoost, rng.next())
+      for (let j = 0; j < count; j++) {
         pushExpense(ctx, tmpl, rng.int(1, daysInMonth))
       }
     }

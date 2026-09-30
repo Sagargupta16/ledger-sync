@@ -97,7 +97,7 @@ export default function IncomeTrendSection({
                   Monthly income
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.app.blue }} aria-hidden="true" />
+                  <span className="w-5 border-t-2 border-dashed border-app-blue" aria-hidden="true" />
                   {rollingAvgMonths}-month average
                 </li>
               </ul>
@@ -187,7 +187,7 @@ export default function IncomeTrendSection({
             </ChartContainer>
             <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-relaxed text-muted-foreground">
               <span className="flex items-center gap-2">
-                <span className="w-5 border-t border-dotted" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />{' '}
+                <span className="w-5 border-t border-dotted border-text-secondary" aria-hidden="true" />{' '}
                 Reference lines
               </span>
               {peakIncome !== undefined && (

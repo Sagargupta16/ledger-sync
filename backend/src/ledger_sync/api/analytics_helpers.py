@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import calendar
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import NamedTuple
 
 from sqlalchemy import case, func
 from sqlalchemy.orm import Query as SAQuery
@@ -116,14 +118,40 @@ def _get_time_range_dates(
     return start_date, end_date
 
 
+class MetricRow(NamedTuple):
+    """One transaction projected to the five fields ``calculator.LedgerRow`` reads.
+
+    A plain tuple, not an ORM instance: the in-memory metric endpoints only read
+    these fields, and hydrating every column of the whole ledger into tracked
+    ``Transaction`` objects cost several times the query itself.
+    """
+
+    date: datetime
+    amount: Decimal
+    type: TransactionType
+    category: str
+    subcategory: str | None
+
+
 def get_filtered_transactions(
     db: Session,
     user: User,
     time_range: TimeRange = TimeRange.ALL_TIME,
-) -> list[Transaction]:
-    """Get non-deleted transactions filtered by time range at the DB level."""
+) -> list[MetricRow]:
+    """Non-deleted transactions in *time_range*, projected to ``MetricRow``.
+
+    Same rows, filters and order as the full ``Transaction`` query (only the
+    SELECT list is narrowed), so every metric computed from them is unchanged.
+    """
     start_date, end_date = _get_time_range_dates(db, user, time_range)
-    return list(build_transaction_query(db, user, start_date, end_date).all())
+    query = build_transaction_query(db, user, start_date, end_date).with_entities(
+        Transaction.date,
+        Transaction.amount,
+        Transaction.type,
+        Transaction.category,
+        Transaction.subcategory,
+    )
+    return [MetricRow._make(row) for row in query]
 
 
 def _build_base_query(

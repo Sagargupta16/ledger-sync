@@ -15,36 +15,43 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import { dataHealthKeys } from '@/hooks/api/useDataHealthQuery'
 
 describe('prefetch key alignment', () => {
-  it('recurring commitments: sidebar, mobile tab bar, notification bell', () => {
-    // Sidebar.tsx, MobileTabBar.tsx, NotificationCenter.tsx, useBillCalendar.ts,
-    // RecurringTransactions.tsx all pass active_only + pattern_kind.
-    expect(
-      analyticsV2Keys.recurringTransactions({ active_only: true, pattern_kind: 'commitment' }),
-    ).toEqual(['analyticsV2', 'recurring-transactions', true, undefined, 'commitment'])
-  })
-
-  it("dashboard's fixed-commitments widget is a DIFFERENT key", () => {
-    // DashboardPage.tsx passes min_confidence: 0 explicitly. Folding it in gives
-    // 0 where the sidebar key has undefined, so one prefetch cannot serve both.
-    // Note 0 vs undefined, not 0 vs null: the factory spreads `filters?.field`,
-    // so an absent filter lands as undefined. `JSON.stringify` renders those
-    // slots as null, which is a trap when eyeballing keys in a console.
-    const dashboard = analyticsV2Keys.recurringTransactions({
+  it('recurring commitments: dashboard, sidebar, notifications, bill calendar share one key', () => {
+    // DashboardPage.tsx, Sidebar.tsx, NotificationCenter.tsx, useBillCalendar.ts
+    // and prefetch.ts all pass RECURRING_COMMITMENTS_PARAMS (active_only +
+    // min_confidence: 0 + pattern_kind), so one prefetch serves them.
+    expect(RECURRING_COMMITMENTS_PARAMS).toEqual({
       active_only: true,
       min_confidence: 0,
       pattern_kind: 'commitment',
     })
-    const sidebar = analyticsV2Keys.recurringTransactions({
+    expect(
+      analyticsV2Keys.recurringTransactions(RECURRING_COMMITMENTS_PARAMS),
+    ).toEqual(['analyticsV2', 'recurring-transactions', true, 0, 'commitment'])
+  })
+
+  it('omitting min_confidence is a DIFFERENT key', () => {
+    // The backend defaults min_confidence to 50, so an omitted value is both a
+    // different key and a different (confidence-filtered) list. Note 0 vs
+    // undefined, not 0 vs null: the factory spreads `filters?.field`, so an
+    // absent filter lands as undefined. `JSON.stringify` renders those slots as
+    // null, which is a trap when eyeballing keys in a console.
+    const aligned = analyticsV2Keys.recurringTransactions({
+      active_only: true,
+      min_confidence: 0,
+      pattern_kind: 'commitment',
+    })
+    const omitted = analyticsV2Keys.recurringTransactions({
       active_only: true,
       pattern_kind: 'commitment',
     })
 
-    expect(dashboard).toEqual(['analyticsV2', 'recurring-transactions', true, 0, 'commitment'])
-    expect(dashboard).not.toEqual(sidebar)
+    expect(omitted).toEqual(['analyticsV2', 'recurring-transactions', true, undefined, 'commitment'])
+    expect(aligned).not.toEqual(omitted)
   })
 
   it('recurring page includes inactive rows', () => {
@@ -66,16 +73,13 @@ describe('prefetch key alignment', () => {
     ])
   })
 
-  it('goals: Overview reads the default view, Goals page includes achieved', () => {
-    // OverviewPage.tsx uses no params; useGoalsState.ts passes include_achieved.
-    expect(analyticsV2Keys.goals()).toEqual(['analyticsV2', 'goals', undefined, undefined])
-    expect(analyticsV2Keys.goals({ include_achieved: true })).toEqual([
-      'analyticsV2',
-      'goals',
-      undefined,
-      true,
-    ])
-    expect(analyticsV2Keys.goals()).not.toEqual(analyticsV2Keys.goals({ include_achieved: true }))
+  it('goals: Overview and the Goals page share one key', () => {
+    // OverviewPage.tsx uses no params; useGoalsState.ts passes include_achieved:
+    // true. The backend defaults include_achieved to true, so both requests
+    // return the same rows and the factory folds the default into the key.
+    expect(analyticsV2Keys.goals()).toEqual(['analyticsV2', 'goals', undefined, true])
+    expect(analyticsV2Keys.goals({ include_achieved: true })).toEqual(analyticsV2Keys.goals())
+    expect(analyticsV2Keys.goals({ include_achieved: false })).not.toEqual(analyticsV2Keys.goals())
   })
 
   it('data health is keyed with no params, so one prefetch serves every reader', () => {

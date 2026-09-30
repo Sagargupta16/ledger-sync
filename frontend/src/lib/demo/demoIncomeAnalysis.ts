@@ -2,7 +2,7 @@ import { ROLLING_AVG_MONTHS } from '@/lib/chartUtils'
 import type { IncomeAnalysisData } from '@/services/api/calculations'
 import type { Transaction } from '@/types'
 
-import { filterByDateRange, isIncome, monthKey, sum } from './demoHelpers'
+import { filterByDateRange, isIncome, isTransfer, monthKey, sum } from './demoHelpers'
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
@@ -37,10 +37,9 @@ export function generateDemoIncomeAnalysis(
   params: Record<string, unknown>,
 ): IncomeAnalysisData {
   const category = asString(params.category)
-  let rows = filterByDateRange(txs, asString(params.start_date), asString(params.end_date)).filter(
-    isIncome,
-  )
-  if (category) rows = rows.filter((t) => t.category === category)
+  let base = filterByDateRange(txs, asString(params.start_date), asString(params.end_date))
+  if (category) base = base.filter((t) => t.category === category)
+  const rows = base.filter(isIncome)
 
   // `Math.abs` throughout, matching the endpoint: it sums magnitudes so a
   // credit stored with either sign reads the same.
@@ -68,11 +67,25 @@ export function generateDemoIncomeAnalysis(
         : null,
   }))
 
-  // Cashback = income rows whose `Category::Subcategory` is in the user's
-  // non-taxable list, matched case-insensitively -- the same rule as the
-  // endpoint, which owns no preference fallback of its own.
+  // Cashback is THE cashback rule `/quick-insights` uses: income rows whose
+  // subcategory says cashback, minus transfers passing cashback on ("cashback
+  // shared"), in the same window and category filter. Refunds, deposit returns
+  // and reimbursements are money coming back, not a reward.
+  const cashbackIncome = sum(
+    rows
+      .filter((t) => (t.subcategory ?? '').toLowerCase().includes('cashback'))
+      .map((t) => Math.abs(t.amount)),
+  )
+  const sharedCashback = sum(
+    base
+      .filter((t) => isTransfer(t) && (t.to_account ?? '').toLowerCase().includes('cashback shared'))
+      .map((t) => Math.abs(t.amount)),
+  )
+  // The broader non-taxable-list sum, under its own name: income rows whose
+  // `Category::Subcategory` is in the user's non-taxable list, matched
+  // case-insensitively -- the endpoint owns no preference fallback of its own.
   const wanted = new Set(asStringList(params.cashback_categories).map((c) => c.toLowerCase()))
-  const cashbacksTotal = sum(
+  const nonTaxableTotal = sum(
     rows
       .filter((t) => wanted.has(`${t.category || ''}::${t.subcategory ?? ''}`.toLowerCase()))
       .map((t) => Math.abs(t.amount)),
@@ -86,7 +99,8 @@ export function generateDemoIncomeAnalysis(
     total_income: totalIncome,
     category_breakdown: byCategory,
     monthly_data: monthlyData,
-    cashbacks_total: cashbacksTotal,
+    cashbacks_total: cashbackIncome - sharedCashback,
+    non_taxable_total: nonTaxableTotal,
     peak_income: incomes.length > 0 ? Math.max(...incomes) : 0,
     growth_rate:
       nonZero.length >= 2 && first ? ((nonZero.at(-1)! - first) / first) * 100 : 0,

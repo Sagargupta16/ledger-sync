@@ -1,3 +1,5 @@
+import { withIncomeClassificationDefaults, type IncomeClassification } from '@/store/preferencesStore'
+
 /** Recorded investment outcomes only. Transfers and account values are not returns. */
 export interface InvestmentReturnTransaction {
   type: string
@@ -42,30 +44,80 @@ function costKind(text: string): InvestmentReturnKind | null {
   return null
 }
 
-const NON_RETURN_INCOME = [
-  /\b(?:salary|stipend|bonus|bonuses|rsu|rsus|vesting)\b/i,
-  /\b(?:contribution|contributions|redemption|redemptions|withdrawal|withdrawals|principal)\b/i,
-  /\bsale proceeds\b|\bunreali[sz]ed\b/i,
-]
+/**
+ * Default investment-income vocabulary (interest, dividends, capital gains,
+ * mutual fund gains, returns), the backend `metric_rules._INVESTMENT_INCOME_RE`
+ * twin. "returns" is plural only: "Deposit Return" is money coming back.
+ */
+const INVESTMENT_INCOME_PATTERN =
+  /\b(?:interest|dividends?|capital[\s-]?gains?|mutual[\s-]?funds?[\s-]?gains?|returns)\b/i
 
-function isNonReturnIncome(text: string): boolean {
-  return NON_RETURN_INCOME.some((pattern) => pattern.test(text))
+/** Which income rows are investment income, resolved once per preference set. */
+export interface InvestmentReturnRules {
+  /** The user's investment-return keys, normalised `category::subcategory`. */
+  readonly keys: ReadonlySet<string>
+  /** Keyword fallback: on only while the user has not chosen their own list. */
+  readonly useKeywords: boolean
+  /** Keys the user filed under another income list; a keyword never re-claims them. */
+  readonly otherKeys: ReadonlySet<string>
+}
+
+/** Backend `classification_key` twin: trimmed, lower-cased on both halves. */
+const classificationKey = (category: string | null | undefined, subcategory: string | null | undefined): string =>
+  `${(category ?? '').trim().toLowerCase()}::${(subcategory ?? '').trim().toLowerCase()}`
+
+const keySet = (items: readonly string[]): Set<string> =>
+  new Set(items.filter(Boolean).map((item) => {
+    const [category, ...rest] = item.split('::')
+    return classificationKey(category, rest.join('::'))
+  }))
+
+const EMPTY_CLASSIFICATION: IncomeClassification = { taxable: [], investmentReturns: [], nonTaxable: [], other: [] }
+
+/**
+ * The user's `investment_returns_categories` keys (case-insensitive whole key).
+ * While that list is empty or still the shipped defaults, the default keywords
+ * also count, on the category or subcategory and never the note.
+ */
+export function investmentReturnRules(
+  classification: IncomeClassification = EMPTY_CLASSIFICATION,
+): InvestmentReturnRules {
+  const resolved = withIncomeClassificationDefaults(classification)
+  const keys = keySet(resolved.investmentReturns)
+  const shipped = keySet(withIncomeClassificationDefaults(EMPTY_CLASSIFICATION).investmentReturns)
+  const useKeywords = keys.size === 0 || (keys.size === shipped.size && [...keys].every((key) => shipped.has(key)))
+  return {
+    keys,
+    useKeywords,
+    otherKeys: useKeywords
+      ? keySet([...resolved.taxable, ...resolved.nonTaxable, ...resolved.other])
+      : new Set(),
+  }
+}
+
+let defaultRules: InvestmentReturnRules | null = null
+const unconfiguredRules = (): InvestmentReturnRules => (defaultRules ??= investmentReturnRules())
+
+function isInvestmentIncome(tx: InvestmentReturnTransaction, rules: InvestmentReturnRules): boolean {
+  const key = classificationKey(tx.category, tx.subcategory)
+  if (rules.keys.has(key)) return true
+  if (!rules.useKeywords || rules.otherKeys.has(key)) return false
+  return INVESTMENT_INCOME_PATTERN.test(tx.category) || INVESTMENT_INCOME_PATTERN.test(tx.subcategory ?? '')
 }
 
 /**
- * Exactly one bucket per row. Explicit subcategory/category beats note fallback,
- * so "Interest" with a note saying "realized interest" is still one interest event.
+ * Exactly one bucket per row. Income membership comes from `rules`; the
+ * subtype comes from the subcategory, then the category, and is a realised
+ * profit when neither names interest or dividends. The note is never income
+ * evidence.
  */
 export function classifyInvestmentReturn(
   tx: InvestmentReturnTransaction,
+  rules: InvestmentReturnRules = unconfiguredRules(),
 ): InvestmentReturnKind | null {
   if (tx.type === 'Income') {
-    const classification = `${tx.category} ${tx.subcategory ?? ''}`
-    if (isNonReturnIncome(classification)) return null
-    const explicit = incomeKind(tx.subcategory ?? '') ?? incomeKind(tx.category)
-    if (explicit) return explicit
-    const note = tx.note ?? ''
-    return isNonReturnIncome(note) ? null : incomeKind(note)
+    if (!isInvestmentIncome(tx, rules)) return null
+    return incomeKind(tx.subcategory ?? '') ?? incomeKind(tx.category) ?? 'investmentProfit'
   }
   if (tx.type !== 'Expense') return null
   const category = tx.category.toLowerCase()
@@ -79,6 +131,7 @@ export function classifyInvestmentReturn(
 
 export function computeInvestmentMetrics(
   transactions: readonly InvestmentReturnTransaction[],
+  rules: InvestmentReturnRules = unconfiguredRules(),
 ): InvestmentReturnMetrics {
   const totals: InvestmentReturnMetrics = {
     dividendIncome: 0,
@@ -92,7 +145,7 @@ export function computeInvestmentMetrics(
     eventCount: 0,
   }
   for (const tx of transactions) {
-    const kind = classifyInvestmentReturn(tx)
+    const kind = classifyInvestmentReturn(tx, rules)
     if (!kind) continue
     totals[kind] += Math.abs(tx.amount)
     totals.eventCount += 1
@@ -103,8 +156,11 @@ export function computeInvestmentMetrics(
   return totals
 }
 
-export function countRealisedEvents(transactions: readonly InvestmentReturnTransaction[]): number {
-  return computeInvestmentMetrics(transactions).eventCount
+export function countRealisedEvents(
+  transactions: readonly InvestmentReturnTransaction[],
+  rules: InvestmentReturnRules = unconfiguredRules(),
+): number {
+  return computeInvestmentMetrics(transactions, rules).eventCount
 }
 
 export interface MonthlyInvestmentReturn {
@@ -118,12 +174,13 @@ export interface MonthlyInvestmentReturn {
 /** Keep calendar keys and exact amounts in the domain result; format at the chart. */
 export function groupInvestmentReturnsByMonth(
   transactions: readonly (InvestmentReturnTransaction & { date: string })[],
+  rules: InvestmentReturnRules = unconfiguredRules(),
 ): MonthlyInvestmentReturn[] {
   const monthly: Record<string, { income: number; expenses: number }> = {}
   for (const tx of transactions) {
     const month = tx.date.substring(0, 7)
     monthly[month] ??= { income: 0, expenses: 0 }
-    if (!classifyInvestmentReturn(tx)) continue
+    if (!classifyInvestmentReturn(tx, rules)) continue
     if (tx.type === 'Income') monthly[month].income += Math.abs(tx.amount)
     else monthly[month].expenses += Math.abs(tx.amount)
   }

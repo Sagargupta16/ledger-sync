@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
+  capitalLossConfig,
+  capitalLossKeySet,
+  classificationKey,
   classifyExpense,
   isCapitalLoss,
   isSpending,
+  looksLikeCapitalLoss,
   splitExpenseTotals,
   type ExpenseClass,
   type ExpenseClassifiable,
@@ -15,8 +19,10 @@ const tx = (over: Partial<ExpenseClassifiable> = {}): ExpenseClassifiable => ({
   ...over,
 })
 
-// One table for every "does this row classify as X?" assertion. Cases are
-// grouped by intent; add a row here rather than a new it() block.
+// One table for every "what does the taxonomy say?" assertion. `capital_loss`
+// here means DETECTION fires (a candidate to classify), not that an aggregate
+// drops the row -- only a classified key does that. Cases are grouped by
+// intent; add a row here rather than a new it() block.
 const CASES: ReadonlyArray<[label: string, row: ExpenseClassifiable, expected: ExpenseClass]> = [
   // --- realised capital losses ---
   [
@@ -117,12 +123,21 @@ const CASES: ReadonlyArray<[label: string, row: ExpenseClassifiable, expected: E
   ['undefined fields', tx({ category: undefined, subcategory: undefined }), 'consumption'],
 ]
 
-describe('classifyExpense', () => {
-  it.each(CASES)('classifies %s', (_label, row, expected) => {
-    expect(classifyExpense(row)).toBe(expected)
+/** The old table's `capital_loss` label now means "detection fires", nothing more. */
+const detected = (expected: ExpenseClass) => expected === 'capital_loss'
+
+/** Without a classified key a detected loss is still spending: a cost of investing. */
+const unclassified = (expected: ExpenseClass): ExpenseClass =>
+  expected === 'capital_loss' ? 'investment_cost' : expected
+
+const keyOf = (row: ExpenseClassifiable) => `${row.category ?? ''}::${row.subcategory ?? ''}`
+
+describe('looksLikeCapitalLoss (detection only)', () => {
+  it.each(CASES)('detects %s', (_label, row, expected) => {
+    expect(looksLikeCapitalLoss(row)).toBe(detected(expected))
   })
 
-  it('never returns capital_loss for a row with no investment signal', () => {
+  it('never fires for a row with no investment signal', () => {
     const nonInvestment = CASES.filter(
       ([, row]) =>
         !/invest|stock|trad|f\s*&|crypto|equity|capital|intraday|mf/i.test(
@@ -131,7 +146,21 @@ describe('classifyExpense', () => {
     )
     expect(nonInvestment.length).toBeGreaterThan(0)
     for (const [, row] of nonInvestment) {
+      expect(looksLikeCapitalLoss(row)).toBe(false)
+    }
+  })
+})
+
+describe('classifyExpense with nothing classified (the shipped state)', () => {
+  it.each(CASES)('classifies %s as spending', (_label, row, expected) => {
+    expect(classifyExpense(row)).toBe(unclassified(expected))
+    expect(isSpending(row)).toBe(true)
+  })
+
+  it('never returns capital_loss, however loud the name is', () => {
+    for (const [, row] of CASES) {
       expect(classifyExpense(row)).not.toBe('capital_loss')
+      expect(classifyExpense(row, capitalLossConfig([]))).not.toBe('capital_loss')
     }
   })
 })
@@ -139,7 +168,7 @@ describe('classifyExpense', () => {
 // Regression guard for the false-positive class the taxonomy-only window fixes:
 // free text used to be read in the same context window as the investment
 // signal, so a consumption row whose note said "loss" and whose account was a
-// broker account was silently dropped out of the spending total.
+// broker account was flagged as a realised loss.
 describe('free-text note and account are never read', () => {
   const withFreeText = (
     row: ExpenseClassifiable,
@@ -168,83 +197,80 @@ describe('free-text note and account are never read', () => {
     ],
   ]
 
-  it.each(freeTextCases)('keeps %s in spending', (_label, row, note, account) => {
+  it.each(freeTextCases)('never suggests %s', (_label, row, note, account) => {
     const noisy = withFreeText(row, note, account)
+    expect(looksLikeCapitalLoss(noisy)).toBe(false)
     expect(classifyExpense(noisy)).toBe('consumption')
     expect(isSpending(noisy)).toBe(true)
   })
 
-  it('does not let a note alone create a capital loss', () => {
+  it('does not let a note alone raise the signal', () => {
     const row = withFreeText(tx({ category: 'Gifts', subcategory: 'Wedding' }), 'F&O loss', 'Stocks: Broker')
-    expect(classifyExpense(row)).toBe('consumption')
+    expect(looksLikeCapitalLoss(row)).toBe(false)
   })
 
-  it('still classifies a loss when the taxonomy itself says so', () => {
+  it('still detects a loss when the taxonomy itself says so', () => {
     const row = withFreeText(
       tx({ category: 'Investment Expenses', subcategory: 'Stocks Market Loss' }),
       'quarterly settlement',
       'Stocks: Broker',
     )
-    expect(classifyExpense(row)).toBe('capital_loss')
+    expect(looksLikeCapitalLoss(row)).toBe(true)
   })
 })
 
-describe('overrides', () => {
-  it('honours a Category::Subcategory override', () => {
-    const row = tx({ category: 'Food & Dining', subcategory: 'Groceries' })
-    expect(
-      classifyExpense(row, { overrides: { 'Food & Dining::Groceries': 'capital_loss' } }),
-    ).toBe('capital_loss')
+describe('classified keys (capital_loss_categories)', () => {
+  const loss = tx({ category: 'Investment Expenses', subcategory: 'F&O Loss' })
+  const brokerage = tx({ category: 'Investment Expenses', subcategory: 'Brokerage & Other Fees' })
+
+  it('excludes exactly the classified Category::Subcategory', () => {
+    const config = capitalLossConfig(['Investment Expenses::F&O Loss'])
+    expect(classifyExpense(loss, config)).toBe('capital_loss')
+    expect(isCapitalLoss(loss, config)).toBe(true)
+    expect(isSpending(loss, config)).toBe(false)
+    // A sibling subcategory of the same category stays spending.
+    expect(isSpending(brokerage, config)).toBe(true)
   })
 
-  it('honours a bare subcategory override case-insensitively', () => {
-    const row = tx({ category: 'Investment Expenses', subcategory: 'Brokerage & Other Fees' })
-    expect(classifyExpense(row, { overrides: { 'brokerage & other fees': 'capital_loss' } })).toBe(
+  it('classifies every detected loss in the table once its key is saved', () => {
+    const lossRows = CASES.filter(([, , expected]) => detected(expected)).map(([, row]) => row)
+    expect(lossRows.length).toBeGreaterThan(5)
+    for (const row of lossRows) {
+      expect(classifyExpense(row, capitalLossConfig([keyOf(row)]))).toBe('capital_loss')
+    }
+  })
+
+  it('normalises like the backend: trim and lower-case each half, nothing more', () => {
+    const config = capitalLossConfig(['  INVESTMENT EXPENSES ::  f&o loss  '])
+    expect(isCapitalLoss(loss, config)).toBe(true)
+    // Inner whitespace is NOT collapsed (backend `_norm` cannot do that in SQL),
+    // so a double-spaced key must not match the single-spaced row.
+    expect(isCapitalLoss(loss, capitalLossConfig(['Investment  Expenses::F&O Loss']))).toBe(false)
+  })
+
+  it('honours a user classification the patterns would never suggest', () => {
+    const groceries = tx({ category: 'Food & Dining', subcategory: 'Groceries' })
+    expect(looksLikeCapitalLoss(groceries)).toBe(false)
+    expect(classifyExpense(groceries, capitalLossConfig(['Food & Dining::Groceries']))).toBe(
       'capital_loss',
     )
   })
 
-  it('lets a user force a loss row back into spending', () => {
-    const row = tx({ category: 'Investment Expenses', subcategory: 'Stocks Market Loss' })
-    expect(classifyExpense(row)).toBe('capital_loss')
-    expect(classifyExpense(row, { overrides: { 'Stocks Market Loss': 'consumption' } })).toBe(
-      'consumption',
-    )
+  it('matches a separator-less key only on rows without a subcategory', () => {
+    const config = capitalLossConfig(['Trading Losses'])
+    expect(isCapitalLoss(tx({ category: 'Trading Losses' }), config)).toBe(true)
+    expect(isCapitalLoss(tx({ category: 'Trading Losses', subcategory: 'Intraday' }), config)).toBe(false)
   })
 
-  it('prefers the most specific override key', () => {
-    const row = tx({ category: 'Investments', subcategory: 'Odd Bucket' })
-    const overrides: Record<string, ExpenseClass> = {
-      Investments: 'capital_loss',
-      'Investments::Odd Bucket': 'consumption',
-    }
-    expect(classifyExpense(row, { overrides })).toBe('consumption')
+  it('skips blank and non-string entries', () => {
+    expect([...capitalLossKeySet(['', '   ', 7, null, 'A::B'])]).toEqual(['a::b'])
+    expect(capitalLossKeySet(null).size).toBe(0)
+    expect(capitalLossKeySet(undefined).size).toBe(0)
   })
 
-  it('accepts extra loss patterns for an unusual taxonomy', () => {
-    const row = tx({ category: 'Portfolio', subcategory: 'Haircut' })
-    expect(classifyExpense(row)).toBe('investment_cost')
-    expect(classifyExpense(row, { extraLossPatterns: [/\bhaircut\b/i] })).toBe('capital_loss')
-  })
-})
-
-describe('isCapitalLoss / isSpending', () => {
-  it('excludes exactly the capital-loss rows from spending', () => {
-    const lossLabels = CASES.filter(([, , expected]) => expected === 'capital_loss').map(
-      ([label]) => label,
-    )
-    const notSpendingLabels = CASES.filter(([, row]) => !isSpending(row)).map(([label]) => label)
-    expect(notSpendingLabels).toEqual(lossLabels)
-    expect(lossLabels.length).toBeGreaterThan(5)
-  })
-
-  it('treats brokerage as spending and a trading loss as not spending', () => {
-    const brokerage = tx({ category: 'Investment Expenses', subcategory: 'Brokerage & Other Fees' })
-    const loss = tx({ category: 'Investment Expenses', subcategory: 'F&O Loss' })
-    expect(isSpending(brokerage)).toBe(true)
-    expect(isCapitalLoss(brokerage)).toBe(false)
-    expect(isSpending(loss)).toBe(false)
-    expect(isCapitalLoss(loss)).toBe(true)
+  it('builds the same key string the backend `classification_key` does', () => {
+    expect(classificationKey(' Investment Expenses ', 'F&O Loss')).toBe('investment expenses::f&o loss')
+    expect(classificationKey(null, undefined)).toBe('::')
   })
 })
 
@@ -258,9 +284,13 @@ describe('splitExpenseTotals', () => {
     { type: 'Expense', amount: 1000, category: 'Investment Expenses', subcategory: 'Financial Advisor Fees' },
     { type: 'Expense', amount: 45000, category: 'Food & Dining', subcategory: 'Groceries' },
   ]
+  const classified = capitalLossConfig([
+    'Investment Expenses::Stocks Market Loss',
+    'Investment Expenses::F&O Loss',
+  ])
 
-  it('splits rows into the three buckets', () => {
-    const totals = splitExpenseTotals(ledger)
+  it('splits rows into the three buckets once the losses are classified', () => {
+    const totals = splitExpenseTotals(ledger, classified)
     expect(totals.capitalLoss).toBe(50000)
     expect(totals.investmentCost).toBe(5000)
     expect(totals.consumption).toBe(45000)
@@ -268,8 +298,16 @@ describe('splitExpenseTotals', () => {
     expect(totals.spending).toBe(50000)
   })
 
-  it('keeps spending plus capital loss equal to the unfiltered total', () => {
+  it('counts every row as spending while nothing is classified', () => {
     const totals = splitExpenseTotals(ledger)
+    expect(totals.capitalLoss).toBe(0)
+    expect(totals.investmentCost).toBe(55000)
+    expect(totals.spending).toBe(100000)
+    expect(totals.total).toBe(100000)
+  })
+
+  it('keeps spending plus capital loss equal to the unfiltered total', () => {
+    const totals = splitExpenseTotals(ledger, classified)
     expect(totals.consumption + totals.investmentCost).toBe(totals.spending)
     expect(totals.spending + totals.capitalLoss).toBe(totals.total)
   })

@@ -1,4 +1,5 @@
 import { toLocalDateKey } from '@/lib/dateUtils'
+import type { ExpenseClassificationConfig } from '@/lib/expenseClassification'
 import { resolveAnalysisPeriod, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import type { Transaction } from '@/types'
 
@@ -12,11 +13,14 @@ export function computeCurrentHealth(
   {
     earningStartDate,
     fixedCategories,
+    expenseClassification,
     balances = null,
     now = new Date(),
   }: {
     earningStartDate?: string | null
     fixedCategories?: Set<string>
+    /** The user's classified realised-loss keys; see `capitalLossConfig`. */
+    expenseClassification?: ExpenseClassificationConfig
     balances?: BalancePosition | null
     now?: Date
   } = {},
@@ -35,10 +39,10 @@ export function computeCurrentHealth(
   )
   const lifetime = createEmptyBucket()
   for (const tx of historical) {
-    classifyTransaction(tx, lifetime, isInvestmentAccount, fixedCategories)
+    classifyTransaction(tx, lifetime, isInvestmentAccount, fixedCategories, expenseClassification)
     const date = tx.date.slice(0, 10)
     if (date < period.startDate! || date > period.endDate!) continue
-    classifyTransaction(tx, monthly[date.slice(0, 7)], isInvestmentAccount, fixedCategories)
+    classifyTransaction(tx, monthly[date.slice(0, 7)], isInvestmentAccount, fixedCategories, expenseClassification)
   }
   const balanceFlowTotals = {
     cumulativeNetSavings: lifetime.income - lifetime.expense,

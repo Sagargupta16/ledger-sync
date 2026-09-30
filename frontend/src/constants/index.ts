@@ -61,29 +61,3 @@ const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
 // Local development uses Vite's same-origin /api proxy. Set VITE_API_BASE_URL
 // at build time only when production uses a separate API host.
 export const API_BASE_URL = _apiBaseUrl || ''
-
-export const API_ENDPOINTS = {
-  // Upload
-  UPLOAD: '/api/upload',
-
-  // Transactions
-  TRANSACTIONS: '/api/transactions',
-  TRANSACTIONS_SEARCH: '/api/transactions/search',
-
-  // Meta
-  META_ACCOUNTS: '/api/meta/accounts',
-  META_FILTERS: '/api/meta/filters',
-
-  // Analytics
-  ANALYTICS_KPIS: '/api/analytics/kpis',
-  ANALYTICS_CHARTS_INCOME_EXPENSE: '/api/analytics/charts/income-expense',
-  ANALYTICS_CHARTS_CATEGORIES: '/api/analytics/charts/categories',
-  ANALYTICS_CHARTS_MONTHLY_TRENDS: '/api/analytics/charts/monthly-trends',
-
-  // Calculations
-  CALCULATIONS_TOTALS: '/api/calculations/totals',
-  CALCULATIONS_ACCOUNT_BALANCES: '/api/calculations/account-balances',
-  CALCULATIONS_CATEGORY_BREAKDOWN: '/api/calculations/category-breakdown',
-  CALCULATIONS_MONTHLY_AGGREGATION: '/api/calculations/monthly-aggregation',
-  CALCULATIONS_DAILY_NET_WORTH: '/api/calculations/daily-net-worth',
-} as const

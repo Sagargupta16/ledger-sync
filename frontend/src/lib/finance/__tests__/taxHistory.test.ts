@@ -37,6 +37,44 @@ const fullYearReceipts = Array.from({ length: 12 }, (_, index) => {
   return salaryReceipt(`${year}-${String(month).padStart(2, '0')}-28`)
 })
 
+describe('salary and bonus split of taxable income', () => {
+  it('groups by the salary/bonus keywords, not the exact subcategory', () => {
+    const taxable = {
+      ...classification,
+      taxable: [
+        'Employment Income::Monthly Salary', 'Employment Income::Performance Bonus',
+        'Salary::Monthly', 'Employment Income::Consulting',
+      ],
+    }
+    const rows: Transaction[] = [
+      { ...salaryReceipt('2025-05-28', 100_000), subcategory: 'Monthly Salary' },
+      { ...salaryReceipt('2025-06-28', 40_000), subcategory: 'Performance Bonus' },
+      { ...salaryReceipt('2025-07-28', 90_000), category: 'Salary', subcategory: 'Monthly' },
+      { ...salaryReceipt('2025-08-28', 7_000), subcategory: 'Consulting' },
+    ]
+    const { incomeGroups } = groupTransactionsByFY(rows, 4, taxable)['FY 2025-26']
+    // "Monthly Salary" used to land in Other Taxable Income.
+    expect(incomeGroups['Salary & Stipend'].total).toBe(190_000)
+    expect(incomeGroups.Bonus.total).toBe(40_000)
+    expect(incomeGroups['Other Taxable Income'].total).toBe(7_000)
+  })
+
+  it('labels the previous year in the January-start calendar-year form', () => {
+    const grouped = groupTransactionsByFY([salaryReceipt('2024-06-28'), salaryReceipt('2025-06-28')], 1, classification)
+    expect(Object.keys(grouped).sort((a, b) => a.localeCompare(b))).toEqual(['FY 2024', 'FY 2025'])
+    const prev = computePrevFYDisplay({
+      effectiveFY: 'FY 2025', currentFYLabel: 'FY 2026', transactionsByFY: grouped,
+      regimeOverride: null, preferredRegime: 'new', hasSalaryData: false,
+      salaryStructure: {}, rsuGrants: [], growthAssumptions: DEFAULT_GROWTH_ASSUMPTIONS,
+      fiscalYearStartMonth: 1, isNewRegime: true,
+    })
+    // Before, the label was rebuilt as "FY 2024-25", matched no bucket, and the
+    // year-on-year comparison came back null.
+    expect(prev).not.toBeNull()
+    expect(prev?.gross).toBeGreaterThan(0)
+  })
+})
+
 describe('recorded withholding reconciliation', () => {
   it.each([
     [100, 150, 0, 150],

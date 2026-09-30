@@ -5,14 +5,19 @@ redirect builder, the PKCE-client guard, and the profile identity check. The
 token-endpoint URLs stay in ``oauth`` beside the callbacks that post to them.
 """
 
+import logging
+from collections.abc import Awaitable
 from typing import Any
 from urllib.parse import urlsplit
 
+import httpx
 from fastapi import HTTPException, Request, status
 
 from ledger_sync.api.oauth_state import _get_redirect_uri
 from ledger_sync.config.settings import settings
 from ledger_sync.schemas.auth import OAuthProviderConfig
+
+logger = logging.getLogger("ledger_sync.oauth")
 
 # ─── Provider Configurations ──────────────────────────────────────────────────
 
@@ -92,6 +97,39 @@ async def _require_pkce_client(request: Request) -> None:
 
 def _bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+def _provider_unavailable(provider: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"{provider} sign-in is temporarily unavailable. Start sign-in again in a moment.",
+    )
+
+
+async def _provider_call(call: Awaitable[httpx.Response], provider: str) -> httpx.Response:
+    """Await one provider HTTP call; an unreachable or failing provider is a 502.
+
+    A timeout, connection error, or provider 5xx says nothing about the user's
+    request, so it is reported as a bad gateway rather than a 400 or a 500.
+    """
+    try:
+        response = await call
+    except httpx.HTTPError as exc:
+        logger.warning("%s OAuth request failed: %s", provider, type(exc).__name__)
+        raise _provider_unavailable(provider) from exc
+    if response.status_code >= 500:
+        logger.warning("%s OAuth provider error: status=%s", provider, response.status_code)
+        raise _provider_unavailable(provider)
+    return response
+
+
+def _provider_json(response: httpx.Response, provider: str) -> Any:
+    """Parse a provider body; a non-JSON reply is the provider's failure (502)."""
+    try:
+        return response.json()
+    except ValueError as exc:
+        logger.warning("%s OAuth response was not JSON: status=%s", provider, response.status_code)
+        raise _provider_unavailable(provider) from exc
 
 
 def _provider_identity(user_info: dict[str, Any]) -> str:

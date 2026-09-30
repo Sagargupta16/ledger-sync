@@ -5,8 +5,8 @@ import type { LucideIcon } from 'lucide-react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
 import { ROUTES } from '@/constants'
-import { rawColors } from '@/constants/colors'
-import { getActiveLocale } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatPercent, getActiveLocale } from '@/lib/formatters'
 
 import type { IssueSeverity, QualityIssue } from '../types'
 
@@ -39,9 +39,9 @@ const SEVERITY_TEXT: Record<IssueSeverity, string> = {
 }
 
 const SEVERITY_FILL: Record<IssueSeverity, string> = {
-  clean: rawColors.app.green,
-  warning: rawColors.app.orange,
-  critical: rawColors.app.red,
+  clean: colors.app.green,
+  warning: colors.app.orange,
+  critical: colors.app.red,
 }
 
 /**
@@ -105,7 +105,7 @@ function IssueRow({
             {!isFlag && (
               <>
                 <span className="font-medium tabular-nums text-foreground">
-                  {issue.shareOfLedger.toFixed(1)}%
+                  {formatPercent(issue.shareOfLedger)}
                 </span>{' '}
                 of {transactionCount.toLocaleString(locale)} rows.{' '}
               </>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { getTodayKey, MS_PER_DAY } from '@/lib/dateUtils'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
@@ -15,11 +16,7 @@ interface CalendarCell {
 export function useBillCalendar() {
   // A bill calendar plots things that are owed on a date. Habit rows repeat but
   // are not owed, so plotting them filled the grid with lunch purchases.
-  const recurringQuery = useRecurringTransactions({
-    active_only: true,
-    min_confidence: 0,
-    pattern_kind: 'commitment',
-  })
+  const recurringQuery = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
   const { data: recurringTransactions, isLoading, isError } = recurringQuery
   const asOfDateKey = getTodayKey()
   const acceptedBills = useMemo(

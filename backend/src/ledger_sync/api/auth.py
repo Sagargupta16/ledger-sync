@@ -109,11 +109,16 @@ def reset_account(
 
     Requires active authentication (JWT token).
 
-    - **full** (default): Removes all data and recreates default preferences.
-    - **transactions**: Removes only transactions, import logs, and analytics.
-      Preserves preferences, budgets, goals, and account classifications.
+    - **full** (default): Removes all data, including categorization rules and
+      saved views, and recreates default preferences.
+    - **transactions**: Removes only transactions, import logs, analytics, and
+      investment holdings. Preserves preferences, budgets, goals, account
+      classifications, categorization rules, and saved views.
     """
     auth_service.reset_account(current_user, transactions_only=(mode == "transactions"))
     if mode == "transactions":
-        return MessageResponse(message="Transactions and analytics cleared. Preferences preserved.")
+        return MessageResponse(
+            message="Transactions and analytics cleared. Preferences, rules, and saved views "
+            "preserved."
+        )
     return MessageResponse(message="Account reset to fresh state. All data cleared.")

@@ -41,10 +41,14 @@
  * This module divides the two numbers it is handed; it does not decide which
  * rows they came from. The zone-wide rule for the EXPENSE SIDE is: a realised
  * capital loss booked as an EXPENSE row is not consumption, so it is excluded
- * from `expense`. Frontend callers get that by filtering with `isSpending` from
- * `lib/expenseClassification` (health analysis, period comparison, category
- * breakdown, the demo totals); the backend gets it from `expense_sum_col(...,
- * loss_keys=...)`. Both land on the same `total_expenses`.
+ * from `expense`. "Realised capital loss" means a `Category::Subcategory` key
+ * the user classified in `capital_loss_categories`, nothing else. Frontend
+ * callers get that by passing `capitalLossConfig(preferences.capital_loss_categories)`
+ * to `isSpending` / `isCapitalLoss` from `lib/expenseClassification` (health
+ * analysis, period comparison, the Cash Flow Sankey, the demo totals); a call
+ * without that config classifies nothing and counts every Expense row. The
+ * backend gets it from `expense_sum_col(..., loss_keys=...)`. Both land on the
+ * same `total_expenses`.
  *
  * TWO RATES, TWO QUESTIONS (verified against the backend, 2026-07-27)
  * ------------------------------------------------------------------

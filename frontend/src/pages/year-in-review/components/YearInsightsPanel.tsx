@@ -2,8 +2,8 @@ import { motion } from 'motion/react'
 import { Flame, Sun, Moon, TrendingDown, TrendingUp, BarChart3 } from 'lucide-react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
-import { formatCurrencyCompact } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
+import { formatCurrencyCompact, formatDate } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
 
 import InsightRow from './InsightRow'
 import { getStreakColor } from '../heatmapUtils'
@@ -16,7 +16,7 @@ interface YearInsightsPanelProps {
 }
 
 function formatDayLabel(date: string): string {
-  return new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+  return formatDate(date, { month: 'short', day: 'numeric' })
 }
 
 export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
@@ -28,7 +28,7 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
       className="ledger-panel space-y-4 p-4 sm:p-6"
     >
       <h2 className="text-lg font-semibold flex items-center gap-2">
-        <Flame className="w-5 h-5" style={{ color: rawColors.app.orange }} />
+        <Flame className="w-5 h-5 text-app-orange" />
         Quick Insights
       </h2>
 
@@ -36,19 +36,19 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
         icon={Sun}
         label="Best Month (lowest spend)"
         value={stats.bestMonth}
-        color={rawColors.app.green}
+        color={colors.app.green}
       />
       <InsightRow
         icon={Moon}
         label="Worst Month (highest spend)"
         value={stats.worstMonth}
-        color={rawColors.app.red}
+        color={colors.app.red}
       />
       <InsightRow
         icon={Flame}
         label="Longest no-spend streak"
         value={`${stats.maxStreak} days`}
-        color={rawColors.app.orange}
+        color={colors.app.orange}
       />
       <InsightRow
         icon={TrendingDown}
@@ -61,7 +61,7 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
         subtitle={
           stats.biggestExpenseDay.date ? formatDayLabel(stats.biggestExpenseDay.date) : undefined
         }
-        color={rawColors.app.red}
+        color={colors.app.red}
       />
       <InsightRow
         icon={TrendingUp}
@@ -74,7 +74,7 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
         subtitle={
           stats.biggestIncomeDay.date ? formatDayLabel(stats.biggestIncomeDay.date) : undefined
         }
-        color={rawColors.app.green}
+        color={colors.app.green}
       />
       <InsightRow
         icon={BarChart3}
@@ -85,7 +85,7 @@ export default function YearInsightsPanel({ stats }: YearInsightsPanelProps) {
             ? `${Math.round((stats.daysWithExpense / stats.elapsedDays) * 100)}% of days`
             : undefined
         }
-        color={rawColors.app.blue}
+        color={colors.app.blue}
       />
 
       {stats.maxStreak > 0 && (

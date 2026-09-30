@@ -77,13 +77,19 @@ function dailyNetWorth(rows: readonly Transaction[]) {
   return { daily_data: Object.fromEntries(days), cumulative_data: cumulative, opening_balance: 0 }
 }
 
+/** Every params object the page passed to `useAccountBalances`. */
+const balanceParams: unknown[] = []
+
 vi.mock('@/hooks/api/useAnalytics', () => ({
-  useAccountBalances: () => ({
-    data: balances,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
+  useAccountBalances: (params?: unknown) => {
+    balanceParams.push(params)
+    return {
+      data: balances,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }
+  },
   useDataDateRange: () => {
     const dates = transactionsRef.current.map((row) => row.date).sort((a, b) => a.localeCompare(b))
     return {
@@ -169,9 +175,16 @@ describe('useNetWorth -- future rows and the in-progress month', () => {
 
   it('builds the growth model from completed months only', () => {
     const { result } = renderHook(() => useNetWorth(), { wrapper })
-    // Two clean +100,000 deltas. Uncapped: 70,000. Capped-only: 50,000.
-    expect(result.current.monthlyGrowth).toBe(100000)
-    expect(result.current.growthUsesPartialMonth).toBe(false)
+    // Shared average monthly savings: Apr 50,000 + May 100,000 + Jun 100,000
+    // over 3 complete months. July (in progress, and its future accrual) is out.
+    expect(result.current.monthlyGrowth).toBeCloseTo(250000 / 3, 6)
+  })
+
+  it('reads the hero balances at the same ledger day the trend stops at', () => {
+    balanceParams.length = 0
+    renderHook(() => useNetWorth(), { wrapper })
+    // Without an end date the balances summed the 2026-07-31 accrual the trend drops.
+    expect(balanceParams.at(-1)).toEqual({ end_date: '2026-07-26' })
   })
 
   it('surfaces the in-progress month so the narrowing is stated', () => {
@@ -197,13 +210,10 @@ describe('useNetWorth -- future rows and the in-progress month', () => {
 /**
  * Exactly three months of history, the third of them in progress.
  *
- * `computeLinearGrowthStats` buckets by YYYY-MM and needs 3 buckets to form 2
- * deltas, returning `{growth: 0, sigma: 0}` below that. Dropping the in-progress
- * month leaves 2 buckets, so the growth came back 0 -- which `chartData` reads as
- * "no projection" (`monthlyGrowth <= 0`) and `buildMilestoneRows` reads as "no
- * ETA". A user about a quarter into their history lost the whole projection
- * feature to a guard meant to make it more honest, with nothing on screen saying
- * why. The fallback keeps the feature and the notice states the basis.
+ * The old delta model needed 3 month buckets for 2 deltas, so dropping the
+ * in-progress month zeroed the growth and killed the projection and every ETA.
+ * The shared average monthly savings needs only one complete month, so the two
+ * complete months carry the feature without touching the partial one.
  */
 const THREE_MONTHS_ONE_PARTIAL: Transaction[] = [
   tx('2026-05-31', 100000, 'Income'),
@@ -224,10 +234,8 @@ describe('useNetWorth -- three months, the last one in progress', () => {
 
   it('still produces a growth rate instead of a silent zero', () => {
     const { result } = renderHook(() => useNetWorth(), { wrapper })
-    // Falls back to the capped-at-today series: 100k -> 200k -> 300k, two
-    // +100,000 deltas. Complete-months-only leaves 2 buckets and gives 0.
+    // May and June, 100,000 each; the July stub is excluded.
     expect(result.current.monthlyGrowth).toBe(100000)
-    expect(result.current.growthUsesPartialMonth).toBe(true)
   })
 
   it('keeps the projection overlay and the milestone ETAs alive', () => {
@@ -256,19 +264,19 @@ describe('useNetWorth -- sparse calendar history', () => {
 
   it('shares the calendar growth rate with projections and the completed-month sparkline', () => {
     const { result } = renderHook(() => useNetWorth(), { wrapper })
-    expect(result.current.monthlyGrowth).toBe(10_000)
+    // 160,000 saved over the 7 complete months Jan..Jul, empty months as zero.
+    expect(result.current.monthlyGrowth).toBeCloseTo(160_000 / 7, 6)
     expect(result.current.netWorthSparkline).toEqual([
       100_000, 100_000, 100_000, 130_000, 130_000, 130_000, 160_000,
     ])
     expect(result.current.netWorthMoMLabel).toBe('Jul 26 vs prior month')
     expect(result.current.netWorthMoMChange).toBe(23.1)
-    expect(result.current.growthUsesPartialMonth).toBe(false)
 
     act(() => result.current.setShowProjection(true))
     const history = result.current.chartData.filter((point) => point.netWorth !== null)
     expect(history).toHaveLength(7)
-    expect(result.current.chartData.find((point) => point.date === '2026-08-31'))
-      .toMatchObject({ projected: 170_000 })
+    const projected = result.current.chartData.find((point) => point.date === '2026-08-31')?.projected
+    expect(projected).toBeCloseTo(160_000 + 160_000 / 7, 6)
   })
 
   it('retains inactive completed months before dropping the current partial month', () => {
@@ -280,12 +288,12 @@ describe('useNetWorth -- sparse calendar history', () => {
     ]
     const { result } = renderHook(() => useNetWorth(), { wrapper })
     expect(result.current.anchor).toEqual({ date: '2026-07-10', netWorth: 80_000 })
-    expect(result.current.monthlyGrowth).toBe(6_000)
+    // 130,000 over the 6 complete months Jan..Jun; July's -50,000 is in progress.
+    expect(result.current.monthlyGrowth).toBeCloseTo(130_000 / 6, 6)
     expect(result.current.netWorthSparkline).toEqual([
       100_000, 100_000, 100_000, 130_000, 130_000, 130_000,
     ])
     expect(result.current.netWorthMoMChange).toBe(0)
     expect(result.current.netWorthMoMLabel).toBe('Jun 26 vs prior month')
-    expect(result.current.growthUsesPartialMonth).toBe(false)
   })
 })

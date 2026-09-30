@@ -55,11 +55,21 @@ export interface SankeyView {
 
 export const SANKEY_TOP_N = 8
 
-/** Category names that are tax outflows, not living expenses. Keyword match
- * keeps it dynamic (no hardcoded user category list). */
-const TAX_PATTERN = /\btax(es)?\b|\btds\b|income tax|advance tax|self assessment/i
+/**
+ * Tax PAID, not a living expense: the shared tax-paid rule, the backend
+ * `metric_rules.is_tax_paid` twin. The exact category "Taxes", or income tax,
+ * TDS, advance tax, self-assessment, tax paid or professional tax on the
+ * category or subcategory. A bare "tax" word is not enough ("Property Tax" and
+ * "Road Tax" are living costs) and notes are never read.
+ */
+const TAX_PAID_CATEGORY = 'Taxes'
+const TAX_PAID_PATTERN =
+  /\b(?:income[\s-]?tax(?:es)?|tds|advance[\s-]?tax|self[\s-]?assessment|tax(?:es)?[\s-]?paid|professional[\s-]?tax)\b/i
 
-export const isTaxCategory = (name: string): boolean => TAX_PATTERN.test(name)
+export const isTaxCategory = (category: string, subcategory?: string | null): boolean =>
+  category === TAX_PAID_CATEGORY ||
+  TAX_PAID_PATTERN.test(category) ||
+  (!!subcategory && TAX_PAID_PATTERN.test(subcategory))
 
 /**
  * Label for the computed at-source TDS entry in the Tax branch.
@@ -238,10 +248,10 @@ function buildParentChildView(crumb: DrillCrumb, children: FlowEntry[], total: n
 }
 
 /**
- * Level-0 overview: income sources -> Total Income -> Tax + Savings +
- * Expenses -> expense categories. Same topology the page always had plus an
- * optional first-class Tax branch, with per-node meta (color, pct, drill
- * target) instead of index-range arithmetic.
+ * Level-0 overview: income sources -> Total Income -> Tax + Realised losses +
+ * Savings + Expenses -> expense categories. Same topology the page always had
+ * plus optional first-class Tax and Realised losses branches, with per-node
+ * meta (color, pct, drill target) instead of index-range arithmetic.
  */
 export function buildOverviewView(args: {
   incomeEntries: FlowEntry[]
@@ -249,6 +259,13 @@ export function buildOverviewView(args: {
   totalIncome: number
   totalExpense: number
   netSavings: number
+  /**
+   * Classified realised capital losses. They are not Expenses (they bought
+   * nothing) but the cash still left, and `netSavings` already has them
+   * subtracted, so without this branch the outflows fall short of income by
+   * exactly this amount. 0 hides the branch.
+   */
+  capitalLosses?: number
   /** Total tax burden shown on the Tax branch (explicit tax transactions plus
    * the computed TDS below). 0 hides the branch. */
   totalTax?: number
@@ -265,6 +282,7 @@ export function buildOverviewView(args: {
   const { incomeEntries, expenseEntries, totalIncome, totalExpense, netSavings } = args
   const totalTax = args.totalTax ?? 0
   const tdsAtSource = args.tdsAtSource ?? 0
+  const capitalLosses = args.capitalLosses ?? 0
 
   // Recorded income + implied TDS = the gross every percentage is based on.
   const grossIncome = totalIncome + tdsAtSource
@@ -300,6 +318,15 @@ export function buildOverviewView(args: {
     meta.push({ value: totalTax, pct: pctOf(totalTax, grossIncome), color: rawColors.app.orange, drill: args.taxDrill ?? null })
   }
 
+  // Classified realised losses: a negative investment return, so neither an
+  // expense category nor savings -- their own branch keeps both honest.
+  let lossesIndex = -1
+  if (capitalLosses > 0) {
+    lossesIndex = nodes.length
+    nodes.push({ name: 'Realised losses' })
+    meta.push({ value: capitalLosses, pct: pctOf(capitalLosses, grossIncome), color: rawColors.app.yellow, drill: null })
+  }
+
   const savingsIndex = nodes.length
   nodes.push({ name: 'Savings' })
   meta.push({ value: Math.max(netSavings, 0), pct: pctOf(Math.max(netSavings, 0), grossIncome), color: rawColors.app.purple, drill: null })
@@ -319,6 +346,7 @@ export function buildOverviewView(args: {
   })
   if (tdsIndex >= 0) links.push({ source: tdsIndex, target: totalIncomeIndex, value: tdsAtSource })
   if (taxIndex >= 0) links.push({ source: totalIncomeIndex, target: taxIndex, value: totalTax })
+  if (lossesIndex >= 0) links.push({ source: totalIncomeIndex, target: lossesIndex, value: capitalLosses })
   if (netSavings > 0) links.push({ source: totalIncomeIndex, target: savingsIndex, value: netSavings })
   if (totalExpense > 0) links.push({ source: totalIncomeIndex, target: expensesIndex, value: totalExpense })
 

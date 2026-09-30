@@ -1,5 +1,6 @@
 import { Money } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { formatFYLabel } from '@/lib/dateUtils'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import type { TaxSlab, SlabBreakdownEntry } from '@/lib/taxCalculator'
 
 interface TaxSlabBreakdownProps {
@@ -16,6 +17,8 @@ interface TaxSlabBreakdownProps {
   professionalTax: number
   totalTax: number
   isProjecting?: boolean
+  /** 1-indexed FY start month; labels a January year "FY 2024". */
+  fiscalYearStartMonth?: number
 }
 
 export default function TaxSlabBreakdown({
@@ -32,11 +35,12 @@ export default function TaxSlabBreakdown({
   professionalTax,
   totalTax,
   isProjecting = false,
+  fiscalYearStartMonth = 4,
 }: Readonly<TaxSlabBreakdownProps>) {
   return (
     <div>
       <p className="text-sm font-medium text-muted-foreground mb-4">
-        {isNewRegime ? 'New' : 'Old'} regime slabs for FY {fyYear}-{String((fyYear + 1) % 100).padStart(2, '0')}
+        {isNewRegime ? 'New' : 'Old'} regime slabs for {formatFYLabel(fyYear, fiscalYearStartMonth)}
       </p>
 
       {/* Standard Deduction Info */}
@@ -117,7 +121,7 @@ export default function TaxSlabBreakdown({
                     </span>
                   </th>
                   <td className="py-3 px-2 sm:px-4 text-right text-foreground font-semibold tabular-nums whitespace-nowrap">
-                    {slab.rate.toFixed(2)}%
+                    {formatPercent(slab.rate, false, 2)}
                   </td>
                   <td className="py-3 px-2 sm:px-4 text-right">
                     <Money

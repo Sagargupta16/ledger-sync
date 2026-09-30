@@ -123,3 +123,33 @@ def test_manual_bill_rejects_an_invalid_due_day(two_user_client, day):
         },
     )
     assert response.status_code == 422
+
+
+_RECURRING_URL = "/api/analytics/v2/recurring-transactions"
+_MANUAL_BILL = {"name": "Rent", "type": "Expense", "frequency": "monthly"}
+
+
+@pytest.mark.parametrize("amount", [0, -100, 0.004, 1e17, "NaN", "Infinity"])
+def test_manual_bill_rejects_a_non_positive_or_unbounded_amount(two_user_client, amount):
+    client, session, _, _, _ = two_user_client
+    response = client.post(_RECURRING_URL, json={**_MANUAL_BILL, "amount": amount})
+    assert response.status_code == 422, response.text
+    assert session.query(RecurringTransaction).count() == 0
+
+
+def test_recurring_amounts_round_half_up_to_the_paisa(two_user_client):
+    client, session, _, _, _ = two_user_client
+    created = client.post(_RECURRING_URL, json={**_MANUAL_BILL, "amount": 2.675})
+    assert created.status_code == 200, created.text
+    record_id = created.json()["id"]
+    assert session.get(RecurringTransaction, record_id).expected_amount == Decimal("2.68")
+
+    edited = client.patch(f"{_RECURRING_URL}/{record_id}", json={"expected_amount": "10.005"})
+    assert edited.status_code == 200, edited.text
+    session.expire_all()
+    assert session.get(RecurringTransaction, record_id).expected_amount == Decimal("10.01")
+
+    rejected = client.patch(f"{_RECURRING_URL}/{record_id}", json={"expected_amount": -5})
+    assert rejected.status_code == 422
+    session.expire_all()
+    assert session.get(RecurringTransaction, record_id).expected_amount == Decimal("10.01")

@@ -1,4 +1,4 @@
-import { formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { pctChange } from '../utils'
 import { ChangeIcon } from './ChangeIcon'
 
@@ -54,7 +54,7 @@ export function QuickStat({
         <span className="tabular-nums">{deltaText}</span>
         {!isFlat && (
           <span className="text-text-tertiary">
-            ({change > 0 ? '+' : ''}{change.toFixed(0)}%)
+            ({formatPercent(change, true, 0)})
           </span>
         )}
       </div>

@@ -15,7 +15,9 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { getDateKey } from '@/lib/dateUtils'
+import { investmentReturnRules } from '@/lib/finance/investmentReturns'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { resolveIncomeClassification } from '@/store/preferencesStore'
 
 import {
   computeInvestmentMetrics,
@@ -68,10 +70,18 @@ export function useReturnsAnalysis() {
       .sort((a, b) => b.balance - a.balance)
   }, [balanceData, preferencesQuery.data?.investment_account_mappings])
 
+  // The user's investment-return keys, with the default keywords while unconfigured.
+  const returnRules = useMemo(
+    () => investmentReturnRules(
+      preferencesQuery.data ? resolveIncomeClassification(preferencesQuery.data) : undefined,
+    ),
+    [preferencesQuery.data],
+  )
+
   const {
     dividendIncome, brokerFees, interestIncome, investmentProfit, investmentLoss, netProfitLoss,
     totalIncome, totalExpenses, eventCount: realisedEventCount,
-  } = useMemo(() => computeInvestmentMetrics(transactions), [transactions])
+  } = useMemo(() => computeInvestmentMetrics(transactions, returnRules), [transactions, returnRules])
 
   // `estimatedCAGR` and `roi` used to be derived here. estimatedCAGR compared
   // the FIRST and LAST month's TOTAL INCOME (salary, not investments) and called
@@ -82,7 +92,10 @@ export function useReturnsAnalysis() {
   // nothing here replaces them with a different rate.
 
   // Monthly combo chart: bars for monthly P&L + cumulative line
-  const monthlyComboData = useMemo(() => groupTransactionsByMonth(transactions), [transactions])
+  const monthlyComboData = useMemo(
+    () => groupTransactionsByMonth(transactions, returnRules),
+    [transactions, returnRules],
+  )
 
   // Monthly returns heatmap strip
   const monthlyReturns = useMemo(() => {

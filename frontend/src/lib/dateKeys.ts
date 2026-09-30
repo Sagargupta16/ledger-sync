@@ -7,6 +7,8 @@
  * helper; import from there rather than from this module.
  */
 
+import { formatDate } from './formatters'
+
 /** Milliseconds in one day. Use instead of inlining `1000 * 60 * 60 * 24`. */
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -53,6 +55,22 @@ export const getCurrentMonth = (): string => toLocalDateKey(new Date()).slice(0,
  * a UTC date key and lands on yesterday for the first 5.5 hours of an IST day.
  */
 export const getTodayKey = (): string => toLocalDateKey(new Date())
+
+/** The ledger's own calendar: stored dates are naive Asia/Kolkata (IST) days. */
+const LEDGER_TIME_ZONE = 'Asia/Kolkata'
+
+/**
+ * Today's `YYYY-MM-DD` on the LEDGER calendar (IST), the backend
+ * `ledger_clock.ledger_today()` twin. Use it for a server-side `end_date` that
+ * must mean "no future-dated rows" whatever the viewer's own timezone is.
+ */
+export const getLedgerTodayKey = (now: Date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: LEDGER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
 
 /**
  * Add `n` calendar months to a `YYYY-MM-DD` key, clamping the day to the target
@@ -173,7 +191,9 @@ export const formatMonthKey = (
   const year = Number(monthKey.slice(0, 4))
   const month = Number(monthKey.slice(5, 7))
   if (!year || !month) return monthKey
-  return new Date(year, month - 1, 1).toLocaleDateString('en-US', opts)
+  // The shared date formatter reads the key as a local calendar day, in the
+  // app's one date locale.
+  return formatDate(`${monthKey.slice(0, 7)}-01`, opts)
 }
 
 /**

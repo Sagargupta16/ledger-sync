@@ -9,7 +9,12 @@ import FinancialHealthScore from '../FinancialHealthScore'
 
 const fixture = vi.hoisted((): {
   accounts: AccountBalances['accounts']
-  preferences: { earning_start_date?: string; use_earning_start_date?: boolean }
+  preferences: {
+    earning_start_date?: string
+    use_earning_start_date?: boolean
+    capital_loss_categories?: string[]
+    investment_account_mappings?: Record<string, string>
+  }
 } => ({
   accounts: {},
   preferences: {},
@@ -37,10 +42,6 @@ vi.mock('@/hooks/api/useAccountClassifications', () => ({
     isLoading: false,
     isError: false,
   }),
-}))
-
-vi.mock('@/store/investmentAccountStore', () => ({
-  useInvestmentAccountStore: () => () => false,
 }))
 
 vi.mock('@/hooks/useCountUp', () => ({
@@ -133,5 +134,31 @@ describe('FinancialHealthScore CFP input parity', () => {
     expect(summary.totalDebtOutstanding).toBe(192.03)
     expect(summary.totalIncome).not.toBe(summary.avgMonthlyIncome * 3)
     expect(summary.totalDebtOutstanding).not.toBe(summary.avgMonthlyDebt * 3)
+  })
+
+  it('keeps a classified realised loss out of expenses, and counts it until classified', () => {
+    const loss: Transaction = {
+      id: 'loss', date: '2025-02-20', type: 'Expense', category: 'Investment Expenses',
+      subcategory: 'F&O Loss', amount: 30000, account: 'Synthetic Bank',
+    }
+
+    render(<FinancialHealthScore transactions={[...syntheticLedger(), loss]} />)
+    expect(vi.mocked(computeCFPScore).mock.calls[0][0].totalExpenses).toBe(150000)
+
+    vi.clearAllMocks()
+    fixture.preferences = { capital_loss_categories: ['investment expenses::f&o loss'] }
+    render(<FinancialHealthScore transactions={[...syntheticLedger(), loss]} />)
+    expect(vi.mocked(computeCFPScore).mock.calls[0][0].totalExpenses).toBe(120000)
+  })
+
+  it('reads mapped investment accounts case-insensitively from preferences', () => {
+    const sip: Transaction = {
+      id: 'sip', date: '2025-02-10', type: 'Transfer', category: 'Transfer', amount: 10000,
+      account: 'Synthetic Bank', from_account: 'Synthetic Bank', to_account: 'My Future',
+    }
+    fixture.preferences = { investment_account_mappings: { 'my future': 'Mutual Funds' } }
+
+    render(<FinancialHealthScore transactions={[...syntheticLedger(), sip]} />)
+    expect(vi.mocked(computeCFPScore).mock.calls[0][0].netInvestments).toBe(10000)
   })
 })

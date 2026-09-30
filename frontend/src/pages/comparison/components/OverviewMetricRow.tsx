@@ -1,5 +1,5 @@
 import ProgressBar from '@/components/shared/ProgressBar'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { pctChange } from '../utils'
 import { ChangeIcon } from './ChangeIcon'
 
@@ -32,7 +32,7 @@ export function OverviewMetricRow({
   const change = isPercent ? valueB - valueA : pctChange(valueB, valueA)
   const isPositive = change >= 0
   const isGood = invertChange ? !isPositive : isPositive
-  const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
+  const fmtVal = (v: number) => (isPercent ? formatPercent(v) : formatCurrency(v))
 
   return (
     <div className="grid grid-cols-1 gap-3 py-5 first:pt-0 last:pb-0 md:grid-cols-[8rem_minmax(0,1fr)] md:gap-6">

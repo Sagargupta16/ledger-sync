@@ -269,13 +269,17 @@ export function generateDemoNetWorth(txs: Transaction[]): NetWorthSnapshot[] {
       assets.fixed_deposits +
       assets.ppf_epf
 
+    // Every negative balance is a liability (`_assign_balance_to_bucket` in
+    // backend `core/analytics/net_worth.py`): an overdrawn cash position is
+    // owed, not a zero asset, so the
+    // part `cash_and_bank` clamps away lands in `other`.
     const liabilities = {
       credit_cards: Math.abs(runningCC),
       loans: Math.abs(runningLoan),
-      other: 0,
+      other: Math.max(0, -runningCash),
       total: 0,
     }
-    liabilities.total = liabilities.credit_cards + liabilities.loans
+    liabilities.total = liabilities.credit_cards + liabilities.loans + liabilities.other
 
     const netWorth = assets.total - liabilities.total
     const prevNetWorth = i > 0 ? snapshots[i - 1].net_worth : netWorth

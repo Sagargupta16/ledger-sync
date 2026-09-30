@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
 import { EASING } from '@/constants/animations'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import type { SpendingBucket } from '@/services/api/analyticsV2'
 import { useMotionStore } from '@/store/motionStore'
 
@@ -118,7 +118,7 @@ export function BucketCard({
             <dd className={`mt-1 font-mono text-lg font-semibold leading-6 tabular-nums ${
               isOverCap ? 'text-app-red' : STATUS_COLORS[status]
             }`}>
-              {pctOfIncome.toFixed(1)}%
+              {formatPercent(pctOfIncome)}
             </dd>
           </div>
           <div className="text-right">

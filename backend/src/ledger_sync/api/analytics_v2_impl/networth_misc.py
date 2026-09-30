@@ -1,4 +1,8 @@
-"""V2 endpoints: net worth, FY summaries, anomalies, budgets, goals."""
+"""V2 endpoints: net worth, FY summaries, anomalies, budgets, goals.
+
+Net worth and FY summaries live in ``networth_fy``, mounted first so the route
+order is unchanged.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +11,9 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
+from ledger_sync.api.analytics_v2_impl.networth_fy import router as networth_fy_router
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.core.ledger_clock import ledger_today
@@ -17,13 +22,13 @@ from ledger_sync.db.models import (
     AnomalyType,
     Budget,
     FinancialGoal,
-    FYSummary,
-    NetWorthSnapshot,
 )
 from ledger_sync.schemas.goals import CreateGoalRequest, UpdateGoalRequest
 from ledger_sync.services.goal_service import new_goal, serialize_goal, update_goal
 
 router = APIRouter()
+# Mounted before this module's own routes: /net-worth and /fy-summaries first.
+router.include_router(networth_fy_router)
 
 
 class CreateBudgetRequest(BaseModel):
@@ -36,122 +41,6 @@ class CreateBudgetRequest(BaseModel):
 class ReviewAnomalyRequest(BaseModel):
     dismiss: bool = False
     notes: str | None = None
-
-
-@router.get("/net-worth")
-def get_net_worth_history(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    limit: Annotated[int, Query(ge=1, le=600, description="Number of snapshots")] = 120,
-) -> dict[str, Any]:
-    """Get net worth history and current snapshot.
-
-    Returns:
-    - Asset breakdown (cash, investments, etc.)
-    - Liability breakdown
-    - Net worth over time
-
-    """
-    snapshots = (
-        db.query(NetWorthSnapshot)
-        .filter(NetWorthSnapshot.user_id == current_user.id)
-        .order_by(desc(NetWorthSnapshot.snapshot_date))
-        .limit(limit)
-        .all()
-    )
-
-    if not snapshots:
-        return {"data": [], "current": None, "count": 0}
-
-    current = snapshots[0]
-
-    return {
-        "data": [
-            {
-                "date": s.snapshot_date.isoformat(),
-                "assets": {
-                    "cash_and_bank": float(s.cash_and_bank),
-                    "investments": float(s.investments),
-                    "mutual_funds": float(s.mutual_funds),
-                    "stocks": float(s.stocks),
-                    "fixed_deposits": float(s.fixed_deposits),
-                    "ppf_epf": float(s.ppf_epf),
-                    "other": float(s.other_assets),
-                    "total": float(s.total_assets),
-                },
-                "liabilities": {
-                    "credit_cards": float(s.credit_card_outstanding),
-                    "loans": float(s.loans_payable),
-                    "other": float(s.other_liabilities),
-                    "total": float(s.total_liabilities),
-                },
-                "net_worth": float(s.net_worth),
-                "change": float(s.net_worth_change),
-                "change_pct": s.net_worth_change_pct,
-            }
-            for s in snapshots
-        ],
-        "current": {
-            "net_worth": float(current.net_worth),
-            "total_assets": float(current.total_assets),
-            "total_liabilities": float(current.total_liabilities),
-            "as_of": current.snapshot_date.isoformat(),
-        },
-        "count": len(snapshots),
-    }
-
-
-@router.get("/fy-summaries")
-def get_fy_summaries(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-) -> dict[str, Any]:
-    """Get fiscal year summaries (April - March).
-
-    Perfect for:
-    - Annual tax planning
-    - Year-over-year comparison
-    - Financial year analysis (India FY)
-    """
-    summaries = (
-        db.query(FYSummary)
-        .filter(FYSummary.user_id == current_user.id)
-        .order_by(desc(FYSummary.fiscal_year))
-        .all()
-    )
-
-    return {
-        "data": [
-            {
-                "fiscal_year": s.fiscal_year,
-                "period": f"{s.start_date.strftime('%b %Y')} - {s.end_date.strftime('%b %Y')}",
-                "income": {
-                    "total": float(s.total_income),
-                    "salary": float(s.salary_income),
-                    "bonus": float(s.bonus_income),
-                    "investment": float(s.investment_income),
-                    "other": float(s.other_income),
-                },
-                "expenses": {
-                    "total": float(s.total_expenses),
-                    "tax_paid": float(s.tax_paid),
-                },
-                "investments_made": float(s.investments_made),
-                "savings": {
-                    "net": float(s.net_savings),
-                    "rate": s.savings_rate,
-                },
-                "yoy": {
-                    "income": s.yoy_income_change,
-                    "expenses": s.yoy_expense_change,
-                    "savings": s.yoy_savings_change,
-                },
-                "is_complete": s.is_complete,
-            }
-            for s in summaries
-        ],
-        "count": len(summaries),
-    }
 
 
 @router.get("/anomalies")
@@ -181,12 +70,11 @@ def get_anomalies(
     - Unusual category spending
     - Large transfers
     - Budget exceeded
+
+    ``limit`` caps only ``data``. ``count`` and ``summary`` cover every
+    matching anomaly, so badges and tiles do not stop at the page size.
     """
-    query = (
-        db.query(Anomaly)
-        .filter(Anomaly.user_id == current_user.id)
-        .order_by(desc(Anomaly.detected_at))
-    )
+    query = db.query(Anomaly).filter(Anomaly.user_id == current_user.id)
 
     if anomaly_type:
         try:
@@ -200,7 +88,10 @@ def get_anomalies(
         query = query.filter(Anomaly.is_reviewed.is_(False))
         query = query.filter(Anomaly.is_dismissed.is_(False))
 
-    anomalies = query.limit(limit).all()
+    by_severity: dict[str | None, int] = dict(
+        query.with_entities(Anomaly.severity, func.count()).group_by(Anomaly.severity).tuples()
+    )
+    anomalies = query.order_by(desc(Anomaly.detected_at)).limit(limit).all()
 
     return {
         "data": [
@@ -228,11 +119,11 @@ def get_anomalies(
             }
             for a in anomalies
         ],
-        "count": len(anomalies),
+        "count": sum(by_severity.values()),
         "summary": {
-            "high": sum(1 for a in anomalies if a.severity == "high"),
-            "medium": sum(1 for a in anomalies if a.severity == "medium"),
-            "low": sum(1 for a in anomalies if a.severity == "low"),
+            "high": by_severity.get("high", 0),
+            "medium": by_severity.get("medium", 0),
+            "low": by_severity.get("low", 0),
         },
     }
 

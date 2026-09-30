@@ -5,7 +5,6 @@ import { ChevronDown, Shield } from 'lucide-react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { colors, rawColors } from '@/constants/colors'
@@ -14,8 +13,10 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
+import { capitalLossConfig } from '@/lib/expenseClassification'
 import ErrorState from '@/components/shared/ErrorState'
 import { analysisPeriodLabel, type EarningStart } from '@/lib/finance/analysisPeriod'
+import { investmentAccountTest } from '@/lib/finance/investmentFlows'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
@@ -153,8 +154,11 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     preferencesQuery.isError ||
     balancesQuery.isError ||
     classificationsQuery.isError
-  const isInvestmentAccount = useInvestmentAccountStore((state) => state.isInvestmentAccount)
   const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
+  // The classified realised-loss keys `/totals` reads, so a classified loss
+  // leaves the score's expenses exactly as it leaves the Dashboard's.
+  const lossCategories = preferences?.capital_loss_categories
+  const expenseClassification = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
 
   const userFixedCategories = useMemo<Set<string>>(() => {
     const raw = preferences?.fixed_expense_categories
@@ -178,6 +182,13 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     () => preferences?.investment_account_mappings ?? {},
     [preferences?.investment_account_mappings],
   )
+  // The shared investment perimeter (mapped names, case-insensitive; default
+  // keywords when nothing is mapped) -- the rule the Dashboard and Investment
+  // Analytics use, not the device-local exact-match store.
+  const isInvestmentAccount = useMemo(
+    () => investmentAccountTest(Object.keys(investmentMappings)),
+    [investmentMappings],
+  )
 
   // Real balance position (liquid vs investment vs liabilities) from actual
   // account balances -- the correct basis for emergency-fund / liquidity /
@@ -195,8 +206,12 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   const currentHealth = useMemo(() => computeCurrentHealth(transactions, isInvestmentAccount, {
     earningStartDate: preferences?.earning_start_date,
     fixedCategories: userFixedCategories.size > 0 ? userFixedCategories : undefined,
+    expenseClassification,
     balances: balancePosition,
-  }), [transactions, isInvestmentAccount, userFixedCategories, balancePosition, preferences?.earning_start_date])
+  }), [
+    transactions, isInvestmentAccount, userFixedCategories, expenseClassification,
+    balancePosition, preferences?.earning_start_date,
+  ])
   const analysisData = currentHealth?.analysis
 
   const cfpCompositeScore = useMemo(() => {

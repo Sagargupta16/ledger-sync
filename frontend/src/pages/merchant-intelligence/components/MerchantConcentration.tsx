@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 
 import { ProgressBar } from '@/components/shared'
 import { Money } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatPercent } from '@/lib/formatters'
 
 import { toLabelKind } from '../merchantUtils'
@@ -76,7 +76,7 @@ export default function MerchantConcentration({
                     value={row.total_spent}
                     max={maxSpend}
                     color={
-                      index < stats.vitalFewCount ? rawColors.app.orange : rawColors.text.tertiary
+                      index < stats.vitalFewCount ? colors.app.orange : colors.text.tertiary
                     }
                     height={6}
                     ariaLabel={`${row.merchant} share of tracked spend`}

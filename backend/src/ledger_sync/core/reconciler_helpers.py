@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ledger_sync.utils.logging import logger
-
 
 class ReconciliationStats:
     """Statistics from reconciliation process."""
@@ -72,20 +70,3 @@ def update_stats_for_action(stats: ReconciliationStats, action: str) -> None:
         stats.updated += 1
     elif action == "skipped":
         stats.skipped += 1
-
-
-def log_batch_duplicate(row: dict[str, Any], record_id: str, *, is_transfer: bool) -> None:
-    """Log a warning about a duplicate record found within a batch."""
-    if is_transfer:
-        logger.warning(
-            f"Skipping duplicate transfer in batch: {record_id[:16]}... "
-            f"(Date: {row['date']}, Amount: {row['amount']}, "
-            f"From: {row['from_account']}, To: {row['to_account']})",
-        )
-    else:
-        logger.warning(
-            f"Skipping duplicate transaction in batch: {record_id[:16]}... "
-            f"(Date: {row['date']}, Amount: {row['amount']}, "
-            f"Account: {row['account']}, Category: {row['category']}, "
-            f"Type: {row['type']})",
-        )

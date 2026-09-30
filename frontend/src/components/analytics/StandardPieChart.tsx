@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Tooltip, type PieSectorDataItem } from 'recharts'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import PieChartLedger from '@/components/ui/PieChartLedger'
@@ -94,7 +94,7 @@ export default function StandardPieChart({
   const formatValue = tooltipFormatter ?? formatCurrency
   const displayedValue = activeSlice && centerValue ? formatValue(activeSlice.value) : (centerValue ?? '')
   const displayedLabel = activeSlice && centerValue && total > 0
-    ? `${((activeSlice.value / total) * 100).toFixed(1)}% of total`
+    ? `${formatPercent((activeSlice.value / total) * 100)} of total`
     : centerLabel
   const animatedCenterValue = useAnimatedValue(displayedValue)
 
@@ -126,7 +126,7 @@ export default function StandardPieChart({
                 animationDuration={520}
                 animationEasing="ease-out"
                 label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
-                  `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  `${name ?? ''} ${formatPercent((percent ?? 0) * 100, false, 0)}`
                 )) as never : undefined}
                 labelLine={showLabels ? { stroke: CHART_TEXT.subtle, strokeWidth: 1 } : undefined}
                 // Wedge colour rides on each datum's `fill`, and the hover/click paint

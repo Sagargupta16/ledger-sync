@@ -1,13 +1,23 @@
 """Transaction classification mixin.
 
 Pure predicates that answer "is this transaction a kind of X?" against the
-preference-driven category lists maintained by ``AnalyticsEngineBase``.
+preference-driven category lists maintained by ``AnalyticsEngineBase``. The
+matching rules themselves live in ``core.metric_rules`` so the rollups and the
+API endpoints share one definition of each figure.
 """
 
 from __future__ import annotations
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
-from ledger_sync.core.expense_class import is_capital_loss
+from ledger_sync.core.expense_class import classification_key, is_capital_loss
+from ledger_sync.core.metric_rules import (
+    classify_employment_income,
+    income_keys,
+    investment_account_names,
+    is_investment_account,
+    looks_like_investment_income,
+    normalize_account,
+)
 from ledger_sync.db.models import Transaction
 
 
@@ -19,42 +29,58 @@ class ClassificationMixin(AnalyticsEngineBase):
     """
 
     def _is_taxable_income(self, txn: Transaction) -> bool:
-        """Check if transaction is taxable income based on preferences."""
-        item = f"{txn.category}::{txn.subcategory}"
-        return item in self.taxable_income_categories
-
-    # Keyword hints (lower-cased) used to split the user's own taxable-income
-    # categories into salary vs bonus, instead of hardcoding one schema's exact
-    # strings. A salary/bonus item must ALSO be in taxable_income_categories, so
-    # these only refine an already-taxable item -- they never tax something new.
-    _SALARY_KEYWORDS = ("salary", "stipend", "wage", "pension")
-    _BONUS_KEYWORDS = ("bonus", "rsu", "esop", "incentive", "commission")
+        """Taxable income: the row's key is in the taxable list, case-insensitively."""
+        key = classification_key(txn.category, txn.subcategory)
+        return key in income_keys(self.taxable_income_categories)
 
     def _is_salary_income(self, txn: Transaction) -> bool:
-        """Salary income: a taxable item whose subcategory reads like salary.
+        """Salary income: a taxable item that ``classify_employment_income`` calls salary.
 
         Preference-driven (subset of ``taxable_income_categories``) so users
-        whose category names differ from the default schema still classify --
-        the old hardcoded literals silently returned False for them.
+        whose category names differ from the default schema still classify.
+        The salary / stipend keywords are matched at word boundaries on the
+        subcategory, then the category -- the Tax page's rule too -- so
+        "Employment Income::Monthly Salary" is salary.
         """
-        item = f"{txn.category}::{txn.subcategory}"
-        if item not in self.taxable_income_categories:
-            return False
-        sub = (txn.subcategory or "").lower()
-        return any(kw in sub for kw in self._SALARY_KEYWORDS)
+        return self._is_taxable_income(txn) and (
+            classify_employment_income(txn.category, txn.subcategory) == "salary"
+        )
 
     def _is_bonus_income(self, txn: Transaction) -> bool:
-        """Bonus income: a taxable item whose subcategory reads like a bonus/RSU."""
-        item = f"{txn.category}::{txn.subcategory}"
-        if item not in self.taxable_income_categories:
-            return False
-        sub = (txn.subcategory or "").lower()
-        return any(kw in sub for kw in self._BONUS_KEYWORDS)
+        """Bonus income: a taxable item whose keywords say bonus or RSU."""
+        return self._is_taxable_income(txn) and (
+            classify_employment_income(txn.category, txn.subcategory) == "bonus"
+        )
 
     def _is_investment_income(self, txn: Transaction) -> bool:
-        """Check if transaction is investment income based on preferences."""
-        item = f"{txn.category}::{txn.subcategory}"
-        return item in self.investment_returns_categories
+        """Investment income: the user's list, else the default keywords.
+
+        A configured ``investment_returns_categories`` list is honoured exactly
+        (case-insensitive whole key). When it resolves to empty or to the
+        shipped defaults -- i.e. the user has not chosen their own -- the
+        generic keywords (interest, dividends, capital gains, mutual fund gains,
+        returns) also count, so a taxonomy that is not the shipped template
+        still reports its investment returns. A row the user filed under
+        another income list is never re-claimed by a keyword.
+        """
+        key = classification_key(txn.category, txn.subcategory)
+        if key in income_keys(self.investment_returns_categories):
+            return True
+        if not self.investment_returns_categories_is_default:
+            return False
+        if key in self._other_income_list_keys():
+            return False
+        return looks_like_investment_income(txn.category, txn.subcategory)
+
+    def _other_income_list_keys(self) -> frozenset[str]:
+        """Keys the user classified as taxable, non-taxable or other income."""
+        return income_keys(
+            [
+                *self.taxable_income_categories,
+                *self.non_taxable_income_categories,
+                *self.other_income_categories,
+            ]
+        )
 
     def _is_capital_loss(self, txn: Transaction) -> bool:
         """Is this EXPENSE row a realised investment loss the user classified?
@@ -72,16 +98,26 @@ class ClassificationMixin(AnalyticsEngineBase):
         return is_capital_loss(txn.category, txn.subcategory, self.capital_loss_keys)
 
     def _is_investment_account(self, account_name: str | None) -> bool:
-        """Check if account name matches an investment-account pattern."""
-        if not account_name:
-            return False
-        return any(inv in account_name for inv in self.investment_account_patterns)
+        """The one investment-account rule (``core.metric_rules``).
+
+        Mapped accounts match on their exact name, case-insensitively; with no
+        mapping the default keyword list applies.
+        """
+        return is_investment_account(
+            account_name, investment_account_names(self.investment_account_patterns)
+        )
 
     def _get_investment_type(self, account_name: str | None) -> str | None:
-        """Return the investment type tag for an account (e.g. ``'stocks'``)."""
-        if not account_name:
+        """Return the mapped investment type for an account (e.g. ``'stocks'``).
+
+        Exact, case-insensitive account-name match -- the same rule as
+        ``_is_investment_account``. Keyword-fallback accounts have no mapped
+        type, so they return ``None``.
+        """
+        name = normalize_account(account_name)
+        if not name:
             return None
-        for pattern, inv_type in self.investment_account_patterns.items():
-            if pattern in account_name:
+        for account, inv_type in self.investment_account_patterns.items():
+            if normalize_account(account) == name:
                 return inv_type
         return None

@@ -6,6 +6,7 @@ import PageErrorState from '@/components/shared/PageErrorState'
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
 
+import CapitalLossPanel from './components/CapitalLossPanel'
 import CoveragePanel from './components/CoveragePanel'
 import HealthMetricGrid from './components/HealthMetricGrid'
 import ImportLedgerPanel from './components/ImportLedgerPanel'
@@ -83,6 +84,18 @@ export default function DataHealthPage() {
         onAction={state.runIssueAction}
         pendingActionId={state.pendingActionId}
         failedActionId={state.failedActionId}
+      />
+
+      <CapitalLossPanel
+        candidates={state.capitalLosses.candidates}
+        classified={state.capitalLosses.classified}
+        pendingKey={state.capitalLosses.pendingKey}
+        isBusy={state.capitalLosses.isBusy}
+        canEdit={state.capitalLosses.canEdit}
+        failure={state.capitalLosses.failure}
+        onClassify={state.capitalLosses.classify}
+        onUnclassify={state.capitalLosses.unclassify}
+        onRetryRefresh={state.capitalLosses.retryRefresh}
       />
 
       <ImportLedgerPanel

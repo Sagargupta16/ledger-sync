@@ -11,13 +11,10 @@ from datetime import UTC, datetime, timedelta, timezone
 
 from ledger_sync.core.ledger_clock import (
     IST_OFFSET,
-    financial_year_label,
     financial_year_start,
     ledger_now,
     ledger_today,
     ledger_today_iso,
-    start_of_month,
-    start_of_year,
     to_ledger_time,
 )
 
@@ -61,20 +58,20 @@ def test_to_ledger_time_handles_a_non_utc_aware_input() -> None:
     assert to_ledger_time(tokyo) == datetime(2026, 7, 27, 1, 30)
 
 
-def test_start_of_month_uses_the_ist_month_not_the_utc_month() -> None:
+def test_ist_conversion_crosses_the_month_boundary() -> None:
     """The regression: 02:00 IST on 1 April is still 31 March in UTC.
 
     A UTC anchor opens "this month" on 1 March, so the user's first look at the
     new month shows five extra weeks of spending.
     """
     utc_instant = datetime(2026, 3, 31, 20, 30, tzinfo=UTC)  # 02:00 IST, 1 Apr
-    assert start_of_month(utc_instant) == datetime(2026, 4, 1)
+    assert to_ledger_time(utc_instant) == datetime(2026, 4, 1, 2, 0)
 
 
-def test_start_of_year_uses_the_ist_year() -> None:
+def test_ist_conversion_crosses_the_year_boundary() -> None:
     """31 Dec 20:30 UTC is already 1 Jan in India."""
     utc_instant = datetime(2025, 12, 31, 20, 30, tzinfo=UTC)
-    assert start_of_year(utc_instant) == datetime(2026, 1, 1)
+    assert to_ledger_time(utc_instant) == datetime(2026, 1, 1, 2, 0)
 
 
 def test_financial_year_opens_on_1_april() -> None:
@@ -95,24 +92,11 @@ def test_financial_year_boundary_is_judged_in_ist() -> None:
     """
     utc_instant = datetime(2026, 3, 31, 20, 30, tzinfo=UTC)
     assert financial_year_start(utc_instant) == datetime(2026, 4, 1)
-    assert financial_year_label(utc_instant) == "FY2026-27"
-
-
-def test_financial_year_label_format() -> None:
-    assert financial_year_label(datetime(2026, 7, 26, tzinfo=UTC)) == "FY2026-27"
-    assert financial_year_label(datetime(2026, 2, 1, tzinfo=UTC)) == "FY2025-26"
-
-
-def test_financial_year_label_across_a_century_boundary() -> None:
-    """The two-digit suffix must come from the year, not a hardcoded prefix."""
-    assert financial_year_label(datetime(2099, 5, 1, tzinfo=UTC)) == "FY2099-00"
 
 
 def test_defaults_read_the_current_clock() -> None:
     """Every helper must work with no argument, since that is the common call."""
     now = ledger_now()
-    assert start_of_month().year == now.year
-    assert start_of_month().month == now.month
-    assert start_of_month().day == 1
-    assert start_of_year().month == 1
-    assert financial_year_start().month == 4
+    start = financial_year_start()
+    assert (start.month, start.day) == (4, 1)
+    assert start.year == (now.year if now.month >= 4 else now.year - 1)

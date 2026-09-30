@@ -114,7 +114,9 @@ export interface SpendingRuleCategoryRow {
    *  Per-sub detail lives in `top_subs` (up to 3, sorted by amount desc). */
   subcategory: string | null
   bucket: SpendingBucket
+  /** Includes the month in progress. */
   total_amount: number
+  /** Complete-month total / `period.months`; 0 when there is no complete month. */
   avg_monthly: number
   txn_count: number
   months_seen: number
@@ -135,6 +137,8 @@ export interface SpendingRuleResponse {
   period: {
     start: string
     end: string
+    /** COMPLETE calendar months in the range (empty months count, the month
+     *  in progress does not); 0 when the range sits inside the current month. */
     months: number
   }
   income_total: number

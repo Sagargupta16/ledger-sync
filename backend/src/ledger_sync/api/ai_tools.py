@@ -15,6 +15,8 @@ Design principles:
 
 from __future__ import annotations
 
+import logging
+import secrets
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -23,6 +25,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from ledger_sync.api.ai_tools_impl import REGISTRY  # triggers tool registration
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import user_limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ai/tools", tags=["ai-tools"])
 
@@ -53,8 +57,9 @@ def list_tools(_current_user: CurrentUser) -> dict[str, Any]:
     "/execute",
     responses={
         404: {"description": "Unknown tool"},
-        400: {"description": "Tool execution failed"},
+        400: {"description": "Tool rejected its arguments"},
         422: {"description": "Tool arguments do not match the declared schema"},
+        500: {"description": "Tool failed unexpectedly; the detail carries an error id"},
     },
 )
 @user_limiter.limit("120/minute")
@@ -83,6 +88,17 @@ def execute_tool(
         result = spec.execute(current_user, session, arguments)
     except HTTPException:
         raise
-    except Exception as exc:
+    except ValueError as exc:
+        # Argument problems a tool detects itself (pydantic's ValidationError is
+        # a ValueError): the model can retry with corrected input.
         raise HTTPException(400, f"Tool {payload.name} could not be completed") from exc
+    except Exception as exc:
+        session.rollback()
+        error_id = secrets.token_hex(8)
+        # Type and correlation id only: a database error's message carries the
+        # statement parameters, which are the user's financial data.
+        logger.error("AI tool %s failed [%s]: %s", payload.name, error_id, type(exc).__name__)
+        raise HTTPException(
+            500, f"Tool {payload.name} failed unexpectedly (error id {error_id})"
+        ) from exc
     return {"name": payload.name, "result": result}

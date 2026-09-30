@@ -9,47 +9,40 @@
  * spending inflates every expense total, category ranking, savings rate and
  * budget comparison.
  *
- * Sibling rows in the same category ARE genuine expenses -- brokerage, STT,
- * demat AMC and advisory fees are the cost of doing business as an investor.
- * So this is never a whole-category move; classification is per row.
+ * ONE RULE, SHARED WITH THE BACKEND (decided 2026-09-30: the backend rule wins)
+ * ---------------------------------------------------------------------------
+ * Aggregates exclude ONLY the `Category::Subcategory` keys the user classified
+ * in the `capital_loss_categories` preference -- the same set
+ * `backend/src/ledger_sync/core/expense_class.py` reads, normalised the same way
+ * (`classification_key`: trim + lower-case each half). The preference ships
+ * EMPTY, so an unclassified ledger counts every Expense row as spending, exactly
+ * as `/totals`, `/category-breakdown` and the rollups do.
  *
- * MULTI-USER CONSTRAINT (do not regress this)
- * -------------------------------------------
- * This app is generic and multi-user. One user's category names are NEVER the
- * source of truth. Classification is therefore pattern-based (word-boundary
- * regexes) plus an optional per-user `overrides` map, so a ledger that spells
- * it "Trading Losses", "F & O Loss", "Realised Capital Loss" or something in
- * another taxonomy still classifies. Never add a rule that only works for one
- * specific ledger's spelling.
- *
- * TAXONOMY-ONLY WINDOW
- * --------------------
- * Only `category` + `subcategory` are read. `note` and `account` are free text
- * that a user writes for their own reasons, and reading them let unrelated
- * signals combine across fields: a gadget bought on a broker-linked account
- * with the note "replacement for loss" scored an investment signal from the
- * account and a loss signal from the note, and got dropped from spending. The
- * row's own taxonomy must state BOTH "investment" and "loss" for it to count as
- * a realised loss.
+ * An earlier version of this module decided losses from name patterns on its
+ * own. That made client-computed pages drop rows the server still counted, so
+ * the same window read two different spending totals depending on which page
+ * the user opened. Patterns now power {@link looksLikeCapitalLoss} only: a
+ * DETECTION signal that suggests candidates (the Data Health page, mirroring
+ * the backend's `capital_loss_candidates`) and never moves an aggregate.
  *
  * FAIL-SAFE DIRECTION
  * -------------------
- * Unknown rows resolve to an expense class, never to `capital_loss`. Wrongly
- * excluding a row understates a user's real spending, which is the dangerous
- * error; wrongly including one only leaves today's behaviour unchanged. For
- * the same reason a fee signal beats a loss signal on the same row.
+ * Wrongly excluding a row understates a user's real spending, which is the
+ * dangerous error; wrongly including one only leaves today's behaviour
+ * unchanged. So a row is a capital loss only when the user said so.
+ *
+ * MULTI-USER CONSTRAINT (do not regress this)
+ * -------------------------------------------
+ * No category name is hardcoded here. Classified keys come from the user's own
+ * data, and the detection patterns are generic word-boundary regexes so "Trading
+ * Losses", "F & O Loss" or "Realised Capital Loss" all raise the signal.
  *
  * SCOPE
  * -----
  * Realised-loss rows are excluded from SPENDING only. They are still real
- * ledger rows and belong in investment P&L / returns views, and under Indian
- * tax law they carry forward against future capital gains (8 assessment
- * years; speculative intraday losses 4), so they must never be deleted or
- * hidden -- just not summed as consumption.
- *
- * Known limitation: a user who books actual investment PURCHASES as expenses
- * still gets them counted as spending (`investment_cost`). That is a separate
- * defect about investment outflow detection, deliberately not handled here.
+ * ledger rows, they still left the account (savings subtract them), and under
+ * Indian tax law they carry forward against future capital gains, so they are
+ * never deleted or hidden -- just not summed as consumption.
  */
 
 import {
@@ -59,13 +52,13 @@ import {
 } from './expenseClassificationPatterns'
 
 /** Consumption = real spending. investment_cost = cost of investing (still an
- *  expense, real cash out). capital_loss = negative return, NOT spending. */
+ *  expense, real cash out). capital_loss = classified negative return, NOT spending. */
 export type ExpenseClass = 'consumption' | 'investment_cost' | 'capital_loss'
 
 /**
  * Minimal shape needed to classify; every field is optional so partial rows
  * (demo fixtures, aggregation buckets) classify without a cast. `note` and
- * `account` are deliberately absent -- see the TAXONOMY-ONLY WINDOW note above.
+ * `account` are deliberately absent: only the row's own taxonomy is read.
  */
 export interface ExpenseClassifiable {
   type?: string | null
@@ -76,20 +69,54 @@ export interface ExpenseClassifiable {
 
 export interface ExpenseClassificationConfig {
   /**
-   * Per-user escape hatch. Keys are matched case-insensitively and
-   * whitespace-normalised, most specific first: `"Category::Subcategory"`,
-   * then bare subcategory, then bare category.
+   * Normalised `category::subcategory` keys the user classified as realised
+   * losses. Build it with {@link capitalLossKeySet}; absent or empty means
+   * nothing is classified and every Expense row is spending.
    */
-  readonly overrides?: Readonly<Record<string, ExpenseClass>>
-  /** Extra "this row is a realised loss" signals for unusual taxonomies. */
-  readonly extraLossPatterns?: readonly RegExp[]
-  /** Extra "this row sits in an investment context" signals. */
-  readonly extraInvestmentPatterns?: readonly RegExp[]
+  readonly capitalLossKeys?: ReadonlySet<string>
+}
+
+/** Separator of the preference keys, matching the four income lists. */
+export const KEY_SEPARATOR = '::'
+
+/** Mirrors backend `_norm`: case folding plus trimming, nothing richer. */
+const normKey = (value: string | null | undefined): string => (value ?? '').trim().toLowerCase()
+
+/** Normalised `category::subcategory` key for a row (backend `classification_key`). */
+export function classificationKey(
+  category: string | null | undefined,
+  subcategory: string | null | undefined,
+): string {
+  return `${normKey(category)}${KEY_SEPARATOR}${normKey(subcategory)}`
+}
+
+/**
+ * Parse stored `capital_loss_categories` into normalised keys (backend
+ * `capital_loss_keys`). Non-string and blank entries are skipped; a key without
+ * a separator classifies the category's rows that have no subcategory.
+ */
+export function capitalLossKeySet(categories: readonly unknown[] | null | undefined): ReadonlySet<string> {
+  const keys = new Set<string>()
+  for (const item of categories ?? []) {
+    if (typeof item !== 'string' || !item.trim()) continue
+    const at = item.indexOf(KEY_SEPARATOR)
+    const category = at === -1 ? item : item.slice(0, at)
+    const subcategory = at === -1 ? '' : item.slice(at + KEY_SEPARATOR.length)
+    keys.add(classificationKey(category, subcategory))
+  }
+  return keys
+}
+
+/** Config for the aggregates from the raw preference list. */
+export function capitalLossConfig(
+  categories: readonly unknown[] | null | undefined,
+): ExpenseClassificationConfig {
+  return { capitalLossKeys: capitalLossKeySet(categories) }
 }
 
 /**
  * Lowercase, collapse whitespace, and fold " and " to "&" so "F and O Loss",
- * "F&O  Loss" and "f & o losses" all reach the same patterns.
+ * "F&O  Loss" and "f & o losses" all reach the same detection patterns.
  */
 const normalise = (value: string | null | undefined): string =>
   (value ?? '')
@@ -101,73 +128,30 @@ const normalise = (value: string | null | undefined): string =>
 const matchesAny = (haystack: string, patterns: readonly RegExp[]): boolean =>
   patterns.some((pattern) => pattern.test(haystack))
 
-/** Override keys, most specific first. */
-const overrideKeys = (tx: ExpenseClassifiable): string[] => {
-  const category = normalise(tx.category)
-  const subcategory = normalise(tx.subcategory)
-  const keys: string[] = []
-  if (category && subcategory) keys.push(`${category}::${subcategory}`)
-  if (subcategory) keys.push(subcategory)
-  if (category) keys.push(category)
-  return keys
-}
-
-const lookupOverride = (
-  tx: ExpenseClassifiable,
-  overrides: Readonly<Record<string, ExpenseClass>> | undefined,
-): ExpenseClass | null => {
-  if (!overrides) return null
-  const normalised = new Map(
-    Object.entries(overrides).map(([key, value]) => [normalise(key), value]),
-  )
-  for (const key of overrideKeys(tx)) {
-    const hit = normalised.get(key)
-    if (hit) return hit
-  }
-  return null
-}
+const taxonomyOf = (tx: ExpenseClassifiable): string =>
+  normalise([tx.category, tx.subcategory].filter(Boolean).join(' '))
 
 /**
- * Classify a single expense row. Pure and deterministic.
+ * DETECTION ONLY: does this row's taxonomy read like a realised loss?
  *
- * Order: explicit override -> require an investment signal in the row's own
- * taxonomy -> fee signal wins (fail-safe) -> loss signal -> residual
- * investment-flavoured rows are a cost of investing -> everything else is
- * consumption.
- *
- * Only category + subcategory are read. Free-text `note`/`account` are ignored
- * on purpose so an investment signal in one field cannot combine with a loss
- * word in another and silently drop a consumption row out of spending.
+ * Mirrors backend `looks_like_capital_loss`: the taxonomy must carry an
+ * investment signal, a fee signal wins (brokerage on a losing trade is still
+ * spending), then a loss signal. Never call this from an aggregate -- its only
+ * job is to suggest rows the user may want to classify.
  */
-export function classifyExpense(
-  tx: ExpenseClassifiable,
-  config: ExpenseClassificationConfig = {},
-): ExpenseClass {
-  const override = lookupOverride(tx, config.overrides)
-  if (override) return override
-
-  const taxonomy = normalise([tx.category, tx.subcategory].filter(Boolean).join(' '))
-  if (!taxonomy) return 'consumption'
-
-  const investmentPatterns = [
-    ...INVESTMENT_CONTEXT_PATTERNS,
-    ...(config.extraInvestmentPatterns ?? []),
-  ]
-  if (!matchesAny(taxonomy, investmentPatterns)) return 'consumption'
-
-  if (matchesAny(taxonomy, INVESTMENT_COST_PATTERNS)) return 'investment_cost'
-
-  const lossPatterns = [...CAPITAL_LOSS_PATTERNS, ...(config.extraLossPatterns ?? [])]
-  if (matchesAny(taxonomy, lossPatterns)) return 'capital_loss'
-
-  return 'investment_cost'
+export function looksLikeCapitalLoss(tx: ExpenseClassifiable): boolean {
+  const taxonomy = taxonomyOf(tx)
+  if (!taxonomy || !matchesAny(taxonomy, INVESTMENT_CONTEXT_PATTERNS)) return false
+  if (matchesAny(taxonomy, INVESTMENT_COST_PATTERNS)) return false
+  return matchesAny(taxonomy, CAPITAL_LOSS_PATTERNS)
 }
 
-/** True when the row is a realised capital loss and must NOT be summed as spending. */
-export const isCapitalLoss = (
-  tx: ExpenseClassifiable,
-  config?: ExpenseClassificationConfig,
-): boolean => classifyExpense(tx, config) === 'capital_loss'
+/** True when the user classified this row's taxonomy as a realised loss. */
+export function isCapitalLoss(tx: ExpenseClassifiable, config?: ExpenseClassificationConfig): boolean {
+  const keys = config?.capitalLossKeys
+  if (!keys || keys.size === 0) return false
+  return keys.has(classificationKey(tx.category, tx.subcategory))
+}
 
 /**
  * True when the row should count towards spending totals.
@@ -175,10 +159,25 @@ export const isCapitalLoss = (
  * Does not check `tx.type` -- callers already filter to expenses, and keeping
  * the type gate at the call site means this stays usable on pre-bucketed rows.
  */
-export const isSpending = (
+export const isSpending = (tx: ExpenseClassifiable, config?: ExpenseClassificationConfig): boolean =>
+  !isCapitalLoss(tx, config)
+
+/**
+ * Classify a single expense row. Pure and deterministic.
+ *
+ * `capital_loss` only for a classified key. Otherwise an investment-flavoured
+ * taxonomy (including an UNCLASSIFIED loss-looking one) is a cost of investing
+ * and everything else is consumption -- both of which are spending.
+ */
+export function classifyExpense(
   tx: ExpenseClassifiable,
-  config?: ExpenseClassificationConfig,
-): boolean => !isCapitalLoss(tx, config)
+  config: ExpenseClassificationConfig = {},
+): ExpenseClass {
+  if (isCapitalLoss(tx, config)) return 'capital_loss'
+  const taxonomy = taxonomyOf(tx)
+  if (taxonomy && matchesAny(taxonomy, INVESTMENT_CONTEXT_PATTERNS)) return 'investment_cost'
+  return 'consumption'
+}
 
 export interface ExpenseTotals {
   consumption: number
@@ -186,7 +185,7 @@ export interface ExpenseTotals {
   capitalLoss: number
   /** consumption + investmentCost: what the app should call "spending". */
   spending: number
-  /** Every expense row including losses: matches the pre-fix inflated total. */
+  /** Every expense row including classified losses. */
   total: number
 }
 

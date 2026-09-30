@@ -8,10 +8,10 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import OperationalError
 from starlette.concurrency import run_in_threadpool
@@ -29,6 +29,11 @@ from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
 from ledger_sync.api.calculations import router as calculations_router
 from ledger_sync.api.categorization_rules import router as categorization_rules_router
+from ledger_sync.api.error_handlers import (
+    database_error_handler,
+    rate_limit_error_handler,
+    validation_error_handler,
+)
 from ledger_sync.api.exchange_rates import router as exchange_rates_router
 from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.oauth import router as oauth_router
@@ -136,22 +141,27 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         yield
 
 
+# The interactive docs and schema describe every route to anyone who asks, so
+# they are served only in local development.
+_docs_enabled = settings.environment == "development"
+
 app = FastAPI(
     title="Ledger Sync API",
     description="Modern API for Excel ingestion and reconciliation",
     version=APP_VERSION,
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 # ─── Rate Limiting ───────────────────────────────────────────────────────────
 
-# Attach the shared limiter to app state so _rate_limit_exceeded_handler can
-# inject Retry-After / rate-limit headers. Without this, a tripped limit raises
+# Attach the shared limiter to app state so the 429 handler can inject
+# Retry-After / rate-limit headers. Without this, a tripped limit raises
 # AttributeError inside the handler and surfaces as a generic 500 instead of 429.
 app.state.limiter = limiter
-
-# Register slowapi rate-limit exceeded handler (returns 429 Too Many Requests)
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+app.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)
 
 # ─── Middleware (order matters: last added = first executed) ──────────────────
 
@@ -203,14 +213,8 @@ async def add_security_headers(
 # ─── Global Exception Handlers ──────────────────────────────────────────────
 
 
-@app.exception_handler(OperationalError)
-async def database_error_handler(_request: Request, exc: OperationalError) -> JSONResponse:
-    """Handle database errors with structured response."""
-    logger.error("Database error: %s", type(exc).__name__)
-    return JSONResponse(
-        status_code=503,
-        content={"error": "Database unavailable", "code": "DB_ERROR"},
-    )
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(OperationalError, database_error_handler)
 
 
 @app.exception_handler(Exception)
@@ -218,13 +222,15 @@ async def generic_error_handler(request: Request, exc: Exception) -> JSONRespons
     """Catch-all handler — no raw tracebacks in responses.
 
     Returns a unique error_id for log correlation instead of leaking
-    internal details.
+    internal details. The traceback goes to the log only; outside development
+    the engine hides SQL bound parameters, so it carries no ledger values.
     """
     error_id = secrets.token_hex(8)
-    logger.error("Unhandled exception [%s]: %s", error_id, type(exc).__name__)
+    logger.error("Unhandled exception [%s]: %s", error_id, type(exc).__name__, exc_info=exc)
     response = JSONResponse(
         status_code=500,
         content={
+            "detail": "Internal server error",
             "error": "Internal server error",
             "code": "INTERNAL_ERROR",
             "error_id": error_id,
@@ -357,7 +363,11 @@ def health_db() -> dict[str, str] | JSONResponse:
         logger.error("Database health check failed: %s", type(e).__name__)
         return JSONResponse(
             status_code=503,
-            content={"status": "error", "database": "unavailable"},
+            content={
+                "detail": "Database unavailable",
+                "status": "error",
+                "database": "unavailable",
+            },
         )
 
 

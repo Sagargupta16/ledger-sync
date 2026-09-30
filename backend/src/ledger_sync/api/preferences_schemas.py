@@ -6,25 +6,56 @@ existing ``from ledger_sync.api.preferences_helpers import ...`` keeps working).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
 
+from ledger_sync.schemas.salary import GrowthAssumptions
+from ledger_sync.schemas.upload import MAX_AMOUNT
 from ledger_sync.services.account_settings import validate_credit_limit
 
-# ----- Pydantic Models -----
+
+def _calendar_date(value: str) -> str:
+    """Reject pattern-shaped strings that are not real dates (``2026-02-30``)."""
+    date.fromisoformat(value)
+    return value
+
+
+# ----- Shared field contracts -----
+#
+# The section models below and the bulk ``UserPreferencesUpdate`` (the Settings
+# page's single save) both use these aliases, so a value one endpoint rejects is
+# rejected by the other. Floats are finite-only: a NaN reaches the Float column,
+# then every later preferences response fails to serialize.
 
 CreditLimit = Annotated[Decimal, BeforeValidator(validate_credit_limit)]
+Percent = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)]
+FiscalMonth = Annotated[int, Field(ge=1, le=12)]
+AnomalyThreshold = Annotated[float, Field(ge=1.0, le=10.0, allow_inf_nan=False)]
+AutoConfirmOccurrences = Annotated[int, Field(ge=2, le=12)]
+NumberFormat = Literal["indian", "international"]
+SymbolPosition = Literal["before", "after"]
+# Lengths match the String columns, so an oversized value is a 422, not a DataError.
+CurrencySymbol = Annotated[str, Field(max_length=10)]
+TimeRange = Annotated[str, Field(max_length=20)]
+CurrencyCode = Annotated[str, Field(min_length=3, max_length=3)]
+IsoDate = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$"), AfterValidator(_calendar_date)]
+Payday = Annotated[int, Field(ge=1, le=31)]
+TaxRegime = Literal["new", "old"]
+MonthlyAmount = Annotated[float, Field(ge=0, le=float(MAX_AMOUNT), allow_inf_nan=False)]
+DaysAhead = Annotated[int, Field(ge=0, le=365)]
+WholePercent = Annotated[int, Field(ge=0, le=100)]
+
+
+# ----- Pydantic Models -----
 
 
 class FiscalYearConfig(BaseModel):
     """Fiscal year configuration."""
 
-    fiscal_year_start_month: int = Field(
-        ge=1,
-        le=12,
+    fiscal_year_start_month: FiscalMonth = Field(
         description="Month number (1-12) when fiscal year starts",
     )
 
@@ -76,9 +107,7 @@ class CapitalLossConfig(BaseModel):
 class BudgetDefaultsConfig(BaseModel):
     """Budget default settings."""
 
-    default_budget_alert_threshold: float = Field(
-        ge=0,
-        le=100,
+    default_budget_alert_threshold: Percent = Field(
         description="Alert when budget usage exceeds this percentage",
     )
     auto_create_budgets: bool = Field(description="Auto-create budgets from spending patterns")
@@ -88,17 +117,17 @@ class BudgetDefaultsConfig(BaseModel):
 class DisplayPreferencesConfig(BaseModel):
     """Display and format preferences."""
 
-    number_format: str = Field(description="Number format: 'indian' or 'international'")
-    currency_symbol: str = Field(description="Currency symbol to display")
-    currency_symbol_position: str = Field(description="Symbol position: 'before' or 'after'")
-    default_time_range: str = Field(
+    number_format: NumberFormat = Field(description="Number format: 'indian' or 'international'")
+    currency_symbol: CurrencySymbol = Field(description="Currency symbol to display")
+    currency_symbol_position: SymbolPosition = Field(
+        description="Symbol position: 'before' or 'after'"
+    )
+    default_time_range: TimeRange = Field(
         description="Default time range: 'last_3_months', 'last_6_months', "
         "'last_12_months', 'current_fy', 'all_time'",
     )
-    display_currency: str = Field(
+    display_currency: CurrencyCode = Field(
         default="INR",
-        min_length=3,
-        max_length=3,
         description="ISO 4217 currency code for display conversion",
     )
 
@@ -106,9 +135,7 @@ class DisplayPreferencesConfig(BaseModel):
 class AnomalySettingsConfig(BaseModel):
     """Anomaly detection settings."""
 
-    anomaly_expense_threshold: float = Field(
-        ge=1.0,
-        le=10.0,
+    anomaly_expense_threshold: AnomalyThreshold = Field(
         description="Standard deviations for expense anomaly detection",
     )
     anomaly_types_enabled: list[str] = Field(
@@ -123,14 +150,10 @@ class AnomalySettingsConfig(BaseModel):
 class RecurringSettingsConfig(BaseModel):
     """Recurring transaction detection settings."""
 
-    recurring_min_confidence: float = Field(
-        ge=0,
-        le=100,
+    recurring_min_confidence: Percent = Field(
         description="Minimum confidence % to flag as recurring",
     )
-    recurring_auto_confirm_occurrences: int = Field(
-        ge=2,
-        le=12,
+    recurring_auto_confirm_occurrences: AutoConfirmOccurrences = Field(
         description="Auto-confirm recurring after this many occurrences",
     )
 
@@ -138,19 +161,13 @@ class RecurringSettingsConfig(BaseModel):
 class SpendingRuleConfig(BaseModel):
     """Spending rule target percentages (Needs/Wants/Savings)."""
 
-    needs_target_percent: float = Field(
-        ge=0,
-        le=100,
+    needs_target_percent: Percent = Field(
         description="Target percentage of income for needs/essentials",
     )
-    wants_target_percent: float = Field(
-        ge=0,
-        le=100,
+    wants_target_percent: Percent = Field(
         description="Target percentage of income for wants/discretionary",
     )
-    savings_target_percent: float = Field(
-        ge=0,
-        le=100,
+    savings_target_percent: Percent = Field(
         description="Target percentage of income for savings",
     )
 
@@ -166,9 +183,8 @@ class CreditCardLimitsConfig(BaseModel):
 class EarningStartDateConfig(BaseModel):
     """Earning start date configuration."""
 
-    earning_start_date: str | None = Field(
+    earning_start_date: IsoDate | None = Field(
         default=None,
-        pattern=r"^\d{4}-\d{2}-\d{2}$",
         description="Earning start date in YYYY-MM-DD format",
     )
     use_earning_start_date: bool = Field(
@@ -278,10 +294,14 @@ class UserPreferencesResponse(BaseModel):
 
 
 class UserPreferencesUpdate(BaseModel):
-    """Partial update model for preferences."""
+    """Partial update model for preferences.
+
+    Every field carries the same contract as its section model, so the bulk
+    Settings save cannot store a value a section endpoint would reject.
+    """
 
     # 1. Fiscal Year
-    fiscal_year_start_month: int | None = None
+    fiscal_year_start_month: FiscalMonth | None = None
 
     # 2. Essential Categories
     essential_categories: list[str] | None = None
@@ -299,50 +319,50 @@ class UserPreferencesUpdate(BaseModel):
     capital_loss_categories: list[str] | None = None
 
     # 5. Budget Defaults
-    default_budget_alert_threshold: float | None = None
+    default_budget_alert_threshold: Percent | None = None
     auto_create_budgets: bool | None = None
     budget_rollover_enabled: bool | None = None
 
     # 6. Display Preferences
-    number_format: str | None = None
-    currency_symbol: str | None = None
-    currency_symbol_position: str | None = None
-    default_time_range: str | None = None
-    display_currency: str | None = None
+    number_format: NumberFormat | None = None
+    currency_symbol: CurrencySymbol | None = None
+    currency_symbol_position: SymbolPosition | None = None
+    default_time_range: TimeRange | None = None
+    display_currency: CurrencyCode | None = None
 
     # 7. Anomaly Settings
-    anomaly_expense_threshold: float | None = None
+    anomaly_expense_threshold: AnomalyThreshold | None = None
     anomaly_types_enabled: list[str] | None = None
     auto_dismiss_recurring_anomalies: bool | None = None
 
     # 8. Recurring Settings
-    recurring_min_confidence: float | None = None
-    recurring_auto_confirm_occurrences: int | None = None
+    recurring_min_confidence: Percent | None = None
+    recurring_auto_confirm_occurrences: AutoConfirmOccurrences | None = None
 
     # 9. Spending Rule Targets
-    needs_target_percent: float | None = None
-    wants_target_percent: float | None = None
-    savings_target_percent: float | None = None
+    needs_target_percent: Percent | None = None
+    wants_target_percent: Percent | None = None
+    savings_target_percent: Percent | None = None
 
     # 10. Credit Card Limits
     credit_card_limits: dict[str, CreditLimit] | None = None
 
     # 11. Earning Start Date
-    earning_start_date: str | None = None
+    earning_start_date: IsoDate | None = None
     use_earning_start_date: bool | None = None
 
     # 12. Fixed/Mandatory Monthly Expenses
     fixed_expense_categories: list[str] | None = None
 
     # 13. Savings & Investment Targets
-    savings_goal_percent: float | None = None
-    monthly_investment_target: float | None = None
+    savings_goal_percent: Percent | None = None
+    monthly_investment_target: MonthlyAmount | None = None
 
     # 14. Payday Configuration
-    payday: int | None = None
+    payday: Payday | None = None
 
     # 15. Tax Regime Preference
-    preferred_tax_regime: str | None = None
+    preferred_tax_regime: TaxRegime | None = None
 
     # 16. Excluded Accounts
     excluded_accounts: list[str] | None = None
@@ -351,19 +371,20 @@ class UserPreferencesUpdate(BaseModel):
     notify_budget_alerts: bool | None = None
     notify_anomalies: bool | None = None
     notify_upcoming_bills: bool | None = None
-    notify_days_ahead: int | None = None
+    notify_days_ahead: DaysAhead | None = None
 
     # 18. Tax display
     show_tds_schedule: bool | None = None
 
     # 19. EPF withdrawal taxability
     epf_withdrawal_taxable: bool | None = None
-    epf_taxable_percent: int | None = Field(default=None, ge=0, le=100)
+    epf_taxable_percent: WholePercent | None = None
 
     # 20. Salary TDS treatment
     salary_is_net_of_tds: bool | None = None
 
-    # Salary & Tax Projections
+    # Salary & Tax Projections. Salary and RSU payloads are validated against
+    # ``SalaryStructureConfig`` / ``RsuGrantsConfig`` by their domain writers.
     salary_structure: dict[str, Any] | None = None
     rsu_grants: list[dict[str, Any]] | None = None
-    growth_assumptions: dict[str, Any] | None = None
+    growth_assumptions: GrowthAssumptions | None = None

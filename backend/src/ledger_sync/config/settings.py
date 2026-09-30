@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     # Application settings
     log_level: str = "INFO"
+    # Unread by the app. Kept only because .env.example still sets
+    # LEDGER_SYNC_DATA_DIR and settings reject unknown keys from a .env file,
+    # so dropping the field would stop every local backend that copied it.
     data_dir: Path = Path("./data")
 
     # JWT Authentication settings
@@ -56,13 +59,11 @@ class Settings(BaseSettings):
     # BYOK ciphertexts, and vice versa. Must be >= 32 chars in production.
     encryption_key: str = ""
 
-    # JWT strict token_version mode.
-    # During rollout, tokens issued before token_version was baked into JWTs
-    # still work (treated as tv=0). Flipping this to true on/after day 8 makes
-    # `verify_token` reject any token that lacks a `tv` claim. Refresh TTL is
-    # 7 days, so day 8 guarantees any surviving pre-migration refresh token
-    # is already expired.
-    jwt_strict_tv: bool = False
+    # JWT strict token_version mode: `verify_token` rejects any token without a
+    # `tv` claim. Every token minted since 2026-07-04 carries one, and refresh
+    # tokens live 7 days, so a tv-less token can only be a stale or forged one.
+    # Set LEDGER_SYNC_JWT_STRICT_TV=false only to reopen that legacy window.
+    jwt_strict_tv: bool = True
 
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
@@ -99,15 +100,15 @@ class Settings(BaseSettings):
     # willing to absorb the bill.
     ai_default_bedrock_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
     ai_default_bedrock_region: str = "us-east-1"
-    # Hard cap per user per day in "app_bedrock" mode, counted in user
-    # messages (one outer send, regardless of how many tool rounds it
-    # spawns). Users who want more switch to BYOK. Make it generous enough
-    # for normal finance Q&A without being a blank check.
+    # Hard cap per user per day in "app_bedrock" mode, counted in model
+    # invocations: every tool-calling round of one user message reserves and
+    # counts as one call. Users who want more switch to BYOK. Make it generous
+    # enough for normal finance Q&A without being a blank check.
     ai_daily_message_limit: int = 10
     # Hard stop on tool-calling rounds per user message (browser enforces
     # this; backend UsageLogRequest validation allows a small buffer on
-    # top so a slightly-over report isn't silently dropped). Keep these
-    # two values aligned when tuning.
+    # top so a slightly-over report isn't silently dropped). Keep this aligned
+    # with MAX_TOOL_ROUNDS in the frontend chat loop.
     ai_max_tool_rounds: int = 6
 
     # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
@@ -122,7 +123,6 @@ class Settings(BaseSettings):
     date_column_names: list[str] = ["Period", "Date", "date", "period"]
     account_column_names: list[str] = ["Accounts", "Account", "account", "accounts"]
     category_column_names: list[str] = ["Category", "category"]
-    subcategory_column_names: list[str] = ["Subcategory", "subcategory", "Sub Category"]
     note_column_names: list[str] = ["Note", "note", "Notes", "notes", "Description"]
     amount_column_names: list[str] = ["Amount / INR", "Amount", "amount", "Amount/INR"]
     type_column_names: list[str] = [
@@ -131,12 +131,6 @@ class Settings(BaseSettings):
         "type",
         "Transaction Type",
     ]
-    currency_column_names: list[str] = ["Currency", "currency"]
-
-    def get_data_dir(self) -> Path:
-        """Get data directory, creating it if necessary."""
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        return self.data_dir
 
     def validate_production_settings(self) -> list[str]:
         """Validate critical settings for non-development deployment.

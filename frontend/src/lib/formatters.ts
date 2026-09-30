@@ -153,14 +153,20 @@ export const formatCurrencyShort = (value: number): string => {
 }
 
 /**
- * Format percentage with 1 decimal place
- * @param value - The numeric value to format
+ * Format a percentage (1 decimal place unless `digits` says otherwise)
+ *
+ * A value that rounds to zero at the shown precision renders as a plain
+ * "0.0%": without the collapse, `(-0.04).toFixed(1)` is "-0.0" and one page
+ * shows zero two ways.
+ * @param value - The numeric value to format, already x100 (12.5 -> "12.5%")
  * @param showSign - Whether to show + sign for positive values
+ * @param digits - Decimal places (default 1)
  * @returns Formatted string like "+12.5%" or "-3.2%"
  */
-export const formatPercent = (value: number, showSign = false): string => {
-  const sign = showSign && value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(1)}%`
+export const formatPercent = (value: number, showSign = false, digits = 1): string => {
+  const rounded = collapseNegativeZero(value, digits)
+  const sign = showSign && rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toFixed(digits)}%`
 }
 
 /**
@@ -190,15 +196,23 @@ export const formatDateTick = (dateStr: string, totalPoints: number): string => 
 }
 
 /**
- * Format a `YYYY-MM-DD` (or longer ISO) date string for display, timezone-safe.
+ * Format a `YYYY-MM-DD` (or longer ISO) date string, or a `Date`, for display.
  *
  * Replaces date-fns `format(new Date(str), ...)`, which parsed the date-only
  * string as UTC midnight and rendered the LOCAL day (off by one for US users).
- * Builds the Date from explicit local Y/M/D parts so the calendar day holds.
+ * A string is read as the calendar day it names: the Date is built from
+ * explicit local Y/M/D parts so that day holds. A `Date` is rendered as-is in
+ * the viewer's zone -- pass one for a real instant (a UTC timestamp) or for a
+ * date already built from local parts.
  *
- * @param dateStr  ISO date string (only the first 10 chars are used)
+ * Every date label goes through here so the app speaks one month vocabulary:
+ * 'en-IN' renders September as "Sept" where this locale renders "Sep".
+ *
+ * @param value    ISO date string (only the first 10 chars are used), or a Date
  * @param opts     Intl options (default: medium date, e.g. "Mar 15, 2026")
  */
+const DATE_LOCALE = 'en-US'
+
 const DEFAULT_DATE_OPTS: Intl.DateTimeFormatOptions = {
   year: 'numeric',
   month: 'short',
@@ -206,12 +220,13 @@ const DEFAULT_DATE_OPTS: Intl.DateTimeFormatOptions = {
 }
 
 export const formatDate = (
-  dateStr: string,
+  value: string | Date,
   opts: Intl.DateTimeFormatOptions = DEFAULT_DATE_OPTS,
 ): string => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
-  if (!m) return dateStr
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', opts)
+  if (value instanceof Date) return value.toLocaleDateString(DATE_LOCALE, opts)
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (!m) return value
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(DATE_LOCALE, opts)
 }
 
 /** Return the English ordinal suffix for a day number (1→'st', 2→'nd', 3→'rd', etc.) */

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from ledger_sync.api.calculations import get_income_facets
 from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
+from ledger_sync.services.calculation_service import income_analysis
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -199,3 +200,64 @@ def test_sign_flipped_correction_row_does_not_shrink_its_bucket(
     facets = _by_key(get_income_facets(test_user, test_db_session))
 
     assert facets["Salary::Basic"]["total"] == 500.0
+
+
+def test_income_analysis_cashback_is_cashback_rows_minus_shared_not_all_non_taxable(
+    test_db_session: Session, test_user: User
+) -> None:
+    # "Cashbacks Earned" summed the whole non-taxable list, so a returned rent
+    # deposit and a refunded purchase read as cashback. It is now the Quick
+    # Insights rule; the broader classified sum keeps its own honest field.
+    non_taxable = [
+        "Refunds & Cashbacks::Credit Card Cashbacks",
+        "Refunds & Cashbacks::Product/Service Refunds",
+        "Refunds & Cashbacks::Deposit Return",
+        "Employment Income::Expense Reimbursement",
+    ]
+    for tx_id, key, amount in [
+        ("cb", non_taxable[0], "500.00"),
+        ("rf", non_taxable[1], "2000.00"),
+        ("dr", non_taxable[2], "10000.00"),
+        ("re", non_taxable[3], "1500.00"),
+    ]:
+        category, _, subcategory = key.partition("::")
+        _add(
+            test_db_session,
+            test_user.id,
+            tx_id,
+            TransactionType.INCOME,
+            category,
+            subcategory,
+            amount,
+        )
+    when = datetime(2024, 1, 20, tzinfo=UTC)
+    test_db_session.add(
+        Transaction(
+            user_id=test_user.id,
+            transaction_id="shared",
+            date=when,
+            amount=Decimal("120.00"),
+            currency="INR",
+            type=TransactionType.TRANSFER,
+            account="HDFC",
+            from_account="HDFC",
+            to_account="Cashback Shared",
+            category="Transfer",
+            source_file="test.xlsx",
+            last_seen_at=when,
+        )
+    )
+    test_db_session.commit()
+
+    result = income_analysis(
+        test_db_session,
+        test_user,
+        start_date=None,
+        end_date=None,
+        cashback_categories=non_taxable,
+        category=None,
+    )
+
+    assert result["cashbacks_total"] == 380.0  # 500 cashback - 120 passed on
+    assert result["non_taxable_total"] == 14000.0
+    assert result["total_income"] == 14000.0

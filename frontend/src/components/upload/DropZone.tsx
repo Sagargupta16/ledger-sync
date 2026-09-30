@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileSpreadsheet, X } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
 interface DropZoneProps {
@@ -127,10 +127,9 @@ function UploadingOverlay({ isUploading }: Readonly<UploadingOverlayProps>) {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/60 text-on-accent">
-      <div className="flex flex-col items-center gap-2">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent" />
-        <p className="text-sm font-medium">Uploading...</p>
-      </div>
+      {/* Caption recoloured for the dark scrim: the default muted tone would
+          lose contrast over black/60 in the light theme. */}
+      <Spinner size="md" tone="current" label="Uploading..." className="[&>span]:font-medium [&>span]:text-on-accent" />
     </div>
   )
 }

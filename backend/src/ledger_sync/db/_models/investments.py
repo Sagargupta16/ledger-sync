@@ -160,12 +160,12 @@ class InvestmentHolding(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # User foreign key - scopes holding to owner
+    # User foreign key - scopes holding to owner. Indexed once, by
+    # ``ix_investment_user`` below (the only user_id index the migrations create).
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(USER_FK, ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
 
     # Investment details

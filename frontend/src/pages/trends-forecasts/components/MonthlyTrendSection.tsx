@@ -167,7 +167,7 @@ export default function MonthlyTrendSection({
                     Monthly total
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />
+                    <span className="w-5 border-t-2 border-dashed border-text-secondary" aria-hidden="true" />
                     {rollingAvgMonths}-month average
                   </li>
                 </ul>

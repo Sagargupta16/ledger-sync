@@ -25,12 +25,12 @@ from ledger_sync.core.insight_generators import category_insights, spending_insi
 from ledger_sync.core.insight_generators_time import behavioral_insights, temporal_insights
 from ledger_sync.core.insight_rules import DEFAULT_CURRENCY_SYMBOL
 from ledger_sync.core.ledger_clock import ledger_today
-from ledger_sync.db.models import TransactionType
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import date
 
-    from ledger_sync.db.models import Transaction
+    from ledger_sync.core.calculator import LedgerRow
 
 
 @runtime_checkable
@@ -91,11 +91,11 @@ class InsightEngine:
         self._today = today if today is not None else ledger_today()
         self._loss_keys = loss_keys
 
-    def generate_all_insights(self, transactions: list[Transaction]) -> list[dict[str, str]]:
+    def generate_all_insights(self, transactions: Sequence[LedgerRow]) -> list[dict[str, str]]:
         """Generate all available insights.
 
         Args:
-            transactions: List of transactions
+            transactions: Transactions, hydrated or column-projected (``LedgerRow``)
 
         Returns:
             List of insight dictionaries with title, description, severity
@@ -112,7 +112,7 @@ class InsightEngine:
         return insights
 
     @staticmethod
-    def generate_monthly_summary(transactions: list[Transaction], month: str) -> dict[str, Any]:
+    def generate_monthly_summary(transactions: Sequence[LedgerRow], month: str) -> dict[str, Any]:
         """Generate summary insights for a specific month.
 
         Args:
@@ -124,7 +124,7 @@ class InsightEngine:
 
         """
         totals = calculator.calculate_totals(transactions)
-        expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+        expenses = calculator.expense_rows(transactions)
 
         category_totals = calculator.group_by_category(expenses)
         top_categories = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)[:5]

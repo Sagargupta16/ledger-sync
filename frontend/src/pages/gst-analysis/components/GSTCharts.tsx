@@ -20,11 +20,11 @@ import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { fadeUpItem } from '@/constants/animations'
 import { rawColors } from '@/constants/colors'
 import { tooltipLabelString } from '@/lib/chartUtils'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import type { GSTSlabBreakdown, GSTSummary } from '@/lib/gstCalculator'
 
-import { GST_SLAB_COLORS } from '../constants'
+import { gstSlabColor, gstSlabCssColor } from '../constants'
 
 interface Props {
   data: GSTSummary
@@ -32,21 +32,24 @@ interface Props {
 }
 
 export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
-  const { animate, isMobile } = useChartPresentation(Math.max(taxableSlabs.length, data.monthlyTrend.length))
+  const { animate, isMobile, theme } = useChartPresentation(Math.max(taxableSlabs.length, data.monthlyTrend.length))
   const latestMonth = data.monthlyTrend.at(-1)
   // Slice colours ride on the data rows as `fill`. Recharts merges each row
   // over its sector props, so this is the supported replacement for the
-  // deprecated `<Cell>` child and resolves to the exact same hex values.
-  // Memoised so the `Pie` keeps a stable `data` identity and does not
-  // re-run its entry animation on unrelated parent re-renders.
+  // deprecated `<Cell>` child. Memoised so the `Pie` keeps a stable `data`
+  // identity and does not re-run its entry animation on unrelated parent
+  // re-renders. The fills are resolved hex values, so the memo is keyed by
+  // `theme`: a toggle re-resolves them (ChartContainer remounts on the same key).
   const slabSlices = useMemo(
-    () =>
-      taxableSlabs.map((entry) => ({
+    () => ({
+      theme,
+      rows: taxableSlabs.map((entry) => ({
         ...entry,
-        fill: GST_SLAB_COLORS[entry.slab] ?? rawColors.app.blue,
+        fill: gstSlabColor(entry.slab),
       })),
-    [taxableSlabs],
-  )
+    }),
+    [taxableSlabs, theme],
+  ).rows
 
   return (
     <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
@@ -109,13 +112,13 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
                 <div className="min-w-0">
                   <ProgressBar
                     value={share}
-                    color={GST_SLAB_COLORS[slab.slab] ?? rawColors.app.blue}
+                    color={gstSlabCssColor(slab.slab)}
                     height={6}
                   />
                 </div>
                 <span className="text-right">
                   <span className="block font-mono text-xs font-semibold tabular-nums text-foreground">{formatCurrency(slab.gstAmount)}</span>
-                  <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">{share.toFixed(0)}% of GST</span>
+                  <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">{formatPercent(share, false, 0)} of GST</span>
                 </span>
               </li>
             )
@@ -126,7 +129,7 @@ export default function GSTCharts({ data, taxableSlabs }: Readonly<Props>) {
           [
             { header: 'Tax slab', rowHeader: true, value: (row) => `${row.slab}%` },
             { header: 'Estimated GST', value: (row) => formatCurrency(row.gstAmount) },
-            { header: 'Share of GST', value: (row) => `${(data.totalGST > 0 ? (row.gstAmount / data.totalGST) * 100 : 0).toFixed(0)}%` },
+            { header: 'Share of GST', value: (row) => formatPercent(data.totalGST > 0 ? (row.gstAmount / data.totalGST) * 100 : 0, false, 0) },
           ],
           'Estimated GST by tax slab: exact amounts',
           (row) => String(row.slab),

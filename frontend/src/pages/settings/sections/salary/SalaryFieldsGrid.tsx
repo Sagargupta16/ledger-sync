@@ -3,9 +3,11 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import type { SalaryComponents } from '@/types/salary'
 import { formatCurrency } from '@/lib/formatters'
+import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { FieldLabel } from '@/pages/settings/sectionPrimitives'
 import { inputClass } from '@/pages/settings/styles'
+import { fyDisplayLabel } from './fyHelpers'
 
 interface SalaryFieldsGridProps {
   fyKeys: string[]
@@ -46,6 +48,7 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
     onAddFY,
     onUpdateField,
   } = props
+  const fyStartMonth = usePreferencesStore(selectFiscalYearStartMonth)
 
   return (
     <div className="space-y-4">
@@ -63,7 +66,7 @@ export function SalaryFieldsGrid(props: Readonly<SalaryFieldsGridProps>) {
             icon={<ChevronLeft className="w-4 h-4 text-foreground" />}
           />
           <span className="text-sm font-medium text-foreground min-w-[80px] text-center">
-            {fyKeys.length > 0 ? `FY ${selectedFY}` : 'No FY'}
+            {fyKeys.length > 0 ? fyDisplayLabel(selectedFY, fyStartMonth) : 'No FY'}
           </span>
           <Button
             id="next-salary-financial-year"

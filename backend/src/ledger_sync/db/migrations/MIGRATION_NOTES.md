@@ -10,6 +10,14 @@ Current for Ledger Sync 2.24.1.
 - Inspect the current head with `uv run alembic heads`.
 - The September identity repair follows `ai_usage_reservations_2026` as
   `identity_constraints_2026`; subsequent revisions must keep a single head.
+- `orm_schema_alignment_2026` follows `domain_storage_cutover_2026`. After a
+  fail-closed NULL count (any NULL stops it before a change; nothing is
+  backfilled or deleted) it sets NOT NULL on the 118 columns migrations left
+  nullable, plus `import_logs.user_id` where `reconcile_create_all_2026` left
+  it nullable, adds 10 missing ORM indexes, and drops duplicate indexes. Every
+  step changes only what differs. Current writers supply every tightened
+  value, so a backend-first deploy is safe. It is irreversible; recover with a
+  verified backup or a forward repair.
 
 Alembic imports `ledger_sync.db.models`, which registers every model exported
 from `ledger_sync.db._models`. `create_all()` only creates missing tables. It
@@ -41,6 +49,13 @@ keys, uniqueness semantics, foreign keys and delete rules, and check constraints
 with the ORM. It also exercises duplicate identities, preserved parent/child
 rows, invalid amounts, cascade deletes, orphan rejection, and repeat upgrades.
 Index names may differ; the constrained columns and behavior must agree.
+
+`uv run alembic check` on a database upgraded to head reports nothing.
+`env.py` filters only the documented dialect noise, by exact name: six ORM
+enums stored as VARCHAR, three unique indexes standing in for same-named
+unique constraints (dropped only as a matched pair), and the nullable
+`user_preferences.user_id`. Any other difference fails. CI runs the check
+after the SQLite CLI bootstrap and after the PostgreSQL CLI upgrade.
 
 SQLite tests always run. The PostgreSQL cases require
 `LEDGER_SYNC_TEST_POSTGRES_URL` to point to a local disposable database named
@@ -138,8 +153,8 @@ transaction boundary, so they remain effective through a transaction pooler.
 
 ## Production Rollout
 
-`ci.yml` calls `migrate.yml` only after frontend, backend, security, and
-PostgreSQL migration checks pass for the same `main` commit. Migrations use
+`ci.yml` calls `migrate.yml` only after frontend, GitHub Pages build, backend,
+security, and PostgreSQL migration checks pass for the same `main` commit. Migrations use
 Python 3.13, locked dependencies, the `production` environment, and the direct
 Neon endpoint stored in the GitHub `LEDGER_SYNC_DATABASE_URL` secret. The
 application's separately configured value uses the pooler. Main releases and

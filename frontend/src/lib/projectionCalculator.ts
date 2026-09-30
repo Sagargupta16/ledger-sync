@@ -24,7 +24,11 @@ function twoDigitYear(year: number): string {
   return String(year % 100).padStart(2, '0')
 }
 
-/** Increment a FY string by N years: "2025-26" + 1 -> "2026-27" */
+/**
+ * Increment a FY string by N years: "2025-26" + 1 -> "2026-27". Always emits
+ * the two-year `salary_structure` storage form; the input may be either form
+ * ("2026" for a January fiscal year) because only its start year is read.
+ */
 function offsetFY(fy: string, offset: number): string {
   const startYear = parseFYStart(fy) + offset
   return `${startYear}-${twoDigitYear(startYear + 1)}`
@@ -98,7 +102,14 @@ export function projectAnnualBonus(
   return recurring ? annualBonus * Math.pow(1 + growth.bonus_growth_pct / 100, yearsOffset) : 0
 }
 
-/** Project a single fiscal year's income and tax breakdown. */
+/**
+ * Project a single fiscal year's income and tax breakdown.
+ *
+ * `targetFY` may be a storage key ("2026-27") or a January-start label
+ * ("2026"); salary rows are matched to it by START YEAR, because the
+ * `salary_structure` keys keep the two-year form for every start month and a
+ * string comparison would miss a January year's own row.
+ */
 export function projectFiscalYear(
   targetFY: string,
   salaryStructure: Record<string, SalaryComponents>,
@@ -106,16 +117,20 @@ export function projectFiscalYear(
   growth: GrowthAssumptions,
   fyStartMonth: number,
 ): ProjectedFYBreakdown {
-  const sortedFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
+  const targetStartYear = parseFYStart(targetFY)
+  const sortedFYs = Object.keys(salaryStructure)
+    .sort((a, b) => parseFYStart(a) - parseFYStart(b))
   const baseFY =
-    sortedFYs.findLast((fy) => fy <= targetFY) ?? sortedFYs[0]
+    sortedFYs.findLast((fy) => parseFYStart(fy) <= targetStartYear) ?? sortedFYs[0]
   if (!baseFY || !salaryStructure[baseFY]) {
     return emptyBreakdown(targetFY, fyStartMonth)
   }
 
   const base = salaryStructure[baseFY]
-  const isExplicit = targetFY in salaryStructure
-  const yearsOffset = parseFYStart(targetFY) - parseFYStart(baseFY)
+  // The latest row at or before the target is the target's own row exactly
+  // when it starts in the same year.
+  const isExplicit = parseFYStart(baseFY) === targetStartYear
+  const yearsOffset = targetStartYear - parseFYStart(baseFY)
 
   const baseGrowthFactor = Math.pow(
     1 + growth.base_salary_growth_pct / 100,
@@ -123,48 +138,44 @@ export function projectFiscalYear(
   )
 
   const baseSalaryAnnual = isExplicit
-    ? N(salaryStructure[targetFY].base_salary_annual)
+    ? N(base.base_salary_annual)
     : N(base.base_salary_annual) * baseGrowthFactor
 
   const hraAnnual = (() => {
-    const src = isExplicit ? salaryStructure[targetFY] : base
-    if (src.hra_annual == null) return 0
-    return isExplicit ? N(src.hra_annual) : N(src.hra_annual) * baseGrowthFactor
+    if (base.hra_annual == null) return 0
+    return isExplicit ? N(base.hra_annual) : N(base.hra_annual) * baseGrowthFactor
   })()
 
   const bonusAnnual = isExplicit
-    ? N(salaryStructure[targetFY].bonus_annual)
+    ? N(base.bonus_annual)
     : projectAnnualBonus(N(base.bonus_annual), yearsOffset, growth)
 
   const epfAnnual = (() => {
-    if (isExplicit) return N(salaryStructure[targetFY].epf_monthly) * MONTHS_PER_YEAR
+    if (isExplicit) return N(base.epf_monthly) * MONTHS_PER_YEAR
     if (growth.epf_scales_with_base)
       return N(base.epf_monthly) * baseGrowthFactor * MONTHS_PER_YEAR
     return N(base.epf_monthly) * MONTHS_PER_YEAR
   })()
 
   const npsAnnual = (() => {
-    if (isExplicit) return N(salaryStructure[targetFY].nps_monthly) * MONTHS_PER_YEAR
+    if (isExplicit) return N(base.nps_monthly) * MONTHS_PER_YEAR
     const npsFactor = Math.pow(1 + growth.nps_growth_pct / 100, yearsOffset)
     return N(base.nps_monthly) * npsFactor * MONTHS_PER_YEAR
   })()
 
-  const specialAllowanceAnnual = isExplicit
-    ? N(salaryStructure[targetFY].special_allowance_annual)
-    : N(base.special_allowance_annual)
-
-  const otherTaxableAnnual = isExplicit
-    ? N(salaryStructure[targetFY].other_taxable_annual)
-    : N(base.other_taxable_annual)
+  // Carried flat from the base row whether or not the target has its own.
+  const specialAllowanceAnnual = N(base.special_allowance_annual)
+  const otherTaxableAnnual = N(base.other_taxable_annual)
 
   const baseStartYear = parseFYStart(baseFY)
+  // Vesting events carry the two-year key form, so match them by start year too.
   const rsuVestingEvents = valueRsuVestings(rsuGrants, {
     fyStartMonth,
     stockAppreciationPct: growth.stock_price_appreciation_pct,
     baseStartYear,
-  }).filter((event) => event.fy === targetFY)
+  }).filter((event) => parseFYStart(event.fy) === targetStartYear)
   const rsuByFY = groupRsuVestingsByFY(rsuVestingEvents)
-  const rsuData = rsuByFY[targetFY] ?? { shares: 0, value: 0, details: [] }
+  const rsuData = rsuByFY[offsetFY(targetFY, 0)] ?? { shares: 0, value: 0, details: [] }
   const rsuCompensation = sumRsuCompensation(rsuVestingEvents)
 
   const cashEarnings = salaryCashEarnings({
@@ -222,7 +233,8 @@ export function projectMultipleYears(
   growth: GrowthAssumptions,
   fyStartMonth: number,
 ): ProjectedFYBreakdown[] {
-  const sortedFYs = Object.keys(salaryStructure).sort((a, b) => a.localeCompare(b))
+  const sortedFYs = Object.keys(salaryStructure)
+    .sort((a, b) => parseFYStart(a) - parseFYStart(b))
   if (sortedFYs.length === 0) return []
 
   const latestFY = sortedFYs.at(-1)!

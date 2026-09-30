@@ -1,7 +1,8 @@
 import { classifyIncomeType } from '@/lib/preferencesUtils'
-import { getFYFromDate, MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { formatFYLabel, getFYFromDate, MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import { parseFYStartYear } from '@/lib/taxCalculator'
 import { computeAnnualTaxPlanning, computeTaxForFY } from './taxPlanning'
+import { classifyEmploymentIncome } from './metricRules'
 import { projectFiscalYear } from '@/lib/projectionCalculator'
 import { applyProjectionTaxRegime, buildPayrollPlanning, taxPlanningDisplay } from './payrollPlanning'
 import { withIncomeClassificationDefaults } from '@/store/preferencesStore'
@@ -66,7 +67,6 @@ export function classifyAndAccumulateIncome(
 ): void {
   const incomeType = classifyIncomeType(tx, incomeClassification)
   const note = tx.note?.toLowerCase() ?? ''
-  const subcategory = (tx.subcategory ?? '').toLowerCase()
 
   const isEPF =
     note.includes('aws epf') ||
@@ -90,14 +90,14 @@ export function classifyAndAccumulateIncome(
     fyData.employmentTaxableIncome += tx.amount
     fyData.hasEmploymentIncome = fyData.employmentTaxableIncome > 0
   }
-  const isSalaryOrStipend = subcategory === 'salary' || subcategory === 'stipend'
-  const isBonus = subcategory === 'bonuses' || subcategory === 'rsus'
+  // Keyword split, not exact subcategory names: "Monthly Salary" is salary.
+  const employmentKind = classifyEmploymentIncome(tx)
 
-  if (isSalaryOrStipend) {
+  if (employmentKind === 'salary') {
     fyData.incomeGroups['Salary & Stipend'].total += tx.amount
     fyData.incomeGroups['Salary & Stipend'].transactions.push(tx)
     if (tx.category === 'Employment Income') fyData.salaryMonths.add(tx.date.substring(0, 7))
-  } else if (isBonus) {
+  } else if (employmentKind === 'bonus') {
     fyData.incomeGroups['Bonus'].total += tx.amount
     fyData.incomeGroups['Bonus'].transactions.push(tx)
   } else {
@@ -335,8 +335,7 @@ export function computePrevFYDisplay(
   const startYear = parseFYStartYear(effectiveFY)
   if (!startYear) return null
   const prevStart = startYear - 1
-  const prevEnd = startYear % 100
-  const prevFYLabel = `FY ${prevStart}-${String(prevEnd).padStart(2, '0')}`
+  const prevFYLabel = formatFYLabel(prevStart, fiscalYearStartMonth)
 
   const currentStart = parseFYStartYear(currentFYLabel)
   const prevIsComplete = prevStart < currentStart

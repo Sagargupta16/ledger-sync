@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ledger_sync.core._analytics_helpers import DEFAULT_ESSENTIAL_CATEGORIES
 from ledger_sync.core.analytics.base import _INCOME_LIST_DEFAULTS
-from ledger_sync.core.analytics.classification import ClassificationMixin
+from ledger_sync.core.metric_rules import classify_employment_income
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     FYSummary,
@@ -252,9 +252,28 @@ class TestFrozenDefaultsMatchTheApplication:
             field: frozenset(values) for field, values in _INCOME_LIST_DEFAULTS.items()
         }
 
-    def test_salary_and_bonus_keywords_match(self) -> None:
-        assert migration._SALARY_KEYWORDS == ClassificationMixin._SALARY_KEYWORDS
-        assert migration._BONUS_KEYWORDS == ClassificationMixin._BONUS_KEYWORDS
+    def test_salary_and_bonus_keywords_are_the_rule_the_backfill_ran_under(self) -> None:
+        # Frozen when the backfill was written: substring keywords on the
+        # subcategory. The application has since moved to word-boundary
+        # keywords on the subcategory, then the category
+        # (``core.metric_rules.classify_employment_income``); the migration must
+        # NOT follow, because it has already run against stored rows.
+        assert migration._SALARY_KEYWORDS == ("salary", "stipend", "wage", "pension")
+        assert migration._BONUS_KEYWORDS == ("bonus", "rsu", "esop", "incentive", "commission")
+
+    def test_shipped_taxable_defaults_split_the_same_under_both_rules(self) -> None:
+        # The backfill only books salary or bonus for the shipped taxable keys,
+        # so no row it repaired moves as long as the two rules agree on those.
+        for item in _INCOME_LIST_DEFAULTS["taxable_income_categories"]:
+            category, _, subcategory = item.partition("::")
+            lowered = subcategory.lower()
+            if any(kw in lowered for kw in migration._SALARY_KEYWORDS):
+                backfill = "salary"
+            elif any(kw in lowered for kw in migration._BONUS_KEYWORDS):
+                backfill = "bonus"
+            else:
+                backfill = None
+            assert classify_employment_income(category, subcategory) == backfill, item
 
 
 class TestRepairsCorruptedRollups:

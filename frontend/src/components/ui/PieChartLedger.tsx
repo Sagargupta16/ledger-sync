@@ -1,5 +1,7 @@
 import { motion } from 'motion/react'
 
+import { formatPercent } from '@/lib/formatters'
+
 import { sliceClickTarget, type PieSliceDatum } from './pieSlices'
 
 interface PieChartLedgerProps {
@@ -62,7 +64,7 @@ export default function PieChartLedger({
                   {formatValue(slice.value)}
                 </span>
                 <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">
-                  {(share * 100).toFixed(1)}%
+                  {formatPercent(share * 100)}
                 </span>
               </span>
               <span className="absolute inset-x-2 bottom-0 h-px overflow-hidden bg-border/50" aria-hidden="true">

@@ -33,14 +33,19 @@ _POSITIVE_BUCKET: dict[AccountType, str] = {
     AccountType.OTHER_WALLETS: "other_assets",
 }
 
+#: Every negative balance is a liability (the Net Worth page's rule): cards and
+#: loans into their own buckets, any other overdrawn account into
+#: ``other_liabilities``. It used to shrink an asset bucket instead.
 _NEGATIVE_BUCKET: dict[AccountType, str] = {
-    AccountType.CASH: "cash_and_bank",
-    AccountType.BANK_ACCOUNTS: "cash_and_bank",
+    AccountType.CASH: "other_liabilities",
+    AccountType.BANK_ACCOUNTS: "other_liabilities",
     AccountType.CREDIT_CARDS: "credit_card_outstanding",
-    AccountType.INVESTMENTS: "other_assets",
+    AccountType.INVESTMENTS: "other_liabilities",
     AccountType.LOANS: "loans_payable",
-    AccountType.OTHER_WALLETS: "other_assets",
+    AccountType.OTHER_WALLETS: "other_liabilities",
 }
+
+_LIABILITY_BUCKETS = ("credit_card_outstanding", "loans_payable", "other_liabilities")
 
 
 @pytest.fixture
@@ -78,9 +83,10 @@ def test_positive_balance_lands_in_its_bucket(session: Session, account_type: Ac
 def test_negative_balance_lands_in_its_bucket(session: Session, account_type: AccountType) -> None:
     buckets = _buckets(session, account_type.value, "-1000")
     expected = _NEGATIVE_BUCKET[account_type]
-    # Liability buckets store the magnitude; asset buckets keep the sign.
-    is_liability = expected in {"credit_card_outstanding", "loans_payable"}
-    assert buckets[expected] == (Decimal("1000") if is_liability else Decimal("-1000"))
+    # Liability buckets store the magnitude, and no asset bucket goes negative.
+    assert expected in _LIABILITY_BUCKETS
+    assert buckets[expected] == Decimal("1000")
+    assert all(buckets[k] == 0 for k in buckets if k not in _LIABILITY_BUCKETS)
 
 
 def test_loans_lended_is_the_only_loan_vocabulary_on_the_wire(session: Session) -> None:
@@ -92,11 +98,12 @@ def test_loans_lended_is_the_only_loan_vocabulary_on_the_wire(session: Session) 
     assert real["loans_payable"] == Decimal("5000")
     assert real["other_assets"] == Decimal(0)
 
-    # An unrecognised type is not a loan: it falls to other_assets like any other
-    # unclassified account, magnitude and sign intact.
+    # An unrecognised type is not a loan: its negative balance is an unclassified
+    # liability, not loans_payable, and it does not shrink other_assets.
     drifted = _buckets(session, "Loans", "-5000")
     assert drifted["loans_payable"] == Decimal(0)
-    assert drifted["other_assets"] == Decimal("-5000")
+    assert drifted["other_liabilities"] == Decimal("5000")
+    assert drifted["other_assets"] == Decimal(0)
 
 
 def test_unclassified_account_defaults_to_other_wallets(session: Session) -> None:
@@ -139,6 +146,27 @@ def test_bucketed_net_worth_equals_account_balances(session: Session) -> None:
             "Wallet": AccountType.OTHER_WALLETS.value,
         },
     )
-    liabilities = buckets["credit_card_outstanding"] + buckets["loans_payable"]
+    liabilities = sum(buckets[k] for k in _LIABILITY_BUCKETS)
     assets = sum(buckets.values()) - liabilities
     assert assets - liabilities == sum(balances.values())
+
+
+def test_overdrawn_non_card_account_is_a_liability_and_net_worth_is_unchanged(
+    session: Session,
+) -> None:
+    """Bank 9,000 and an overdrawn wallet at -1,500: net worth stays 7,500.
+
+    Before, the wallet shrank ``other_assets`` to -1,500, so assets read 7,500
+    and liabilities 0. Now assets read 9,000 and liabilities 1,500 -- the Net
+    Worth page's split -- with the same net.
+    """
+    engine = AnalyticsEngine(session, user_id=1)
+    buckets = engine._categorize_account_balances(
+        {"Bank": Decimal("9000"), "Wallet": Decimal("-1500")},
+        {"Bank": AccountType.BANK_ACCOUNTS.value, "Wallet": AccountType.OTHER_WALLETS.value},
+    )
+    liabilities = sum(buckets[k] for k in _LIABILITY_BUCKETS)
+    assets = sum(buckets.values()) - liabilities
+    assert assets == Decimal("9000")
+    assert liabilities == Decimal("1500")
+    assert assets - liabilities == Decimal("7500")

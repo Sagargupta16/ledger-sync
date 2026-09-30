@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.24.1.
+Current for Ledger Sync 2.26.0.
 
 ## Production Topology
 
@@ -24,7 +24,8 @@ Browser
 Production releases use `main`. CI gates the migration workflow, then the
 GitHub Pages workflow, for the same commit. Pages waits for a healthy backend
 reporting the frontend release version and a connected database before publishing.
-Vercel's external GitHub integration must be configured or promoted separately
+Vercel's external GitHub integration must be gated on the `migrate / migrate`
+check (see [Migration workflow](#migration-workflow)) or promoted separately
 after migrations.
 
 ## Deployment Sources
@@ -35,7 +36,7 @@ after migrations.
 | Backend routing | `backend/vercel.json` |
 | Backend entry point | `backend/api/index.py` |
 | Database migration | `.github/workflows/migrate.yml` |
-| Scheduled health ping | `.github/workflows/keepalive.yml` |
+| Scheduled health ping (disabled) | `.github/workflows/keepalive.yml` |
 | Runtime settings | `backend/src/ledger_sync/config/settings.py` |
 | Frontend base and proxy | `frontend/vite.config.ts` |
 
@@ -121,7 +122,8 @@ the pooler for application traffic. Do not expose either value in logs.
 
 ### Migration workflow
 
-`ci.yml` runs the frontend, backend, security, and PostgreSQL migration checks.
+`ci.yml` runs the frontend, GitHub Pages build, backend, security, and
+PostgreSQL migration checks; both migration paths end with `alembic check`.
 On `main`, only a successful set of checks calls `migrate.yml`, which uses the
 `production` environment and Python 3.13. Only a successful migration calls
 `deploy-frontend.yml`. Run the **CI** workflow manually on `main` to repeat the
@@ -136,8 +138,9 @@ No production settings are provisioned by these workflows.
 CI tests `alembic upgrade head` from an empty SQLite database and an isolated
 native PostgreSQL cluster using the runner's installed binaries. It logs the
 server version, binds only loopback, and stops only the cluster it created.
-The PostgreSQL job runs the complete integration directory so migration,
-analytics publication, concurrency, and lifecycle tests share the same gate.
+The PostgreSQL job runs the complete integration directory, plus the AI-settings
+and compensation migration/record unit files, so migration, analytics
+publication, concurrency, and lifecycle tests share the same gate.
 It does not use containers or alter a pre-existing database service.
 The migration tests compare table and column coverage, primary keys,
 unique constraints, foreign keys and cascade rules, and check constraints
@@ -159,10 +162,26 @@ rewrites financial amounts automatically.
 `create_all()` creates missing tables but cannot retrofit columns or
 constraints onto existing ones. Alembic remains the schema authority.
 
-Vercel's GitHub integration is outside this job graph. For a schema release,
-configure production promotion to wait for this commit's CI and migrations, or
-promote the validated backend deployment manually. Until that external gate is
-configured, use backward-compatible expand-and-contract changes:
+Vercel's GitHub integration is outside this job graph, so by default Vercel
+promotes the new backend as soon as its own build is ready, possibly before
+`migrate.yml` has touched the database. Owner console step, once per project
+(Vercel's [Deployment Checks](https://vercel.com/docs/deployment-checks)):
+
+1. Vercel project `ledger-sync-api` > **Settings** > **Environments** >
+   **Production**: confirm automatic aliasing for production is on.
+2. **Settings** > **Build and Deployment** > **Deployment Checks** >
+   **Add Checks**, choose **GitHub**, then search for and select
+   `migrate / migrate` (the check run name GitHub reports for the `migrate`
+   job on `main`).
+
+With that check required, Vercel still builds each production deployment but
+holds it off the production domain until this commit's `migrate / migrate`
+check passes. **Force Promote** on the deployment details page bypasses the
+hold. Renaming the `migrate` job in `ci.yml` or `migrate.yml` changes the check
+name and requires updating the Deployment Check.
+
+Until that Deployment Check is set, every release must stay backward-compatible
+expand-and-contract:
 
 1. Add backward-compatible schema.
 2. Deploy code that can use both old and new states.
@@ -186,8 +205,9 @@ This chain requires a coordinated migration and backend promotion:
    production data. Record preflight results, row/reference preservation, and
    total lock time. Keep a verified restore point.
 2. Before merging, verify Vercel will hold the new production deployment until
-   this commit's database migrations succeed. The GitHub Actions dependency
-   graph alone does not control Vercel promotion.
+   this commit's database migrations succeed (the `migrate / migrate`
+   Deployment Check above). The GitHub Actions dependency graph alone does not
+   control Vercel promotion.
 3. Drain transaction traffic and old workers. Run the migration through the
    gated main-branch CI path and verify the database revision.
 4. Promote the matching backend commit, check `/health`, `/health/db`, and
@@ -203,6 +223,20 @@ transaction using the rehearsal.
 After version-2 import fingerprints have been written, use a forward corrective
 release or restore the application and database together. Rolling back only the
 backend can reintroduce incompatible transaction identities.
+
+### ORM schema alignment rollout
+
+`orm_schema_alignment_2026` follows `domain_storage_cutover_2026`. It sets
+NOT NULL on the 118 columns migrations left nullable (plus
+`import_logs.user_id` where an older revision left it nullable), adds 10
+missing indexes, and drops duplicate indexes, changing only what differs from
+the ORM. A NULL count runs first and fails closed: any NULL stops the revision
+before a change, and nothing is backfilled or deleted. Current backends
+already write every tightened value, so the normal backend-first promotion is
+safe. PostgreSQL holds ACCESS EXCLUSIVE locks on the affected tables with a
+10s lock timeout, so a busy table fails the migration instead of queueing
+traffic; rehearse on a Neon branch copied from production. The revision is
+irreversible: recover with a verified restore point or a forward repair.
 
 ### AI configuration and encryption rollout
 
@@ -259,10 +293,13 @@ Expected behavior:
 - `/api/auth/oauth/providers` returns HTTP 200 and a JSON array.
 - An empty provider array means no OAuth provider is configured.
 
-The scheduled keepalive calls `/health/db` every 30 minutes, which executes a
-database query. It retries failures twice, then fails with an Actions error
-annotation. Neon may still suspend between checks; this does not guarantee a
-warm database or replace application monitoring.
+The keepalive workflow is disabled in GitHub (`disabled_manually`; last run
+2026-05-20), so nothing pings production on a schedule and Neon suspends when
+idle. The workflow file remains: when enabled, it calls `/health/db` every 30
+minutes, retries failures twice, then fails with an Actions error annotation.
+Even then Neon may suspend between checks; it does not guarantee a warm
+database or replace application monitoring. Re-enabling it is the owner's call
+(Actions > keepalive > Enable workflow).
 
 ## GitHub Pages Frontend
 
@@ -275,7 +312,7 @@ Repository settings:
 
 After CI and database migrations pass for the same commit, the deployment workflow:
 
-1. Installs pnpm 11.17.0 from the root `packageManager` field.
+1. Installs pnpm 11.25.0 from the root `packageManager` field.
 2. Uses Node.js 24.
 3. Installs the frozen frontend lockfile with dependency lifecycle scripts
    disabled (`--frozen-lockfile --ignore-scripts`).
@@ -313,7 +350,8 @@ exchanging the authorization code.
 
 1. Push a feature branch.
 2. Open a pull request to `main`.
-3. Wait for frontend, backend, security, and PostgreSQL migration checks to pass.
+3. Wait for frontend, GitHub Pages build, backend, security, and PostgreSQL
+   migration checks to pass.
 4. Review any schema or environment changes.
 5. Merge only when required checks are green.
 
@@ -321,7 +359,7 @@ After merge:
 
 - Main CI validates the merged commit, then applies any pending migrations.
 - Promote the Vercel backend after CI and migrations pass. Automatic Vercel
-  deployment needs the separately configured protection described above.
+  promotion needs the `migrate / migrate` Deployment Check described above.
 - GitHub Pages publishes that same commit only after the backend readiness
   check succeeds.
 

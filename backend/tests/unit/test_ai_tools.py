@@ -6,6 +6,9 @@ transactions, so SQL bugs surface here rather than at runtime.
 
 from __future__ import annotations
 
+import logging
+import re
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -17,6 +20,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from ledger_sync.api.ai_tools import router as tools_router
+from ledger_sync.api.ai_tools_impl import REGISTRY
+from ledger_sync.api.ai_tools_impl.registry import parse_date
 from ledger_sync.api.deps import get_current_user
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
@@ -170,7 +175,9 @@ def test_execute_unknown_tool_returns_404() -> None:
         ("get_monthly_summary", {"period": "2026-13"}),
         ("get_category_spending", {"category": "  "}),
         ("get_fy_summary", {"fiscal_year": "FY2024-99"}),
+        ("get_fy_summary", {"fiscal_year": "FY24"}),
         ("list_recurring", {"active_only": "false"}),
+        ("list_recurring", {"include_habits": "yes"}),
         ("list_anomalies", {"include_reviewed": 1}),
         ("list_accounts", {"user_id": 123}),
     ],
@@ -280,6 +287,57 @@ def test_get_category_spending_sums_ilike_match() -> None:
     assert result["count"] == 2
 
 
+def _add_pet_food(session: Session, user: User) -> None:
+    session.add(
+        Transaction(
+            transaction_id="hash_pet_food",
+            user_id=user.id,
+            date=datetime(2026, 3, 8, tzinfo=UTC),
+            amount=Decimal("300"),
+            currency="INR",
+            type=TransactionType.EXPENSE,
+            account="HDFC Bank",
+            category="Pet Food",
+            source_file="test.xlsx",
+        )
+    )
+    session.commit()
+
+
+def test_get_category_spending_prefers_exact_category_over_substring() -> None:
+    app, session, user = _make_app_with_data()
+    _add_pet_food(session, user)
+    client = TestClient(app)
+
+    exact = _exec(client, "get_category_spending", {"category": "Food"})
+    partial = _exec(client, "get_category_spending", {"category": "foo"})
+
+    assert exact["match"] == "exact"
+    assert exact["total"] == pytest.approx(6500)
+    assert exact["matched_categories"] == ["Food"]
+    assert partial["match"] == "substring"
+    assert partial["total"] == pytest.approx(6800)
+    assert partial["matched_categories"] == ["Food", "Pet Food"]
+
+
+def test_search_category_filter_prefers_exact_category() -> None:
+    app, session, user = _make_app_with_data()
+    _add_pet_food(session, user)
+
+    result = _exec(TestClient(app), "search_transactions", {"category": "food"})
+
+    assert {t["category"] for t in result["transactions"]} == {"Food"}
+    assert result["total_matching_filters"] == 2
+
+
+def test_parse_date_returns_naive_ledger_midnight() -> None:
+    parsed = parse_date("2026-03-01")
+
+    assert parsed is not None
+    assert parsed.tzinfo is None
+    assert parsed.isoformat() == "2026-03-01T00:00:00"
+
+
 def test_get_net_worth_uses_latest_snapshot() -> None:
     app, session, user = _make_app_with_data()
     # Seed two snapshots; the later one should win
@@ -364,6 +422,7 @@ def test_list_recurring_filters_active() -> None:
             occurrences_detected=2,
             times_missed=3,
             is_active=False,
+            is_user_confirmed=True,
         )
     )
     session.commit()
@@ -375,6 +434,66 @@ def test_list_recurring_filters_active() -> None:
 
     result_all = _exec(client, "list_recurring", {"active_only": False})
     assert result_all["count"] == 2
+
+
+def _add_recurring(
+    session: Session,
+    user: User,
+    name: str,
+    frequency: RecurrenceFrequency,
+    amount: str,
+    *,
+    kind: str = "commitment",
+    txn_type: TransactionType = TransactionType.EXPENSE,
+    active: bool = True,
+) -> None:
+    session.add(
+        RecurringTransaction(
+            user_id=user.id,
+            pattern_name=name,
+            category=name,
+            account="HDFC Bank",
+            transaction_type=txn_type,
+            frequency=frequency,
+            expected_amount=Decimal(amount),
+            amount_variance=Decimal("0"),
+            confidence_score=90,
+            occurrences_detected=6,
+            times_missed=0,
+            pattern_kind=kind,
+            is_active=active,
+            is_user_confirmed=True,
+        )
+    )
+
+
+def test_list_recurring_lists_commitments_with_monthly_expense_total() -> None:
+    app, session, user = _make_app_with_data()
+    _add_recurring(session, user, "Netflix", RecurrenceFrequency.MONTHLY, "649")
+    _add_recurring(session, user, "Insurance", RecurrenceFrequency.YEARLY, "12000")
+    _add_recurring(
+        session,
+        user,
+        "Salary",
+        RecurrenceFrequency.MONTHLY,
+        "100000",
+        txn_type=TransactionType.INCOME,
+    )
+    _add_recurring(session, user, "Old gym", RecurrenceFrequency.MONTHLY, "1500", active=False)
+    _add_recurring(session, user, "Lunch", RecurrenceFrequency.WEEKLY, "300", kind="habit")
+    session.commit()
+    client = TestClient(app)
+
+    result = _exec(client, "list_recurring", {"active_only": False})
+    with_habits = _exec(client, "list_recurring", {"include_habits": True})
+
+    assert {r["name"] for r in result["recurring"]} == {"Netflix", "Insurance", "Salary", "Old gym"}
+    # 649 monthly + 12000 yearly / 12; income and the paused gym stay out.
+    assert result["monthly_expense_total"] == pytest.approx(1649)
+    lunch = next(r for r in with_habits["recurring"] if r["name"] == "Lunch")
+    assert lunch["pattern_kind"] == "habit"
+    assert lunch["monthly_equivalent"] == pytest.approx(300 * 52 / 12)
+    assert with_habits["monthly_expense_total"] == pytest.approx(1649)
 
 
 def test_list_goals() -> None:
@@ -437,6 +556,75 @@ def test_get_fy_summary_returns_not_found_for_unknown_fy() -> None:
     client = TestClient(app)
     result = _exec(client, "get_fy_summary", {"fiscal_year": "FY1999-00"})
     assert result["found"] is False
+
+
+@pytest.mark.parametrize("label", ["FY2024", "FY2024-25"])
+def test_get_fy_summary_finds_calendar_year_label(label: str) -> None:
+    app, session, user = _make_app_with_data()
+    session.add(UserPreferences(user_id=user.id, fiscal_year_start_month=1))
+    _add_fy_summary(session, user, "FY2024", "900000", "50000")
+
+    result = _exec(TestClient(app), "get_fy_summary", {"fiscal_year": label})
+
+    assert result["found"] is True
+    assert result["fiscal_year"] == "FY2024"
+
+
+def test_get_fy_summary_short_label_resolves_to_april_fiscal_year() -> None:
+    app, session, user = _make_app_with_data()
+    _add_fy_summary(session, user, "FY2024-25", "1000000", "100000")
+
+    result = _exec(TestClient(app), "get_fy_summary", {"fiscal_year": "FY2024"})
+
+    assert result["found"] is True
+    assert result["fiscal_year"] == "FY2024-25"
+
+
+def _replace_executor(monkeypatch: pytest.MonkeyPatch, exc: Exception) -> None:
+    def _fail(_user: User, _db: Session, _args: dict) -> None:
+        raise exc
+
+    monkeypatch.setitem(REGISTRY, "list_goals", replace(REGISTRY["list_goals"], execute=_fail))
+
+
+def test_unexpected_tool_failure_rolls_back_and_logs_only_type_and_id(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    app, session, _user = _make_app_with_data()
+    rollbacks: list[bool] = []
+    real_rollback = session.rollback
+
+    def _rollback() -> None:
+        rollbacks.append(True)
+        real_rollback()
+
+    monkeypatch.setattr(session, "rollback", _rollback)
+    _replace_executor(monkeypatch, RuntimeError("amount 98765 on Synthetic Bank"))
+
+    with caplog.at_level(logging.ERROR, logger="ledger_sync.api.ai_tools"):
+        response = TestClient(app).post(
+            "/api/ai/tools/execute", json={"name": "list_goals", "arguments": {}}
+        )
+
+    assert response.status_code == 500
+    error_id = re.search(r"error id ([0-9a-f]{16})", response.json()["detail"])
+    assert error_id is not None
+    assert rollbacks == [True]
+    assert "RuntimeError" in caplog.text
+    assert error_id.group(1) in caplog.text
+    assert "98765" not in caplog.text
+    assert "98765" not in response.text
+
+
+def test_tool_value_error_stays_a_400(monkeypatch: pytest.MonkeyPatch) -> None:
+    app, _session, _user = _make_app_with_data()
+    _replace_executor(monkeypatch, ValueError("bad argument"))
+
+    response = TestClient(app).post(
+        "/api/ai/tools/execute", json={"name": "list_goals", "arguments": {}}
+    )
+
+    assert response.status_code == 400
 
 
 def test_get_tax_summary_prefers_filed_record_over_derived() -> None:

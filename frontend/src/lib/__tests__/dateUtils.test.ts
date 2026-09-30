@@ -13,8 +13,15 @@ import {
   dropPartialMonth,
   endOfPreviousMonth,
   filterTransactionsByDateRange,
+  formatFYLabel,
   formatMonthKey,
+  getAvailableFYs,
+  getFYDateRange,
+  getFYFromDate,
+  getLedgerTodayKey,
   getMonthProgress,
+  parseFYLabelStartYear,
+  shiftFYLabel,
   inclusiveDaySpan,
   isPartialMonth,
   projectPartialMonth,
@@ -598,5 +605,46 @@ describe('toCompleteMonthsRange', () => {
   it('is a no-op on the last day of the month', () => {
     const range = { start_date: null, end_date: null }
     expect(toCompleteMonthsRange(range, new Date(2026, 6, 31))).toBe(range)
+  })
+})
+
+/** FY label rule (2026-09-30): a January start is a calendar year, "FY 2024". */
+describe('fiscal-year labels', () => {
+  it('labels a January-start FY as its calendar year and any other start as a span', () => {
+    expect(getFYFromDate('2024-06-15', 1)).toBe('FY 2024')
+    expect(getFYFromDate('2024-06-15', 4)).toBe('FY 2024-25')
+    expect(getFYFromDate('2024-03-31', 4)).toBe('FY 2023-24')
+    expect(formatFYLabel(2099, 4)).toBe('FY 2099-00')
+  })
+
+  it('round-trips both label forms through parse, range and shift', () => {
+    for (const [label, month, start, end] of [
+      ['FY 2024', 1, '2024-01-01', '2024-12-31'],
+      ['FY 2024-25', 4, '2024-04-01', '2025-03-31'],
+      ['FY 2024-25', 7, '2024-07-01', '2025-06-30'],
+    ] as const) {
+      expect(parseFYLabelStartYear(label)).toBe(2024)
+      expect(getFYDateRange(label, month)).toEqual({ start, end })
+      expect(getFYFromDate(start, month)).toBe(label)
+      expect(getFYFromDate(end, month)).toBe(label)
+    }
+    expect(shiftFYLabel('FY 2024', -1, 1)).toBe('FY 2023')
+    expect(shiftFYLabel('FY 2024-25', 1, 4)).toBe('FY 2025-26')
+    expect(parseFYLabelStartYear('2025-26')).toBe(2025)
+    expect(parseFYLabelStartYear('Select FY')).toBeNull()
+  })
+
+  it('reads each row date from its own string, so 1 April never slips a year', () => {
+    // `new Date('2025-04-01')` is UTC midnight: 31 March for anyone west of UTC.
+    expect(getAvailableFYs([{ date: '2025-04-01' }, { date: '2025-03-31' }], 4))
+      .toEqual(['FY 2025-26', 'FY 2024-25'])
+  })
+})
+
+describe('getLedgerTodayKey', () => {
+  it('reads today on the IST ledger calendar, whatever the viewer zone', () => {
+    // 20:00 UTC is 01:30 the next day in IST.
+    expect(getLedgerTodayKey(new Date('2026-09-30T20:00:00Z'))).toBe('2026-10-01')
+    expect(getLedgerTodayKey(new Date('2026-09-30T10:00:00Z'))).toBe('2026-09-30')
   })
 })

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { motion } from 'motion/react'
 import { Calendar, TrendingUp } from 'lucide-react'
@@ -6,7 +6,9 @@ import { useCohortSpending } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { formatCurrencyShort } from '@/lib/formatters'
+import ErrorState from '@/components/shared/ErrorState'
+import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
+import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -41,7 +43,7 @@ interface BarDatum {
  * none (same call made for `TopMerchants`).
  */
 export default function CohortSpendingAnalysis() {
-  const { data: cohort } = useCohortSpending()
+  const { data: cohort, isLoading, isError, refetch } = useCohortSpending()
   const [view, setView] = useState<ViewMode>('day-of-week')
 
   // The backend pre-computes total / occurrence-correct divisor per bucket and
@@ -95,6 +97,28 @@ export default function CohortSpendingAnalysis() {
 
   const peakName = insights?.peakName
 
+  // Pending and failed reads replace only the chart body: the scope pill and
+  // caption above stay unconditional, and neither state may pose as the
+  // "No expense data" empty state.
+  let unresolvedBody: ReactNode = null
+  if (isLoading) {
+    unresolvedBody = (
+      <output aria-busy="true" className="block">
+        <span className="sr-only">Loading spending patterns</span>
+        <LoadingSkeleton className="h-[260px] w-full" />
+      </output>
+    )
+  } else if (isError) {
+    unresolvedBody = (
+      <ErrorState
+        variant="compact"
+        title="Unable to load spending patterns"
+        message="Your spending averages couldn't be loaded. Try again to see the pattern."
+        onRetry={() => { void refetch() }}
+      />
+    )
+  }
+
   return (
     <motion.div
       className="ledger-panel p-4 sm:p-5"
@@ -145,7 +169,7 @@ export default function CohortSpendingAnalysis() {
         </span>
       </p>
 
-      {hasData ? (
+      {unresolvedBody ?? (hasData ? (
         <>
           {/* No role="img" wrapper -- it would enclose the chart's sr-only data
               table and ARIA presentational children would hide it again.
@@ -194,7 +218,7 @@ export default function CohortSpendingAnalysis() {
                     <span className="text-text-tertiary text-xs font-normal">
                       {' '}· {formatCurrencyShort(insights.peakAmount)}
                       {insights.peakDelta > 0.05 && (
-                        <> ({(insights.peakDelta * 100).toFixed(0)}% above avg)</>
+                        <> ({formatPercent(insights.peakDelta * 100, false, 0)} above avg)</>
                       )}
                     </span>
                   </p>
@@ -213,7 +237,7 @@ export default function CohortSpendingAnalysis() {
         </>
       ) : (
         <ChartEmptyState height={260} message="No expense data available" />
-      )}
+      ))}
     </motion.div>
   )
 }

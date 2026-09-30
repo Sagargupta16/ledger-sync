@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button, Money } from '@/components/ui'
 import { compareTaxRegimes } from '@/lib/finance/taxPlanning'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import DeductionInput from './DeductionInput'
 
@@ -123,7 +123,7 @@ export default function RegimeComparison({
           </div>
           <Money value={newTax.totalTax} bold className="text-xl" />
           <p className="text-xs text-muted-foreground mt-1">
-            Effective rate: {comparison.newEffectiveRate.toFixed(1)}%
+            Effective rate: {formatPercent(comparison.newEffectiveRate)}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             Standard deduction: {formatCurrency(newTax.standardDeduction)}
@@ -144,7 +144,7 @@ export default function RegimeComparison({
           </div>
           <Money value={oldTax.totalTax} bold className="text-xl" />
           <p className="text-xs text-muted-foreground mt-1">
-            Effective rate: {comparison.oldEffectiveRate.toFixed(1)}%
+            Effective rate: {formatPercent(comparison.oldEffectiveRate)}
             {totalDeductions > 0 && (
               <span className="text-app-green">
                 {' '}

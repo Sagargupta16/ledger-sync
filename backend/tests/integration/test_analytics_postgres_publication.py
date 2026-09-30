@@ -12,7 +12,6 @@ from alembic import command
 from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
-from ledger_sync.core import query_helpers
 from ledger_sync.core.analytics.engine import AnalyticsEngine
 from ledger_sync.core.analytics.refresh import (
     AnalyticsVersion,
@@ -43,7 +42,7 @@ migration_connection = _migration_connection
 
 
 @pytest.fixture
-def publication_db(migration_connection, monkeypatch):
+def publication_db(migration_connection):
     connection = migration_connection
     if connection.dialect.name != "postgresql":
         pytest.skip("Real row-lock races require PostgreSQL; SQLite has a separate race test")
@@ -51,7 +50,6 @@ def publication_db(migration_connection, monkeypatch):
     schema = connection.exec_driver_sql("SELECT current_schema()").scalar_one()
     quoted_schema = connection.dialect.identifier_preparer.quote_schema(schema)
     connection.commit()
-    monkeypatch.setattr(query_helpers, "_is_sqlite", False)
     with Session(connection) as session:
         user = User(email="publication@example.test", hashed_password="")
         session.add(user)

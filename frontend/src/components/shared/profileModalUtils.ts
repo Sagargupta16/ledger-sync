@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/formatters'
 import type { User } from '@/types'
 
 export interface ProfileDisplay {
@@ -17,7 +18,7 @@ export function deriveProfileDisplay(user: User | null | undefined): ProfileDisp
   const initials = getProfileInitials(user?.full_name, user?.email)
   const displayName = user?.full_name || user?.email.split('@')[0] || 'User'
   const memberSince = user?.created_at
-    ? new Date(user.created_at).toLocaleDateString(undefined, {
+    ? formatDate(new Date(user.created_at), {
         year: 'numeric',
         month: 'long',
         day: 'numeric',

@@ -30,10 +30,9 @@ vi.mock('@/services/api/auth', () => ({
 }))
 
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: () => ({
-    login: mocks.login,
-    setTokens: mocks.setTokens,
-  }),
+  // The page reads through a selector, so the mock applies it.
+  useAuthStore: <T,>(selector: (state: { login: typeof mocks.login; setTokens: typeof mocks.setTokens }) => T) =>
+    selector({ login: mocks.login, setTokens: mocks.setTokens }),
 }))
 
 vi.mock('@/store/demoStore', () => ({

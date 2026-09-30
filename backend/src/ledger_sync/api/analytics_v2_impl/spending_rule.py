@@ -96,13 +96,13 @@ from ledger_sync.api.analytics_v2_impl.spending_rule_aggregate import (
     _CategoryRow as _CategoryRow,
 )
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
-    _DEFAULT_INVESTMENT_ACCOUNTS,
     _DEFAULT_NEEDS,
 )
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
     _is_transfer_category as _is_transfer_category,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.core.insight_rules import is_partial_month, month_key
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
@@ -110,6 +110,7 @@ from ledger_sync.core.query_helpers import (
     capital_loss_keys_for,
     excluded_accounts_for,
     inclusive_end,
+    investment_accounts_for,
 )
 from ledger_sync.db.models import (
     Transaction,
@@ -129,10 +130,18 @@ def _parse_json_pref(raw: str | None, fallback: Any) -> Any:
         return fallback
 
 
-def _months_between(start: datetime, end: datetime) -> int:
-    """Inclusive month count between two dates, min 1."""
+def _complete_months_between(start: datetime, end: datetime, in_progress: str | None) -> int:
+    """Complete calendar months from *start* to *end* inclusive.
+
+    The ``core.calculator.fill_complete_months`` rule: every calendar month in
+    the range counts, empty ones included, except the month still in progress
+    (*in_progress*, a ``YYYY-MM`` key or None). 0 when the whole range sits
+    inside that month.
+    """
     months = (end.year - start.year) * 12 + (end.month - start.month) + 1
-    return max(months, 1)
+    if in_progress is not None and month_key(start) <= in_progress <= month_key(end):
+        months -= 1
+    return months
 
 
 def _one_year_before(moment: datetime) -> datetime:
@@ -163,7 +172,7 @@ def get_spending_rule_breakdown(
     Response shape:
 
         {
-          "period": {"start": ISO, "end": ISO, "months": int},
+          "period": {"start": ISO, "end": ISO, "months": int},  # complete months
           "income_total": float,
           "expense_total": float,
           "savings_amount": float,  # net change in the investment perimeter
@@ -192,6 +201,10 @@ def get_spending_rule_breakdown(
     100% of that period's income and drive ``unallocated`` negative. That is a
     real outcome, not an error, and it must not be clamped.
 
+    ``period.months`` and each row's ``avg_monthly`` count complete calendar
+    months only: empty months count as 0 and the month still in progress on
+    the ledger day is left out, while every total and share still includes it.
+
     `score_delta` is the difference in percentage-points between actual and
     target, signed so positive is "on the right side" for the bucket (under
     for Needs/Wants, over for Savings).
@@ -208,7 +221,11 @@ def get_spending_rule_breakdown(
     if start > end:
         # Swap silently -- the frontend can send them either way.
         start, end = end, start
-    months_in_range = _months_between(start, end)
+    # Averages use complete calendar months only; totals and shares still
+    # include the month in progress.
+    today = now.date()
+    in_progress = month_key(today) if is_partial_month(month_key(today), today) else None
+    months_in_range = _complete_months_between(start, end, in_progress)
     # A date-only `end` parses to midnight, which as a `<=` bound would drop
     # that whole day. Kept separate from `end` so `period.end` in the response
     # still echoes the range the caller asked for, not the internal bound.
@@ -219,18 +236,15 @@ def get_spending_rule_breakdown(
         db.query(UserPreferences).filter(UserPreferences.user_id == current_user.id).one_or_none()
     )
     user_essentials = _parse_json_pref(prefs.essential_categories if prefs else None, [])
-    user_inv_mappings = _parse_json_pref(prefs.investment_account_mappings if prefs else None, {})
 
     # User overrides ADD to the built-in Indian defaults rather than
     # replacing them. Previously an empty override reverted to defaults,
     # but a user adding "Charity" would silently LOSE all defaults including
     # Education / Housing / Groceries -- a nasty override-drops-defaults foot-gun.
     essential_set: set[str] = set(_DEFAULT_NEEDS) | {s.lower() for s in user_essentials if s}
-    # investment_account_mappings is {"account_pattern": "type"} -- we only
-    # need the patterns.
-    investment_accounts_set: set[str] = {p.lower() for p in user_inv_mappings.keys() if p} or set(
-        _DEFAULT_INVESTMENT_ACCOUNTS
-    )
+    # The raw mapped account names, matched exactly; no mapping at all selects
+    # the default keyword fallback (``core.metric_rules.is_investment_account``).
+    mapped_investment_accounts = investment_accounts_for(current_user)
 
     needs_target = prefs.needs_target_percent if prefs else 50.0
     wants_target = prefs.wants_target_percent if prefs else 30.0
@@ -271,7 +285,7 @@ def get_spending_rule_breakdown(
     income_total, expense_total, bucket_totals, category_rows = _aggregate_txns(
         txns,
         essential_set=essential_set,
-        investment_accounts_set=investment_accounts_set,
+        mapped_investment_accounts=mapped_investment_accounts,
         capital_loss_key_set=capital_loss_keys_for(current_user),
     )
 
@@ -332,7 +346,7 @@ def get_spending_rule_breakdown(
             },
         },
         "categories": sorted(
-            (row.to_dict(months_in_range) for row in category_rows.values()),
+            (row.to_dict(months_in_range, in_progress) for row in category_rows.values()),
             key=lambda r: (r["bucket"], -r["total_amount"]),
         ),
     }

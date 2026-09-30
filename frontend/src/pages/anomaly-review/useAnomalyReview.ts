@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { useAnomalies, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
+import { useAnomalies, useAnomalyCounts, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 
 import type { AnomalySummaryCounts } from './types'
@@ -18,19 +18,20 @@ export function useAnomalyReview() {
     severity: severityFilter || undefined,
     include_reviewed: includeReviewed,
   })
-  const summaryQuery = useAnomalies({ include_reviewed: includeReviewed })
+  const summaryQuery = useAnomalyCounts({ include_reviewed: includeReviewed })
   const reviewMutation = useReviewAnomaly()
   const { guardDemoAction } = useDemoGuard()
 
-  // `total` is the row count, not high + medium: the severity column is free text
-  // on the backend, so a row graded anything else still has to be counted or the
-  // page would under-report how many anomalies exist.
+  // Envelope totals, not row counts: the row list stops at the handler's limit.
+  // `total` is the match count, not high + medium: the severity column is free
+  // text on the backend, so a row graded anything else still has to be counted
+  // or the page would under-report how many anomalies exist.
   const summary = useMemo<AnomalySummaryCounts>(() => {
-    const allAnomalies = summaryQuery.data ?? []
+    const counts = summaryQuery.data
     return {
-      high: allAnomalies.filter((anomaly) => anomaly.severity === 'high').length,
-      medium: allAnomalies.filter((anomaly) => anomaly.severity === 'medium').length,
-      total: allAnomalies.length,
+      high: counts?.summary.high ?? 0,
+      medium: counts?.summary.medium ?? 0,
+      total: counts?.count ?? 0,
     }
   }, [summaryQuery.data])
 

@@ -1,48 +1,53 @@
-"""Unit tests for the Indian tax-note detection regex used by FY summaries."""
+"""Unit tests for the tax-paid rule used by FY summaries (``metric_rules.is_tax_paid``).
+
+Tax paid is decided by the row's own TAXONOMY -- the exact "Taxes" category or
+income-tax vocabulary in the category or subcategory. The free-text note used
+to be searched for any tax word, so a purchase note "incl GST" or a broker note
+"STCG advance tax adjustment" was booked as income tax the user paid.
+"""
 
 from __future__ import annotations
 
 import pytest
 
-from ledger_sync.core.analytics.fy_summaries import _TAX_NOTE_RE
+from ledger_sync.core.metric_rules import is_tax_paid
 
 
 @pytest.mark.parametrize(
-    "note",
+    ("category", "subcategory"),
     [
-        # Original vocabulary the regex always caught
-        "Income tax paid Q3",
-        "TAX PAID",
-        "advance-tax quarter 2",
-        # Indian tax vocabulary the old regex missed
-        "GST paid on invoice",
-        "TDS deducted at source",
-        "Cess reversal",
-        "Surcharge on tax bill",
-        "Self assessment tax filed",
-        "self-assessment payment",
-        "advance tax Q4",
+        ("Taxes", None),
+        ("Taxes", "Anything"),
+        ("Income Tax", None),
+        ("Tax", "Income Tax"),
+        ("Tax", "Income-Tax"),
+        ("Government", "TDS"),
+        ("Tax", "Advance Tax"),
+        ("Tax", "advance-tax Q4"),
+        ("Tax", "Self Assessment"),
+        ("Tax", "Self-Assessment Tax"),
+        ("Payments", "Tax Paid"),
+        ("Taxes Paid", None),
+        ("Salary Deductions", "Professional Tax"),
     ],
 )
-def test_indian_tax_vocabulary_matches(note: str):
-    assert _TAX_NOTE_RE.search(note) is not None
+def test_income_tax_taxonomy_counts_as_tax_paid(category: str, subcategory: str | None):
+    assert is_tax_paid(category, subcategory)
 
 
 @pytest.mark.parametrize(
-    "note",
+    ("category", "subcategory"),
     [
         # Word-boundary guards -- these must not trip.
-        "Ola Taxi ride from airport",
-        "Syntax error refund from ide.dev",
-        "Cesspool cleaning service",  # doesn't match "cess" bare
-        "New Delhi tax-free",  # matches "tax" though word-boundary allows this
+        ("Transportation", "Ola Taxi"),
+        ("Software", "Syntax Highlighter"),
+        # Indirect taxes and levies are not income tax paid.
+        ("Shopping", "GST"),
+        ("Utilities", "Cess"),
+        ("Tax", "Surcharge"),
+        (None, None),
+        ("", ""),
     ],
 )
-def test_word_boundaries_prevent_false_positives(note: str):
-    # Only "tax-free" should legitimately match (contains "tax" as a word).
-    result = _TAX_NOTE_RE.search(note)
-    if "tax" in note.lower() and "tax" == note.lower().replace("-free", "").split()[-1]:
-        # Weak assertion -- "tax-free" IS a tax word, so matching is OK.
-        pass
-    else:
-        assert result is None, f"False positive on {note!r}: matched {result!r}"
+def test_other_taxonomies_are_not_tax_paid(category: str | None, subcategory: str | None):
+    assert not is_tax_paid(category, subcategory)

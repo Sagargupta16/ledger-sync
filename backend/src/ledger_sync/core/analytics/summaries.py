@@ -14,6 +14,7 @@ from ledger_sync.core._analytics_helpers import mom_change_pct as _mom_change_pc
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.ledger_clock import to_ledger_time
 from ledger_sync.core.ledger_math import investment_transfer_delta
+from ledger_sync.core.metric_rules import is_essential_expense
 from ledger_sync.db.models import (
     DailySummary,
     MonthlySummary,
@@ -324,7 +325,8 @@ class SummariesMixin(AnalyticsEngineBase):
 
         data["total_expenses"] += amount
         data["expense_count"] += 1
-        if txn.category in self.essential_categories:
+        # The canonical Needs rule, shared with the /budgets 50/30/20 endpoint.
+        if is_essential_expense(txn.category, txn.subcategory, self.essential_keywords):
             data["essential_expenses"] += amount
         else:
             data["discretionary_expenses"] += amount

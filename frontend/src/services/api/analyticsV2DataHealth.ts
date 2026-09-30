@@ -59,6 +59,36 @@ export interface DataHealth {
   placeholder_note_count: number
   /** Rows parked in the catch-all category (e.g. "Miscellaneous"). */
   uncategorized_count: number
+  /**
+   * EXPENSE taxonomies whose name reads like a realised investment loss and
+   * that the user has NOT classified yet, largest total first
+   * (`_unclassified_capital_losses` in backend
+   * `api/analytics_v2_impl/summaries_health.py`). Detection only: these rows are
+   * still summed as spending until the user classifies them.
+   *
+   * Optional because the Pages frontend and the Vercel backend deploy
+   * separately; an older backend omits the three fields, which reads as "no
+   * candidates" rather than failing the whole page.
+   */
+  capital_loss_candidates?: CapitalLossCandidate[]
+  /** Rows across all candidates. */
+  capital_loss_candidate_count?: number
+  /** Summed amount across all candidates. */
+  capital_loss_candidate_amount?: number
+}
+
+/** One suggested realised-loss taxonomy from the data-health signal. */
+export interface CapitalLossCandidate {
+  category: string | null
+  subcategory: string | null
+  /**
+   * The exact `Category::Subcategory` string to save in
+   * `capital_loss_categories` (raw case, `::` separator), built server-side so
+   * the client never has to reconstruct the separator.
+   */
+  key: string
+  transaction_count: number
+  total_amount: number
 }
 
 /**

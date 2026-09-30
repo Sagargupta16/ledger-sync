@@ -29,8 +29,8 @@ uv run uvicorn ledger_sync.api.main:app --reload --port 8000
 Local endpoints:
 
 - API: `http://localhost:8000`
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- Swagger UI: `http://localhost:8000/docs` (development only)
+- ReDoc: `http://localhost:8000/redoc` (development only)
 - Health: `http://localhost:8000/health`
 - Database health: `http://localhost:8000/health/db`
 

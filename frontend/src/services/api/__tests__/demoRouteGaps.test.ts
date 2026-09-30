@@ -92,14 +92,16 @@ describe('demo income-analysis route', () => {
     expect(months.map((m) => m.income_avg_3m)).toEqual([null, null])
   })
 
-  it('honours the cashback classification list the page forwards', async () => {
-    const unclassified = (await demoGet('/api/calculations/income-analysis')) as {
+  it('honours the non-taxable list the page forwards, under its own name', async () => {
+    type IncomeRead = {
       cashbacks_total: number
+      non_taxable_total: number
       category_breakdown: Record<string, number>
     }
+    const unclassified = (await demoGet('/api/calculations/income-analysis')) as IncomeRead
     // No list sent -> nothing matches, exactly like the endpoint (which owns no
     // preference fallback of its own).
-    expect(unclassified.cashbacks_total).toBe(0)
+    expect(unclassified.non_taxable_total).toBe(0)
 
     const classified = (await demoGet('/api/calculations/income-analysis', {
       cashback_categories: [
@@ -107,14 +109,30 @@ describe('demo income-analysis route', () => {
         'Refund & Cashbacks::Other Cashbacks',
         'Refund & Cashbacks::Product Refunds',
       ],
-    })) as { cashbacks_total: number; category_breakdown: Record<string, number> }
+    })) as IncomeRead
 
-    expect(classified.cashbacks_total).toBeGreaterThan(0)
+    expect(classified.non_taxable_total).toBeGreaterThan(0)
     // Every matched row is an income row in that category, so the total can
     // never exceed the category's own breakdown figure.
-    expect(classified.cashbacks_total).toBeLessThanOrEqual(
+    expect(classified.non_taxable_total).toBeLessThanOrEqual(
       classified.category_breakdown['Refund & Cashbacks'],
     )
+  })
+
+  it('reports cashback by the cashback rule, whatever list is forwarded', async () => {
+    type IncomeRead = { cashbacks_total: number; non_taxable_total: number }
+    // Cashback = income rows whose subcategory says cashback, minus cashback
+    // shared on -- the `/quick-insights` rule. Product refunds are money coming
+    // back, not a reward, so forwarding them must not move the figure.
+    const bare = (await demoGet('/api/calculations/income-analysis')) as IncomeRead
+    const withRefunds = (await demoGet('/api/calculations/income-analysis', {
+      cashback_categories: ['Refund & Cashbacks::Product Refunds'],
+    })) as IncomeRead
+    const insights = (await demoGet('/api/calculations/quick-insights')) as { net_cashback: number }
+
+    expect(bare.cashbacks_total).toBeGreaterThan(0)
+    expect(withRefunds.cashbacks_total).toBe(bare.cashbacks_total)
+    expect(bare.cashbacks_total).toBeCloseTo(insights.net_cashback, 6)
   })
 })
 
@@ -263,5 +281,90 @@ describe('demo transactions/export route', () => {
 
     expect(parsed.every((tags) => Array.isArray(tags))).toBe(true)
     expect(parsed.some((tags) => (tags as string[]).length > 0)).toBe(true)
+  })
+})
+
+/**
+ * Demo reads that ignored their params, so a filtered page silently showed the
+ * whole-ledger answer (measured 2026-09-30 on the generated ledger).
+ */
+describe('demo routes honour the params the endpoint declares', () => {
+  const lastMonthWindow = () => {
+    const txs = getDemoTransactions()
+    const month = txs[0].date.slice(0, 7)
+    return { start_date: `${month}-01`, end_date: txs[0].date }
+  }
+
+  it('scopes quick insights to the requested window, like /totals', async () => {
+    const window = lastMonthWindow()
+    const insights = (await demoGet('/api/calculations/quick-insights', window)) as {
+      total_spending: number
+      min_date: string
+    }
+    const totals = (await demoGet('/api/calculations/totals', window)) as { total_expenses: number }
+    // The whole ledger used to answer: a 4,130,044 burn rate beside a 73,308 card.
+    expect(insights.total_spending).toBeCloseTo(totals.total_expenses, 6)
+    expect(insights.min_date >= window.start_date).toBe(true)
+  })
+
+  it('filters anomalies by type and severity and hides reviewed rows by default', async () => {
+    const all = (await demoGet('/api/analytics/v2/anomalies', { include_reviewed: true })) as {
+      data: { anomaly_type: string; severity: string; is_reviewed: boolean; is_dismissed: boolean }[]
+    }
+    const target = all.data[0]
+    const byType = (await demoGet('/api/analytics/v2/anomalies', {
+      type: target.anomaly_type,
+      include_reviewed: true,
+    })) as typeof all
+    const bySeverity = (await demoGet('/api/analytics/v2/anomalies', {
+      severity: target.severity,
+      include_reviewed: true,
+    })) as typeof all
+    const byDefault = (await demoGet('/api/analytics/v2/anomalies')) as typeof all
+
+    expect(byType.data.every((a) => a.anomaly_type === target.anomaly_type)).toBe(true)
+    expect(bySeverity.data.every((a) => a.severity === target.severity)).toBe(true)
+    expect(byType.data.length).toBeLessThanOrEqual(all.data.length)
+    expect(byDefault.data.every((a) => !a.is_reviewed && !a.is_dismissed)).toBe(true)
+  })
+
+  it('answers account balances as of end_date', async () => {
+    const txs = getDemoTransactions()
+    const asOf = txs.at(-1)!.date
+    const early = (await demoGet('/api/calculations/account-balances', { end_date: asOf })) as {
+      accounts: Record<string, { transactions: number }>
+    }
+    const now = (await demoGet('/api/calculations/account-balances')) as typeof early
+    const count = (payload: typeof early) =>
+      Object.values(payload.accounts).reduce((sum, a) => sum + a.transactions, 0)
+    expect(count(early)).toBeLessThan(count(now))
+  })
+
+  it('applies min_transactions and limit to merchant intelligence', async () => {
+    const page = (await demoGet('/api/analytics/v2/merchant-intelligence', {
+      min_transactions: 10,
+      limit: 5,
+    })) as { data: { transaction_count: number }[] }
+    expect(page.data.length).toBeLessThanOrEqual(5)
+    expect(page.data.every((m) => m.transaction_count >= 10)).toBe(true)
+  })
+
+  it('serves a full AIConfig instead of the [] catch-all', async () => {
+    const config = (await demoGet('/api/preferences/ai-config')) as Record<string, unknown>
+    expect(Array.isArray(config)).toBe(false)
+    expect(config.mode).toBe('app_bedrock')
+    expect(config.has_key).toBe(false)
+  })
+
+  it('ends the net worth trend on the balance hero', async () => {
+    const trend = (await demoGet('/api/calculations/daily-net-worth')) as {
+      cumulative_data: { net_worth: number }[]
+    }
+    const hero = (await demoGet('/api/calculations/account-balances')) as {
+      statistics: { total_balance: number }
+    }
+    // Used to end 1,927,510 below the hero: the trend summed flows from zero
+    // while the hero started from opening balances.
+    expect(trend.cumulative_data.at(-1)!.net_worth).toBeCloseTo(hero.statistics.total_balance, 6)
   })
 })

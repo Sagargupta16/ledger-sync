@@ -1,10 +1,14 @@
 """Metadata API endpoints for dropdowns and filters."""
 
+from collections.abc import Set as AbstractSet
+
 from fastapi import APIRouter
 from sqlalchemy import select, union_all
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.core.metric_rules import investment_account_names, is_investment_account
+from ledger_sync.core.query_helpers import investment_accounts_for
+from ledger_sync.db.models import Transaction, TransactionType, User
 
 router = APIRouter(prefix="/api/meta", tags=["meta"])
 
@@ -109,10 +113,13 @@ def _classify_category(name: str) -> str:
     return "wants"
 
 
-def _classify_account(name: str) -> str:
-    n = name.lower()
-    investment_kw = ["grow", "stock", "zerodha", "upstox", "broker", "demat", "mutual"]
-    return "investment" if any(k in n for k in investment_kw) else "general"
+def _classify_account(name: str, mapped_names: AbstractSet[str]) -> str:
+    """The shared investment-account rule (``core.metric_rules``).
+
+    Mapped accounts match on their exact name, case-insensitively; with no
+    mapping the default keyword list applies at word boundaries.
+    """
+    return "investment" if is_investment_account(name, mapped_names) else "general"
 
 
 def _classify_categories_into_buckets(
@@ -144,10 +151,11 @@ def _classify_categories_into_buckets(
     return needs, wants, savings, investment_categories
 
 
-def _collect_investment_accounts(db: DatabaseSession, user_id: int) -> set[str]:
+def _collect_investment_accounts(db: DatabaseSession, user: User) -> set[str]:
     """Collect investment accounts from account, from_account, and to_account columns."""
     investment_accounts: set[str] = set()
-    active_filter = (Transaction.user_id == user_id, Transaction.is_deleted.is_(False))
+    mapped_names = investment_account_names(investment_accounts_for(user))
+    active_filter = (Transaction.user_id == user.id, Transaction.is_deleted.is_(False))
 
     account_columns = [
         (Transaction.account, None),
@@ -160,7 +168,7 @@ def _collect_investment_accounts(db: DatabaseSession, user_id: int) -> set[str]:
         if extra_filter is not None:
             query = query.filter(extra_filter)
         for (acct,) in query:
-            if acct and _classify_account(acct) == "investment":
+            if acct and _classify_account(acct, mapped_names) == "investment":
                 investment_accounts.add(acct)
 
     return investment_accounts
@@ -175,7 +183,7 @@ def get_buckets(
     needs, wants, savings, investment_categories = _classify_categories_into_buckets(
         db, current_user.id
     )
-    investment_accounts = _collect_investment_accounts(db, current_user.id)
+    investment_accounts = _collect_investment_accounts(db, current_user)
 
     return {
         "needs": sorted(needs),

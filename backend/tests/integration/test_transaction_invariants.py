@@ -125,6 +125,17 @@ def test_constraints_do_not_invent_transfer_endpoint_requirements(
         _ledger(invariant_db, f"transfer-{index}", type="TRANSFER", **endpoints)
     # Manual creation currently retains optional endpoint labels for any type.
     _ledger(invariant_db, "expense", from_account="Other", to_account="Wallet")
+    stored = invariant_db.exec_driver_sql(
+        "SELECT transaction_id, type, from_account, to_account FROM transactions "
+        "ORDER BY transaction_id"
+    ).all()
+    assert [tuple(row) for row in stored] == [
+        ("expense", "EXPENSE", "Other", "Wallet"),
+        ("transfer-0", "TRANSFER", None, None),
+        ("transfer-1", "TRANSFER", "", ""),
+        ("transfer-2", "TRANSFER", "Bank", None),
+        ("transfer-3", "TRANSFER", "Bank", "Bank"),
+    ]
 
 
 def test_actual_manual_and_normalized_transfer_shapes() -> None:

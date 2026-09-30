@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  accumulateStats,
+  aggregateFromDailySummaries,
   buildDayCells,
   getHeatmapSwatch,
   getMonthlyMax,
@@ -137,5 +139,50 @@ describe('buildDayCells net maxima', () => {
     expect(mxNSurplus).toBe(0)
     expect(mxNDeficit).toBe(7_000)
     expect(mxN).toBe(7_000)
+  })
+})
+
+/**
+ * Year in Review savings are income - spending - classified realised losses.
+ * The daily rollup keeps a classified loss out of `expense` and subtracts it
+ * from `net`, so the stats must sum the day nets, not income minus expense.
+ */
+describe('savings from the daily rollups', () => {
+  const summaries = [
+    { date: '2026-01-05', income: 100_000, expense: 40_000, net: 60_000 },
+    // 1,500 of groceries plus a CLASSIFIED 20,000 realised loss.
+    { date: '2026-02-10', income: 0, expense: 1_500, net: -21_500 },
+  ]
+
+  it('carries the loss in net while keeping it out of spending', () => {
+    const { dayExpenses, dayIncomes, dayNets } = aggregateFromDailySummaries(
+      summaries,
+      '2026-01-01',
+      '2026-12-31',
+    )
+    const { cells } = buildDayCells(
+      new Date(2026, 0, 1),
+      new Date(2026, 1, 28),
+      dayExpenses,
+      dayIncomes,
+      dayNets,
+    )
+    const stats = accumulateStats(cells)
+
+    expect(stats.totalExpense).toBe(41_500)
+    expect(stats.totalIncome).toBe(100_000)
+    // 100,000 - 41,500 - 20,000; income minus expense would claim 58,500.
+    expect(stats.totalNet).toBe(38_500)
+    expect(stats.monthlyNet[0]).toBe(60_000)
+    expect(stats.monthlyNet[1]).toBe(-21_500)
+  })
+
+  it('falls back to income minus expense for a row without net', () => {
+    const { dayNets } = aggregateFromDailySummaries(
+      [{ date: '2026-01-05', income: 1_000, expense: 400 }],
+      '2026-01-01',
+      '2026-01-31',
+    )
+    expect(dayNets['2026-01-05']).toBe(600)
   })
 })

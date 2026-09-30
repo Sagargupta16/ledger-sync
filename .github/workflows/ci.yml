@@ -21,6 +21,43 @@ jobs:
       contents: read
     with:
       working-directory: frontend
+      # Match the Node major that deploy-frontend.yml ships with.
+      node-version: "24"
+
+  # The shipped artifact is a GitHub Pages build (base /ledger-sync/, installed
+  # without lifecycle scripts). Build it exactly as deploy-frontend.yml does so
+  # a Pages-only failure surfaces here instead of during deployment.
+  frontend-pages-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Version comes from the root package.json `packageManager` field.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build for GitHub Pages
+        env:
+          GITHUB_PAGES: "true"
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: pnpm run build
+
+      - name: Copy index.html to 404.html for SPA routing
+        run: cp dist/index.html dist/404.html
 
   # Backend: real gating (ruff + mypy + pytest). The shared python-ci workflow
   # swallows failures with `|| true`, so we run an inline job that actually
@@ -71,6 +108,14 @@ jobs:
           LEDGER_SYNC_JWT_SECRET_KEY: ci-secret-key-at-least-32-characters-long
         run: uv run --no-sync --locked --no-build alembic upgrade head
 
+      # Same database file: the migrated schema must match the ORM. env.py
+      # filters only the documented dialect noise, so any other diff fails.
+      - name: Alembic check on the migrated database
+        env:
+          LEDGER_SYNC_DATABASE_URL: sqlite:///./ci_migration_check.db
+          LEDGER_SYNC_JWT_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+        run: uv run --no-sync --locked --no-build alembic check
+
   postgres-migrations:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -118,6 +163,18 @@ jobs:
           tests/unit/test_ai_settings_migration.py
           tests/unit/test_compensation_migration.py
           tests/unit/test_compensation_records.py -q
+      # The integration step above runs `alembic check` against a freshly
+      # migrated PostgreSQL schema (test_migrations_from_scratch). This covers
+      # the operator CLI path the migrate job uses: settings-driven URL
+      # normalized from postgresql:// to psycopg 3, and env.py's own engine.
+      - name: Alembic CLI upgrade on native PostgreSQL
+        env:
+          LEDGER_SYNC_DATABASE_URL: postgresql://ledger_sync_test@127.0.0.1:55432/ledger_sync_test_migrations
+        run: uv run --no-sync --locked --no-build alembic upgrade head
+      - name: Alembic check on native PostgreSQL
+        env:
+          LEDGER_SYNC_DATABASE_URL: postgresql://ledger_sync_test@127.0.0.1:55432/ledger_sync_test_migrations
+        run: uv run --no-sync --locked --no-build alembic check
       - name: Stop the owned native PostgreSQL cluster
         if: always()
         shell: bash
@@ -135,7 +192,7 @@ jobs:
 
   migrate:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [frontend, backend, postgres-migrations, security]
+    needs: [frontend, frontend-pages-build, backend, postgres-migrations, security]
     uses: ./.github/workflows/migrate.yml
     permissions:
       contents: read

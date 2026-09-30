@@ -40,16 +40,24 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       setDisplayCurrency: (code) => {
         const meta = getCurrencyMeta(code)
-        set({
+        set((state) => ({
           displayCurrency: code,
           displayPreferences: {
             numberFormat: meta.numberFormat,
             currencySymbol: meta.symbol,
             currencySymbolPosition: meta.symbolPosition,
-            defaultTimeRange: usePreferencesStore.getState().displayPreferences.defaultTimeRange,
+            defaultTimeRange: state.displayPreferences.defaultTimeRange,
           },
-          ...(code === BASE_CURRENCY ? { exchangeRate: null, exchangeRateUpdatedAt: null } : {}),
-        })
+          // A held rate belongs to the currency it was fetched for. Kept across a
+          // switch between two foreign currencies, the first frame showed the new
+          // symbol at the old rate until useExchangeRate's effect ran; cleared,
+          // the formatters render honest base-currency figures for that frame.
+          // Re-selecting the current foreign currency keeps its rate, because the
+          // effect would not re-run to restore it.
+          ...(code === BASE_CURRENCY || code !== state.displayCurrency
+            ? { exchangeRate: null, exchangeRateUpdatedAt: null }
+            : {}),
+        }))
       },
 
       setExchangeRate: (rate, updatedAt) =>

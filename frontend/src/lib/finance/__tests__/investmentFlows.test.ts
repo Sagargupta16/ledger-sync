@@ -40,8 +40,24 @@ describe('investment perimeter and account movements', () => {
       configured,
     )).toBe(250)
     expect(configured('My future')).toBe(true)
-    expect(configured('my future')).toBe(false)
+    // Exact name, case-insensitively (shared rule, 2026-09-30).
+    expect(configured('my future')).toBe(true)
+    expect(configured('My future fund')).toBe(false)
     expect(configured(undefined)).toBe(false)
+  })
+
+  it('falls back to word-boundary default keywords only when nothing is mapped', () => {
+    // xs_inv.ts: 10,000 moved from HDFC to "Zerodha Coin".
+    const rows: InvestmentFlowTransaction[] = [
+      { type: 'Transfer', amount: 10000, from_account: 'HDFC', to_account: 'Zerodha Coin' },
+    ]
+    expect(summarizeInvestmentTransfers(rows, investmentAccountTest([])).contributions).toBe(10000)
+    // A mapping is honoured exactly: "Zerodha" does not claim "Zerodha Coin".
+    expect(summarizeInvestmentTransfers(rows, investmentAccountTest(['Zerodha'])).contributions).toBe(0)
+    expect(summarizeInvestmentTransfers(rows, investmentAccountTest(['zerodha coin'])).contributions).toBe(10000)
+    const defaults = investmentAccountTest([])
+    expect(defaults('HDFC PPF Account')).toBe(true)
+    expect(defaults('Weird Broker')).toBe(false)
   })
 
   it('does not turn income-funded holdings into transfer contributions', () => {

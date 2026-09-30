@@ -23,9 +23,8 @@ def test_bumped_token_version_invalidates_old_tokens():
 def test_missing_tv_soft_accepted_as_zero(monkeypatch):
     """Legacy tokens issued before this migration carry no tv claim.
 
-    During the rollout window (jwt_strict_tv=false, the default), those
-    tokens must still validate against expected_tv=0 -- otherwise every
-    active session would break the day this code deploys.
+    With the legacy window reopened (jwt_strict_tv=false; strict is the
+    default), those tokens must still validate against expected_tv=0.
     """
     from datetime import UTC, datetime, timedelta
 
@@ -49,7 +48,7 @@ def test_missing_tv_soft_accepted_as_zero(monkeypatch):
 
 
 def test_missing_tv_rejected_in_strict_mode(monkeypatch):
-    """After day-8 flip, legacy tokens without tv must be rejected."""
+    """In strict mode (the default), legacy tokens without tv are rejected."""
     from datetime import UTC, datetime, timedelta
 
     import jwt as pyjwt

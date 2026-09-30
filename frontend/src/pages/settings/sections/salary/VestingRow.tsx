@@ -6,7 +6,7 @@ import { grossVestingValue, hasLockedVestingPrice, netVestingQuantity, netVestin
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '@/pages/settings/styles'
-import { dateToFY } from './fyHelpers'
+import { dateToFY, fyDisplayLabel } from './fyHelpers'
 import type { VestingEntryProps } from './vestingTableTypes'
 
 export default function VestingRow({
@@ -113,7 +113,7 @@ export default function VestingRow({
         )}
       </td>
       <td className="py-2 pr-3 text-muted-foreground">
-        {fiscalYear ? `FY ${fiscalYear}` : '--'}
+        {fiscalYear ? fyDisplayLabel(fiscalYear, fyStartMonth) : '--'}
       </td>
       <td className="py-2">
         <Button

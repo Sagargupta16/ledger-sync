@@ -29,15 +29,14 @@ import {
   getCurrentFY,
   filterTransactionsByDateRange,
 } from '@/lib/dateUtils'
-import {
-  calculateExpenseByCategoryBreakdown,
-  INCOME_CATEGORY_COLORS,
-} from '@/lib/preferencesUtils'
+import { formatDate } from '@/lib/formatters'
+import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
 import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import type { TotalsData } from '@/services/api/calculations'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,13 +77,12 @@ export interface DashboardMetrics {
   // Hook-level date range (for child components expecting { start_date?, end_date? })
   dateRange: { start_date?: string; end_date?: string }
 
-  // KPI totals
-  filteredTotals: {
-    total_income: number
-    total_expenses: number
-    net_savings: number
-    savings_rate: number
-  } | undefined
+  /**
+   * `/totals` for the window. `net_savings` is income - spending - classified
+   * realised losses and `savings_rate` is `net_savings / income`: the one
+   * savings definition every page shows.
+   */
+  filteredTotals: TotalsData | undefined
   /** Every query, the full ledger included. */
   isLoading: boolean
   /** The rollup-backed summary only; the ledger may still be in flight. */
@@ -102,6 +100,11 @@ export interface DashboardMetrics {
 
   // Income breakdown
   incomeBreakdown: Record<string, number> | null
+  /**
+   * Net cashback for the window: income rows whose subcategory says cashback,
+   * minus "cashback shared" transfers -- the same rule and number as the Quick
+   * Insights "Net Cashback Earned" card. Refunds and reimbursements excluded.
+   */
   cashbacksTotal: number
   incomeChartData: ChartDatum[]
 
@@ -128,30 +131,37 @@ export interface DashboardMetrics {
 // ---------------------------------------------------------------------------
 
 export function useDashboardMetrics(): DashboardMetrics {
-  const { displayPreferences } = usePreferencesStore()
+  const defaultTimeRange = usePreferencesStore((state) => state.displayPreferences.defaultTimeRange)
   const preferencesQuery = usePreferences()
   const preferences = preferencesQuery.data
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month ?? 4
 
   // Time-filter state
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
-    (displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'all_time',
+    (defaultTimeRange as AnalyticsViewMode) || 'all_time',
   )
   const [currentYear, setCurrentYear] = useState(getCurrentYear)
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
   const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
 
-  // currentFY is seeded ONCE from the default fiscalYearStartMonth (4) before
-  // /api/preferences resolves; useState initializers never re-run, so a user
-  // with a non-April fiscal year would be stuck on the wrong FY window until
-  // they touched the selector. Mirror useAnalyticsTimeFilter's render-phase
-  // adjustment: when preferences arrive, resync the FY -- but only until the
-  // user interacts, so we never clobber a deliberate selection.
+  // viewMode and currentFY are seeded ONCE, before /api/preferences resolves:
+  // the FY from the default start month (4) and the view from whatever the
+  // persisted store held (its default is 'all_time'). useState initializers
+  // never re-run, so a user with a non-April fiscal year or a saved default
+  // range kept the seed until they touched the selector -- the Dashboard opened
+  // on all-time while every useAnalyticsTimeFilter page opened on the saved
+  // range. Mirror that hook's render-phase adjustment: when preferences arrive,
+  // resync both -- but only until the user interacts, so a deliberate selection
+  // is never clobbered. The saved range is read off the query data, not the
+  // store, because the store hydrates in an effect after this render.
   const [userInteracted, setUserInteracted] = useState(false)
-  const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
-  if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
-    setSyncedFsm(fiscalYearStartMonth)
+  const [syncedPrefs, setSyncedPrefs] = useState<string | null>(null)
+  const savedTimeRange = preferences?.default_time_range
+  const prefsSyncKey = `${fiscalYearStartMonth}|${savedTimeRange ?? ''}`
+  if (preferences && !userInteracted && syncedPrefs !== prefsSyncKey) {
+    setSyncedPrefs(prefsSyncKey)
     setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    if (savedTimeRange) setViewMode(savedTimeRange as AnalyticsViewMode)
   }
 
   const markInteracted = <T,>(setter: (v: T) => void) => (v: T) => {
@@ -199,9 +209,11 @@ export function useDashboardMetrics(): DashboardMetrics {
     () => (preferences ? resolveIncomeClassification(preferences).nonTaxable : []),
     [preferences],
   )
-  // Income by category + cashback total. `/income-analysis` sums |amount| of the
-  // window's Income rows per category and matches `Category::Subcategory`
-  // case-insensitively -- the same rules as the row-level helpers it replaces.
+  // Income by category + net cashback. `/income-analysis` sums |amount| of the
+  // window's Income rows per category, and its `cashbacks_total` applies the
+  // `/quick-insights` cashback rule (cashback rows minus shared cashback), so
+  // the Income Sources line and the band's card are one number. The
+  // non-taxable list above only shapes the separate `non_taxable_total`.
   const incomeQuery = useQuery({
     ...incomeAnalysisOptions({ ...dateRange, cashback_categories: cashbackCategories }),
     enabled: preferencesQuery.isSuccess,
@@ -217,12 +229,11 @@ export function useDashboardMetrics(): DashboardMetrics {
     enabled: preferencesQuery.isSuccess && needsEarningEvidence,
   })
 
-  // `/category-breakdown` holds classified realised losses out of expense
-  // categories, while this pie has always charted every Expense row. Those two
-  // agree exactly when the window has no classified loss (`capital_losses` 0,
-  // which is every user who never set `capital_loss_categories`); otherwise the
-  // pie keeps its row-level computation so no displayed number moves.
-  const expenseFromRows = (filteredTotals?.capital_losses ?? 0) > 0
+  // The expense pie reads `/category-breakdown`, which holds classified
+  // realised losses out of the spending categories -- the same rule as the
+  // Total Expenses KPI beside it. It used to fall back to charting every
+  // Expense row once a loss was classified, so the pie total and the KPI
+  // disagreed by exactly `capital_losses` for the users who had classified one.
 
   const isLedgerLoading = transactionsQuery.isLoading
   const isSummaryLoading =
@@ -232,8 +243,7 @@ export function useDashboardMetrics(): DashboardMetrics {
     preferencesQuery.isLoading ||
     incomeQuery.isLoading ||
     expenseCategoryQuery.isLoading ||
-    earningEvidenceQuery.isLoading ||
-    (expenseFromRows && isLedgerLoading)
+    earningEvidenceQuery.isLoading
   const isLoading = isSummaryLoading || isLedgerLoading
   const isError =
     totalsQuery.isError ||
@@ -296,13 +306,12 @@ export function useDashboardMetrics(): DashboardMetrics {
   // ------ Expense breakdown by category ------
   const expenseBreakdown = useMemo(() => {
     if (!hasTransactionsInRange) return null
-    if (expenseFromRows) return calculateExpenseByCategoryBreakdown(filteredTransactions)
     const categories = expenseCategoryQuery.data?.categories
     if (!categories) return null
     return Object.fromEntries(
       Object.entries(categories).map(([category, { total }]) => [category, total]),
     )
-  }, [hasTransactionsInRange, expenseFromRows, filteredTransactions, expenseCategoryQuery.data])
+  }, [hasTransactionsInRange, expenseCategoryQuery.data])
 
   // ------ Chart data ------
   const incomeChartData = useMemo(() => {
@@ -361,13 +370,9 @@ export function useDashboardMetrics(): DashboardMetrics {
     if (!monthlyData) return []
     return completeMonthKeys(monthlyFlowAll).map((month) => {
       const row = monthlyData[month]
-      const [y, m] = month.split('-')
       return {
         month,
-        label: new Date(Number(y), Number(m) - 1).toLocaleString('default', {
-          month: 'short',
-          year: '2-digit',
-        }),
+        label: formatDate(`${month}-01`, { month: 'short', year: '2-digit' }),
         income: row?.income ?? 0,
         // The API returns expense as a negative; bars need magnitude.
         expense: Math.abs(row?.expense ?? 0),
@@ -379,11 +384,7 @@ export function useDashboardMetrics(): DashboardMetrics {
     const complete = new Set(completeMonthKeys(monthlyFlowAll))
     const inProgress = monthlyFlowAll.find((key) => !complete.has(key))
     if (!inProgress) return null
-    const [y, m] = inProgress.split('-')
-    return new Date(Number(y), Number(m) - 1).toLocaleString('default', {
-      month: 'long',
-      year: 'numeric',
-    })
+    return formatDate(`${inProgress}-01`, { month: 'long', year: 'numeric' })
   }, [monthlyFlowAll])
 
   // ------ MoM changes ------

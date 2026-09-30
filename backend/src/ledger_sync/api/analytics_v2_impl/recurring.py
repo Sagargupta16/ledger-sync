@@ -8,6 +8,7 @@ so the route order is unchanged.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -43,8 +44,13 @@ from ledger_sync.db.models import (
     ScheduledTransaction,
     TransactionType,
 )
+from ledger_sync.ingest.normalizer import DataNormalizer
+from ledger_sync.schemas.transactions import PositiveAmount
 
 router = APIRouter()
+
+# Expected amounts are rounded to paise exactly like imported rows.
+_normalizer = DataNormalizer()
 
 
 @router.get("/recurring-transactions")
@@ -147,7 +153,7 @@ class RecurringTransactionUpdate(BaseModel):
 
     pattern_name: str | None = None
     frequency: str | None = None
-    expected_amount: float | None = None
+    expected_amount: PositiveAmount | None = None
     is_confirmed: bool | None = None
     is_active: bool | None = None
     pattern_kind: str | None = None
@@ -186,9 +192,7 @@ def update_recurring_transaction(
             raise HTTPException(status_code=422, detail=f"Invalid frequency: {body.frequency}")
         record.frequency = RecurrenceFrequency(freq)
     if body.expected_amount is not None:
-        from decimal import Decimal
-
-        record.expected_amount = Decimal(str(body.expected_amount))
+        record.expected_amount = _normalizer.normalize_amount(body.expected_amount)
     if body.is_confirmed is not None:
         record.is_user_confirmed = body.is_confirmed
     if body.is_active is not None:
@@ -212,7 +216,7 @@ class RecurringTransactionCreate(BaseModel):
     name: str
     type: str  # "Income" or "Expense"
     frequency: str
-    amount: float
+    amount: PositiveAmount
     category: str | None = None
     expected_day: int | None = Field(default=None, ge=1, le=31)
 
@@ -229,8 +233,6 @@ def create_recurring_transaction(
     db: DatabaseSession,
 ) -> dict[str, Any]:
     """Create a new recurring transaction manually."""
-    from decimal import Decimal
-
     freq = body.frequency.lower()
     if freq not in _VALID_FREQUENCIES:
         raise HTTPException(status_code=422, detail=f"Invalid frequency: {body.frequency}")
@@ -248,7 +250,7 @@ def create_recurring_transaction(
         account=_MANUAL_ACCOUNT,
         transaction_type=TransactionType(txn_type.capitalize()),
         frequency=RecurrenceFrequency(freq),
-        expected_amount=Decimal(str(body.amount)),
+        expected_amount=_normalizer.normalize_amount(body.amount),
         amount_variance=Decimal("0"),
         expected_day=body.expected_day,
         confidence_score=100,

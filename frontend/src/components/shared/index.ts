@@ -1,13 +1,10 @@
 // Shared components index
 export { default as MetricCard } from './MetricCard'
-export { default as RecentTransactions } from './RecentTransactions'
 export { default as QuickInsights } from './QuickInsights'
-export { default as TimeRangeSelector } from './TimeRangeSelector'
 export { default as Sparkline } from './Sparkline'
 export { default as ProgressBar } from './ProgressBar'
 export { ErrorBoundary } from './ErrorBoundary'
 export { default as LoadingSkeleton, MetricCardSkeleton, ChartSkeleton, TableSkeleton } from './LoadingSkeleton'
-export { PeriodNavigator } from './PeriodNavigator'
 export { default as PartialPeriodNotice } from './PartialPeriodNotice'
 export { default as CostBasisOnlyNotice } from './CostBasisOnlyNotice'
 export { default as EmptyState } from './EmptyState'

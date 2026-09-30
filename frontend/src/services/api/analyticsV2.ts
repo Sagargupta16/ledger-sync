@@ -47,6 +47,7 @@ export {
 } from './analyticsV2Anomalies'
 export type {
   Anomaly,
+  AnomalyCounts,
   AnomalyReviewResult,
   AnomalySeverityValue,
   AnomalyTypeValue,

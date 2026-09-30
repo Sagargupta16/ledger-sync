@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { formatCurrencyCompact } from '@/lib/formatters'
 import { parseLocalDate } from '@/lib/dateUtils'
-import { rawColors } from '@/constants/colors'
 import { formatMonthYear } from '../helpers'
 import type { GoalProjection } from '../types'
 
@@ -24,11 +23,11 @@ export default function GoalProjections({
     <div className="mt-4 space-y-1.5">
       {avgMonthlySavings != null && avgMonthlySavings > 0 && projection.projectedDate && (
         <div className="flex items-center gap-2 text-xs text-text-secondary">
-          <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.blue }} />
+          <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-app-blue" />
           <span>
             At {formatCurrencyCompact(avgMonthlySavings)}/mo savings{' '}
             {projection.status === 'achieved' ? (
-              <span className="font-medium" style={{ color: rawColors.app.green }}>
+              <span className="font-medium text-app-green">
                 -- Goal achieved!
               </span>
             ) : (
@@ -41,7 +40,7 @@ export default function GoalProjections({
       )}
 
       <div className="flex items-center gap-2 text-xs text-text-secondary">
-        <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.teal }} />
+        <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-app-teal" />
         <span>
           Target: {goal.target_date ? formatMonthYear(parseLocalDate(goal.target_date)) : 'No deadline'}
           {/*
@@ -58,14 +57,14 @@ export default function GoalProjections({
             <span className="text-text-tertiary"> (due within a month)</span>
           )}
           {projection.deadlineState === 'past_due' && (
-            <span style={{ color: rawColors.app.red }}> (past due)</span>
+            <span className="text-app-red"> (past due)</span>
           )}
         </span>
       </div>
 
       {projection.requiredMonthlySavings != null && projection.requiredMonthlySavings > 0 && (
         <div className="flex items-center gap-2 text-xs text-text-secondary">
-          <Target className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.orange }} />
+          <Target className="w-3.5 h-3.5 flex-shrink-0 text-app-orange" />
           <span>
             Needs {formatCurrencyCompact(projection.requiredMonthlySavings)}/mo to reach target on time
           </span>
@@ -75,7 +74,7 @@ export default function GoalProjections({
       {/* Status Badge */}
       <div className="flex items-center gap-2 text-xs">
         {projection.status === 'achieved' ? (
-          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: rawColors.app.green }} />
+          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 text-app-green" />
         ) : (
           <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: projection.statusColor }} />
         )}
