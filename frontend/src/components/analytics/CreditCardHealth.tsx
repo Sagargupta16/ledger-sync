@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { CreditCard, AlertTriangle, CheckCircle, CircleHelp, Info } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
 import ProgressBar from '@/components/shared/ProgressBar'

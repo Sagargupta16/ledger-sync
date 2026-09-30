@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import { CalendarClock, CircleCheck, TriangleAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'

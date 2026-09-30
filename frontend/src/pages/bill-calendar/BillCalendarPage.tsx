@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader } from '@/components/ui'

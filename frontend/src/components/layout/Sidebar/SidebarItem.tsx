@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import type { LucideIcon } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 
 import { SPRING } from '@/constants/animations'
 import { cn } from '@/lib/cn'

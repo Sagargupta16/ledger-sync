@@ -123,7 +123,7 @@ export default defineConfig({
         // Vite 8 (Rolldown) removed the object form of manualChunks; the
         // function form splits heavy vendor libs into their own cached chunks.
         manualChunks(id) {
-          if (/node_modules\/(react|react-dom|react-router-dom)\//.test(id)) return 'vendor-react'
+          if (/node_modules\/(react|react-dom|react-router)\//.test(id)) return 'vendor-react'
           // clsx is shared by cn() and recharts; pin it so the eager shell does
           // not import it from (and modulepreload) vendor-recharts.
           if (/node_modules\/clsx\//.test(id)) return 'vendor-react'

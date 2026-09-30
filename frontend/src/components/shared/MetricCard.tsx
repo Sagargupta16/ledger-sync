@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import { DURATION, EASING, TAP_FEEDBACK } from '@/constants/animations'
 import { metricColorConfig, rawColors, type MetricColor } from '@/constants/colors'

@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
 import { Wallet, CreditCard, Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import InvestmentFlowSummary from '@/components/analytics/InvestmentFlowSummary'
 
 import PieLegend from '@/components/shared/PieLegend'

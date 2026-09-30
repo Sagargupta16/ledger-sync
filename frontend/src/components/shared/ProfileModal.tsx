@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { RotateCcw, Trash2 } from 'lucide-react'

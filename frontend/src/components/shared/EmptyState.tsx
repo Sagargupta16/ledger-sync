@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import { type LucideIcon, FileQuestion, Settings, Upload, TrendingUp, PiggyBank } from 'lucide-react'
 import { motion } from 'motion/react'
