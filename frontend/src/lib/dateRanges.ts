@@ -51,7 +51,39 @@ const yearMonthOf = (date: Date | string): { year: number; month: number } => {
 }
 
 /**
- * Get fiscal year label (e.g. "FY 2024-25" = April 2024 to March 2025).
+ * Fiscal-year label for the year starting in `startYear`.
+ *
+ * A January start makes the FY a calendar year, labelled "FY 2024"; any other
+ * start spans two calendar years, "FY 2024-25". Same shape as the backend's
+ * `FY2024` / `FY2024-25`, with the display space.
+ */
+export const formatFYLabel = (startYear: number, fiscalYearStartMonth: number = 4): string =>
+  fiscalYearStartMonth === 1
+    ? `FY ${startYear}`
+    : `FY ${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
+
+/**
+ * Start year of an FY label in either form: "FY 2024-25", "FY2024-25",
+ * "2024-25", "FY 2024" or "2024". `null` when the label has no 4-digit year.
+ */
+export const parseFYLabelStartYear = (fyLabel: string): number | null => {
+  const match = /^\s*(?:FY\s*)?(\d{4})(?:\s*-\s*\d{2,4})?\s*$/i.exec(fyLabel)
+  return match ? Number(match[1]) : null
+}
+
+/** The FY label `offset` years from `fyLabel`, in the form the start month implies. */
+export const shiftFYLabel = (
+  fyLabel: string,
+  offset: number,
+  fiscalYearStartMonth: number = 4,
+): string | null => {
+  const startYear = parseFYLabelStartYear(fyLabel)
+  return startYear === null ? null : formatFYLabel(startYear + offset, fiscalYearStartMonth)
+}
+
+/**
+ * Get fiscal year label (e.g. "FY 2024-25" = April 2024 to March 2025, or
+ * "FY 2024" for a January start).
  *
  * A `Date` is read on the LOCAL calendar; a `YYYY-MM-DD` string is read from
  * its own components, so it never depends on the timezone.
@@ -61,21 +93,15 @@ const yearMonthOf = (date: Date | string): { year: number; month: number } => {
  */
 export const getFYFromDate = (date: Date | string, fiscalYearStartMonth: number = 4): string => {
   const { year, month } = yearMonthOf(date)
-
-  if (month >= fiscalYearStartMonth) {
-    return `FY ${year}-${String((year + 1) % 100).padStart(2, '0')}`
-  } else {
-    return `FY ${year - 1}-${String(year % 100).padStart(2, '0')}`
-  }
+  return formatFYLabel(month >= fiscalYearStartMonth ? year : year - 1, fiscalYearStartMonth)
 }
 
 /**
- * Get date range for a fiscal year label
+ * Get date range for a fiscal year label (either label form round-trips).
  */
 export const getFYDateRange = (fyLabel: string, fiscalYearStartMonth: number = 4): { start: string; end: string } => {
-  const fyRegex = /FY\s?(\d{4})-(\d{2})/
-  const match = fyRegex.exec(fyLabel)
-  if (!match) {
+  const startYear = parseFYLabelStartYear(fyLabel)
+  if (startYear === null) {
     const now = new Date()
     return {
       start: `${now.getFullYear()}-04-01`,
@@ -83,13 +109,9 @@ export const getFYDateRange = (fyLabel: string, fiscalYearStartMonth: number = 4
     }
   }
 
-  const startYear = Number.parseInt(match[1])
-  const endYearShort = Number.parseInt(match[2])
-  const endYear = endYearShort < 50 ? 2000 + endYearShort : 1900 + endYearShort
-
   const startMonth = String(fiscalYearStartMonth).padStart(2, '0')
   const endMonth = fiscalYearStartMonth - 1 || 12
-  const endMonthYear = endMonth === 12 ? startYear : endYear
+  const endMonthYear = endMonth === 12 ? startYear : startYear + 1
   const lastDay = new Date(endMonthYear, endMonth, 0).getDate()
 
   return {
@@ -110,7 +132,9 @@ export const getAvailableFYs = (
 
   const fys = new Set<string>()
   for (const tx of transactions) {
-    fys.add(getFYFromDate(new Date(tx.date), fiscalYearStartMonth))
+    // The string itself, not `new Date(tx.date)`: that parses as UTC midnight,
+    // so west of UTC 1 April read as 31 March and landed in the previous FY.
+    fys.add(getFYFromDate(tx.date, fiscalYearStartMonth))
   }
   return Array.from(fys).sort((a, b) => b.localeCompare(a))
 }

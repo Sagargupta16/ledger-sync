@@ -26,7 +26,7 @@ export default function YearInReviewPage() {
       <PageErrorState
         title={PAGE_TITLE}
         subtitle={PAGE_SUBTITLE}
-        message="We could not load your transactions, daily summaries, and preferences. Check your connection and try again."
+        message="We could not load your ledger dates, daily summaries, and preferences. Check your connection and try again."
         onRetry={review.retry}
       />
     )
@@ -34,7 +34,7 @@ export default function YearInReviewPage() {
 
   if (review.isLoading) return <PageSkeleton />
 
-  if (review.transactions.length === 0) {
+  if (!review.hasData) {
     return (
       <PageContainer>
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />

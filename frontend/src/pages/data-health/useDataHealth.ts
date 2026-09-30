@@ -14,8 +14,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
+import type { CapitalLossCandidate } from '@/services/api/analyticsV2DataHealth'
 import { uploadService } from '@/services/api/upload'
 
+import { useCapitalLossClassification } from './useCapitalLossClassification'
 import {
   assessFreshness,
   buildCoverage,
@@ -51,10 +53,13 @@ function useRecomputeAnalytics() {
   })
 }
 
+const NO_CANDIDATES: readonly CapitalLossCandidate[] = []
+
 export function useDataHealth() {
   const query = useDataHealthQuery()
   const recompute = useRecomputeAnalytics()
   const health = query.data
+  const capitalLosses = useCapitalLossClassification(health?.capital_loss_candidates ?? NO_CANDIDATES)
 
   const derived = useMemo(() => {
     if (!health) return null
@@ -76,6 +81,7 @@ export function useDataHealth() {
       importLedger: [],
       isEmpty: false,
     }),
+    capitalLosses,
     isLoading: query.isPending,
     isError: query.isError,
     isRefetching: query.isRefetching,

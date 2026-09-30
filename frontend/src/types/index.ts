@@ -31,7 +31,6 @@ export interface Transaction {
   /** Only populated when type is 'Transfer', 'Transfer-In', or 'Transfer-Out' */
   to_account?: string
   note?: string
-  bucket?: string
   source_file?: string
   last_seen_at?: string
   is_transfer?: boolean
@@ -115,7 +114,6 @@ export interface AuthTokens {
   access_token: string
   refresh_token: string
   token_type: string
-  expires_in?: number
 }
 
 // OAuth types

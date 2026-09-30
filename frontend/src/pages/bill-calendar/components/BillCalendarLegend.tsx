@@ -1,21 +1,13 @@
-import { rawColors } from '@/constants/colors'
-
 export default function BillCalendarLegend() {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-3">
       <span className="text-xs text-text-tertiary">Legend:</span>
       <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: rawColors.app.green }}
-        />
+        <span className="h-2 w-2 rounded-full bg-app-green" />
         <span>Confirmed</span>
       </div>
       <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-        <span
-          className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: rawColors.app.blue }}
-        />
+        <span className="h-2 w-2 rounded-full bg-app-blue" />
         <span>Detected</span>
       </div>
       <div className="flex items-center gap-1.5 text-xs text-text-secondary">

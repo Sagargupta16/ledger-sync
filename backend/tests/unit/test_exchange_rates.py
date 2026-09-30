@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -20,6 +20,7 @@ from ledger_sync.api.exchange_rates import (
     resolve_exchange_rates,
 )
 from ledger_sync.api.main import app
+from ledger_sync.core.ledger_clock import ledger_today
 
 # Upstream calls are patched at `_fetch_rates`; the shared client is never used.
 _CLIENT = MagicMock(spec=httpx.AsyncClient)
@@ -170,12 +171,28 @@ class TestHistoricalRates:
         assert exc.value.status_code == 502
 
     def test_future_date_rejected(self):
-        # UTC, matching the handler's own `datetime.now(tz=UTC).date()` comparison.
-        future = datetime.now(tz=UTC).date() + timedelta(days=1)
+        # The IST ledger day, matching the handler's `ledger_today()` comparison.
+        future = ledger_today() + timedelta(days=1)
         call = resolve_exchange_rates(_CLIENT, base="USD", on_date=future)
         with pytest.raises(HTTPException) as exc:
             asyncio.run(call)
         assert exc.value.status_code == 400
+
+    def test_ist_today_is_not_future_while_utc_is_still_yesterday(self):
+        """00:30 IST on 1 April is 31 March in UTC; the user's today is not future."""
+        ist_today = date(2026, 4, 1)
+        with (
+            patch("ledger_sync.api.exchange_rates.ledger_today", return_value=ist_today),
+            patch(
+                "ledger_sync.api.exchange_rates._fetch_rates",
+                new_callable=AsyncMock,
+                return_value=({"INR": 94.1}, "2026-03-31"),
+            ) as fetch,
+        ):
+            result = asyncio.run(resolve_exchange_rates(_CLIENT, base="USD", on_date=ist_today))
+        fetch.assert_awaited_once_with(_CLIENT, "USD", ist_today)
+        assert result["requested_date"] == "2026-04-01"
+        assert result["historical"] is True
 
 
 class TestUpstreamRetry:
@@ -230,7 +247,12 @@ class TestBaseValidation:
                 "ledger_sync.api.exchange_rates._fetch_rates",
                 new_callable=AsyncMock,
                 return_value=({"INR": 1.0}, ""),
-            ):
-                assert client.get("/api/exchange-rates", params={"base": good}).status_code == 200
+            ) as fetch:
+                response = client.get("/api/exchange-rates", params={"base": good})
+            assert response.status_code == 200
+            # The validated code is what goes upstream and comes back.
+            fetch.assert_awaited_once_with(_CLIENT, good)
+            assert response.json()["base"] == good
+            assert response.json()["rates"] == {"INR": 1.0}
         finally:
             app.dependency_overrides.clear()

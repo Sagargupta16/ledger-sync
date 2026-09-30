@@ -6,6 +6,7 @@
 
 import { usePreferencesStore, type IncomeClassification } from '@/store/preferencesStore'
 import { onRawColorsRefresh, rawColors } from '@/constants/colors'
+import { isEssentialExpense } from '@/lib/finance/metricRules'
 
 // Income types now based on tax treatment classification
 export type IncomeType = 'taxable' | 'investmentReturns' | 'cashback' | 'other'
@@ -60,21 +61,21 @@ export const classifyIncomeType = (
 }
 
 /**
- * Classify an expense transaction as essential or discretionary
+ * Classify an expense transaction as essential or discretionary.
+ *
+ * Same predicate as the backend spending rule (`isEssentialExpense`): the
+ * built-in Needs keywords plus the user's essential list, matched
+ * case-insensitively at word boundaries on the category OR the subcategory
+ * ("Bills & Utilities::Electricity" and "Insurance::Health Insurance" are needs).
  */
 export const classifySpendingType = (
   transaction: Transaction,
   customEssentialCategories?: string[]
 ): SpendingType => {
   const essentialCategories = customEssentialCategories ?? getPrefs().essentialCategories
-  const category = transaction.category ?? ''
-
-  // Check if category is in essential list (case-insensitive)
-  const isEssential = essentialCategories.some(
-    (essential) => essential.toLowerCase() === category.toLowerCase()
-  )
-
-  return isEssential ? 'essential' : 'discretionary'
+  return isEssentialExpense(transaction.category, transaction.subcategory, essentialCategories)
+    ? 'essential'
+    : 'discretionary'
 }
 
 /**

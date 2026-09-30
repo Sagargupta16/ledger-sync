@@ -6,7 +6,7 @@
  */
 
 import { apiClient } from '@/services/api/client'
-import type { ToolSpec } from './chatAdapters'
+import { readableErrorMessage, type ToolSpec } from './chatAdapters'
 
 interface ToolsListResponse {
   tools: ToolSpec[]
@@ -47,11 +47,16 @@ export async function executeTool(
   }
 }
 
+/**
+ * The API's own message when it sent one. `detail` is a string for an
+ * HTTPException but a list of validation issues for a 422, so the body is read
+ * through the chat adapters' shared reader rather than assumed to be a string.
+ */
 function extractErrorMessage(err: unknown): string {
+  const fallback = err instanceof Error ? err.message : 'Unknown error'
   if (err && typeof err === 'object' && 'response' in err) {
-    const response = (err as { response?: { data?: { detail?: string } } }).response
-    if (response?.data?.detail) return response.data.detail
+    const response = (err as { response?: { data?: unknown } }).response
+    return readableErrorMessage(response?.data, fallback)
   }
-  if (err instanceof Error) return err.message
-  return 'Unknown error'
+  return fallback
 }

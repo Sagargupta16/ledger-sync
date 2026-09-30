@@ -5,11 +5,12 @@ import { useDailyNetWorth } from '@/hooks/api/useCalculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
-import { capSeriesToToday, dropPartialMonth, formatMonthKey } from '@/lib/dateUtils'
+import { dropPartialMonth, formatMonthKey, getLedgerTodayKey } from '@/lib/dateUtils'
+import { averageMonthlySavings, totalsByMonth } from '@/lib/finance/monthlyAverage'
 import {
   buildMonthlyNetWorthBalances,
-  computeLinearGrowthStats,
   computeNetWorthTimeSeries,
+  growthStatsFromMonthlySavings,
   projectNetWorthLinearBand,
   summarizeNetWorthAccounts,
   type NetWorthPoint,
@@ -26,7 +27,11 @@ import {
 } from './netWorthUtils'
 
 export function useNetWorth() {
-  const balancesQuery = useAccountBalances()
+  // One "today" for the hero and the trend: the ledger's own IST calendar day.
+  // Unbounded balances summed forward-dated accruals the capped trend omits.
+  const ledgerToday = getLedgerTodayKey()
+  const dateParams = { end_date: ledgerToday }
+  const balancesQuery = useAccountBalances(dateParams)
   // All-time daily cash flow (server-aggregated) instead of the full ledger.
   const dailyQuery = useDailyNetWorth()
   const dateRangeQuery = useDataDateRange()
@@ -121,15 +126,14 @@ export function useNetWorth() {
    * chart drew its "Now" marker in the future, the last trend point showed money
    * not yet received, and the growth model's most recent monthly delta was taken
    * from a partly-future month. This is a HISTORICAL series, so it stops at
-   * today; the projection overlay builds its own future points from the anchor.
+   * today (the same ledger day the balances above are read at); the
+   * projection overlay builds its own future points from the anchor.
    */
   const netWorthData = useMemo(
     () =>
-      capSeriesToToday(
-        computeNetWorthTimeSeries(dailyCashFlow, allCategories, categoryProportions),
-        'date',
-      ),
-    [dailyCashFlow, allCategories, categoryProportions],
+      computeNetWorthTimeSeries(dailyCashFlow, allCategories, categoryProportions)
+        .filter((point) => String(point.date) <= ledgerToday),
+    [dailyCashFlow, allCategories, categoryProportions, ledgerToday],
   )
 
   const filteredNetWorthData = useMemo(() => {
@@ -177,19 +181,20 @@ export function useNetWorth() {
   )
 
   /**
-   * The linear cash-flow model needs two calendar-month deltas for variance.
-   * A short history can use the partial month with the existing disclosure;
-   * a sparse history counts carried calendar months, not observed rows.
+   * Growth is the shared average monthly savings: net cash flow over the
+   * trailing 12 complete calendar months of the selected window, empty months
+   * as zero and the month in progress excluded. The Goals page divides by the
+   * same months, so both pages quote one "/mo" figure for the same ledger.
    */
-  const hasCompleteMonthGrowthBasis = completeMonthSeries.length >= 3
-
   const growthStats = useMemo(
     () =>
-      computeLinearGrowthStats(
-        hasCompleteMonthGrowthBasis ? completeMonthSeries : monthEndSeries,
-        12,
+      growthStatsFromMonthlySavings(
+        averageMonthlySavings(
+          totalsByMonth(filteredNetWorthData, (point) => String(point.date), (point) => Number(point.dailyFlow)),
+          { start: dateRange.start_date, end: dateRange.end_date },
+        ),
       ),
-    [hasCompleteMonthGrowthBasis, completeMonthSeries, monthEndSeries],
+    [filteredNetWorthData, dateRange],
   )
   const monthlyGrowth = growthStats.growth
 
@@ -321,7 +326,6 @@ export function useNetWorth() {
     showProjection,
     setShowProjection,
     monthlyGrowth,
-    growthUsesPartialMonth: !hasCompleteMonthGrowthBasis,
     anchor,
     milestoneRows,
     currentNetWorth,

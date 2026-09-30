@@ -11,7 +11,7 @@ import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
 import type { SpendingBucket, SpendingRuleResponse } from '@/services/api/analyticsV2'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { formatCurrency, formatDate, formatPercent } from '@/lib/formatters'
 
 import { BucketCard } from './components/BucketCard'
 import { CategoryTable } from './components/CategoryTable'
@@ -181,7 +181,7 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
               {formatDateShort(data.period.start)} to {formatDateShort(data.period.end)}
             </dd>
             <dd className="mt-0.5 text-xs text-text-tertiary">
-              {data.period.months} {data.period.months === 1 ? 'month' : 'months'}
+              {completeMonthsLabel(data.period.months)}
             </dd>
           </div>
           <div className="ledger-cell p-3">
@@ -256,7 +256,15 @@ function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
   )
 }
 
+// The period bounds are `YYYY-MM-DD` calendar days; the string form keeps the
+// day where `new Date(iso)` read it as UTC midnight.
 function formatDateShort(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatDate(iso, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Averages use complete months only, so a range inside the current month has
+// none yet -- say so instead of "0 months".
+function completeMonthsLabel(months: number): string {
+  if (months === 0) return 'Current month in progress'
+  return `${months} complete ${months === 1 ? 'month' : 'months'}`
 }

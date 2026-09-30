@@ -20,6 +20,9 @@ if _db_url.startswith(("postgresql://", "postgresql+psycopg2://")):
 _is_sqlite = "sqlite" in _db_url
 _engine_kwargs: dict[str, object] = {
     "echo": settings.database_echo,
+    # Bound parameters are ledger values (amounts, notes, emails). Outside local
+    # development, keep them out of exception messages and therefore out of logs.
+    "hide_parameters": settings.environment != "development",
 }
 if _is_sqlite:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}

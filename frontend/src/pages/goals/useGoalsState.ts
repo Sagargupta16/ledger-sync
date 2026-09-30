@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react'
 
 import { useGoals, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useTotals } from '@/hooks/api/useAnalytics'
-import { dropPartialMonth, monthKeysBetween, parseLocalDate } from '@/lib/dateUtils'
+import { parseLocalDate } from '@/lib/dateUtils'
 import { generateDemoGoals } from '@/lib/demo/generateDerivedData'
+import { averageMonthlySavings, totalsByMonth } from '@/lib/finance/monthlyAverage'
 import { useDemoStore } from '@/store/demoStore'
 
 import { computeGoalProjection } from './helpers'
@@ -53,17 +54,15 @@ export default function useGoalsState() {
 
   const netSavings = totals?.net_savings ?? 0
 
-  // Complete calendar months only: the month in progress is dropped (it has
-  // not had its full income or spend yet), and a month with no summary row is
-  // a zero-savings month, not a month to skip.
-  const avgMonthlySavings = useMemo(() => {
-    const complete = dropPartialMonth(monthlySummaries, 'period')
-    if (complete.length === 0) return null
-    const periods = complete.map((m) => m.period).sort((a, b) => a.localeCompare(b))
-    const calendarMonths = monthKeysBetween(periods[0], periods.at(-1) ?? periods[0]).length
-    const totalSavings = complete.reduce((sum, m) => sum + m.savings.net, 0)
-    return totalSavings / Math.max(1, calendarMonths)
-  }, [monthlySummaries])
+  // The shared average monthly savings: trailing 12 complete calendar months,
+  // the month in progress dropped and a month with no summary row counted as a
+  // zero-savings month. Net Worth's "/mo" growth uses the same helper.
+  const avgMonthlySavings = useMemo(
+    () => averageMonthlySavings(
+      totalsByMonth(monthlySummaries, (m) => m.period, (m) => m.savings.net),
+    )?.average ?? null,
+    [monthlySummaries],
+  )
 
   const totalAllocated = useMemo(() => {
     return goals.reduce((sum, g) => sum + (effectiveAmounts[g.id] ?? 0), 0)

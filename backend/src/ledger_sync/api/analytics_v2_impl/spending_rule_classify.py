@@ -1,68 +1,34 @@
 """Bucket classification rules for the 50/30/20 spending-rule endpoint.
 
-Pure, stateless helpers: the built-in Indian Needs defaults, the default
-investment-account perimeter, the Savings-row display relabelling, and the
-per-row Needs/Wants and transfer-direction decisions. See ``spending_rule`` for
-the bucket semantics and the reconciliation invariant.
+Pure, stateless helpers: the built-in Indian Needs defaults, the Savings-row
+display relabelling, and the per-row Needs/Wants and transfer-direction
+decisions. The investment-account perimeter rule is
+``core.metric_rules.is_investment_account``. See ``spending_rule`` for the
+bucket semantics and the reconciliation invariant.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Set as AbstractSet
+
+from ledger_sync.core.metric_rules import (
+    DEFAULT_NEEDS,
+    is_essential_expense,
+    is_investment_account,
+)
 
 # ─── opinionated Indian defaults ────────────────────────────────────────────
 
-# When the user hasn't tuned `essential_categories`, we ship these as defaults
-# for the Needs bucket. Match is case-insensitive and matches on either
-# ``category`` or ``subcategory`` -- users label the same concept differently
-# ("Rent" vs "Housing/Rent" vs "Home/Rent"). Better to over-match Needs than
-# under-match, since the failure mode of a mis-classified expense in Needs
-# instead of Wants is a slightly conservative budget score.
-_DEFAULT_NEEDS: frozenset[str] = frozenset(
-    s.lower()
-    for s in (
-        "rent",
-        "housing",
-        "home loan",
-        "home-loan",
-        "emi",
-        "utilities",
-        "electricity",
-        "water",
-        "gas",
-        "cooking gas",
-        "cylinder",
-        "groceries",
-        "grocery",
-        "food",
-        "food & dining",  # user's example includes Food under Needs
-        "fuel",
-        "petrol",
-        "diesel",
-        "transport",
-        "transportation",
-        "commute",
-        "insurance",
-        "health insurance",
-        "life insurance",
-        "healthcare",
-        "medical",
-        "medicine",
-        "doctor",
-        "hospital",
-        "education",
-        "school fees",
-        "tuition",
-        "family support",
-        "family",
-        "parents",
-        "internet",
-        "broadband",
-        "phone",
-        "mobile",
-        "recharge",
-    )
-)
+# The Needs defaults live in ``core.metric_rules`` so the persisted monthly
+# rollup and this endpoint share one definition. Re-exported under the name
+# ``spending_rule`` and its tests import. Match is case-insensitive on either
+# ``category`` or ``subcategory`` --
+# users label the same concept differently ("Rent" vs "Housing/Rent" vs
+# "Home/Rent"). Better to over-match Needs than under-match, since the failure
+# mode of a mis-classified expense in Needs instead of Wants is a slightly
+# conservative budget score.
+_DEFAULT_NEEDS: frozenset[str] = DEFAULT_NEEDS
 
 
 # Display-side rename for Savings-bucket rows whose category is a "Transfer:"
@@ -192,51 +158,6 @@ def _prettify_savings_label(
     return pretty, (None if _is_transfer_category(sub_lower) else subcategory)
 
 
-# Default set of investment-account patterns for the Savings bucket. Matched
-# case-insensitively as substrings against the ``account`` / ``to_account``
-# field -- e.g. "Groww MF", "HDFC PPF Account", "NPS Tier 1" all match.
-_DEFAULT_INVESTMENT_ACCOUNTS: frozenset[str] = frozenset(
-    s.lower()
-    for s in (
-        "sip",
-        "mf",
-        "mutual fund",
-        "ppf",
-        "epf",
-        "nps",
-        "stocks",
-        "equity",
-        "shares",
-        "elss",
-        "recurring deposit",
-        "rd",
-        "sukanya samriddhi",
-        "ssy",
-        "groww",
-        "zerodha",
-        "kite",
-        "upstox",
-        "kuvera",
-        "coin",
-    )
-)
-
-
-def _matches_investment_pattern(text_lower: str, patterns: set[str]) -> bool:
-    """True if any pattern appears at a word boundary in text_lower.
-
-    Word-boundary matching stops short patterns like 'rd' / 'mf' from
-    accidentally matching inside 'weird broker' / 'wealth management fund'.
-    Multi-word patterns like 'recurring deposit' still match verbatim.
-    """
-    for pattern in patterns:
-        # Escape + wrap in \b. re.search caches the compiled pattern under
-        # the hood; per-call cost is negligible given txn volumes.
-        if re.search(rf"\b{re.escape(pattern)}\b", text_lower):
-            return True
-    return False
-
-
 def _classify_expense(
     category: str,
     subcategory: str | None,
@@ -249,27 +170,17 @@ def _classify_expense(
     spent, not money saved, and routing it to Savings on account of where it
     landed counted the same rupee in ``expense_total`` AND in a bucket.
 
-    Word-boundary matching so a category like "Education & Learning" matches
-    the singular default keyword "education" -- exact-string matching would
-    miss compound labels ("Health & Insurance", "Home Loan / EMI",
-    "Food & Dining") which is exactly the shape most Excel templates use.
+    The predicate itself is ``core.metric_rules.is_essential_expense`` so the
+    persisted monthly essential split uses the same rule.
     """
-    cat_lower = (category or "").lower().strip()
-    sub_lower = (subcategory or "").lower().strip()
-
-    if _matches_investment_pattern(cat_lower, essential_set):
-        return "needs"
-    if sub_lower and _matches_investment_pattern(sub_lower, essential_set):
-        return "needs"
-
     # Wants is the residual expense bucket.
-    return "wants"
+    return "needs" if is_essential_expense(category, subcategory, essential_set) else "wants"
 
 
 def _transfer_direction(
     account: str,
     to_account: str | None,
-    investment_accounts_set: set[str],
+    perimeter_names: AbstractSet[str],
 ) -> int:
     """Signed savings contribution of a transfer: +1 in, -1 out, 0 internal.
 
@@ -283,11 +194,12 @@ def _transfer_direction(
     - staying wholly inside or wholly outside is internal bookkeeping (0):
       bank-to-bank shuffles, card repayments, wallet top-ups, ledger
       settlements, and investment-to-investment reallocations alike
+
+    *perimeter_names* comes from ``core.metric_rules.investment_account_names``
+    over the user's mapped accounts; empty means the default keyword fallback.
     """
-    into = bool(to_account) and _matches_investment_pattern(
-        (to_account or "").lower(), investment_accounts_set
-    )
-    out_of = bool(account) and _matches_investment_pattern(account.lower(), investment_accounts_set)
+    into = is_investment_account(to_account, perimeter_names)
+    out_of = is_investment_account(account, perimeter_names)
     if into == out_of:
         return 0
     return 1 if into else -1

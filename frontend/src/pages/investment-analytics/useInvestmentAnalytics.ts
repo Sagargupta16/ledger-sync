@@ -11,6 +11,8 @@ import {
   investmentTransferDelta,
   netInvestmentTransferFlow,
 } from '@/lib/finance/investmentFlows'
+import { investmentReturnRules } from '@/lib/finance/investmentReturns'
+import { resolveIncomeClassification } from '@/store/preferencesStore'
 
 import {
   CATEGORY_COLORS,
@@ -130,7 +132,14 @@ export function useInvestmentAnalytics() {
     return calculateXIRR(cashflows)
   }, [pastTransactions, investmentAccounts, isInvestment, totalInvestmentValue])
 
-  const netInvestmentPL = useMemo(() => computeNetInvestmentPL(transactions), [transactions])
+  const returnRules = useMemo(
+    () => investmentReturnRules(preferences ? resolveIncomeClassification(preferences) : undefined),
+    [preferences],
+  )
+  const netInvestmentPL = useMemo(
+    () => computeNetInvestmentPL(transactions, returnRules),
+    [transactions, returnRules],
+  )
   const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
 
   const monthlyInvestmentTarget = preferences?.monthly_investment_target ?? 0

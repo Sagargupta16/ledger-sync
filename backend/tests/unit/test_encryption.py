@@ -3,19 +3,42 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Sequence
 
 import pytest
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from sqlalchemy.orm import Session
 
 from ledger_sync.core.encryption import (
     DecryptionError,
     decrypt_api_key,
     encrypt_api_key,
-    rewrap_api_key,
 )
+from ledger_sync.db.models import User, UserAISettings
+from ledger_sync.services.ai_settings import rewrap_stored_ai_key
+
+
+def _rewrap_stored(session: Session, blob: str, *, previous_keys: Sequence[str] = ()) -> str:
+    """Rewrap *blob* through the live read path and return the stored ciphertext.
+
+    Mirrors the AI-config and Bedrock readers: authenticate the stored value,
+    and when it asks for an upgrade, rewrap the user's row in place.
+    """
+    user = User(email="rewrap@example.test", hashed_password="")
+    session.add(user)
+    session.flush()
+    stored = UserAISettings(user_id=user.id, ai_api_key_encrypted=blob)
+    session.add(stored)
+    session.commit()
+    plaintext, needs_rewrap = decrypt_api_key(blob, previous_keys=previous_keys)
+    assert needs_rewrap is True
+    rewrap_stored_ai_key(session, stored, plaintext)
+    session.refresh(stored)
+    assert stored.ai_api_key_encrypted is not None
+    return stored.ai_api_key_encrypted
 
 
 def test_round_trip():
@@ -100,7 +123,7 @@ def test_legacy_salt_starting_with_v2_marker_still_authenticates():
 
 
 def test_v2_jwt_fallback_survives_introducing_dedicated_key(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, test_db_session: Session
 ):
     from ledger_sync.config.settings import settings
 
@@ -118,13 +141,13 @@ def test_v2_jwt_fallback_survives_introducing_dedicated_key(
     blob = base64.b64encode(b"\x02" + salt + nonce + ciphertext).decode()
 
     assert decrypt_api_key(blob) == ("synthetic-v2-value", True)
-    upgraded = rewrap_api_key(blob)
+    upgraded = _rewrap_stored(test_db_session, blob)
     monkeypatch.setattr(settings, "jwt_secret_key", "synthetic-rotated-jwt-material")
     assert decrypt_api_key(upgraded) == ("synthetic-v2-value", False)
 
 
 def test_current_jwt_fallback_requests_rewrap_after_dedicated_key_is_set(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, test_db_session: Session
 ):
     from ledger_sync.config.settings import settings
 
@@ -133,11 +156,12 @@ def test_current_jwt_fallback_requests_rewrap_after_dedicated_key_is_set(
     monkeypatch.setattr(settings, "encryption_key", "synthetic-dedicated-material")
 
     assert decrypt_api_key(blob) == ("synthetic-fallback-value", True)
-    assert decrypt_api_key(rewrap_api_key(blob)) == ("synthetic-fallback-value", False)
+    upgraded = _rewrap_stored(test_db_session, blob)
+    assert decrypt_api_key(upgraded) == ("synthetic-fallback-value", False)
 
 
 def test_explicit_previous_key_can_rewrap_a_dedicated_key_rotation(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, test_db_session: Session
 ):
     from ledger_sync.config.settings import settings
 
@@ -148,7 +172,7 @@ def test_explicit_previous_key_can_rewrap_a_dedicated_key_rotation(
 
     with pytest.raises(DecryptionError):
         decrypt_api_key(blob)
-    upgraded = rewrap_api_key(blob, previous_keys=[previous_material])
+    upgraded = _rewrap_stored(test_db_session, blob, previous_keys=[previous_material])
     assert decrypt_api_key(upgraded) == ("synthetic-provider-value", False)
 
 

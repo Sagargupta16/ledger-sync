@@ -5,7 +5,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import MetricCard from '@/components/shared/MetricCard'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import Sparkline from '@/components/shared/Sparkline'
-import { rawColors } from '@/constants/colors'
+import { colors, rawColors } from '@/constants/colors'
 import { PageContainer, PageHeader } from '@/components/ui'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -69,11 +69,7 @@ export default function NetWorthPage() {
           label={m.partialPeriod.label}
           daysElapsed={m.partialPeriod.daysElapsed}
           daysTotal={m.partialPeriod.daysTotal}
-          treatment={
-            m.growthUsesPartialMonth
-              ? 'Balances and the trend line are current to today. The month-on-month badge and the sparkline compare completed months, but there are fewer than three of those, so the growth rate behind the milestone ETAs still includes the month in progress.'
-              : 'Balances and the trend line are current to today. The month-on-month badge, the sparkline and the growth rate behind the milestone ETAs compare completed months only.'
-          }
+          treatment="Balances and the trend line are current to today. The month-on-month badge, the sparkline and the growth rate behind the milestone ETAs compare completed months only."
         />
       )}
 
@@ -161,7 +157,7 @@ export default function NetWorthPage() {
           total={m.totalAssets}
           balanceColorClass="text-app-green"
           headerBalanceColorClass="text-app-green/70"
-          barColor={rawColors.app.green}
+          barColor={colors.app.green}
           expandedCategories={m.expandedAssetCategories}
           onToggleCategory={(cat) => m.toggleCategory(m.setExpandedAssetCategories, cat)}
           getAccountType={m.getAccountType}
@@ -183,7 +179,7 @@ export default function NetWorthPage() {
           total={m.totalLiabilities}
           balanceColorClass="text-app-red"
           headerBalanceColorClass="text-app-red/70"
-          barColor={rawColors.app.red}
+          barColor={colors.app.red}
           expandedCategories={m.expandedLiabilityCategories}
           onToggleCategory={(cat) => m.toggleCategory(m.setExpandedLiabilityCategories, cat)}
           getAccountType={m.getAccountType}

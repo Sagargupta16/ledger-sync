@@ -3,13 +3,31 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PREFERENCES_KEY } from '@/hooks/api/usePreferences'
+import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import type { DataHealth } from '@/services/api/analyticsV2'
+import type { UserPreferences } from '@/services/api/preferences'
 
-const mocks = vi.hoisted(() => ({ getDataHealth: vi.fn(), refreshAnalytics: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  getDataHealth: vi.fn(),
+  refreshAnalytics: vi.fn(),
+  updateCapitalLossCategories: vi.fn(),
+}))
 
 vi.mock('@/services/api/analyticsV2', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/api/analyticsV2')>()
   return { ...actual, analyticsV2Service: { ...actual.analyticsV2Service, getDataHealth: mocks.getDataHealth } }
+})
+
+vi.mock('@/services/api/preferences', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/api/preferences')>()
+  return {
+    ...actual,
+    preferencesService: {
+      ...actual.preferencesService,
+      updateCapitalLossCategories: mocks.updateCapitalLossCategories,
+    },
+  }
 })
 
 vi.mock('@/services/api/upload', async (importOriginal) => {
@@ -40,10 +58,13 @@ const STALE: DataHealth = {
   uncategorized_count: 659,
 }
 
-function renderPage() {
+function renderPage(preferences?: UserPreferences) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
+  // The saved classification set comes from the preferences cache; seeding it
+  // stands in for the signed-in fetch.
+  if (preferences) client.setQueryData(PREFERENCES_KEY, preferences)
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
@@ -207,5 +228,112 @@ describe('DataHealthPage', () => {
         screen.queryByRole('button', { name: /recompute analytics/i }),
       ).not.toBeInTheDocument()
     })
+  })
+})
+
+/**
+ * The classification workflow the backend always had and the app never showed:
+ * data-health suggests realised-loss taxonomies (`capital_loss_candidates`),
+ * `PUT /api/preferences/capital-loss-categories` saves them, and a classified
+ * key leaves every spending total. Every save replaces the whole set, then the
+ * rollups are rebuilt so the totals actually move.
+ */
+describe('DataHealthPage realised-loss classification', () => {
+  const CANDIDATE = {
+    category: 'Investment Expenses',
+    subcategory: 'F&O Loss',
+    key: 'Investment Expenses::F&O Loss',
+    transaction_count: 4,
+    total_amount: 216985.85,
+  }
+  const WITH_CANDIDATE: DataHealth = {
+    ...STALE,
+    capital_loss_candidates: [CANDIDATE],
+    capital_loss_candidate_count: 4,
+    capital_loss_candidate_amount: 216985.85,
+  }
+  const prefs = (keys: string[]): UserPreferences => ({
+    ...generateDemoPreferences(),
+    capital_loss_categories: keys,
+  })
+
+  beforeEach(() => {
+    mocks.getDataHealth.mockReset()
+    mocks.refreshAnalytics.mockReset()
+    mocks.updateCapitalLossCategories.mockReset()
+  })
+
+  it('suggests the candidate and classifies it in one click, then rebuilds', async () => {
+    mocks.getDataHealth.mockResolvedValue(WITH_CANDIDATE)
+    mocks.updateCapitalLossCategories.mockResolvedValue(
+      prefs(['Crypto::Realized Loss', CANDIDATE.key]),
+    )
+    mocks.refreshAnalytics.mockResolvedValue(undefined)
+    renderPage(prefs(['Crypto::Realized Loss']))
+
+    expect(
+      await screen.findByText(/look like realised investment losses/i),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: /classify investment expenses \/ f&o loss/i }),
+    )
+
+    // The existing key is kept: a save replaces the whole set.
+    await waitFor(() =>
+      expect(mocks.updateCapitalLossCategories).toHaveBeenCalledWith({
+        capital_loss_categories: ['Crypto::Realized Loss', CANDIDATE.key],
+      }),
+    )
+    await waitFor(() => expect(mocks.refreshAnalytics).toHaveBeenCalledTimes(1))
+  })
+
+  it('un-classifies exactly the chosen key', async () => {
+    mocks.getDataHealth.mockResolvedValue(STALE)
+    mocks.updateCapitalLossCategories.mockResolvedValue(prefs(['Crypto::Realized Loss']))
+    mocks.refreshAnalytics.mockResolvedValue(undefined)
+    renderPage(prefs(['Crypto::Realized Loss', CANDIDATE.key]))
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /count investment expenses \/ f&o loss as spending again/i,
+      }),
+    )
+
+    await waitFor(() =>
+      expect(mocks.updateCapitalLossCategories).toHaveBeenCalledWith({
+        capital_loss_categories: ['Crypto::Realized Loss'],
+      }),
+    )
+  })
+
+  it('says a failed save changed nothing and does not rebuild', async () => {
+    mocks.getDataHealth.mockResolvedValue(WITH_CANDIDATE)
+    mocks.updateCapitalLossCategories.mockRejectedValue(new Error('boom'))
+    renderPage(prefs([]))
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /classify investment expenses \/ f&o loss/i }),
+    )
+
+    expect(await screen.findByText(/did not save\. nothing changed/i)).toHaveAttribute('role', 'alert')
+    expect(mocks.refreshAnalytics).not.toHaveBeenCalled()
+  })
+
+  it('keeps the actions disabled until the saved set is known', async () => {
+    // A save replaces the whole set, so acting on an unknown set would drop keys.
+    mocks.getDataHealth.mockResolvedValue(WITH_CANDIDATE)
+    renderPage()
+
+    expect(
+      await screen.findByRole('button', { name: /classify investment expenses \/ f&o loss/i }),
+    ).toBeDisabled()
+  })
+
+  it('stays out of the way when there is nothing to suggest or undo', async () => {
+    mocks.getDataHealth.mockResolvedValue(STALE)
+    renderPage(prefs([]))
+
+    expect(await screen.findByText('Data quality')).toBeInTheDocument()
+    expect(screen.queryByText('Realised investment losses')).not.toBeInTheDocument()
   })
 })

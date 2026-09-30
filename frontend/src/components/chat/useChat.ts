@@ -12,6 +12,21 @@ import { useAuthStore } from '@/store/authStore'
 /** Hard cap on tool-calling rounds per user message -- stops runaway loops. */
 const MAX_TOOL_ROUNDS = 6
 
+const EMPTY_REPLY_MESSAGE = 'The assistant returned an empty reply. Try rephrasing your question.'
+
+/** Drop the in-flight assistant placeholder, which is always the trailing turn. */
+function withoutPendingReply(prev: ChatMessage[]): ChatMessage[] {
+  return prev.at(-1)?.role === 'assistant' ? prev.slice(0, -1) : prev
+}
+
+/** Replace the in-flight assistant placeholder's text. */
+function withPendingReply(text: string) {
+  return (prev: ChatMessage[]): ChatMessage[] =>
+    prev.at(-1)?.role === 'assistant'
+      ? [...prev.slice(0, -1), { role: 'assistant', content: text }]
+      : prev
+}
+
 interface UseChatReturn {
   messages: ChatMessage[]
   isStreaming: boolean
@@ -31,6 +46,12 @@ function textFromBlocks(blocks: Block[]): string {
     .filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text')
     .map((b) => b.text)
     .join('')
+}
+
+/** The error to show for a failed send; null for an abort, which is not a failure. */
+function sendErrorMessage(err: unknown): string | null {
+  if (err instanceof DOMException && err.name === 'AbortError') return null
+  return err instanceof Error ? err.message : 'Failed to send message'
 }
 
 interface ResolvedCredentials {
@@ -83,7 +104,10 @@ export function useChat(
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Set only while a send is in flight; `stop` uses it to know a placeholder exists.
   const abortRef = useRef<AbortController | null>(null)
+  // Bumped by every send, stop and clear so a superseded run publishes nothing.
+  const runRef = useRef(0)
   const contextRef = useRef<string | null>(null)
   const contextTimestamp = useRef(0)
 
@@ -106,6 +130,12 @@ export function useChat(
       setError(null)
       setIsStreaming(true)
 
+      const runId = ++runRef.current
+      const isCurrent = () => runRef.current === runId
+      // Created before any await so Stop works during credential/context loading.
+      const controller = new AbortController()
+      abortRef.current = controller
+
       const userMsg: ChatMessage = { role: 'user', content }
       const conversation: ChatMessage[] = [...messages, userMsg]
       // Optimistic empty assistant turn so the UI shows "processing..."
@@ -119,9 +149,7 @@ export function useChat(
           contextRef.current = await buildFinancialContext()
           contextTimestamp.current = now
         }
-
-        const controller = new AbortController()
-        abortRef.current = controller
+        controller.signal.throwIfAborted()
 
         await runToolLoop({
           provider: resolved.provider,
@@ -133,35 +161,33 @@ export function useChat(
           tools: tools ?? [],
           signal: controller.signal,
           onFinalText: (text) => {
-            setMessages((prev) => {
-              const updated = [...prev]
-              const last = updated.at(-1)
-              if (last?.role === 'assistant') {
-                updated[updated.length - 1] = { role: 'assistant', content: text }
-              }
-              return updated
-            })
+            if (!isCurrent()) return
+            if (text.trim()) {
+              setMessages(withPendingReply(text))
+            } else {
+              // An empty turn would be dropped from the next request anyway;
+              // say so instead of leaving a bubble that looks like it is loading.
+              setMessages(withoutPendingReply)
+              setError(EMPTY_REPLY_MESSAGE)
+            }
           },
+          // Show transient "Checking..." while tools execute
           onStatus: (status) => {
-            // Show transient "Checking..." while tools execute
-            setMessages((prev) => {
-              const updated = [...prev]
-              const last = updated.at(-1)
-              if (last?.role === 'assistant') {
-                updated[updated.length - 1] = { role: 'assistant', content: status }
-              }
-              return updated
-            })
+            if (isCurrent()) setMessages(withPendingReply(status))
           },
         })
       } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          // user stopped; leave message as-is
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to send message')
+        // A stopped or cleared run was already tidied by stop()/clear().
+        if (isCurrent()) {
+          setMessages(withoutPendingReply)
+          const message = sendErrorMessage(err)
+          if (message !== null) setError(message)
         }
       } finally {
-        setIsStreaming(false)
+        if (isCurrent()) {
+          abortRef.current = null
+          setIsStreaming(false)
+        }
       }
     },
     [mode, provider, model, region, isStreaming, messages, tools],
@@ -174,12 +200,20 @@ export function useChat(
   const send = useCallback((content: string) => void sendAsync(content), [sendAsync])
 
   const stop = useCallback(() => {
-    abortRef.current?.abort()
+    const controller = abortRef.current
     setIsStreaming(false)
+    if (!controller) return
+    runRef.current += 1
+    abortRef.current = null
+    controller.abort()
+    // A half-finished reply (or its "Looking up..." status) is not an answer.
+    setMessages(withoutPendingReply)
   }, [])
 
   const clear = useCallback(() => {
+    runRef.current += 1
     abortRef.current?.abort()
+    abortRef.current = null
     setMessages([])
     setError(null)
     setIsStreaming(false)

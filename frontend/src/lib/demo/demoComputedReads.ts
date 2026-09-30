@@ -1,10 +1,13 @@
 import type { DataHealth } from '@/services/api/analyticsV2'
+import type { CapitalLossCandidate } from '@/services/api/analyticsV2DataHealth'
 import type { IncomeFacetsData, QuickInsightsData } from '@/services/api/calculations'
 import type { TransactionFacets } from '@/services/api/transactions'
 import { toLocalDateKey } from '@/lib/dateUtils'
+import { looksLikeCapitalLoss } from '@/lib/expenseClassification'
 import type { Transaction } from '@/types'
 
-import { isExpense, isIncome, isTransfer } from './demoHelpers'
+import { isDemoCapitalLoss } from './demoCalculations'
+import { filterByDateRange, isExpense, isIncome, isTransfer } from './demoHelpers'
 import { filterDemoTransactions } from './demoTxFilters'
 
 /**
@@ -106,6 +109,29 @@ const PLACEHOLDER_NOTES = new Set(['', '-', 'na', 'n/a', 'unknown', 'miscellaneo
 const CATCH_ALL_CATEGORIES = new Set(['Miscellaneous', 'Uncategorized', 'Other', 'Unknown'])
 
 /**
+ * Mirrors `_unclassified_capital_losses`: Expense taxonomies the detector flags
+ * and the demo user has not classified, largest total first.
+ */
+function demoCapitalLossCandidates(txs: Transaction[]): CapitalLossCandidate[] {
+  const byKey = new Map<string, CapitalLossCandidate>()
+  for (const t of txs) {
+    if (!isExpense(t) || isDemoCapitalLoss(t) || !looksLikeCapitalLoss(t)) continue
+    const key = `${t.category}::${t.subcategory ?? ''}`
+    const entry = byKey.get(key) ?? {
+      category: t.category,
+      subcategory: t.subcategory ?? null,
+      key,
+      transaction_count: 0,
+      total_amount: 0,
+    }
+    entry.transaction_count += 1
+    entry.total_amount += t.amount
+    byKey.set(key, entry)
+  }
+  return [...byKey.values()].sort((a, b) => b.total_amount - a.total_amount)
+}
+
+/**
  * Mirrors /api/analytics/v2/data-health.
  *
  * Every count is measured off the demo ledger rather than hardcoded, so the
@@ -126,6 +152,7 @@ export function generateDemoDataHealth(txs: Transaction[]): DataHealth {
   ).length
   const uncategorized = txs.filter((t) => CATCH_ALL_CATEGORIES.has(t.category)).length
   const futureDated = txs.filter((t) => t.date > today).length
+  const candidates = demoCapitalLossCandidates(txs)
 
   return {
     last_import_at: now.toISOString(),
@@ -145,11 +172,33 @@ export function generateDemoDataHealth(txs: Transaction[]): DataHealth {
     future_dated_count: futureDated,
     placeholder_note_count: placeholderNotes,
     uncategorized_count: uncategorized,
+    capital_loss_candidates: candidates,
+    capital_loss_candidate_count: candidates.reduce((s, c) => s + c.transaction_count, 0),
+    capital_loss_candidate_amount: candidates.reduce((s, c) => s + c.total_amount, 0),
   }
 }
 
-export function generateDemoQuickInsights(txs: Transaction[]): QuickInsightsData {
-  const expenses = txs.filter(isExpense)
+/**
+ * Mirrors `/api/calculations/quick-insights` (`quick_insights` in backend
+ * `services/calculation_service.py`) for the requested window.
+ *
+ * The date params used to be ignored, so every period answered with the whole
+ * 48-month ledger: the Aug-2026 burn rate read 4,130,044 beside a 73,308
+ * totals card. Expense stats skip classified losses like `/totals`, and net
+ * cashback is the endpoint's rule -- Income rows whose subcategory contains
+ * "cashback", minus transfers to a "cashback shared" account. Matching the
+ * whole `Refund & Cashbacks` category also counted product refunds.
+ */
+export function generateDemoQuickInsights(
+  allTxs: Transaction[],
+  params: Record<string, unknown> = {},
+): QuickInsightsData {
+  const txs = filterByDateRange(
+    allTxs,
+    typeof params.start_date === 'string' ? params.start_date : undefined,
+    typeof params.end_date === 'string' ? params.end_date : undefined,
+  )
+  const expenses = txs.filter((t) => isExpense(t) && !isDemoCapitalLoss(t))
   const amounts = expenses.map((t) => t.amount).sort((a, b) => a - b)
   const totalSpending = amounts.reduce((s, a) => s + a, 0)
   const biggest = expenses.reduce(
@@ -168,8 +217,13 @@ export function generateDemoQuickInsights(txs: Transaction[]): QuickInsightsData
   }
   const peakDay = dayTotals.indexOf(Math.max(...dayTotals))
 
-  const cashbacks = txs.filter((t) => isIncome(t) && t.category === 'Refund & Cashbacks')
+  const cashbacks = txs.filter(
+    (t) => isIncome(t) && (t.subcategory ?? '').toLowerCase().includes('cashback'),
+  )
   const transfers = txs.filter(isTransfer)
+  const sharedCashback = transfers
+    .filter((t) => (t.to_account ?? '').toLowerCase().includes('cashback shared'))
+    .reduce((s, t) => s + t.amount, 0)
 
   const incomeByCategory = new Map<string, number>()
   for (const t of txs.filter(isIncome)) {
@@ -187,7 +241,7 @@ export function generateDemoQuickInsights(txs: Transaction[]): QuickInsightsData
   return {
     min_date: txs.at(-1)?.date ?? null,
     max_date: txs[0]?.date ?? null,
-    net_cashback: cashbacks.reduce((s, t) => s + t.amount, 0),
+    net_cashback: cashbacks.reduce((s, t) => s + t.amount, 0) - sharedCashback,
     cashback_count: cashbacks.length,
     median_expense: amounts.length ? amounts[Math.floor(amounts.length / 2)] : 0,
     biggest_expense: biggest,

@@ -4,17 +4,58 @@ All calculations are pure module-level functions that take transaction data
 and return computed metrics.
 
 Uses Decimal for all financial arithmetic to avoid floating-point precision loss.
+
+The functions read transactions through ``LedgerRow`` -- the five fields a
+metric needs -- so a caller may pass hydrated ``Transaction`` rows or the
+column-projected rows ``api.analytics_helpers`` loads without ORM state.
+
+MONTHLY AVERAGES follow one rule everywhere below: complete calendar months
+only, a month with no rows counts as 0, and the month still in progress on the
+IST ledger day is excluded (``insight_rules.is_partial_month``). Totals and
+shares may include the month in progress; averages may not.
 """
 
 from collections import defaultdict
-from datetime import timedelta
+from collections.abc import Iterable, Sequence
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from statistics import mean, pstdev
-from typing import Any
+from typing import Any, Protocol
 
 from ledger_sync.core.expense_class import is_capital_loss
+from ledger_sync.core.insight_rules import is_partial_month, month_key
+from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.core.ledger_math import compute_account_balances
 from ledger_sync.db.models import Transaction, TransactionType
+
+
+class LedgerRow(Protocol):
+    """The read-only transaction fields the metric functions read."""
+
+    @property
+    def date(self) -> datetime:
+        """Naive IST transaction timestamp."""
+        ...
+
+    @property
+    def amount(self) -> Decimal:
+        """Positive magnitude; the type carries the direction."""
+        ...
+
+    @property
+    def type(self) -> TransactionType:
+        """Income, expense or transfer."""
+        ...
+
+    @property
+    def category(self) -> str:
+        """The row's category label."""
+        ...
+
+    @property
+    def subcategory(self) -> str | None:
+        """The row's subcategory label, if any."""
+        ...
 
 
 def _to_decimal(amount: float | str | Decimal) -> Decimal:
@@ -24,16 +65,57 @@ def _to_decimal(amount: float | str | Decimal) -> Decimal:
     return Decimal(str(amount))
 
 
-def _is_loss_row(t: Transaction, loss_keys: set[str] | None) -> bool:
+def _is_loss_row(t: LedgerRow, loss_keys: set[str] | None) -> bool:
     """True for an EXPENSE row the user classified as a realised capital loss."""
     if not loss_keys or t.type != TransactionType.EXPENSE:
         return False
     return is_capital_loss(t.category, t.subcategory, loss_keys)
 
 
-def exclude_capital_losses(
-    transactions: list[Transaction], loss_keys: set[str] | None
-) -> list[Transaction]:
+def expense_rows[RowT: LedgerRow](rows: Iterable[RowT]) -> list[RowT]:
+    """Only the EXPENSE rows -- income and transfers distort every spend metric."""
+    return [t for t in rows if t.type == TransactionType.EXPENSE]
+
+
+def complete_month_expense_rows[RowT: LedgerRow](rows: Iterable[RowT], today: date) -> list[RowT]:
+    """EXPENSE rows outside the month still in progress on *today*."""
+    return [t for t in expense_rows(rows) if not is_partial_month(month_key(t.date), today)]
+
+
+def _month_span(first: datetime, last: datetime) -> int:
+    """Calendar months from *first* to *last* inclusive, empty months included."""
+    return (last.year - first.year) * 12 + (last.month - first.month) + 1
+
+
+def fill_complete_months(
+    monthly_data: dict[str, dict[str, float]],
+    today: date,
+) -> dict[str, dict[str, float]]:
+    """``group_by_month`` output as complete calendar months, empty ones as zeros.
+
+    Drops the month still in progress on *today* and inserts an all-zero row for
+    every calendar month missing between the first and last remaining month, in
+    chronological order. An average over the result divides by elapsed months,
+    not by the months that happened to have rows -- a user who spent nothing in
+    March has a lower monthly average, not the same one. May return ``{}``; the
+    caller must abstain rather than average nothing.
+    """
+    complete = {k: v for k, v in monthly_data.items() if not is_partial_month(k, today)}
+    if not complete:
+        return {}
+    fields = next(iter(complete.values())).keys()
+    year, month = (int(part) for part in min(complete).split("-"))
+    last = max(complete)
+    filled: dict[str, dict[str, float]] = {}
+    while (key := f"{year:04d}-{month:02d}") <= last:
+        filled[key] = complete[key] if key in complete else dict.fromkeys(fields, 0.0)
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return filled
+
+
+def exclude_capital_losses[RowT: LedgerRow](
+    transactions: Sequence[RowT], loss_keys: set[str] | None
+) -> Sequence[RowT]:
     """Drop classified realised capital losses, which are not spending.
 
     Same rule as ``expense_sum_col(loss_keys=...)`` on the SQL paths. Returns
@@ -45,7 +127,7 @@ def exclude_capital_losses(
 
 
 def calculate_totals(
-    transactions: list[Transaction], loss_keys: set[str] | None = None
+    transactions: Sequence[LedgerRow], loss_keys: set[str] | None = None
 ) -> dict[str, float]:
     """Calculate total income and expenses.
 
@@ -86,9 +168,9 @@ def calculate_savings_rate(total_income: float, total_expenses: float) -> float:
     return ((total_income - total_expenses) / total_income) * 100
 
 
-def calculate_daily_spending_rate(transactions: list[Transaction]) -> float:
+def calculate_daily_spending_rate(transactions: Sequence[LedgerRow]) -> float:
     """Calculate average daily spending."""
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    expenses = expense_rows(transactions)
     if not expenses:
         return 0.0
 
@@ -99,24 +181,40 @@ def calculate_daily_spending_rate(transactions: list[Transaction]) -> float:
     return float(total_spent / days_span) if days_span > 0 else 0.0
 
 
-def calculate_monthly_burn_rate(transactions: list[Transaction]) -> float:
-    """Calculate average monthly spending."""
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+def calculate_monthly_burn_rate(
+    transactions: Sequence[LedgerRow], today: date | None = None
+) -> float:
+    """Average monthly spending over complete calendar months.
+
+    Divides by every calendar month from the first to the last expense month,
+    so a month with no spending counts as 0, and leaves out the month still in
+    progress on *today* (default: the IST ledger day) -- its rows and its slot
+    -- because a month three days old is not a comparable observation.
+    """
+    expenses = complete_month_expense_rows(transactions, today or ledger_today())
     if not expenses:
         return 0.0
 
     dates = [t.date for t in expenses]
-    min_date, max_date = min(dates), max(dates)
-    months_span = max(
-        (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1, 1
-    )
+    months_span = _month_span(min(dates), max(dates))
 
     total_spent = sum((_to_decimal(t.amount) for t in expenses), Decimal(0))
-    return float(total_spent / months_span) if months_span > 0 else 0.0
+    return float(total_spent / months_span)
+
+
+def calculate_spending_frequency(
+    transactions: Sequence[LedgerRow], today: date | None = None
+) -> float:
+    """Expense transactions per month, under the same complete-month rule as the burn rate."""
+    expenses = complete_month_expense_rows(transactions, today or ledger_today())
+    if not expenses:
+        return 0.0
+    dates = [t.date for t in expenses]
+    return len(expenses) / _month_span(min(dates), max(dates))
 
 
 def group_by_month(
-    transactions: list[Transaction], loss_keys: set[str] | None = None
+    transactions: Sequence[LedgerRow], loss_keys: set[str] | None = None
 ) -> dict[str, dict[str, float]]:
     """Group transactions by month with income/expense breakdown.
 
@@ -144,7 +242,7 @@ def group_by_month(
 
 
 def group_by_category(
-    transactions: list[Transaction], loss_keys: set[str] | None = None
+    transactions: Sequence[LedgerRow], loss_keys: set[str] | None = None
 ) -> dict[str, float]:
     """Group expense transactions by category, skipping classified capital losses."""
     category_totals: dict[str, Decimal] = defaultdict(Decimal)
@@ -192,7 +290,9 @@ def calculate_consistency_score(monthly_expenses: list[float]) -> float:
     return max(0.0, 100.0 - cv)
 
 
-def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
+def calculate_lifestyle_inflation(
+    transactions: Sequence[LedgerRow], today: date | None = None
+) -> float:
     """Calculate lifestyle inflation: first 3 months vs last 3 months spending.
 
     Each window's average is its total divided by the number of DISTINCT months
@@ -201,9 +301,13 @@ def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
     near-zero baseline that explodes the percentage to nonsense (a real run
     produced 61,000%+). We also require each window to span the full 3 months and
     a non-trivial baseline, otherwise the comparison is meaningless -> return 0.
+
+    Both windows are monthly averages, so the month still in progress on *today*
+    (default: the IST ledger day) is left out: a half-finished trailing month
+    drags the late window down and reports a reduction the user never made.
     """
     expenses = sorted(
-        (t for t in transactions if t.type == TransactionType.EXPENSE),
+        complete_month_expense_rows(transactions, today or ledger_today()),
         key=lambda t: t.date,
     )
     if len(expenses) < 6:
@@ -226,7 +330,7 @@ def calculate_lifestyle_inflation(transactions: list[Transaction]) -> float:
     if not first_3_months or not last_3_months:
         return 0.0
 
-    def _distinct_months(txns: list[Transaction]) -> int:
+    def _distinct_months(txns: Sequence[LedgerRow]) -> int:
         return len({(t.date.year, t.date.month) for t in txns})
 
     first_months = _distinct_months(first_3_months)
@@ -259,11 +363,11 @@ def calculate_category_concentration(category_totals: dict[str, float]) -> float
 
 
 def calculate_spending_velocity(
-    transactions: list[Transaction],
+    transactions: Sequence[LedgerRow],
     recent_days: int = 30,
 ) -> dict[str, float]:
     """Calculate spending velocity: recent vs historical daily spending."""
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    expenses = expense_rows(transactions)
     if not expenses:
         return {"recent_daily": 0.0, "historical_daily": 0.0, "velocity_ratio": 0.0}
 
@@ -325,7 +429,7 @@ def find_best_worst_months(monthly_data: dict[str, dict[str, float]]) -> dict[st
     }
 
 
-def calculate_convenience_spending(transactions: list[Transaction]) -> dict[str, float]:
+def calculate_convenience_spending(transactions: Sequence[LedgerRow]) -> dict[str, float]:
     """Calculate convenience/discretionary spending metrics.
 
     Matches by substring against the category name because the normalizer
@@ -334,7 +438,7 @@ def calculate_convenience_spending(transactions: list[Transaction]) -> dict[str,
     and this function would silently always return 0. Token list is
     intentionally small; a user-overridable list is tracked as CLS-4b.
     """
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    expenses = expense_rows(transactions)
 
     convenience_tokens = (
         "shopping",

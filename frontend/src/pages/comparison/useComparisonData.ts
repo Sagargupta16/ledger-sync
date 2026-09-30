@@ -11,8 +11,8 @@ import {
   inclusiveDaySpan,
   toLocalDateKey,
 } from '@/lib/dateUtils'
-import { isSpending } from '@/lib/expenseClassification'
-import { savingsRatePercentOr } from '@/lib/savingsRate'
+import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import type { CompareMode, PartialPeriod, PeriodSummary, CategoryDelta } from './types'
 import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './utils'
 import { alignToElapsed, type DateSpan } from './periodAlign'
@@ -26,6 +26,9 @@ export function useComparisonData() {
     [transactionsQuery.data],
   )
   const preferences = preferencesQuery.data
+  // The user's classified realised-loss keys -- the set `/totals` reads.
+  const lossCategories = preferences?.capital_loss_categories
+  const lossConfig = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
   const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
   const isError = transactionsQuery.isError || preferencesQuery.isError
   const retry = () => {
@@ -90,6 +93,7 @@ export function useComparisonData() {
       const cats: Record<string, { income: number; expense: number }> = {}
       let income = 0
       let expense = 0
+      let capitalLosses = 0
       let count = 0
 
       for (const tx of transactions) {
@@ -101,15 +105,19 @@ export function useComparisonData() {
         if (tx.type === 'Income') {
           income += Math.abs(tx.amount)
           cats[cat].income += Math.abs(tx.amount)
-        } else if (tx.type === 'Expense' && isSpending(tx)) {
-          // Realised capital losses are Expense rows but not consumption, so
-          // they must not move the period expense total or the savings rate.
+        } else if (tx.type === 'Expense' && isCapitalLoss(tx, lossConfig)) {
+          // A CLASSIFIED realised loss is not consumption, so it stays out of
+          // the period expense total and the category deltas -- but the cash
+          // left, so savings still subtract it below (the `/totals` rule).
+          capitalLosses += Math.abs(tx.amount)
+        } else if (tx.type === 'Expense') {
           expense += Math.abs(tx.amount)
           cats[cat].expense += Math.abs(tx.amount)
         }
       }
 
-      const savings = income - expense
+      // Savings = income - spending - classified losses; rate = savings / income.
+      const savings = income - expense - capitalLosses
       // Inclusive day span of the period, from the explicit date parts (local
       // midnight) so daily averages divide by the real length -- not a
       // hardcoded 30 that is ~12x wrong for year/FY comparisons.
@@ -119,14 +127,14 @@ export function useComparisonData() {
         income,
         expense,
         savings,
-        savingsRate: savingsRatePercentOr({ income, expense }),
+        savingsRate: savingsRatePercentFromNet(savings, income) ?? 0,
         transactions: count,
         days,
         isPartial,
         categories: cats,
       }
     }
-  }, [transactions])
+  }, [transactions, lossConfig])
 
   /**
    * Raw calendar spans for the selected pair, before any partial-period

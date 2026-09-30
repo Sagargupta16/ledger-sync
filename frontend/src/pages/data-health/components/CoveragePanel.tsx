@@ -1,8 +1,8 @@
 import { CalendarRange } from 'lucide-react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
-import { rawColors } from '@/constants/colors'
-import { formatDate, getActiveLocale } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatDate, formatPercent, getActiveLocale } from '@/lib/formatters'
 
 import type { CoverageSummary } from '../types'
 
@@ -21,7 +21,7 @@ export default function CoveragePanel({ coverage }: CoveragePanelProps) {
   const locale = getActiveLocale()
   const coveredPct = coverage.totalDays > 0 ? (coverage.coveredDays / coverage.totalDays) * 100 : 0
   const isComplete = coverage.gapDays === 0
-  const fillColor = isComplete ? rawColors.app.green : rawColors.app.orange
+  const fillColor = isComplete ? colors.app.green : colors.app.orange
 
   return (
     <section className="ledger-panel space-y-3 p-4">
@@ -29,7 +29,7 @@ export default function CoveragePanel({ coverage }: CoveragePanelProps) {
         <CalendarRange className="size-4 shrink-0 text-app-indigo" aria-hidden />
         <h2 className="text-sm font-semibold text-foreground">Timeline coverage</h2>
         <span className="ml-auto text-xs font-medium tabular-nums text-text-tertiary">
-          {coveredPct.toFixed(1)}% filled
+          {formatPercent(coveredPct)} filled
         </span>
       </div>
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ledger_sync.core import calculator
-from ledger_sync.core.insight_builder import Insight, build_insight, expenses_of
+from ledger_sync.core.insight_builder import Insight, build_insight
 from ledger_sync.core.insight_rules import (
     CATEGORY_CONCENTRATION_ALERT_PCT,
     CONSISTENCY_HIGH_VOLATILITY,
@@ -25,26 +25,27 @@ from ledger_sync.core.insight_rules import (
     CONVENIENCE_SPENDING_ALERT_PCT,
     DAYS_PER_MONTH_AVG,
     MIN_MONTHS_FOR_VOLATILITY,
-    completed_monthly_data,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import date
 
-    from ledger_sync.db.models import Transaction
+    from ledger_sync.core.calculator import LedgerRow
 
 
-def spending_insights(transactions: list[Transaction], sym: str, today: date) -> list[Insight]:
+def spending_insights(transactions: Sequence[LedgerRow], sym: str, today: date) -> list[Insight]:
     """Volatility of monthly spending, plus the average daily burn."""
     insights: list[Insight] = []
-    expenses = expenses_of(transactions)
+    expenses = calculator.expense_rows(transactions)
     if not expenses:
         return insights
 
-    # Volatility is an average-of-deviations figure, so it runs on COMPLETED
-    # months only: a month three days old reads as a huge dip and can flip the
-    # output to a false "High Spending Volatility".
-    complete = completed_monthly_data(calculator.group_by_month(expenses), today)
+    # Volatility is an average-of-deviations figure, so it runs on COMPLETE
+    # calendar months only, an empty month counting as 0: a month three days
+    # old reads as a huge dip and can flip the output to a false "High Spending
+    # Volatility".
+    complete = calculator.fill_complete_months(calculator.group_by_month(expenses), today)
     monthly_expenses = [data["expenses"] for data in complete.values()]
     # ``calculate_consistency_score`` returns a flat 100.0 when it cannot
     # compute one (fewer than two observations, or a zero mean). Publishing that
@@ -88,7 +89,7 @@ def spending_insights(transactions: list[Transaction], sym: str, today: date) ->
     return insights
 
 
-def category_insights(transactions: list[Transaction], sym: str, today: date) -> list[Insight]:
+def category_insights(transactions: Sequence[LedgerRow], sym: str, today: date) -> list[Insight]:
     """Concentration in the top category and the discretionary share.
 
     Both are shares of a period TOTAL rather than rates, so the month in
@@ -97,7 +98,7 @@ def category_insights(transactions: list[Transaction], sym: str, today: date) ->
     """
     del today
     insights: list[Insight] = []
-    expenses = expenses_of(transactions)
+    expenses = calculator.expense_rows(transactions)
     if not expenses:
         return insights
 

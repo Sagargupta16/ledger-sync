@@ -83,6 +83,7 @@ class CategorySpendingArguments(DateRangeArguments):
 
 class RecurringArguments(ToolArguments):
     active_only: bool = True
+    include_habits: bool = False
 
 
 class RecentMonthsArguments(ToolArguments):
@@ -91,15 +92,23 @@ class RecentMonthsArguments(ToolArguments):
 
 class FiscalYearArguments(ToolArguments):
     fiscal_year: str | None = Field(
-        default=None, min_length=9, max_length=9, pattern=r"^FY\d{4}-\d{2}$"
+        default=None,
+        min_length=6,
+        max_length=9,
+        pattern=r"^FY\d{4}(-\d{2})?$",
+        description=(
+            "Fiscal year named by the year it starts in: FY2024-25, or FY2024 when "
+            "the fiscal year is the calendar year. Either form is accepted."
+        ),
     )
 
     @model_validator(mode="after")
     def validate_fiscal_year(self) -> Self:
         if self.fiscal_year:
             year = int(self.fiscal_year[2:6])
-            if year < 1 or int(self.fiscal_year[7:]) != (year + 1) % 100:
-                raise ValueError("fiscal_year must contain consecutive years, such as FY2024-25")
+            short_form = len(self.fiscal_year) == 6
+            if year < 1 or (not short_form and int(self.fiscal_year[7:]) != (year + 1) % 100):
+                raise ValueError("fiscal_year must look like FY2024-25 or FY2024")
         return self
 
 

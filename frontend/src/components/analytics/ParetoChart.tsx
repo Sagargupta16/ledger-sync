@@ -15,7 +15,7 @@ import {
 
 import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { cumulativeShareCutoff } from '@/lib/distribution'
 import {
   ChartContainer,
@@ -248,7 +248,7 @@ export default function ParetoChart({
                 content={<ChartTooltipContent />}
                 formatter={((value: number | undefined, name: string | undefined) =>
                   name === CUMULATIVE_SERIES_NAME
-                    ? `${(value ?? 0).toFixed(1)}%`
+                    ? formatPercent(value ?? 0)
                     : currencyTooltipFormatter(value)) as never}
               />
               {/* Vital-few bars (expense red) vs trivial-many (muted). The per-bar colour
@@ -306,7 +306,7 @@ export default function ParetoChart({
               { header: itemNoun, rowHeader: true, value: (row) => row.category },
               { header: 'Spend', value: (row) => currencyTooltipFormatter(row.amount) },
               { header: 'Cumulative spend', value: (row) => currencyTooltipFormatter(row.cumulative) },
-              { header: 'Cumulative share', value: (row) => `${row.cumulativePct.toFixed(1)}%` },
+              { header: 'Cumulative share', value: (row) => formatPercent(row.cumulativePct) },
             ],
             `${title} data`,
             (row, index) => `${row.category}-${index}`,

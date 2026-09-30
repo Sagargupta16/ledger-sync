@@ -7,6 +7,7 @@ and the reconciliation invariant this fold maintains.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -14,11 +15,11 @@ from typing import Any
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
     _classify_expense,
     _instrument_label,
-    _matches_investment_pattern,
     _prettify_savings_label,
     _transfer_direction,
 )
 from ledger_sync.core.expense_class import is_capital_loss
+from ledger_sync.core.metric_rules import investment_account_names, is_investment_account
 from ledger_sync.db.models import Transaction, TransactionType
 
 _TOP_SUBS_PER_ROW = 3
@@ -30,7 +31,9 @@ class _CategoryRow:
     bucket: str  # "needs" | "wants" | "savings"
     total_amount: Decimal
     txn_count: int
-    months_seen: set[str] = field(default_factory=set)  # YYYY-MM keys
+    # {YYYY-MM: amount}. The keys are the months seen; the amounts let the
+    # monthly average leave out the month still in progress.
+    month_totals: dict[str, Decimal] = field(default_factory=dict)
     # Subcategory rollup: {sub_label: total_amount}. Used to surface the
     # top-3 subs inline under the category row on the /budgets page so a user
     # with 7 Food & Dining subs still sees the breakdown without cluttering
@@ -40,17 +43,23 @@ class _CategoryRow:
     def add(self, amount: Decimal, subcategory: str | None, month_key: str) -> None:
         self.total_amount += amount
         self.txn_count += 1
-        self.months_seen.add(month_key)
+        self.month_totals[month_key] = self.month_totals.get(month_key, Decimal(0)) + amount
         # NULL subcategory rolls up under a synthetic label so the top-subs
         # array can still surface it (e.g. TRANSFER rows always have sub=NULL).
         sub_key = subcategory or "(no subcategory)"
         self.subs[sub_key] = self.subs.get(sub_key, Decimal(0)) + amount
 
-    def to_dict(self, months_in_range: int) -> dict[str, Any]:
-        # Monthly average = total / months_in_period (not months-seen) --
-        # otherwise a category with one December bill in a 12-month window
-        # looks like a huge monthly outflow.
-        avg_monthly = float(self.total_amount) / max(months_in_range, 1)
+    def to_dict(self, months_in_range: int, in_progress_month: str | None = None) -> dict[str, Any]:
+        # Monthly average = complete-month total / complete months in the
+        # period (not months-seen), the ``core.calculator.fill_complete_months``
+        # rule: a month with no rows counts as 0, otherwise a category with one
+        # December bill in a 12-month window looks like a huge monthly outflow.
+        # The month still in progress (*in_progress_month*) is left out of both
+        # sides; ``total_amount`` still includes it. No complete month -> 0.
+        complete_total = self.total_amount
+        if in_progress_month is not None:
+            complete_total -= self.month_totals.get(in_progress_month, Decimal(0))
+        avg_monthly = float(complete_total) / months_in_range if months_in_range > 0 else 0.0
         top_subs = sorted(self.subs.items(), key=lambda kv: kv[1], reverse=True)[:_TOP_SUBS_PER_ROW]
         return {
             "category": self.category,
@@ -61,7 +70,7 @@ class _CategoryRow:
             "total_amount": float(self.total_amount),
             "avg_monthly": avg_monthly,
             "txn_count": self.txn_count,
-            "months_seen": len(self.months_seen),
+            "months_seen": len(self.month_totals),
             "top_subs": [{"name": name, "amount": float(amount)} for name, amount in top_subs],
         }
 
@@ -70,7 +79,7 @@ def _aggregate_txns(
     txns: list[Transaction],
     *,
     essential_set: set[str],
-    investment_accounts_set: set[str],
+    mapped_investment_accounts: Iterable[str],
     capital_loss_key_set: set[str],
 ) -> tuple[Decimal, Decimal, dict[str, Decimal], dict[tuple[str, str], _CategoryRow]]:
     """Fold transactions into income/expense totals + per-bucket totals + category rows.
@@ -82,6 +91,10 @@ def _aggregate_txns(
 
     ``bucket_totals`` carries the residual ``unallocated`` alongside the three
     real buckets so callers cannot compute it inconsistently.
+
+    *mapped_investment_accounts* are the raw account names the user mapped as
+    investments. They match exactly (case-insensitive); none at all selects the
+    default keyword fallback (``core.metric_rules.is_investment_account``).
 
     *capital_loss_key_set* holds the ``"category::subcategory"`` keys the user
     classified as realised investment losses. Such a row consumed nothing, so it
@@ -103,11 +116,13 @@ def _aggregate_txns(
     # category with top-3 subs inline -- else a user with 7 Food & Dining
     # subs got 7 separate rows dominating Needs and drowning other categories.
     category_rows: dict[tuple[str, str], _CategoryRow] = {}
+    # Mapped accounts match by exact name; the keyword defaults by word boundary.
+    perimeter = investment_account_names(mapped_investment_accounts)
 
     for t in txns:
         amt = t.amount
         month_key = t.date.strftime("%Y-%m")
-        inside = _matches_investment_pattern((t.account or "").lower(), investment_accounts_set)
+        inside = is_investment_account(t.account, perimeter)
 
         if t.type == TransactionType.INCOME:
             income_total += amt
@@ -121,7 +136,7 @@ def _aggregate_txns(
                 category_rows,
                 t,
                 amt,
-                investment_accounts_set=investment_accounts_set,
+                perimeter=perimeter,
                 month_key=month_key,
             )
             continue
@@ -178,7 +193,7 @@ def _book_transfer_savings(
     t: Transaction,
     amount: Decimal,
     *,
-    investment_accounts_set: set[str],
+    perimeter: frozenset[str],
     month_key: str,
 ) -> Decimal:
     """Savings delta a TRANSFER row books, writing its relabelled row on the way.
@@ -187,7 +202,7 @@ def _book_transfer_savings(
     would inflate a bucket against an income denominator that never saw it, so
     such a leg books nothing at all.
     """
-    direction = _transfer_direction(t.account or "", t.to_account, investment_accounts_set)
+    direction = _transfer_direction(t.account or "", t.to_account, perimeter)
     if direction == 0:
         return Decimal(0)
     signed = amount * direction

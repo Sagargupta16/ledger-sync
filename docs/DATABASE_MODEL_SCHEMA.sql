@@ -1,6 +1,6 @@
--- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-09-18
--- Base checkout: 0467bc2c18789877b6d65147f9d9e77a4b852e71; includes uncommitted changes.
--- Source migration head: domain_storage_cutover_2026
+-- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-09-30
+-- Base checkout: b683b2636082b91716828375b5a82363b8509a0f; includes uncommitted changes.
+-- Source migration head: orm_schema_alignment_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
 -- Includes 34 model tables and 463 columns. Excludes Alembic and the reported manual archive.
 -- Models do not capture every server default/name retained by historical migrations.
@@ -708,8 +708,6 @@ CREATE INDEX ix_audit_logs_created_at ON audit_logs (created_at);
 
 CREATE INDEX ix_audit_logs_operation ON audit_logs (operation);
 
-CREATE INDEX ix_audit_logs_user_id ON audit_logs (user_id);
-
 CREATE INDEX ix_audit_operation_entity ON audit_logs (operation, entity_type);
 
 CREATE INDEX ix_audit_user ON audit_logs (user_id);
@@ -749,8 +747,6 @@ CREATE INDEX ix_import_logs_user_id ON import_logs (user_id);
 CREATE INDEX ix_investment_account_type ON investment_holdings (account, investment_type);
 
 CREATE INDEX ix_investment_holdings_account ON investment_holdings (account);
-
-CREATE INDEX ix_investment_holdings_user_id ON investment_holdings (user_id);
 
 CREATE INDEX ix_investment_user ON investment_holdings (user_id);
 

@@ -419,12 +419,12 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # User foreign key - tracks who performed the action
+    # User foreign key - tracks who performed the action. Indexed once, by
+    # ``ix_audit_user`` below (the only user_id index the migrations create).
     user_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey(USER_FK, ondelete="CASCADE"),
         nullable=True,
-        index=True,
     )
 
     # Relationship back to user

@@ -48,7 +48,7 @@ import {
   generateDemoAccountsByType,
   generateDemoSavedViews,
 } from '@/lib/demo/demoAccountReads'
-import { generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
+import { generateDemoAiConfig, generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
 import { generateDemoExportBlob } from '@/lib/demo/demoExport'
 import { generateDemoIncomeAnalysis } from '@/lib/demo/demoIncomeAnalysis'
 import type { AuthTokens, Transaction } from '@/types'
@@ -76,12 +76,15 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // `limits.app_daily_messages` directly, so the catch-all's `[]` rendered
   // "NaN / 10 left" and threw in the BYOK panel. Full shape or nothing.
   ['/api/ai/usage', () => generateDemoAiUsage()],
+  // Settings, the chat widget and the header read `mode` / `has_key` off this;
+  // the catch-all's `[]` was cached as an AIConfig with every field undefined.
+  ['/api/preferences/ai-config', () => generateDemoAiConfig()],
   // Calculations
   ['/calculations/totals', (txs, params) => generateDemoTotals(txs, params)],
   ['/calculations/monthly-aggregation', (txs, params) => generateDemoMonthlyAggregation(txs, params)],
-  ['/calculations/account-balances', (txs) => generateDemoAccountBalances(txs)],
+  ['/calculations/account-balances', (txs, params) => generateDemoAccountBalances(txs, params)],
   ['/calculations/category-breakdown', (txs, params) => generateDemoCategoryBreakdown(txs, params)],
-  ['/calculations/quick-insights', (txs) => generateDemoQuickInsights(txs)],
+  ['/calculations/quick-insights', (txs, params) => generateDemoQuickInsights(txs, params)],
   ['/calculations/data-date-range', (txs) => generateDemoDataDateRange(txs)],
   ['/calculations/daily-net-worth', (txs, params) => generateDemoDailyNetWorth(txs, params)],
   ['/calculations/income-analysis', (txs, params) => generateDemoIncomeAnalysis(txs, params)],
@@ -108,7 +111,10 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/analytics/v2/cohort-spending', (txs) => ({ data: generateDemoCohortSpending(txs) })],
   ['/analytics/v2/daily-summaries', (txs, params) => wrap(generateDemoDailySummaries(txs, params))],
   ['/analytics/v2/transfer-flows', (txs) => wrap(generateDemoTransferFlows(txs))],
-  ['/analytics/v2/merchant-intelligence', (txs) => wrap(generateDemoMerchantIntelligence(txs))],
+  [
+    '/analytics/v2/merchant-intelligence',
+    (txs, params) => wrap(generateDemoMerchantIntelligence(txs, params)),
+  ],
   ['/analytics/v2/investment-holdings', (txs) => wrap(generateDemoInvestmentHoldings(txs))],
   ['/analytics/v2/monthly-summaries', (txs) => wrap(generateDemoMonthlySummaries(txs))],
   ['/analytics/v2/category-trends', (txs) => wrap(generateDemoCategoryTrends(txs))],
@@ -125,9 +131,18 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/analytics/v2/fy-summaries', (txs) => wrap(generateDemoFYSummaries(txs))],
   [
     '/analytics/v2/anomalies',
+    // `get_anomalies`: `type` / `severity` are exact filters, reviewed and
+    // dismissed rows are hidden unless `include_reviewed` is true (the handler's
+    // default is false), and `limit` caps the page at 50 by default. Only the
+    // explicit `false` used to filter, and type/severity were ignored, so the
+    // demo anomaly filters changed nothing on screen.
     (_txs, params) => {
-      const rows = generateDemoAnomalies()
-      return wrap(params.include_reviewed === false ? rows.filter((a) => !a.is_reviewed) : rows)
+      let rows = generateDemoAnomalies()
+      if (params.type) rows = rows.filter((a) => a.anomaly_type === params.type)
+      if (params.severity) rows = rows.filter((a) => a.severity === params.severity)
+      if (params.include_reviewed !== true) rows = rows.filter((a) => !a.is_reviewed && !a.is_dismissed)
+      const limit = Number(params.limit)
+      return wrap(rows.slice(0, Number.isInteger(limit) && limit >= 1 ? limit : 50))
     },
   ],
   ['/analytics/v2/budgets', () => wrap(generateDemoBudgets())],

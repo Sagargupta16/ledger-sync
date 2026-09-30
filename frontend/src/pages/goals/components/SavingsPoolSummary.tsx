@@ -2,8 +2,7 @@ import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { PiggyBank } from 'lucide-react'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
-import { formatCurrencyCompact } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
+import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 import { goalTypeColor } from '../constants'
 
 export default function SavingsPoolSummary({
@@ -52,11 +51,8 @@ export default function SavingsPoolSummary({
       className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex items-center gap-3 mb-4">
-        <div
-          className="flex h-9 w-9 items-center justify-center rounded-md"
-          style={{ backgroundColor: `${rawColors.app.purple}20` }}
-        >
-          <PiggyBank className="w-5 h-5" style={{ color: rawColors.app.purple }} />
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-app-purple/12">
+          <PiggyBank className="w-5 h-5 text-app-purple" />
         </div>
         <h3 className="text-base font-semibold text-foreground">Savings Pool</h3>
       </div>
@@ -70,18 +66,16 @@ export default function SavingsPoolSummary({
         </div>
         <div className="min-w-0">
           <p className="mb-1 text-xs leading-4 text-text-tertiary">Total Allocated</p>
-          <p
-            className="ledger-figure whitespace-nowrap text-xs font-bold min-[360px]:text-base sm:text-xl"
-            style={{ color: rawColors.app.blue }}
-          >
+          <p className="ledger-figure whitespace-nowrap text-xs font-bold text-app-blue min-[360px]:text-base sm:text-xl">
             {formatCurrencyCompact(totalAllocated)}
           </p>
         </div>
         <div className="min-w-0">
           <p className="mb-1 text-xs leading-4 text-text-tertiary">Unallocated</p>
           <p
-            className="ledger-figure whitespace-nowrap text-xs font-bold min-[360px]:text-base sm:text-xl"
-            style={{ color: unallocated >= 0 ? rawColors.app.green : rawColors.app.red }}
+            className={`ledger-figure whitespace-nowrap text-xs font-bold min-[360px]:text-base sm:text-xl ${
+              unallocated >= 0 ? 'text-app-green' : 'text-app-red'
+            }`}
           >
             {formatCurrencyCompact(unallocated)}
           </p>
@@ -124,7 +118,7 @@ export default function SavingsPoolSummary({
             )}
           </div>
           {overAllocated && (
-            <p className="mt-2 text-xs" style={{ color: rawColors.app.red }}>
+            <p className="mt-2 text-xs text-app-red">
               Over-allocated by {formatCurrencyCompact(Math.abs(unallocated))} -- segments scaled to total allocated
             </p>
           )}
@@ -133,13 +127,13 @@ export default function SavingsPoolSummary({
             {segments.map((seg) => (
               <div key={seg.id} className="flex items-center gap-1.5 text-xs text-text-secondary">
                 <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: seg.color }} />
-                {seg.name} ({seg.pct.toFixed(0)}%)
+                {seg.name} ({formatPercent(seg.pct, false, 0)})
               </div>
             ))}
             {unallocated > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
                 <span className="w-2.5 h-2.5 rounded-full inline-block bg-[var(--overlay-5)]" />
-                Unallocated ({unallocatedPct.toFixed(0)}%)
+                Unallocated ({formatPercent(unallocatedPct, false, 0)})
               </div>
             )}
           </div>

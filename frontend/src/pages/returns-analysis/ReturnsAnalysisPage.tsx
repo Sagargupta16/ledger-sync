@@ -1,7 +1,7 @@
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
-import ErrorState from '@/components/shared/ErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import ReturnsBreakdown from './components/ReturnsBreakdown'
@@ -31,18 +31,12 @@ export default function ReturnsAnalysisPage() {
 
   if (isError) {
     return (
-      <PageContainer className="md:space-y-6">
-        <PageHeader
-          title="Returns Analysis"
-          subtitle="Review realised investment cash income, losses, and account book values"
-        />
-        <ErrorState
-          variant="card"
-          title="Could not load returns analysis"
-          message="We could not fetch your transactions and balances. Check your connection and try again."
-          onRetry={retry}
-        />
-      </PageContainer>
+      <PageErrorState
+        title="Returns Analysis"
+        subtitle="Review realised investment cash income, losses, and account book values"
+        message="We could not fetch your transactions and balances. Check your connection and try again."
+        onRetry={retry}
+      />
     )
   }
 

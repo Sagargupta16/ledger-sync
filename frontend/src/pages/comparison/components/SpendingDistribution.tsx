@@ -14,7 +14,7 @@ import {
 import ProgressBar from '@/components/shared/ProgressBar'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
+import { colors, rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults } from '@/components/ui'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
@@ -121,7 +121,7 @@ export function SpendingDistribution({
                   <ProgressBar
                     value={Math.abs(datum.periodA)}
                     max={maxVal}
-                    color={rawColors.app.blue}
+                    color={colors.app.blue}
                     height={10}
                     className={datum.aWins ? '' : 'opacity-50'}
                     ariaLabel={`${datum.name}, ${periodA.label}: ${formatCurrency(Math.abs(datum.periodA))}`}
@@ -135,7 +135,7 @@ export function SpendingDistribution({
                   <ProgressBar
                     value={datum.periodB}
                     max={maxVal}
-                    color={rawColors.app.red}
+                    color={colors.app.red}
                     height={10}
                     className={datum.aWins ? 'opacity-50' : ''}
                     ariaLabel={`${datum.name}, ${periodB.label}: ${formatCurrency(datum.periodB)}`}

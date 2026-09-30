@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Command, Search } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
-import { rawColors } from '@/constants/colors'
 import { useDebounce } from '@/hooks/useDebounce'
 import { transactionsService } from '@/services/api/transactions'
 
@@ -26,6 +25,7 @@ export default function CommandPalette() {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const navigate = useNavigate()
 
@@ -72,6 +72,38 @@ export default function CommandPalette() {
         inputRef.current?.focus()
       })
     }
+  }, [isOpen])
+
+  // aria-modal promises the page behind is out of reach, so Tab and Shift+Tab
+  // cycle inside the panel. Listening on the document also catches focus that
+  // left the panel (a click on its padding), pulling it back on the next Tab.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      const panel = panelRef.current
+      if (e.key !== 'Tab' || !panel) return
+      const controls = Array.from(
+        panel.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'),
+      )
+      const first = controls[0]
+      const last = controls.at(-1)
+      const active = document.activeElement
+      if (!first || !last) {
+        e.preventDefault()
+      } else if (!panel.contains(active)) {
+        e.preventDefault()
+        const entry = e.shiftKey ? last : first
+        entry.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [isOpen])
 
   const deferredQuery = useDeferredValue(query)
@@ -189,6 +221,7 @@ export default function CommandPalette() {
           />
 
           <motion.div
+            ref={panelRef}
             className="relative flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)]"
             variants={panelVariants}
             initial="hidden"
@@ -201,8 +234,7 @@ export default function CommandPalette() {
             <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--hairline-2)]">
               <Search
                 size={20}
-                className="flex-shrink-0"
-                style={{ color: rawColors.app.blue }}
+                className="flex-shrink-0 text-app-blue"
               />
               <input
                 ref={inputRef}

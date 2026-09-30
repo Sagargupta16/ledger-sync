@@ -9,10 +9,26 @@ import type { BehaviorData, KPIData, OverviewData, TrendsData } from '@/services
 import type { Transaction } from '@/types'
 
 import { MS_PER_DAY } from '@/lib/dateUtils'
-import { isCapitalLoss } from '@/lib/expenseClassification'
+import { capitalLossConfig, isCapitalLoss, type ExpenseClassificationConfig } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 
 import { filterByDateRange, isExpense, isIncome, isTransfer, monthKey, sum } from './demoHelpers'
+import { DEMO_CAPITAL_LOSS_CATEGORIES } from './demoPreferences'
+
+/** The demo user's classified loss keys -- the set the real endpoints would read. */
+const DEMO_LOSS_CONFIG = capitalLossConfig(DEMO_CAPITAL_LOSS_CATEGORIES)
+
+/**
+ * True for a demo Expense row classified as a realised loss. `lossConfig`
+ * defaults to the demo user's own keys; tests pass another set to exercise the
+ * classified path the demo ledger itself never reaches.
+ */
+export function isDemoCapitalLoss(
+  tx: Transaction,
+  lossConfig: ExpenseClassificationConfig = DEMO_LOSS_CONFIG,
+): boolean {
+  return isExpense(tx) && isCapitalLoss(tx, lossConfig)
+}
 
 /**
  * Split demo expense rows into consumption and realised capital loss.
@@ -20,16 +36,17 @@ import { filterByDateRange, isExpense, isIncome, isTransfer, monthKey, sum } fro
  * A realised capital loss is booked as an Expense row so the cash column
  * balances, but it is a negative investment return, not consumption, so it stays
  * out of `total_expenses` -- the same split as `expense_sum_col(...,
- * loss_keys=...)` on the backend. Summing every Expense row here while
- * `healthScoreAnalysis` filtered with `isSpending` made the two routes report
- * different `total_expenses` for identical rows.
+ * loss_keys=...)` on the backend, over the same classified keys.
  */
-function splitDemoExpenses(txs: Transaction[]): { spending: number; capitalLoss: number } {
+function splitDemoExpenses(
+  txs: Transaction[],
+  lossConfig: ExpenseClassificationConfig,
+): { spending: number; capitalLoss: number } {
   let spending = 0
   let capitalLoss = 0
   for (const tx of txs) {
     if (!isExpense(tx)) continue
-    if (isCapitalLoss(tx)) capitalLoss += tx.amount
+    if (isDemoCapitalLoss(tx, lossConfig)) capitalLoss += tx.amount
     else spending += tx.amount
   }
   return { spending, capitalLoss }
@@ -38,16 +55,18 @@ function splitDemoExpenses(txs: Transaction[]): { spending: number; capitalLoss:
 export function generateDemoTotals(
   txs: Transaction[],
   params?: { start_date?: string; end_date?: string },
+  lossConfig: ExpenseClassificationConfig = DEMO_LOSS_CONFIG,
 ): TotalsData {
   const filtered = filterByDateRange(txs, params?.start_date, params?.end_date)
   const income = sum(filtered.filter(isIncome).map((t) => t.amount))
-  const { spending, capitalLoss } = splitDemoExpenses(filtered)
+  const { spending, capitalLoss } = splitDemoExpenses(filtered, lossConfig)
   // The cash really left, so net savings must reconcile against balances --
   // hence the loss is subtracted here, matching the endpoint.
   const netSavings = income - spending - capitalLoss
   return {
     total_income: income,
     total_expenses: spending,
+    capital_losses: capitalLoss,
     net_savings: netSavings,
     // The `savings_rate` FIELD on this payload is the endpoint's field, and
     // `_totals_payload` publishes `net_savings / total_income` -- so the loss IS
@@ -67,6 +86,7 @@ export function generateDemoTotals(
 export function generateDemoMonthlyAggregation(
   txs: Transaction[],
   params?: { start_date?: string; end_date?: string },
+  lossConfig: ExpenseClassificationConfig = DEMO_LOSS_CONFIG,
 ): MonthlyAggregation {
   const filtered = filterByDateRange(txs, params?.start_date, params?.end_date)
   const result: MonthlyAggregation = {}
@@ -92,7 +112,7 @@ export function generateDemoMonthlyAggregation(
       entry.income += tx.amount
       entry.income_count++
     } else if (isExpense(tx)) {
-      if (isCapitalLoss(tx)) lossesByMonth[mk] = (lossesByMonth[mk] ?? 0) + tx.amount
+      if (isDemoCapitalLoss(tx, lossConfig)) lossesByMonth[mk] = (lossesByMonth[mk] ?? 0) + tx.amount
       else entry.expense += tx.amount
       entry.expense_count++
     }
@@ -172,21 +192,36 @@ function clampNonNegativeBalances(accounts: Record<string, AccountEntry>): void 
   }
 }
 
-export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances {
+/**
+ * Mirrors `account_balances(db, user, start_date, end_date)`: the flows of the
+ * rows inside the window. An as-of read (no `start_date`, optional `end_date`)
+ * is the demo's synthetic opening position plus every flow through `end_date`;
+ * a windowed read is the window's flows alone, as on the real endpoint, so the
+ * opening balances and the non-negative clamp apply only to the as-of read.
+ * `end_date` used to be ignored, so a returns window ending last year answered
+ * with today's balances.
+ */
+export function generateDemoAccountBalances(
+  txs: Transaction[],
+  params: { start_date?: string; end_date?: string } = {},
+): AccountBalances {
   const accounts: Record<string, AccountEntry> = {}
+  const asOf = !params.start_date
 
-  for (const [name, balance] of Object.entries(OPENING_BALANCES)) {
-    accounts[name] = { balance, transactions: 0, last_transaction: null }
+  if (asOf) {
+    for (const [name, balance] of Object.entries(OPENING_BALANCES)) {
+      accounts[name] = { balance, transactions: 0, last_transaction: null }
+    }
   }
 
-  for (const tx of txs) {
+  for (const tx of filterByDateRange(txs, params.start_date, params.end_date)) {
     const entry = ensureAccount(accounts, tx.account)
     applyBalanceDelta(entry, tx)
     recordTransaction(entry, tx.date)
     creditTransferDestination(accounts, tx)
   }
 
-  clampNonNegativeBalances(accounts)
+  if (asOf) clampNonNegativeBalances(accounts)
 
   const balances = Object.values(accounts).map((a) => a.balance)
   // Mirrors `_compute_account_statistics` exactly: the five summary numbers are
@@ -204,6 +239,24 @@ export function generateDemoAccountBalances(txs: Transaction[]): AccountBalances
       negative_accounts: balances.filter((b) => b < 0).length,
     },
   }
+}
+
+/**
+ * The demo's net worth before its first transaction: the all-time balance
+ * total minus the ledger's net cash flow (income less expense; transfers move
+ * money between the user's own accounts).
+ *
+ * The balance hero (`/account-balances`) starts from `OPENING_BALANCES` and
+ * clamps the cash accounts the synthetic ledger overdraws, while the trend
+ * (`/daily-net-worth`) summed flows from zero, so the demo Net Worth page ended
+ * its trend 1,927,510 below its own hero (5,885,190 vs 3,957,680, measured
+ * 2026-09-30). The real endpoints share one basis -- balances ARE the summed
+ * flows -- so the trend is seeded with this difference and ends exactly on the
+ * hero.
+ */
+export function demoOpeningNetWorth(txs: Transaction[]): number {
+  const netFlow = sum(txs.filter(isIncome).map((t) => t.amount)) - sum(txs.filter(isExpense).map((t) => t.amount))
+  return generateDemoAccountBalances(txs).statistics.total_balance - netFlow
 }
 
 export function generateDemoMasterCategories(txs: Transaction[]): MasterCategories {
@@ -231,7 +284,9 @@ export function generateDemoCategoryBreakdown(
 ): CategoryBreakdown {
   const filtered = filterByDateRange(txs, params?.start_date, params?.end_date)
   const typeFn = params?.transaction_type === 'income' ? isIncome : isExpense
-  const relevant = filtered.filter(typeFn)
+  // `without_capital_losses` on the endpoint: classified losses are not a
+  // spending category.
+  const relevant = filtered.filter((t) => typeFn(t) && !isDemoCapitalLoss(t))
   const total = sum(relevant.map((t) => t.amount))
 
   const categories: CategoryBreakdown['categories'] = {}

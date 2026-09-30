@@ -1,6 +1,7 @@
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 import { rawColors } from '@/constants/colors'
 import { getTodayKey } from '@/lib/dateUtils'
+import { formatDate } from '@/lib/formatters'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { getBillDaysForMonth, getDaysInMonth } from './billDays'
 import { CATEGORY_COLORS, type PlacedBill } from './types'
@@ -16,18 +17,12 @@ export function getFirstDayOfWeek(year: number, month: number): number {
 
 /** Format month name + year */
 export function formatMonthYear(year: number, month: number): string {
-  return new Date(year, month, 1).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  })
+  return formatDate(new Date(year, month, 1), { month: 'long', year: 'numeric' })
 }
 
 /** Format a short date */
 export function formatShortDate(year: number, month: number, day: number): string {
-  return new Date(year, month, day).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
+  return formatDate(new Date(year, month, day), { month: 'short', day: 'numeric' })
 }
 
 /** Check if two dates represent the same day */

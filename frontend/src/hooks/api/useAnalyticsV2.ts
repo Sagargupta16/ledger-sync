@@ -15,6 +15,7 @@ import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrent
 const STABLE_STALE_TIME = Infinity
 import type {
   Anomaly,
+  AnomalyCounts,
   Budget,
   CohortSpendingData,
   CreateGoalRequest,
@@ -77,10 +78,15 @@ export const analyticsV2Keys = {
   fySummaries: () => [...analyticsV2Keys.all, 'fy-summaries'] as const,
   anomalies: (filters?: ServiceParams<'getAnomalies'>) =>
     [...analyticsV2Keys.all, 'anomalies', filters?.type, filters?.severity, filters?.include_reviewed, filters?.limit] as const,
+  // Under the `anomalies` prefix so a review invalidates the totals with the rows.
+  anomalyCounts: (filters?: ServiceParams<'getAnomalyCounts'>) =>
+    [...analyticsV2Keys.anomalies(filters), 'counts'] as const,
   budgets: (filters?: ServiceParams<'getBudgets'>) =>
     [...analyticsV2Keys.all, 'budgets', filters?.active_only] as const,
+  // The handler defaults include_achieved to true, so an omitted value and an
+  // explicit true are the same request and share one cache entry.
   goals: (filters?: ServiceParams<'getGoals'>) =>
-    [...analyticsV2Keys.all, 'goals', filters?.goal_type, filters?.include_achieved] as const,
+    [...analyticsV2Keys.all, 'goals', filters?.goal_type, filters?.include_achieved ?? true] as const,
   spendingRule: (filters?: ServiceParams<'getSpendingRule'>) =>
     [...analyticsV2Keys.all, 'spending-rule', filters?.start_date, filters?.end_date] as const,
 }
@@ -208,6 +214,15 @@ export function useAnomalies(params?: ServiceParams<'getAnomalies'>) {
   return useQuery<Anomaly[], Error>({
     queryKey: analyticsV2Keys.anomalies(params),
     queryFn: () => analyticsV2Service.getAnomalies(params),
+    staleTime: STABLE_STALE_TIME,
+  })
+}
+
+/** Match totals for badges and summary tiles; the row list is capped by `limit`. */
+export function useAnomalyCounts(params?: ServiceParams<'getAnomalyCounts'>) {
+  return useQuery<AnomalyCounts, Error>({
+    queryKey: analyticsV2Keys.anomalyCounts(params),
+    queryFn: () => analyticsV2Service.getAnomalyCounts(params),
     staleTime: STABLE_STALE_TIME,
   })
 }

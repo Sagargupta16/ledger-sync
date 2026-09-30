@@ -1,7 +1,8 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { Money } from '@/components/ui'
+import { formatPercent } from '@/lib/formatters'
 
 import { getDirectionIcon } from '../trendsUtils'
 import type { TrendDirection, TrendMetrics } from '../types'
@@ -74,7 +75,7 @@ export default function TrendCard({
               <LoadingSkeleton className="h-7 w-28 mt-1" />
             ) : (
               <p className={`mt-1 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums ${valueClassName}`}>
-                {formatCurrency(metrics.current)}
+                <Money value={metrics.current} compactBelowSm bold className={`whitespace-normal text-left ${valueClassName}`} />
               </p>
             )}
           </div>
@@ -97,7 +98,7 @@ export default function TrendCard({
             <div className="min-w-0">
               <dt className="text-xs text-text-tertiary">Average</dt>
               <dd className={`mt-1 break-words font-mono text-sm font-medium tabular-nums ${averageClassName}`}>
-                {formatCurrency(metrics.average)}
+                <Money value={metrics.average} compactBelowSm className={`whitespace-normal text-left ${averageClassName}`} />
               </dd>
             </div>
             <div className="min-w-0">
@@ -105,7 +106,7 @@ export default function TrendCard({
               <dd
                 className={`mt-1 break-words font-mono text-sm font-medium tabular-nums ${secondStatClassName}`}
               >
-                {formatCurrency(secondStatValue)}
+                <Money value={secondStatValue} compactBelowSm className={`whitespace-normal text-left ${secondStatClassName}`} />
               </dd>
             </div>
           </dl>

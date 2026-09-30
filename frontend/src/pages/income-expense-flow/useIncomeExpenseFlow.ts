@@ -5,6 +5,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { getDateKey } from '@/lib/dateUtils'
+import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 import { computePaidTax, groupTransactionsByFY, reconcileTaxWithholding } from '@/lib/finance/taxHistory'
@@ -34,6 +35,9 @@ export function useIncomeExpenseFlow() {
     [transactionsQuery.data],
   )
   const preferences = preferencesQuery.data
+  // The user's classified realised-loss keys -- the set `/totals` reads.
+  const lossCategories = preferences?.capital_loss_categories
+  const lossConfig = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
   const salaryStructure = usePreferencesStore(selectSalaryStructure)
   const rsuGrants = usePreferencesStore(selectRsuGrants)
   const growthAssumptions = usePreferencesStore(selectGrowthAssumptions)
@@ -85,6 +89,19 @@ export function useIncomeExpenseFlow() {
     })
   }, [allTransactions, dateRange])
 
+  // Classified realised losses leave the Expenses side (they bought nothing),
+  // exactly as `/totals` holds them out of `total_expenses`, but the cash still
+  // left, so they are subtracted from Net Savings below. Only a key the user
+  // classified counts; a loss-sounding name alone stays an expense.
+  const { flowTransactions, capitalLosses } = useMemo(() => {
+    const isLoss = (txn: (typeof fyTransactions)[number]) =>
+      txn.type === 'Expense' && isCapitalLoss(txn, lossConfig)
+    return {
+      flowTransactions: fyTransactions.filter((txn) => !isLoss(txn)),
+      capitalLosses: fyTransactions.filter(isLoss).reduce((sum, txn) => sum + txn.amount, 0),
+    }
+  }, [fyTransactions, lossConfig])
+
   // Changing the time filter can remove the drilled category entirely, so a
   // period switch always returns to the overview. State-adjust-during-render
   // (not an effect) per React's "adjusting state when props change" pattern.
@@ -115,7 +132,7 @@ export function useIncomeExpenseFlow() {
   }, [])
 
   const computed = useMemo(() => {
-    const incomeByCategory = fyTransactions
+    const incomeByCategory = flowTransactions
       .filter((txn) => txn.type === 'Income')
       .reduce(
         (acc, txn) => {
@@ -130,20 +147,20 @@ export function useIncomeExpenseFlow() {
     // branch out of Total Income, so "Expenses" reads as living costs.
     const expenseByCategory: Record<string, number> = {}
     const taxByCategory: Record<string, number> = {}
-    for (const txn of fyTransactions) {
+    for (const txn of flowTransactions) {
       if (txn.type !== 'Expense') continue
       const category = txn.category || 'Other Expense'
-      const target = isTaxCategory(category) ? taxByCategory : expenseByCategory
+      const target = isTaxCategory(category, txn.subcategory) ? taxByCategory : expenseByCategory
       target[category] = (target[category] || 0) + txn.amount
     }
 
     const totalIncome = Object.values(incomeByCategory).reduce((a, b) => a + b, 0)
     const totalExpense = Object.values(expenseByCategory).reduce((a, b) => a + b, 0)
     const totalTax = Object.values(taxByCategory).reduce((a, b) => a + b, 0)
-    const netSavings = totalIncome - totalExpense - totalTax
-    // Tax is a third outflow here, so this is the from-net route: `netSavings`
-    // is already income minus expenses minus tax, and the shared module recovers
-    // the combined outflow rather than being handed one of the two pieces.
+    // Savings = income - spending - tax - classified realised losses. Tax and
+    // losses are extra outflows here, so this is the from-net route: the shared
+    // module recovers the combined outflow rather than being handed one piece.
+    const netSavings = totalIncome - totalExpense - totalTax - capitalLosses
     const savingsRate = savingsRatePercentFromNet(netSavings, totalIncome) ?? 0
 
     // Top-N + "Other" so every visible flow reconciles with the totals (and
@@ -155,7 +172,7 @@ export function useIncomeExpenseFlow() {
 
     // Categories with >= 2 subcategory buckets are click-to-drill; the folded
     // "Other (n)" node drills into the tail it hides.
-    const subBuckets = countSubBuckets(fyTransactions)
+    const subBuckets = countSubBuckets(flowTransactions)
     const topIncome = attachOverviewDrills(
       incomeFold.entries,
       incomeFold.tail,
@@ -220,6 +237,7 @@ export function useIncomeExpenseFlow() {
     return {
       totalIncome,
       totalExpense,
+      capitalLosses,
       totalTax: taxTotal,
       tdsAtSource,
       netSavings,
@@ -230,6 +248,8 @@ export function useIncomeExpenseFlow() {
     }
   }, [
     fyTransactions,
+    flowTransactions,
+    capitalLosses,
     fiscalYearStartMonth,
     incomeClassification,
     epfTaxableFraction,
@@ -254,14 +274,15 @@ export function useIncomeExpenseFlow() {
         totalIncome: computed.totalIncome,
         totalExpense: computed.totalExpense,
         netSavings: computed.netSavings,
+        capitalLosses: computed.capitalLosses,
         totalTax: computed.totalTax,
         tdsAtSource: computed.tdsAtSource,
         taxDrill: computed.taxDrill,
       })
     }
     if (crumb.view === 'other') return buildOtherView(crumb)
-    return buildCategoryView(fyTransactions, crumb)
-  }, [drillPath, computed, fyTransactions])
+    return buildCategoryView(flowTransactions, crumb)
+  }, [drillPath, computed, flowTransactions])
 
   const chartWidth = isMobile ? 720 : 900
   const sankeyNodeComponent = useMemo(

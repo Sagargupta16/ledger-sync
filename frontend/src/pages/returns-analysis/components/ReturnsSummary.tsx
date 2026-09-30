@@ -72,7 +72,7 @@ export default function ReturnsSummary({
         </div>
       </div>
 
-      <dl className="grid grid-cols-1 divide-y divide-border border-t border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <dl className="grid grid-cols-2 gap-x-4 divide-border border-t border-border sm:grid-cols-3 sm:gap-x-0 sm:divide-x">
         {stats.map((stat) => (
           <div key={stat.label} className="min-w-0 py-3 sm:px-4 sm:first:pl-0 sm:last:pr-0">
             <dt className="text-xs font-medium text-text-tertiary">{stat.label}</dt>

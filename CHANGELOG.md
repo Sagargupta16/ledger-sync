@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.26.0 - 2026-09-30
+
+Second audit pass: one definition per financial metric across pages, the AI assistant, and demo mode; a schema alignment migration; and roughly 110 findings across API contracts, validation, error states, accessibility, and docs.
+
+### Added
+
+- Data Health lists rows that look like realised investment losses with a one-click Classify and Un-classify; classified keys are the only rows that aggregates treat as losses.
+- Migration `orm_schema_alignment_2026` makes 118 columns NOT NULL where the models already require it, adds 10 missing indexes, and drops duplicate ones. It counts NULLs first and refuses to run if any exist; it never backfills or deletes data.
+- CI runs `alembic check` on SQLite and native PostgreSQL, builds the Pages bundle exactly as deploy does, and tests the frontend on Node 24. `backend/scripts/build_schema_reference.py` regenerates the schema reference.
+
+### Changed
+
+- One rule per metric everywhere: savings are income minus spending minus classified losses; spending excludes classified losses; cashback is cashback rows minus shared cashback (refunds and reimbursements appear as non-taxable receipts); monthly averages use complete calendar months with empty months as zero; investment accounts use your mappings, case-insensitive, with default keywords only when none are mapped; essentials, tax paid, investment income, and salary share one matcher on both backend and frontend; every negative balance is a liability.
+- Net Worth excludes future-dated rows, Goals and Net Worth share a trailing 12-month savings average, and fiscal years that start in January are labelled "FY 2024".
+- Spending Analysis and Year in Review read server totals instead of downloading the full ledger; `/analytics` routes, quick insights, and CSV export read only the columns they need and export streams one page at a time.
+- Swagger `/docs`, `/redoc`, and `/openapi.json` are served in development only; strict token-version checking is on by default; database errors outside development hide bound parameters.
+- Renovate holds SQLAlchemy below 2.1.
+
+### Fixed
+
+- A failed or stopped AI reply no longer leaves an empty message that made every later chat request fail; long chats are trimmed without splitting tool calls; errors read as text.
+- The bulk preferences save enforces the same bounds as the section endpoints; manual transactions and recurring amounts round like uploads and reject Infinity, NaN, and oversized values; end date 9999-12-31 no longer returns 500.
+- Account reset removes holdings, rules, and saved views as its mode says; anomaly badges and summaries count every match, not the first 50.
+- Seven page sections show a retry error instead of a false "no data" state; the mutual fund projection no longer shows a doubled currency symbol; confirm dialogs and the command palette keep keyboard focus inside.
+- Demo mode honours date, type, severity, and limit filters, and its net worth trend now matches the balance hero.
+- School and tuition fees are GST-exempt; the fiscal-year list no longer shifts a day for users west of UTC.
+
 ## 2.25.0 - 2026-09-29
 
 Covers #244 through #250 plus the full-repo audit sweep: domain tables for settings, stable ledger imports, centralized financial calculations, and 61 audit findings plus 114 SonarCloud issues fixed without schema changes.

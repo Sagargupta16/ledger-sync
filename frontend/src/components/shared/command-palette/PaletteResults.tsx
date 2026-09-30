@@ -1,6 +1,5 @@
 import { ArrowRight, Receipt } from 'lucide-react'
 
-import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
 import type {
@@ -58,18 +57,13 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div
-                      className="p-1.5 rounded-lg flex-shrink-0"
-                      style={{
-                        background: isSelected
-                          ? `${rawColors.app.blue}20`
-                          : 'var(--overlay-3)',
-                      }}
+                      className={`p-1.5 rounded-lg flex-shrink-0 ${
+                        isSelected ? 'bg-app-blue/12' : 'bg-[var(--overlay-3)]'
+                      }`}
                     >
                       <Icon
                         size={16}
-                        style={{
-                          color: isSelected ? rawColors.app.blue : rawColors.text.secondary,
-                        }}
+                        className={isSelected ? 'text-app-blue' : 'text-text-secondary'}
                       />
                     </div>
                     <span
@@ -100,14 +94,14 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
               const isSelected = index === selectedIndex
               const isIncome = tx.type === 'Income'
 
-              let iconBgColor = 'var(--overlay-3)'
+              let iconBgClass = 'bg-[var(--overlay-3)]'
               if (isSelected) {
-                iconBgColor = isIncome ? `${rawColors.app.green}20` : `${rawColors.app.red}20`
+                iconBgClass = isIncome ? 'bg-app-green/12' : 'bg-app-red/12'
               }
 
-              let iconColor = rawColors.text.secondary
+              let iconClass = 'text-text-secondary'
               if (isSelected) {
-                iconColor = isIncome ? rawColors.app.green : rawColors.app.red
+                iconClass = isIncome ? 'text-app-green' : 'text-app-red'
               }
 
               return (
@@ -121,11 +115,8 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
                     onClick={() => executeResult(result)}
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
-                    <div
-                      className="p-1.5 rounded-lg flex-shrink-0"
-                      style={{ background: iconBgColor }}
-                    >
-                      <Receipt size={16} style={{ color: iconColor }} />
+                    <div className={`p-1.5 rounded-lg flex-shrink-0 ${iconBgClass}`}>
+                      <Receipt size={16} className={iconClass} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p
@@ -141,10 +132,9 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
                       </p>
                     </div>
                     <span
-                      className="text-sm font-semibold flex-shrink-0"
-                      style={{
-                        color: isIncome ? rawColors.app.green : rawColors.app.red,
-                      }}
+                      className={`text-sm font-semibold flex-shrink-0 ${
+                        isIncome ? 'text-app-green' : 'text-app-red'
+                      }`}
                     >
                       {isIncome ? '+' : '-'}
                       {formatCurrency(Math.abs(tx.amount))}

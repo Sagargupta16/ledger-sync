@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { useQuery } from '@tanstack/react-query'
 
-import { dataDateRangeOptions } from '@/hooks/api/useAnalytics'
+import { dataDateRangeOptions, earningStartEvidenceOptions, incomeAnalysisOptions } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   hasNoCompleteMonthBasis,
@@ -15,7 +15,6 @@ import { dropPartialMonth } from '@/lib/dateUtils'
 import { analysisPeriodLabel, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { computeIncomeMetrics } from '@/lib/finance/incomeMetrics'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
-import { calculationsApi } from '@/services/api/calculations'
 import { resolveIncomeClassification } from '@/store/preferencesStore'
 
 export interface IncomeCategoryDatum {
@@ -53,10 +52,8 @@ export function useIncomeAnalysis() {
   // Focused read-only daily category aggregates, independent of chart/source
   // selection. A gift or refund cannot establish the employment boundary.
   const earningEvidenceQuery = useQuery({
-    queryKey: ['earning-start-evidence'],
-    queryFn: async () => (await calculationsApi.getCategoryDailySeries({ transaction_type: 'income' })).data.data,
+    ...earningStartEvidenceOptions(),
     enabled: preferencesQuery.isSuccess && needsEarningEvidence,
-    staleTime: Infinity,
   })
   const earningStart = useMemo(() => resolveEarningStart(
     preferencesQuery.data?.earning_start_date,
@@ -86,24 +83,13 @@ export function useIncomeAnalysis() {
   )
 
   const incomeQuery = useQuery({
-    queryKey: [
-      'income-analysis',
-      dateRange.start_date,
-      dateRange.end_date,
-      categoryFilter,
-      cashbackCategories,
-    ],
-    queryFn: async () =>
-      (
-        await calculationsApi.getIncomeAnalysis({
-          start_date: dateRange.start_date ?? undefined,
-          end_date: dateRange.end_date ?? undefined,
-          category: categoryFilter ?? undefined,
-          cashback_categories: cashbackCategories,
-        })
-      ).data,
+    ...incomeAnalysisOptions({
+      start_date: dateRange.start_date ?? undefined,
+      end_date: dateRange.end_date ?? undefined,
+      category: categoryFilter ?? undefined,
+      cashback_categories: cashbackCategories,
+    }),
     enabled: preferencesQuery.isSuccess && dateRangeQuery.isSuccess,
-    staleTime: Infinity,
   })
 
   const income = incomeQuery.data

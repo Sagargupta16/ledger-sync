@@ -44,7 +44,9 @@ export const useLogout = () => {
  * Hook to initialize auth state on app load
  */
 export const useAuthInit = () => {
-  const { isLoading, setLoading, setUser } = useAuthStore()
+  const isLoading = useAuthStore((state) => state.isLoading)
+  const setLoading = useAuthStore((state) => state.setLoading)
+  const setUser = useAuthStore((state) => state.setUser)
   const queryClient = useQueryClient()
 
   return useQuery({
@@ -90,7 +92,7 @@ export const useAuthInit = () => {
  */
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient()
-  const { updateUser } = useAuthStore()
+  const updateUser = useAuthStore((state) => state.updateUser)
   const sessionSignal = getSessionSignal()
 
   return useMutation({

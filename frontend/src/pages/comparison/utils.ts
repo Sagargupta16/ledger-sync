@@ -1,4 +1,4 @@
-import { percentChange } from '@/lib/formatters'
+import { formatDate, percentChange } from '@/lib/formatters'
 
 /** Return Tailwind class for the change badge background + text */
 export function changeBadgeClass(change: number, isGood: boolean): string {
@@ -22,7 +22,5 @@ export const getYearOptions = (transactions: Array<{ date: string }>) => {
   return Array.from(years).sort((a, b) => b - a)
 }
 
-export const formatMonthLabel = (m: string) => {
-  const [y, mo] = m.split('-')
-  return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-}
+export const formatMonthLabel = (m: string) =>
+  formatDate(`${m.slice(0, 7)}-01`, { month: 'short', year: 'numeric' })

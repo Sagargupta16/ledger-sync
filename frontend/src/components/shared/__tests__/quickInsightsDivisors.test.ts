@@ -6,6 +6,7 @@ import {
   medianSpendingDay,
   resolveSpanRange,
 } from '../quickInsightsData'
+import { computeSpendingPace } from '@/lib/finance/spendingStatistics'
 
 /**
  * Two defects these lock, both measured on the real 8,181-row ledger.
@@ -215,5 +216,43 @@ describe('medianSpendingDay coverage guard', () => {
   it('does not depend on the rows arriving sorted', () => {
     const shuffled = [served[2], served[0], served[3], served[1]]
     expect(medianSpendingDay(shuffled, { start_date: '2019-01-01', end_date: '2019-12-31' })).toBeNull()
+  })
+})
+
+/**
+ * The shared monthly average (2026-09-30): complete calendar months, empty months
+ * as 0, the in-progress month excluded. xs_avg.ts: 30,000 in Apr, May, Jul, Aug,
+ * nothing in June, last row 20 Aug. The fractional divisor read 25,833 over 4.65
+ * months; Spending Analysis and the health score read 24,000 and 30,000.
+ */
+describe('computeSpendingPace monthly burn rate', () => {
+  const MONTHLY = {
+    '2026-04': { expense: 30000 },
+    '2026-05': { expense: 30000 },
+    '2026-07': { expense: 30000 },
+    '2026-08': { expense: 30000 },
+  }
+  const SPAN = { min_date: '2026-04-01', max_date: '2026-08-20' }
+
+  it('divides by the five complete calendar months, the empty June included', () => {
+    const pace = computeSpendingPace(120000, {}, SPAN, '2026-09-30', MONTHLY)
+    expect(pace.monthlyBurnRate).toBe(24000)
+    expect(pace.monthsInRange).toBe(5)
+  })
+
+  it('excludes the month in progress from the mean', () => {
+    const pace = computeSpendingPace(129000, {}, { min_date: '2026-04-01', max_date: '2026-09-10' }, '2026-09-15', {
+      ...MONTHLY, '2026-09': { expense: 9000 },
+    })
+    expect(pace.monthlyBurnRate).toBe(24000)
+    expect(pace.monthsInRange).toBe(5)
+  })
+
+  it('keeps the labelled pace when the window holds no complete month', () => {
+    const pace = computeSpendingPace(9000, { start_date: '2026-09-01', end_date: '2026-09-15' }, SPAN, '2026-09-15', {
+      '2026-09': { expense: 9000 },
+    })
+    expect(pace.monthsInRange).toBeCloseTo(0.5, 6)
+    expect(pace.monthlyBurnRate).toBeCloseTo(18000, 6)
   })
 })

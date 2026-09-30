@@ -190,11 +190,6 @@ export function matchesPatterns(value: string, patterns: string[]): boolean {
   return patterns.some((p) => lower.includes(p))
 }
 
-export function formatSignedPercent(value: number): string {
-  const prefix = value > 0 ? '+' : ''
-  return `${prefix}${value.toFixed(1)}%`
-}
-
 export function cvToScore(cv: number): number {
   if (cv < 30) return 90
   if (cv < 60) return 70

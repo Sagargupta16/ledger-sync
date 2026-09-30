@@ -69,18 +69,6 @@ def to_ledger_time(moment: datetime) -> datetime:
     return moment.astimezone(UTC).replace(tzinfo=None) + IST_OFFSET
 
 
-def start_of_month(moment: datetime | None = None) -> datetime:
-    """Midnight on the first of the IST month containing *moment*."""
-    anchor = ledger_now() if moment is None else to_ledger_time(moment)
-    return anchor.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-
-def start_of_year(moment: datetime | None = None) -> datetime:
-    """Midnight on 1 January of the IST calendar year containing *moment*."""
-    anchor = ledger_now() if moment is None else to_ledger_time(moment)
-    return anchor.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-
-
 def financial_year_start(moment: datetime | None = None) -> datetime:
     """Midnight on 1 April opening the Indian financial year of *moment*.
 
@@ -92,9 +80,3 @@ def financial_year_start(moment: datetime | None = None) -> datetime:
     # Naive by contract: every value this module returns is naive IST so it
     # compares directly against the naive ``Transaction.date`` column.
     return datetime(year, 4, 1)  # noqa: DTZ001
-
-
-def financial_year_label(moment: datetime | None = None) -> str:
-    """The Indian financial year of *moment* as ``FY2026-27``."""
-    start = financial_year_start(moment)
-    return f"FY{start.year}-{str(start.year + 1)[-2:]}"

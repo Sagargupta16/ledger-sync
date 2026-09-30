@@ -83,7 +83,18 @@ export interface IncomeAnalysisData {
    * window by its own length and labelling the result a 3-month mean.
    */
   monthly_data: { month: string; income: number; income_avg_3m: number | null }[]
+  /**
+   * THE cashback figure, same rule as `/quick-insights` `net_cashback`: income
+   * rows whose subcategory says cashback, minus "cashback shared" transfers.
+   * Refunds, deposit returns and reimbursements are not cashback.
+   */
   cashbacks_total: number
+  /**
+   * Income rows in the sent `cashback_categories` (non-taxable) list -- the
+   * broader sum `cashbacks_total` used to report under a cashback label.
+   * Optional: the Pages frontend can meet a backend deployed before the field.
+   */
+  non_taxable_total?: number
   peak_income: number
   growth_rate: number
 }

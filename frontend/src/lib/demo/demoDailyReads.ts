@@ -2,12 +2,14 @@ import type { CohortSpendingData, DailySummary } from '@/services/api/analyticsV
 import type { DailyNetWorthData } from '@/services/api/calculations'
 import type { Transaction } from '@/types'
 
+import { demoOpeningNetWorth, isDemoCapitalLoss } from './demoCalculations'
 import { filterByDateRange, isExpense, isIncome, isTransfer } from './demoHelpers'
 
 /** Day- and calendar-bucketed demo reads (cohorts, daily rollups, daily series). */
 
 export function generateDemoCohortSpending(txs: Transaction[]): CohortSpendingData {
-  const expenses = txs.filter(isExpense)
+  // `CohortMixin` skips classified losses, like every spending aggregate.
+  const expenses = txs.filter((t) => isExpense(t) && !isDemoCapitalLoss(t))
   const build = (
     keyOf: (d: Date) => number,
     domain: number[],
@@ -76,22 +78,28 @@ export function generateDemoDailySummaries(
     .slice(0, limit)
     .reverse()
     .map(([date, rows]) => {
+      // `_accumulate_daily`: a classified loss leaves `expense`, its count and
+      // the top category, but `net` still subtracts it.
+      const spending = rows.filter((t) => isExpense(t) && !isDemoCapitalLoss(t))
+      const losses = rows.filter((t) => isDemoCapitalLoss(t)).reduce((s, t) => s + t.amount, 0)
       const income = rows.filter(isIncome).reduce((s, t) => s + t.amount, 0)
-      const expense = rows.filter(isExpense).reduce((s, t) => s + t.amount, 0)
+      const expense = spending.reduce((s, t) => s + t.amount, 0)
       const catTotals = new Map<string, number>()
-      for (const t of rows.filter(isExpense)) {
+      for (const t of spending) {
         catTotals.set(t.category, (catTotals.get(t.category) ?? 0) + t.amount)
       }
       const top = [...catTotals.entries()].sort((a, b) => b[1] - a[1])[0]
+      const incomeCount = rows.filter(isIncome).length
+      const transferCount = rows.filter(isTransfer).length
       return {
         date,
         income,
         expense,
-        net: income - expense,
-        income_count: rows.filter(isIncome).length,
-        expense_count: rows.filter(isExpense).length,
-        transfer_count: rows.filter(isTransfer).length,
-        total_transactions: rows.length,
+        net: income - expense - losses,
+        income_count: incomeCount,
+        expense_count: spending.length,
+        transfer_count: transferCount,
+        total_transactions: incomeCount + spending.length + transferCount,
         top_category: top?.[0] ?? null,
       }
     })
@@ -108,15 +116,21 @@ function cashFlow(t: Transaction): number {
  * Mirrors `get_daily_net_worth` in `api/calculations.py`: one entry per day in
  * the window (transfer-only days included, at zero), every Expense row counted,
  * and the running series seeded with the cash flow before `start_date`.
+ *
+ * The seed also carries the demo's synthetic opening position
+ * (`demoOpeningNetWorth`), because the demo balance hero starts from opening
+ * balances the ledger never records. On the real API the two share one basis
+ * without it; here, leaving it out ended the trend 1,927,510 below the hero.
  */
 export function generateDemoDailyNetWorth(
   txs: Transaction[],
   params: Record<string, unknown> = {},
 ): DailyNetWorthData {
   const start = dayParam(params.start_date)
-  const openingBalance = start
+  const priorFlow = start
     ? txs.filter((t) => t.date < start).reduce((s, t) => s + cashFlow(t), 0)
     : 0
+  const openingBalance = demoOpeningNetWorth(txs) + priorFlow
 
   const dailyData: DailyNetWorthData['daily_data'] = {}
   const cumulativeData: DailyNetWorthData['cumulative_data'] = []
@@ -155,7 +169,10 @@ export function generateDemoCategoryDailySeries(
   txs: Transaction[],
   params: Record<string, unknown>,
 ): { data: { date: string; category: string; subcategory: string; amount: number }[]; transaction_count: number } {
-  let rows = txs.filter(params.transaction_type === 'income' ? isIncome : isExpense)
+  // `without_capital_losses` on the endpoint.
+  let rows = txs.filter((t) =>
+    params.transaction_type === 'income' ? isIncome(t) : isExpense(t) && !isDemoCapitalLoss(t),
+  )
   if (params.start_date) rows = rows.filter((t) => t.date >= (params.start_date as string))
   if (params.end_date) rows = rows.filter((t) => t.date <= (params.end_date as string))
   if (params.category) rows = rows.filter((t) => t.category === params.category)

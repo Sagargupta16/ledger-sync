@@ -63,7 +63,8 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 @router.post(
     "/bedrock/chat",
     responses={
-        400: {"description": "Bedrock not configured or no preferences found"},
+        400: {"description": "Bedrock not configured for this user"},
+        404: {"description": "No AI preferences found for this user"},
         502: {"description": "Bedrock returned an error or unexpected response shape"},
         503: {"description": "Bedrock is not configured on the server"},
     },
@@ -82,7 +83,7 @@ def bedrock_chat_proxy(
     """Call Bedrock Converse API and return the full assistant reply."""
     ai_settings = get_ai_settings(session, current_user.id)
     if not ai_settings:
-        raise HTTPException(status_code=400, detail="No preferences found")
+        raise HTTPException(status_code=404, detail="No preferences found")
 
     model_id, region = _get_bedrock_model_region(ai_settings)
 

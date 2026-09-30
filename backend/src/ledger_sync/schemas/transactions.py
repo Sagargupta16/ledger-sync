@@ -1,9 +1,17 @@
 """Pydantic schemas for transaction-related API requests and responses."""
 
 from datetime import datetime
-from typing import Literal
+from decimal import Decimal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+from ledger_sync.schemas.upload import MAX_AMOUNT, MAX_LABEL_LENGTH, MAX_NOTE_LENGTH
+
+# A positive INR amount that stays nonzero after the importer's ROUND_HALF_UP to
+# paise: 0.005 rounds to 0.01, anything smaller would be stored as 0.00. Finite
+# and within the NUMERIC(15, 2) column, so Infinity or 1e17 is a 422, not a 500.
+PositiveAmount = Annotated[Decimal, Field(ge=Decimal("0.005"), le=MAX_AMOUNT, allow_inf_nan=False)]
 
 
 class UploadResponse(BaseModel):
@@ -124,18 +132,29 @@ class TransactionCreateRequest(BaseModel):
     """
 
     date: datetime = Field(..., description="Transaction date")
-    amount: float = Field(..., gt=0, description="Transaction amount (positive)")
+    amount: PositiveAmount = Field(..., description="Transaction amount (positive)")
     type: str = Field(
         ...,
         pattern="^(Income|Expense|Transfer)$",
         description="Transaction type: Income, Expense, or Transfer",
     )
-    category: str = Field(..., min_length=1, description="Transaction category")
-    subcategory: str | None = Field(None, description="Optional subcategory")
-    account: str = Field(..., min_length=1, description="Account name")
-    note: str | None = Field(None, description="Optional note or description")
-    from_account: str | None = Field(None, description="Source account (for transfers)")
-    to_account: str | None = Field(None, description="Destination account (for transfers)")
+    category: str = Field(
+        ..., min_length=1, max_length=MAX_LABEL_LENGTH, description="Transaction category"
+    )
+    subcategory: str | None = Field(
+        None, max_length=MAX_LABEL_LENGTH, description="Optional subcategory"
+    )
+    account: str = Field(..., min_length=1, max_length=MAX_LABEL_LENGTH, description="Account name")
+    # Same bound as an uploaded row's note (the column is TEXT).
+    note: str | None = Field(
+        None, max_length=MAX_NOTE_LENGTH, description="Optional note or description"
+    )
+    from_account: str | None = Field(
+        None, max_length=MAX_LABEL_LENGTH, description="Source account (for transfers)"
+    )
+    to_account: str | None = Field(
+        None, max_length=MAX_LABEL_LENGTH, description="Destination account (for transfers)"
+    )
 
 
 class TransactionTagsUpdateRequest(BaseModel):

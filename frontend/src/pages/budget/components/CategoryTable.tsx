@@ -34,9 +34,14 @@ type CategoryRowWithMeta = SpendingRuleCategoryRow & {
   readonly _rollup?: readonly SpendingRuleCategoryRow[]
 }
 
+/**
+ * `avg_monthly` is each row's COMPLETE-month total over the period's complete
+ * months (the in-progress month is excluded, empty months count as 0), while
+ * `total_amount` still includes the partial month. So the rollup's average is
+ * the sum of its rows' averages, never a total divided by the month count.
+ */
 function buildBucketRows(
   bucketRows: readonly SpendingRuleCategoryRow[],
-  months: number,
 ): readonly CategoryRowWithMeta[] {
   const sorted = [...bucketRows].sort((a, b) => b.total_amount - a.total_amount)
   if (sorted.length <= TOP_N) return sorted
@@ -44,6 +49,7 @@ function buildBucketRows(
   const top = sorted.slice(0, TOP_N)
   const tail = sorted.slice(TOP_N)
   const tailTotal = tail.reduce((s, r) => s + r.total_amount, 0)
+  const tailAvg = tail.reduce((s, r) => s + r.avg_monthly, 0)
   const tailTxns = tail.reduce((s, r) => s + r.txn_count, 0)
   const tailMonths = Math.max(0, ...tail.map((r) => r.months_seen))
 
@@ -54,7 +60,7 @@ function buildBucketRows(
       subcategory: null,
       bucket: sorted[0].bucket,
       total_amount: tailTotal,
-      avg_monthly: tailTotal / Math.max(months, 1),
+      avg_monthly: tailAvg,
       txn_count: tailTxns,
       months_seen: tailMonths,
       top_subs: [],
@@ -124,13 +130,13 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
   const Icon = meta.icon
   const [expandedOther, setExpandedOther] = useState(false)
 
-  const visible = useMemo(() => buildBucketRows(rows, months), [rows, months])
+  const visible = useMemo(() => buildBucketRows(rows), [rows])
   const rollupRow = useMemo(
     () => visible.find((row) => row._isOther),
     [visible],
   )
-  const bucketTotal = rows.reduce((sum, r) => sum + r.total_amount, 0)
-  const bucketAvg = bucketTotal / Math.max(months, 1)
+  // Same basis as the row averages (complete months only); see buildBucketRows.
+  const bucketAvg = rows.reduce((sum, r) => sum + r.avg_monthly, 0)
 
   return (
     <section
@@ -146,7 +152,9 @@ function BucketColumn({ bucket, rows, months }: ColProps) {
         </div>
         <div className="text-right shrink-0">
           <Money value={bucketAvg} bold className="text-sm" />
-          <div className="text-[10px] leading-tight text-muted-foreground">/ mo avg</div>
+          <div className="text-[10px] leading-tight text-muted-foreground">
+            {months === 0 ? 'no complete month yet' : '/ mo avg'}
+          </div>
         </div>
       </div>
 

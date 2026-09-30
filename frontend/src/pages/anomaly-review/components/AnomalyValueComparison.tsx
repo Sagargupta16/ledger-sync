@@ -1,5 +1,5 @@
 import ProgressBar from '@/components/shared/ProgressBar'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
@@ -12,7 +12,7 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
 
   const scaleMax = Math.max(Math.abs(anomaly.expected_value), Math.abs(anomaly.actual_value))
   const overBaseline = (anomaly.deviation_pct ?? 0) >= 0
-  const actualColor = overBaseline ? rawColors.app.red : rawColors.app.green
+  const actualColor = overBaseline ? colors.app.red : colors.app.green
 
   return (
     <div className="mt-3 max-w-md space-y-1.5 sm:ml-11">
@@ -42,7 +42,7 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
           value={Math.abs(anomaly.expected_value)}
           max={scaleMax}
           height={6}
-          color={rawColors.text.tertiary}
+          color={colors.text.tertiary}
           ariaLabel={`Expected ${formatCurrency(anomaly.expected_value)}`}
         />
         <span className="text-right text-xs tabular-nums text-foreground">

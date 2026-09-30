@@ -1,10 +1,14 @@
 import { BarChart3 } from 'lucide-react'
 
 import { MS_PER_DAY, MS_PER_YEAR } from '@/lib/dateUtils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { MIN_ANNUALISED_SPAN_DAYS } from '@/lib/xirr'
+import { BASE_CURRENCY, getCurrencyMeta } from '@/constants/currencies'
 
 const DAYS_PER_YEAR = MS_PER_YEAR / MS_PER_DAY
+// The input is labelled and parsed in INR, so its hint must be the raw INR
+// book balance -- formatCurrency would convert it into the display currency.
+const BASE_LOCALE = getCurrencyMeta(BASE_CURRENCY).locale
 
 interface ReturnsAnalysisSectionProps {
   currentValueInput: number
@@ -71,7 +75,7 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
             type="number"
             inputMode="decimal"
             value={currentValueInput || ''}
-            placeholder={formatCurrency(currentBalance).replace('₹', '').trim()}
+            placeholder={currentBalance.toLocaleString(BASE_LOCALE, { maximumFractionDigits: 2 })}
             onChange={(e) => onCurrentValueChange(Number(e.target.value))}
             className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
             min="0"
@@ -91,10 +95,10 @@ export function ReturnsAnalysisSection(props: Readonly<ReturnsAnalysisSectionPro
             <p
               className={`ledger-figure break-words text-2xl font-bold ${totalReturnColorClass}`}
               aria-live="polite"
-              title={`${totalReturnSignPrefix}${overrideGainsPercent.toFixed(2)}%`}
+              title={`${totalReturnSignPrefix}${formatPercent(overrideGainsPercent, false, 2)}`}
             >
               {totalReturnSignPrefix}
-              {overrideGainsPercent.toFixed(2)}%
+              {formatPercent(overrideGainsPercent, false, 2)}
             </p>
             <p className="ledger-figure mt-1 text-xs text-muted-foreground">
               {formatCurrency(overrideGains)} on {formatCurrency(totalHistoricalInvested)}

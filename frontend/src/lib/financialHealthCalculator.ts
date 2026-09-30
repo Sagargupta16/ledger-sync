@@ -11,6 +11,7 @@
  * - FPSB India Financial Planning Standards
  */
 
+import { formatPercent } from './formatters'
 import {
   investmentAllocationRatePercent,
   savingsRatePercentOr,
@@ -125,7 +126,7 @@ function computeSavingsRate(income: number, expenses: number): CFPRatio {
     target: '>= 20%',
     status: statusFromScore(score),
     description: describeByThreshold(value, [[20, 'Excellent savings discipline'], [10, 'Building towards the 20% target']], 'Focus on increasing savings'),
-    formattedValue: `${value.toFixed(1)}%`,
+    formattedValue: formatPercent(value),
   }
 }
 
@@ -162,7 +163,7 @@ function computeDebtServiceRatio(monthlyDebt: number, monthlyIncome: number): CF
     target: '<= 36%',
     status: statusFromScore(score),
     description: describeByThresholdInverse(value, [[20, 'Healthy debt levels'], [36, 'Within banking limits'], [43, 'Elevated debt load']], 'High debt burden'),
-    formattedValue: `${value.toFixed(1)}%`,
+    formattedValue: formatPercent(value),
   }
 }
 
@@ -183,7 +184,7 @@ function computeInvestmentRatio(netInvestments: number, totalIncome: number): CF
     target: '>= 15%',
     status: statusFromScore(score),
     description: describeByThreshold(value, [[15, 'Strong wealth-building pace'], [5, 'Good start, increase gradually']], 'Begin a regular investment habit'),
-    formattedValue: `${value.toFixed(1)}%`,
+    formattedValue: formatPercent(value),
   }
 }
 
@@ -209,7 +210,7 @@ function computeSolvencyRatio(netWorth: number, totalAssets: number): CFPRatio {
     target: '> 50%',
     status: statusFromScore(score),
     description: describeByThreshold(value, [[75, 'Strong net worth position'], [50, 'Positive solvency']], 'Focus on reducing liabilities'),
-    formattedValue: `${value.toFixed(0)}%`,
+    formattedValue: formatPercent(value, false, 0),
   }
 }
 

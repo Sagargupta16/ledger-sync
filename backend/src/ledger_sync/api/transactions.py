@@ -30,8 +30,6 @@ from ledger_sync.api.transactions_impl.filters import (
     _transaction_cursor_context,
 )
 from ledger_sync.api.transactions_impl.serialize import (
-    _RESPONSE_COLUMNS,
-    EXPORT_CHUNK_ROWS,
     _export_csv_chunks,
     _tags_for_transactions,
     _to_transaction_response,
@@ -297,18 +295,14 @@ def export_transactions(
     carries both, and ``_apply_date_and_amount_filters`` applies exactly the
     bounds ``_apply_date_range`` did (``>= start``, ``<= inclusive_end(end)``).
 
-    The body streams in ``EXPORT_CHUNK_ROWS`` chunks (see ``_export_csv_chunks``).
+    The body streams in ``EXPORT_CHUNK_ROWS`` keyset pages, each read in its
+    own short transaction (see ``_export_csv_chunks``).
     """
     query = _base_transaction_query(db, current_user)
     query = _apply_search_filters(query, filters)
     query = _apply_tag_filter(query, current_user.id, filters.tag)
-    rows = (
-        _apply_sorting(query, sort_by, sort_order)
-        .with_entities(*_RESPONSE_COLUMNS)
-        .yield_per(EXPORT_CHUNK_ROWS)
-    )
     return StreamingResponse(
-        _export_csv_chunks(db, current_user.id, rows),
+        _export_csv_chunks(db, current_user.id, query, sort_by, sort_order),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=transactions.csv"},
     )
@@ -322,7 +316,6 @@ def export_transactions(
     status_code=201,
     responses={
         201: {"description": "Transaction created successfully"},
-        400: {"description": "Invalid transaction data"},
         409: {"description": "Duplicate transaction already exists"},
     },
 )
@@ -346,7 +339,7 @@ def create_transaction(
         The newly created transaction
 
     Raises:
-        HTTPException: If the transaction type is invalid or a duplicate exists
+        HTTPException: 409 if a transaction with identical fields exists
 
     """
     return create_manual_transaction(db, current_user, body)

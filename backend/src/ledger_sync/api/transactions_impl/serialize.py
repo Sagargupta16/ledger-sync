@@ -6,15 +6,13 @@ import csv
 import io
 import json
 from collections.abc import Iterator
-from itertools import batched
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Row
-from sqlalchemy.orm import Query as SAQuery
+from sqlalchemy import Row, and_, or_
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.transactions_impl.filters import TxQuery, _apply_sorting
+from ledger_sync.api.transactions_impl.filters import TxQuery, _apply_sorting, sort_column_for
 from ledger_sync.db.models import Transaction, TransactionTag
 from ledger_sync.schemas.transactions import TransactionResponse
 
@@ -159,19 +157,65 @@ def capped_response_dicts(query: TxQuery, cap: int) -> list[dict[str, Any]]:
     return [_row_to_response_dict(row) for row in rows]
 
 
-def _export_csv_chunks(db: Session, user_id: int, rows: SAQuery[Any]) -> Iterator[str]:
+def _export_pages(
+    db: Session, query: TxQuery, sort_by: str, sort_order: str
+) -> Iterator[list[Row[Any]]]:
+    """Keyset pages of *query* in ``_apply_sorting`` order, one short read each.
+
+    Each page is its own ``LIMIT`` query resumed after the previous page's last
+    ``(sort column, transaction_id)``, and the read transaction ends before the
+    page is handed on. No transaction stays open while a slow client downloads,
+    so a stream longer than PostgreSQL's idle-in-transaction timeout (60 s on
+    the hosted database) is not cut off mid-file.
+    """
+    column = sort_column_for(sort_by)
+    ordered = _apply_sorting(query, sort_by, sort_order).with_entities(*_RESPONSE_COLUMNS)
+    after: tuple[Any, str] | None = None
+    while True:
+        page_query = ordered
+        if after is not None:
+            value, transaction_id = after
+            if sort_order == "desc":
+                resume = or_(
+                    column < value,
+                    and_(column == value, Transaction.transaction_id < transaction_id),
+                )
+            else:
+                resume = or_(
+                    column > value,
+                    and_(column == value, Transaction.transaction_id > transaction_id),
+                )
+            page_query = page_query.filter(resume)
+        page = page_query.limit(EXPORT_CHUNK_ROWS).all()
+        if not page:
+            db.commit()
+            return
+        yield page
+        if len(page) < EXPORT_CHUNK_ROWS:
+            return
+        last = page[-1]
+        after = (getattr(last, column.key), last.transaction_id)
+
+
+def _export_csv_chunks(
+    db: Session, user_id: int, query: TxQuery, sort_by: str, sort_order: str
+) -> Iterator[str]:
     """Yield the export CSV one bounded chunk at a time.
 
-    Rows arrive in ``EXPORT_CHUNK_ROWS`` batches and each batch fetches only its
+    Rows arrive in ``EXPORT_CHUNK_ROWS`` pages and each page fetches only its
     own tags, so memory stays flat however large the ledger is, and the tag
     ``IN (...)`` list stays far below SQLite's and PostgreSQL's bind limits.
+    Both reads finish, and their transaction commits, before the chunk is
+    yielded to the client.
     """
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(_EXPORT_HEADER)
+    db.commit()  # End the request's authentication read before the first send.
     yield output.getvalue()
-    for chunk in batched(rows, EXPORT_CHUNK_ROWS, strict=False):  # last chunk may be short
+    for chunk in _export_pages(db, query, sort_by, sort_order):
         tags_map = _tags_for_transactions(db, user_id, [row.transaction_id for row in chunk])
+        db.commit()
         output = io.StringIO()
         writer = csv.writer(output)
         for row in chunk:

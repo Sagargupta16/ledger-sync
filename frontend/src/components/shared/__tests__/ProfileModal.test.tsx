@@ -26,6 +26,7 @@ vi.mock('@/hooks/api/useAuth', () => ({
 vi.mock('@/hooks/api/useAnalyticsV2', () => ({
   useBudgets: () => ({ data: [] }),
   useAnomalies: () => ({ data: [] }),
+  useAnomalyCounts: () => ({ data: { count: 0 } }),
   useRecurringTransactions: () => ({ data: [] }),
 }))
 vi.mock('@/components/layout/Sidebar/CurrencySwitcher', () => ({ default: () => null }))
@@ -85,8 +86,14 @@ describe('profile account interactions', () => {
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
     expect(within(dialog).getByRole('button', { name: 'Sign out' })).toHaveFocus()
     fireEvent.keyDown(document, { key: 'Escape' })
-    await waitFor(() => expect(dialog).not.toBeInTheDocument())
-    expect(trigger).toHaveFocus()
+    // Full motion keeps the dialog mounted through its exit animation, which
+    // outlasts waitFor's 1s default when the suite runs under load. Focus is
+    // restored by the unmount effect, which can run a tick after the node is
+    // detached, so both conditions are polled together.
+    await waitFor(() => {
+      expect(dialog).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+    }, { timeout: 3000 })
     expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false')
@@ -109,8 +116,10 @@ describe('profile account interactions', () => {
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
     expect(signOut).toHaveFocus()
     fireEvent.keyDown(document, { key: 'Escape' })
-    await waitFor(() => expect(dialog).not.toBeInTheDocument())
-    expect(trigger).toHaveFocus()
+    await waitFor(() => {
+      expect(dialog).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+    }, { timeout: 3000 })
     expect(document.body.style.overflow).toBe(priorOverflow)
   })
 

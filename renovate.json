@@ -9,7 +9,14 @@
         "major"
       ],
       "enabled": false,
-      "description": "Major updates are paused for this repo. TypeScript 7 is rejected by typescript-eslint (peer '>=4.8.4 <6.1.0'), and the newer typescript-eslint majors fail the frontend lint with @typescript-eslint/no-unsafe-call on types it can no longer resolve. Every narrower hold tried before this one just surfaced the next blocked major in the same grouped PR, so the monthly major stream was pure noise: it could not go green and it held nothing useful. Security updates are unaffected -- vulnerabilityAlerts runs on its own schedule and ignores packageRules. Minor and patch updates continue normally. Delete this rule once typescript-eslint accepts TS 7 and the frontend lint is clean against it."
+      "description": "Major updates are paused for this repo. TypeScript 7 is rejected by typescript-eslint (peer '>=4.8.4 <6.1.0'), and the newer typescript-eslint majors fail the frontend lint with @typescript-eslint/no-unsafe-call on types it can no longer resolve. Every narrower hold tried before this one just surfaced the next blocked major in the same grouped PR, so the monthly major stream was pure noise: it could not go green and it held nothing useful. Security updates are unaffected -- vulnerabilityAlerts runs on its own schedule and ignores packageRules. Minor and patch updates continue normally. This rule also holds the other open majors (@tanstack/react-table 9, vitest 5, @vite-pwa/assets-generator 2), so check each of them before deleting it. Delete this rule once typescript-eslint accepts TS 7 and the frontend lint is clean against it."
+    },
+    {
+      "matchPackageNames": [
+        "sqlalchemy"
+      ],
+      "allowedVersions": "<2.1",
+      "description": "SQLAlchemy stays on 2.0.x. 2.1 is a minor, so the majors rule above does not hold it, and the shared preset's rangeStrategy replace would otherwise widen backend/pyproject.toml's '<2.1' pin inside the grouped, automerged monthly PR. 2.1.1's order_by typing fails mypy with 18 arg-type errors (2026-09-29), so that PR could never go green and would hold every other minor and patch in the group. Remove this rule together with the pyproject pin once mypy is clean against 2.1."
     }
   ]
 }

@@ -98,13 +98,13 @@ export function useAnalyticsTimeFilter(
 ) {
   const { data: preferences } = usePreferences()
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
-  const { displayPreferences } = usePreferencesStore()
+  const defaultTimeRange = usePreferencesStore((s) => s.displayPreferences.defaultTimeRange)
   const earningStartDate = usePreferencesStore((s) => s.earningStartDate)
   const useEarningStartDate = usePreferencesStore((s) => s.useEarningStartDate)
 
   const defaultMode = allowedMode(
     options?.defaultViewMode ??
-      ((displayPreferences.defaultTimeRange as AnalyticsViewMode) || 'fy'),
+      ((defaultTimeRange as AnalyticsViewMode) || 'fy'),
     options?.availableModes,
   )
 
@@ -126,8 +126,8 @@ export function useAnalyticsTimeFilter(
   if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
     setSyncedFsm(fiscalYearStartMonth)
     setCurrentFY(getCurrentFY(fiscalYearStartMonth))
-    if (!options?.defaultViewMode && displayPreferences.defaultTimeRange) {
-      setViewMode(allowedMode(displayPreferences.defaultTimeRange as AnalyticsViewMode, options?.availableModes))
+    if (!options?.defaultViewMode && defaultTimeRange) {
+      setViewMode(allowedMode(defaultTimeRange as AnalyticsViewMode, options?.availableModes))
     }
   }
 

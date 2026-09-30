@@ -69,7 +69,9 @@ export function useInstrumentRates(): {
 
   return {
     data,
-    isFallback: !valid,
+    // Only a settled miss is a fallback. While the first fetch is in flight
+    // the defaults are a placeholder, not a failure, so no warning badge.
+    isFallback: query.isError || (query.isSuccess && !valid),
     isLoading: query.isLoading,
   }
 }

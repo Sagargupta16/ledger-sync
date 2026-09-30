@@ -1,4 +1,4 @@
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 import type { DayCell } from './DayOfWeekChart'
 
 interface Props {
@@ -18,7 +18,7 @@ export default function HeatmapDayDetail({ hoveredDay, monthlyDetail }: Readonly
     return (
       <>
         <span className="text-foreground font-medium">
-          {new Date(hoveredDay.date + 'T00:00:00').toLocaleDateString('en-IN', {
+          {formatDate(hoveredDay.date, {
             weekday: 'short',
             day: 'numeric',
             month: 'short',

@@ -1,11 +1,11 @@
 /** Synthetic signed balances exercise outstanding debt and measured coverage. */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AccountBalances } from '@/services/api/calculations'
+import { calculationsApi, type AccountBalances } from '@/services/api/calculations'
 import { usePreferencesStore } from '@/store/preferencesStore'
 
 import CreditCardHealth from '../CreditCardHealth'
@@ -125,6 +125,27 @@ describe('CreditCardHealth denominator', () => {
     const outstandingRow = screen.getByText('Outstanding').parentElement
     expect(digitsOf(outstandingRow?.lastElementChild?.textContent ?? '')).toBe('0.00')
     expect(screen.queryByText('25.0%')).not.toBeInTheDocument()
+  })
+
+  it('shows a retryable error instead of "no cards" when balances fail to load', async () => {
+    const failing = vi
+      .spyOn(calculationsApi, 'getAccountBalances')
+      .mockRejectedValue(new Error('balances unavailable'))
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    qc.setQueryData(['account-classifications'], classify(NET_BALANCES))
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <CreditCardHealth />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('Unable to load credit card health')).toBeInTheDocument()
+    expect(screen.queryByText(/No credit card accounts found/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }))
+    await waitFor(() => expect(failing).toHaveBeenCalledTimes(2))
+    failing.mockRestore()
   })
 
   it('does not offset one card debt with another card prepaid balance', async () => {

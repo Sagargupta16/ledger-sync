@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Annotated, Any
 
 import anyio
@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from ledger_sync.api.deps import HttpClient, ProviderUser
 from ledger_sync.api.rate_limit import user_limiter
+from ledger_sync.core.ledger_clock import ledger_today
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +160,9 @@ async def resolve_exchange_rates(
     the unconverted price.
     """
     if on_date is not None:
-        if on_date > datetime.now(tz=UTC).date():
+        # The user's calendar day (IST): for 5.5 hours a day the UTC date is
+        # still yesterday, which rejected a vest dated today as "future".
+        if on_date > ledger_today():
             raise HTTPException(status_code=400, detail="on_date cannot be in the future")
         try:
             rates, priced_on = await _fetch_rates(client, base, on_date)

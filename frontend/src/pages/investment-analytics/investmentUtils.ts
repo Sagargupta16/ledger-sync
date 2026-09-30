@@ -7,6 +7,7 @@ import {
 } from '@/lib/finance/investmentFlows'
 import {
   computeInvestmentMetrics,
+  type InvestmentReturnRules,
   type InvestmentReturnTransaction,
 } from '@/lib/finance/investmentReturns'
 
@@ -166,6 +167,9 @@ export function buildDailyGrowthSeries(
   return series
 }
 
-export function computeNetInvestmentPL(transactions: readonly InvestmentReturnTransaction[]): number {
-  return computeInvestmentMetrics(transactions).netProfitLoss
+export function computeNetInvestmentPL(
+  transactions: readonly InvestmentReturnTransaction[],
+  rules?: InvestmentReturnRules,
+): number {
+  return computeInvestmentMetrics(transactions, rules).netProfitLoss
 }

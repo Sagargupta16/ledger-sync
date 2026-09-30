@@ -9,6 +9,7 @@ import {
   type UserPreferences,
   type UserPreferencesUpdate,
   type AnomalySettingsConfig,
+  type CapitalLossConfig,
 } from '@/services/api/preferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { useAuthStore } from '@/store/authStore'
@@ -159,4 +160,19 @@ export function useResetPreferences() {
 
 export function useUpdateAnomalySettings() {
   return usePreferenceMutation<AnomalySettingsConfig>(preferencesService.updateAnomalySettings, () => false)
+}
+
+/**
+ * Replace the classified realised-loss set.
+ *
+ * Session-safe through `usePreferenceMutation`: the captured session is
+ * asserted before dispatch and checked again before the response is cached,
+ * and success invalidates every preference dependent (`analyticsV2` covers the
+ * Data Health candidates, `calculations` the totals). The ledger rows
+ * themselves do not change, so the full ledger is not re-downloaded; pages that
+ * aggregate it client-side re-read `capital_loss_categories` off the refreshed
+ * preferences (`capitalLossConfig` in `lib/expenseClassification`).
+ */
+export function useUpdateCapitalLossCategories() {
+  return usePreferenceMutation<CapitalLossConfig>(preferencesService.updateCapitalLossCategories, () => false)
 }

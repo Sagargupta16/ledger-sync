@@ -1,3 +1,5 @@
+import { phrasePattern } from './metricRules'
+
 /** Ledger amounts are positive magnitudes; direction comes from type and account legs. */
 export interface InvestmentFlowTransaction {
   type: string
@@ -22,10 +24,30 @@ export interface InvestmentTransferSummary {
   otherTransfers: number
 }
 
-/** Bind exact membership to the user's configured investment accounts. */
+/**
+ * Default investment-account keywords when the user has mapped no accounts.
+ * Mirrors backend `core/metric_rules.py` `DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS`
+ * (same 20 keywords, word-boundary matched).
+ */
+export const DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS: readonly string[] = [
+  'sip', 'mf', 'mutual fund', 'ppf', 'epf', 'nps', 'stocks', 'equity', 'shares', 'elss',
+  'recurring deposit', 'rd', 'sukanya samriddhi', 'ssy', 'groww', 'zerodha', 'kite',
+  'upstox', 'kuvera', 'coin',
+]
+
+const DEFAULT_INVESTMENT_PATTERN = phrasePattern(DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS)
+
+/**
+ * The investment perimeter: the user's mapped accounts matched
+ * case-insensitively on the exact name, or, with no mappings at all, the
+ * default keyword list matched at word boundaries.
+ */
 export function investmentAccountTest(accounts: readonly string[]): InvestmentAccountTest {
-  const names = new Set(accounts)
-  return (name) => name != null && names.has(name)
+  const names = new Set(accounts.map((account) => account.trim().toLowerCase()).filter(Boolean))
+  if (names.size === 0) {
+    return (name) => name != null && DEFAULT_INVESTMENT_PATTERN?.test(name) === true
+  }
+  return (name) => name != null && names.has(name.trim().toLowerCase())
 }
 
 /**

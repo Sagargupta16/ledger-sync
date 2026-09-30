@@ -4,15 +4,15 @@ import {
   type CashFlowForecastModel,
   type MonthlyCashFlowData,
 } from '@/lib/finance/cashFlowForecast'
+import { formatDate } from '@/lib/formatters'
 
 export { addMonths, computeGrowthRate } from '@/lib/finance/cashFlowForecast'
 
 export function formatMonth(v: string) {
-  // Build from local Y/M parts: `new Date('YYYY-MM-01')` parses as UTC midnight
-  // and toLocaleDateString renders local, mislabeling the axis tick (prior
-  // month) for negative-offset users.
-  const [y, m] = v.slice(0, 7).split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+  // The string form of formatDate builds from local Y/M/D parts:
+  // `new Date('YYYY-MM-01')` parses as UTC midnight and mislabels the axis
+  // tick (prior month) for negative-offset users.
+  return formatDate(`${v.slice(0, 7)}-01`, { month: 'short', year: '2-digit' })
 }
 
 type CombinedPoint = {

@@ -3,13 +3,14 @@ export interface InsightRowProps {
   label: string
   value: string
   subtitle?: string
+  /** CSS color for the icon and its tint; a `colors.*` var() follows the theme. */
   color: string
 }
 
 export default function InsightRow({ icon: Icon, label, value, subtitle, color }: Readonly<InsightRowProps>) {
   return (
     <div className="flex items-center gap-3">
-      <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}15` }}>
+      <div className="p-2 rounded-lg" style={{ backgroundColor: `color-mix(in srgb, ${color} 8%, transparent)` }}>
         <Icon className="w-4 h-4" style={{ color }} />
       </div>
       <div className="flex-1 min-w-0">

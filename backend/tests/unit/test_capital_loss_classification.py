@@ -256,11 +256,11 @@ def _seed(db: Session, *, classify: bool) -> int:
 def _seed_with_tax_flavoured_loss(db: Session, *, classify: bool) -> int:
     """Same shape as ``_seed`` but the loss row carries a tax-vocabulary note.
 
-    ``fy_summaries`` credits ``tax_paid`` from ``_TAX_NOTE_RE`` on the note, and
-    brokers really do write settlement notes like this one. Without the
-    capital-loss branch the row falls through to the tax test and books a
-    realised LOSS as tax PAID, which the Tax Planning page then shows as a credit
-    the user never paid.
+    Brokers really do write settlement notes like this one. ``fy_summaries`` used
+    to credit ``tax_paid`` from tax words in the note, which booked a realised
+    LOSS as tax PAID on the Tax Planning page. Tax paid now reads the row's
+    taxonomy only, so the note cannot credit it whether or not the loss is
+    classified.
     """
     user = User(email="fyloss@example.com", is_active=True, is_verified=True, hashed_password="")
     db.add(user)
@@ -397,8 +397,10 @@ def test_classified_loss_is_not_split_across_essential_and_discretionary(
     # for a bad trade.
     row = _rollup(session, _seed(session, classify=True))
 
-    assert row.essential_expenses == Decimal("30000")
-    assert row.discretionary_expenses == Decimal("14639.68")
+    # Housing (the user's list) and Food & Dining / Groceries (a built-in Needs
+    # keyword; the user's list adds to the defaults) are both Needs.
+    assert row.essential_expenses == Decimal("44639.68")
+    assert row.discretionary_expenses == Decimal("0")
     assert row.essential_expenses + row.discretionary_expenses == row.total_expenses
     # And it is not counted as a thing the user spent ON.
     assert row.expense_count == 2
@@ -483,10 +485,9 @@ def test_classified_loss_leaves_fy_expenses_but_still_lowers_fy_net_savings(
 
 
 def test_classified_loss_is_never_credited_as_fy_tax_paid(session: Session) -> None:
-    # The dangerous interaction: the FY expense branch credits ``tax_paid`` from
-    # tax vocabulary in the note, and broker settlement notes carry exactly that
-    # vocabulary. The capital-loss branch must return BEFORE the tax test, or a
-    # 102,789.41 loss shows up on the Tax Planning page as tax the user paid.
+    # Broker settlement notes carry tax vocabulary. A classified loss leaves the
+    # expense branch before the tax test, so a 102,789.41 loss never shows up on
+    # the Tax Planning page as tax the user paid.
     classified = _fy_rollup(session, _seed_with_tax_flavoured_loss(session, classify=True))
 
     assert classified.capital_losses == Decimal("102789.41")
@@ -494,13 +495,53 @@ def test_classified_loss_is_never_credited_as_fy_tax_paid(session: Session) -> N
     assert classified.total_expenses == Decimal("44639.68")
 
 
-def test_unclassified_tax_flavoured_loss_still_books_tax_paid(session: Session) -> None:
-    # The mirror of the test above, which keeps it from being satisfied by
-    # breaking the tax detection outright: with nothing classified the same row
-    # is ordinary spending and the note still credits tax_paid, exactly as
-    # before the preference existed.
+def test_unclassified_tax_flavoured_loss_is_spending_but_not_tax_paid(session: Session) -> None:
+    # The mirror of the test above: with nothing classified the same row is
+    # ordinary spending. Its note's tax vocabulary no longer credits tax_paid --
+    # tax paid is read from the row's taxonomy only (``metric_rules.is_tax_paid``),
+    # and an F&O loss taxonomy is not income tax.
     row = _fy_rollup(session, _seed_with_tax_flavoured_loss(session, classify=False))
 
     assert row.capital_losses == Decimal("0")
-    assert row.tax_paid == Decimal("102789.41")
+    assert row.tax_paid == Decimal("0")
     assert row.total_expenses == Decimal("147429.09")
+
+
+def test_fy_tax_paid_reads_the_tax_taxonomy_not_the_note(session: Session) -> None:
+    # Tax paid is the exact "Taxes" category plus income-tax vocabulary in the
+    # category or subcategory. A purchase whose note says "incl GST" is spending,
+    # not income tax paid -- it used to be credited from the note.
+    user = User(email="fytax@example.com", is_active=True, is_verified=True, hashed_password="")
+    session.add(user)
+    session.flush()
+    session.add(UserPreferences(user_id=user.id))
+
+    def expense(tid: str, amount: str, category: str, subcategory: str | None, note: str) -> None:
+        when = datetime(2024, 12, 10, tzinfo=UTC)
+        session.add(
+            Transaction(
+                transaction_id=tid,
+                user_id=user.id,
+                date=when,
+                amount=Decimal(amount),
+                currency="INR",
+                type=TransactionType.EXPENSE,
+                account="Bank: HDFC",
+                category=category,
+                subcategory=subcategory,
+                note=note,
+                source_file="t.xlsx",
+                last_seen_at=when,
+                is_deleted=False,
+            )
+        )
+
+    expense("tax-1", "25000", "Taxes", None, "Q3 challan")
+    expense("tax-2", "18000", "Salary Deductions", "TDS", "Form 16 part A")
+    expense("tax-3", "5900", "Shopping", "Electronics", "Headphones incl GST")
+    session.commit()
+
+    row = _fy_rollup(session, user.id)
+
+    assert row.tax_paid == Decimal("43000")
+    assert row.total_expenses == Decimal("48900")

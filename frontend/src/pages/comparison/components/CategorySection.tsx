@@ -4,8 +4,8 @@ import { motion } from 'motion/react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
-import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import type { PeriodSummary, CategoryDelta } from '../types'
 import { changeBadgeClass } from '../utils'
@@ -105,8 +105,7 @@ function buildCategoryColumns({
             className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs font-semibold tabular-nums ${changeBadgeClass(delta.change, isGood)}`}
           >
             <ChangeIcon change={delta.change} size="w-3 h-3" />
-            {delta.change > 0 ? '+' : ''}
-            {delta.change.toFixed(1)}%
+            {formatPercent(delta.change, true)}
           </span>
         )
       },
@@ -124,7 +123,7 @@ export function CategorySection({
   icon, title, deltas, periodA, periodB, invertChange, delay,
 }: Readonly<CategorySectionProps>) {
   const axisMax = deltas.length > 0 ? Math.max(deltas[0].periodA, deltas[0].periodB, 1) : 1
-  const color = invertChange ? rawColors.app.red : rawColors.app.green
+  const color = invertChange ? colors.app.red : colors.app.green
   const columns = buildCategoryColumns({ axisMax, color, periodA, periodB, invertChange })
 
   return (

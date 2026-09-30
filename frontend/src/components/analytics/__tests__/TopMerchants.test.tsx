@@ -9,11 +9,12 @@
  */
 
 import { QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import type { MerchantRow } from '@/pages/merchant-intelligence/types'
+import { analyticsV2Service } from '@/services/api/analyticsV2'
 
 import TopMerchants from '../TopMerchants'
 
@@ -149,5 +150,23 @@ describe('TopMerchants', () => {
     expect(
       screen.getByText('All-time payees whose main category is Transportation, at their full spend'),
     ).toBeInTheDocument()
+  })
+
+  it('shows a retryable error instead of the no-payees empty state when the rollup fails', async () => {
+    const failing = vi
+      .spyOn(analyticsV2Service, 'getMerchantIntelligence')
+      .mockRejectedValue(new Error('rollup unavailable'))
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <TopMerchants />
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('Unable to load top merchants')).toBeInTheDocument()
+    expect(screen.queryByText(/No payees identified yet/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }))
+    await waitFor(() => expect(failing).toHaveBeenCalledTimes(2))
+    failing.mockRestore()
   })
 })

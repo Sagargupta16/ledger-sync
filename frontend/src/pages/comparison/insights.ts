@@ -31,7 +31,7 @@ function generateCategorySwingInsight(expenseDeltas: CategoryDelta[]): string | 
   const biggest = expenseDeltas[0]
   if (Math.abs(biggest.changeAbs) === 0) return null
   const direction = biggest.changeAbs > 0 ? 'increased' : 'decreased'
-  return `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${biggest.change > 0 ? '+' : ''}${biggest.change.toFixed(1)}%).`
+  return `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${formatPercent(biggest.change, true)}).`
 }
 
 function generateNewCategoriesInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {

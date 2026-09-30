@@ -62,6 +62,14 @@ export const DEFAULT_GST_RATES: Record<string, number> = {
   'Insurance': 0,            // individual health & life insurance: Nil since GST 2.0
   'Utilities': 0,            // electricity & water exempt; only piped gas/LPG carries GST
   'Bills': 0,
+  // School/college education towards a recognised qualification is exempt
+  // (Notification 12/2017-CT(Rate), entry 66). Without these keys the labels
+  // fell through to the "Education" key or the 18% default.
+  'School Fees': 0,
+  'College Fees': 0,
+  'Tuition Fees': 0,
+  'Tuition': 0,
+  'Education Fees': 0,
 
   // ── 3% -- Gold / Precious metals ───────────────────────────────
   'Jewellery': 3,
@@ -124,6 +132,7 @@ export const DEFAULT_GST_RATES: Record<string, number> = {
   'Mobile Recharge': 18,
   'Telecom': 18,
   'Education': 18,           // coaching/courses: 18% (school: 0%)
+  'Tuition Classes': 18,     // private coaching, unlike school tuition fees
   'Courses & Workshops': 18,
   'Exam Fees': 18,
   'Haircut & Grooming': 18,  // salon services: 18%

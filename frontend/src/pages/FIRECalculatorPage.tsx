@@ -7,7 +7,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { computeFIRE, computeRetirementCorpus, deriveFIREInputs } from '@/lib/fireCalculator'
 import { rawColors } from '@/constants/colors'
 import MetricCard from '@/components/shared/MetricCard'
@@ -204,7 +204,7 @@ export default function FIRECalculatorPage() {
               <MetricCard title="FIRE Number" value={formatCurrency(fireResult.fireNumber)} icon={Flame} color="red" subtitle={`At ${swr}% SWR`} />
               <MetricCard title="Years to FIRE" value={formatYearsToFIRE(fireResult.yearsToFIRE)} icon={Flame} color="orange" subtitle={`At ${realReturn}% real return`} />
               <MetricCard title="Coast FIRE" value={formatCurrency(fireResult.coastFIRE)} icon={Flame} color="teal" subtitle="Amount needed today" />
-              <MetricCard title="Savings Rate" value={`${fireResult.currentSavingsRate.toFixed(1)}%`} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
+              <MetricCard title="Savings Rate" value={formatPercent(fireResult.currentSavingsRate)} icon={Flame} color="green" subtitle={savingsRateSubtitle(fireResult.currentSavingsRate)} />
             </motion.div>
 
             {/* FIRE Variants -- one shared INR axis so the tiers are directly

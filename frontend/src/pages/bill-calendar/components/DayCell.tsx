@@ -1,6 +1,6 @@
 import type { FocusEventHandler, KeyboardEventHandler } from 'react'
 
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 import { getBillDotColor } from '../billUtils'
 import type { PlacedBill } from '../types'
 
@@ -68,7 +68,7 @@ export default function DayCell({
     if (!hasBills) return 'no bills'
     return `${bills.length} bill${bills.length === 1 ? '' : 's'}`
   })()
-  const dateLabel = new Date(year, month, day).toLocaleDateString('en-IN', {
+  const dateLabel = formatDate(new Date(year, month, day), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

@@ -24,12 +24,6 @@ from __future__ import annotations
 
 from calendar import monthrange
 from datetime import date
-from typing import TYPE_CHECKING
-
-from ledger_sync.db.models import TransactionType
-
-if TYPE_CHECKING:
-    from ledger_sync.db.models import Transaction
 
 # Heuristic thresholds used across insight generation. Named here rather
 # than inlined so their meaning is discoverable and a future tweak is a
@@ -92,17 +86,3 @@ def completed_monthly_data(
     than publish a number computed over nothing.
     """
     return {k: v for k, v in monthly_data.items() if not is_partial_month(k, today)}
-
-
-def completed_month_expenses(transactions: list[Transaction], today: date) -> list[Transaction]:
-    """Expense rows outside the month in progress.
-
-    For the window comparisons (lifestyle inflation) that bucket by calendar
-    month: a half-finished trailing month drags the late-window average down and
-    reports a spending *reduction* the user has not made.
-    """
-    return [
-        t
-        for t in transactions
-        if t.type == TransactionType.EXPENSE and not is_partial_month(month_key(t.date), today)
-    ]

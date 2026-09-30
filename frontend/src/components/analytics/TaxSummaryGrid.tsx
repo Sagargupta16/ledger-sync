@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import type { taxOverviewMetrics } from '@/lib/finance/payrollPlanning'
 import { ProgressBar } from '@/components/shared'
-import { hexToRgba, rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 
 interface TaxSummaryGridProps {
   selectedFY: string
@@ -45,11 +45,11 @@ export default function TaxSummaryGrid({
             max={35}
             target={30}
             height={6}
-            color={rawColors.app.orange}
+            color={colors.app.orange}
             bands={[
-              { upTo: (15 / 35) * 100, color: hexToRgba(rawColors.app.green, 0.1) },
-              { upTo: (25 / 35) * 100, color: hexToRgba(rawColors.app.orange, 0.1) },
-              { upTo: 100, color: hexToRgba(rawColors.app.red, 0.1) },
+              { upTo: (15 / 35) * 100, color: 'color-mix(in srgb, var(--color-app-green) 10%, transparent)' },
+              { upTo: (25 / 35) * 100, color: 'color-mix(in srgb, var(--color-app-orange) 10%, transparent)' },
+              { upTo: 100, color: 'color-mix(in srgb, var(--color-app-red) 10%, transparent)' },
             ]}
             ariaLabel={`Effective tax rate ${formatPercent(effectiveTaxRate)} of gross taxable income`}
             className="mt-3"
@@ -69,11 +69,11 @@ export default function TaxSummaryGrid({
               max={100}
               target={20}
               height={6}
-              color={rawColors.app.purple}
+              color={colors.app.purple}
               bands={[
-                { upTo: 20, color: hexToRgba(rawColors.app.red, 0.1) },
-                { upTo: 30, color: hexToRgba(rawColors.app.orange, 0.1) },
-                { upTo: 100, color: hexToRgba(rawColors.app.green, 0.1) },
+                { upTo: 20, color: 'color-mix(in srgb, var(--color-app-red) 10%, transparent)' },
+                { upTo: 30, color: 'color-mix(in srgb, var(--color-app-orange) 10%, transparent)' },
+                { upTo: 100, color: 'color-mix(in srgb, var(--color-app-green) 10%, transparent)' },
               ]}
               ariaLabel={`Savings rate ${formatPercent(savingsRate)} of total income`}
               className="mt-3"

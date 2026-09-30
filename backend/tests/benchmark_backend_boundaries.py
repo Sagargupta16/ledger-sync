@@ -1,14 +1,13 @@
 """Synthetic SQLite benchmark; never reads an application database or provider.
 
 Run from backend: .venv/Scripts/python.exe tests/benchmark_backend_boundaries.py
-Timings include tracemalloc overhead. Counts and parity are deterministic;
+Timings include tracemalloc overhead. Counts are deterministic;
 elapsed time and memory are local measurements, not production estimates.
 """
 
 import asyncio
 import gc
 import json
-import math
 import os
 import secrets
 import statistics
@@ -55,20 +54,6 @@ def _measure(factory, operation):
     }
 
 
-def _equivalent(left, right):
-    if isinstance(left, float):
-        return math.isclose(left, right, rel_tol=1e-12, abs_tol=1e-8)
-    if isinstance(left, dict):
-        return left.keys() == right.keys() and all(
-            _equivalent(item, right[key]) for key, item in left.items()
-        )
-    if isinstance(left, list):
-        return len(left) == len(right) and all(
-            _equivalent(a, b) for a, b in zip(left, right, strict=True)
-        )
-    return left == right
-
-
 async def _event_loop_delay(offload):
     from starlette.concurrency import run_in_threadpool
 
@@ -101,11 +86,6 @@ def main():
     from sqlalchemy.orm import sessionmaker
 
     from ledger_sync.api import main as runtime
-    from ledger_sync.api.calculations_helpers import (
-        _compute_category_monthly_history,
-        _compute_income_analysis,
-    )
-    from ledger_sync.core.query_helpers import build_transaction_query
     from ledger_sync.db.base import Base
     from ledger_sync.db.models import Transaction, TransactionType, User, UserPreferences
     from ledger_sync.services.calculation_service import category_monthly_history, income_analysis
@@ -137,33 +117,20 @@ def main():
         session.commit()
 
     months = [f"2025-{month:02}" for month in range(1, 13)]
+    # The list-based "before" implementations were retired once the SQL
+    # aggregates shipped; only the served path is measured now.
     operations = {
-        "category_history": (
-            lambda db, user: _compute_category_monthly_history(
-                build_transaction_query(db, user)
-                .filter(Transaction.type == TransactionType.EXPENSE)
-                .all(),
-                TransactionType.EXPENSE,
-                months,
-            ),
-            lambda db, user: category_monthly_history(db, user, months, TransactionType.EXPENSE),
+        "category_history": lambda db, user: category_monthly_history(
+            db, user, months, TransactionType.EXPENSE
         ),
-        "income_analysis": (
-            lambda db, user: _compute_income_analysis(
-                list(build_transaction_query(db, user).all()), []
-            ),
-            lambda db, user: income_analysis(
-                db, user, start_date=None, end_date=None, cashback_categories=[], category=None
-            ),
+        "income_analysis": lambda db, user: income_analysis(
+            db, user, start_date=None, end_date=None, cashback_categories=[], category=None
         ),
     }
     report = {"synthetic_transactions": 50_000, "repeats": 3}
-    for name, (before, after) in operations.items():
-        old, old_stats = _measure(factory, before)
-        new, new_stats = _measure(factory, after)
-        if not _equivalent(old, new):
-            raise AssertionError(f"Response parity failed for {name}")
-        report[name] = {"before": old_stats, "after": new_stats, "parity": True}
+    for name, operation in operations.items():
+        _, stats = _measure(factory, operation)
+        report[name] = {"after": stats}
 
     statements = []
 

@@ -12,11 +12,11 @@
  */
 
 import { QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
-import type { CohortSpendingData } from '@/services/api/analyticsV2'
+import { analyticsV2Service, type CohortSpendingData } from '@/services/api/analyticsV2'
 
 import CohortSpendingAnalysis from '../CohortSpendingAnalysis'
 
@@ -129,12 +129,33 @@ describe('CohortSpendingAnalysis', () => {
   })
 
   it('still discloses scope when the rollup has not resolved yet', () => {
+    const pending = vi
+      .spyOn(analyticsV2Service, 'getCohortSpending')
+      .mockReturnValue(new Promise<CohortSpendingData>(() => {}))
     renderCard(null)
 
-    expect(screen.getByText('No expense data available')).toBeInTheDocument()
+    // Pending is a loading state, never the "no data" empty state.
+    expect(screen.getByText('Loading spending patterns')).toBeInTheDocument()
+    expect(screen.queryByText('No expense data available')).not.toBeInTheDocument()
     // The caveat is unconditional: a reader who sees an empty panel next to
     // populated filtered ones should learn it is not the date filter's doing.
     expect(screen.getByText('All time')).toBeInTheDocument()
     expect(screen.getByText(/Covers your full history/)).toBeInTheDocument()
+    pending.mockRestore()
+  })
+
+  it('shows a retryable error instead of an empty chart when the rollup fails', async () => {
+    const failing = vi
+      .spyOn(analyticsV2Service, 'getCohortSpending')
+      .mockRejectedValue(new Error('rollup unavailable'))
+    renderCard(null)
+
+    expect(await screen.findByText('Unable to load spending patterns')).toBeInTheDocument()
+    expect(screen.queryByText('No expense data available')).not.toBeInTheDocument()
+    expect(screen.getByText('All time')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }))
+    await waitFor(() => expect(failing).toHaveBeenCalledTimes(2))
+    failing.mockRestore()
   })
 })

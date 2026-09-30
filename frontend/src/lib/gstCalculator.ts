@@ -9,6 +9,7 @@
  */
 
 import { getFYFromDate } from './dateUtils'
+import { formatDate } from './formatters'
 import { GST_SLABS_CURRENT, GST_SLABS_LEGACY } from './gstRates'
 import { calculateGSTFromInclusive, getGSTRate } from './gstRateLookup'
 import type { Transaction } from '@/types'
@@ -185,11 +186,9 @@ export function computeGSTAnalysis(
   const monthlyTrend: GSTMonthlyTrend[] = Array.from(monthMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, data]) => {
-      const [year, m] = month.split('-')
-      const date = new Date(Number(year), Number(m) - 1)
       return {
         month,
-        monthLabel: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        monthLabel: formatDate(`${month}-01`, { month: 'short', year: '2-digit' }),
         spending: data.spending,
         gstAmount: data.gst,
       }

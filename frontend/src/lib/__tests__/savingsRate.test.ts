@@ -15,6 +15,7 @@ import {
   sumFlows,
 } from '@/lib/savingsRate'
 import { isPartialMonth } from '@/lib/dateUtils'
+import { capitalLossConfig } from '@/lib/expenseClassification'
 
 import {
   cfpInputsFromAnalysis,
@@ -531,10 +532,14 @@ describe('every route agrees on what counts as expense', () => {
       },
     ])
 
+  /** The F&O rows' key, as the user would classify it from Data Health. */
+  const LOSS_CLASSIFIED = capitalLossConfig(['Investment Losses::F&O Loss'])
+
   /**
-   * The EXPENSE SIDE is one number everywhere. `healthScoreAnalysis` filtered it
-   * with `isSpending` while `generateDemoTotals` summed every Expense row, so the
-   * two routes disagreed on `total_expenses` for identical rows.
+   * The EXPENSE SIDE is one number everywhere. Since 2026-09-30 only a key the
+   * user classified leaves spending (the backend rule), so with nothing
+   * classified -- the shipped state -- the loss-named row is spending on every
+   * route, exactly what `/totals` returns for an unclassified user.
    */
   it('demo totals and the health analysis report the same expense side', () => {
     vi.setSystemTime(new Date(2026, 6, 27))
@@ -545,35 +550,31 @@ describe('every route agrees on what counts as expense', () => {
     const analysis = computeAnalysis(built!.months, built!.monthlyData)
 
     expect(totals.total_expenses).toBe(analysis.totalExpense)
-    // 600k in, 240k of real spending: the loss is not consumption.
-    expect(totals.total_expenses).toBeCloseTo(240000, 10)
+    // 600k in, 240k of rent plus the unclassified 120k loss.
+    expect(totals.total_expenses).toBeCloseTo(360000, 10)
   })
 
   /**
-   * ...but the two RATES answer different questions and must NOT be forced equal.
+   * Classifying moves the loss out of `total_expenses` but NOT out of the rate.
    *
-   * `_totals_payload` (backend/src/ledger_sync/api/calculations.py:142-148) is
+   * `_totals_payload` (backend/src/ledger_sync/api/calculations.py) is
    * `net_savings = income - expenses - losses` then
    * `savings_rate = net_savings / income`, so the endpoint's rate CARRIES the
-   * loss: 40% on these rows. The health panel's metric excludes it from both
-   * sides and answers the consumption question: 60%. Verified against the backend
-   * arithmetic 2026-07-27; it returns 40 for a classified user and for a default
-   * user whose `capital_loss_keys_for` set is empty, i.e. the published rate is
-   * invariant to classification by design.
+   * loss: 40% on these rows whether or not the user classified it. That is the
+   * app-wide savings definition (income - spending - classified losses, over
+   * income), so a classification never steps a published rate upward.
    */
-  it('the endpoint field carries the loss while the health metric excludes it', () => {
-    vi.setSystemTime(new Date(2026, 6, 27))
+  it('the endpoint rate is invariant to classification while the expense side moves', () => {
     const txns = withLoss()
-    const totals = generateDemoTotals(txns)
-    const built = computeMonthlyData(txns, noInvestment)
-    const analysis = computeAnalysis(built!.months, built!.monthlyData)
+    const unclassified = generateDemoTotals(txns)
+    const classified = generateDemoTotals(txns, undefined, LOSS_CLASSIFIED)
 
-    // Wealth-change rate: what the API field means.
-    expect(totals.savings_rate).toBeCloseTo(40, 10)
-    // Consumption rate: what the health metric means.
-    expect(analysis.savingsRate).toBeCloseTo(60, 10)
-    // The gap is real and is the whole point of keeping two names.
-    expect(Math.abs(totals.savings_rate - analysis.savingsRate)).toBeCloseTo(20, 10)
+    expect(classified.total_expenses).toBeCloseTo(240000, 10)
+    expect(classified.capital_losses).toBeCloseTo(120000, 10)
+    expect(unclassified.capital_losses).toBe(0)
+    expect(unclassified.savings_rate).toBeCloseTo(40, 10)
+    expect(classified.savings_rate).toBeCloseTo(40, 10)
+    expect(classified.net_savings).toBeCloseTo(unclassified.net_savings, 10)
   })
 
   it('keeps the demo payload internally consistent: rate === net / income', () => {
@@ -627,9 +628,9 @@ describe('every route agrees on what counts as expense', () => {
     expect(totals.total_expenses).toBeCloseTo(40000 * 6 + 500 * 6, 10)
   })
 
-  it('splits the loss out per month too, so the monthly buckets agree', () => {
+  it('splits a classified loss out per month too, so the monthly buckets agree', () => {
     vi.setSystemTime(new Date(2026, 6, 27))
-    const monthly = generateDemoMonthlyAggregation(withLoss())
+    const monthly = generateDemoMonthlyAggregation(withLoss(), undefined, LOSS_CLASSIFIED)
     const jan = monthly['2026-01']
     expect(jan.income).toBeCloseTo(100000, 10)
     expect(jan.expense).toBeCloseTo(40000, 10)

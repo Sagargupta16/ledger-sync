@@ -1,6 +1,5 @@
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
-import { isSpending } from '@/lib/expenseClassification'
 import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, heatmapNeutral, heatmapRamps, type HeatmapMode } from './types'
 
@@ -107,68 +106,50 @@ export function getMonthlyMax(
 
 /** Get streak color based on streak length */
 export function getStreakColor(maxStreak: number): string {
-  if (maxStreak >= 14) return rawColors.app.purple
-  if (maxStreak >= 7) return rawColors.app.blue
-  return rawColors.app.green
+  if (maxStreak >= 14) return colors.app.purple
+  if (maxStreak >= 7) return colors.app.blue
+  return colors.app.green
 }
 
 /**
- * Aggregate per-day expense/income totals from transactions within a date range.
+ * Build dayExpenses/dayIncomes/dayNets from pre-computed DailySummary rows.
  *
- * Realised capital losses are skipped: a single loss row renders as an
- * extreme-spend day and blows out the colour scale for every other day.
+ * `expense` already holds classified realised losses out (a loss is not a
+ * heavy SPENDING day) and `net` still subtracts them (the cash did leave), so
+ * `net` is kept per day rather than re-derived as income minus expense. A row
+ * without `net` falls back to that difference.
  */
-export function aggregateDayTotals(
-  transactions: {
-    date: string
-    type: string
-    amount: number
-    category?: string
-    subcategory?: string
-  }[],
-  startStr: string,
-  endStr: string,
-) {
-  const dayExpenses: Record<string, number> = {}
-  const dayIncomes: Record<string, number> = {}
-
-  for (const tx of transactions) {
-    const d = tx.date.substring(0, 10)
-    if (d < startStr || d > endStr) continue
-
-    if (tx.type === 'Expense') {
-      if (!isSpending(tx)) continue
-      dayExpenses[d] = (dayExpenses[d] || 0) + Math.abs(tx.amount)
-    } else if (tx.type === 'Income') {
-      dayIncomes[d] = (dayIncomes[d] || 0) + Math.abs(tx.amount)
-    }
-  }
-  return { dayExpenses, dayIncomes }
-}
-
-/** Build dayExpenses/dayIncomes from pre-computed DailySummary rows. */
 export function aggregateFromDailySummaries(
-  summaries: { date: string; income: number; expense: number }[],
+  summaries: readonly { date: string; income: number; expense: number; net?: number }[],
   startStr: string,
   endStr: string,
 ) {
   const dayExpenses: Record<string, number> = {}
   const dayIncomes: Record<string, number> = {}
+  const dayNets: Record<string, number> = {}
 
   for (const s of summaries) {
     if (s.date < startStr || s.date > endStr) continue
     if (s.expense > 0) dayExpenses[s.date] = s.expense
     if (s.income > 0) dayIncomes[s.date] = s.income
+    const net = s.net ?? s.income - s.expense
+    if (net !== 0) dayNets[s.date] = net
   }
-  return { dayExpenses, dayIncomes }
+  return { dayExpenses, dayIncomes, dayNets }
 }
 
-/** Walk from startDate to endDate, producing one DayCell per day plus running maxes. */
+/**
+ * Walk from startDate to endDate, producing one DayCell per day plus running maxes.
+ *
+ * `dayNets`, when given, is the day's net after classified realised losses;
+ * without it a day's net is income minus expense.
+ */
 export function buildDayCells(
   startDate: Date,
   endDate: Date,
   dayExpenses: Record<string, number>,
   dayIncomes: Record<string, number>,
+  dayNets?: Record<string, number>,
 ) {
   const todayStr = toLocalDateKey(new Date())
   const startDow = startDate.getDay()
@@ -189,7 +170,7 @@ export function buildDayCells(
     const weekIndex = Math.floor((dayOffset + startDow) / 7)
     const exp = dayExpenses[dateStr] || 0
     const inc = dayIncomes[dateStr] || 0
-    const net = inc - exp
+    const net = dayNets ? (dayNets[dateStr] ?? 0) : inc - exp
 
     if (exp > mxE) mxE = exp
     if (inc > mxI) mxI = inc
@@ -205,7 +186,7 @@ export function buildDayCells(
       weekIndex,
       month: current.getMonth(),
       isToday: dateStr === todayStr,
-      hasTx: exp > 0 || inc > 0,
+      hasTx: exp > 0 || inc > 0 || net !== 0,
     })
     current.setDate(current.getDate() + 1)
   }
@@ -290,6 +271,9 @@ export function accumulateStats(grid: DayCell[]) {
   const todayStr = toLocalDateKey(new Date())
   let totalExpense = 0
   let totalIncome = 0
+  // Sum of each day's net, which (from the rollups) already subtracts
+  // classified realised losses -- so it is NOT totalIncome - totalExpense.
+  let totalNet = 0
   let daysWithExpense = 0
   let elapsedDays = 0
   let biggestExpenseDay = { date: '', amount: 0 }
@@ -298,13 +282,16 @@ export function accumulateStats(grid: DayCell[]) {
   let maxStreak = 0
   const monthlyExpense: number[] = Array.from({ length: 12 }, () => 0)
   const monthlyIncome: number[] = Array.from({ length: 12 }, () => 0)
+  const monthlyNet: number[] = Array.from({ length: 12 }, () => 0)
 
   for (const cell of grid) {
     if (cell.date <= todayStr) elapsedDays++
     totalExpense += cell.expense
     totalIncome += cell.income
+    totalNet += cell.net
     monthlyExpense[cell.month] += cell.expense
     monthlyIncome[cell.month] += cell.income
+    monthlyNet[cell.month] += cell.net
 
     if (cell.expense > 0) daysWithExpense++
     biggestExpenseDay = laterPeak(biggestExpenseDay, cell.date, cell.expense)
@@ -321,6 +308,7 @@ export function accumulateStats(grid: DayCell[]) {
   return {
     totalExpense,
     totalIncome,
+    totalNet,
     daysWithExpense,
     elapsedDays,
     biggestExpenseDay,
@@ -328,5 +316,6 @@ export function accumulateStats(grid: DayCell[]) {
     maxStreak,
     monthlyExpense,
     monthlyIncome,
+    monthlyNet,
   }
 }

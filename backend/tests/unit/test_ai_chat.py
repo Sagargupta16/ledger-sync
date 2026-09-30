@@ -96,7 +96,7 @@ def _make_ai_settings(
     session.commit()
 
 
-def test_no_ai_settings_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_ai_settings_returns_404(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "fake-token")
     app, _session, _user = _make_app()
     client = TestClient(app)
@@ -105,7 +105,7 @@ def test_no_ai_settings_returns_400(monkeypatch: pytest.MonkeyPatch) -> None:
         "/api/ai/bedrock/chat",
         json={"messages": [{"role": "user", "content": "hi"}]},
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 404
     assert "preferences" in resp.json()["detail"].lower()
 
 

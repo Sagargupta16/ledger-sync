@@ -13,6 +13,7 @@ import { History } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
 import Spinner from '@/components/ui/Spinner'
+import { formatDate, getActiveLocale } from '@/lib/formatters'
 import { isDemoMode } from '@/store/demoStore'
 import { uploadService, type ImportHistoryEntry } from '@/services/api/upload'
 
@@ -20,14 +21,14 @@ const HISTORY_LIMIT = 10
 
 /**
  * `imported_at` arrives as a UTC ISO-8601 string, so `new Date` parses the
- * offset correctly and `toLocaleString` renders it in the viewer's zone.
- * `formatDate` from `lib/formatters` is not used here: it matches
- * `YYYY-MM-DD` only and returns a timestamp unchanged.
+ * offset correctly and `formatDate` renders that instant in the viewer's zone.
+ * It is passed as a Date, not the string: the string form reads only the
+ * leading `YYYY-MM-DD`, which is the UTC day rather than the local one.
  */
 function formatImportedAt(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('en-IN', {
+  return formatDate(date, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -35,6 +36,9 @@ function formatImportedAt(iso: string): string {
     minute: '2-digit',
   })
 }
+
+/** Row counts group like every other number in the active display locale. */
+const formatCount = (value: number) => value.toLocaleString(getActiveLocale())
 
 const columns: DataTableColumn<ImportHistoryEntry>[] = [
   {
@@ -57,28 +61,28 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
   {
     key: 'rows_processed',
     header: 'Processed',
-    cell: (row) => row.rows_processed.toLocaleString('en-IN'),
+    cell: (row) => formatCount(row.rows_processed),
     sortValue: (row) => row.rows_processed,
     align: 'right',
   },
   {
     key: 'rows_inserted',
     header: 'New',
-    cell: (row) => row.rows_inserted.toLocaleString('en-IN'),
+    cell: (row) => formatCount(row.rows_inserted),
     sortValue: (row) => row.rows_inserted,
     align: 'right',
   },
   {
     key: 'rows_updated',
     header: 'Updated',
-    cell: (row) => row.rows_updated.toLocaleString('en-IN'),
+    cell: (row) => formatCount(row.rows_updated),
     sortValue: (row) => row.rows_updated,
     align: 'right',
   },
   {
     key: 'rows_skipped',
     header: 'Already present',
-    cell: (row) => row.rows_skipped.toLocaleString('en-IN'),
+    cell: (row) => formatCount(row.rows_skipped),
     sortValue: (row) => row.rows_skipped,
     align: 'right',
   },

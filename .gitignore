@@ -256,6 +256,8 @@ test-results/
 # AI assistant local files
 MEMORY.md
 .claude/
+# `npx skills` lockfile for the vendor skill installed into the ignored .claude/skills
+skills-lock.json
 
 # graphify knowledge graph artifacts
 graphify-out/

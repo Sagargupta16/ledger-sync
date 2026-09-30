@@ -44,6 +44,7 @@ HEALTH_URL = "/api/analytics/v2/data-health"
 OVERVIEW_URL = "/api/analytics/overview"
 TRENDS_CHART_URL = "/api/analytics/charts/monthly-trends"
 INC_EXP_CHART_URL = "/api/analytics/charts/income-expense"
+QUICK_URL = "/api/calculations/quick-insights"
 
 
 def _txn(
@@ -309,6 +310,41 @@ def test_candidates_are_user_scoped(two_user_client) -> None:
     health = client.get(HEALTH_URL).json()
 
     assert health["capital_loss_candidates"] == []
+
+
+# --- Quick Insights agrees with /totals ---------------------------------------
+
+
+def test_quick_insights_keeps_an_unclassified_loss_as_spending(two_user_client) -> None:
+    client, session, user_a, _, _ = two_user_client
+    _seed_ledger(session, user_a.id)
+
+    body = client.get(QUICK_URL).json()
+
+    # Nothing classified: byte-for-byte the pre-preference behaviour.
+    assert body["total_spending"] == pytest.approx(147429.09)
+    assert body["expense_count"] == 3
+    assert body["biggest_expense"]["category"] == LOSS_CATEGORY
+
+
+def test_quick_insights_spending_skips_a_classified_loss_like_totals(two_user_client) -> None:
+    # The Dashboard band used to count the loss as spending while /totals did
+    # not, so the same page showed two spending totals and named a trading loss
+    # the "biggest expense".
+    client, session, user_a, _, _ = two_user_client
+    _seed_ledger(session, user_a.id)
+    _classify(session, user_a.id, f'["{LOSS_KEY}"]')
+
+    body = client.get(QUICK_URL).json()
+
+    assert body["total_spending"] == pytest.approx(client.get(TOTALS_URL).json()["total_expenses"])
+    assert body["total_spending"] == pytest.approx(44639.68)
+    assert body["expense_count"] == 2
+    assert body["avg_expense"] == pytest.approx(44639.68 / 2)
+    assert body["median_expense"] == pytest.approx((30000 + 14639.68) / 2)
+    assert body["biggest_expense"] == {"amount": 30000.0, "category": "Housing"}
+    assert body["weekend_spending"] + body["weekday_spending"] == pytest.approx(44639.68)
+    assert body["most_expensive_month"]["amount"] == pytest.approx(44639.68)
 
 
 # --- the preference API ------------------------------------------------------

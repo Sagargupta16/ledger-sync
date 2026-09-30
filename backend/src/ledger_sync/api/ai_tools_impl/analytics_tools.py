@@ -34,18 +34,32 @@ from .schemas import (
 # --- Extra tools backed by analytics tables ---------------------------------
 
 
+def _stored_fy_label(db: Session, user_id: int, label: str | None) -> str | None:
+    """Map either accepted label form to the one ``fy_summaries`` stores.
+
+    The analytics engine names a fiscal year by its start year: ``FY2024-25``,
+    or ``FY2024`` when the user's fiscal year starts in January
+    (``AnalyticsEngineBase._get_fiscal_year``). Missing preferences mean April.
+    """
+    if not label:
+        return None
+    start_year = int(label[2:6])
+    start_month = db.execute(
+        select(UserPreferences.fiscal_year_start_month).where(UserPreferences.user_id == user_id)
+    ).scalar_one_or_none()
+    if start_month == 1:
+        return f"FY{start_year}"
+    return f"FY{start_year}-{(start_year + 1) % 100:02d}"
+
+
 def _exec_get_fy_summary(user: User, db: Session, args: dict[str, Any]) -> Any:
     """Return a full FY rollup (income, expenses, tax paid, savings rate).
 
-    `fiscal_year` like 'FY2024-25'. Omit to get the most recent FY on record.
+    `fiscal_year` like 'FY2024-25' or 'FY2024'. Omit to get the most recent FY.
     """
-    fy = str(args.get("fiscal_year", "")).strip() or None
-    stmt = select(FYSummary).where(FYSummary.user_id == user.id)
-    if fy:
-        stmt = stmt.where(FYSummary.fiscal_year == fy)
-    else:
-        stmt = stmt.order_by(FYSummary.fiscal_year.desc())
-    row = db.execute(stmt.limit(1)).scalar_one_or_none()
+    requested = str(args.get("fiscal_year", "")).strip() or None
+    fy = _stored_fy_label(db, user.id, requested)
+    row = _fetch_fy_summary(db, user.id, fy)
     if not row:
         return {"found": False, "fiscal_year": fy}
     return {
@@ -165,8 +179,10 @@ def _exec_get_tax_summary(user: User, db: Session, args: dict[str, Any]) -> Any:
     Falls back to "data not found" when no tax has been recorded/filed.
     """
     fy = str(args.get("fiscal_year", "")).strip() or None
+    # Filed returns keep the label they were uploaded with; the rollup uses the
+    # engine's label for the user's fiscal-year start month.
     tr = _fetch_tax_record(db, user.id, fy)
-    fys = _fetch_fy_summary(db, user.id, fy)
+    fys = _fetch_fy_summary(db, user.id, _stored_fy_label(db, user.id, fy))
 
     if tr is None and fys is None:
         return {"found": False, "fiscal_year": fy}

@@ -1,7 +1,6 @@
 import { motion } from 'motion/react'
 import { AlertTriangle } from 'lucide-react'
 import { formatCurrencyCompact } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
 
 export default function FeasibilityWarning({
   totalAllocated,
@@ -13,14 +12,10 @@ export default function FeasibilityWarning({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-start gap-3 rounded-lg border px-4 py-3"
+      className="flex items-start gap-3 rounded-lg border border-app-orange/25 bg-app-orange/[0.03] px-4 py-3"
       role="alert"
-      style={{
-        borderColor: `${rawColors.app.orange}40`,
-        backgroundColor: `${rawColors.app.orange}08`,
-      }}
     >
-      <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: rawColors.app.orange }} />
+      <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-app-orange" />
       <div className="text-sm">
         <span className="font-medium text-foreground">Goal allocations exceed savings. </span>
         <span className="text-text-secondary">

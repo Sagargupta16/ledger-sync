@@ -23,6 +23,7 @@ from .registry import (
     ToolSpec,
     apply_date_range,
     ledger_scope,
+    matching_categories,
     parse_date,
     register,
     to_decimal,
@@ -214,7 +215,8 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
             )
         )
     if category:
-        stmt = stmt.where(Transaction.category.ilike(f"%{category}%"))
+        names, _exact = matching_categories(db, user, category)
+        stmt = stmt.where(Transaction.category.in_(names))
     if account:
         stmt = stmt.where(
             or_(
@@ -277,7 +279,8 @@ register(
             "purchases, merchants, dates, or amounts (e.g. 'when did I last go "
             "for a haircut', 'show payments to DMart', 'transactions over 10000 "
             "last week'). `query` matches note/category/subcategory/account. "
-            f"All filters optional. Returns up to `limit` results "
+            "`category` uses the exact category when one has that name, else a "
+            f"substring. All filters optional. Returns up to `limit` results "
             f"(default {SEARCH_TRANSACTIONS_DEFAULT_LIMIT}, "
             f"max {SEARCH_TRANSACTIONS_MAX_LIMIT})."
         ),

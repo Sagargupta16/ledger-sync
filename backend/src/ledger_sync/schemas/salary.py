@@ -177,6 +177,10 @@ class RsuGrantsConfig(BaseModel):
 class GrowthAssumptions(BaseModel):
     """Growth parameters for multi-year tax projections."""
 
+    # Stored as JSON text: a NaN would be written as a bare ``NaN`` token and
+    # then fail every later preferences response.
+    model_config = ConfigDict(allow_inf_nan=False)
+
     base_salary_growth_pct: float = 0
     bonus_growth_pct: float = 0
     bonus_mode: Literal["recurring", "one_time"] | None = Field(

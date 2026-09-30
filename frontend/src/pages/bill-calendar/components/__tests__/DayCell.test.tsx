@@ -46,7 +46,7 @@ describe('DayCell', () => {
       />,
     )
 
-    const day = screen.getByRole('button', { name: /14 July 2026, no bills/i })
+    const day = screen.getByRole('button', { name: /July 14, 2026, no bills/i })
     expect(day).toBeEnabled()
 
     fireEvent.click(day)

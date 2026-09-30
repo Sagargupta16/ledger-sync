@@ -5,24 +5,22 @@ aggregation columns and the base filtered-transaction query builder.
 """
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import ColumnElement, and_, case, func, literal, not_
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
-from ledger_sync.config.settings import settings
 from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
+
+# Date formatting lives in ``sql_dates``; importers keep using these names from here.
+from ledger_sync.core.sql_dates import fmt_date as fmt_date
+from ledger_sync.core.sql_dates import fmt_month as fmt_month
+from ledger_sync.core.sql_dates import fmt_year as fmt_year
+from ledger_sync.core.sql_dates import fmt_year_month as fmt_year_month
 from ledger_sync.db.models import Transaction, TransactionType, User
 from ledger_sync.services.account_settings import get_closed_account_keys
-
-# ---------------------------------------------------------------------------
-# Database-agnostic date formatting
-# ---------------------------------------------------------------------------
-
-_is_sqlite = "sqlite" in settings.database_url
-
 
 # ---------------------------------------------------------------------------
 # Query-parameter date normalisation
@@ -51,42 +49,14 @@ def inclusive_end(end: datetime) -> datetime:
 
     ``date <= end`` against a date-only bound (parsed to midnight) drops
     same-day rows carrying a time component. A caller who passes an explicit
-    time is respected as-is.
+    time is respected as-is. The last day representable (9999-12-31) has no
+    next day, so its end-bound is ``datetime.max`` instead of an overflow.
     """
     if (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0):
+        if end.date() == date.max:
+            return datetime.max.replace(tzinfo=end.tzinfo)
         return end + timedelta(days=1) - timedelta(microseconds=1)
     return end
-
-
-def fmt_year_month(date_col: Any) -> Any:
-    """Return a SQL expression that formats a date column as 'YYYY-MM'.
-
-    Uses strftime for SQLite, to_char for PostgreSQL.
-    """
-    if _is_sqlite:
-        return func.strftime("%Y-%m", date_col)
-    return func.to_char(date_col, "YYYY-MM")
-
-
-def fmt_year(date_col: Any) -> Any:
-    """Return a SQL expression that formats a date column as 'YYYY'."""
-    if _is_sqlite:
-        return func.strftime("%Y", date_col)
-    return func.to_char(date_col, "YYYY")
-
-
-def fmt_month(date_col: Any) -> Any:
-    """Return a SQL expression that formats a date column as 'MM' (zero-padded)."""
-    if _is_sqlite:
-        return func.strftime("%m", date_col)
-    return func.to_char(date_col, "MM")
-
-
-def fmt_date(date_col: Any) -> Any:
-    """Return a SQL expression that formats a date column as 'YYYY-MM-DD'."""
-    if _is_sqlite:
-        return func.strftime("%Y-%m-%d", date_col)
-    return func.to_char(date_col, "YYYY-MM-DD")
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +241,28 @@ def excluded_accounts_for(user: User) -> set[str]:
     if not isinstance(parsed, list):
         return set()
     return {str(a) for a in parsed if a}
+
+
+def investment_accounts_for(user: User) -> list[str]:
+    """Return the account names in the user's ``investment_account_mappings``.
+
+    Lazy-loads ``user.preferences``. The stored JSON is ``{"account name":
+    "type"}``; only the names are returned, for
+    ``core.metric_rules.investment_account_names``. Empty when unset or
+    malformed, which ``is_investment_account`` reads as "use the default
+    keyword fallback".
+    """
+    prefs = user.preferences
+    raw = getattr(prefs, "investment_account_mappings", None) if prefs else None
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(parsed, dict):
+        return []
+    return [str(name) for name in parsed if name]
 
 
 def closed_accounts_for(session: Session, user_id: int | None) -> set[str]:

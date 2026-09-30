@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { Transaction } from '@/types'
 
 import { generateDemoSpendingRule } from '../demoSpendingRule'
 import { generateDemoTransactions } from '../generateTransactions'
@@ -105,5 +107,37 @@ describe('generateDemoSpendingRule reconciliation', () => {
       expect(Number.isFinite(share)).toBe(true)
       expect(share).toBe(0)
     }
+  })
+})
+
+describe('generateDemoSpendingRule complete-month averages', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const expense = (date: string, amount: number): Transaction => ({
+    id: date, date, amount, type: 'Expense', category: 'Housing', account: 'Bank',
+  })
+
+  it('counts complete months only, empty months as zero, like the endpoint', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 15, 12))
+    // July (1,000), an empty August, and 300 in the in-progress September.
+    const rule = generateDemoSpendingRule(
+      [expense('2026-07-10', 1000), expense('2026-09-05', 300)],
+      { start_date: '2026-07-01', end_date: '2026-09-15' },
+    )
+    expect(rule.period.months).toBe(2)
+    expect(rule.categories[0].total_amount).toBe(1300)
+    expect(rule.categories[0].avg_monthly).toBe(500)
+  })
+
+  it('reports 0 months and a 0 average inside the current month', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 15, 12))
+    const rule = generateDemoSpendingRule(
+      [expense('2026-09-05', 300)],
+      { start_date: '2026-09-01', end_date: '2026-09-15' },
+    )
+    expect(rule.period.months).toBe(0)
+    expect(rule.categories[0].avg_monthly).toBe(0)
   })
 })

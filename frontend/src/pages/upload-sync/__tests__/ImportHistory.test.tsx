@@ -139,6 +139,6 @@ describe('ImportHistory', () => {
     await screen.findByText('newest.xlsx')
 
     expect(screen.queryByText(/2026-08-01T11:31:29/)).not.toBeInTheDocument()
-    expect(screen.getByText(/1 Aug 2026/)).toBeInTheDocument()
+    expect(screen.getByText(/Aug 1, 2026/)).toBeInTheDocument()
   })
 })

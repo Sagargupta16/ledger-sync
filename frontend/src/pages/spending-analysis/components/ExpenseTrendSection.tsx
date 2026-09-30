@@ -115,7 +115,7 @@ export default function ExpenseTrendSection({
                   Monthly spending
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.app.blue }} aria-hidden="true" />
+                  <span className="w-5 border-t-2 border-dashed border-app-blue" aria-hidden="true" />
                   {rollingAvgMonths}-month average
                 </li>
               </ul>
@@ -203,7 +203,7 @@ export default function ExpenseTrendSection({
               </ComposedChart>
             </ChartContainer>
             <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-              <span className="mt-2 w-5 shrink-0 border-t border-dotted" style={{ borderColor: rawColors.text.secondary }} aria-hidden="true" />
+              <span className="mt-2 w-5 shrink-0 border-t border-dotted border-text-secondary" aria-hidden="true" />
               Reference lines: peak monthly spending and {monthlyAvgLineLabel}
             </p>
             {chartDataTable(

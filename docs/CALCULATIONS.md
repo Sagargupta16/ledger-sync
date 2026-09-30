@@ -30,7 +30,7 @@ them with preferences; pages and chart adapters supply labels and presentation.
 | Ledger normalization and reconciliation | [normalizer.py](../backend/src/ledger_sync/ingest/normalizer.py), [reconciler.py](../backend/src/ledger_sync/core/reconciler.py). Preserve positive amounts, transaction identity, transfer direction, and full-snapshot semantics. |
 | Signed balances and investment transfers | [ledger_math.py](../backend/src/ledger_sync/core/ledger_math.py): `compute_account_balances` applies both transfer legs with `Decimal`; `investment_transfer_delta` computes signed external funding. Callers supply already-scoped rows and account membership. |
 | Persisted summaries, holdings, net worth, FY totals | [analytics/engine.py](../backend/src/ledger_sync/core/analytics/engine.py) composes the [domain modules](../backend/src/ledger_sync/core/analytics/). [query_helpers.py](../backend/src/ledger_sync/core/query_helpers.py) centralizes active-row filters and income/consumption/loss expressions. |
-| On-demand metrics | [core/calculator.py](../backend/src/ledger_sync/core/calculator.py) owns reusable in-memory calculations. [api/calculations.py](../backend/src/ledger_sync/api/calculations.py) and [calculations_helpers.py](../backend/src/ledger_sync/api/calculations_helpers.py) also own endpoint-specific SQL aggregation and result shaping; not every metric routes through `calculator.py`. |
+| On-demand metrics | [core/calculator.py](../backend/src/ledger_sync/core/calculator.py) owns reusable in-memory calculations. The [api/calculations.py](../backend/src/ledger_sync/api/calculations.py) routes delegate to [calculations_impl/](../backend/src/ledger_sync/api/calculations_impl/__init__.py) (aggregates, categories, insights), which with [calculations_helpers.py](../backend/src/ledger_sync/api/calculations_helpers.py) owns endpoint-specific SQL aggregation and result shaping; not every metric routes through `calculator.py`. |
 
 | Frontend concern | Canonical calculation owner | Caller or compatibility boundary |
 | --- | --- | --- |
@@ -520,9 +520,13 @@ net_savings = total_income - total_expenses - capital_losses
 savings_rate = net_savings / total_income * 100
 ```
 
-Income is split into salary, bonus, investment, and other. Tax expenses are
-identified by the Taxes category or tax vocabulary in the note, including TDS,
-GST, cess, surcharge, advance tax, and self-assessment tax. `investments_made`
+Income is split into salary, bonus, investment, and other. A taxable row is
+salary or a bonus when its subcategory, else its category, carries the word
+salary/stipend or bonus/bonuses/rsu/rsus (case-insensitive, word boundaries;
+bonus wins inside one label), the same rule as the Tax page. Tax expenses are
+identified by the Taxes category or income-tax vocabulary (income tax, TDS,
+advance tax, self-assessment, taxes paid, professional tax) in the category or
+subcategory; the note is not read, and GST, cess, and surcharge do not count. `investments_made`
 counts gross external funding into investment accounts. Internal rebalancing
 does not add funding, and withdrawals do not reduce this gross field. The
 monthly signed measure is described under [investment transfer semantics](#investment-transfer-semantics).

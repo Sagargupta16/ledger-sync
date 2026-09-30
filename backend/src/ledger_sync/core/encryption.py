@@ -128,9 +128,3 @@ def decrypt_api_key(encrypted: str, *, previous_keys: Sequence[str] = ()) -> tup
         "Cannot decrypt the stored API key with the available encryption keys. "
         "Restore the previous encryption key for rewrapping or re-enter the key in Settings."
     )
-
-
-def rewrap_api_key(encrypted: str, *, previous_keys: Sequence[str] = ()) -> str:
-    """Authenticate an existing value and encrypt it with the current key."""
-    plaintext, _ = decrypt_api_key(encrypted, previous_keys=previous_keys)
-    return encrypt_api_key(plaintext)

@@ -6,6 +6,7 @@
  * - Essential vs discretionary categories
  * - Investment account mappings
  * - Income source categories
+ * - Realised capital-loss categories
  * - Budget defaults
  * - Display/format preferences
  * - Anomaly detection settings
@@ -33,6 +34,15 @@ export interface UserPreferences {
   investment_returns_categories: string[]
   non_taxable_income_categories: string[]
   other_income_categories: string[]
+
+  /**
+   * Exact `Category::Subcategory` keys the user classified as realised
+   * investment losses. Classified rows leave every spending total (backend
+   * `core/expense_class.py`, frontend `lib/expenseClassification.ts`) but still
+   * reduce savings. Ships empty; only the user adds keys, from the Data Health
+   * candidates. Saved via `PUT /api/preferences/capital-loss-categories`.
+   */
+  capital_loss_categories: string[]
 
   // 5. Budget Defaults
   default_budget_alert_threshold: number
@@ -105,10 +115,6 @@ export interface UserPreferences {
   rsu_grants: RsuGrant[]
   growth_assumptions: GrowthAssumptions
 
-  // AI Assistant
-  ai_provider: string | null
-  ai_model: string | null
-
   // Metadata
   created_at: string | null
   updated_at: string | null
@@ -135,6 +141,11 @@ export interface IncomeSourcesConfig {
   investment_returns_categories: string[]
   non_taxable_income_categories: string[]
   other_income_categories: string[]
+}
+
+/** Body of `PUT /api/preferences/capital-loss-categories` (backend `CapitalLossConfig`). */
+export interface CapitalLossConfig {
+  capital_loss_categories: string[]
 }
 
 export interface BudgetDefaultsConfig {
@@ -262,6 +273,8 @@ export const preferencesService = {
   updateEssentialCategories: createSectionUpdater<EssentialCategoriesConfig>('essential-categories'),
   updateInvestmentMappings: createSectionUpdater<InvestmentMappingsConfig>('investment-mappings'),
   updateIncomeSources: createSectionUpdater<IncomeSourcesConfig>('income-sources'),
+  /** Replaces the whole classified set; send every key that should stay classified. */
+  updateCapitalLossCategories: createSectionUpdater<CapitalLossConfig>('capital-loss-categories'),
   updateBudgetDefaults: createSectionUpdater<BudgetDefaultsConfig>('budget-defaults'),
   updateDisplayPreferences: createSectionUpdater<DisplayPreferencesConfig>('display'),
   updateAnomalySettings: createSectionUpdater<AnomalySettingsConfig>('anomaly-settings'),

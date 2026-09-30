@@ -1,5 +1,7 @@
 import { addDaysToKey, addFractionalMonthsToKey, addMonthsToKey, monthKeysBetween, MS_PER_DAY } from '@/lib/dateUtils'
 
+import type { CompleteMonthAverage } from './monthlyAverage'
+
 export interface NetWorthPoint {
   date: string
   netWorth: number
@@ -99,6 +101,21 @@ export function computeLinearGrowthStats(
   const variance = deltas.reduce((sum, delta) => sum + (delta - growth) ** 2, 0)
     / (deltas.length - 1)
   return { growth, sigma: Math.sqrt(variance) }
+}
+
+/**
+ * Growth model from the shared average monthly savings (`averageMonthlySavings`):
+ * the mean is the growth, the sample standard deviation of the same months is
+ * the projection band. One month gives a mean with no band.
+ */
+export function growthStatsFromMonthlySavings(
+  savings: Pick<CompleteMonthAverage, 'average' | 'values'> | null,
+): { growth: number; sigma: number } {
+  if (!savings) return { growth: 0, sigma: 0 }
+  const { average, values } = savings
+  if (values.length < 2) return { growth: average, sigma: 0 }
+  const variance = values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1)
+  return { growth: average, sigma: Math.sqrt(variance) }
 }
 
 /** Linear projection of cumulative cash flow, not compounded market returns. */

@@ -1,5 +1,5 @@
 import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, getActiveLocale } from '@/lib/formatters'
 import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import type { ProjectionResult } from '@/lib/instrumentCalculators'
 
@@ -14,7 +14,7 @@ export function SliderInput({
   max,
   step,
   suffix,
-  prefix,
+  formatValue,
 }: Readonly<{
   id: string
   label: string
@@ -24,14 +24,19 @@ export function SliderInput({
   max: number
   step: number
   suffix?: string
-  prefix?: string
+  /** Renders the value (e.g. the shared currency formatter); overrides `suffix`. */
+  formatValue?: (value: number) => string
 }>) {
+  // Grouping follows the display currency's locale, like every other figure.
+  const display = formatValue
+    ? formatValue(value)
+    : `${value.toLocaleString(getActiveLocale())}${suffix ?? ''}`
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <label htmlFor={id} className="text-xs text-text-secondary">{label}</label>
         <span className="text-sm font-medium text-foreground">
-          {prefix}{value.toLocaleString('en-IN')}{suffix}
+          {display}
         </span>
       </div>
       <input
@@ -42,7 +47,7 @@ export function SliderInput({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        aria-valuetext={`${prefix ?? ''}${value.toLocaleString('en-IN')}${suffix ?? ''}`}
+        aria-valuetext={display}
         className="touch-slider"
       />
     </div>

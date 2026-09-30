@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -13,16 +12,8 @@ from sqlalchemy import delete
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.ledger_math import investment_transfer_delta
+from ledger_sync.core.metric_rules import is_tax_paid
 from ledger_sync.db.models import FYSummary, Transaction, TransactionType
-
-# Match Indian tax-related notes as whole words. Original regex was `\btax(es)?\b`
-# which missed the actual tax vocabulary users write in bank statements: GST,
-# TDS, cess, surcharge, and "advance tax" / "self assessment" (which can appear
-# with a space or hyphen). Word boundaries still keep "Taxi" and "Syntax" out.
-_TAX_NOTE_RE = re.compile(
-    r"\b(tax(es)?|tds|gst|cess|surcharge|advance[\s-]?tax|self[\s-]?assessment)\b",
-    re.IGNORECASE,
-)
 
 
 class FYSummariesMixin(AnalyticsEngineBase):
@@ -238,17 +229,15 @@ class FYSummariesMixin(AnalyticsEngineBase):
         # Same exclusion as the monthly rollup: a classified realised loss
         # is a negative investment return, not consumption, so it must not
         # inflate FY expenses or the FY savings rate. Its own bucket keeps
-        # the loss visible and auditable.
-        #
-        # The tax_paid test below is skipped along with it, which is correct
-        # and load-bearing: the loss subcategory would otherwise be free to
-        # match ``_TAX_NOTE_RE`` on a note like "STCG loss adjustment" and
-        # book a capital LOSS as tax PAID, which then flows into the Tax
-        # Planning page as a credit the user never paid.
+        # the loss visible and auditable, and a loss is never tax paid.
         if self._is_capital_loss(txn):  # type: ignore[attr-defined]
             data["capital_losses"] += amount
             return
 
         data["total_expenses"] += amount
-        if txn.category == "Taxes" or _TAX_NOTE_RE.search(txn.note or ""):
+        # Tax categories only (``core.metric_rules.is_tax_paid``). The note is
+        # not read: a purchase note "incl GST" or a broker note "STCG advance
+        # tax adjustment" is not income tax the user paid, and crediting it
+        # overstated tax paid on the Tax Planning page.
+        if is_tax_paid(txn.category, txn.subcategory):
             data["tax_paid"] += amount

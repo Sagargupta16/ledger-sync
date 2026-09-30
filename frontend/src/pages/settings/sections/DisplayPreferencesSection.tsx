@@ -23,6 +23,7 @@ import {
 import { useExchangeRate } from '@/hooks/api/useExchangeRate'
 import { useThemeStore } from '@/store/themeStore'
 import { useMotionStore, type MotionMode } from '@/store/motionStore'
+import { formatDate } from '@/lib/formatters'
 import type { ThemeMode } from '@/lib/theme'
 import { TIME_RANGE_OPTIONS } from '../types'
 import type { LocalPrefs, LocalPrefKey } from '../types'
@@ -185,10 +186,11 @@ export default function DisplayPreferencesSection({
           {localPrefs.use_earning_start_date && localPrefs.earning_start_date && (
             <p className="mt-1.5 text-xs text-app-green">
               Analytics from{' '}
-              {new Date(localPrefs.earning_start_date + 'T00:00:00').toLocaleDateString(
-                'en-IN',
-                { day: 'numeric', month: 'long', year: 'numeric' },
-              )}
+              {formatDate(localPrefs.earning_start_date, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
             </p>
           )}
         </div>

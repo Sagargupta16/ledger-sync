@@ -196,6 +196,21 @@ def test_browser_usage_cannot_forge_server_funding_or_invalid_counters(fields: d
     assert session.query(AIUsageLog).count() == 0
 
 
+def test_reported_tool_rounds_follow_the_configured_cap() -> None:
+    """The accepted bound is the round cap plus a small buffer, not a fixed 20."""
+    app, session, _user = _make_app()
+    client = TestClient(app)
+    body = {"provider": "openai", "model": "gpt-4o", "input_tokens": 1, "output_tokens": 1}
+    ceiling = settings.ai_max_tool_rounds + 2
+
+    accepted = client.post("/api/ai/usage/log", json={**body, "tool_rounds": ceiling})
+    rejected = client.post("/api/ai/usage/log", json={**body, "tool_rounds": ceiling + 1})
+
+    assert accepted.status_code == 200, accepted.text
+    assert rejected.status_code == 422
+    assert [row.tool_rounds for row in session.query(AIUsageLog).all()] == [ceiling]
+
+
 @pytest.mark.parametrize("limit_field", ["ai_daily_token_limit", "ai_monthly_token_limit"])
 def test_zero_budget_blocks_without_prior_usage(limit_field: str) -> None:
     _app, session, user = _make_app()

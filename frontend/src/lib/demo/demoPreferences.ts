@@ -3,6 +3,21 @@ import { toLocalDateKey } from '@/lib/dateUtils'
 
 import { ESSENTIAL_CATEGORIES } from './demoHelpers'
 
+/**
+ * The demo ledger's classified realised-loss keys, shared by the preferences
+ * fixture and every demo generator that splits losses out of spending, so the
+ * mock endpoints apply the same rule `/totals` does to the same set.
+ *
+ * Empty because the demo ledger has no loss rows to classify: measured
+ * 2026-09-30 over the generated 48-month ledger (4,726 rows), zero Expense rows
+ * raise `looksLikeCapitalLoss`, and zero carry an investment-flavoured taxonomy
+ * at all (the one fee template, `Investment Charges & Loss::Brokerage Fees`,
+ * has `freq: 0.3`, which rounds to no occurrences). With nothing to classify,
+ * the pattern-based rule this replaced excluded nothing either, so every demo
+ * number is unchanged.
+ */
+export const DEMO_CAPITAL_LOSS_CATEGORIES: readonly string[] = []
+
 export const DEMO_INVESTMENT_MAPPINGS = {
   'Groww Mutual Funds': 'mutual_funds',
   'Groww Stocks': 'stocks',
@@ -148,6 +163,7 @@ export function generateDemoPreferences(): UserPreferences {
       'Employment Income::EPF Contribution',
       'Employment Income::Expense Reimbursement',
     ],
+    capital_loss_categories: [...DEMO_CAPITAL_LOSS_CATEGORIES],
     default_budget_alert_threshold: 80,
     auto_create_budgets: false,
     budget_rollover_enabled: false,
@@ -195,8 +211,6 @@ export function generateDemoPreferences(): UserPreferences {
       stock_price_appreciation_pct: 12,
       projection_years: 3,
     },
-    ai_provider: null,
-    ai_model: null,
     created_at: null,
     updated_at: null,
   }

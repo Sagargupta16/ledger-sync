@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { Check, Info, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { Spinner } from '@/components/ui'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountStore } from '@/store/accountStore'
 import type { AccountType } from '@/types'
@@ -34,7 +35,8 @@ const CLASSIFIER_TYPES: Array<{
 
 export default function AccountClassifier() {
   const { data: balanceData, isLoading } = useAccountBalances()
-  const { accountTypes, setAccountType } = useAccountStore()
+  const accountTypes = useAccountStore((state) => state.accountTypes)
+  const setAccountType = useAccountStore((state) => state.setAccountType)
 
   const accounts = balanceData?.accounts ? Object.keys(balanceData.accounts) : []
 
@@ -51,17 +53,7 @@ export default function AccountClassifier() {
 
   if (isLoading) {
     return (
-      <div
-        className="flex justify-center p-8"
-        role="status"
-        aria-live="polite"
-        aria-label="Loading account classifications"
-      >
-        <div
-          className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-          aria-hidden
-        />
-      </div>
+      <Spinner size="md" label="Loading account classifications" className="p-8" />
     )
   }
 

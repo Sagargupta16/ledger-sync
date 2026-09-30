@@ -185,6 +185,22 @@ describe('emergency fund uses real liquid balance, not the flow proxy', () => {
   })
 })
 
+describe('health monthly averages use the shared complete-month divisor', () => {
+  it('counts a month with no rows as a zero month (xs_avg.ts)', () => {
+    // 30,000 in Apr, May, Jul, Aug; nothing in June. Months-with-rows read 30,000.
+    const txns: Transaction[] = ['2026-04', '2026-05', '2026-07', '2026-08'].flatMap((m) => [
+      { id: `i${m}`, date: `${m}-01`, amount: 100000, type: 'Income', category: 'Employment Income', account: 'HDFC' },
+      { id: `h${m}`, date: `${m}-05`, amount: 20000, type: 'Expense', category: 'Housing', account: 'HDFC' },
+      { id: `f${m}`, date: `${m}-20`, amount: 10000, type: 'Expense', category: 'Food', account: 'HDFC' },
+    ])
+    const built = computeMonthlyData(txns, () => false)
+    expect(built?.months).toEqual(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08'])
+    const analysis = computeAnalysis(built!.months, built!.monthlyData)
+    expect(analysis.avgMonthlyExpense).toBe(24000)
+    expect(analysis.avgMonthlyIncome).toBe(80000)
+  })
+})
+
 describe('shared liquid asset fallback', () => {
   it.each([
     { expense: 40000, inflow: 20000, outflow: 0, observed: null, monthsCovered: 3 },

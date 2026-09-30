@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.24.1.
+Current for Ledger Sync 2.26.0.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -18,7 +18,7 @@ details, also see:
 | Python | 3.13 or newer |
 | Python package manager | uv |
 | Node.js | 22 or newer |
-| JavaScript package manager | pnpm 11.17.0 |
+| JavaScript package manager | pnpm 11.25.0 |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
 
@@ -79,7 +79,7 @@ Services:
 | --- | --- |
 | Frontend | `http://localhost:5173` |
 | Backend | `http://localhost:8000` |
-| OpenAPI UI | `http://localhost:8000/docs` |
+| OpenAPI UI (development only) | `http://localhost:8000/docs` |
 | API health | `http://localhost:8000/health` |
 | Database health | `http://localhost:8000/health/db` |
 
@@ -424,7 +424,7 @@ pnpm.cmd run check
 
 ### Frontend does not start
 
-- Confirm Node.js 22 and pnpm 11.17.0.
+- Confirm Node.js 22 and pnpm 11.25.0.
 - Run `pnpm install --frozen-lockfile` inside `frontend`.
 - Run `pnpm run clean` if the Vite cache is stale.
 - Check whether port 5173 is already in use.

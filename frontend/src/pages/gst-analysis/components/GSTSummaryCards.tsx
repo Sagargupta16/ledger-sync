@@ -2,7 +2,7 @@ import { BarChart3, Percent, Receipt } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { fadeUpItem } from '@/constants/animations'
-import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 import type { GSTSummary } from '@/lib/gstCalculator'
 
 interface Props {
@@ -42,7 +42,7 @@ export default function GSTSummaryCards({ data }: Readonly<Props>) {
           <div className="min-w-0 flex-1">
             <p className="text-sm text-muted-foreground">Effective GST Rate</p>
             <p className="break-words text-xl font-bold tabular-nums sm:text-kpi-value">
-              {data.effectiveRate.toFixed(1)}%
+              {formatPercent(data.effectiveRate)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Weighted average across categories

@@ -3,7 +3,6 @@ import { DollarSign, PieChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
 import { DURATION, EASING } from '@/constants/animations'
-import { rawColors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioMetricsProps {
@@ -110,7 +109,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
                     : 'text-app-orange font-medium'
                 }`}
               >
-                {targetProgress.toFixed(0)}%
+                {formatPercent(targetProgress, false, 0)}
               </span>
             </div>
             <progress
@@ -124,10 +123,9 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
               className="h-2 w-full overflow-hidden rounded-full bg-[var(--overlay-5)]"
             >
               <motion.div
-                className="h-full w-full origin-left rounded-full"
-                style={{
-                  background: targetProgress >= 100 ? rawColors.app.green : rawColors.app.orange,
-                }}
+                className={`h-full w-full origin-left rounded-full ${
+                  targetProgress >= 100 ? 'bg-app-green' : 'bg-app-orange'
+                }`}
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: targetScale }}
                 transition={{ duration: DURATION.default, ease: EASING.cinematic }}

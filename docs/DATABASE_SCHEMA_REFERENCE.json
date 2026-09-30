@@ -1,68 +1,104 @@
 {
-  "as_of": "2026-09-18",
+  "as_of": "2026-09-30",
   "basis": "Offline current working-tree SQLAlchemy metadata, API schemas and migration source; no database connection or remote inspection.",
-  "source_commit": "0467bc2c18789877b6d65147f9d9e77a4b852e71",
+  "source_commit": "b683b2636082b91716828375b5a82363b8509a0f",
   "source_state": "Working tree including uncommitted changes; source_commit is the base checkout only.",
   "source_files_sha256": [
     {
       "path": "backend/src/ledger_sync/api/account_classifications.py",
-      "sha256": "e543965e3f31237c051d73eb8138c8e229b4925f22bef4dbbb299dc499faf78e"
+      "sha256": "997d802ebc93c8b3ae2d707e78b07234516a4fb018efeda4cab89a03bde1be11"
     },
     {
-      "path": "backend/src/ledger_sync/api/ai_chat.py",
-      "sha256": "91a7bbcdff88dac26766e7d717bad661a537174343589edcf22c78dc98fd0d32"
+      "path": "backend/src/ledger_sync/api/ai_chat_bedrock.py",
+      "sha256": "901785e64dfc14a58c428da911046fd1ae5ce57a6e10e16bbeb9966f6736a1a9"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-      "sha256": "a3be42efe047a954410c04ada6d2106312132bc81a4ed3129115597517b1590b"
+      "sha256": "eb814d190ee31cc3219ca1ed134472b891e84beb53f0feec4ae80ffb45a73a14"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-      "sha256": "4ee5b8e357795111b18054572d5d16e68eb95135f380e0687fbde38c765991a4"
+      "sha256": "b5794000e3111934b03874436d00a4e292ccdb2843403d3d47e05390abad527b"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-      "sha256": "efb67b376fd585b6cc2f840587e7549d35068c8bda450064435e30f774fba9bf"
+      "sha256": "7ffdfa1e67e4a1af4d46d3cb33a91ca0b0af7bc6b25b679c354190910315cce3"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-      "sha256": "08ef9cdd2d4c6cf015f1ffa915032746e57c926aa3f3f75adecc3369ffc1e41a"
+      "sha256": "4ce297e4aa3ba87578ffc5170f275d3fa1a35616462ebe1b455afb47e3945fda"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_usage.py",
-      "sha256": "c26cbb8b5190071390a7ac75db82d68fe43992e0f40558f742038177cc2d285b"
+      "sha256": "c7634cfd5971ad3828e84f682c751b846dedb48ff61c4ba8bb7ab7fe07aa92b9"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics.py",
-      "sha256": "9d56dd3c7abb41ed3adb1ad6955436e0b545f372cd3b39c533f63c469385d559"
+      "sha256": "f2adc2aa900ab121ad4f4c47a1ec85b068b90b78eb020c939dd221e778ff0287"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-      "sha256": "23661ae680ebf210a2bdc44d62f85dbe11d50d0a331d9b5dcacb8d681ad2ed60"
+      "sha256": "da656ef610b1c4a9dff43b8584c9b8d05ba254a169e730359331b89080322287"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2.py",
+      "sha256": "9362af4514f863c2e62923d709b7681410882705d9f9fd3d57390363e4cf92dc"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py",
+      "sha256": "cd745b9ca1f0b1b19b236709c353d1da4a71bafe71b131efb34aa4656980a35b"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py",
+      "sha256": "cd8e5a5f4946280d5e1b8c3d2fa49823e010632bb36f0ec728ce6a6ff680bc01"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-      "sha256": "d54a1931558faf206a7bb5a2461d5e46564d61ed854d231a5456413f91fdb6d7"
+      "sha256": "31c696cfc4f3c34dcae26a1b67a75682cc0e257756a593d0fe0dad85a7acbcf0"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring.py",
-      "sha256": "8090596b16292a5916cd76103aed414e3104244b5c087ddc66379861ee7284d8"
+      "sha256": "2203a677d3ff2d7cb8339d7cb10f143c68380baa855861274cf169c8b078a7be"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py",
+      "sha256": "6f1e3bd3c2698acc85e42b50318372caac6ec549afe5221be2ba8b889d257bdf"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-      "sha256": "970834203cb8e7a95d4f4e1086ee275b620c73867e0e9412eab932b7088a3fe2"
+      "sha256": "482bcfb40c4de89a2884dd34fe1de54088ad412eaccac240c58ab34a2eb7a612"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule_aggregate.py",
+      "sha256": "50497e3cdba31a72b51c829a2a3c5e15011eeffa15397b55cf860607511ab571"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-      "sha256": "cd952cd79a60b65aad4be00b327b17c1f716b2c37a405db8af5d8fed7e870fa5"
+      "sha256": "c09ac8093c3175c93228a5c9a7f0f7dc32c47b0a2079432db35bd9f43fdac633"
     },
     {
-      "path": "backend/src/ledger_sync/api/calculations.py",
-      "sha256": "9616dc34e56855a489209666b2404965ff881732221c1c6d64a3ef8779659e80"
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py",
+      "sha256": "61c768a7b0d7d3989eb299ca16bb9c80b98d1262c60f13fd7c6754139c4e6d9b"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
+      "sha256": "aef8dd493a41624548942e6f309c8fc73b6480228b7f0c6d39c165a856352bf4"
     },
     {
       "path": "backend/src/ledger_sync/api/calculations_helpers.py",
-      "sha256": "2ef67b726943dae02656d97d7a4346da75fcb7d519e51a3fa5aecddab69fb8c8"
+      "sha256": "2506f94932d567ae55b375cd53c94717f10da67751d1484f5febf5f4ea80691f"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/calculations_impl/aggregates.py",
+      "sha256": "0a14ebc94816a8079cc2ffda257316bd8b6c3a09ee09165904ddc9643d26a515"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
+      "sha256": "01428920c2c35d097a806212915c9e93e00068f88fdbc38645cbe8aac774d0b6"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
+      "sha256": "15f078ca1f9fd1589b97df38906033ef7ec604f7f121af314c4b799256fef373"
     },
     {
       "path": "backend/src/ledger_sync/api/categorization_rules.py",
@@ -70,35 +106,47 @@
     },
     {
       "path": "backend/src/ledger_sync/api/deps.py",
-      "sha256": "bc199ac584132d787ea26133c0fc8f4df8558aca8c30fa029c5e129d1dc3cbf7"
+      "sha256": "4928605948f7fa7538ab7f482e2cf9f8d7bdda0c998e3f7c295a732cbde5cd77"
     },
     {
       "path": "backend/src/ledger_sync/api/meta.py",
-      "sha256": "4323dc189fcdd40cef4905e21067b710b965db8ea54cc8d5a42a5081bda4c7de"
+      "sha256": "405807cf5eedca8f6bbac4aa846cbadc38bbc69ac804ff15104723545ca4db84"
     },
     {
-      "path": "backend/src/ledger_sync/api/oauth.py",
-      "sha256": "20e4e5a1ef6a31c496633a581417694ca6b1b4fb4469a56c24a58a63e5573bbd"
+      "path": "backend/src/ledger_sync/api/oauth_state.py",
+      "sha256": "d853f70ab0aa18004fd40c187ca7a8e33685a0a558160593a80bfdbdba34aa1a"
     },
     {
       "path": "backend/src/ledger_sync/api/preferences_ai.py",
-      "sha256": "33e34e977a5fe6d1cc88542b8b4f0c15ad48532eeb293e4e8698bf9f666d3b92"
+      "sha256": "f070fd9356b7add244e5609c6a0585b38980a388f0edc4bfa1df1631d2195a3a"
     },
     {
       "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-      "sha256": "1c0e01cafec32a1619ab01a6fba9c2d6a48d035799a725c968ed1393e990ae8c"
+      "sha256": "0bfd4d987b255abf25f694391614af79e7dd6cb0c3a1245564169ab23de7e769"
     },
     {
       "path": "backend/src/ledger_sync/api/saved_views.py",
-      "sha256": "1a14780060f26dc061163087e17fd3947a91d6c7a2fd5ea8ba0eaaca07cef52a"
+      "sha256": "e1e38818d7c721509095250b9b04a162d8577c79d7a94b2be40b3ea18402d578"
     },
     {
       "path": "backend/src/ledger_sync/api/transaction_pagination.py",
-      "sha256": "0ec2209b8da5084f5d22c731715cc875266905f30ddb29db4fd759201e575476"
+      "sha256": "2b466e6195041c3c3ae4a32b4185c9c264506cd344d77a9964c3474b7949ae8f"
     },
     {
-      "path": "backend/src/ledger_sync/api/transactions.py",
-      "sha256": "ba7d7545c73674051eb185bc824d259dbdbca26a077a76ab48f57a968bfc0c8f"
+      "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
+      "sha256": "32b52ce39c7222a28619a9d9d3d8974de09ea47150cad484d122fb887bb399c2"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
+      "sha256": "5657e081f9c73ad209d1b1ca5b33c037cc6b311fa96f2e276b85b0914e0d6472"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/transactions_impl/serialize.py",
+      "sha256": "614897e62412592d7a7ca5b46b03e6b5964f33c61805f874d028ea7ef102f13a"
+    },
+    {
+      "path": "backend/src/ledger_sync/api/transactions_impl/writes.py",
+      "sha256": "1eaac2d57ba1b8c5e0e120a539e183ebb18a6c23bfe9efb8638b27b2a402af6a"
     },
     {
       "path": "backend/src/ledger_sync/api/upload.py",
@@ -110,27 +158,31 @@
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-      "sha256": "42727dc2cd06cbc014bb0b0af98851466295f7f6e9f71e9990c44d09bd640106"
+      "sha256": "0fed86b1a57b35f8ad60ca616560e37035ce91d4fefa6f051b5f375700975fec"
+    },
+    {
+      "path": "backend/src/ledger_sync/core/analytics/anomaly_detectors.py",
+      "sha256": "7d5e64fabafcb5c5fbdeb161f53cbb52341e2dbf92b58787c3706e49992250a0"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/base.py",
-      "sha256": "9de2facddabe6e320d80b7c666c9f9d3d6595864e93cf44cddd749450dd99137"
+      "sha256": "6920053b40d9932ab0f8d5e777998f2b2f8bb6bbc144b28936f2871c19ae3641"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/classification.py",
-      "sha256": "05080363040b73d24a90d845696a90ce65fa60c8284c1c27a28ed27db26d91b9"
+      "sha256": "4a0b654751c1e48689d3dfe21a38f861c5f73942898a2aa3010f084a9abccda1"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/cohort.py",
-      "sha256": "66a27a8c4b3ce0835a5e849f85e4acd1beb02a80533f48aeb98a4a1cf1975c00"
+      "sha256": "2f260412f18ac2983f891c70404bfb87d15ed2b62983bbeee0e9d075c467a680"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/engine.py",
-      "sha256": "acb3be2f2f68d53ceb98b2c3a119260a14c2302a525d727df567b455f2916f32"
+      "sha256": "528e9e77264c14e22f2e787e0f7d72032988af3b8427b148074a2716a9866acc"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/fy_summaries.py",
-      "sha256": "e99d1aac931fe6d890fd1a451979b7aaf911b6e0a976597e56d42d2933259e19"
+      "sha256": "21a56e8348de28e3121e0d7896c25c8fe00c057bb0b0c2a41c4e5ea53859befb"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/merchants.py",
@@ -138,27 +190,27 @@
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/net_worth.py",
-      "sha256": "92d2140e5cee4d8b73ff6d0506136153da6e1ef583a79378b484a5e74f813939"
+      "sha256": "f9cb4dba633b14d2f593e8838d1a02da05209ff566935c1586d71cf2ced9463f"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-      "sha256": "b0ce9e8b5c0019f7464e256c20cfbcd1701931c9837134bde85f6eea6c605491"
+      "sha256": "47e1ad076fd9c4654aab89b1b9d768c18edd0bcfe69a45d40cc9a5575930fc24"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/refresh.py",
-      "sha256": "503c5d0607c48b0aad87facbfaeb0226fe71df57cc6ecbf4213b0dd14d74b7bd"
+      "sha256": "1693b916f963385140ead1978a08e38907186b59ec2eb05295b03ebb21dee45e"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/summaries.py",
-      "sha256": "955053cd9560827f6e8bc506f37f42e8dd62e354955d95ffd3e25dccb7453353"
+      "sha256": "fa800e297990b380ef4bb6d5d66f14846bbe3addb2407d4ceda7d0d6997b89bf"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/trends.py",
-      "sha256": "81c1357c90fc163413e516e9cec29dc8818dbd6216834011fb83b852bda6f4dc"
+      "sha256": "da3b1146f6da237773ab7169c8cd01dbe7c29a7cefcf7d33e3332f1588b7f459"
     },
     {
       "path": "backend/src/ledger_sync/core/calculator.py",
-      "sha256": "98a005aeb77eba3334e050bce0424eb3fd164c8b4caf58515f37984cf8c67c0a"
+      "sha256": "15782e3d81d2a3602919367e3ac01e0d8bd4b45be0c9e25208aa513953495aee"
     },
     {
       "path": "backend/src/ledger_sync/core/expense_class.py",
@@ -166,31 +218,11 @@
     },
     {
       "path": "backend/src/ledger_sync/core/import_identity.py",
-      "sha256": "0ea665d1e794a41887a26e1fe922717f5d9d10caaf14e82cb6e2f5aba6aa3045"
+      "sha256": "237f350904f97197719a6c9fad390b5ae3aae1bcb8cb825e555ce1ab71101712"
     },
     {
       "path": "backend/src/ledger_sync/core/import_labels.py",
-      "sha256": "68196330e1f5e88d9c3b2b2c18181cd590ac107fb88c7c42e9487c13a17ae8bf"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/insight_builder.py",
-      "sha256": "2adfd2c26753f885a10cb479f84bed363f864aa226f7df60ad5e976a466a6b7c"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/insight_generators.py",
-      "sha256": "d2263dfa02d720a67ab2ca1102d71748dcb1488440b47e39ef02870d233d93e6"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/insight_generators_time.py",
-      "sha256": "5459f616a3d594f7f734aa08ac32eaaf8061a281f73e3c32e45503064505c5dd"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/insight_rules.py",
-      "sha256": "5e3bad01dc62c42fd759cd08b3de7d73693362d457f6f49305c554769376eec2"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/insights.py",
-      "sha256": "cea0a8de3fdfdf3c53f2449d0d16c0f4d5e908c7b2e9e268dfc29d1b098bfada"
+      "sha256": "c3d73b3bff2c58348f3999fa00a37ae04e1c198577625df4ade1279a4eec901a"
     },
     {
       "path": "backend/src/ledger_sync/core/ledger_math.py",
@@ -198,7 +230,7 @@
     },
     {
       "path": "backend/src/ledger_sync/core/query_helpers.py",
-      "sha256": "f59acca294133a4b8b7e0955e79f369b1a264d0b6f1cbccab131662e0c07a882"
+      "sha256": "b708285348637e1af84a5bb2ea9d6570f57d7ee3f3d4d316631596d3890bffdc"
     },
     {
       "path": "backend/src/ledger_sync/core/reconciler.py",
@@ -210,7 +242,7 @@
     },
     {
       "path": "backend/src/ledger_sync/core/report_generator.py",
-      "sha256": "9bdc06b3f3f0c78161779ca010ccaf15eb238cd314ccea79d1522b8de92e55c9"
+      "sha256": "021bcffc4f1d15029a4900ad9f826921fce99cac05319f2067dfb7395e87d76d"
     },
     {
       "path": "backend/src/ledger_sync/core/rules.py",
@@ -226,7 +258,7 @@
     },
     {
       "path": "backend/src/ledger_sync/db/_models/ai_settings.py",
-      "sha256": "5767fb049d245ee1256e9d223c12ca1ec19a2b9cd57e254c1a627f4cab12635f"
+      "sha256": "e498a5a5282191cbeaaf1dbb728347ce8ee263cdd58a5b0044196629a2856a74"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/ai_usage.py",
@@ -238,19 +270,19 @@
     },
     {
       "path": "backend/src/ledger_sync/db/_models/analytics_state.py",
-      "sha256": "1cad83165e8f7e802e541a4469a1f650c616774550e26d0dd512df1a1a0d8516"
+      "sha256": "05d301d3122aa44a4125715e823ee79c544c7701164b2ff5d7667b327d5d6aa5"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/compensation.py",
-      "sha256": "4d1b102c85bde7e04e9b9771cd5f17c2236cd7d5fd1f16a2deea7a5a6b4dd5be"
+      "sha256": "1206bbcf95bbf87eda03a6fdd2f093da7bf4372481f2b5ab31b3fcd170d2a01e"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/investments.py",
-      "sha256": "34ac78e2adcc42c4135b06f22b3ecd5d9ff3decf97528d4640206c294ced5a79"
+      "sha256": "9bf7efeedac19e4a1b03e475d187c589bfe045cfe5a44c8225df365826b48288"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/ledger_dimensions.py",
-      "sha256": "ae7c99efa2aed3538fae52049d73eacbe543ad9cf79eab25767ddb04a89c2256"
+      "sha256": "e8dcc12c9775cf6f02f1f5f47970444105cf5f4df2bc19ffd20a42fa94116ff9"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/organization.py",
@@ -262,11 +294,11 @@
     },
     {
       "path": "backend/src/ledger_sync/db/_models/transactions.py",
-      "sha256": "b7c7034802b5193ea525ccebb89368e52607bf3e049b04e2d8d3311d144aaed5"
+      "sha256": "c33df8b703ddf50e47bfc0d0ea6f0dadb1c364691b750587f1e7eb1a4233d209"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/user.py",
-      "sha256": "8a7cf9f3d8fc36d47653e0555d8d59f273809b58bfd187a2cf5c9dddb634a094"
+      "sha256": "645159d05b73c582c5cafd040276e29497967b607648fd46a2d10b746c22ea65"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260111_0946_343e4412d829_separate_transfers_into_dedicated_table.py",
@@ -422,7 +454,7 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260727_1000_fix_non_taxable_cashback_key_drift.py",
-      "sha256": "e99979cad486ac6320d8419b0cbc22b465aadd2a91785a30e30cd13272f08445"
+      "sha256": "82356cbf8270dbf3308df764bda898fd6c8ea424d58c4b1c4a1ca85ffe1bca8f"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260727_1100_backfill_rollup_preference_splits.py",
@@ -446,71 +478,83 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1000_schema_integrity.py",
-      "sha256": "03685eb3e6f4c4c952ccf99d603be6925cdc392612037b19c895332ce623ed90"
+      "sha256": "4772ad8f4a68eaec4096b4ed5738777a65c0e01ccd20a5563ed7d39c795308b5"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1100_stable_import_identity.py",
-      "sha256": "dedd3776ea2ef1bb998f57d917f224eeace90edab63e0b91f98c2253ec81d179"
+      "sha256": "3250d75b8bfa9cb7adbd1f4f08d24d55fa8717fca1a072e72d4a0b41d09e62f8"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1200_analytics_versions.py",
-      "sha256": "c0833445d948565006bf9928bfc317efb457f8949ace3b45ba87657c02c84590"
+      "sha256": "bd02a2030c5ae97bf6c97e88ce0bcf5dbc18d6e4d116926e2239f5df34e61079"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1300_ledger_dimensions.py",
-      "sha256": "60f7ee61f50fa69c5e3b753f8a6aea2428dc35b2a050d4be21ae461ec0d1b6b0"
+      "sha256": "4023b7f30e794def2073c0ab4719d3202cf7815eda27ba67c464c9e5d4ea1c8e"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1400_transaction_invariants.py",
-      "sha256": "80bb45a7c8c77064a3e9a9298423fb0604ca384025eff80471d83cc684767dc2"
+      "sha256": "1c7ae7e702fe22f0ac7504097a707cecf3afbb9d42eb05b5709282d047eec147"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1500_scheduled_references.py",
-      "sha256": "86c574c700d4b6bb964feb396aebd098ce630f5e38079f9caf2924cec4184af4"
+      "sha256": "a56d80043b3924757329b0a8f44310581c108cbbceffba979e2c03ef60e64e7a"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260917_1600_live_index_predicates.py",
-      "sha256": "dd6d05f7f3c040ccde4b4fe6a5ac295f33efb8b92ed21cf6c1e6b7af26860cb3"
+      "sha256": "8fd487284b1c5602f67c6e7afc9298ece469e24692b7c1989e9a2e7159dd2a23"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260918_1000_account_settings.py",
-      "sha256": "ab4b9f79580bfeef509ed9e35fa6c0d52dc1addefa30286e07d3cdd3044704f2"
+      "sha256": "facd501679df09f45465a58951dfdba077f768922d18320818948b81ac4707c8"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260918_1100_ai_settings.py",
-      "sha256": "11ae6e3f70860518a3acd093060e02dc1606734fb4d9c88f4f153b372f1f44f7"
+      "sha256": "26a699b87f800f1280c46fdbc6e48a8920cb6efbad339a39be3cc5bd54346b6a"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260918_1200_compensation_records.py",
-      "sha256": "34924673bd47e67d0e3f45d9c24c28a3839d1a8a258d7465015a51ccd63dcb75"
+      "sha256": "6db45a8354a2f0bdae51a0a6d833a8a11b753cb25199be9fc13e29df2710e593"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260918_1300_domain_storage_cutover.py",
-      "sha256": "6a4c12b27cabf7ef2c0fe756a3d644504aa6de40b779bb8dda8f276d5049e338"
+      "sha256": "2afbaa92171d6c910400fa4b62041d03161b15cbe69450a3732632c4a9fe991b"
+    },
+    {
+      "path": "backend/src/ledger_sync/db/migrations/versions/20260930_1000_orm_schema_alignment.py",
+      "sha256": "6b1d6c1bb632e3c797845b68428d26b41f759bb369dd40dc105354862e0e99b1"
     },
     {
       "path": "backend/src/ledger_sync/schemas/salary.py",
-      "sha256": "d640586d21da81793ac0755cd00fa8e4ec512b36ba157a443d54f0885894e460"
+      "sha256": "7ec698c96239b1cb246ffa05cfe61648b2ffeaa150243e42bcda6b6389e3725c"
     },
     {
       "path": "backend/src/ledger_sync/services/account_settings.py",
-      "sha256": "9cfc8ce1c297f2667c3c64aca837499d7aa3dfb9b3770cdedec5f17c2a1308f5"
+      "sha256": "610beecf0727b40ca28978124705994c7077bebafcb54d6eb7c44fed29133e8b"
     },
     {
       "path": "backend/src/ledger_sync/services/ai_settings.py",
-      "sha256": "e82423bc1d9067500c610d0262769284e42cd19c83284c2475d9568fe9fc0b2e"
+      "sha256": "4aa1b6296c371996f9a40494accf8212116dd9f63767d70b9f929ef510a79f5b"
+    },
+    {
+      "path": "backend/src/ledger_sync/services/auth_account_data.py",
+      "sha256": "028cd914700017f5e3d08aa4b084c94170739b35e8d713c0eeb7b4f989a2b371"
+    },
+    {
+      "path": "backend/src/ledger_sync/services/auth_refresh.py",
+      "sha256": "c178d1b09c0303c1c763d0054231bb0f7d840559abd496445eb79bb82cbfbbe9"
     },
     {
       "path": "backend/src/ledger_sync/services/auth_service.py",
-      "sha256": "00be5bbdaa62b0e79796cc91e12dc50341beb7a2e57f757f62434e6e5d6d6184"
+      "sha256": "b487f925571521363622b51f909004da86d2c13b069bd2a5616dbe6b0614f2a9"
     },
     {
       "path": "backend/src/ledger_sync/services/calculation_service.py",
-      "sha256": "646bf38febcbfd1ddb67f032febc1987f3771d8c6f124e3df908fc7f93b1f9b5"
+      "sha256": "1e249dc54a9fd643e373de813a4427ccaa7eee0c6d76162685bb32c5f43ea308"
     },
     {
       "path": "backend/src/ledger_sync/services/compensation.py",
-      "sha256": "e218ecbdd8118ecc72d67810ae7c9d66158f58fa8a799a6727985a975d018877"
+      "sha256": "36ec836b58758fe0770972a074783355ab34cd22f1e4b4be4d211b07089583b5"
     },
     {
       "path": "backend/src/ledger_sync/services/goal_service.py",
@@ -518,11 +562,11 @@
     },
     {
       "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
-      "sha256": "114b88232fe43c97d22e13519a3395d2e170b58c214e04a5517cb5e1ad401e01"
+      "sha256": "2fcf585a353b60a7fbffeb4c2255bf6db9a50253b87c9d0c7438728c7709f14d"
     }
   ],
   "source_hash_scope": "Model definitions, salary API schemas, migration revisions and every code-reference file linked by the dictionary.",
-  "source_migration_head": "domain_storage_cutover_2026",
+  "source_migration_head": "orm_schema_alignment_2026",
   "production": {
     "project": "neon-cinereous-compass",
     "project_id": "gentle-sunset-94386320",
@@ -538,7 +582,7 @@
     "application_tables": 34,
     "columns": 463,
     "foreign_keys": 43,
-    "explicit_indexes": 78,
+    "explicit_indexes": 76,
     "unique_constraints": 14,
     "check_constraints": 18,
     "enum_types": 5
@@ -959,58 +1003,88 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 37,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L37"
+          "line": 55,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L55"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 43,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L43"
+          "line": 48,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L48"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-          "line": 42,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L42"
+          "line": 49,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L49"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-          "line": 35,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L35"
+          "line": 37,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L37"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_usage.py",
-          "line": 88,
-          "url": "../backend/src/ledger_sync/api/ai_usage.py#L88"
+          "line": 94,
+          "url": "../backend/src/ledger_sync/api/ai_usage.py#L94"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics.py",
-          "line": 26,
-          "url": "../backend/src/ledger_sync/api/analytics.py#L26"
+          "line": 33,
+          "url": "../backend/src/ledger_sync/api/analytics.py#L33"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-          "line": 42,
-          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L42"
+          "line": 44,
+          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L44"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations_helpers.py",
-          "line": 448,
-          "url": "../backend/src/ledger_sync/api/calculations_helpers.py#L448"
+          "path": "backend/src/ledger_sync/api/analytics_v2.py",
+          "line": 57,
+          "url": "../backend/src/ledger_sync/api/analytics_v2.py#L57"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/aggregates.py",
+          "line": 57,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L57"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
+          "line": 26,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L26"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
+          "line": 118,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/insights.py#L118"
         },
         {
           "path": "backend/src/ledger_sync/api/deps.py",
-          "line": 28,
-          "url": "../backend/src/ledger_sync/api/deps.py#L28"
+          "line": 27,
+          "url": "../backend/src/ledger_sync/api/deps.py#L27"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/meta.py",
+          "line": 154,
+          "url": "../backend/src/ledger_sync/api/meta.py#L154"
         },
         {
           "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-          "line": 464,
-          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L464"
+          "line": 144,
+          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L144"
         },
         {
-          "path": "backend/src/ledger_sync/api/transactions.py",
-          "line": 122,
-          "url": "../backend/src/ledger_sync/api/transactions.py#L122"
+          "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
+          "line": 14,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L14"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
+          "line": 81,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/filters.py#L81"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/writes.py",
+          "line": 76,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/writes.py#L76"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/refresh.py",
@@ -1019,8 +1093,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/query_helpers.py",
-          "line": 98,
-          "url": "../backend/src/ledger_sync/core/query_helpers.py#L98"
+          "line": 68,
+          "url": "../backend/src/ledger_sync/core/query_helpers.py#L68"
         },
         {
           "path": "backend/src/ledger_sync/core/report_generator.py",
@@ -1028,14 +1102,24 @@
           "url": "../backend/src/ledger_sync/core/report_generator.py#L86"
         },
         {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 91,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L91"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_refresh.py",
+          "line": 60,
+          "url": "../backend/src/ledger_sync/services/auth_refresh.py#L60"
+        },
+        {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 166,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L166"
+          "line": 149,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L149"
         },
         {
           "path": "backend/src/ledger_sync/services/calculation_service.py",
-          "line": 32,
-          "url": "../backend/src/ledger_sync/services/calculation_service.py#L32"
+          "line": 63,
+          "url": "../backend/src/ledger_sync/services/calculation_service.py#L63"
         }
       ]
     },
@@ -1896,38 +1980,43 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 351,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L351"
+          "line": 48,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L48"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics.py",
-          "line": 26,
-          "url": "../backend/src/ledger_sync/api/analytics.py#L26"
+          "line": 33,
+          "url": "../backend/src/ledger_sync/api/analytics.py#L33"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-          "line": 742,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L742"
+          "line": 235,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L235"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 389,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L389"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
+          "line": 214,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L214"
         },
         {
           "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-          "line": 403,
-          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L403"
+          "line": 83,
+          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L83"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/base.py",
-          "line": 108,
-          "url": "../backend/src/ledger_sync/core/analytics/base.py#L108"
+          "line": 109,
+          "url": "../backend/src/ledger_sync/core/analytics/base.py#L109"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 89,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L89"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 201,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L201"
+          "line": 184,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L184"
         }
       ]
     },
@@ -2129,14 +2218,14 @@
       "indexes": [],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/ai_chat.py",
-          "line": 178,
-          "url": "../backend/src/ledger_sync/api/ai_chat.py#L178"
+          "path": "backend/src/ledger_sync/api/ai_chat_bedrock.py",
+          "line": 30,
+          "url": "../backend/src/ledger_sync/api/ai_chat_bedrock.py#L30"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_usage.py",
-          "line": 177,
-          "url": "../backend/src/ledger_sync/api/ai_usage.py#L177"
+          "line": 183,
+          "url": "../backend/src/ledger_sync/api/ai_usage.py#L183"
         },
         {
           "path": "backend/src/ledger_sync/api/preferences_ai.py",
@@ -2149,9 +2238,14 @@
           "url": "../backend/src/ledger_sync/services/ai_settings.py#L15"
         },
         {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 86,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L86"
+        },
+        {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 203,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L203"
+          "line": 186,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L186"
         }
       ]
     },
@@ -2200,7 +2294,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional actor/owner; nullable for records without an attached user.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L423"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L424"
         },
         {
           "name": "operation",
@@ -2424,15 +2518,6 @@
           "method": "btree"
         },
         {
-          "name": "ix_audit_logs_user_id",
-          "unique": false,
-          "expressions": [
-            "audit_logs.user_id"
-          ],
-          "predicate": null,
-          "method": "btree"
-        },
-        {
           "name": "ix_audit_operation_entity",
           "unique": false,
           "expressions": [
@@ -2454,14 +2539,19 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/oauth.py",
-          "line": 87,
-          "url": "../backend/src/ledger_sync/api/oauth.py#L87"
+          "path": "backend/src/ledger_sync/api/oauth_state.py",
+          "line": 55,
+          "url": "../backend/src/ledger_sync/api/oauth_state.py#L55"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/engine.py",
-          "line": 286,
-          "url": "../backend/src/ledger_sync/core/analytics/engine.py#L286"
+          "line": 319,
+          "url": "../backend/src/ledger_sync/core/analytics/engine.py#L319"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_refresh.py",
+          "line": 66,
+          "url": "../backend/src/ledger_sync/services/auth_refresh.py#L66"
         }
       ]
     },
@@ -2772,8 +2862,8 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_usage.py",
-          "line": 52,
-          "url": "../backend/src/ledger_sync/api/ai_usage.py#L52"
+          "line": 58,
+          "url": "../backend/src/ledger_sync/api/ai_usage.py#L58"
         }
       ]
     },
@@ -2786,7 +2876,7 @@
       "data_kind": "Diagnostic model",
       "notes": "No user_id or foreign key. A search of backend/src found no ColumnMappingLog construction outside the model. Treat this as a defined diagnostic table, not proof that current web uploads populate it.",
       "model": "ColumnMappingLog",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L246",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L248",
       "columns": [
         {
           "name": "id",
@@ -2804,7 +2894,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L251"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L253"
         },
         {
           "name": "file_name",
@@ -2822,7 +2912,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L254"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L256"
         },
         {
           "name": "file_hash",
@@ -2840,7 +2930,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L255"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L257"
         },
         {
           "name": "original_columns",
@@ -2858,7 +2948,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of original spreadsheet header names.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L258"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L260"
         },
         {
           "name": "mapped_columns",
@@ -2876,7 +2966,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON object mapping original headers to normalized field names.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L259"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L261"
         },
         {
           "name": "unmapped_columns",
@@ -2894,7 +2984,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of ignored/unmapped headers.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L263"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L265"
         },
         {
           "name": "is_valid",
@@ -2912,7 +3002,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether mapping validation succeeded.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L269"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L271"
         },
         {
           "name": "validation_errors",
@@ -2930,7 +3020,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of validation errors.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L270"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L272"
         },
         {
           "name": "validation_warnings",
@@ -2948,7 +3038,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of validation warnings.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L274"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L276"
         },
         {
           "name": "created_at",
@@ -2966,7 +3056,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L280"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L282"
         }
       ],
       "primary_key": [
@@ -2987,7 +3077,7 @@
       "data_kind": "Ledger source of truth",
       "notes": "Public transaction_id remains stable. source_fingerprint is a separate versioned import identity. Account/category text remains a historical display snapshot alongside nullable dimension IDs. Six user-leading indexes cover active rows only.",
       "model": "Transaction",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L48",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L50",
       "columns": [
         {
           "name": "transaction_id",
@@ -3005,7 +3095,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable public SHA-256-shaped primary key; legacy IDs are retained.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L54"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L56"
         },
         {
           "name": "source_fingerprint",
@@ -3023,7 +3113,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Nullable v2 canonical-source hash including occurrence; independent of mutable category rules.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L57"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L59"
         },
         {
           "name": "fingerprint_version",
@@ -3041,7 +3131,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "1 for legacy identity; 2 for current fingerprint format.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L58"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L60"
         },
         {
           "name": "user_id",
@@ -3059,7 +3149,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L61"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L63"
         },
         {
           "name": "date",
@@ -3077,7 +3167,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction timestamp/calendar date; SQL type has no timezone.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L66"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L68"
         },
         {
           "name": "amount",
@@ -3095,7 +3185,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction/planned amount in INR.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L67"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L69"
         },
         {
           "name": "currency",
@@ -3113,7 +3203,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Accounting currency; database CHECK allows INR only.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L68"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L70"
         },
         {
           "name": "type",
@@ -3131,7 +3221,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction kind; database enum names and API values are listed below.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L69"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L71"
         },
         {
           "name": "account",
@@ -3149,7 +3239,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Account label; see dimension IDs on transactions.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L72"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L74"
         },
         {
           "name": "category",
@@ -3167,7 +3257,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L73"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L75"
         },
         {
           "name": "subcategory",
@@ -3185,7 +3275,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L74"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L76"
         },
         {
           "name": "account_id",
@@ -3203,7 +3293,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable ledger account ID; qualified by user_id in its FK.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L75"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L77"
         },
         {
           "name": "from_account_id",
@@ -3221,7 +3311,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source transfer account dimension ID, qualified by owner.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L76"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L78"
         },
         {
           "name": "to_account_id",
@@ -3239,7 +3329,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Destination transfer account dimension ID, qualified by owner.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L77"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L79"
         },
         {
           "name": "category_id",
@@ -3257,7 +3347,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable ledger category ID; qualified by user_id in its FK.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L78"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L80"
         },
         {
           "name": "subcategory_id",
@@ -3275,7 +3365,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable subcategory ID; qualified by user_id and category_id.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L79"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L81"
         },
         {
           "name": "from_account",
@@ -3293,7 +3383,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source account label for a transfer.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L82"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L84"
         },
         {
           "name": "to_account",
@@ -3311,7 +3401,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Destination account label for a transfer.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L83"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L85"
         },
         {
           "name": "note",
@@ -3329,7 +3419,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional free-text description.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L86"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L88"
         },
         {
           "name": "source_file",
@@ -3347,7 +3437,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source filename/entry marker, not the file contents.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L89"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L91"
         },
         {
           "name": "last_seen_at",
@@ -3365,7 +3455,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Most recent reconciliation sighting.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L90"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L92"
         },
         {
           "name": "is_deleted",
@@ -3383,7 +3473,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Soft-delete flag; active ledger reads exclude true rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L100"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L102"
         },
         {
           "name": "created_at",
@@ -3401,7 +3491,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L103"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L105"
         },
         {
           "name": "updated_at",
@@ -3419,7 +3509,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L108"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L110"
         }
       ],
       "primary_key": [
@@ -3676,58 +3766,83 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 89,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L89"
+          "line": 101,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L101"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-          "line": 83,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L83"
+          "line": 101,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L101"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-          "line": 46,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L46"
+          "line": 60,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L60"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-          "line": 69,
-          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L69"
+          "line": 71,
+          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L71"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-          "line": 447,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L447"
+          "line": 268,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L268"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 313,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L313"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule_aggregate.py",
+          "line": 79,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule_aggregate.py#L79"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations.py",
-          "line": 90,
-          "url": "../backend/src/ledger_sync/api/calculations.py#L90"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
+          "line": 138,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L138"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations_helpers.py",
-          "line": 24,
-          "url": "../backend/src/ledger_sync/api/calculations_helpers.py#L24"
+          "path": "backend/src/ledger_sync/api/calculations_impl/aggregates.py",
+          "line": 249,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L249"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
+          "line": 26,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L26"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
+          "line": 125,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/insights.py#L125"
         },
         {
           "path": "backend/src/ledger_sync/api/meta.py",
-          "line": 27,
-          "url": "../backend/src/ledger_sync/api/meta.py#L27"
+          "line": 31,
+          "url": "../backend/src/ledger_sync/api/meta.py#L31"
         },
         {
           "path": "backend/src/ledger_sync/api/transaction_pagination.py",
-          "line": 62,
-          "url": "../backend/src/ledger_sync/api/transaction_pagination.py#L62"
+          "line": 85,
+          "url": "../backend/src/ledger_sync/api/transaction_pagination.py#L85"
         },
         {
-          "path": "backend/src/ledger_sync/api/transactions.py",
-          "line": 40,
-          "url": "../backend/src/ledger_sync/api/transactions.py#L40"
+          "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
+          "line": 27,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L27"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
+          "line": 22,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/filters.py#L22"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/serialize.py",
+          "line": 72,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/serialize.py#L72"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/writes.py",
+          "line": 36,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/writes.py#L36"
         },
         {
           "path": "backend/src/ledger_sync/core/_analytics_helpers.py",
@@ -3736,28 +3851,33 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-          "line": 212,
-          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L212"
+          "line": 176,
+          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L176"
+        },
+        {
+          "path": "backend/src/ledger_sync/core/analytics/anomaly_detectors.py",
+          "line": 103,
+          "url": "../backend/src/ledger_sync/core/analytics/anomaly_detectors.py#L103"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/base.py",
-          "line": 394,
-          "url": "../backend/src/ledger_sync/core/analytics/base.py#L394"
+          "line": 413,
+          "url": "../backend/src/ledger_sync/core/analytics/base.py#L413"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/classification.py",
-          "line": 21,
-          "url": "../backend/src/ledger_sync/core/analytics/classification.py#L21"
+          "line": 31,
+          "url": "../backend/src/ledger_sync/core/analytics/classification.py#L31"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/cohort.py",
-          "line": 30,
-          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L30"
+          "line": 31,
+          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L31"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/fy_summaries.py",
-          "line": 32,
-          "url": "../backend/src/ledger_sync/core/analytics/fy_summaries.py#L32"
+          "line": 24,
+          "url": "../backend/src/ledger_sync/core/analytics/fy_summaries.py#L24"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/merchants.py",
@@ -3771,13 +3891,13 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 174,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L174"
+          "line": 179,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L179"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/summaries.py",
-          "line": 30,
-          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L30"
+          "line": 45,
+          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L45"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/trends.py",
@@ -3786,8 +3906,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/calculator.py",
-          "line": 26,
-          "url": "../backend/src/ledger_sync/core/calculator.py#L26"
+          "line": 255,
+          "url": "../backend/src/ledger_sync/core/calculator.py#L255"
         },
         {
           "path": "backend/src/ledger_sync/core/expense_class.py",
@@ -3801,33 +3921,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/import_labels.py",
-          "line": 35,
-          "url": "../backend/src/ledger_sync/core/import_labels.py#L35"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/insight_builder.py",
-          "line": 24,
-          "url": "../backend/src/ledger_sync/core/insight_builder.py#L24"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/insight_generators.py",
-          "line": 37,
-          "url": "../backend/src/ledger_sync/core/insight_generators.py#L37"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/insight_generators_time.py",
-          "line": 33,
-          "url": "../backend/src/ledger_sync/core/insight_generators_time.py#L33"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/insight_rules.py",
-          "line": 97,
-          "url": "../backend/src/ledger_sync/core/insight_rules.py#L97"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/insights.py",
-          "line": 87,
-          "url": "../backend/src/ledger_sync/core/insights.py#L87"
+          "line": 15,
+          "url": "../backend/src/ledger_sync/core/import_labels.py#L15"
         },
         {
           "path": "backend/src/ledger_sync/core/ledger_math.py",
@@ -3836,8 +3931,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/query_helpers.py",
-          "line": 302,
-          "url": "../backend/src/ledger_sync/core/query_helpers.py#L302"
+          "line": 298,
+          "url": "../backend/src/ledger_sync/core/query_helpers.py#L298"
         },
         {
           "path": "backend/src/ledger_sync/core/reconciler.py",
@@ -3860,19 +3955,19 @@
           "url": "../backend/src/ledger_sync/core/time_filter.py#L26"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 351,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L351"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 115,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L115"
         },
         {
           "path": "backend/src/ledger_sync/services/calculation_service.py",
-          "line": 51,
-          "url": "../backend/src/ledger_sync/services/calculation_service.py#L51"
+          "line": 27,
+          "url": "../backend/src/ledger_sync/services/calculation_service.py#L27"
         },
         {
           "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
-          "line": 201,
-          "url": "../backend/src/ledger_sync/services/ledger_dimensions.py#L201"
+          "line": 222,
+          "url": "../backend/src/ledger_sync/services/ledger_dimensions.py#L222"
         }
       ]
     },
@@ -3885,7 +3980,7 @@
       "data_kind": "Import metadata",
       "notes": "A forced re-import updates the existing record and counts. This is not an append-only attempt log. file_name/source_file are metadata, not stored spreadsheet binaries or a foreign key to transactions.",
       "model": "ImportLog",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L209",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L211",
       "columns": [
         {
           "name": "id",
@@ -3903,7 +3998,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L214"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L216"
         },
         {
           "name": "user_id",
@@ -3921,7 +4016,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L217"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L219"
         },
         {
           "name": "file_hash",
@@ -3939,7 +4034,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L221"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
         },
         {
           "name": "file_name",
@@ -3957,7 +4052,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L222"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L224"
         },
         {
           "name": "imported_at",
@@ -3975,7 +4070,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Latest import time for this user/file-hash record.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
         },
         {
           "name": "rows_processed",
@@ -3993,7 +4088,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count processed in the recorded import.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L228"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
         },
         {
           "name": "rows_inserted",
@@ -4011,7 +4106,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count inserted as new ledger rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L229"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
         },
         {
           "name": "rows_updated",
@@ -4029,7 +4124,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count updated during reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
         },
         {
           "name": "rows_deleted",
@@ -4047,7 +4142,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count marked deleted by snapshot reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
         },
         {
           "name": "rows_skipped",
@@ -4065,7 +4160,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count skipped by import processing.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
         }
       ],
       "primary_key": [
@@ -4119,9 +4214,9 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 223,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L223"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
+          "line": 48,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L48"
         },
         {
           "path": "backend/src/ledger_sync/api/upload.py",
@@ -4134,9 +4229,9 @@
           "url": "../backend/src/ledger_sync/core/sync_engine.py#L50"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 352,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L352"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 116,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L116"
         }
       ]
     },
@@ -4372,18 +4467,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/core/import_labels.py",
-          "line": 16,
-          "url": "../backend/src/ledger_sync/core/import_labels.py#L16"
+          "line": 36,
+          "url": "../backend/src/ledger_sync/core/import_labels.py#L36"
         },
         {
           "path": "backend/src/ledger_sync/services/account_settings.py",
-          "line": 53,
-          "url": "../backend/src/ledger_sync/services/account_settings.py#L53"
+          "line": 54,
+          "url": "../backend/src/ledger_sync/services/account_settings.py#L54"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 317,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L317"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 80,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L80"
         },
         {
           "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
@@ -4543,18 +4638,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/core/import_labels.py",
-          "line": 16,
-          "url": "../backend/src/ledger_sync/core/import_labels.py#L16"
+          "line": 36,
+          "url": "../backend/src/ledger_sync/core/import_labels.py#L36"
         },
         {
           "path": "backend/src/ledger_sync/services/account_settings.py",
-          "line": 72,
-          "url": "../backend/src/ledger_sync/services/account_settings.py#L72"
+          "line": 74,
+          "url": "../backend/src/ledger_sync/services/account_settings.py#L74"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 314,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L314"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 77,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L77"
         },
         {
           "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
@@ -4687,13 +4782,13 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/core/import_labels.py",
-          "line": 64,
-          "url": "../backend/src/ledger_sync/core/import_labels.py#L64"
+          "line": 66,
+          "url": "../backend/src/ledger_sync/core/import_labels.py#L66"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 363,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L363"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 127,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L127"
         },
         {
           "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
@@ -4861,9 +4956,9 @@
       "indexes": [],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 362,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L362"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 126,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L126"
         },
         {
           "path": "backend/src/ledger_sync/services/ledger_dimensions.py",
@@ -5106,6 +5201,11 @@
           "path": "backend/src/ledger_sync/core/rules.py",
           "line": 21,
           "url": "../backend/src/ledger_sync/core/rules.py#L21"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 71,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L71"
         }
       ]
     },
@@ -5273,9 +5373,24 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/transactions.py",
-          "line": 230,
-          "url": "../backend/src/ledger_sync/api/transactions.py#L230"
+          "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
+          "line": 53,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L53"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
+          "line": 200,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/filters.py#L200"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/serialize.py",
+          "line": 56,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/serialize.py#L56"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/transactions_impl/writes.py",
+          "line": 190,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/writes.py#L190"
         }
       ]
     },
@@ -5435,8 +5550,13 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/saved_views.py",
-          "line": 21,
-          "url": "../backend/src/ledger_sync/api/saved_views.py#L21"
+          "line": 22,
+          "url": "../backend/src/ledger_sync/api/saved_views.py#L22"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 74,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L74"
         }
       ]
     },
@@ -5449,7 +5569,7 @@
       "data_kind": "User compensation configuration",
       "notes": "The unique owner/fiscal-year key preserves plan identity across edits. Position retains API object order. CompensationDecimal stores unscaled NUMERIC in PostgreSQL and decimal TEXT in SQLite, with no two-decimal quantization. A NULL HRA remains unknown, distinct from zero.",
       "model": "SalaryPlan",
-      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L54",
+      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L57",
       "columns": [
         {
           "name": "id",
@@ -5467,7 +5587,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L63"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L66"
         },
         {
           "name": "user_id",
@@ -5485,7 +5605,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L64"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L67"
         },
         {
           "name": "fiscal_year",
@@ -5503,7 +5623,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Fiscal-year API key, YYYY-YY for consecutive years.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L65"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L68"
         },
         {
           "name": "position",
@@ -5521,7 +5641,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Zero-based order in the salary_structure API object.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L66"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L69"
         },
         {
           "name": "base_salary_annual",
@@ -5539,7 +5659,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Annual base salary, retained as an exact decimal.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L67"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L70"
         },
         {
           "name": "hra_annual",
@@ -5557,7 +5677,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional annual HRA; NULL is unknown and zero is explicitly configured.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L68"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L71"
         },
         {
           "name": "bonus_annual",
@@ -5575,7 +5695,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Annual bonus amount.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L69"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L72"
         },
         {
           "name": "epf_monthly",
@@ -5593,7 +5713,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Employee monthly EPF cash deduction, not a new-regime income-tax deduction.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L70"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L73"
         },
         {
           "name": "nps_monthly",
@@ -5611,7 +5731,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Monthly NPS contribution.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L71"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L74"
         },
         {
           "name": "special_allowance_annual",
@@ -5629,7 +5749,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Annual special allowance.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L72"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L75"
         },
         {
           "name": "other_taxable_annual",
@@ -5647,7 +5767,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Other annual taxable compensation.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L75"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L78"
         }
       ],
       "primary_key": [
@@ -5691,9 +5811,9 @@
       "indexes": [],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 322,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L322"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 85,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L85"
         },
         {
           "path": "backend/src/ledger_sync/services/compensation.py",
@@ -5711,7 +5831,7 @@
       "data_kind": "User compensation configuration",
       "notes": "The internal integer ID differs from public_id returned as API id. Public IDs are unique within their owner. Prices retain original precision without currency conversion. The API's whole-list replacement preserves unchanged rows and grant order.",
       "model": "RsuGrantRecord",
-      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L78",
+      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L81",
       "columns": [
         {
           "name": "id",
@@ -5729,7 +5849,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L92"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L95"
         },
         {
           "name": "user_id",
@@ -5747,7 +5867,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L93"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L96"
         },
         {
           "name": "public_id",
@@ -5765,7 +5885,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Existing public grant ID, unique per user; serialized as id in the API.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L94"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L97"
         },
         {
           "name": "position",
@@ -5783,7 +5903,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Zero-based grant order in the rsu_grants API list.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L95"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L98"
         },
         {
           "name": "stock_name",
@@ -5801,7 +5921,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stock/company label supplied for this grant.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L96"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L99"
         },
         {
           "name": "stock_price",
@@ -5819,7 +5939,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Exact stock-price assumption in the API's display-currency convention; not converted or rounded by storage.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L97"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L100"
         },
         {
           "name": "grant_date",
@@ -5837,7 +5957,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional actual grant calendar date.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L98"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L101"
         },
         {
           "name": "notes",
@@ -5855,7 +5975,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional free-text notes.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L99"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L102"
         }
       ],
       "primary_key": [
@@ -5913,9 +6033,9 @@
       "indexes": [],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 321,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L321"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 84,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L84"
         },
         {
           "path": "backend/src/ledger_sync/services/compensation.py",
@@ -5933,7 +6053,7 @@
       "data_kind": "User compensation configuration",
       "notes": "The TEXT primary key receives an application-generated UUID; it is not a sequence or timestamp. The composite (user_id, grant_id) FK enforces parent ownership. Position preserves order; there is no uniqueness on date or event content. Gross quantity is integral; net_quantity is exact and may be fractional or zero. NULL net_quantity/price_at_vest remain unknown. Optional API event IDs target edits/deletions; ID-less saves deterministically match equal occurrences without deduplication.",
       "model": "RsuVestingRecord",
-      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L102",
+      "model_source": "../backend/src/ledger_sync/db/_models/compensation.py#L105",
       "columns": [
         {
           "name": "id",
@@ -5951,7 +6071,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable application-generated UUID string identifying this individual event.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L127"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L130"
         },
         {
           "name": "user_id",
@@ -5969,7 +6089,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L128"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L131"
         },
         {
           "name": "grant_id",
@@ -5987,7 +6107,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Internal parent grant ID; qualified by user_id in its FK.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L129"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L132"
         },
         {
           "name": "position",
@@ -6005,7 +6125,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Zero-based event order within the grant; equal events remain separate.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L130"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L133"
         },
         {
           "name": "date",
@@ -6023,7 +6143,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Vesting calendar date; duplicate dates are permitted.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L131"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L134"
         },
         {
           "name": "quantity",
@@ -6041,7 +6161,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Positive integral gross shares before tax withholding.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L132"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L135"
         },
         {
           "name": "price_at_vest",
@@ -6059,7 +6179,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional exact stock price locked at vesting; NULL means unknown.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L133"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L136"
         },
         {
           "name": "net_quantity",
@@ -6077,7 +6197,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Exact received shares after withholding, including fractional shares; NULL is unknown and zero is full withholding.",
-          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L134"
+          "source": "../backend/src/ledger_sync/db/_models/compensation.py#L137"
         }
       ],
       "primary_key": [
@@ -6163,9 +6283,9 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 320,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L320"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 83,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L83"
         },
         {
           "path": "backend/src/ledger_sync/services/compensation.py",
@@ -6619,28 +6739,33 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/account_classifications.py",
-          "line": 82,
-          "url": "../backend/src/ledger_sync/api/account_classifications.py#L82"
+          "line": 83,
+          "url": "../backend/src/ledger_sync/api/account_classifications.py#L83"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 213,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L213"
+          "line": 251,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L251"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring.py",
-          "line": 86,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L86"
+          "line": 83,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L83"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py",
+          "line": 54,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py#L54"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 66,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L66"
+          "line": 71,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L71"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 356,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L356"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 120,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L120"
         }
       ]
     },
@@ -7052,18 +7177,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring.py",
-          "line": 339,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L339"
+          "line": 297,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L297"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 200,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L200"
+          "line": 205,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L205"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 353,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L353"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 117,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L117"
         }
       ]
     },
@@ -7428,23 +7553,23 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 309,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L309"
+          "line": 339,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L339"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-          "line": 186,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L186"
+          "line": 77,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L77"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-          "line": 133,
-          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L133"
+          "line": 108,
+          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L108"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 348,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L348"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 112,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L112"
         }
       ]
     },
@@ -7814,23 +7939,23 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 266,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L266"
+          "line": 296,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L296"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-          "line": 281,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L281"
+          "line": 172,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L172"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-          "line": 463,
-          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L463"
+          "line": 211,
+          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L211"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 310,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L310"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 67,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L67"
         }
       ]
     },
@@ -8160,18 +8285,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 251,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L251"
+          "line": 328,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L328"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-          "line": 346,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L346"
+          "line": 237,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L237"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 311,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L311"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 68,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L68"
         },
         {
           "path": "backend/src/ledger_sync/services/goal_service.py",
@@ -8651,13 +8776,13 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 92,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L92"
+          "line": 108,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L108"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 376,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L376"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 140,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L140"
         }
       ]
     },
@@ -8877,14 +9002,19 @@
       "indexes": [],
       "code_references": [
         {
+          "path": "backend/src/ledger_sync/core/analytics/engine.py",
+          "line": 45,
+          "url": "../backend/src/ledger_sync/core/analytics/engine.py#L45"
+        },
+        {
           "path": "backend/src/ledger_sync/core/analytics/refresh.py",
           "line": 48,
           "url": "../backend/src/ledger_sync/core/analytics/refresh.py#L48"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 335,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L335"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 98,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L98"
         }
       ]
     },
@@ -9161,18 +9291,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 139,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L139"
+          "line": 124,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L124"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/summaries.py",
-          "line": 377,
-          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L377"
+          "line": 408,
+          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L408"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 366,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L366"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 130,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L130"
         }
       ]
     },
@@ -9720,38 +9850,43 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 209,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L209"
+          "line": 227,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L227"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 48,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L48"
+          "line": 53,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L53"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 63,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L63"
+          "line": 48,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L48"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations.py",
-          "line": 179,
-          "url": "../backend/src/ledger_sync/api/calculations.py#L179"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
+          "line": 102,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L102"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/aggregates.py",
+          "line": 64,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L64"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/summaries.py",
-          "line": 45,
-          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L45"
+          "line": 60,
+          "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L60"
         },
         {
           "path": "backend/src/ledger_sync/core/report_generator.py",
-          "line": 99,
-          "url": "../backend/src/ledger_sync/core/report_generator.py#L99"
+          "line": 134,
+          "url": "../backend/src/ledger_sync/core/report_generator.py#L134"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 368,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L368"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 132,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L132"
         }
       ]
     },
@@ -10133,19 +10268,19 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 532,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L532"
-        },
-        {
-          "path": "backend/src/ledger_sync/api/calculations.py",
-          "line": 381,
-          "url": "../backend/src/ledger_sync/api/calculations.py#L381"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py",
+          "line": 97,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py#L97"
         },
         {
           "path": "backend/src/ledger_sync/api/calculations_helpers.py",
-          "line": 243,
-          "url": "../backend/src/ledger_sync/api/calculations_helpers.py#L243"
+          "line": 38,
+          "url": "../backend/src/ledger_sync/api/calculations_helpers.py#L38"
+        },
+        {
+          "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
+          "line": 97,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L97"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/trends.py",
@@ -10154,13 +10289,13 @@
         },
         {
           "path": "backend/src/ledger_sync/core/report_generator.py",
-          "line": 116,
-          "url": "../backend/src/ledger_sync/core/report_generator.py#L116"
+          "line": 97,
+          "url": "../backend/src/ledger_sync/core/report_generator.py#L97"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 369,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L369"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 133,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L133"
         }
       ]
     },
@@ -10366,18 +10501,18 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 191,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L191"
+          "line": 176,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L176"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/cohort.py",
-          "line": 45,
-          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L45"
+          "line": 54,
+          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L54"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 367,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L367"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 131,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L131"
         }
       ]
     },
@@ -10672,19 +10807,19 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 592,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L592"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py",
+          "line": 157,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py#L157"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/trends.py",
-          "line": 182,
-          "url": "../backend/src/ledger_sync/core/analytics/trends.py#L182"
+          "line": 248,
+          "url": "../backend/src/ledger_sync/core/analytics/trends.py#L248"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 370,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L370"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 134,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L134"
         }
       ]
     },
@@ -11042,9 +11177,9 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring.py",
-          "line": 379,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L379"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py",
+          "line": 45,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py#L45"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/merchants.py",
@@ -11052,9 +11187,9 @@
           "url": "../backend/src/ledger_sync/core/analytics/merchants.py#L65"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 372,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L372"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 136,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L136"
         }
       ]
     },
@@ -11502,23 +11637,23 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py",
-          "line": 43,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L43"
+          "line": 117,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L117"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-          "line": 117,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L117"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py",
+          "line": 96,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py#L96"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/fy_summaries.py",
-          "line": 64,
-          "url": "../backend/src/ledger_sync/core/analytics/fy_summaries.py#L64"
+          "line": 56,
+          "url": "../backend/src/ledger_sync/core/analytics/fy_summaries.py#L56"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 375,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L375"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 139,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L139"
         }
       ]
     },
@@ -11946,23 +12081,23 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 171,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L171"
+          "line": 197,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L197"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
-          "line": 56,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L56"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py",
+          "line": 35,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py#L35"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/net_worth.py",
-          "line": 109,
-          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L109"
+          "line": 110,
+          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L110"
         },
         {
-          "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 371,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L371"
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 135,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L135"
         }
       ]
     },
@@ -12011,7 +12146,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/investments.py#L164"
+          "source": "../backend/src/ledger_sync/db/_models/investments.py#L165"
         },
         {
           "name": "account",
@@ -12218,15 +12353,6 @@
           "method": "btree"
         },
         {
-          "name": "ix_investment_holdings_user_id",
-          "unique": false,
-          "expressions": [
-            "investment_holdings.user_id"
-          ],
-          "predicate": null,
-          "method": "btree"
-        },
-        {
           "name": "ix_investment_user",
           "unique": false,
           "expressions": [
@@ -12238,14 +12364,19 @@
       ],
       "code_references": [
         {
-          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
-          "line": 471,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L471"
+          "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py",
+          "line": 36,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py#L36"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/net_worth.py",
-          "line": 236,
-          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L236"
+          "line": 237,
+          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L237"
+        },
+        {
+          "path": "backend/src/ledger_sync/services/auth_account_data.py",
+          "line": 141,
+          "url": "../backend/src/ledger_sync/services/auth_account_data.py#L141"
         }
       ]
     }
@@ -12262,7 +12393,7 @@
           "primary_key": true
         }
       ],
-      "expected_head": "domain_storage_cutover_2026"
+      "expected_head": "orm_schema_alignment_2026"
     },
     {
       "name": "import_logs_duplicate_archive_20260917",
@@ -12284,7 +12415,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L214"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L216"
         },
         {
           "name": "user_id",
@@ -12302,7 +12433,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L217"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L219"
         },
         {
           "name": "file_hash",
@@ -12320,7 +12451,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L221"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
         },
         {
           "name": "file_name",
@@ -12338,7 +12469,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L222"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L224"
         },
         {
           "name": "imported_at",
@@ -12356,7 +12487,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Latest import time for this user/file-hash record.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
         },
         {
           "name": "rows_processed",
@@ -12374,7 +12505,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count processed in the recorded import.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L228"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
         },
         {
           "name": "rows_inserted",
@@ -12392,7 +12523,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count inserted as new ledger rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L229"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
         },
         {
           "name": "rows_updated",
@@ -12410,7 +12541,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count updated during reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
         },
         {
           "name": "rows_deleted",
@@ -12428,7 +12559,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count marked deleted by snapshot reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
         },
         {
           "name": "rows_skipped",
@@ -12446,7 +12577,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count skipped by import processing.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
         }
       ],
       "note": "CREATE TABLE AS copy: original constraints, indexes, defaults and ownership FK are not copied."

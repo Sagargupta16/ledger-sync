@@ -8,9 +8,9 @@ validation.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import quote
 
 import pytest
@@ -113,6 +113,18 @@ def test_future_on_date_returns_400() -> None:
     resp = TestClient(app).get("/api/stock-price/AMZN", params={"on_date": "2999-01-01"})
 
     assert resp.status_code == 400
+
+
+def test_ist_today_is_not_future_while_utc_is_still_yesterday() -> None:
+    """A vest dated the user's (IST) today is looked up, not rejected as future."""
+    app = _make_app(_historical_payload(["2025-08-14"], [101.0]))
+    with patch("ledger_sync.api.stock_price.ledger_today", return_value=date(2025, 8, 15)):
+        resp = TestClient(app).get("/api/stock-price/AMZN", params={"on_date": "2025-08-15"})
+        tomorrow = TestClient(app).get("/api/stock-price/AMZN", params={"on_date": "2025-08-16"})
+
+    assert resp.status_code == 200
+    assert resp.json()["as_of"] == "2025-08-14"
+    assert tomorrow.status_code == 400
 
 
 @pytest.mark.parametrize("bad", ["THISISWAYTOOLONGSYMBOLX", "AMZN%3Fx%3D1", "AM ZN", "..%2Fquote"])

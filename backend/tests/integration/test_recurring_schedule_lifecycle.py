@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics_v2_impl.recurring import router
 from ledger_sync.api.deps import get_current_user
-from ledger_sync.core import query_helpers
 from ledger_sync.core.analytics.engine import AnalyticsEngine
 from ledger_sync.db.models import RecurringTransaction, User
 from ledger_sync.db.session import get_session
@@ -29,11 +28,10 @@ scheduled_db = _scheduled_db
 
 
 @pytest.fixture
-def lifecycle_api(scheduled_db, monkeypatch):
+def lifecycle_api(scheduled_db):
     connection = scheduled_db
-    # This process tests both databases; the application's date helpers normally
-    # select one dialect from its configured database URL at import time.
-    monkeypatch.setattr(query_helpers, "_is_sqlite", connection.dialect.name == "sqlite")
+    # This process tests both databases; the date helpers pick their SQL from
+    # the dialect of the connection that executes them.
     for identity, owner, confirmed in ((10, 1, True), (11, 1, True), (20, 2, False)):
         _recurring(connection, identity, owner, confirmed)
     for identity, source, owner, active in (

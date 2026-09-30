@@ -48,7 +48,7 @@ ledger-sync/
   frontend/                   React and TypeScript SPA
   backend/                    Python and FastAPI service
   docs/                       Maintained references and dated records
-  .github/workflows/          CI, deploy, migration, and keepalive workflows
+  .github/workflows/          CI, deploy, migration, and (disabled) keepalive workflows
   package.json                Root orchestration scripts
 ```
 
@@ -154,8 +154,10 @@ Every user-owned query includes `user_id`. Current model foreign keys use
 database cascades for account deletion, but authorization remains an explicit
 query concern.
 
-The current migration head is `identity_constraints_2026`, following
-`ai_usage_reservations_2026`. The reservation revision extends existing AI
+The chain is linear; `uv run alembic heads` reports the current head (the
+September 2026 ledger and domain-storage revisions follow the two described
+here). `identity_constraints_2026` follows `ai_usage_reservations_2026`. The
+reservation revision extends existing AI
 usage rows with funding, status, and reserved-token fields. The identity
 revision closes uniqueness/constraint gaps, rejects conflicting identities or
 invalid positive amounts before changing data, and removes obsolete global
@@ -1037,8 +1039,9 @@ for a healthy backend reporting the frontend release version and a connected
 database, leaving the previous site active if that check times out.
 Native PostgreSQL runs from isolated test-cluster binaries
 in CI. Vercel's Git deployment is outside this dependency chain; the workflow
-does not establish that a backend release waits for migrations. Preserve
-schema compatibility and follow [DEPLOYMENT.md](DEPLOYMENT.md) for rollout,
+does not establish that a backend release waits for migrations; only a Vercel
+Deployment Check on `migrate / migrate` does. Preserve schema compatibility
+and follow [DEPLOYMENT.md](DEPLOYMENT.md) for that console step, rollout,
 health, and recovery procedures.
 
 ## Verification

@@ -80,12 +80,101 @@ function messageBlocks(msg: ChatMessage): Block[] {
 }
 
 /**
+ * Most messages one request carries. The Bedrock proxy rejects more than 100;
+ * this stays well under it with a full tool loop in flight and keeps token use
+ * bounded for the browser-direct providers too.
+ */
+export const MAX_REQUEST_MESSAGES = 40
+
+function isBlankText(block: Block): boolean {
+  return block.type === 'text' && block.text.trim() === ''
+}
+
+/** A user turn asking something, as opposed to one carrying tool results. */
+function isQuestion(msg: ChatMessage): boolean {
+  return msg.role === 'user' && !(msg.blocks ?? []).some((b) => b.type === 'tool_result')
+}
+
+/** Append `next` to `prev`, joining adjacent text so the merged turn stays readable. */
+function mergeBlocks(prev: Block[], next: Block[]): Block[] {
+  const last = prev.at(-1)
+  const [first, ...rest] = next
+  if (last?.type === 'text' && first?.type === 'text') {
+    return [...prev.slice(0, -1), { type: 'text', text: `${last.text}\n\n${first.text}` }, ...rest]
+  }
+  return [...prev, ...next]
+}
+
+/**
+ * Make a UI conversation safe to send to every provider:
+ * - drop blank text blocks and any turn left empty (a stopped or failed reply);
+ * - merge consecutive same-role turns (a question whose reply failed followed
+ *   by the next question), since Bedrock requires alternating roles;
+ * - keep the most recent `maxMessages`, cutting only in front of a question so
+ *   no tool_use is separated from its tool_result and the request still opens
+ *   with a user turn.
+ */
+export function prepareMessages(
+  messages: readonly ChatMessage[],
+  maxMessages = MAX_REQUEST_MESSAGES,
+): ChatMessage[] {
+  const cleaned: ChatMessage[] = []
+  for (const msg of messages) {
+    const blocks = messageBlocks(msg).filter((b) => !isBlankText(b))
+    if (blocks.length === 0) continue
+    const prev = cleaned.at(-1)
+    if (prev?.role === msg.role) {
+      cleaned[cleaned.length - 1] = { role: msg.role, blocks: mergeBlocks(prev.blocks ?? [], blocks) }
+    } else {
+      cleaned.push({ role: msg.role, blocks })
+    }
+  }
+  let start = Math.max(0, cleaned.length - maxMessages)
+  while (start < cleaned.length && !isQuestion(cleaned[start])) start++
+  if (start === cleaned.length) start = Math.max(0, cleaned.findLastIndex(isQuestion))
+  return cleaned.slice(start)
+}
+
+/**
  * Read an error body without trusting it. `res.json()` is typed `any`, so the
- * parsed value is kept at `unknown` and only narrowed through the caller's
- * cast. A non-JSON body resolves to `{}`, exactly as before.
+ * parsed value is kept at `unknown` and only narrowed by `readableErrorMessage`.
+ * A non-JSON body resolves to `{}`.
  */
 async function readErrorBody(res: Response): Promise<unknown> {
   return res.json().catch((): unknown => ({}))
+}
+
+function describeValidationIssue(issue: unknown): string {
+  if (!issue || typeof issue !== 'object') return ''
+  const { msg, loc } = issue as { msg?: unknown; loc?: unknown }
+  if (typeof msg !== 'string') return ''
+  const text = msg.replace(/^Value error, /, '')
+  const path = Array.isArray(loc) ? loc.filter((part) => part !== 'body').join('.') : ''
+  return path ? `${text} (${path})` : text
+}
+
+/**
+ * One readable sentence from an error body: a FastAPI `detail` string, a
+ * FastAPI validation array (`detail: [{loc, msg}]`), SlowAPI's
+ * `{error: "Rate limit exceeded: ..."}`, or the OpenAI/Anthropic
+ * `{error: {message}}` shape. Anything else yields `fallback`.
+ */
+export function readableErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') return fallback
+  const { detail, error } = body as { detail?: unknown; error?: unknown }
+  if (typeof detail === 'string' && detail) return detail
+  if (Array.isArray(detail)) {
+    const issues = detail.map(describeValidationIssue).filter(Boolean)
+    if (issues.length > 0) return `The chat request was rejected: ${issues.slice(0, 2).join('; ')}`
+  }
+  if (typeof error === 'string' && error) return error
+  const message = error && typeof error === 'object' ? (error as { message?: unknown }).message : null
+  if (typeof message === 'string' && message) return message
+  return fallback
+}
+
+async function responseError(res: Response, provider: string): Promise<Error> {
+  return new Error(readableErrorMessage(await readErrorBody(res), `${provider} error ${res.status}`))
 }
 
 function normaliseStopReason(raw: string | null | undefined): StopReason {
@@ -180,11 +269,7 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
     body: JSON.stringify(body),
     signal: params.signal,
   })
-  if (!res.ok) {
-    const err = await readErrorBody(res)
-    const message = (err as { error?: { message?: string } }).error?.message
-    throw new Error(message ?? `OpenAI error ${res.status}`)
-  }
+  if (!res.ok) throw await responseError(res, 'OpenAI')
   const data = (await res.json()) as {
     choices?: Array<{
       finish_reason?: string | null
@@ -281,11 +366,7 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
     body: JSON.stringify(body),
     signal: params.signal,
   })
-  if (!res.ok) {
-    const err = await readErrorBody(res)
-    const message = (err as { error?: { message?: string } }).error?.message
-    throw new Error(message ?? `Anthropic error ${res.status}`)
-  }
+  if (!res.ok) throw await responseError(res, 'Anthropic')
   const data = (await res.json()) as {
     content?: AnthropicContentBlock[]
     stop_reason?: string | null
@@ -358,10 +439,7 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
     body: JSON.stringify(body),
     signal: params.signal,
   })
-  if (!res.ok) {
-    const err = await readErrorBody(res)
-    throw new Error((err as { detail?: string }).detail ?? `Bedrock error ${res.status}`)
-  }
+  if (!res.ok) throw await responseError(res, 'Bedrock')
   const data = (await res.json()) as {
     blocks?: BedrockWireBlock[]
     stop_reason?: string | null
@@ -395,5 +473,5 @@ const adapters: Record<string, (params: SendParams) => Promise<ChatResponse>> = 
 export async function sendChat(provider: string, params: SendParams): Promise<ChatResponse> {
   const adapter = adapters[provider]
   if (!adapter) throw new Error(`Unknown provider: ${provider}`)
-  return adapter(params)
+  return adapter({ ...params, messages: prepareMessages(params.messages) })
 }

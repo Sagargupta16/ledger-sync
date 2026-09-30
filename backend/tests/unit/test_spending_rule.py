@@ -57,7 +57,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from ledger_sync.api.analytics_v2_impl.spending_rule import (
-    _DEFAULT_INVESTMENT_ACCOUNTS,
     _DEFAULT_NEEDS,
     _aggregate_txns,
     _CategoryRow,
@@ -65,10 +64,10 @@ from ledger_sync.api.analytics_v2_impl.spending_rule import (
     _pct_of_income,
 )
 from ledger_sync.core.expense_class import classification_key, is_capital_loss
+from ledger_sync.core.metric_rules import DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS
 from ledger_sync.db.models import Transaction, TransactionType
 
 _ESSENTIALS = set(_DEFAULT_NEEDS)
-_INVESTMENTS = set(_DEFAULT_INVESTMENT_ACCOUNTS)
 
 # Amounts must reconcile to the last paisa; 0.01 absorbs Decimal/float display
 # rounding only.
@@ -173,7 +172,12 @@ def _assert_invariant(income: Decimal, buckets: dict[str, Decimal]) -> None:
     )
 
 
-def _aggregate(txns: list[Transaction], *, loss_keys: set[str] | None = None):
+def _aggregate(
+    txns: list[Transaction],
+    *,
+    loss_keys: set[str] | None = None,
+    mapped_accounts: tuple[str, ...] = (),
+):
     """Aggregate and assert both reconciliations before returning.
 
     Folded into the wrapper so no fixture can forget the checks -- every test
@@ -182,12 +186,13 @@ def _aggregate(txns: list[Transaction], *, loss_keys: set[str] | None = None):
     *loss_keys* defaults to empty, which is the shipped state of
     ``capital_loss_categories``: with nothing classified every assertion below
     exercises exactly the behaviour that predates the preference.
+    *mapped_accounts* defaults to no mapping, the default keyword fallback.
     """
     keys = loss_keys or set()
     income, expense, buckets, rows = _aggregate_txns(
         txns,
         essential_set=_ESSENTIALS,
-        investment_accounts_set=_INVESTMENTS,
+        mapped_investment_accounts=mapped_accounts,
         capital_loss_key_set=keys,
     )
     _assert_rows_reconcile(txns, expense, buckets, rows, keys)
@@ -719,3 +724,65 @@ def test_brokerage_fee_on_the_same_account_is_still_spending() -> None:
     assert expense == Decimal("354.20")
     assert buckets["wants"] == Decimal("354.20")
     assert buckets["savings"] == Decimal("-354.20")
+
+
+# --- investment perimeter: mapped names vs keyword fallback ------------------
+
+
+def test_mapped_accounts_match_exactly_and_turn_the_keyword_fallback_off() -> None:
+    # "Groww MF" matches the default keywords, but a user who mapped accounts
+    # has said which ones are investments: only the mapped name counts, matched
+    # case-insensitively on the whole name.
+    txns = [
+        _txn(TransactionType.INCOME, "100000", category="Employment Income"),
+        _txn(
+            TransactionType.TRANSFER,
+            "10000",
+            category="Transfer",
+            to_account="stocks: ZERODHA",
+            day=6,
+        ),
+        _txn(TransactionType.TRANSFER, "5000", category="Transfer", to_account="Groww MF", day=7),
+    ]
+    _income, _expense, buckets, _rows = _aggregate(txns, mapped_accounts=("Stocks: Zerodha",))
+
+    assert buckets["savings"] == Decimal("10000")
+
+
+def test_mapped_names_stay_exact_even_when_they_spell_every_default_keyword() -> None:
+    # The endpoint used to pass either the mapped names or the default keyword
+    # set and tell them apart by set equality, so a mapping whose names spelled
+    # exactly the defaults silently became the word-boundary fallback.
+    txns = [
+        _txn(TransactionType.INCOME, "100000", category="Employment Income"),
+        _txn(TransactionType.TRANSFER, "3000", category="Transfer", to_account="PPF", day=6),
+        _txn(TransactionType.TRANSFER, "7000", category="Transfer", to_account="HDFC PPF", day=7),
+    ]
+    mapped = tuple(sorted(DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS))
+    _income, _expense, buckets, _rows = _aggregate(txns, mapped_accounts=mapped)
+
+    assert buckets["savings"] == Decimal("3000")
+
+
+# --- monthly averages: complete calendar months only -------------------------
+
+
+def test_row_average_leaves_out_the_month_in_progress() -> None:
+    row = _CategoryRow(category="Rent", bucket="needs", total_amount=Decimal(0), txn_count=0)
+    row.add(Decimal("20000"), None, "2026-04")
+    row.add(Decimal("20000"), None, "2026-05")
+    row.add(Decimal("5000"), None, "2026-06")
+
+    body = row.to_dict(2, "2026-06")
+
+    # The total keeps the partial month; the average divides complete months.
+    assert body["total_amount"] == 45000
+    assert body["avg_monthly"] == 20000
+    assert body["months_seen"] == 3
+
+
+def test_row_average_is_zero_without_a_complete_month() -> None:
+    row = _CategoryRow(category="Rent", bucket="needs", total_amount=Decimal(0), txn_count=0)
+    row.add(Decimal("5000"), None, "2026-06")
+
+    assert row.to_dict(0, "2026-06")["avg_monthly"] == 0.0

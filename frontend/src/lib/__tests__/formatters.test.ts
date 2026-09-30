@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { formatCurrency, formatCurrencyCompact, formatCurrencyShort } from '../formatters'
+import { formatCurrency, formatCurrencyCompact, formatCurrencyShort, formatPercent } from '../formatters'
 
 describe('formatters with currency conversion', () => {
   beforeEach(() => {
@@ -221,5 +221,20 @@ describe('formatters with currency conversion', () => {
       const result = formatCurrency(100000)
       expect(result).toBe('₹1,00,000.00')
     })
+  })
+})
+
+describe('formatPercent', () => {
+  it('defaults to one decimal and signs only on request', () => {
+    expect(formatPercent(12.345)).toBe('12.3%')
+    expect(formatPercent(12.345, true)).toBe('+12.3%')
+    expect(formatPercent(-3.21, true)).toBe('-3.2%')
+  })
+
+  it('honours a digits option, collapsing negative zero at that precision', () => {
+    expect(formatPercent(24.2567, false, 2)).toBe('24.26%')
+    expect(formatPercent(41.6, true, 0)).toBe('+42%')
+    expect(formatPercent(-0.4, false, 0)).toBe('0%')
+    expect(formatPercent(0.4, true, 0)).toBe('0%')
   })
 })

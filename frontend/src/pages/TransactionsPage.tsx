@@ -14,6 +14,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { useTransactionPage } from '@/hooks/api/useTransactionPage'
 import { getTodayKey } from '@/lib/dateUtils'
+import { getActiveLocale } from '@/lib/formatters'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 import { isMotionReduced } from '@/store/motionStore'
 
@@ -192,10 +193,10 @@ export default function TransactionsPage() {
                   {isFiltered ? 'Matching transactions' : 'Total transactions'}
                 </p>
                 <p className="ledger-figure mt-1 break-words text-xl font-semibold">
-                  {total.toLocaleString('en-IN')}
+                  {total.toLocaleString(getActiveLocale())}
                   {isFiltered && (
                     <span className="mt-0.5 block text-xs font-medium text-muted-foreground sm:ml-1 sm:inline sm:text-sm">
-                      of {unfilteredTotal.toLocaleString('en-IN')}
+                      of {unfilteredTotal.toLocaleString(getActiveLocale())}
                     </span>
                   )}
                 </p>
@@ -212,7 +213,7 @@ export default function TransactionsPage() {
               >
                 <p className="text-xs text-muted-foreground">{item.label}</p>
                 <p className={`ledger-figure mt-2 text-lg font-semibold sm:text-xl ${item.color}`}>
-                  {item.value.toLocaleString('en-IN')}
+                  {item.value.toLocaleString(getActiveLocale())}
                 </p>
               </div>
             ))}

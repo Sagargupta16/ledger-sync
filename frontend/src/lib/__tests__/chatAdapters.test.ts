@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sendChat, type ToolSpec } from '../chatAdapters'
+import {
+  MAX_REQUEST_MESSAGES,
+  prepareMessages,
+  readableErrorMessage,
+  sendChat,
+  type ChatMessage,
+  type ToolSpec,
+} from '../chatAdapters'
 
 const TOOLS: ToolSpec[] = [
   {
@@ -180,5 +187,150 @@ describe('sendChat', () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow(/Bedrock error: bad model id/)
+  })
+
+  it('bedrock: a failed reply placeholder never reaches the request', async () => {
+    const mock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+    mock.mockReturnValueOnce(
+      okJson({ blocks: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }),
+    )
+    await sendChat('bedrock', {
+      model: 'app-default',
+      systemPrompt: '',
+      messages: [
+        { role: 'user', content: 'first' },
+        { role: 'assistant', content: '' },
+        { role: 'user', content: 'second' },
+      ],
+      apiKey: 'jwt',
+      signal: new AbortController().signal,
+    })
+    const [, opts] = mock.mock.calls[0] as [string, { body: string }]
+    const body = JSON.parse(opts.body) as { messages: unknown[] }
+    expect(body.messages).toEqual([
+      { role: 'user', blocks: [{ type: 'text', text: 'first\n\nsecond' }] },
+    ])
+  })
+
+  it('surfaces a FastAPI validation array as readable text', async () => {
+    const mock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+    mock.mockReturnValueOnce(
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        json: () =>
+          Promise.resolve({
+            detail: [
+              {
+                type: 'value_error',
+                loc: ['body'],
+                msg: 'Value error, Chat history is too large; start a new conversation',
+              },
+            ],
+          }),
+      } as unknown as Response),
+    )
+    await expect(
+      sendChat('bedrock', {
+        model: 'x',
+        systemPrompt: '',
+        messages: [{ role: 'user', content: 'hi' }],
+        apiKey: 'jwt',
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow('The chat request was rejected: Chat history is too large; start a new conversation')
+  })
+
+  it('surfaces a SlowAPI 429 body instead of the status code', async () => {
+    const mock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+    mock.mockReturnValueOnce(
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({ error: 'Rate limit exceeded: 30 per 1 minute' }),
+      } as unknown as Response),
+    )
+    await expect(
+      sendChat('bedrock', {
+        model: 'x',
+        systemPrompt: '',
+        messages: [{ role: 'user', content: 'hi' }],
+        apiKey: 'jwt',
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow('Rate limit exceeded: 30 per 1 minute')
+  })
+})
+
+describe('readableErrorMessage', () => {
+  it('names the field a validation issue points at', () => {
+    const body = {
+      detail: [
+        { loc: ['body', 'messages', 1, 'content'], msg: 'String should have at least 1 character' },
+      ],
+    }
+    expect(readableErrorMessage(body, 'fallback')).toBe(
+      'The chat request was rejected: String should have at least 1 character (messages.1.content)',
+    )
+  })
+
+  it('reads the OpenAI/Anthropic error message and falls back otherwise', () => {
+    expect(readableErrorMessage({ error: { message: 'Invalid API key' } }, 'fallback')).toBe(
+      'Invalid API key',
+    )
+    expect(readableErrorMessage({}, 'Bedrock error 500')).toBe('Bedrock error 500')
+  })
+})
+
+function toolRound(id: string): ChatMessage[] {
+  return [
+    { role: 'assistant', blocks: [{ type: 'tool_use', tool_use_id: id, name: 'list_accounts', input: {} }] },
+    { role: 'user', blocks: [{ type: 'tool_result', tool_use_id: id, content: { count: 0 } }] },
+  ]
+}
+
+function longHistory(exchanges: number): ChatMessage[] {
+  const history: ChatMessage[] = []
+  for (let i = 0; i < exchanges; i++) {
+    history.push({ role: 'user', content: `q${i}` }, { role: 'assistant', content: `a${i}` })
+  }
+  return history
+}
+
+describe('prepareMessages', () => {
+  it('drops blank text beside a tool_use but keeps the tool_use', () => {
+    const [, assistant] = prepareMessages([
+      { role: 'user', content: 'accounts?' },
+      {
+        role: 'assistant',
+        blocks: [
+          { type: 'text', text: '  ' },
+          { type: 'tool_use', tool_use_id: 't1', name: 'list_accounts', input: {} },
+        ],
+      },
+    ])
+    expect(assistant.blocks).toEqual([
+      { type: 'tool_use', tool_use_id: 't1', name: 'list_accounts', input: {} },
+    ])
+  })
+
+  it('caps a long conversation and opens it with a user question', () => {
+    const prepared = prepareMessages(longHistory(80))
+    expect(prepared.length).toBeLessThanOrEqual(MAX_REQUEST_MESSAGES)
+    expect(prepared[0]).toEqual({ role: 'user', blocks: [{ type: 'text', text: 'q60' }] })
+  })
+
+  it('never cuts between a tool_use and its tool_result', () => {
+    const history = [
+      ...longHistory(3),
+      { role: 'user', content: 'now' } as ChatMessage,
+      ...toolRound('t1'),
+      ...toolRound('t2'),
+    ]
+    // A 4-message window would open on t1's tool_use, so the cut moves back to
+    // the question that started the tool loop instead.
+    const prepared = prepareMessages(history, 4)
+    expect(prepared[0]).toEqual({ role: 'user', blocks: [{ type: 'text', text: 'now' }] })
+    expect(prepared).toHaveLength(5)
   })
 })

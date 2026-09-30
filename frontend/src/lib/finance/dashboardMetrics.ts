@@ -1,4 +1,4 @@
-import { percentChange } from '@/lib/formatters'
+import { formatDate, percentChange } from '@/lib/formatters'
 import { completeMonthKeys, savingsRatePercentFromNet } from '@/lib/savingsRate'
 import type { MonthlyAggregation } from '@/services/api/calculations'
 import { addMonthsToMonthKey } from '@/lib/dateUtils'
@@ -17,8 +17,7 @@ function roundedChange(current: number, previous: number): number | undefined {
 }
 
 function monthLabel(key: string): string {
-  const [year, month] = key.split('-').map(Number)
-  return new Date(year, month - 1).toLocaleString('default', { month: 'short', year: '2-digit' })
+  return formatDate(`${key.slice(0, 7)}-01`, { month: 'short', year: '2-digit' })
 }
 
 /** Compare complete periods using the API's net cash flow, including capital losses. */

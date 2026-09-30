@@ -2,6 +2,8 @@ import { monthKeysBetween } from '@/lib/dateUtils'
 import { medianOf } from '@/lib/distribution'
 import { currentMonthKey, shareOfIncomePercent } from '@/lib/savingsRate'
 
+import { completeMonthSpine } from './monthlyAverage'
+
 export interface MonthlySpendShape {
   readonly mean: number
   readonly median: number
@@ -16,13 +18,21 @@ interface SpendingRange {
 
 export type SpendingBreakdown = { essential: number; discretionary: number } | null
 
-/** Calendar months shared by spending averages and trend bars, including gaps. */
+/**
+ * Calendar months shared by spending averages and trend bars, including gaps.
+ *
+ * The shared complete-month spine (`completeMonthSpine`) whenever the window
+ * holds complete-month rows. A window whose rows all sit in the month in
+ * progress keeps that month, which the page labels as a running pace.
+ */
 export function spanMonthKeys(
   rowMonths: readonly string[],
   range: SpendingRange,
   now: Date = new Date(),
 ): string[] {
   if (rowMonths.length === 0) return []
+  const complete = completeMonthSpine(rowMonths, { start: range.start_date, end: range.end_date }, now)
+  if (complete.length > 0) return complete
   const cutoff = currentMonthKey(now)
   const rowLast = rowMonths.at(-1)!
   const first = range.start_date?.slice(0, 7) ?? rowMonths[0]

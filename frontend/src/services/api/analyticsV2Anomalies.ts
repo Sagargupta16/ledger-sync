@@ -99,6 +99,28 @@ export interface AnomalyReviewResult {
   anomaly_id: number
 }
 
+/**
+ * The list envelope's totals. `data` is capped by the handler's `limit`
+ * (default 50), so a badge or tile that counts rows under-reports once a user
+ * has more matches than that; `count` and `summary` cover every matching row.
+ */
+export interface AnomalyCounts {
+  count: number
+  summary: { high: number; medium: number; low: number }
+}
+
+interface AnomalyListEnvelope {
+  data: Anomaly[]
+  count: number
+  summary?: AnomalyCounts['summary']
+}
+
+function severitySummary(rows: readonly Anomaly[]): AnomalyCounts['summary'] {
+  const bySeverity = (severity: AnomalySeverityValue) =>
+    rows.filter((row) => row.severity === severity).length
+  return { high: bySeverity('high'), medium: bySeverity('medium'), low: bySeverity('low') }
+}
+
 export const anomaliesApi = {
   // Anomalies
   //
@@ -112,6 +134,21 @@ export const anomaliesApi = {
     limit?: number
   }) {
     return getWrapped<Anomaly>('/api/analytics/v2/anomalies', params)
+  },
+
+  // Same endpoint, read for its envelope totals instead of its rows. The demo
+  // adapter answers `{ data, count }` without `summary`, so the severity split
+  // falls back to the rows it did return.
+  async getAnomalyCounts(params?: {
+    type?: string
+    severity?: string
+    include_reviewed?: boolean
+  }): Promise<AnomalyCounts> {
+    const response = await apiClient.get<AnomalyListEnvelope>('/api/analytics/v2/anomalies', {
+      params,
+    })
+    const { data, count, summary } = response.data
+    return { count, summary: summary ?? severitySummary(data) }
   },
 
   async reviewAnomaly(anomalyId: number, data: { dismiss: boolean; notes?: string }) {

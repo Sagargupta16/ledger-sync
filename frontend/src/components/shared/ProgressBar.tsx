@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 
 import { DURATION, EASING } from '@/constants/animations'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 
 /**
  * Shared progress / bullet bar.
@@ -14,7 +14,9 @@ import { rawColors } from '@/constants/colors'
  *   - `bands`               -> qualitative background zones (bullet-graph style)
  *   - `color`               -> fill color (defaults to app blue)
  *
- * Keep it presentational: callers pass resolved colors (tokens), never hex.
+ * Keep it presentational: callers pass CSS color tokens, never hex. Every color
+ * here lands in a DOM style, so prefer `colors.app.*` (`var(--color-app-*)`):
+ * a var() follows a theme toggle, a resolved `rawColors` value keeps the old one.
  */
 interface Band {
   /** Upper bound of this band as a percent of `max` (0-100). */
@@ -27,7 +29,7 @@ interface ProgressBarProps {
   readonly value: number
   /** Denominator; the fill is `value/max`. Default 100 (value is already a %). */
   readonly max?: number
-  /** Fill color. Default app blue. */
+  /** Fill color, any CSS color (prefer a `colors.*` var()). Default app blue. */
   readonly color?: string
   /** Track height in px. Default 8. */
   readonly height?: number
@@ -43,7 +45,7 @@ interface ProgressBarProps {
 export default function ProgressBar({
   value,
   max = 100,
-  color = rawColors.app.blue,
+  color = colors.app.blue,
   height = 8,
   target,
   bands,

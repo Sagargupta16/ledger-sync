@@ -1,4 +1,4 @@
-import { formatCurrencyCompact } from '@/lib/formatters'
+import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 
 import type { AnalysisResult, FinHealthTier, HealthMetric, Pillar } from './healthScoreTypes'
 import {
@@ -6,7 +6,6 @@ import {
   clamp,
   cvToLabel,
   cvToScore,
-  formatSignedPercent,
   tierFromScore,
 } from './healthScoreTypes'
 
@@ -29,7 +28,7 @@ export function scoreSpendLessThanIncome(
     weight: 12.5,
     status: tierFromScore(score),
     pillar: 'spend',
-    description: rate >= 0 ? `${rate.toFixed(1)}% savings rate` : `${Math.abs(rate).toFixed(1)}% deficit`,
+    description: rate >= 0 ? `${formatPercent(rate)} savings rate` : `${formatPercent(Math.abs(rate))} deficit`,
     target: `>= ${target}%`,
     details: [
       `Avg income: ${formatCurrencyCompact(data.avgMonthlyIncome)}/mo`,
@@ -57,10 +56,10 @@ export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
     weight: 12.5,
     status: tierFromScore(score),
     pillar: 'spend',
-    description: `${ratio.toFixed(0)}% of income on essentials`,
+    description: `${formatPercent(ratio, false, 0)} of income on essentials`,
     target: `<= ${target}%`,
     details: [
-      `Essentials: ${ratio.toFixed(1)}% of income`,
+      `Essentials: ${formatPercent(ratio)} of income`,
       ratio <= target
         ? '50/30/20 target met'
         : `Target: essentials under ${target}% of income`,
@@ -126,7 +125,7 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
     weight: 12.5,
     status: tierFromScore(score),
     pillar: 'save',
-    description: ratio >= 0 ? `${ratio.toFixed(1)}% of income invested` : 'Net withdrawal',
+    description: ratio >= 0 ? `${formatPercent(ratio)} of income invested` : 'Net withdrawal',
     target: `>= ${target}%`,
     details: [
       `${Math.round(regularity * 100)}% months with net investments`,
@@ -163,7 +162,7 @@ export function scoreDebtToIncome(data: AnalysisResult): HealthMetric {
     description: desc,
     target: `<= ${maxDti}%`,
     details: [
-      `DTI ratio: ${dti.toFixed(1)}%`,
+      `DTI ratio: ${formatPercent(dti)}`,
       `Avg debt payments: ${formatCurrencyCompact(data.avgMonthlyDebt)}/mo`,
       dti <= maxDti
         ? `Within banking threshold (${maxDti}%)`
@@ -201,7 +200,7 @@ export function scoreDebtTrend(data: AnalysisResult): HealthMetric {
     details: [
       data.avgMonthlyDebt === 0
         ? 'No debt payments detected'
-        : `Debt change: ${formatSignedPercent(trend)} (half-over-half)`,
+        : `Debt change: ${formatPercent(trend, true)} (half-over-half)`,
       trend <= 0 ? 'Debt burden reducing or stable' : 'Debt burden increasing',
     ],
   }
@@ -269,7 +268,7 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
     description: desc,
     target: `CV <= ${stableMax}%`,
     details: [
-      `Income variability (CV): ${cv.toFixed(1)}%`,
+      `Income variability (CV): ${formatPercent(cv)}`,
       `Avg monthly income: ${formatCurrencyCompact(data.avgMonthlyIncome)}`,
       incomeConsistencyDetail(data, cv, stableMax),
     ],

@@ -1,6 +1,6 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.24.1.
+Human-readable reference for Ledger Sync API version 2.26.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
 verified against that document on 2026-09-09.
@@ -13,7 +13,10 @@ Current OpenAPI inventory:
 - ReDoc at `/redoc`
 - Raw schema at `/openapi.json`
 
-To inspect the current schema locally:
+All three are served only when `LEDGER_SYNC_ENVIRONMENT=development` (the
+default for a local run); staging and production return 404 for them, so the
+hosted API does not publish its route inventory. To inspect the current schema
+locally:
 
 ```bash
 cd backend

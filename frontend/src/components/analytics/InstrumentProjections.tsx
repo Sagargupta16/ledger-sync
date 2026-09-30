@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
-import { rawColors } from '@/constants/colors'
+import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 import { StaleDataBadge } from '@/components/shared/StaleDataBadge'
 import MetricCard from '@/components/shared/MetricCard'
 import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
@@ -40,8 +39,8 @@ function PPFTab({
         <MetricCard title="Rate" value={`${rate}% p.a.`} icon={Percent} color="orange" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SliderInput id="ppf-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={5000000} step={10000} prefix="Rs " />
-        <SliderInput id="ppf-annual" label="Annual Contribution" value={annual} onChange={setAnnual} min={500} max={150000} step={500} prefix="Rs " />
+        <SliderInput id="ppf-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={5000000} step={10000} formatValue={formatCurrencyCompact} />
+        <SliderInput id="ppf-annual" label="Annual Contribution" value={annual} onChange={setAnnual} min={500} max={150000} step={500} formatValue={formatCurrencyCompact} />
         <SliderInput id="ppf-years" label="Tenure" value={years} onChange={setYears} min={5} max={30} step={1} suffix=" yrs" />
         <SliderInput id="ppf-rate" label="Interest Rate" value={rate} onChange={setRate} min={5} max={10} step={0.1} suffix="%" />
       </div>
@@ -75,12 +74,12 @@ function EPFTab({
         <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
         <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
         <MetricCard title="Monthly (You + Employer)" value={formatCurrency(totalMonthly)} icon={Percent} color="orange"
-          subtitle={`You Rs ${Math.round(yourShare).toLocaleString('en-IN')} + Employer Rs ${Math.round(employerEpf).toLocaleString('en-IN')}`} />
+          subtitle={`You ${formatCurrencyCompact(yourShare)} + Employer ${formatCurrencyCompact(employerEpf)}`} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
-        <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={15000} max={500000} step={1000} prefix="Rs " />
-        <SliderInput id="epf-pct" label={`Contribution (min Rs ${minContrib.toLocaleString('en-IN')})`} value={contribPct} onChange={setContribPct} min={12} max={20} step={0.5} suffix="%" />
+        <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} formatValue={formatCurrencyCompact} />
+        <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={15000} max={500000} step={1000} formatValue={formatCurrencyCompact} />
+        <SliderInput id="epf-pct" label={`Contribution (min ${formatCurrencyCompact(minContrib)})`} value={contribPct} onChange={setContribPct} min={12} max={20} step={0.5} suffix="%" />
         <SliderInput id="epf-rate" label={`Interest Rate (current: ${rates.epf.rate_pct}%)`} value={rate} onChange={setRate} min={5} max={12} step={0.05} suffix="%" />
         <SliderInput id="epf-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
@@ -126,11 +125,11 @@ function NPSTab({ rates }: Readonly<{ rates: InstrumentRates }>) {
         <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
         <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
         <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
-        <MetricCard title="Weighted Return" value={`${weightedReturn.toFixed(1)}% p.a.`} icon={Percent} color="orange" />
+        <MetricCard title="Weighted Return" value={`${formatPercent(weightedReturn)} p.a.`} icon={Percent} color="orange" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SliderInput id="nps-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} prefix="Rs " />
-        <SliderInput id="nps-monthly" label="Monthly Contribution" value={monthly} onChange={setMonthly} min={500} max={100000} step={500} prefix="Rs " />
+        <SliderInput id="nps-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} formatValue={formatCurrencyCompact} />
+        <SliderInput id="nps-monthly" label="Monthly Contribution" value={monthly} onChange={setMonthly} min={500} max={100000} step={500} formatValue={formatCurrencyCompact} />
         <SliderInput id="nps-equity" label="Equity (E)" value={equity} onChange={handleEquity} min={0} max={75} step={5} suffix="%" />
         <SliderInput id="nps-years" label="Years to Retirement" value={years} onChange={setYears} min={1} max={35} step={1} suffix=" yrs" />
       </div>
@@ -139,21 +138,21 @@ function NPSTab({ rates }: Readonly<{ rates: InstrumentRates }>) {
       <div>
         <div className="flex h-2.5 w-full overflow-hidden rounded-full" role="img"
           aria-label={`NPS allocation: equity ${equity} percent, corporate bonds ${corp} percent, government bonds ${govt} percent`}>
-          <div style={{ width: `${equity}%`, backgroundColor: rawColors.app.blue }} />
-          <div style={{ width: `${corp}%`, backgroundColor: rawColors.app.teal }} />
-          <div style={{ width: `${govt}%`, backgroundColor: rawColors.app.green }} />
+          <div className="bg-app-blue" style={{ width: `${equity}%` }} />
+          <div className="bg-app-teal" style={{ width: `${corp}%` }} />
+          <div className="bg-app-green" style={{ width: `${govt}%` }} />
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-tertiary">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.blue }} />
+            <span className="w-2.5 h-2.5 rounded-sm bg-app-blue" />
             Equity {equity}%
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.teal }} />
+            <span className="w-2.5 h-2.5 rounded-sm bg-app-teal" />
             Corporate {corp}%
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: rawColors.app.green }} />
+            <span className="w-2.5 h-2.5 rounded-sm bg-app-green" />
             Govt {govt}%
           </span>
         </div>
@@ -208,9 +207,22 @@ export default function InstrumentProjections() {
         </div>
       </div>
 
-      {tab === 'ppf' && <PPFTab initialBalance={ppfBalance} rates={rates} />}
-      {tab === 'epf' && <EPFTab initialBalance={epfBalance} rates={rates} />}
-      {tab === 'nps' && <NPSTab rates={rates} />}
+      {/* Each tab seeds its sliders from the loaded rate and balance once, in
+          useState. Keying on those inputs remounts the tab when the fetch
+          lands after mount, so the compiled-in fallback rate and a zero
+          balance cannot freeze in; later slider edits are left alone. */}
+      {tab === 'ppf' && (
+        <PPFTab key={`ppf-${rates.ppf.rate_pct}-${ppfBalance}`} initialBalance={ppfBalance} rates={rates} />
+      )}
+      {tab === 'epf' && (
+        <EPFTab key={`epf-${rates.epf.rate_pct}-${epfBalance}`} initialBalance={epfBalance} rates={rates} />
+      )}
+      {tab === 'nps' && (
+        <NPSTab
+          key={`nps-${Object.values(rates.nps.default_allocation_pct).join('-')}`}
+          rates={rates}
+        />
+      )}
     </motion.section>
   )
 }

@@ -4,11 +4,21 @@ import { motion } from 'motion/react'
 import { ProgressBar } from '@/components/shared'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'
-import { rawColors } from '@/constants/colors'
-import { formatCurrencyCompact } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 import type { GSTCategoryBreakdown, GSTSummary } from '@/lib/gstCalculator'
 
-import { GST_SLAB_COLORS } from '../constants'
+// Class twin of the GST slab palette (`gstSlabColor`) for the DOM badge: an
+// inline style from a resolved hex keeps the old theme after a toggle. Same hue per slab; the tint is the old `${hex}20` (~12%).
+const GST_SLAB_BADGE_CLASS: Record<number, string> = {
+  0: 'bg-app-green/12 text-app-green',
+  3: 'bg-app-yellow/12 text-app-yellow',
+  5: 'bg-app-teal/12 text-app-teal',
+  12: 'bg-app-blue/12 text-app-blue',
+  18: 'bg-app-indigo/12 text-app-indigo',
+  28: 'bg-app-orange/12 text-app-orange',
+  40: 'bg-app-red/12 text-app-red',
+}
 
 interface Props {
   data: GSTSummary
@@ -44,7 +54,7 @@ export default function GSTCategoryTable({ data }: Readonly<Props>) {
         <span className="flex items-center gap-4 tabular-nums">
           <span className="font-semibold">{formatCurrencyCompact(data.totalSpending)}</span>
           <span className="font-semibold text-muted-foreground">
-            {data.effectiveRate.toFixed(1)}%
+            {formatPercent(data.effectiveRate)}
           </span>
           <span className="font-semibold text-app-indigo">
             {formatCurrencyCompact(data.totalGST)}
@@ -84,7 +94,7 @@ function buildColumns(maxSpending: number): DataTableColumn<GSTCategoryBreakdown
           <ProgressBar
             value={category.spending}
             max={maxSpending}
-            color={rawColors.app.indigo}
+            color={colors.app.indigo}
             height={6}
             className="w-16 sm:w-20 shrink-0"
             ariaLabel={`${category.category} spending share`}
@@ -99,11 +109,9 @@ function buildColumns(maxSpending: number): DataTableColumn<GSTCategoryBreakdown
       align: 'right',
       cell: (category) => (
         <span
-          className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium"
-          style={{
-            backgroundColor: `${GST_SLAB_COLORS[category.gstRate] ?? rawColors.app.blue}20`,
-            color: GST_SLAB_COLORS[category.gstRate] ?? rawColors.app.blue,
-          }}
+          className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${
+            GST_SLAB_BADGE_CLASS[category.gstRate] ?? 'bg-app-blue/12 text-app-blue'
+          }`}
         >
           {category.gstRate}%
         </span>
