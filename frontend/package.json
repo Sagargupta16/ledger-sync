@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "type-check": "tsc -b --noEmit",
     "format": "eslint . --fix",
-    "clean": "rimraf dist node_modules/.vite",
+    "clean": "node -e \"for (const p of ['dist','node_modules/.vite']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "generate:icons": "pwa-assets-generator"
@@ -53,7 +53,6 @@
     "globals": "^17.12.0",
     "jsdom": "^30.1.1",
     "postcss": "^8.5.28",
-    "rimraf": "^6.1.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1",
