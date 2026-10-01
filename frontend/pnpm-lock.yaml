@@ -11,7 +11,7 @@ overrides:
   esbuild: '>=0.28.1'
   form-data: '>=4.0.6'
   brace-expansion@<1.1.16: 5.0.12
-  brace-expansion@>=2.0.0 <2.1.2: 5.0.9
+  brace-expansion@>=2.0.0 <2.1.2: 5.0.12
   brace-expansion@>=3.0.0 <5.0.7: 5.0.9
   fast-uri@>=3.0.0 <4.1.2: 4.1.4
   sharp: 0.35.4
@@ -1754,10 +1754,6 @@ packages:
 
   brace-expansion@5.0.12:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
-    engines: {node: 20 || >=22}
-
-  brace-expansion@5.0.9:
-    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
     engines: {node: 20 || >=22}
 
   browserslist@4.29.2:
@@ -5197,10 +5193,6 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  brace-expansion@5.0.9:
-    dependencies:
-      balanced-match: 4.0.4
-
   browserslist@4.29.2:
     dependencies:
       baseline-browser-mapping: 2.11.26
@@ -6247,7 +6239,7 @@ snapshots:
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 5.0.9
+      brace-expansion: 5.0.12
 
   minipass@7.1.3: {}
 
