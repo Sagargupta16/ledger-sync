@@ -1,6 +1,6 @@
 import { Info, Landmark } from 'lucide-react'
 import { motion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'

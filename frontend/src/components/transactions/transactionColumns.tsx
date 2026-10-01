@@ -1,4 +1,10 @@
-import { type Column, type ColumnDef } from '@tanstack/react-table'
+import {
+  metaHelper,
+  rowSortingFeature,
+  tableFeatures,
+  type Column,
+  type ColumnDef,
+} from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
 
 import type { Transaction } from '@/types'
@@ -13,15 +19,27 @@ export interface TransactionTableMeta {
   availableTags: string[]
 }
 
+/**
+ * Features the transaction table registers. Rows arrive already sorted by the
+ * server (`manualSorting`), so only the sorting state and header toggles are
+ * needed -- no client-side sorted row model or sort functions.
+ */
+export const transactionTableFeatures = tableFeatures({
+  rowSortingFeature,
+  tableMeta: metaHelper<TransactionTableMeta>(),
+})
+
+export type TransactionTableFeatures = typeof transactionTableFeatures
+
 /** Direction-aware sort icon for a sortable column header. */
-function sortIcon(column: Column<Transaction, unknown>) {
+function sortIcon(column: Column<TransactionTableFeatures, Transaction, unknown>) {
   const sorted = column.getIsSorted()
   if (sorted === 'asc') return <ArrowUp className="w-4 h-4" aria-hidden="true" />
   if (sorted === 'desc') return <ArrowDown className="w-4 h-4" aria-hidden="true" />
   return <ArrowUpDown className="w-4 h-4 opacity-60" aria-hidden="true" />
 }
 
-export const transactionColumns: ColumnDef<Transaction>[] = [
+export const transactionColumns: ColumnDef<TransactionTableFeatures, Transaction>[] = [
   {
     accessorKey: 'date',
     header: ({ column }) => (
@@ -138,15 +156,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     id: 'actions',
     header: '',
     enableSorting: false,
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as TransactionTableMeta | undefined
-      return (
-        <TagEditor
-          transactionId={row.original.id}
-          tags={row.original.tags ?? []}
-          availableTags={meta?.availableTags ?? []}
-        />
-      )
-    },
+    cell: ({ row, table }) => (
+      <TagEditor
+        transactionId={row.original.id}
+        tags={row.original.tags ?? []}
+        availableTags={table.options.meta?.availableTags ?? []}
+      />
+    ),
   },
 ]

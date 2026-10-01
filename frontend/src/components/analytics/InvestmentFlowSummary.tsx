@@ -1,5 +1,5 @@
 import { ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { ROUTES } from '@/constants'
 import { formatCurrency } from '@/lib/formatters'
 import type { summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'

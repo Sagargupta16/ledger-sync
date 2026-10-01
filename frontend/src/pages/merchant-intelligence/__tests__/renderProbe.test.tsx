@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'

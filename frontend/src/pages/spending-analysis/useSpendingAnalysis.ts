@@ -13,7 +13,7 @@
  */
 
 import { useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'

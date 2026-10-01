@@ -9,9 +9,9 @@ key and never falls back to shared credentials when that key is missing.
 
 Why non-streaming JSON instead of SSE:
 ---------------------------------------
-The backend runs on Vercel via Mangum (Lambda-style adapter). Mangum
-buffers the entire response before returning, so `StreamingResponse`
-doesn't actually stream end-to-end -- the browser sits on "processing"
+The backend runs as a Vercel serverless function, which buffered the
+entire response before returning, so `StreamingResponse` did not
+actually stream end-to-end -- the browser sat on "processing"
 until the Bedrock stream fully drains and the serverless function
 returns. For short replies this made the UI feel frozen; for long
 replies it would hit Vercel's 10s Hobby timeout and silently fail.
@@ -19,7 +19,7 @@ replies it would hit Vercel's 10s Hobby timeout and silently fail.
 We use `converse` (non-streaming) and return plain JSON. The UX is now
 "processing... 2-5s... full reply appears" instead of "processing...
 forever... nothing". Anthropic and OpenAI paths keep their browser-
-direct SSE streaming since they don't go through Mangum.
+direct calls since they never pass through the serverless function.
 
 Tool use:
 ---------

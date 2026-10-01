@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { FilterBanner } from '@/components/shared/FilterBanner'
