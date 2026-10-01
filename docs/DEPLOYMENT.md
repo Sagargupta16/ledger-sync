@@ -270,10 +270,10 @@ The Vercel project root must be `backend`.
 - routes every request to `api/index.py`
 - allows a 50 MB function bundle
 
-`api/index.py` imports the FastAPI ASGI `app` and also exposes a Mangum
-`handler`. Vercel's Python runtime serves the ASGI app directly, so the
-application lifespan runs in production and the Mangum shim only matters for an
-AWS Lambda target. Vercel installs the locked Python environment through uv.
+`api/index.py` imports the FastAPI ASGI `app`. Vercel's Python runtime serves
+the ASGI app directly, so the application lifespan runs in production (the old
+Mangum Lambda shim was removed in 2.27.0). Vercel installs the locked Python
+environment through uv.
 
 After changing Vercel environment values, redeploy the backend so the function
 receives the new configuration.
