@@ -5,7 +5,7 @@ import { ParetoChart } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton, ChartSkeleton, TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 
@@ -88,15 +88,17 @@ export default function MerchantIntelligencePage() {
     <PageContainer>
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
 
-      <MerchantFilters
-        kindFilter={kindFilter}
-        onKindFilterChange={setKindFilter}
-        kindCounts={kindCounts}
-        recurringOnly={recurringOnly}
-        onRecurringOnlyChange={setRecurringOnly}
-        search={search}
-        onSearchChange={setSearch}
-      />
+      <StickyToolbar label="Payee filters">
+        <MerchantFilters
+          kindFilter={kindFilter}
+          onKindFilterChange={setKindFilter}
+          kindCounts={kindCounts}
+          recurringOnly={recurringOnly}
+          onRecurringOnlyChange={setRecurringOnly}
+          search={search}
+          onSearchChange={setSearch}
+        />
+      </StickyToolbar>
 
       <MerchantKpiGrid stats={stats} isLoading={false} threshold={threshold} />
 

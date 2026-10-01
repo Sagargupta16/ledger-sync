@@ -2,7 +2,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import ReturnsBreakdown from './components/ReturnsBreakdown'
 import ReturnsHoldingsChart from './components/ReturnsHoldingsChart'
@@ -47,12 +47,13 @@ export default function ReturnsAnalysisPage() {
       <PageHeader
         title="Returns Analysis"
         subtitle="Review realised investment cash income, losses, and account book values"
-        action={
-          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
-            <AnalyticsTimeFilter {...timeFilterProps} />
-          </div>
-        }
       />
+
+      <StickyToolbar label="Time range">
+        <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+          <AnalyticsTimeFilter {...timeFilterProps} />
+        </div>
+      </StickyToolbar>
 
       <ReturnsSummary
         netProfitLoss={netProfitLoss}

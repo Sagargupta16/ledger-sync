@@ -13,7 +13,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 
 import BudgetRuleAnalysis from './components/BudgetRuleAnalysis'
@@ -53,8 +53,11 @@ export default function SpendingAnalysisPage() {
       <PageHeader
         title="Expense Analysis"
         subtitle="Track and analyze your spending patterns"
-        action={<AnalyticsTimeFilter {...timeFilterProps} />}
       />
+
+      <StickyToolbar label="Time range">
+        <AnalyticsTimeFilter {...timeFilterProps} />
+      </StickyToolbar>
 
       <FilterBanner value={categoryFilter} label="Category" onClear={clearCategoryFilter} />
 

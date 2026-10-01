@@ -11,6 +11,7 @@ export { default as Money } from './Money'
 export { default as PageContainer } from './PageContainer'
 export { default as PageHeader } from './PageHeader'
 export { default as Spinner } from './Spinner'
+export { default as StickyToolbar } from './StickyToolbar'
 export {
   CHART_TOOLTIP_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,

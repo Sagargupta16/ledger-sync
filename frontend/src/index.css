@@ -480,14 +480,21 @@ body {
 }
 
 /* ===== FOCUS NOT OBSCURED (WCAG 2.2 SC 2.4.11) =====
-   The scroll container has a sticky PageHeader at the top and (on phones) a
-   fixed MobileTabBar at the bottom. When a keyboard user tabs to an element
-   near an edge, the browser scrolls it just into view -- where the sticky
-   header or tab bar can cover it. scroll-padding reserves room on both edges so
-   a focused control is never hidden behind the chrome. Bottom inset only on
-   phone (<lg), where the tab bar exists, plus its safe-area. */
+   The scroll container can have a StickyToolbar pinned at the top and (on
+   phones) a fixed MobileTabBar at the bottom. When a keyboard user tabs to an
+   element near an edge, the browser scrolls it just into view -- where the
+   toolbar or tab bar can cover it. scroll-padding reserves room on both edges so
+   a focused control is never hidden behind the chrome. The toolbar publishes
+   its measured height as --sticky-toolbar-h on this element. Bottom inset only
+   on phone (<lg), where the tab bar exists, plus its safe-area. */
 #main-content {
-  scroll-padding-top: 1.5rem;
+  scroll-padding-top: calc(var(--sticky-toolbar-h, 0px) + 1.5rem);
+}
+/* A control inside the pinned toolbar is never covered by it, so focusing one
+   (tabbing in, or a dialog returning focus to its trigger) must not scroll the
+   page. A negative top margin cancels the padding above for these elements. */
+[data-sticky-toolbar] * {
+  scroll-margin-top: calc(-1 * (var(--sticky-toolbar-h, 0px) + 1.5rem));
 }
 @media (max-width: 1023px) {
   #main-content {

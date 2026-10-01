@@ -10,6 +10,7 @@ import {
   Rectangle,
   ReferenceLine,
   type BarShapeProps,
+  type LabelProps,
 } from 'recharts'
 import ProgressBar from '@/components/shared/ProgressBar'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
@@ -45,6 +46,42 @@ function renderSideShape(color: string, isPeriodA: boolean) {
     const aWins = Boolean((props.payload as { aWins?: boolean } | undefined)?.aWins)
     const wins = isPeriodA ? aWins : !aWins
     return <Rectangle {...props} fill={color} fillOpacity={wins ? 0.95 : 0.45} />
+  }
+}
+
+const LABEL_GAP = 6
+
+/**
+ * Value label pinned to the bar's OUTER end, away from the zero line.
+ *
+ * Recharts' `position="left"` measures from the bar's origin, and the A bars
+ * are negative, so their origin is the zero line: every A label landed just
+ * right of zero, on top of the B label for the same row. Reading the drawn
+ * rectangle (`x` and a possibly negative `width`) and anchoring at whichever
+ * edge is farther from zero keeps A labels left of A bars and B labels right
+ * of B bars, whatever the sign convention.
+ */
+function renderSideLabel(side: 'left' | 'right') {
+  return function SideLabel(props: LabelProps) {
+    const amount = Math.abs(Number(props.value ?? 0))
+    if (!amount) return null
+    const x = Number(props.x ?? 0)
+    const width = Number(props.width ?? 0)
+    const y = Number(props.y ?? 0) + Number(props.height ?? 0) / 2
+    const outerEdge = side === 'left' ? Math.min(x, x + width) - LABEL_GAP : Math.max(x, x + width) + LABEL_GAP
+    return (
+      <text
+        x={outerEdge}
+        y={y}
+        dy="0.35em"
+        textAnchor={side === 'left' ? 'end' : 'start'}
+        fill={rawColors.text.secondary}
+        fontSize={11}
+        fontFamily="var(--font-mono)"
+      >
+        {formatCurrencyShort(amount)}
+      </text>
+    )
   }
 }
 
@@ -188,17 +225,7 @@ export function SpendingDistribution({
                 animationDuration={700}
                 animationEasing="ease-out"
               >
-                <LabelList
-                  dataKey="periodA"
-                  position="left"
-                  fill={rawColors.text.secondary}
-                  fontSize={11}
-                  fontFamily="var(--font-mono)"
-                  formatter={(v: unknown) => {
-                    const n = Math.abs(v as number)
-                    return n === 0 ? '' : formatCurrencyShort(n)
-                  }}
-                />
+                <LabelList dataKey="periodA" content={renderSideLabel('left')} />
               </Bar>
               <Bar
                 dataKey="periodB"
@@ -211,17 +238,7 @@ export function SpendingDistribution({
                 animationDuration={700}
                 animationEasing="ease-out"
               >
-                <LabelList
-                  dataKey="periodB"
-                  position="right"
-                  fill={rawColors.text.secondary}
-                  fontSize={11}
-                  fontFamily="var(--font-mono)"
-                  formatter={(v: unknown) => {
-                    const n = v as number
-                    return n === 0 ? '' : formatCurrencyShort(n)
-                  }}
-                />
+                <LabelList dataKey="periodB" content={renderSideLabel('right')} />
               </Bar>
             </BarChart>
           </ChartContainer>

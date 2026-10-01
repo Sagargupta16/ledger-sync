@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 
 import AnomalyDetectionPanel from './anomaly-review/components/AnomalyDetectionPanel'
@@ -57,14 +57,17 @@ export default function AnomalyReviewPage() {
       {!review.isLoading && (
         <>
           <AnomalySummary summary={review.summary} />
-          <AnomalyFilters
-            typeFilter={review.typeFilter}
-            severityFilter={review.severityFilter}
-            includeReviewed={review.includeReviewed}
-            onTypeFilterChange={review.setTypeFilter}
-            onSeverityFilterChange={review.setSeverityFilter}
-            onIncludeReviewedChange={review.setIncludeReviewed}
-          />
+          {/* Stays above the list it filters and pins once scrolled to. */}
+          <StickyToolbar label="Anomaly filters">
+            <AnomalyFilters
+              typeFilter={review.typeFilter}
+              severityFilter={review.severityFilter}
+              includeReviewed={review.includeReviewed}
+              onTypeFilterChange={review.setTypeFilter}
+              onSeverityFilterChange={review.setSeverityFilter}
+              onIncludeReviewedChange={review.setIncludeReviewed}
+            />
+          </StickyToolbar>
 
           {review.sortedAnomalies.length === 0 ? (
             <EmptyState

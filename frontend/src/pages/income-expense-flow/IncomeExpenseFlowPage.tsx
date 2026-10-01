@@ -4,7 +4,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import { FlowSummaryCards } from './components/FlowSummaryCards'
 import { SankeyChart } from './components/SankeyChart'
@@ -49,8 +49,11 @@ const IncomeExpenseFlowPage = () => {
       <PageHeader
         title="Cash Flow"
         subtitle="Follow your income through tax, spending, and savings."
-        action={<AnalyticsTimeFilter {...m.timeFilterProps} />}
       />
+
+      <StickyToolbar label="Time range">
+        <AnalyticsTimeFilter {...m.timeFilterProps} />
+      </StickyToolbar>
 
       <FlowSummaryCards
         totalIncome={m.totalIncome}

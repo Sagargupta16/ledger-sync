@@ -5,7 +5,7 @@ import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import IncomeCategorySection from './components/IncomeCategorySection'
 import IncomeMetricGrid from './components/IncomeMetricGrid'
@@ -60,8 +60,11 @@ export default function IncomeAnalysisPage() {
       <PageHeader
         title="Income Analysis"
         subtitle="Track your income sources and trends"
-        action={<AnalyticsTimeFilter {...timeFilterProps} />}
       />
+
+      <StickyToolbar label="Time range">
+        <AnalyticsTimeFilter {...timeFilterProps} />
+      </StickyToolbar>
 
       <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
       {partialPeriod && (

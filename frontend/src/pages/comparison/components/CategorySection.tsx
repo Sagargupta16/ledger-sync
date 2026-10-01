@@ -75,17 +75,26 @@ function buildCategoryColumns({
     },
     {
       key: 'periodB',
-      header: periodB.label,
+      // Both period names live once in this header; rows carry only the
+      // amounts, so the long "(to same day)" label is not repeated per row.
+      header: (
+        <span className="block">
+          {periodB.label}
+          <span className="block font-normal text-muted-foreground">vs {periodA.label}</span>
+        </span>
+      ),
       align: 'right',
       sortable: true,
-      widthClass: 'w-36',
+      widthClass: 'w-40',
       mobileLabel: 'Values',
       sortValue: (delta) => delta.periodB,
       cell: (delta) => (
         <div className="font-mono leading-relaxed tabular-nums">
           <p className="text-sm font-semibold text-foreground">{formatCurrency(delta.periodB)}</p>
-          <p className="text-xs text-muted-foreground">
-            {periodA.label}: {formatCurrency(delta.periodA)}
+          <p className="whitespace-nowrap text-xs text-muted-foreground">
+            <span className="sr-only">{periodA.label}: </span>
+            <span aria-hidden="true">vs </span>
+            {formatCurrency(delta.periodA)}
           </p>
         </div>
       ),

@@ -255,7 +255,9 @@ export default function TransactionTable({
             return (
               <li key={dateKey} aria-label={dayLabel}>
                 {/* Day header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
+                {/* Sticks below the page's StickyToolbar, which publishes its
+                    height on the scroll container. */}
+                <div className="sticky top-[var(--sticky-toolbar-h,0px)] z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
                   <span className="min-w-0 text-xs font-semibold text-text-tertiary">
                     {dayLabel}
                   </span>

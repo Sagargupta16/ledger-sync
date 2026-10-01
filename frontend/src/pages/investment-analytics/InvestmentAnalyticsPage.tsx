@@ -5,7 +5,7 @@ import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import { AccountsTable } from './components/AccountsTable'
 import { AssetAllocationChart } from './components/AssetAllocationChart'
@@ -53,12 +53,13 @@ export default function InvestmentAnalyticsPage() {
       <PageHeader
         title="Investment Analytics"
         subtitle="Review cost-basis contributions, allocation, and investment activity"
-        action={
-          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
-            <AnalyticsTimeFilter {...m.timeFilterProps} />
-          </div>
-        }
       />
+
+      <StickyToolbar label="Time range">
+        <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+          <AnalyticsTimeFilter {...m.timeFilterProps} />
+        </div>
+      </StickyToolbar>
 
       {/* portfolioData is already sorted by amount invested, descending. */}
       <PortfolioMetrics

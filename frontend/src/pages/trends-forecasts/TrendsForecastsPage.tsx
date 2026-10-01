@@ -2,7 +2,7 @@ import { CashFlowForecast } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { rollingAvgCaption } from '@/lib/chartUtils'
 
 import MonthlyBreakdownTable from './components/MonthlyBreakdownTable'
@@ -33,12 +33,13 @@ export default function TrendsForecastsPage() {
       <PageHeader
         title={PAGE_TITLE}
         subtitle={PAGE_SUBTITLE}
-        action={
-          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
-            <AnalyticsTimeFilter {...trends.timeFilterProps} />
-          </div>
-        }
       />
+
+      <StickyToolbar label="Time range">
+        <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+          <AnalyticsTimeFilter {...trends.timeFilterProps} />
+        </div>
+      </StickyToolbar>
 
       {trends.partialMonth && (
         <PartialPeriodNotice

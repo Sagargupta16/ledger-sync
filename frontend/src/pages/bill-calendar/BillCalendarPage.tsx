@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 
 import PageErrorState from '@/components/shared/PageErrorState'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import BillCalendarGrid from './components/BillCalendarGrid'
+import BillMonthNavigator from './components/BillMonthNavigator'
 import BillSummaryGrid from './components/BillSummaryGrid'
 import SelectedDayPanel from './components/SelectedDayPanel'
 import { useBillCalendar } from './useBillCalendar'
@@ -28,6 +29,16 @@ export default function BillCalendarPage() {
   return (
     <PageContainer className="md:space-y-6">
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
+      <StickyToolbar label="Calendar month">
+        <BillMonthNavigator
+          viewYear={calendar.viewYear}
+          viewMonth={calendar.viewMonth}
+          isCurrentViewToday={calendar.isCurrentViewToday}
+          onPreviousMonth={calendar.goToPrevMonth}
+          onNextMonth={calendar.goToNextMonth}
+          onToday={calendar.goToToday}
+        />
+      </StickyToolbar>
       <BillSummaryGrid summary={calendar.summary} isLoading={calendar.isLoading} />
       {calendar.unscheduledBills.length > 0 && (
         <p className="text-sm text-muted-foreground">
@@ -49,9 +60,6 @@ export default function BillCalendarPage() {
         isLoading={calendar.isLoading}
         hasAnyData={calendar.hasAnyData}
         isCurrentViewToday={calendar.isCurrentViewToday}
-        onPreviousMonth={calendar.goToPrevMonth}
-        onNextMonth={calendar.goToNextMonth}
-        onToday={calendar.goToToday}
         onSelectDay={calendar.setSelectedDay}
       />
       <SelectedDayPanel

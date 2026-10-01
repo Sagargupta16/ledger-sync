@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 
 import {
@@ -49,5 +49,10 @@ export function useTransactionPage(filters: PageFilters) {
       return transactionsService.getTransactionsPaginated(filters, signal)
     },
     staleTime: Infinity,
+    // A new filter/sort/page key keeps the previous rows on screen until it
+    // resolves. Without this the page fell back to its full-page skeleton on
+    // every filter change, remounting the pinned filter bar and dropping the
+    // user's scroll position.
+    placeholderData: keepPreviousData,
   })
 }

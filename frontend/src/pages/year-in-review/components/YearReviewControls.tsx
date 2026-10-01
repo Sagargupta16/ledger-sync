@@ -47,21 +47,24 @@ export default function YearReviewControls({
   review,
 }: YearReviewControlsProps) {
   return (
-    <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
-      <AnalyticsTimeFilter
-        viewMode={review.viewMode}
-        onViewModeChange={review.setViewMode}
-        currentYear={review.currentYear}
-        currentMonth={review.currentMonth}
-        currentFY={review.currentFY}
-        onYearChange={review.setCurrentYear}
-        onMonthChange={review.setCurrentMonth}
-        onFYChange={review.setCurrentFY}
-        minDate={review.dataDateRange.minDate}
-        maxDate={review.dataDateRange.maxDate}
-        fiscalYearStartMonth={review.fiscalYearStartMonth}
-        availableModes={['yearly', 'fy']}
-      />
+    <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3">
+      {/* Full row on phone so the period arrows and the two modes share it. */}
+      <div className="w-full sm:w-auto">
+        <AnalyticsTimeFilter
+          viewMode={review.viewMode}
+          onViewModeChange={review.setViewMode}
+          currentYear={review.currentYear}
+          currentMonth={review.currentMonth}
+          currentFY={review.currentFY}
+          onYearChange={review.setCurrentYear}
+          onMonthChange={review.setCurrentMonth}
+          onFYChange={review.setCurrentFY}
+          minDate={review.dataDateRange.minDate}
+          maxDate={review.dataDateRange.maxDate}
+          fiscalYearStartMonth={review.fiscalYearStartMonth}
+          availableModes={['yearly', 'fy']}
+        />
+      </div>
 
       <div
         className="flex w-full items-center gap-1 rounded-lg border border-[var(--hairline-1)] bg-[var(--overlay-2)] p-1 sm:w-auto"

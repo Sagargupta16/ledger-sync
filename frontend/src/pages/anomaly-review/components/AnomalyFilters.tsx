@@ -40,10 +40,12 @@ export default function AnomalyFilters({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="ledger-panel p-4"
+      className="ledger-panel p-3 sm:p-4"
     >
-      <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-        <div className="w-full sm:w-56">
+      {/* Type and severity share a row on a phone, so the pinned filter bar
+          stays two rows tall. */}
+      <div className="grid grid-cols-2 items-center gap-x-3 gap-y-1 sm:flex sm:flex-wrap sm:gap-4">
+        <div className="min-w-0 sm:w-56">
           <Select
             value={typeFilter}
             onChange={(event) => onTypeFilterChange(event.target.value)}
@@ -51,7 +53,7 @@ export default function AnomalyFilters({
             options={[...ANOMALY_TYPE_FILTER_OPTIONS]}
           />
         </div>
-        <div className="w-full sm:w-48">
+        <div className="min-w-0 sm:w-48">
           <Select
             value={severityFilter}
             onChange={(event) => onSeverityFilterChange(event.target.value)}
@@ -59,7 +61,7 @@ export default function AnomalyFilters({
             options={SEVERITY_OPTIONS}
           />
         </div>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground lg:pointer-fine:min-h-8">
+        <label className="col-span-2 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground lg:pointer-fine:min-h-8">
           <input
             type="checkbox"
             checked={includeReviewed}

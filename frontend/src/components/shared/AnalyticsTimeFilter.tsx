@@ -180,10 +180,13 @@ export default function AnalyticsTimeFilter({
   const showNavigation = viewMode !== 'all_time'
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    // Wraps instead of stacking: on a phone both groups share one row when they
+    // fit (a two-mode filter does) and each grows to a full row when they do
+    // not, which keeps the sticky toolbar this lives in as short as possible.
+    <div className="flex min-w-0 max-w-full flex-wrap items-stretch gap-2 sm:items-center sm:gap-3">
       {/* Period Navigation -- LEFT of the mode selector */}
       {showNavigation && (
-        <div className="ledger-control flex w-full min-w-0 max-w-full items-center gap-1 rounded-lg border p-1 sm:w-auto">
+        <div className="ledger-control flex min-w-0 max-w-full grow items-center gap-1 rounded-lg border p-1 sm:grow-0">
           <motion.button
             type="button"
             onClick={handlePrevious}
@@ -228,9 +231,9 @@ export default function AnalyticsTimeFilter({
         </div>
       )}
 
-      {/* View Mode Selector. Full-width on phone with wrapping options;
-          auto-width inline control from sm+. */}
-      <div className="ledger-control flex w-full min-w-0 max-w-full flex-wrap gap-1 rounded-lg border p-1 sm:w-auto" role="tablist" aria-label="Time range">
+      {/* View Mode Selector. Grows to fill its row on phone with wrapping
+          options; auto-width inline control from sm+. */}
+      <div className="ledger-control flex min-w-0 max-w-full grow flex-wrap gap-1 rounded-lg border p-1 sm:grow-0" role="tablist" aria-label="Time range">
         {filteredViewModes.map((mode) => (
           <motion.button
             key={mode.value}

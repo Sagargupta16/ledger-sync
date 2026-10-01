@@ -15,7 +15,7 @@ import PageErrorState from '@/components/shared/PageErrorState'
 import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
 import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
-import { Button, PageContainer, PageHeader } from '@/components/ui'
+import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
@@ -205,16 +205,17 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle="Monitor cash flow, financial health, and account activity."
-        action={
-          <AnalyticsTimeFilter
-            viewMode={viewMode} onViewModeChange={setViewMode}
-            currentYear={currentYear} currentMonth={currentMonth} currentFY={currentFY}
-            onYearChange={setCurrentYear} onMonthChange={setCurrentMonth} onFYChange={setCurrentFY}
-            minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
-            fiscalYearStartMonth={fiscalYearStartMonth}
-          />
-        }
       />
+
+      <StickyToolbar label="Time range">
+        <AnalyticsTimeFilter
+          viewMode={viewMode} onViewModeChange={setViewMode}
+          currentYear={currentYear} currentMonth={currentMonth} currentFY={currentFY}
+          onYearChange={setCurrentYear} onMonthChange={setCurrentMonth} onFYChange={setCurrentFY}
+          minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
+          fiscalYearStartMonth={fiscalYearStartMonth}
+        />
+      </StickyToolbar>
 
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-[var(--hairline-1)] pb-4">
         <p className="text-xs leading-5 text-muted-foreground">
