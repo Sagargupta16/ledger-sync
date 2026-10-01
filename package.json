@@ -1,6 +1,6 @@
 {
   "name": "ledger-sync",
-  "version": "2.26.0",
+  "version": "2.27.0",
   "packageManager": "pnpm@11.25.0",
   "description": "Personal finance dashboard -- import bank statements, track spending, and view analytics in any currency",
   "scripts": {
