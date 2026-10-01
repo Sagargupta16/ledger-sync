@@ -30,21 +30,9 @@ export type AccountTypeValue = (typeof ACCOUNT_TYPE_VALUES)[number]
  */
 export const UNCLASSIFIED_ACCOUNT_TYPE = 'Other'
 
-export interface AccountClassification {
-  account_name: string
-  account_type: AccountTypeValue | typeof UNCLASSIFIED_ACCOUNT_TYPE
-}
-
 export const accountClassificationsService = {
   getAllClassifications: async (): Promise<Record<string, string>> => {
     const response = await apiClient.get<Record<string, string>>('/api/account-classifications')
-    return response.data
-  },
-
-  getClassification: async (accountName: string): Promise<AccountClassification> => {
-    const response = await apiClient.get<AccountClassification>(
-      `/api/account-classifications/${encodeURIComponent(accountName)}`
-    )
     return response.data
   },
 
@@ -54,13 +42,6 @@ export const accountClassificationsService = {
   ): Promise<{ status: string; message?: string }> => {
     const response = await apiClient.post<{ status: string; message?: string }>(
       `/api/account-classifications?account_name=${encodeURIComponent(accountName)}&account_type=${encodeURIComponent(accountType)}`
-    )
-    return response.data
-  },
-
-  deleteClassification: async (accountName: string): Promise<{ status: string }> => {
-    const response = await apiClient.delete<{ status: string }>(
-      `/api/account-classifications/${encodeURIComponent(accountName)}`
     )
     return response.data
   },

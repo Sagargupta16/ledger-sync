@@ -241,17 +241,62 @@ describe('buildOverviewView', () => {
     const taxIndex = names.indexOf('Tax')
     expect(view.links.find((l) => l.target === taxIndex)?.value).toBe(14000)
   })
+
+  it('routes classified realised losses to their own branch so outflows reconcile', () => {
+    // 100k income, 30k spending, 5k tax, 20k classified loss: savings are
+    // 45k, and without the loss branch the outflows would stop at 80k.
+    const view = buildOverviewView({
+      incomeEntries: [{ name: 'Salary', amount: 100000 }],
+      expenseEntries: [{ name: 'Family', amount: 30000 }],
+      totalIncome: 100000,
+      totalExpense: 30000,
+      netSavings: 45000,
+      totalTax: 5000,
+      capitalLosses: 20000,
+    })
+    const names = view.nodes.map((n) => n.name)
+    const totalIncomeIndex = names.indexOf('Total Income')
+    const lossesIndex = names.indexOf('Realised losses')
+    expect(lossesIndex).toBeGreaterThan(-1)
+    expect(view.meta[lossesIndex].value).toBe(20000)
+    const outflows = view.links.filter((l) => l.source === totalIncomeIndex)
+    expect(outflows.find((l) => l.target === lossesIndex)?.value).toBe(20000)
+    expect(outflows.reduce((s, l) => s + l.value, 0)).toBe(100000)
+
+    const noLosses = buildOverviewView({
+      incomeEntries: [{ name: 'Salary', amount: 100000 }],
+      expenseEntries: [{ name: 'Family', amount: 30000 }],
+      totalIncome: 100000,
+      totalExpense: 30000,
+      netSavings: 70000,
+    })
+    expect(noLosses.nodes.some((n) => n.name === 'Realised losses')).toBe(false)
+  })
 })
 
 describe('isTaxCategory', () => {
-  it('matches tax-like category names, not lookalikes', () => {
-    expect(isTaxCategory('Tax')).toBe(true)
+  it('matches the shared tax-paid categories, not lookalikes', () => {
     expect(isTaxCategory('Taxes')).toBe(true)
     expect(isTaxCategory('Income Tax')).toBe(true)
     expect(isTaxCategory('TDS')).toBe(true)
     expect(isTaxCategory('Advance Tax')).toBe(true)
+    expect(isTaxCategory('Self-Assessment Tax')).toBe(true)
+    expect(isTaxCategory('Professional Tax')).toBe(true)
+    expect(isTaxCategory('Tax Paid')).toBe(true)
     expect(isTaxCategory('Taxi')).toBe(false)
     expect(isTaxCategory('Transportation')).toBe(false)
+  })
+
+  it('keeps a bare tax word as a living cost (shared rule, 2026-09-30)', () => {
+    // Property and road tax are municipal/vehicle costs, not income tax paid.
+    expect(isTaxCategory('Tax')).toBe(false)
+    expect(isTaxCategory('Property Tax')).toBe(false)
+    expect(isTaxCategory('Road Tax')).toBe(false)
+  })
+
+  it('reads the subcategory too, like the backend tax-paid rule', () => {
+    expect(isTaxCategory('Government', 'TDS')).toBe(true)
+    expect(isTaxCategory('Government', 'Property Tax')).toBe(false)
   })
 })
 

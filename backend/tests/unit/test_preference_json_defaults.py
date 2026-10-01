@@ -535,3 +535,58 @@ def test_monthly_summary_splits_needs_from_wants_for_a_new_user(
     assert float(row.total_expenses) == pytest.approx(3000.0)
     assert float(row.essential_expenses) == pytest.approx(2000.0)
     assert float(row.discretionary_expenses) == pytest.approx(1000.0)
+
+
+def test_monthly_essential_split_uses_the_budgets_needs_rule(
+    test_db_session: Session,
+    test_user: User,
+) -> None:
+    """One Needs definition for the rollup and the /budgets 50/30/20 endpoint.
+
+    The rollup used to test ``category in essential_categories`` -- exact and
+    case-sensitive, with the user's list REPLACING the defaults -- so a user who
+    listed only "Pets" saw Housing and "Education & Learning" as discretionary
+    here while /budgets counted both as Needs. Now: defaults plus the user's list,
+    word-boundary on category or subcategory, case-insensitive.
+    """
+    _prefs(test_db_session, test_user, essential_categories=json.dumps(["Pets"]))
+    test_db_session.add_all(
+        [
+            _expense(test_user.id, "rent", "Housing", "2000"),
+            _expense(test_user.id, "course", "Education & Learning", "700"),
+            _expense(test_user.id, "vet", "PETS", "300"),
+            _expense(test_user.id, "shopping", "Shopping", "1000"),
+        ],
+    )
+    test_db_session.commit()
+
+    engine = AnalyticsEngine(test_db_session, user_id=test_user.id)
+    engine._calculate_monthly_summaries()
+    test_db_session.commit()
+
+    row = test_db_session.query(MonthlySummary).filter_by(user_id=test_user.id).one()
+    assert float(row.essential_expenses) == pytest.approx(3000.0)
+    assert float(row.discretionary_expenses) == pytest.approx(1000.0)
+
+
+@pytest.mark.parametrize(
+    ("start_month", "when", "label"),
+    [
+        (1, datetime(2024, 12, 31, tzinfo=UTC), "FY2024"),
+        (1, datetime(2025, 1, 1, tzinfo=UTC), "FY2025"),
+        (4, datetime(2025, 3, 31, tzinfo=UTC), "FY2024-25"),
+        (4, datetime(2025, 4, 1, tzinfo=UTC), "FY2025-26"),
+        (7, datetime(2025, 6, 30, tzinfo=UTC), "FY2024-25"),
+    ],
+)
+def test_fiscal_year_label_is_one_year_for_a_calendar_fy_else_two(
+    test_db_session: Session,
+    test_user: User,
+    start_month: int,
+    when: datetime,
+    label: str,
+) -> None:
+    """The canonical FY label the frontend matches."""
+    _prefs(test_db_session, test_user, fiscal_year_start_month=start_month)
+
+    assert _engine(test_db_session, test_user)._get_fiscal_year(when)[0] == label

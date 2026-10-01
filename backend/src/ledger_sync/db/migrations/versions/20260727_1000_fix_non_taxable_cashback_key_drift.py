@@ -13,9 +13,11 @@ category names real exports carry: the stored keys said "Refund & Cashbacks"
 (SINGULAR) and "Deposits Return", while the data carries "Refunds & Cashbacks"
 and "Deposit Return". Both stored keys match 0 rows.
 
-The money-affecting consumer is ``api/calculations_helpers.py::
-_compute_income_analysis``, which sums income rows whose Category::Subcategory
-appears in the list the client forwards as ``cashback_categories`` -- so the
+The money-affecting consumer was ``api/calculations_helpers.py::
+_compute_income_analysis`` (since replaced by ``services/calculation_service.py::
+income_analysis``, whose ``non_taxable_total`` keeps this sum), which summed
+income rows whose Category::Subcategory appeared in the list the client
+forwards as ``cashback_categories`` -- so the
 whole cashback/refund block summed to 0 in the income-analysis response and in
 the dashboard cashback KPI. It does NOT change the tax base: nothing in
 ``ClassificationMixin`` reads this column (only ``taxable_income_categories``

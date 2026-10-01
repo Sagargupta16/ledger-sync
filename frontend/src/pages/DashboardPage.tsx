@@ -1,6 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
 import { Wallet, CreditCard, Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import InvestmentFlowSummary from '@/components/analytics/InvestmentFlowSummary'
@@ -19,6 +18,8 @@ import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
 import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
+import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
+import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import {
   computeAgeOfMoney,
   computeDaysOfBuffering,
@@ -26,7 +27,6 @@ import {
   spendableAccountTest,
 } from '@/lib/ageOfMoneyCalculator'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
 
 // Dashboard is an eager route, so anything it imports statically is
 // modulepreloaded on every entry, including the anonymous Home page. The chart
@@ -99,12 +99,9 @@ export default function DashboardPage() {
   // Commitments only, confirmed OR detected. Requiring is_confirmed read 0 --
   // nothing in the product sets that flag, so a ledger full of real rent
   // reported no fixed costs. Habit rows (the daily lunch) are excluded because
-  // they repeat without being owed.
-  const recurringQuery = useRecurringTransactions({
-    active_only: true,
-    min_confidence: 0,
-    pattern_kind: 'commitment',
-  })
+  // they repeat without being owed. The shared params object keeps this on the
+  // same cache entry as every other "active commitments" reader.
+  const recurringQuery = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
   const recurringItems = useMemo(() => recurringQuery.data ?? [], [recurringQuery.data])
   const fixedCommitments = useMemo(
     () => recurringItems.filter((r) => r.type === 'Expense'),
@@ -125,11 +122,11 @@ export default function DashboardPage() {
   // Summing a bare total here instead re-inflated the runway to 150 days.
   const balanceQuery = useAccountBalances()
   const balanceData = balanceQuery.data
-  const classificationsQuery = useQuery({
-    queryKey: ['account-classifications'],
-    queryFn: () => accountClassificationsService.getAllClassifications(),
-    staleTime: Infinity,
-  })
+  // The shared hook, not an inline `['account-classifications']` query: the
+  // inline key cached the same map a second time beside the hook's
+  // `['account-classifications', 'all']` entry, so a classification change
+  // could refresh one copy and leave this page reading the other.
+  const classificationsQuery = useAccountClassifications()
   const accountClassifications = classificationsQuery.data
   // Age of Money. With the classifications already loaded above, only transfers
   // that cross the spendable-cash boundary move money in or out of the FIFO
@@ -357,9 +354,13 @@ export default function DashboardPage() {
                       <span className="text-sm font-medium">Total</span>
                       <span className="text-sm font-bold text-app-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
                     </div>
+                    {/* Same figure and label as the band's "Net Cashback Earned"
+                        card: cashback rows minus cashback shared on. It used to
+                        read "Cashbacks Earned" over the whole non-taxable list,
+                        product refunds and reimbursements included. */}
                     {cashbacksTotal > 0 && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-app-teal">Cashbacks Earned</span>
+                        <span className="text-app-teal">Net Cashback Earned</span>
                         <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
                       </div>
                     )}

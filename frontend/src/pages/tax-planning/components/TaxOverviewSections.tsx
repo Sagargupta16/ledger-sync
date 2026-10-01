@@ -78,6 +78,7 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
             grossTaxableIncome={planning.display.gross}
             standardDeduction={planning.standardDeduction}
             fyYear={planning.fyYear}
+            fiscalYearStartMonth={planning.fiscalYearStartMonth}
             baseTax={planning.display.baseTax}
             rebate87A={planning.display.rebate87A}
             surcharge={planning.display.surcharge}
@@ -114,6 +115,7 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
         taxSlabs={planning.taxSlabs}
         isNewRegime={planning.isNewRegime}
         fyYear={planning.fyYear}
+        fiscalYearStartMonth={planning.fiscalYearStartMonth}
         currentIncome={planning.display.gross}
         currentTax={planning.display.totalTax}
         hasEmploymentIncome={planning.hasEmploymentIncome}

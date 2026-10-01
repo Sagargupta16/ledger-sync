@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, TrendingUp } from 'lucide-react'
 
 import { ProgressBar } from '@/components/shared'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 const SAVINGS_RATE_BENCHMARK = 20
@@ -59,7 +59,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           {formatCurrency(Math.abs(netSavings))}
         </p>
         <p className={`mt-2 text-xs ${netSavings < 0 ? 'font-medium text-expense' : 'text-muted-foreground'}`}>
-          {netSavings < 0 ? 'Deficit' : 'After expenses and recorded tax'}
+          {netSavings < 0 ? 'Deficit' : 'After expenses, recorded tax and classified losses'}
         </p>
       </div>
 
@@ -82,7 +82,7 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
           value={Math.max(savingsRate, 0)}
           target={SAVINGS_RATE_BENCHMARK}
           color={
-            savingsRate >= SAVINGS_RATE_BENCHMARK ? rawColors.app.green : rawColors.app.yellow
+            savingsRate >= SAVINGS_RATE_BENCHMARK ? colors.app.green : colors.app.yellow
           }
           height={4}
           className="mt-3"

@@ -7,10 +7,16 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, case, func
+from sqlalchemy import ColumnElement, and_, case, func
 from sqlalchemy.orm import Query, Session
 
-from ledger_sync.core.query_helpers import build_transaction_query, fmt_date, fmt_year_month
+from ledger_sync.core.expense_class import capital_loss_sql_filter
+from ledger_sync.core.query_helpers import (
+    build_transaction_query,
+    capital_loss_keys_for,
+    fmt_date,
+    fmt_year_month,
+)
 from ledger_sync.db.models import Transaction, TransactionType, User
 
 MAX_HISTORY_MONTHS = 120
@@ -19,6 +25,20 @@ UNKNOWN_ACCOUNT = "Unknown"
 
 #: ``abs(amount)`` typed as the amount column so both dialects return Decimal.
 _MAGNITUDE = func.abs(Transaction.amount, type_=Transaction.amount.type)
+
+#: THE cashback rule, shared by Quick Insights and Income Analysis: an income
+#: row whose subcategory says cashback. Refunds, deposit returns and expense
+#: reimbursements are money coming back, not a reward, so they are not cashback
+#: even though they sit in the same non-taxable bucket.
+_IS_CASHBACK = func.lower(func.coalesce(Transaction.subcategory, "")).like("%cashback%")
+
+
+def _is_shared_cashback() -> ColumnElement[bool]:
+    """A transfer passing cashback on to someone else; it nets off the cashback."""
+    return and_(
+        Transaction.type == TransactionType.TRANSFER,
+        func.lower(func.coalesce(Transaction.to_account, "")).like("%cashback shared%"),
+    )
 
 
 def _amount_sum(expression: Any) -> Any:
@@ -93,14 +113,20 @@ def income_analysis(
 ) -> dict[str, Any]:
     """Aggregate income before transfer; retain the existing response calculations.
 
+    ``cashbacks_total`` is THE cashback figure Quick Insights reports: income
+    rows whose subcategory says cashback, minus "cashback shared" transfers, in
+    the same window and category filter. It used to be the sum of the whole
+    client-sent non-taxable list, so refunds, deposit returns and expense
+    reimbursements were shown as "Cashbacks Earned". That broader sum is kept,
+    under its honest name, as the additive ``non_taxable_total``.
+
     Group by the original category/subcategory strings so Python's exact
-    case-insensitive cashback matching remains consistent across SQL dialects.
+    case-insensitive non-taxable matching remains consistent across SQL dialects.
     """
-    query = build_transaction_query(db, user, start_date, end_date).filter(
-        Transaction.type == TransactionType.INCOME
-    )
+    base = build_transaction_query(db, user, start_date, end_date)
     if category:
-        query = query.filter(Transaction.category == category)
+        base = base.filter(Transaction.category == category)
+    query = base.filter(Transaction.type == TransactionType.INCOME)
     month = fmt_year_month(Transaction.date)
     rows = (
         query.with_entities(
@@ -116,13 +142,23 @@ def income_analysis(
     by_category: dict[str, Decimal] = defaultdict(Decimal)
     by_month: dict[str, Decimal] = defaultdict(Decimal)
     total = Decimal(0)
-    cashbacks = Decimal(0)
+    non_taxable = Decimal(0)
     for cat, subcat, month_key, amount in rows:
         total += amount
         by_category[cat or "Other Income"] += amount
         by_month[month_key] += amount
         if f"{cat or ''}::{subcat or ''}".lower() in wanted:
-            cashbacks += amount
+            non_taxable += amount
+    cashback_income, shared = base.with_entities(
+        _amount_sum(
+            case(
+                (and_(Transaction.type == TransactionType.INCOME, _IS_CASHBACK), _MAGNITUDE),
+                else_=0,
+            )
+        ),
+        _amount_sum(case((_is_shared_cashback(), _MAGNITUDE), else_=0)),
+    ).one()
+    cashbacks = (cashback_income or Decimal(0)) - (shared or Decimal(0))
 
     monthly_data: list[dict[str, Any]] = []
     sorted_months = [(key, float(amount)) for key, amount in sorted(by_month.items())]
@@ -145,6 +181,7 @@ def income_analysis(
         "category_breakdown": {key: float(amount) for key, amount in by_category.items()},
         "monthly_data": monthly_data,
         "cashbacks_total": float(cashbacks),
+        "non_taxable_total": float(non_taxable),
         "peak_income": max((amount for _, amount in sorted_months), default=0.0),
         "growth_rate": growth,
     }
@@ -255,7 +292,6 @@ def _expense_days(expenses: Query[Transaction]) -> dict[str, Any]:
 
 def _income_sources(base: Query[Transaction]) -> dict[str, Any]:
     """Income by category plus the substring-matched cashback total and count."""
-    is_cashback = func.lower(func.coalesce(Transaction.subcategory, "")).like("%cashback%")
     by_category: dict[str, Decimal] = defaultdict(Decimal)
     cashback = Decimal(0)
     cashback_count = 0
@@ -264,8 +300,8 @@ def _income_sources(base: Query[Transaction]) -> dict[str, Any]:
         .with_entities(
             Transaction.category,
             _amount_sum(_MAGNITUDE),
-            _amount_sum(case((is_cashback, _MAGNITUDE), else_=0)),
-            func.sum(case((is_cashback, 1), else_=0)),
+            _amount_sum(case((_IS_CASHBACK, _MAGNITUDE), else_=0)),
+            func.sum(case((_IS_CASHBACK, 1), else_=0)),
         )
         .group_by(Transaction.category)
         .order_by(Transaction.category)
@@ -281,6 +317,17 @@ def _top(totals: dict[str, Decimal]) -> tuple[str, Decimal] | None:
     return max(totals.items(), key=lambda kv: kv[1]) if totals else None
 
 
+def _biggest_expense(expenses: Query[Transaction]) -> dict[str, Any]:
+    """The single largest expense's magnitude and category, zero and blank when none."""
+    biggest = (
+        expenses.with_entities(_MAGNITUDE, Transaction.category).order_by(_MAGNITUDE.desc()).first()
+    )
+    return {
+        "amount": float(biggest[0]) if biggest else 0.0,
+        "category": (biggest[1] or "") if biggest else "",
+    }
+
+
 def quick_insights(
     db: Session,
     user: User,
@@ -289,17 +336,19 @@ def quick_insights(
 ) -> dict[str, Any]:
     """Dashboard Quick Insights from SQL aggregates, without loading the ledger.
 
-    Same response as ``calculations_helpers._compute_quick_insights`` (the
-    client-parity reference): cashback is an Income subcategory SUBSTRING match
-    minus transfers whose ``to_account`` contains "cashback shared". A sum over
-    no rows stays the integer 0 there, so it stays 0 here.
+    Same response shape as the client-side ``quickInsightsData.ts``: cashback is
+    an Income subcategory SUBSTRING match minus transfers whose ``to_account``
+    contains "cashback shared". A sum over no rows stays the integer 0.
+
+    Every spending figure -- total, count, average, median, biggest, weekend and
+    weekday split, peak weekday and most expensive month -- skips the rows the
+    user classified as realised capital losses, the same rule ``/totals``
+    applies, so the Dashboard band and the totals card agree. A loss bought
+    nothing; counting it made a trading loss the "biggest expense".
     """
     base = build_transaction_query(db, user, start_date, end_date)
     is_transfer = Transaction.type == TransactionType.TRANSFER
-    shared = and_(
-        is_transfer,
-        func.lower(func.coalesce(Transaction.to_account, "")).like("%cashback shared%"),
-    )
+    shared = _is_shared_cashback()
     min_date, max_date, transfer_total, transfer_count, shared_total, shared_count = (
         base.with_entities(
             func.min(Transaction.date),
@@ -312,6 +361,9 @@ def quick_insights(
     )
     transfer_count = int(transfer_count or 0)
     expenses = base.filter(Transaction.type == TransactionType.EXPENSE)
+    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
+    if not_a_loss is not None:
+        expenses = expenses.filter(not_a_loss)
     days = _expense_days(expenses)
     income = _income_sources(base)
     count: int = days["count"]
@@ -319,9 +371,6 @@ def quick_insights(
     total_spending = float(days["total"]) if count else 0
     weekend = by_weekday[0] + by_weekday[6]
     peak_day = max(by_weekday, key=lambda d: by_weekday[d]) if count else 0
-    biggest = (
-        expenses.with_entities(_MAGNITUDE, Transaction.category).order_by(_MAGNITUDE.desc()).first()
-    )
     has_cashback = income["cashback_count"] or shared_count
     net_cashback = float(income["cashback"] - (shared_total or Decimal(0))) if has_cashback else 0
     top_income = _top(income["by_category"])
@@ -332,10 +381,7 @@ def quick_insights(
         "net_cashback": net_cashback,
         "cashback_count": income["cashback_count"],
         "median_expense": _median_expense(expenses, count),
-        "biggest_expense": {
-            "amount": float(biggest[0]) if biggest else 0.0,
-            "category": (biggest[1] or "") if biggest else "",
-        },
+        "biggest_expense": _biggest_expense(expenses),
         "avg_expense": (total_spending / count) if count else 0.0,
         "total_spending": total_spending,
         "expense_count": count,

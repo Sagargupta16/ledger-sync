@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 import { Money } from '@/components/ui'
-import { formatPercent } from '@/lib/formatters'
+import { formatDate, formatPercent } from '@/lib/formatters'
 import type { Transaction } from '@/types'
 
 interface IncomeGroup {
@@ -139,7 +139,7 @@ export default function TaxableIncomeTable({
                               scope="row"
                               className="py-3 pl-10 pr-4 text-left font-normal text-foreground whitespace-nowrap"
                             >
-                              {new Date(tx.date).toLocaleDateString()}
+                              {formatDate(tx.date)}
                               {(tx.type || tx.note) && (
                                 <span className="sm:hidden block max-w-[12rem] whitespace-normal break-words text-xs text-muted-foreground">
                                   {[tx.type, tx.note].filter(Boolean).join(' / ')}

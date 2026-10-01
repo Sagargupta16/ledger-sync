@@ -16,6 +16,13 @@ interface IncomeMetricGridProps {
   readonly cashbackShare: number
 }
 
+// Theme-reactive classes for the DOM value; the Sparkline (SVG) keeps rawColors.
+const GROWTH_TEXT_CLASS = {
+  green: 'text-app-green',
+  red: 'text-app-red',
+  blue: 'text-app-blue',
+} as const
+
 export default function IncomeMetricGrid({
   totalIncome,
   primaryIncomeType,
@@ -53,10 +60,7 @@ export default function IncomeMetricGrid({
       </div>
       <div className="min-w-0">
         <dt className="text-xs font-medium text-muted-foreground">Growth Rate</dt>
-        <dd
-          className="mt-2 font-mono text-xl font-semibold tabular-nums"
-          style={{ color: rawColors.app[growthColor] }}
-        >
+        <dd className={`mt-2 font-mono text-xl font-semibold tabular-nums ${GROWTH_TEXT_CLASS[growthColor]}`}>
           {growthRate === undefined ? '--' : formatPercent(growthRate, true)}
         </dd>
         <dd className="mt-2 text-xs text-muted-foreground">

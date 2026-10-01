@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Query
 from pydantic import BaseModel
 from sqlalchemy import exists, literal, or_
+from sqlalchemy.orm import InstrumentedAttribute, Session
 from sqlalchemy.orm import Query as SAQuery
-from sqlalchemy.orm import Session
 
 from ledger_sync.api.transaction_pagination import cursor_context
 from ledger_sync.core.query_helpers import (
@@ -149,6 +149,23 @@ def _apply_field_filters(
     return tx_query
 
 
+_SORT_COLUMNS: dict[str, InstrumentedAttribute[Any]] = {
+    "date": Transaction.date,
+    "amount": Transaction.amount,
+    "category": Transaction.category,
+    "account": Transaction.account,
+}
+
+
+def sort_column_for(sort_by: str) -> InstrumentedAttribute[Any]:
+    """The column ``_apply_sorting`` orders by for *sort_by* (date by default).
+
+    Every sort is tie-broken by ``transaction_id``, so ``(column, id)`` is a
+    total order that keyset pagination can resume from.
+    """
+    return _SORT_COLUMNS.get(sort_by, Transaction.date)
+
+
 def _apply_sorting(
     tx_query: TxQuery,
     sort_by: str,
@@ -165,13 +182,7 @@ def _apply_sorting(
         Sorted SQLAlchemy query
 
     """
-    sort_column_map = {
-        "date": Transaction.date,
-        "amount": Transaction.amount,
-        "category": Transaction.category,
-        "account": Transaction.account,
-    }
-    sort_column = sort_column_map.get(sort_by, Transaction.date)
+    sort_column = sort_column_for(sort_by)
     if sort_order == "desc":
         return tx_query.order_by(sort_column.desc(), Transaction.transaction_id.desc())
     return tx_query.order_by(sort_column.asc(), Transaction.transaction_id.asc())

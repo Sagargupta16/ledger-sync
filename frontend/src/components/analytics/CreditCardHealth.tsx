@@ -6,9 +6,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import ProgressBar from '@/components/shared/ProgressBar'
 import { Money } from '@/components/ui'
-import { hexToRgba, rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { ROUTES } from '@/constants'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import type { AccountTypeValue } from '@/services/api/accountClassifications'
@@ -41,10 +42,10 @@ const UTILIZATION_TARGET = 30
 // blue 30-50, yellow 50-75, red > 75) so a bar reads "where do I sit" even
 // before the fill is interpreted. Tokens only, never raw hex.
 const UTILIZATION_BANDS = [
-  { upTo: 30, color: hexToRgba(rawColors.app.green, 0.18) },
-  { upTo: 50, color: hexToRgba(rawColors.app.blue, 0.18) },
-  { upTo: 75, color: hexToRgba(rawColors.app.yellow, 0.18) },
-  { upTo: 100, color: hexToRgba(rawColors.app.red, 0.18) },
+  { upTo: 30, color: 'color-mix(in srgb, var(--color-app-green) 18%, transparent)' },
+  { upTo: 50, color: 'color-mix(in srgb, var(--color-app-blue) 18%, transparent)' },
+  { upTo: 75, color: 'color-mix(in srgb, var(--color-app-yellow) 18%, transparent)' },
+  { upTo: 100, color: 'color-mix(in srgb, var(--color-app-red) 18%, transparent)' },
 ] as const
 
 const STATUS_CLASS: Record<CreditCardAccount['status'], string> = {
@@ -56,10 +57,10 @@ const STATUS_CLASS: Record<CreditCardAccount['status'], string> = {
 }
 
 const UTILIZATION_FILL: Record<CreditCardUtilizationStatus, string> = {
-  low: rawColors.app.green,
-  medium: rawColors.app.blue,
-  high: rawColors.app.yellow,
-  critical: rawColors.app.red,
+  low: colors.app.green,
+  medium: colors.app.blue,
+  high: colors.app.yellow,
+  critical: colors.app.red,
 }
 
 const UTILIZATION_LEGEND = [
@@ -221,20 +222,25 @@ function CardRow({ card }: Readonly<{ card: CreditCardAccount }>) {
 }
 
 export default function CreditCardHealth() {
-  const { data: balanceData, isLoading: isBalanceLoading } = useAccountBalances()
+  const balancesQuery = useAccountBalances()
+  const { data: balanceData, isLoading: isBalanceLoading } = balancesQuery
   const creditCardLimits = usePreferencesStore(selectCreditCardLimits)
 
   // Primary classification source: user-maintained account types from
   // Settings -> Accounts. Previously this component only looked for the
   // literal word "credit" in the account name -- cards named "HDFC Millennia"
   // or "Amazon Pay Card" were silently dropped.
-  const { data: classifications, isLoading: isClassifyLoading } = useQuery({
+  const classificationsQuery = useQuery({
     queryKey: ['account-classifications'],
     queryFn: () => accountClassificationsService.getAllClassifications(),
     staleTime: Infinity,
   })
+  const { data: classifications, isLoading: isClassifyLoading } = classificationsQuery
 
   const isLoading = isBalanceLoading || isClassifyLoading
+  // A failed classification read would silently fall back to the name match
+  // and drop user-classified cards, so it is an error here too, not a subset.
+  const isError = balancesQuery.isError || classificationsQuery.isError
 
   const creditCards = useMemo((): CreditCardAccount[] => {
     if (!balanceData?.accounts) return []
@@ -287,6 +293,21 @@ export default function CreditCardHealth() {
           ))}
         </div>
       </div>
+    )
+  }
+
+  if (isError) {
+    const retryCreditCards = () => {
+      if (balancesQuery.isError) void balancesQuery.refetch()
+      if (classificationsQuery.isError) void classificationsQuery.refetch()
+    }
+    return (
+      <ErrorState
+        variant="card"
+        title="Unable to load credit card health"
+        message="Your card balances or account types couldn't be loaded. Try again to see utilization."
+        onRetry={retryCreditCards}
+      />
     )
   }
 

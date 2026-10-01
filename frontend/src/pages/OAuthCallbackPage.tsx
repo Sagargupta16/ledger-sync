@@ -11,7 +11,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import * as authApi from '@/services/api/auth'
@@ -19,13 +18,13 @@ import { prefetchCoreData } from '@/lib/prefetch'
 import { ROUTES } from '@/constants'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { AuthModal } from '@/components/shared/AuthModal'
-import { Button } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
 
 export default function OAuthCallbackPage() {
   const { provider } = useParams<{ provider: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const login = useAuthStore((state) => state.login)
   const processedRef = useRef(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showSignIn, setShowSignIn] = useState(false)
@@ -117,12 +116,10 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="min-h-dvh flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-10 h-10 text-app-blue animate-spin" />
-        <p className="text-muted-foreground text-sm">
-          {restarting ? 'Starting a fresh sign-in...' : 'Completing sign in...'}
-        </p>
-      </div>
+      <Spinner
+        size="lg"
+        label={restarting ? 'Starting a fresh sign-in...' : 'Completing sign in...'}
+      />
     </div>
   )
 }

@@ -7,8 +7,8 @@ import {
 } from 'lucide-react'
 
 import { ProgressBar } from '@/components/shared'
-import { rawColors } from '@/constants/colors'
-import { formatCurrencyCompact } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 
 import type { useYearInReview } from '../useYearInReview'
 
@@ -27,25 +27,25 @@ export default function YearStatsGrid({ stats }: YearStatsGridProps) {
         label="Total Spending"
         value={formatCurrencyCompact(stats.totalExpense)}
         icon={TrendingDown}
-        color={rawColors.app.red}
+        color={colors.app.red}
       />
       <StatCard
         label="Total Earning"
         value={formatCurrencyCompact(stats.totalIncome)}
         icon={TrendingUp}
-        color={rawColors.app.green}
+        color={colors.app.green}
       />
       <StatCard
         label="Savings Rate"
-        value={`${stats.savingsRate.toFixed(1)}%`}
+        value={formatPercent(stats.savingsRate)}
         icon={stats.savingsRate >= 0 ? ArrowUpRight : ArrowDownRight}
-        color={stats.savingsRate >= 20 ? rawColors.app.green : rawColors.app.orange}
+        color={stats.savingsRate >= 20 ? colors.app.green : colors.app.orange}
         footer={
           <ProgressBar
             value={stats.savingsRate}
             max={50}
             target={20}
-            color={stats.savingsRate >= 20 ? rawColors.app.green : rawColors.app.orange}
+            color={stats.savingsRate >= 20 ? colors.app.green : colors.app.orange}
             height={6}
             ariaLabel={`Savings rate ${stats.savingsRate.toFixed(1)} percent against a 20 percent target`}
           />
@@ -55,7 +55,7 @@ export default function YearStatsGrid({ stats }: YearStatsGridProps) {
         label="Daily Average"
         value={formatCurrencyCompact(stats.dailyAvg)}
         icon={BarChart3}
-        color={rawColors.app.blue}
+        color={colors.app.blue}
       />
     </div>
   )

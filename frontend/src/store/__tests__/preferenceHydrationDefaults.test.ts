@@ -157,6 +157,24 @@ describe('hydrateFromApi with an explicitly configured row', () => {
     expect(essentialCategories).not.toContain('Housing')
   })
 
+  it('classifies needs with the backend spending-rule predicate (xs_needs.ts)', () => {
+    // Defaults plus the user list, word-boundary on category OR subcategory.
+    // Both rows read discretionary under the old exact-category test.
+    const needs = ['Housing', 'Healthcare', 'Transportation', 'Food & Dining', 'Education', 'Family', 'Utilities']
+    const row = (category: string, subcategory: string, amount: number): Transaction => ({
+      ...expense(category, amount), subcategory,
+    })
+    const breakdown = calculateSpendingBreakdown([
+      row('Bills & Utilities', 'Electricity', 5000),
+      row('Insurance', 'Health Insurance', 10000),
+      row('Shopping', 'Gadgets', 15000),
+    ], needs)
+    expect(breakdown).toEqual({ essential: 15000, discretionary: 15000, total: 30000 })
+    // A user entry still counts, and a word inside another word does not.
+    expect(calculateSpendingBreakdown([row('Pets', 'Vet', 700)], ['Pets']).essential).toBe(700)
+    expect(calculateSpendingBreakdown([row('Rentals', 'Movie', 300)], []).essential).toBe(0)
+  })
+
   it('honours a configured income-classification list verbatim', () => {
     usePreferencesStore.getState().hydrateFromApi({
       ...API_PREFS_NEW_USER,

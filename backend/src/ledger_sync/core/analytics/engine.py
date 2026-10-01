@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from sqlalchemy import delete
 
 from ledger_sync.core.analytics.anomalies import AnomaliesMixin
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
@@ -33,6 +35,11 @@ from ledger_sync.core.analytics.trends import TrendsMixin
 from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import AnalyticsState, AuditLog, TransactionType
 from ledger_sync.utils.logging import log_analytics_calculation, log_error
+
+#: ``audit_logs.operation`` of the per-run record ``_run_analytics`` writes.
+_ANALYTICS_AUDIT_OPERATION = "analytics"
+#: Run records older than this are pruned on the next run for the same user.
+ANALYTICS_AUDIT_RETENTION_DAYS = 30
 
 
 def _affected_dates(state: AnalyticsState, *, force_full: bool) -> set[str] | None:
@@ -264,9 +271,11 @@ class AnalyticsEngine(
                 (time.time() - t0) * 1000,
             )
 
-            # Log the analytics run
+            # Log the analytics run, dropping this user's run records past the
+            # retention window in the same transaction so the table stays bounded.
+            self._prune_analytics_audit()
             self._log_audit(
-                operation="analytics",
+                operation=_ANALYTICS_AUDIT_OPERATION,
                 entity_type="system",
                 action="calculate",
                 changes_summary=json.dumps(results),
@@ -289,6 +298,32 @@ class AnalyticsEngine(
             raise
 
         return results
+
+    def _prune_analytics_audit(self) -> None:
+        """Delete this user's ``analytics`` run records older than the retention window.
+
+        Every non-skipped refresh appends one row and nothing reads them back, so
+        without pruning the table grows by one row per upload, edit and manual
+        refresh forever. Same shape as the refresh-token pruning in
+        ``services/auth_refresh.py``: user-scoped, operation-scoped, age-based,
+        and flushed with the run's own commit (or rolled back with it).
+        ``created_at`` is compared as naive UTC, the column's storage form. No
+        in-session synchronisation: nothing holds these old rows, and evaluating
+        the age test against a pending row carrying an aware timestamp would
+        compare aware with naive.
+        """
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            days=ANALYTICS_AUDIT_RETENTION_DAYS
+        )
+        self.db.execute(
+            delete(AuditLog)
+            .where(
+                AuditLog.user_id == self._require_user_id(),
+                AuditLog.operation == _ANALYTICS_AUDIT_OPERATION,
+                AuditLog.created_at < cutoff,
+            )
+            .execution_options(synchronize_session=False)
+        )
 
     def _log_audit(
         self,

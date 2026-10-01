@@ -15,8 +15,9 @@ about their blast radius:
   summaries. A drifted key here moves real money between buckets.
 * ``non_taxable_income_categories`` has NO consumer inside
   ``ClassificationMixin``. Its money-affecting path is
-  ``api/calculations_helpers.py::_compute_income_analysis``, which matches the
-  list the CLIENT forwards as ``cashback_categories`` -- so these keys matter
+  ``services/calculation_service.py::income_analysis``, whose
+  ``non_taxable_total`` matches the list the CLIENT forwards as
+  ``cashback_categories`` -- so these keys matter
   because the frontend store and ``POST /api/preferences/reset`` seed the same
   spellings, not because the mixin reads them.
 * ``other_income_categories`` currently has no consumer at all. It is asserted
@@ -42,6 +43,7 @@ The shipped defaults used "Refund & Cashbacks" (SINGULAR), "Deposits Return",
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -49,7 +51,7 @@ import pytest
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.analytics.classification import ClassificationMixin
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
 
 
 class _Defaults(ClassificationMixin):
@@ -203,3 +205,104 @@ def test_base_still_falls_back_to_defaults_when_preferences_absent() -> None:
     assert isinstance(engine, AnalyticsEngineBase)
     assert engine._preferences is None
     assert engine.non_taxable_income_categories
+
+
+# ─── canonical matching rules (core.metric_rules) ───────────────────────────
+
+
+class _Configured(ClassificationMixin):
+    """A user whose preference row carries explicit income lists."""
+
+    def __init__(self, **lists: list[str]) -> None:
+        fields = (
+            "taxable_income_categories",
+            "investment_returns_categories",
+            "non_taxable_income_categories",
+            "other_income_categories",
+        )
+        self._preferences = UserPreferences(
+            **{field: json.dumps(lists.get(field, [])) for field in fields}
+        )
+        self.user_id = 1
+
+
+def test_taxable_key_matches_case_insensitively_on_the_whole_key() -> None:
+    engine = _Configured(taxable_income_categories=["Employment Income::Salary"])
+    txn = _income("EMPLOYMENT INCOME", "salary")
+    assert engine._is_taxable_income(txn) is True
+    assert engine._is_salary_income(txn) is True
+
+
+@pytest.mark.parametrize(
+    ("category", "subcategory", "is_salary", "is_bonus"),
+    [
+        ("Employment Income", "Salary", True, False),
+        ("Employment Income", "Stipend", True, False),
+        ("Employment Income", "Bonus", False, True),
+        ("Employment Income", "Bonuses", False, True),
+        ("Employment Income", "RSU", False, True),
+        ("Employment Income", "RSUs", False, True),
+        # Keywords, not whole values: the server used to read these as other
+        # income while the Tax page read them as salary.
+        ("Employment Income", "Monthly Salary", True, False),
+        ("employment income", "MONTHLY SALARY", True, False),
+        ("Employment Income", "Performance Bonus", False, True),
+        # Bonus wins inside one label.
+        ("Employment Income", "Salary Bonus", False, True),
+        # The category counts only when the subcategory names neither.
+        ("Salary", "Monthly", True, False),
+        ("Salary", "Performance Bonus", False, True),
+        # Word boundaries: no keyword inside another word, no extra vocabulary.
+        ("Employment Income", "Salaryman Fund", False, False),
+        ("Employment Income", "Pension", False, False),
+        ("Employment Income", "Sales Incentive", False, False),
+    ],
+)
+def test_salary_and_bonus_match_keywords_at_word_boundaries(
+    category: str, subcategory: str, is_salary: bool, is_bonus: bool
+) -> None:
+    engine = _Configured(taxable_income_categories=[f"{category}::{subcategory}"])
+    txn = _income(category, subcategory)
+    assert engine._is_taxable_income(txn) is True
+    assert engine._is_salary_income(txn) is is_salary
+    assert engine._is_bonus_income(txn) is is_bonus
+
+
+def test_salary_keywords_never_make_a_non_taxable_row_salary() -> None:
+    engine = _Configured(taxable_income_categories=["Employment Income::Salary"])
+    txn = _income("Employment Income", "Monthly Salary")
+    assert engine._is_taxable_income(txn) is False
+    assert engine._is_salary_income(txn) is False
+
+
+@pytest.mark.parametrize(
+    ("category", "subcategory", "expected"),
+    [
+        # A taxonomy that is not the shipped template still reports its returns.
+        ("Bank Income", "Savings Interest", True),
+        ("Investments", "Dividends Received", True),
+        ("Investments", "Capital Gains", True),
+        ("Investments", "Mutual Fund Gains", True),
+        ("Portfolio", "Returns", True),
+        # A deposit coming back is not an investment return, and it is already
+        # filed as non-taxable by the shipped defaults.
+        ("Refunds & Cashbacks", "Deposit Return", False),
+        ("Employment Income", "Salary", False),
+    ],
+)
+def test_unconfigured_investment_income_falls_back_to_keywords(
+    defaults: _Defaults, category: str, subcategory: str, expected: bool
+) -> None:
+    assert defaults._is_investment_income(_income(category, subcategory)) is expected
+
+
+def test_configured_investment_list_turns_the_keyword_fallback_off() -> None:
+    engine = _Configured(investment_returns_categories=["Broker::Realised Profit"])
+    assert engine._is_investment_income(_income("broker", "realised profit")) is True
+    assert engine._is_investment_income(_income("Bank Income", "Savings Interest")) is False
+
+
+def test_a_keyword_never_reclaims_a_row_filed_in_another_list() -> None:
+    engine = _Configured(other_income_categories=["Bank Income::Savings Interest"])
+    assert engine.investment_returns_categories_is_default is True
+    assert engine._is_investment_income(_income("Bank Income", "Savings Interest")) is False

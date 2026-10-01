@@ -29,13 +29,13 @@ from decimal import Decimal
 import pytest
 
 from ledger_sync.core import insight_generators_time
+from ledger_sync.core.calculator import complete_month_expense_rows, expense_rows
 from ledger_sync.core.insight_generators import category_insights, spending_insights
 from ledger_sync.core.insight_generators_time import behavioral_insights, temporal_insights
 from ledger_sync.core.insight_rules import (
     DEFAULT_CURRENCY_SYMBOL,
     INSIGHT_SEVERITIES,
     RECENT_MONTHS_WINDOW,
-    completed_month_expenses,
     completed_monthly_data,
     is_partial_month,
     month_key,
@@ -223,14 +223,23 @@ def test_completed_monthly_data_can_return_nothing() -> None:
     assert completed_monthly_data(data, REFERENCE) == {}
 
 
-def test_completed_month_expenses_filters_type_and_month() -> None:
+def test_complete_month_expense_rows_filters_type_and_month() -> None:
     rows = [
         tx(100, on(2026, 6)),
         tx(200, on(2026, 7, 10)),
         tx(300, on(2026, 6), kind=TransactionType.INCOME),
     ]
-    kept = completed_month_expenses(rows, REFERENCE)
+    kept = complete_month_expense_rows(rows, REFERENCE)
     assert [float(t.amount) for t in kept] == [100.0]
+
+
+def test_expense_rows_keeps_every_month_but_only_expenses() -> None:
+    rows = [
+        tx(100, on(2026, 6)),
+        tx(200, on(2026, 7, 10)),
+        tx(300, on(2026, 6), kind=TransactionType.INCOME),
+    ]
+    assert [float(t.amount) for t in expense_rows(rows)] == [100.0, 200.0]
 
 
 # ─── currency symbol: the one central mechanism ─────────────────────────

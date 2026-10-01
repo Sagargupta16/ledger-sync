@@ -15,6 +15,8 @@ import {
 } from '@/lib/chartPeriodUtils'
 import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import ErrorState from '@/components/shared/ErrorState'
+import LoadingSkeleton, { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
@@ -53,7 +55,12 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
 
   // Category dropdown list from the (date-scoped) category breakdown rollup.
-  const { data: categoryData } = useCategoryBreakdown({
+  const {
+    data: categoryData,
+    isLoading: isCategoriesLoading,
+    isError: isCategoriesError,
+    refetch: refetchCategories,
+  } = useCategoryBreakdown({
     transaction_type: 'expense',
     start_date: dateRange?.start_date,
     end_date: dateRange?.end_date,
@@ -66,7 +73,12 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   // Daily per-subcategory sums for the selected category, aggregated
   // server-side (date range + category filter in SQL). Client keeps its own
   // day/week/month bucketing so the ISO-week + label logic is unchanged.
-  const { data: series } = useQuery({
+  const {
+    data: series,
+    isLoading: isSeriesLoading,
+    isError: isSeriesError,
+    refetch: refetchSeries,
+  } = useQuery({
     queryKey: [
       'category-daily-series',
       'expense',
@@ -168,6 +180,47 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     exportChartAsCsv(`subcategory-analysis-${selectedCategory}.csv`, subcategories, chartData)
   }
 
+  if (isCategoriesLoading) return <ChartSkeleton height="h-80" />
+
+  if (isCategoriesError) {
+    return (
+      <ErrorState
+        variant="card"
+        title="Unable to load subcategory trend"
+        message="Your spending categories couldn't be loaded. Try again to compare subcategories."
+        onRetry={() => { void refetchCategories() }}
+      />
+    )
+  }
+
+  let chart = (
+    <TimeSeriesLineChart
+      chartData={chartData}
+      seriesKeys={subcategories}
+      colors={[...COLORS]}
+      legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
+      emptyMessage={`No data available for ${selectedCategory}`}
+      ariaLabel={`Line chart of subcategory spending over time within ${selectedCategory}`}
+    />
+  )
+  if (isSeriesLoading) {
+    chart = (
+      <output aria-busy="true" className="block">
+        <span className="sr-only">Loading {selectedCategory} subcategory trend</span>
+        <LoadingSkeleton className="h-100 w-full" />
+      </output>
+    )
+  } else if (isSeriesError) {
+    chart = (
+      <ErrorState
+        variant="compact"
+        title={`Unable to load ${selectedCategory}`}
+        message="This category's daily spending couldn't be loaded. Try again or pick another category."
+        onRetry={() => { void refetchSeries() }}
+      />
+    )
+  }
+
   return (
     <motion.div
       className="ledger-panel p-4 sm:p-5"
@@ -236,14 +289,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
         </div>
 
         {/* Chart */}
-        <TimeSeriesLineChart
-          chartData={chartData}
-          seriesKeys={subcategories}
-          colors={[...COLORS]}
-          legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-          emptyMessage={`No data available for ${selectedCategory}`}
-          ariaLabel={`Line chart of subcategory spending over time within ${selectedCategory}`}
-        />
+        {chart}
       </div>
     </motion.div>
   )

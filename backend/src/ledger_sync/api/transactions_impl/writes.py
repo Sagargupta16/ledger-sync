@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException
@@ -13,13 +12,16 @@ from sqlalchemy.orm import Session
 from ledger_sync.api.transactions_impl.filters import TRANSACTION_TYPE_MAP
 from ledger_sync.api.transactions_impl.serialize import _to_transaction_response
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
+from ledger_sync.core.query_helpers import as_naive
 from ledger_sync.db.models import Transaction, TransactionTag, TransactionType, User
 from ledger_sync.ingest.hash_id import TransactionHasher
+from ledger_sync.ingest.normalizer import DataNormalizer
 from ledger_sync.schemas.transactions import TransactionCreateRequest, TransactionResponse
 from ledger_sync.services.ledger_dimensions import sync_transaction_dimensions
 
-# Shared hasher instance (stateless, safe to reuse)
+# Shared hasher and normalizer instances (stateless, safe to reuse)
 _hasher = TransactionHasher()
+_normalizer = DataNormalizer()
 
 
 def _manual_duplicate_exists(
@@ -75,20 +77,16 @@ def create_manual_transaction(
 ) -> TransactionResponse:
     """Insert one manual row with the import pipeline's deterministic ID.
 
-    Raises 400 for an unknown type and 409 for a duplicate (including a legacy
-    v1-hashed manual row); invalidates analytics in the same transaction.
+    Raises 409 for a duplicate (including a legacy v1-hashed manual row);
+    invalidates analytics in the same transaction. The schema pattern already
+    rejects an unknown type with 422.
     """
-    # Map string type to enum
-    tx_type = TRANSACTION_TYPE_MAP.get(body.type.lower())
-    if tx_type is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid transaction type: {body.type}. "
-            "Expected one of: Income, Expense, Transfer.",
-        )
+    tx_type = TRANSACTION_TYPE_MAP[body.type.lower()]
 
     now = datetime.now(UTC)
-    amount = Decimal(str(round(body.amount, 2)))
+    # The importer's rounding (ROUND_HALF_UP to paise), so 2.675 is 2.68 on
+    # both paths rather than float rounding's 2.67.
+    amount = _normalizer.normalize_amount(body.amount)
 
     # Generate deterministic transaction ID (same logic as ingest pipeline)
     identity_fields: dict[str, Any] = {
@@ -122,7 +120,10 @@ def create_manual_transaction(
         source_fingerprint=transaction_id,
         fingerprint_version=2,
         user_id=user.id,
-        date=body.date,
+        # Keep the submitted wall-clock value. An aware datetime would be
+        # converted by PostgreSQL's session zone, moving a +05:30 midnight
+        # onto the previous day.
+        date=as_naive(body.date),
         amount=amount,
         currency="INR",
         type=tx_type,

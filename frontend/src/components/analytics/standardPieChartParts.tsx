@@ -8,6 +8,7 @@ import { Sector, type PieSectorShapeProps } from 'recharts'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { capPieSlices, sliceClickTarget, type PieSliceDatum } from '@/components/ui/pieSlices'
 import { CHART_SURFACE, SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import { formatPercent } from '@/lib/formatters'
 import { isMotionReduced } from '@/store/motionStore'
 
 /**
@@ -120,7 +121,7 @@ export function renderPieDataTable(
       { header: 'Amount', value: (d) => formatValue(d.value) },
       {
         header: 'Share',
-        value: (d) => (total > 0 ? `${((d.value / total) * 100).toFixed(1)}%` : '0%'),
+        value: (d) => (total > 0 ? formatPercent((d.value / total) * 100) : '0%'),
       },
     ],
     caption,

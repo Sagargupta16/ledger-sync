@@ -1,13 +1,13 @@
 import type { Transaction } from '@/types'
 import { liquidAssetsFromFlows, type CFPScoreInputs } from '@/lib/financialHealthCalculator'
 import {
-  completeMonthKeys,
   investmentAllocationRatePercent,
   savingsRatePercentOr,
   shareOfIncomePercent,
   sumFlows,
 } from '@/lib/savingsRate'
-import { isSpending } from '@/lib/expenseClassification'
+import { isSpending, type ExpenseClassificationConfig } from '@/lib/expenseClassification'
+import { completeMonthSpine } from '@/lib/finance/monthlyAverage'
 
 import type { AnalysisResult, BalancePosition, MonthlyBucket } from './healthScoreTypes'
 import {
@@ -37,6 +37,7 @@ export function classifyTransaction(
   bucket: MonthlyBucket,
   isInvestmentAccount: (name: string) => boolean,
   userFixedCategories?: Set<string>,
+  expenseClassification?: ExpenseClassificationConfig,
 ): void {
   const amount = Math.abs(tx.amount)
   const category = tx.category || 'Other'
@@ -56,8 +57,9 @@ export function classifyTransaction(
   }
   // A realised capital loss is filed as an Expense row but is a negative
   // investment return, so counting it depresses the savings-rate and
-  // cash-flow components of the score.
-  if (tx.type === 'Expense' && isSpending(tx)) {
+  // cash-flow components of the score. Only the keys the user classified in
+  // `capital_loss_categories` leave spending -- the same set `/totals` reads.
+  if (tx.type === 'Expense' && isSpending(tx, expenseClassification)) {
     bucket.expense += amount
     bucket.categories[category] = (bucket.categories[category] || 0) + amount
     if (matchesCategoryList(category, DEBT_CATEGORIES)) bucket.debt += amount
@@ -75,6 +77,7 @@ export function computeMonthlyData(
   transactions: Transaction[],
   isInvestmentAccount: (name: string) => boolean,
   userFixedCategories?: Set<string>,
+  expenseClassification?: ExpenseClassificationConfig,
 ): { months: string[]; monthlyData: Record<string, MonthlyBucket> } | null {
   if (transactions.length < 10) return null
 
@@ -85,7 +88,7 @@ export function computeMonthlyData(
     if (!monthlyData[month]) {
       monthlyData[month] = createEmptyBucket()
     }
-    classifyTransaction(tx, monthlyData[month], isInvestmentAccount, userFixedCategories)
+    classifyTransaction(tx, monthlyData[month], isInvestmentAccount, userFixedCategories, expenseClassification)
   }
 
   const allMonths = Object.keys(monthlyData).sort((a, b) => a.localeCompare(b))
@@ -96,11 +99,16 @@ export function computeMonthlyData(
   // real ledger the in-progress month reads -696.8% and moves the all-time rate
   // by 1.6pp). It also used `months.pop()`, which removes the LAST key -- a
   // single future-dated row makes that the wrong month.
-  const months = completeMonthKeys(allMonths)
+  //
+  // The divisor is the shared complete-month spine: a calendar month with no
+  // rows is a zero month, not a month to skip, so averages here agree with the
+  // Dashboard burn rate and the Spending Analysis "Monthly Avg".
+  const months = completeMonthSpine(allMonths)
   const kept = new Set(months)
   for (const month of allMonths) {
     if (!kept.has(month)) delete monthlyData[month]
   }
+  for (const month of months) monthlyData[month] ??= createEmptyBucket()
 
   // The floor counts FINISHED months only, so it is one month stricter than it
   // used to be from the 15th onward: an account whose whole history is

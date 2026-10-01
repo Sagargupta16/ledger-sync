@@ -1,6 +1,6 @@
 import { Bell, Wallet2, AlertTriangle, CalendarClock } from 'lucide-react'
-import { rawColors } from '@/constants/colors'
-import { formatCurrencyCompact } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
+import { formatCurrencyCompact, formatDate } from '@/lib/formatters'
 import { getDateKey, getTodayKey, inclusiveDaySpan } from '@/lib/dateUtils'
 import type { Budget, Anomaly, RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
@@ -115,10 +115,11 @@ function getSeverityFromDays(days: number): Notification['severity'] {
   return 'low'
 }
 
+/** CSS var() for the DOM severity dot, so it follows a theme toggle. */
 export function getSeverityColor(severity: Notification['severity']): string {
-  if (severity === 'high') return rawColors.app.red
-  if (severity === 'medium') return rawColors.app.orange
-  return rawColors.app.yellow
+  if (severity === 'high') return colors.app.red
+  if (severity === 'medium') return colors.app.orange
+  return colors.app.yellow
 }
 
 export function relativeTime(dateStr: string): string {
@@ -132,7 +133,7 @@ export function relativeTime(dateStr: string): string {
   if (diffH < 24) return `${diffH}h ago`
   const diffD = Math.floor(diffH / 24)
   if (diffD < 7) return `${diffD}d ago`
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return formatDate(date, { day: 'numeric', month: 'short' })
 }
 
 // ---------------------------------------------------------------------------
@@ -221,7 +222,6 @@ export const groupConfig: Record<
     icon: typeof Bell
     colorClass: string
     bgClass: string
-    dotColor: string
   }
 > = {
   budget: {
@@ -229,21 +229,18 @@ export const groupConfig: Record<
     icon: Wallet2,
     colorClass: 'text-app-orange',
     bgClass: 'bg-app-orange/15',
-    dotColor: rawColors.app.orange,
   },
   anomaly: {
     label: 'Anomalies',
     icon: AlertTriangle,
     colorClass: 'text-app-red',
     bgClass: 'bg-app-red/15',
-    dotColor: rawColors.app.red,
   },
   upcoming: {
     label: 'Upcoming',
     icon: CalendarClock,
     colorClass: 'text-app-blue',
     bgClass: 'bg-app-blue/15',
-    dotColor: rawColors.app.blue,
   },
 }
 

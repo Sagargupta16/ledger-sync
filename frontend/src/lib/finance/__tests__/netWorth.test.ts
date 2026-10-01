@@ -1,12 +1,58 @@
 import { describe, expect, it } from 'vitest'
 
+import { averageMonthlySavings } from '../monthlyAverage'
 import {
   buildMonthlyNetWorthBalances,
   computeAvgMonthlyGrowth,
   computeLinearGrowthStats,
   computeNetWorthTimeSeries,
+  growthStatsFromMonthlySavings,
   summarizeNetWorthAccounts,
 } from '../netWorth'
+
+/**
+ * Average monthly savings (2026-09-30): the trailing 12 complete calendar months,
+ * empty months as zero, the month in progress excluded -- one helper behind the
+ * Goals "/mo savings" and the Net Worth growth rate.
+ */
+describe('shared average monthly savings', () => {
+  const NOW = new Date(2026, 8, 15)
+
+  it('keeps only the trailing 12 complete months and zero-fills gaps', () => {
+    // 18 months of 10,000 (2025-03..2026-08), June 2026 missing, September in progress.
+    const net = new Map<string, number>()
+    for (let i = 0; i < 18; i++) {
+      const month = new Date(2025, 2 + i, 1)
+      net.set(`${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`, 10_000)
+    }
+    net.delete('2026-06')
+    net.set('2026-09', 99_000)
+    const savings = averageMonthlySavings(net, {}, NOW)
+    expect(savings?.months).toHaveLength(12)
+    expect(savings?.months[0]).toBe('2025-09')
+    expect(savings?.months.at(-1)).toBe('2026-08')
+    // 11 months of 10,000 plus the empty June.
+    expect(savings?.average).toBeCloseTo(110_000 / 12, 6)
+  })
+
+  it('turns the same months into the projection growth and band', () => {
+    const savings = averageMonthlySavings(new Map([['2026-06', 10_000], ['2026-07', 30_000]]), {}, NOW)
+    expect(growthStatsFromMonthlySavings(savings)).toEqual({ growth: 20_000, sigma: Math.sqrt(200_000_000) })
+    expect(growthStatsFromMonthlySavings(null)).toEqual({ growth: 0, sigma: 0 })
+    expect(growthStatsFromMonthlySavings({ average: 5_000, values: [5_000] })).toEqual({ growth: 5_000, sigma: 0 })
+  })
+})
+
+describe('liabilities rule', () => {
+  it('books every negative balance as a liability (xs_nw.ts)', () => {
+    const summary = summarizeNetWorthAccounts([
+      { category: 'Bank Accounts', balance: 100_000 },
+      { category: 'Credit Cards', balance: -20_000 },
+      { category: 'Cash & Wallets', balance: -5_000 },
+    ], ['Credit Cards', 'Loans/Lended', 'Other'])
+    expect(summary).toMatchObject({ totalAssets: 100_000, totalLiabilities: 25_000, netWorth: 75_000 })
+  })
+})
 
 const QUARTERLY_BALANCES = [
   { date: '2025-01-31', netWorth: 100_000 },

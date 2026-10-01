@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
-import ErrorState from '@/components/shared/ErrorState'
 import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PageContainer, PageHeader } from '@/components/ui'
 
@@ -44,15 +44,12 @@ export default function IncomeAnalysisPage() {
 
   if (isError) {
     return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="Income Analysis" subtitle="Track your income sources and trends" />
-        <ErrorState
-          variant="card"
-          title="Could not load income analysis"
-          message="Your income data could not be loaded. Check your connection and try again."
-          onRetry={retry}
-        />
-      </PageContainer>
+      <PageErrorState
+        title="Income Analysis"
+        subtitle="Track your income sources and trends"
+        message="Your income data could not be loaded. Check your connection and try again."
+        onRetry={retry}
+      />
     )
   }
 

@@ -12,7 +12,7 @@ import {
   taxPlanningDisplay,
   taxOverviewMetrics,
 } from '@/lib/finance/payrollPlanning'
-import { getFYFromDate, getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
+import { formatFYLabel, getFYFromDate, getTodayKey, MONTHS_PER_YEAR } from '@/lib/dateUtils'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 import {
   usePreferencesStore,
@@ -95,12 +95,12 @@ export function useTaxPlanning() {
     const latestStart = parseFYStartYear(latestSalaryFY)
     const futureFYs: string[] = []
     for (let i = 0; i <= growthAssumptions.projection_years; i++) {
-      const yr = latestStart + i
-      const end = (yr + 1) % 100
-      futureFYs.push(`FY ${yr}-${String(end).padStart(2, '0')}`)
+      // Same label form as `getFYFromDate` ("FY 2025" for a January start) so a
+      // projected year and its recorded year are one list entry, not two.
+      futureFYs.push(formatFYLabel(latestStart + i, fiscalYearStartMonth))
     }
     return futureFYs
-  }, [hasSalaryData, salaryStructure, growthAssumptions.projection_years])
+  }, [hasSalaryData, salaryStructure, growthAssumptions.projection_years, fiscalYearStartMonth])
 
   const fyList = useMemo(() => {
     const allFYs = new Set([...txFyList, ...projectedFYList])
@@ -267,6 +267,7 @@ export function useTaxPlanning() {
     showProjection,
     setShowProjection,
     fyList,
+    fiscalYearStartMonth,
     effectiveFY,
     currentFYLabel,
     currentFYData,

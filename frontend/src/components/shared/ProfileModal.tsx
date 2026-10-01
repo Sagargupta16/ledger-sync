@@ -40,7 +40,7 @@ export default function ProfileModal({ open, onOpenChange }: ProfileModalProps) 
 }
 
 function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
-  const { user } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
   const logout = useLogout()
   const updateProfile = useUpdateProfile()
   const deleteAccount = useDeleteAccount()

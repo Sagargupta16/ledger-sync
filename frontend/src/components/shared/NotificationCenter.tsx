@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { Link } from 'react-router'
 import { motion, AnimatePresence } from 'motion/react'
 import { Bell, X } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { ROUTES } from '@/constants'
 import { cn } from '@/lib/cn'
 import { sessionIdentity } from '@/lib/session'
-import { useBudgets, useAnomalies, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
+import { useBudgets, useAnomalies, useAnomalyCounts, useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { useAuthStore } from '@/store/authStore'
 import {
   type Notification,
@@ -50,12 +53,14 @@ export default function NotificationCenter() {
   // Fetch data
   const { data: budgets = [] } = useBudgets({ active_only: true })
   const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
+  // The envelope count, not the row list: rows stop at the handler's limit
+  // (50), so a badge counting them under-reports -- the Sidebar reads the same.
+  const anomalyCount = useAnomalyCounts({ include_reviewed: false }).data?.count ?? 0
   // "Upcoming Payment" only makes sense for something owed on a date, so
-  // habit rows are excluded -- nobody needs a reminder that lunch is due.
-  const { data: recurring = [] } = useRecurringTransactions({
-    active_only: true,
-    pattern_kind: 'commitment',
-  })
+  // habit rows are excluded -- nobody needs a reminder that lunch is due. The
+  // shared params (min_confidence 0) are the Dashboard's and Sidebar's cache
+  // entry; omitting min_confidence applied the backend default of 50.
+  const { data: recurring = [] } = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
 
   // Build notifications
   const notifications = useMemo(() => {
@@ -77,7 +82,11 @@ export default function NotificationCenter() {
     return map
   }, [notifications])
 
-  const totalCount = notifications.length
+  // Unreviewed anomalies past the row list's limit: counted in the badge and
+  // the Anomalies group so neither caps at 50, and reachable through a link
+  // since there is no row to show (or dismiss) for them here.
+  const hiddenAnomalies = Math.max(0, anomalyCount - anomalies.length)
+  const totalCount = notifications.length + hiddenAnomalies
 
   // Dismiss handler
   const handleDismiss = useCallback(
@@ -224,8 +233,9 @@ export default function NotificationCenter() {
                 </li>
               ) : (
                 groupOrder.map((type) => {
-                  const items = grouped.get(type)
-                  if (!items || items.length === 0) return null
+                  const items = grouped.get(type) ?? []
+                  const hidden = type === 'anomaly' ? hiddenAnomalies : 0
+                  if (items.length === 0 && hidden === 0) return null
                   const config = groupConfig[type]
                   const GroupIcon = config.icon
 
@@ -240,13 +250,9 @@ export default function NotificationCenter() {
                           {config.label}
                         </span>
                         <span
-                          className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                          style={{
-                            backgroundColor: `${config.dotColor}20`,
-                            color: config.dotColor,
-                          }}
+                          className={cn('ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md', config.bgClass, config.colorClass)}
                         >
-                          {items.length}
+                          {items.length + hidden}
                         </span>
                       </div>
 
@@ -280,7 +286,7 @@ export default function NotificationCenter() {
                                   e.stopPropagation()
                                   handleDismiss(item.id)
                                 }}
-                                className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
+                                className="size-11 shrink-0 p-0 text-muted-foreground opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100 lg:pointer-fine:size-8 lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-8"
                                 aria-label={`Dismiss: ${item.message}`}
                               >
                                 <X size={12} aria-hidden="true" />
@@ -288,6 +294,17 @@ export default function NotificationCenter() {
                             </div>
                           </motion.li>
                         ))}
+                        {hidden > 0 && (
+                          <li className="mx-2 mb-1">
+                            <Link
+                              to={ROUTES.ANOMALIES}
+                              onClick={() => setIsOpen(false)}
+                              className="flex min-h-11 items-center rounded-lg px-3 py-2.5 text-xs font-medium text-app-blue transition-colors hover:bg-[var(--overlay-2)]"
+                            >
+                              {hidden} more to review on the Anomalies page
+                            </Link>
+                          </li>
+                        )}
                       </ul>
                     </li>
                   )

@@ -112,13 +112,31 @@ describe('monthlySpendShape divisor', () => {
   it('caps the open-ended window at the current month so future rows add no empty months', () => {
     // All-time passes no end date. A row a year out would otherwise append 12
     // zero months to the divisor; the real ledger carries a 2026-07-31 row.
+    // The in-progress month (July, 27 of 31 days) is excluded too: the shared
+    // complete-month average (2026-09-30).
     const shape = monthlySpendShape(
       [expense('2026-06-10', 40000), expense('2027-06-10', 20000)],
       { start_date: null, end_date: null },
       NOW,
     )
-    expect(shape?.monthsCounted).toBe(2)
-    expect(shape?.mean).toBe(20000)
+    expect(shape?.monthsCounted).toBe(1)
+    expect(shape?.mean).toBe(40000)
+  })
+
+  it('agrees with the Dashboard and health averages on a gap month (xs_avg.ts)', () => {
+    // 30,000 in Apr, May, Jul, Aug; nothing in June; last row 20 Aug.
+    const rows = ['2026-04', '2026-05', '2026-07', '2026-08'].flatMap((m) => [
+      expense(`${m}-05`, 20000), expense(`${m}-20`, 10000),
+    ])
+    const shape = monthlySpendShape(rows, { start_date: null, end_date: '2026-08-31' }, new Date(2026, 8, 30))
+    expect(shape?.monthsCounted).toBe(5)
+    expect(shape?.mean).toBe(24000)
+  })
+
+  it('keeps the running pace when every row sits in the month in progress', () => {
+    const shape = monthlySpendShape([expense('2026-07-10', 9000)], { start_date: '2026-07-01', end_date: '2026-07-27' }, NOW)
+    expect(shape?.monthsCounted).toBe(1)
+    expect(shape?.mean).toBe(9000)
   })
 
   it('returns null with no expenses rather than a zero that looks measured', () => {
@@ -191,9 +209,9 @@ describe('spanMonthKeys', () => {
     expect(bars.reduce((s, v) => s + v, 0) / bars.length).toBeCloseTo(shape?.mean ?? 0, 6)
   })
 
-  it('caps an open-ended window at the current month', () => {
+  it('caps an open-ended window at the last complete month', () => {
     expect(spanMonthKeys(['2026-06', '2027-06'], { start_date: null, end_date: null }, NOW))
-      .toEqual(['2026-06', '2026-07'])
+      .toEqual(['2026-06'])
   })
 
   it('falls back to the row months when the window spans none of them', () => {

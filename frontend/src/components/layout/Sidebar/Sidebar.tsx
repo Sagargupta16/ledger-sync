@@ -8,8 +8,9 @@ import ProfileModal from '@/components/shared/ProfileModal'
 import { getProfileInitials } from '@/components/shared/profileModalUtils'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/constants'
+import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import {
-  useAnomalies,
+  useAnomalyCounts,
   useBudgets,
   useRecurringTransactions,
 } from '@/hooks/api/useAnalyticsV2'
@@ -18,7 +19,7 @@ import { exitDemoMode } from '@/lib/demo'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
-import type { Anomaly, Budget, RecurringTransaction } from '@/services/api/analyticsV2'
+import type { Budget, RecurringTransaction } from '@/services/api/analyticsV2'
 
 import BrandHeader from './BrandHeader'
 import CurrencySwitcher from './CurrencySwitcher'
@@ -36,16 +37,13 @@ import ThemeToggle from './ThemeToggle'
 import MotionToggle from './MotionToggle'
 
 function countAlertBadges(
-  anomalies: readonly Anomaly[],
+  anomalyCount: number,
   budgets: readonly Budget[],
   recurring: readonly RecurringTransaction[],
   now: Date,
 ): Record<string, number> {
   const counts: Record<string, number> = {}
 
-  const anomalyCount = anomalies.filter(
-    (item) => !item.is_dismissed && !item.is_reviewed,
-  ).length
   if (anomalyCount > 0) counts[ROUTES.ANOMALIES] = anomalyCount
 
   const budgetCount = budgets.filter(
@@ -71,24 +69,25 @@ export default function Sidebar() {
   const mobileToggleRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
-  const { user } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
   const isDemoMode = useDemoStore((state) => state.isDemoMode)
   const logout = useLogout()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const { data: budgets = [] } = useBudgets({ active_only: true })
-  const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
+  // The envelope count, not the row list: rows stop at the handler's limit.
+  // `include_reviewed: false` already excludes reviewed and dismissed rows.
+  const anomalyCount = useAnomalyCounts({ include_reviewed: false }).data?.count ?? 0
   // The Bill Calendar badge counts bills due in 7 days, so it must match what
-  // that page plots: commitments only, not habit repeats.
-  const { data: recurring = [] } = useRecurringTransactions({
-    active_only: true,
-    pattern_kind: 'commitment',
-  })
+  // that page plots: commitments only, not habit repeats, at every confidence
+  // (min_confidence 0, the same params and cache entry as the Dashboard and
+  // Bill Calendar; omitting it applies the backend default of 50).
+  const { data: recurring = [] } = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
 
   const badgeCounts = useMemo(
-    () => countAlertBadges(anomalies, budgets, recurring, new Date()),
-    [anomalies, budgets, recurring],
+    () => countAlertBadges(anomalyCount, budgets, recurring, new Date()),
+    [anomalyCount, budgets, recurring],
   )
 
   const closeMobile = useCallback(() => {

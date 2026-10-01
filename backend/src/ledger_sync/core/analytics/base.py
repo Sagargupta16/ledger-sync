@@ -21,6 +21,7 @@ from ledger_sync.core._analytics_helpers import (
     DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
 )
 from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
+from ledger_sync.core.metric_rules import essential_keywords
 from ledger_sync.core.query_helpers import apply_excluded_accounts_filter
 from ledger_sync.db.models import Transaction, UserPreferences
 from ledger_sync.utils.logging import get_analytics_logger
@@ -199,16 +200,8 @@ class AnalyticsEngineBase:
         decision is per-field: nothing else can be populated to signal that an
         empty list here was deliberate.
 
-        NOT aligned with ``analytics_v2_impl/spending_rule.py``, which keeps its
-        own ``_DEFAULT_NEEDS`` keyword set, matches on category OR subcategory,
-        matches case-insensitively at word boundaries, and UNIONS the user's list
-        with its defaults instead of honouring it verbatim. Measured on the
-        owner's ledger the two disagree by well under a point for an
-        unconfigured user and by several points for a configured one, both
-        before and after this fix. Unifying them means having spending_rule
-        resolve essentials through this property; until then, treat the /budgets
-        needs bucket and the ``monthly_summaries`` essential split as two
-        different definitions.
+        This is the user's RAW list. Classification goes through
+        ``essential_keywords``, which applies the canonical Needs rule.
         """
         cats = self._configured_json(
             self._preferences.essential_categories if self._preferences else None,
@@ -216,6 +209,19 @@ class AnalyticsEngineBase:
         if isinstance(cats, list):
             return {str(c) for c in cats if c}
         return DEFAULT_ESSENTIAL_CATEGORIES
+
+    @property
+    def essential_keywords(self) -> set[str]:
+        """The canonical Needs keyword set (``core.metric_rules``).
+
+        ``DEFAULT_NEEDS`` plus the user's own list, lower-cased, matched at word
+        boundaries on category OR subcategory. The /budgets 50/30/20 endpoint
+        builds the same set, so its Needs bucket and the ``monthly_summaries``
+        essential split are one definition. ``DEFAULT_NEEDS`` already contains
+        every ``DEFAULT_ESSENTIAL_CATEGORIES`` entry, so an unconfigured user
+        gets exactly the defaults.
+        """
+        return essential_keywords(self.essential_categories)
 
     @property
     def excluded_accounts(self) -> set[str]:
@@ -333,6 +339,19 @@ class AnalyticsEngineBase:
         return self._income_categories("investment_returns_categories")
 
     @property
+    def investment_returns_categories_is_default(self) -> bool:
+        """True when the user has not chosen their own investment-returns list.
+
+        Empty, or exactly the shipped defaults (the reset/untouched state).
+        ``_is_investment_income`` then also accepts the default keywords, so a
+        taxonomy that is not the shipped template still reports its returns.
+        """
+        resolved = set(self.investment_returns_categories)
+        return not resolved or resolved == set(
+            _INCOME_LIST_DEFAULTS["investment_returns_categories"]
+        )
+
+    @property
     def non_taxable_income_categories(self) -> list[str]:
         """Get non-taxable income subcategories from preferences."""
         return self._income_categories("non_taxable_income_categories")
@@ -432,7 +451,13 @@ class AnalyticsEngineBase:
         """Return ``(fy_label, fy_start, fy_end)`` for *date*.
 
         Uses ``fiscal_year_start_month`` from preferences (April by default
-        for India). FY 2024 starting April 1 2024 -> ``"FY2024-25"``.
+        for India). The label is the canonical FY label the frontend matches:
+
+        * start month 1 -> the FY IS a calendar year, labelled by that one year:
+          any 2024 date -> ``"FY2024"`` (Jan 1 to Dec 31 2024).
+        * any other start month -> the FY spans two calendar years, labelled
+          start year plus the two-digit end year: FY starting April 1 2024 ->
+          ``"FY2024-25"``, which also covers March 2025.
         """
         fy_start_month = self.fiscal_year_start_month
 

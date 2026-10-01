@@ -65,7 +65,14 @@ def update_preferences(
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
-    prefs = _apply_preference_updates(session, current_user, updates.model_dump(exclude_none=True))
+    # JSON mode, like the section endpoints: nested models keep their explicit
+    # nulls, and omitted top-level fields are left unchanged.
+    values = {
+        field: value
+        for field, value in updates.model_dump(mode="json").items()
+        if value is not None
+    }
+    prefs = _apply_preference_updates(session, current_user, values)
     return _model_to_response(prefs, session)
 
 

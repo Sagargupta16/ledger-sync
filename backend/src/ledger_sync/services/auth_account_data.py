@@ -17,12 +17,14 @@ from ledger_sync.db.models import (
     AnalyticsState,
     Anomaly,
     Budget,
+    CategorizationRule,
     CategoryTrend,
     CohortSpending,
     DailySummary,
     FinancialGoal,
     FYSummary,
     ImportLog,
+    InvestmentHolding,
     LedgerAccount,
     LedgerAccountAlias,
     LedgerCategory,
@@ -34,6 +36,7 @@ from ledger_sync.db.models import (
     RsuGrantRecord,
     RsuVestingRecord,
     SalaryPlan,
+    SavedFilterView,
     ScheduledTransaction,
     TaxRecord,
     Transaction,
@@ -63,6 +66,12 @@ class AccountDataMixin:
         # Budgets & goals
         self.session.query(Budget).filter(Budget.user_id == user_id).delete()
         self.session.query(FinancialGoal).filter(FinancialGoal.user_id == user_id).delete()
+
+        # User-authored ledger tooling, preserved by a ledger-only reset.
+        self.session.query(CategorizationRule).filter(
+            CategorizationRule.user_id == user_id
+        ).delete()
+        self.session.query(SavedFilterView).filter(SavedFilterView.user_id == user_id).delete()
 
         # Account configuration now shares the stable ledger account identity.
         self.session.query(LedgerAccountAlias).filter(
@@ -95,8 +104,9 @@ class AccountDataMixin:
     def _delete_transaction_data(self, user_id: int) -> None:
         """Delete transaction-derived data, preserving user preferences and goals.
 
-        Removes transactions, import logs, analytics, and detected patterns
-        while keeping budgets, goals, account classifications, and preferences.
+        Removes transactions, import logs, analytics, investment holdings, and
+        detected patterns while keeping budgets, goals, account classifications,
+        categorization rules, saved views, and preferences.
         """
         # Tables with FK to transactions -- must be deleted first
         self.session.query(Anomaly).filter(Anomaly.user_id == user_id).delete()
@@ -128,6 +138,7 @@ class AccountDataMixin:
         ).delete()
         self.session.query(FYSummary).filter(FYSummary.user_id == user_id).delete()
         self.session.query(TaxRecord).filter(TaxRecord.user_id == user_id).delete()
+        self.session.query(InvestmentHolding).filter(InvestmentHolding.user_id == user_id).delete()
 
     def reset_account(self, user: User, *, transactions_only: bool = False) -> None:
         """Reset account data, keeping the OAuth account.
@@ -135,8 +146,10 @@ class AccountDataMixin:
         Args:
             user: The authenticated user.
             transactions_only: If True, only delete transaction-derived data
-                (transactions, import logs, analytics). Preserves preferences,
-                budgets, goals, and account classifications.
+                (transactions, import logs, analytics, investment holdings).
+                Preserves preferences, budgets, goals, account classifications,
+                categorization rules, and saved views. Otherwise every
+                user-scoped table except usage and audit logs is cleared.
         """
         user_id = user.id
         lock_analytics_user(self.session, user_id)

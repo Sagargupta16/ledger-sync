@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { SPRING } from '@/constants/animations'
 import { cn } from '@/lib/cn'
-import { useBudgets, useAnomalies } from '@/hooks/api/useAnalyticsV2'
+import { useBudgets, useAnomalyCounts } from '@/hooks/api/useAnalyticsV2'
 
 interface TabItem {
   to: string
@@ -43,11 +43,11 @@ export default function MobileTabBar() {
   // Surface the same alert counts the desktop sidebar badges (unreviewed
   // anomalies + over-budget categories) on the "More" tab, so time-sensitive
   // items aren't invisible behind the grid on phones.
-  const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
+  // Anomalies use the envelope count, which is not capped by the row limit.
+  const anomalyCount = useAnomalyCounts({ include_reviewed: false }).data?.count ?? 0
   const { data: budgets = [] } = useBudgets({ active_only: true })
   const moreAlertCount =
-    anomalies.filter((a) => !a.is_dismissed && !a.is_reviewed).length +
-    budgets.filter((b) => b.usage_pct >= b.alert_threshold).length
+    anomalyCount + budgets.filter((b) => b.usage_pct >= b.alert_threshold).length
 
   return (
     <nav

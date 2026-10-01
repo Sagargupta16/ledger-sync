@@ -19,9 +19,9 @@ import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { savingsRatePercentOr } from '@/lib/savingsRate'
+import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useBudgets, useGoals } from '@/hooks/api/useAnalyticsV2'
 
@@ -40,8 +40,10 @@ export default function OverviewPage() {
   // so `void navigate(...)` below is an honest fire-and-forget, not a swallowed
   // rejection.
   const navigate = useNavigate()
+  // `isSummaryLoading`, not `isLoading`: nothing on this page reads the full
+  // ledger, so waiting for its ~2.9 MB download only delayed the first paint.
   const {
-    filteredTotals, isLoading, isError, retry,
+    filteredTotals, isSummaryLoading, isError, retry,
     incomeChartData, expenseChartData,
     momChanges,
     viewMode, setViewMode,
@@ -50,7 +52,7 @@ export default function OverviewPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange,
-    filteredTransactions,
+    hasTransactionsInRange,
   } = useDashboardMetrics()
 
   const budgetsQuery = useBudgets({ active_only: true })
@@ -60,10 +62,20 @@ export default function OverviewPage() {
 
   const income = Number(filteredTotals?.total_income ?? 0)
   const expenses = Math.abs(Number(filteredTotals?.total_expenses ?? 0))
-  const net = income - expenses
-  // The tile below always renders a number, so it opts into the 0 fallback
-  // explicitly rather than re-deciding the no-income branch. See lib/savingsRate.
-  const savingsRate = savingsRatePercentOr({ income, expense: expenses })
+  // Savings = income - spending - classified realised losses, the same
+  // `net_savings` the Dashboard band shows. `income - expenses` dropped the
+  // loss: it is held out of `total_expenses` but the cash still left, so the
+  // tile over-stated what was saved by exactly `capital_losses`.
+  const net = Number(filteredTotals?.net_savings ?? 0)
+  // The tile always renders a number, so it opts into the 0 fallback explicitly
+  // rather than re-deciding the no-income branch. See lib/savingsRate.
+  const savingsRate = savingsRatePercentFromNet(net, income) ?? 0
+  // Named on the tile so Income minus Spending not matching Net Saved reads as
+  // the loss it is, not as arithmetic drift.
+  const capitalLosses = Number(filteredTotals?.capital_losses ?? 0)
+  const netSavedSubtitle = capitalLosses > 0
+    ? `${formatPercent(savingsRate)} savings rate, after ${formatCurrency(capitalLosses)} realised losses`
+    : `${formatPercent(savingsRate)} savings rate`
 
   const atRiskBudgets = useMemo(
     () => budgets
@@ -81,7 +93,7 @@ export default function OverviewPage() {
   const topIncome = useMemo(() => incomeChartData.slice(0, 3), [incomeChartData])
   const topExpense = useMemo(() => expenseChartData.slice(0, 3), [expenseChartData])
 
-  if (isLoading || budgetsQuery.isLoading || goalsQuery.isLoading) return <PageSkeleton />
+  if (isSummaryLoading || budgetsQuery.isLoading || goalsQuery.isLoading) return <PageSkeleton />
 
   if (isError || budgetsQuery.isError || goalsQuery.isError) {
     const retryOverview = () => {
@@ -130,7 +142,7 @@ export default function OverviewPage() {
     )
   }
 
-  if (filteredTransactions.length === 0) {
+  if (!hasTransactionsInRange) {
     return (
       <PageContainer>
         <PageHeader
@@ -176,7 +188,7 @@ export default function OverviewPage() {
         <MetricCard
           title="Net Saved" value={formatCurrency(net)} icon={PiggyBank}
           color={net >= 0 ? 'purple' : 'red'}
-          subtitle={`${formatPercent(savingsRate)} savings rate`}
+          subtitle={netSavedSubtitle}
           onClick={() => void navigate(ROUTES.INCOME_EXPENSE_FLOW)}
         />
         <MetricCard
@@ -250,7 +262,7 @@ export default function OverviewPage() {
                   </div>
                   <ProgressBar
                     value={b.usage_pct} max={100}
-                    color={b.usage_pct >= 100 ? rawColors.app.red : rawColors.app.orange}
+                    color={b.usage_pct >= 100 ? colors.app.red : colors.app.orange}
                     ariaLabel={`${b.category} budget ${formatPercent(b.usage_pct)} used`}
                   />
                 </div>
@@ -292,7 +304,7 @@ export default function OverviewPage() {
                   </span>
                 </div>
                 <ProgressBar
-                  value={g.progress_pct} max={100} color={rawColors.app.purple}
+                  value={g.progress_pct} max={100} color={colors.app.purple}
                   ariaLabel={`${g.name} ${formatPercent(g.progress_pct)} complete`}
                 />
               </div>

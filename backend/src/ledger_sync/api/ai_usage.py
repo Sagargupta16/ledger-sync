@@ -26,6 +26,10 @@ from ledger_sync.services.ai_settings import get_ai_settings
 
 router = APIRouter(prefix="/api/ai/usage", tags=["ai-usage"])
 
+# Headroom above the configured round cap, so a report that slightly overshoots
+# the browser's loop is recorded instead of rejected.
+_TOOL_ROUND_REPORT_BUFFER = 2
+
 
 class UsageLogRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -35,7 +39,9 @@ class UsageLogRequest(BaseModel):
     model: str = Field(min_length=1, max_length=100)
     input_tokens: int = Field(ge=0, le=10_000_000)
     output_tokens: int = Field(ge=0, le=1_000_000)
-    tool_rounds: int = Field(default=1, ge=1, le=20)
+    tool_rounds: int = Field(
+        default=1, ge=1, le=settings.ai_max_tool_rounds + _TOOL_ROUND_REPORT_BUFFER
+    )
 
 
 def _start_of_day(now: datetime) -> datetime:

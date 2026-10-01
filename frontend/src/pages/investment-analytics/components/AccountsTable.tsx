@@ -1,6 +1,6 @@
 import { ProgressBar } from '@/components/shared'
 import { DataTable, type DataTableColumn } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 interface PortfolioRow {
@@ -50,7 +50,7 @@ function buildColumns(maxAllocation: number): DataTableColumn<PortfolioRow>[] {
             <ProgressBar
               value={pct}
               max={maxAllocation}
-              color={rawColors.app.purple}
+              color={colors.app.purple}
               height={6}
               className="w-16 sm:w-20 shrink-0"
               ariaLabel={`${row.name} allocation share`}

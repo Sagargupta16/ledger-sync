@@ -64,10 +64,11 @@ class NetWorthMixin(AnalyticsEngineBase):
         other_assets = totals["other_assets"]
         credit_card_outstanding = totals["credit_card_outstanding"]
         loans_payable = totals["loans_payable"]
+        other_liabilities = totals["other_liabilities"]
 
         total_investments = stocks + mutual_funds + fixed_deposits + ppf_epf
         total_assets = cash_and_bank + total_investments + other_assets
-        total_liabilities = credit_card_outstanding + loans_payable
+        total_liabilities = credit_card_outstanding + loans_payable + other_liabilities
         net_worth = total_assets - total_liabilities
 
         net_worth_change, net_worth_change_pct = self._get_net_worth_change(net_worth)
@@ -169,7 +170,7 @@ class NetWorthMixin(AnalyticsEngineBase):
             existing_snapshot.other_assets = totals["other_assets"]
             existing_snapshot.credit_card_outstanding = totals["credit_card_outstanding"]
             existing_snapshot.loans_payable = totals["loans_payable"]
-            existing_snapshot.other_liabilities = Decimal(0)
+            existing_snapshot.other_liabilities = totals.get("other_liabilities", Decimal(0))
             existing_snapshot.total_assets = total_assets
             existing_snapshot.total_liabilities = total_liabilities
             existing_snapshot.net_worth = net_worth
@@ -190,7 +191,7 @@ class NetWorthMixin(AnalyticsEngineBase):
                     other_assets=totals["other_assets"],
                     credit_card_outstanding=totals["credit_card_outstanding"],
                     loans_payable=totals["loans_payable"],
-                    other_liabilities=Decimal(0),
+                    other_liabilities=totals.get("other_liabilities", Decimal(0)),
                     total_assets=total_assets,
                     total_liabilities=total_liabilities,
                     net_worth=net_worth,
@@ -285,7 +286,11 @@ class NetWorthMixin(AnalyticsEngineBase):
         account_balances: dict[str, Decimal],
         classifications: dict[str, str],
     ) -> dict[str, Decimal]:
-        """Categorize account balances into asset and liability buckets."""
+        """Categorize account balances into asset and liability buckets.
+
+        Liability buckets hold magnitudes; asset buckets only ever receive a
+        non-negative balance.
+        """
         result: dict[str, Decimal] = {
             "cash_and_bank": Decimal(0),
             "stocks": Decimal(0),
@@ -295,6 +300,7 @@ class NetWorthMixin(AnalyticsEngineBase):
             "other_assets": Decimal(0),
             "credit_card_outstanding": Decimal(0),
             "loans_payable": Decimal(0),
+            "other_liabilities": Decimal(0),
         }
 
         for account, balance in account_balances.items():
@@ -326,21 +332,24 @@ class NetWorthMixin(AnalyticsEngineBase):
 
         Anything unrecognised (including the ``"Other"`` fallback the API serves for
         an unclassified account) lands in ``other_assets``.
+
+        EVERY negative balance is a liability, matching the Net Worth page: a
+        card or loan owes into its own bucket, and any other overdrawn account
+        (bank overdraft, wallet float, a redeemed-past-cost investment) into
+        ``other_liabilities``. It used to shrink an asset bucket instead, which
+        left net worth unchanged but understated both assets and liabilities.
         """
-        if account_type in (AccountType.BANK_ACCOUNTS.value, AccountType.CASH.value):
-            result["cash_and_bank"] += balance
-        elif account_type == AccountType.CREDIT_CARDS.value:
-            if balance < 0:  # Outstanding balance
+        if balance < 0:
+            if account_type == AccountType.CREDIT_CARDS.value:
                 result["credit_card_outstanding"] += abs(balance)
-            else:
-                result["other_assets"] += balance
-        elif account_type == AccountType.INVESTMENTS.value:
-            self._assign_investment_balance(result, account, balance)
-        elif account_type == AccountType.LOANS.value:
-            if balance < 0:
+            elif account_type == AccountType.LOANS.value:
                 result["loans_payable"] += abs(balance)
             else:
-                result["other_assets"] += balance
+                result["other_liabilities"] += abs(balance)
+        elif account_type in (AccountType.BANK_ACCOUNTS.value, AccountType.CASH.value):
+            result["cash_and_bank"] += balance
+        elif account_type == AccountType.INVESTMENTS.value:
+            self._assign_investment_balance(result, account, balance)
         else:
             result["other_assets"] += balance
 

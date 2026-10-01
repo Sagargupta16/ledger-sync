@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { Save, RotateCcw } from 'lucide-react'
-import ErrorState from '@/components/shared/ErrorState'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { Button, PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
@@ -71,18 +71,12 @@ export default function SettingsPage() {
 
   if (s.loadError) {
     return (
-      <PageContainer maxWidth="5xl" className="space-y-5">
-        <PageHeader
-          title="Settings"
-          subtitle="Configure your financial preferences"
-        />
-        <ErrorState
-          variant="card"
-          title="Could not load settings"
-          message="Your existing settings were not changed. Check your connection and try again."
-          onRetry={() => void s.retrySettings()}
-        />
-      </PageContainer>
+      <PageErrorState
+        title="Settings"
+        subtitle="Configure your financial preferences"
+        message="Your existing settings were not changed. Check your connection and try again."
+        onRetry={() => void s.retrySettings()}
+      />
     )
   }
 

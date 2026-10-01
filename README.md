@@ -102,8 +102,8 @@ Local services run natively; Docker is not required:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:8000`
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- Swagger UI: `http://localhost:8000/docs` (development only)
+- ReDoc: `http://localhost:8000/redoc` (development only)
 
 ### Configuration
 

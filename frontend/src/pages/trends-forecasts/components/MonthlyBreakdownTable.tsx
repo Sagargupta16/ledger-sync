@@ -3,7 +3,7 @@ import { TrendingUp } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import { DataTable, type DataTableColumn } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import type { MonthlyTrendRow } from '../types'
 
@@ -63,7 +63,7 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
           row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'
           }`}
       >
-        {row.rawSavingsRate.toFixed(1)}%
+        {formatPercent(row.rawSavingsRate)}
       </span>
     ),
   },

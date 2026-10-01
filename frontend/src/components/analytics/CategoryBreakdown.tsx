@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
 import { calculationsApi } from '@/services/api/calculations'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import EmptyState from '@/components/shared/EmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import ProgressBar from '@/components/shared/ProgressBar'
 import Sparkline from '@/components/shared/Sparkline'
@@ -54,7 +55,7 @@ export default function CategoryBreakdown({
 }: CategoryBreakdownProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
-  const { data: categoryData, isLoading } = useCategoryBreakdown({
+  const { data: categoryData, isLoading, isError, refetch } = useCategoryBreakdown({
     transaction_type: transactionType,
     start_date: dateRange?.start_date ?? undefined,
     end_date: dateRange?.end_date ?? undefined,
@@ -103,6 +104,17 @@ export default function CategoryBreakdown({
 
   if (isLoading) {
     return <ChartSkeleton height="h-80" />
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        variant="card"
+        title={`Unable to load ${headerTitle}`}
+        message="Your category totals couldn't be loaded. Try again to see the breakdown."
+        onRetry={() => { void refetch() }}
+      />
+    )
   }
 
   if (categories.length === 0) {
@@ -199,7 +211,7 @@ export default function CategoryBreakdown({
 
                   {/* Percentage + Amount */}
                   <span className="col-start-2 row-start-2 shrink-0 text-xs tabular-nums text-muted-foreground sm:col-auto sm:row-auto">
-                    {cat.percent.toFixed(1)}%
+                    {formatPercent(cat.percent)}
                   </span>
                   <Money
                     value={cat.total}
@@ -280,7 +292,7 @@ export default function CategoryBreakdown({
                           </div>
 
                           <span className="text-xs text-text-tertiary tabular-nums shrink-0 w-10 text-right">
-                            {sub.percent.toFixed(0)}%
+                            {formatPercent(sub.percent, false, 0)}
                           </span>
                           <Money value={sub.amount} width="md" className="text-xs" />
                         </div>

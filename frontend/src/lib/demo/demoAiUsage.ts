@@ -1,3 +1,4 @@
+import type { AIConfig } from '@/services/api/aiConfig'
 import type { UsageResponse } from '@/services/api/aiUsage'
 
 /**
@@ -59,5 +60,24 @@ export function generateDemoAiUsage(now: Date = new Date()): UsageResponse {
     day_start: dayStart.toISOString(),
     month_start: monthStart.toISOString(),
     next_reset_utc: nextReset.toISOString(),
+  }
+}
+
+/**
+ * Mirrors `GET /api/preferences/ai-config` (`AIConfigResponse`) for a user who
+ * never configured a provider: the app-funded Bedrock default, no personal key,
+ * no caps. Without a route the GET hit the adapter's `[]` catch-all, which
+ * Settings then cached as an `AIConfig`, so `mode` read `undefined`.
+ */
+export function generateDemoAiConfig(): AIConfig {
+  return {
+    mode: 'app_bedrock',
+    provider: null,
+    model: null,
+    has_key: false,
+    funding_source: 'app',
+    region: null,
+    daily_token_limit: null,
+    monthly_token_limit: null,
   }
 }

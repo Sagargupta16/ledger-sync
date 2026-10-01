@@ -4,7 +4,7 @@ import {
   checkIsInvestmentWithdrawal,
 } from '@/components/analytics/health/healthScoreTypes'
 import { isInvestmentAccount } from '@/constants/accountTypes'
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { isPartialMonth, monthKeysBetween, toLocalDateKey } from '@/lib/dateUtils'
 import { shareOfIncomePercent } from '@/lib/savingsRate'
 import type { Transaction } from '@/types'
 
@@ -69,11 +69,23 @@ export function generateDemoSpendingRule(
     byCategory.get(t.category)?.push(t)
   }
 
-  const months = new Set(rows.map((t) => t.date.slice(0, 7))).size || 1
+  // Averages use COMPLETE calendar months only, like the endpoint's
+  // `_complete_months_between`: every month in the window counts (an empty one
+  // is a zero month), the month still in progress does not, and a window
+  // inside the current month has 0. Totals and shares still include it.
+  const today = toLocalDateKey(new Date())
+  const firstDate = rows.reduce<string | undefined>((min, t) => (min === undefined || t.date < min ? t.date : min), undefined)
+  const windowStart = (params.start_date as string | undefined) ?? firstDate ?? today
+  const windowEnd = (params.end_date as string | undefined) ?? today
+  const inProgress = isPartialMonth(today.slice(0, 7)) ? today.slice(0, 7) : null
+  const months = monthKeysBetween(windowStart, windowEnd).filter((m) => m !== inProgress).length
   let needs = 0
   let wants = 0
   const categories = [...byCategory.entries()].map(([category, list]) => {
     const total = list.reduce((s, t) => s + t.amount, 0)
+    const completeTotal = list
+      .filter((t) => t.date.slice(0, 7) !== inProgress)
+      .reduce((s, t) => s + t.amount, 0)
     const bucket: SpendingBucket = NEEDS_CATEGORIES.has(category) ? 'needs' : 'wants'
     if (bucket === 'needs') needs += total
     else wants += total
@@ -87,7 +99,7 @@ export function generateDemoSpendingRule(
       subcategory: null,
       bucket,
       total_amount: total,
-      avg_monthly: total / months,
+      avg_monthly: months > 0 ? completeTotal / months : 0,
       txn_count: list.length,
       months_seen: new Set(list.map((t) => t.date.slice(0, 7))).size,
       top_subs: [...subTotals.entries()]

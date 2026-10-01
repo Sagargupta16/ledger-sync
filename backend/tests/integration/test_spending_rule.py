@@ -405,7 +405,7 @@ def test_transfer_relabel_fallback_when_dest_unknown(rule_client):
     session.commit()
 
     body = client.get("/api/analytics/v2/spending-rule").json()
-    # Only shows up if classified as savings (via investment_accounts_set match).
+    # Only shows up if classified as savings (via the investment-account rule).
     # With unknown to_account, it might not be classified as savings at all --
     # in which case there are no savings category rows. If it IS in savings,
     # the label should NOT be "Transfer".
@@ -473,6 +473,34 @@ def test_monthly_average_uses_period_length(rule_client):
     rent_row = next(c for c in body["categories"] if c["category"] == "Rent")
     assert rent_row["total_amount"] == 60000
     assert 19_500 < rent_row["avg_monthly"] < 20_500
+
+
+def test_monthly_average_leaves_out_the_month_in_progress(rule_client, monkeypatch):
+    """Complete calendar months only; an empty month still counts as 0.
+
+    On 15 Jun the June rows are in every total but not in the averages, and
+    May (no rent) still counts: 30,000 over Apr-May is 15,000 a month, not
+    the 60,000 / 3 the in-progress month would make it.
+    """
+    client, session, user = rule_client
+    # ledger_now() is naive IST by contract; built aware, then made naive.
+    frozen_now = datetime(2026, 6, 15, 12, 0, tzinfo=UTC).replace(tzinfo=None)
+    monkeypatch.setattr(
+        "ledger_sync.api.analytics_v2_impl.spending_rule.ledger_now", lambda: frozen_now
+    )
+    _add_txn(session, user.id, date=datetime(2026, 4, 1, tzinfo=UTC), amount=30000, category="Rent")
+    _add_txn(session, user.id, date=datetime(2026, 6, 1, tzinfo=UTC), amount=30000, category="Rent")
+    session.commit()
+
+    body = client.get(
+        "/api/analytics/v2/spending-rule",
+        params={"start_date": "2026-04-01", "end_date": "2026-06-15"},
+    ).json()
+    rent_row = next(c for c in body["categories"] if c["category"] == "Rent")
+    assert body["period"]["months"] == 2
+    assert rent_row["total_amount"] == 60000
+    assert rent_row["avg_monthly"] == 15000
+    assert body["buckets"]["needs"]["amount"] == 60000
 
 
 def test_user_essentials_add_to_defaults(rule_client):

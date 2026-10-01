@@ -352,6 +352,36 @@ class TestOAuthFlow:
         provider_client.post.assert_called_once()
         token_stub.assert_not_called()
 
+    @pytest.mark.parametrize("provider", ["google", "github"])
+    @pytest.mark.parametrize("failure", ["transport", "provider-5xx"])
+    def test_unavailable_provider_token_exchange_is_a_readable_502(
+        self, oauth_client, provider, failure
+    ):
+        """A timeout or provider outage is a bad gateway, not a 400 or a raw 500."""
+        client, _session, provider_client, token_stub = oauth_client
+        body = _start_oauth(client, provider)
+        if failure == "transport":
+            provider_client.post.side_effect = httpx.ConnectTimeout("synthetic timeout")
+        else:
+            provider_client.post.return_value = httpx.Response(503, text="synthetic outage")
+
+        response = client.post(f"/api/auth/oauth/{provider}/callback", json=body)
+
+        assert response.status_code == 502
+        assert "temporarily unavailable" in response.json()["detail"]
+        token_stub.assert_not_called()
+
+    def test_profile_timeout_after_token_exchange_is_a_502(self, oauth_client):
+        client, _session, provider_client, token_stub = oauth_client
+        body = _start_oauth(client)
+        provider_client.get.side_effect = httpx.ReadTimeout("synthetic timeout")
+
+        response = client.post("/api/auth/oauth/google/callback", json=body)
+
+        assert response.status_code == 502
+        assert response.json()["detail"].startswith("Google sign-in is temporarily unavailable")
+        token_stub.assert_not_called()
+
     @pytest.mark.parametrize("missing", ["code", "state", "code_verifier"])
     def test_callback_requires_code_state_and_proof(self, oauth_client, missing):
         client, _session, provider_client, _token_stub = oauth_client

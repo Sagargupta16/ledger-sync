@@ -327,3 +327,37 @@ describe('OverviewPage empty states and period semantics', () => {
     expect(screen.getByText('Emergency fund')).toBeInTheDocument()
   })
 })
+
+/**
+ * Net Saved is the app-wide savings figure: income - spending - classified
+ * realised losses, the `/totals` `net_savings`, with the rate over income. The
+ * tile used to print `income - total_expenses`, which puts a classified loss
+ * back into savings: `/totals` holds it out of `total_expenses`, but the cash
+ * still left the account.
+ */
+describe('OverviewPage Net Saved', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 6, 26))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('subtracts classified realised losses and names them', () => {
+    // 220,000 in, 90,000 spent, 30,000 classified loss: 100,000 saved = 45.5%.
+    renderOverview(THROUGH_JUNE, {
+      totals: { ...TOTALS, capital_losses: 30_000, net_savings: 100_000, savings_rate: 45.45 },
+    })
+
+    expect(screen.getByText(/^45\.5% savings rate, after .*30,000.* realised losses$/)).toBeInTheDocument()
+    // `income - total_expenses` would have claimed 130,000 and 59.1%.
+    expect(screen.queryByText(/59\.1% savings rate/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the plain rate when nothing is classified', () => {
+    renderOverview(THROUGH_JUNE)
+    expect(screen.getByText('59.1% savings rate')).toBeInTheDocument()
+  })
+})

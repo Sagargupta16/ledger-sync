@@ -11,7 +11,7 @@ to avoid fragile binary-float equality comparisons.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -24,8 +24,10 @@ from ledger_sync.core.calculator import (
     calculate_lifestyle_inflation,
     calculate_monthly_burn_rate,
     calculate_savings_rate,
+    calculate_spending_frequency,
     calculate_spending_velocity,
     calculate_totals,
+    fill_complete_months,
     find_best_worst_months,
     group_by_account,
     group_by_category,
@@ -177,6 +179,68 @@ def test_monthly_burn_full_year_span() -> None:
         tx(600, date=datetime(2024, 12, 31, tzinfo=UTC)),
     ]
     assert calculate_monthly_burn_rate(txns) == pytest.approx(100.0)
+
+
+def test_monthly_burn_counts_an_empty_month_as_zero() -> None:
+    """Jan and Mar spent, Feb empty: 3 elapsed months, not 2 active ones."""
+    txns = [
+        tx(300, date=datetime(2024, 1, 10, tzinfo=UTC)),
+        tx(300, date=datetime(2024, 3, 10, tzinfo=UTC)),
+    ]
+    assert calculate_monthly_burn_rate(txns, date(2024, 6, 1)) == pytest.approx(200.0)
+
+
+def test_monthly_burn_leaves_out_the_month_in_progress() -> None:
+    """On 10 Jul, July is partial: its 50 and its slot are both excluded.
+
+    Before: (1000 + 1000 + 50) / 3 = 683.33, a fake drop in spending.
+    """
+    txns = [
+        tx(1000, date=datetime(2024, 5, 10, tzinfo=UTC)),
+        tx(1000, date=datetime(2024, 6, 10, tzinfo=UTC)),
+        tx(50, date=datetime(2024, 7, 3, tzinfo=UTC)),
+    ]
+    assert calculate_monthly_burn_rate(txns, date(2024, 7, 10)) == pytest.approx(1000.0)
+    # On the month's last day every day of it exists, so it is complete.
+    assert calculate_monthly_burn_rate(txns, date(2024, 7, 31)) == pytest.approx(2050 / 3)
+
+
+def test_monthly_burn_is_zero_when_only_the_month_in_progress_has_spending() -> None:
+    txns = [tx(500, date=datetime(2024, 7, 3, tzinfo=UTC))]
+    assert calculate_monthly_burn_rate(txns, date(2024, 7, 10)) == pytest.approx(0.0)
+
+
+def test_spending_frequency_uses_the_same_complete_month_rule() -> None:
+    txns = [
+        tx(10, date=datetime(2024, 1, 10, tzinfo=UTC)),
+        tx(10, date=datetime(2024, 1, 20, tzinfo=UTC)),
+        tx(10, date=datetime(2024, 3, 10, tzinfo=UTC)),
+        tx(10, date=datetime(2024, 4, 2, tzinfo=UTC)),  # month in progress
+    ]
+    # 3 rows over Jan..Mar (Feb empty) = 1.0 per month.
+    assert calculate_spending_frequency(txns, date(2024, 4, 5)) == pytest.approx(1.0)
+
+
+def test_fill_complete_months_zero_fills_gaps_and_drops_the_partial_month() -> None:
+    data = {
+        "2024-04": {"income": 5.0, "expenses": 1.0},
+        "2024-01": {"income": 1.0, "expenses": 2.0},
+        "2024-03": {"income": 0.0, "expenses": 3.0},
+    }
+    filled = fill_complete_months(data, date(2024, 4, 5))
+    assert list(filled) == ["2024-01", "2024-02", "2024-03"]
+    assert filled["2024-02"] == {"income": 0.0, "expenses": 0.0}
+    assert fill_complete_months({"2024-04": {"expenses": 1.0}}, date(2024, 4, 5)) == {}
+
+
+def test_fill_complete_months_crosses_the_year_boundary() -> None:
+    data = {"2023-11": {"expenses": 1.0}, "2024-02": {"expenses": 1.0}}
+    assert list(fill_complete_months(data, date(2024, 6, 1))) == [
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+    ]
 
 
 # ─── group_by_month ─────────────────────────────────────────────────────

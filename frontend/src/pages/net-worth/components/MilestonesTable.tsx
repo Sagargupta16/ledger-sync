@@ -2,8 +2,7 @@ import { CheckCircle2, Circle, Target, TrendingUp } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { DataTable, type DataTableColumn } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatDate } from '@/lib/formatters'
 
 import type { MilestoneRow } from '../netWorthProjection'
 
@@ -23,9 +22,9 @@ function formatMonthsAway(monthsAway: number): string {
   return rem > 0 ? `${years}y ${rem}mo` : `${years}y`
 }
 
-/** "Mar 2024" */
+/** "Mar 2024". A date-only key is a calendar day, not a UTC instant. */
 function formatMonthYear(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return formatDate(iso, { month: 'short', year: 'numeric' })
 }
 
 function StatusCell({ row }: Readonly<{ row: MilestoneRow }>) {
@@ -87,7 +86,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
           return <span className="text-muted-foreground">—</span>
         }
         return (
-          <span className="text-sm font-medium" style={{ color: rawColors.app.green }}>
+          <span className="text-sm font-medium text-app-green">
             {formatMonthYear(row.date)}
           </span>
         )
@@ -107,7 +106,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
           return <span className="text-muted-foreground">—</span>
         }
         return (
-          <span className="text-sm font-medium" style={{ color: rawColors.app.green }}>
+          <span className="text-sm font-medium text-app-green">
             {formatMonthYear(row.stableSince)}
           </span>
         )
@@ -127,7 +126,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
         }
         return (
           <div className="text-right">
-            <div className="text-sm font-semibold" style={{ color: rawColors.app.blue }}>
+            <div className="text-sm font-semibold text-app-blue">
               {formatMonthYear(row.date)}
             </div>
             <div className="text-xs text-muted-foreground">

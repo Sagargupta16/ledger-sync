@@ -113,6 +113,18 @@ describe('getGSTRate', () => {
     expect(getGSTRate('Restaurants')).toBe(5)
   })
 
+  it('treats school and college fees as exempt instead of the 18% fallback', () => {
+    // Each of these read 18% before (default or the coaching "Education" key).
+    expect(getGSTRate('Education', 'School Fees')).toBe(0)
+    expect(getGSTRate('Tuition')).toBe(0)
+    expect(getGSTRate('Education fees')).toBe(0)
+    expect(getGSTRate('Kids School Fee')).toBe(0)
+    expect(getGSTRate('Education', 'School Fees', undefined, '2025-06-15')).toBe(0)
+    // Coaching stays taxable.
+    expect(getGSTRate('Education')).toBe(18)
+    expect(getGSTRate('Tuition Classes')).toBe(18)
+  })
+
   it('is case-insensitive on exact match', () => {
     expect(getGSTRate('restaurants')).toBe(5)
     expect(getGSTRate('LUXURY')).toBe(40) // GST 2.0 luxury de-merit rate

@@ -3,6 +3,7 @@ import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import { meanRateSubtitle } from '@/lib/distribution'
 import type { MonthlySpendShape, SpendingBreakdown } from '@/lib/finance/spending'
+import type { CategoryBreakdown } from '@/services/api/calculations'
 
 export { monthKeysBetween } from '@/lib/dateUtils'
 export { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys } from '@/lib/finance/spending'
@@ -10,6 +11,42 @@ export type { BudgetRuleMetrics, MonthlySpendShape } from '@/lib/finance/spendin
 
 /** Color for Savings (semantic, distinct from income green). */
 export const SAVINGS_COLOR = SEMANTIC_COLORS.savings
+
+/**
+ * `category -> total` from a `/category-breakdown` payload, narrowed to one
+ * category for a `?category=` deep-link. Empty until the payload arrives.
+ */
+export function categoryTotals(
+  breakdown: CategoryBreakdown | undefined,
+  categoryFilter: string | null,
+): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [category, entry] of Object.entries(breakdown?.categories ?? {})) {
+    if (categoryFilter && category !== categoryFilter) continue
+    out[category] = Math.abs(entry.total)
+  }
+  return out
+}
+
+/**
+ * Needs vs Wants from per-category spend: a category is a Need when it matches
+ * an essential category case-insensitively -- the same per-category rule
+ * `calculateSpendingBreakdown` applies row by row, so summing categories first
+ * gives the same two numbers.
+ */
+export function splitEssentialSpend(
+  totals: Readonly<Record<string, number>>,
+  essentialCategories: readonly string[],
+): { essential: number; discretionary: number; total: number } {
+  const essentialSet = new Set(essentialCategories.map((c) => c.toLowerCase()))
+  let essential = 0
+  let discretionary = 0
+  for (const [category, amount] of Object.entries(totals)) {
+    if (essentialSet.has(category.toLowerCase())) essential += amount
+    else discretionary += amount
+  }
+  return { essential, discretionary, total: essential + discretionary }
+}
 
 /**
  * Build chart data for the 50/30/20 spending breakdown.

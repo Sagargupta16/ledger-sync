@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { Store } from 'lucide-react'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { Money } from '@/components/ui'
 import { CHART_COLORS } from '@/constants/chartColors'
@@ -49,7 +50,7 @@ const ROW_LIMIT = 200
  * a subtitle was worse than none) and states its real scope in the header.
  */
 export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
-  const { data, isPending } = useMerchantIntelligence({
+  const { data, isPending, isError, refetch } = useMerchantIntelligence({
     min_transactions: MIN_TRANSACTIONS,
     limit: ROW_LIMIT,
   })
@@ -87,6 +88,17 @@ export default function TopMerchants({ categoryFilter }: TopMerchantsProps) {
 
   if (isPending) {
     return <ChartSkeleton height="h-80" />
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        variant="card"
+        title="Unable to load top merchants"
+        message="Your payee totals couldn't be loaded. Try again to see where you spend most."
+        onRetry={() => { void refetch() }}
+      />
+    )
   }
 
   return (

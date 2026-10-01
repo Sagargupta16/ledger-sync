@@ -6,18 +6,39 @@ realised-loss keys and returns the endpoint's response body. The loss rule is
 the same everywhere: a classified loss is not spending, so every spending
 metric runs on ``exclude_capital_losses``; savings and surplus still net it
 off, because the cash left.
+
+Monthly averages (burn rate, spending frequency, lifestyle inflation windows,
+the consistency score's monthly series) use complete calendar months only, with
+empty months as 0 and the month in progress left out -- see ``core.calculator``.
+*today* defaults to the IST ledger day and is injectable for tests.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import date
 from typing import Any
 
 from ledger_sync.core import calculator
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.core.calculator import LedgerRow
+from ledger_sync.core.ledger_clock import ledger_today
+from ledger_sync.db.models import TransactionType
 
 
-def behavior_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[str, Any]:
+def _complete_monthly_expenses(
+    monthly_data: dict[str, dict[str, float]], today: date
+) -> list[float]:
+    """Monthly expense series over complete calendar months, empty months as 0."""
+    return [
+        data["expenses"] for data in calculator.fill_complete_months(monthly_data, today).values()
+    ]
+
+
+def behavior_metrics(
+    transactions: Sequence[LedgerRow], loss_keys: set[str], *, today: date | None = None
+) -> dict[str, Any]:
     """``/behavior``: average size, frequency, convenience share, top categories."""
+    reference = today or ledger_today()
     if not transactions:
         return {
             "avg_transaction_size": 0,
@@ -30,13 +51,13 @@ def behavior_metrics(transactions: list[Transaction], loss_keys: set[str]) -> di
     # Every metric here describes spending, so classified realised losses are
     # dropped first, matching /overview and /charts/categories.
     spending = calculator.exclude_capital_losses(transactions, loss_keys)
-    lifestyle_inf = calculator.calculate_lifestyle_inflation(spending)
+    lifestyle_inf = calculator.calculate_lifestyle_inflation(spending, reference)
     convenience_data = calculator.calculate_convenience_spending(spending)
     convenience_pct = convenience_data["convenience_pct"]
     category_totals = calculator.group_by_category(spending)
 
     # Calculate average transaction size and frequency (specific to this endpoint)
-    expenses = [t for t in spending if t.type == TransactionType.EXPENSE]
+    expenses = calculator.expense_rows(spending)
     if not expenses:
         return {
             "avg_transaction_size": 0,
@@ -48,12 +69,8 @@ def behavior_metrics(transactions: list[Transaction], loss_keys: set[str]) -> di
 
     avg_transaction_size = sum(float(t.amount) for t in expenses) / len(expenses)
 
-    # Spending frequency (transactions per month)
-    dates = [t.date for t in expenses]
-    min_date = min(dates)
-    max_date = max(dates)
-    months_span = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month) + 1
-    spending_frequency = len(expenses) / months_span if months_span > 0 else 0
+    # Spending frequency: expense transactions per complete calendar month.
+    spending_frequency = calculator.calculate_spending_frequency(expenses, reference)
 
     # Top spending categories
     top_categories: list[dict[str, Any]] = [
@@ -72,8 +89,15 @@ def behavior_metrics(transactions: list[Transaction], loss_keys: set[str]) -> di
     }
 
 
-def trend_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[str, Any]:
-    """``/trends``: monthly income/expense/surplus rows and a consistency score."""
+def trend_metrics(
+    transactions: Sequence[LedgerRow], loss_keys: set[str], *, today: date | None = None
+) -> dict[str, Any]:
+    """``/trends``: monthly income/expense/surplus rows and a consistency score.
+
+    The rows list every month with data, the month in progress included; the
+    consistency score reads the complete-month series instead, because its mean
+    is a monthly average.
+    """
     if not transactions:
         return {
             "monthly_trends": [],
@@ -85,7 +109,7 @@ def trend_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[
     # Classified realised losses leave ``expenses`` (they are not spending) but
     # still reduce ``surplus``, as on /charts/monthly-trends.
     monthly_data = calculator.group_by_month(transactions, loss_keys)
-    monthly_expenses = [data["expenses"] for data in monthly_data.values()]
+    monthly_expenses = _complete_monthly_expenses(monthly_data, today or ledger_today())
     consistency_score = calculator.calculate_consistency_score(monthly_expenses)
     consistency_measurable = calculator.is_measurable_consistency(monthly_expenses)
 
@@ -118,7 +142,9 @@ def trend_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[
     }
 
 
-def wrapped_insights(transactions: list[Transaction], loss_keys: set[str]) -> list[dict[str, str]]:
+def wrapped_insights(
+    transactions: Sequence[LedgerRow], loss_keys: set[str]
+) -> list[dict[str, str]]:
     """``/wrapped``: the text narratives, in display order."""
     if not transactions:
         return []
@@ -135,7 +161,7 @@ def wrapped_insights(transactions: list[Transaction], loss_keys: set[str]) -> li
     )
     daily_rate = calculator.calculate_daily_spending_rate(spending)
 
-    expenses = [t for t in spending if t.type == TransactionType.EXPENSE]
+    expenses = calculator.expense_rows(spending)
     income_txns = [t for t in transactions if t.type == TransactionType.INCOME]
 
     insights = []
@@ -223,8 +249,11 @@ def wrapped_insights(transactions: list[Transaction], loss_keys: set[str]) -> li
     return insights
 
 
-def kpi_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[str, Any]:
+def kpi_metrics(
+    transactions: Sequence[LedgerRow], loss_keys: set[str], *, today: date | None = None
+) -> dict[str, Any]:
     """``/kpis``: every KPI plus the two measurability flags."""
+    reference = today or ledger_today()
     if not transactions:
         return {
             "savings_rate": 0,
@@ -243,8 +272,7 @@ def kpi_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[st
     # nets them off because the cash left (monthly_summaries.savings_rate).
     spending = calculator.exclude_capital_losses(transactions, loss_keys)
     totals = calculator.calculate_totals(transactions, loss_keys)
-    monthly_data = calculator.group_by_month(spending)
-    monthly_expenses = [data["expenses"] for data in monthly_data.values()]
+    monthly_expenses = _complete_monthly_expenses(calculator.group_by_month(spending), reference)
     category_totals = calculator.group_by_category(spending)
     spending_velocity = calculator.calculate_spending_velocity(spending)
     convenience_data = calculator.calculate_convenience_spending(spending)
@@ -255,7 +283,7 @@ def kpi_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[st
             totals["total_expenses"] + totals["capital_losses"],
         ),
         "daily_spending_rate": calculator.calculate_daily_spending_rate(spending),
-        "monthly_burn_rate": calculator.calculate_monthly_burn_rate(spending),
+        "monthly_burn_rate": calculator.calculate_monthly_burn_rate(spending, reference),
         "spending_velocity": spending_velocity["velocity_ratio"]
         * 100,  # Convert ratio to percentage
         "velocity_comparable": spending_velocity["historical_daily"] > 0,
@@ -264,6 +292,6 @@ def kpi_metrics(transactions: list[Transaction], loss_keys: set[str]) -> dict[st
         ),
         "consistency_score": calculator.calculate_consistency_score(monthly_expenses),
         "consistency_measurable": calculator.is_measurable_consistency(monthly_expenses),
-        "lifestyle_inflation": calculator.calculate_lifestyle_inflation(spending),
+        "lifestyle_inflation": calculator.calculate_lifestyle_inflation(spending, reference),
         "convenience_spending_pct": convenience_data["convenience_pct"],
     }

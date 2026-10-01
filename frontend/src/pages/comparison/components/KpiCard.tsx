@@ -1,5 +1,5 @@
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { pctChange } from '../utils'
 
 interface KpiCardProps {
@@ -26,7 +26,7 @@ export function KpiCard({
   if (!isFlat) {
     changeColorClass = isGood ? 'text-app-green' : 'text-app-red'
   }
-  const fmtVal = (v: number) => (isPercent ? `${v.toFixed(1)}%` : formatCurrency(v))
+  const fmtVal = (v: number) => (isPercent ? formatPercent(v) : formatCurrency(v))
 
   const changeIndicator = (() => {
     if (isFlat) return <Minus className="w-3.5 h-3.5 text-muted-foreground" />

@@ -6,7 +6,7 @@ import { grossVestingValue, hasLockedVestingPrice, netVestingQuantity, netVestin
 import { selectFiscalYearStartMonth, usePreferencesStore } from '@/store/preferencesStore'
 
 import { inputClass } from '@/pages/settings/styles'
-import { dateToFY } from './fyHelpers'
+import { dateToFY, fyDisplayLabel } from './fyHelpers'
 import type { VestingEntryProps } from './vestingTableTypes'
 
 export default function VestingCard({
@@ -49,7 +49,7 @@ export default function VestingCard({
             {vested ? 'Vested' : 'Upcoming'}
           </p>
           <p className="text-xs text-muted-foreground">
-            {fiscalYear ? `FY ${fiscalYear}` : 'Fiscal year pending'}
+            {fiscalYear ? fyDisplayLabel(fiscalYear, fyStartMonth) : 'Fiscal year pending'}
           </p>
         </div>
         <Button

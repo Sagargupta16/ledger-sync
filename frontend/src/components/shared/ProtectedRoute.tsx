@@ -6,25 +6,23 @@
  */
 
 import { Navigate, useLocation } from 'react-router'
+import Spinner from '@/components/ui/Spinner'
 import { useAuthStore } from '@/store/authStore'
-import { Loader2 } from 'lucide-react'
 
 interface ProtectedRouteProps {
   readonly children: React.ReactNode
 }
 
 export function ProtectedRoute({ children }: Readonly<ProtectedRouteProps>) {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isLoading = useAuthStore((state) => state.isLoading)
   const location = useLocation()
 
   // Show loading state while checking auth
   if (isLoading) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-app-blue animate-spin" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+        <Spinner size="md" label="Loading..." />
       </div>
     )
   }

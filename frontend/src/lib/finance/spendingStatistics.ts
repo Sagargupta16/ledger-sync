@@ -1,6 +1,7 @@
-import { daysInMonth, monthKeysBetween, MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
+import { daysInMonth, monthKeysBetween, MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
 import { medianOf } from '@/lib/distribution'
-import { currentMonthKey } from '@/lib/savingsRate'
+
+import { completeMonthAverage, completeMonthSpine, totalsByMonth } from './monthlyAverage'
 
 export interface SpendingDateRange {
   start_date?: string
@@ -73,19 +74,41 @@ export function computeMonthsInRange(
   return monthsCovered(dateRange.start_date, dateRange.end_date)
 }
 
-/** Daily and monthly burn rates share the exact same elapsed window. */
+/**
+ * Daily and monthly burn rates share the exact same elapsed window.
+ *
+ * With per-month expense totals the monthly burn rate is the shared
+ * complete-month average (`completeMonthAverage`): empty months count as 0 and
+ * the in-progress month is excluded. Without them, or when the window holds no
+ * complete month yet, it stays the elapsed-fraction pace the subtitle labels.
+ */
 export function computeSpendingPace(
   totalSpending: number,
   dateRange: SpendingDateRange,
   dataSpan: { min_date?: string | null; max_date?: string | null } | undefined,
   today: string,
+  monthly?: Readonly<Record<string, { expense?: number }>>,
 ) {
   const spanRange = resolveSpanRange(dateRange, dataSpan, today)
   const daysInRange = computeDaysInRange(spanRange, [])
+  const avgDailySpending = totalSpending / daysInRange
+  const complete = monthly
+    ? completeMonthAverage(
+      totalsByMonth(Object.entries(monthly), ([key]) => key, ([, month]) => Math.abs(month.expense ?? 0)),
+      { start: spanRange.start_date, end: spanRange.end_date },
+      parseLocalDate(today),
+    )
+    : null
+  if (complete) {
+    return {
+      spanRange, daysInRange, avgDailySpending,
+      monthsInRange: complete.months.length,
+      monthlyBurnRate: complete.average,
+    }
+  }
   const monthsInRange = computeMonthsInRange(spanRange, [])
   return {
-    spanRange, daysInRange, monthsInRange,
-    avgDailySpending: totalSpending / daysInRange,
+    spanRange, daysInRange, monthsInRange, avgDailySpending,
     monthlyBurnRate: totalSpending / monthsInRange,
   }
 }
@@ -106,17 +129,14 @@ export function medianSpendingDay(
   return spendingDays.length > 0 ? medianOf(spendingDays) : null
 }
 
-/** Typical completed calendar month, including zero months between observations. */
+/** Typical completed calendar month, on the same month spine as the burn-rate mean. */
 export function medianSpendingMonth(
   monthly: Record<string, { expense?: number }> | undefined,
   now: Date = new Date(),
 ): number | null {
   if (!monthly) return null
-  const complete = Object.entries(monthly).filter(([key]) => key < currentMonthKey(now))
-  if (complete.length === 0) return null
-  const byMonth = new Map(complete.map(([key, month]) => [key, Math.abs(month.expense ?? 0)]))
-  const keys = [...byMonth.keys()].sort((a, b) => a.localeCompare(b))
-  const totals = monthKeysBetween(keys[0], keys.at(-1)!).map((key) => byMonth.get(key) ?? 0)
+  const byMonth = new Map(Object.entries(monthly).map(([key, month]) => [key, Math.abs(month.expense ?? 0)]))
+  const totals = completeMonthSpine([...byMonth.keys()], {}, now).map((key) => byMonth.get(key) ?? 0)
   return totals.length >= 2 ? medianOf(totals) : null
 }
 

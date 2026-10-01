@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { Calculator, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react'
-import { formatCurrency, percentChange } from '@/lib/formatters'
+import { Money } from '@/components/ui'
+import { formatPercent, percentChange } from '@/lib/formatters'
 
 interface TaxSummaryCardsProps {
   isLoading: boolean
@@ -26,7 +27,7 @@ function YoyBadge({ current, previous }: Readonly<{ current: number; previous: n
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-overline font-medium ${color} ${bg}`}>
       <Icon className="w-3 h-3" />
-      {isUp ? '+' : ''}{pct.toFixed(1)}%
+      {formatPercent(pct, true)}
     </span>
   )
 }
@@ -42,14 +43,15 @@ export default function TaxSummaryCards({
   prevTotalTax,
 }: Readonly<TaxSummaryCardsProps>) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    // Two-up on phones with short figures; full figures from `sm` up.
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="ledger-panel p-4 sm:p-5"
+        className="ledger-panel min-w-0 p-4 sm:p-5"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-green/15">
             <TrendingUp className="size-4 text-app-green" />
           </div>
@@ -59,7 +61,7 @@ export default function TaxSummaryCards({
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : formatCurrency(netTaxableIncome)}
+                {isLoading ? '...' : <Money value={netTaxableIncome} compactBelowSm bold className="whitespace-normal text-left" />}
               </p>
               {!isLoading && <YoyBadge current={netTaxableIncome} previous={prevNetTaxableIncome} />}
             </div>
@@ -74,9 +76,9 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="ledger-panel p-4 sm:p-5"
+        className="ledger-panel min-w-0 p-4 sm:p-5"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-blue/15">
             <IndianRupee className="size-4 text-app-blue" />
           </div>
@@ -84,7 +86,7 @@ export default function TaxSummaryCards({
             <p className="text-kpi-label text-muted-foreground">Taxable Income</p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : formatCurrency(grossTaxableIncome)}
+                {isLoading ? '...' : <Money value={grossTaxableIncome} compactBelowSm bold className="whitespace-normal text-left" />}
               </p>
               {!isLoading && <YoyBadge current={grossTaxableIncome} previous={prevGrossTaxableIncome} />}
             </div>
@@ -97,9 +99,9 @@ export default function TaxSummaryCards({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="ledger-panel p-4 sm:p-5"
+        className="ledger-panel col-span-2 min-w-0 p-4 sm:col-span-1 sm:p-5"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
             <Calculator className="size-4 text-primary" />
           </div>
@@ -109,7 +111,7 @@ export default function TaxSummaryCards({
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : formatCurrency(totalTax)}
+                {isLoading ? '...' : <Money value={totalTax} compactBelowSm bold className="whitespace-normal text-left" />}
               </p>
               {!isLoading && <YoyBadge current={totalTax} previous={prevTotalTax} />}
             </div>

@@ -10,6 +10,7 @@ import json
 
 from fastapi import APIRouter
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import SavedFilterView
@@ -61,25 +62,32 @@ def save_view(
     If a view with this name already exists for the user, its filters
     and updated_at are overwritten and the existing id is returned.
     Always 200, never 201/409, so the frontend "Save current view" flow
-    can blindly POST without checking name collisions.
+    can blindly POST without checking name collisions. Two concurrent saves
+    of a new name race on the unique (user, name) index; the loser rolls back
+    and updates the winner's row, so both still get 200.
     """
+    user_id = current_user.id
+    filters = json.dumps(payload.filters)
     stmt = select(SavedFilterView).where(
-        SavedFilterView.user_id == current_user.id,
+        SavedFilterView.user_id == user_id,
         SavedFilterView.name == payload.name,
     )
     view = db.execute(stmt).scalar_one_or_none()
 
     if view is not None:
-        view.filters = json.dumps(payload.filters)
+        view.filters = filters
+        db.commit()
     else:
-        view = SavedFilterView(
-            user_id=current_user.id,
-            name=payload.name,
-            filters=json.dumps(payload.filters),
-        )
+        view = SavedFilterView(user_id=user_id, name=payload.name, filters=filters)
         db.add(view)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            view = db.execute(stmt).scalar_one()
+            view.filters = filters
+            db.commit()
 
-    db.commit()
     db.refresh(view)
     return _to_view_response(view)
 

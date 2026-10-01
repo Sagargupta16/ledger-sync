@@ -1,31 +1,45 @@
 /**
- * Data + derived state for the Spending Analysis page. Owns transactions,
- * date + category filtering, the spending totals/breakdown, and the 50/30/20
- * budget-rule computations so the page component stays presentational.
+ * Data + derived state for the Spending Analysis page. Owns date + category
+ * filtering, the spending totals/breakdown, and the 50/30/20 budget-rule
+ * computations so the page component stays presentational.
+ *
+ * Every number comes from server aggregates (`spendingAnalysisQueries`), not
+ * the full ledger. The client used to sum raw rows here, which counted realised
+ * capital losses as spending even after the user classified them, while
+ * `/totals` and the Dashboard held them out -- so "Total Spending" on this page
+ * and "Total Expenses" on the Dashboard disagreed for the same window. The
+ * server applies the one rule (only classified `capital_loss_categories` leave
+ * spending) to every read below.
  */
 
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   hasNoCompleteMonthBasis,
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
-import { calculateSpendingBreakdown } from '@/lib/preferencesUtils'
-import { computeCategoryBreakdown } from '@/lib/transactionUtils'
-import { filterTransactionsByDateRange, formatMonthKey } from '@/lib/dateUtils'
+import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys, spendingRuleSavings } from '@/lib/finance/spending'
 import { resolveEssentialCategories } from '@/store/preferencesStore'
-import type { Transaction } from '@/types'
 
 import {
+  useExpenseBreakdown,
+  useIncomeBreakdown,
+  useMonthlyExpense,
+  useRangeTotals,
+  type SpendingRange,
+} from './spendingAnalysisQueries'
+import {
   buildSpendingChartData,
+  categoryTotals,
   monthlyAvgLineLabelFor,
   monthlyAvgSubtitleFor,
+  splitEssentialSpend,
 } from './spendingAnalysisUtils'
 
 export function useSpendingAnalysis() {
@@ -38,61 +52,64 @@ export function useSpendingAnalysis() {
   }
 
   const {
-    data: transactions = [],
-    isPending: isTransactionsPending,
-    isError: isTransactionsError,
-    refetch: refetchTransactions,
-  } = useTransactions()
-  const {
     data: preferences,
     isPending: isPreferencesPending,
     isError: isPreferencesError,
     refetch: refetchPreferences,
   } = usePreferences()
+  // Nav bounds from `/data-date-range`: the same non-deleted, non-excluded rows
+  // the ledger holds, without downloading them.
+  const boundsQuery = useDataDateRange()
+  const { minDate, maxDate } = boundsQuery
+  const bounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
   const { dateRange, comparableDateRange, partialPeriod, isRangePartialOnly, timeFilterProps } =
-    useAnalyticsTimeFilter(transactions)
-  const dateRangeCompat = { start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }
-  const isError = isTransactionsError || isPreferencesError
-  const isLoading = !isError && (isTransactionsPending || isPreferencesPending)
-  const retry = () => {
-    void Promise.all([refetchTransactions(), refetchPreferences()])
-  }
+    useAnalyticsTimeFilter(bounds)
+  const windowRange = useMemo<SpendingRange>(
+    () => ({ start_date: dateRange.start_date ?? undefined, end_date: dateRange.end_date ?? undefined }),
+    [dateRange.start_date, dateRange.end_date],
+  )
+  const comparableRange = useMemo<SpendingRange>(
+    () => ({
+      start_date: comparableDateRange.start_date ?? undefined,
+      end_date: comparableDateRange.end_date ?? undefined,
+    }),
+    [comparableDateRange.start_date, comparableDateRange.end_date],
+  )
+  const dateRangeCompat = windowRange
 
-  // Filter by date range, then by the category query param (deep-link from a
-  // donut slice). This set backs the TOTALS -- "spent so far this month" is a
-  // number the user wants, so it keeps the in-progress month.
-  const filteredTransactions = useMemo(() => {
-    const byDate = filterTransactionsByDateRange(transactions, dateRange)
-    if (!categoryFilter) return byDate
-    return byDate.filter((t: Transaction) => t.category === categoryFilter)
-  }, [transactions, dateRange, categoryFilter])
+  // TOTALS keep the in-progress month -- "spent so far this month" is a number
+  // the user wants.
+  const windowExpense = useExpenseBreakdown(windowRange)
 
   /**
-   * Same set narrowed to COMPLETE months, backing every RATE and AVERAGE on the
-   * page. On the real ledger the raw set put July (27 of 31 days: full rent
-   * debited, salary not yet credited) beside complete months and the budget-rule
-   * card read Needs 1015.3% of income for the monthly view and 47.9% for the FY,
-   * against 34.1% on the FY's completed months. All three measured 2026-07-27
-   * from the live workbook on the non-deleted rows the API actually returns
-   * (`/api/transactions/all` filters `is_deleted`), with the stored
-   * `essential_categories`. Totals above are unaffected.
+   * Every RATE and AVERAGE runs on COMPLETE months. On the real ledger the raw
+   * window put July (27 of 31 days: full rent debited, salary not yet credited)
+   * beside complete months and the budget-rule card read Needs 1015.3% of
+   * income for the monthly view and 47.9% for the FY, against 34.1% on the FY's
+   * completed months (measured 2026-07-27 with the stored
+   * `essential_categories`). Totals above are unaffected.
    *
-   * Falls back to the raw set when NOTHING survives the narrowing. That is not a
-   * hypothetical: a user one month into their history sits on the default
-   * all-time view, whose comparable range ends at the previous month-end and
-   * matches nothing, and a `?category=X` deep-link can have every row inside the
-   * month in progress. Without the fallback the whole rates half of the page
-   * collapsed -- income 0 makes `buildSpendingChartData` and
-   * `computeBudgetRuleMetrics` bail, and the budget card then rendered a
-   * "Configure essential categories in Settings" empty state, blaming a setting
-   * that was not the problem. An honest running-pace label on real numbers beats
-   * a zeroed page; `noCompleteMonthBasis` is what makes the page say so.
+   * Falls back to the whole window when NOTHING falls inside the complete
+   * months. That is not a hypothetical: a user one month into their history
+   * sits on the default all-time view, whose comparable range ends at the
+   * previous month-end and matches nothing, and a `?category=X` deep-link can
+   * have every row inside the month in progress. Without the fallback income
+   * read 0, `buildSpendingChartData` and `computeBudgetRuleMetrics` bailed, and
+   * the budget card rendered a "Configure essential categories in Settings"
+   * empty state, blaming a setting that was not the problem. An honest
+   * running-pace label on real numbers beats a zeroed page;
+   * `noCompleteMonthBasis` is what makes the page say so.
    */
-  const completeMonthTransactions = useMemo(() => {
-    const byDate = filterTransactionsByDateRange(transactions, comparableDateRange)
-    if (!categoryFilter) return byDate
-    return byDate.filter((t: Transaction) => t.category === categoryFilter)
-  }, [transactions, comparableDateRange, categoryFilter])
+  const comparableTotals = useRangeTotals(comparableRange)
+  const comparableExpense = useExpenseBreakdown(comparableRange)
+  const comparableIncome = useIncomeBreakdown(comparableRange, Boolean(categoryFilter))
+  const comparableRowCount = categoryFilter
+    ? (comparableExpense.data?.categories[categoryFilter]?.count ?? 0) +
+      (comparableIncome.data?.categories[categoryFilter]?.count ?? 0)
+    : (comparableTotals.data?.transaction_count ?? 0)
+  const comparableLoaded = categoryFilter
+    ? comparableExpense.data !== undefined && comparableIncome.data !== undefined
+    : comparableTotals.data !== undefined
 
   /**
    * True when the rates on this page are running on the in-progress month -- the
@@ -100,90 +117,114 @@ export function useSpendingAnalysis() {
    * kicked in. Drives the notice copy so a running-pace figure is never presented
    * as a completed-month result.
    */
-  const noCompleteMonthBasis = hasNoCompleteMonthBasis(
-    isRangePartialOnly,
-    completeMonthTransactions.length,
-  )
-
-  const usingCompleteMonths = completeMonthTransactions.length > 0
-  const comparableTransactions = usingCompleteMonths
-    ? completeMonthTransactions
-    : filteredTransactions
+  const noCompleteMonthBasis = hasNoCompleteMonthBasis(isRangePartialOnly, comparableRowCount)
 
   /**
-   * The window that describes `comparableTransactions`, which must follow the
-   * same fallback the ROWS do.
-   *
-   * Anything that divides by months in the window (see `monthlySpendShape`) needs
-   * a range that actually contains those rows. Handing it `comparableDateRange`
-   * unconditionally meant that on the fallback path -- where the complete-months
-   * range matched nothing and the raw set was substituted -- the divisor spanned
-   * months holding none of the rows, and the per-month average came back 0. That
-   * is the same zeroed page the fallback exists to prevent.
+   * The window every rate and average is computed on, which must follow the
+   * same fallback the ROWS do. Anything that divides by months in the window
+   * (see `monthlySpendShape`) needs a range that actually contains those rows;
+   * dividing the fallback rows by the empty complete-months span came back 0,
+   * the same zeroed page the fallback exists to prevent. Held on the complete
+   * months until their count is known, so the basis never flips mid-load.
    */
-  const comparableSpanRange = usingCompleteMonths ? comparableDateRange : dateRange
+  const usingCompleteMonths = !comparableLoaded || comparableRowCount > 0
+  const basisRange = usingCompleteMonths ? comparableRange : windowRange
 
-  const totalSpending = useMemo(() => {
-    return filteredTransactions
-      .filter((t) => t.type === 'Expense')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  }, [filteredTransactions])
+  // On the complete-months path these are the same cache entries as above.
+  const basisTotals = useRangeTotals(basisRange)
+  const basisExpense = useExpenseBreakdown(basisRange)
+  const basisIncome = useIncomeBreakdown(basisRange, Boolean(categoryFilter))
+  const basisMonthly = useMonthlyExpense(basisRange, categoryFilter)
 
-  // Income and the savings figure derived from it feed the budget-rule
-  // PERCENTAGES, so both come off the complete-months set. Mixing a month whose
-  // salary has not landed into the denominator is what produced the 1015% needs
-  // share and a 0% savings share.
-  const totalIncome = useMemo(() => {
-    return comparableTransactions
-      .filter((t) => t.type === 'Income')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  }, [comparableTransactions])
-
-  const comparableSpending = useMemo(() => {
-    return comparableTransactions
-      .filter((t) => t.type === 'Expense')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  }, [comparableTransactions])
-
-  const savings = spendingRuleSavings(totalIncome, comparableSpending)
+  const reads = [
+    windowExpense,
+    comparableTotals,
+    comparableExpense,
+    comparableIncome,
+    basisTotals,
+    basisExpense,
+    basisIncome,
+    basisMonthly,
+  ]
+  const isError = isPreferencesError || boundsQuery.isError || reads.some((read) => read.isError)
+  const isLoading =
+    !isError && (isPreferencesPending || boundsQuery.isLoading || reads.some((read) => read.isPending))
+  const retry = () => {
+    void Promise.all([
+      refetchPreferences(),
+      boundsQuery.refetch(),
+      ...reads.filter((read) => read.isError).map((read) => read.refetch()),
+    ])
+  }
 
   const categoryBreakdown = useMemo(
-    () => computeCategoryBreakdown(filteredTransactions),
-    [filteredTransactions],
+    () => categoryTotals(windowExpense.data, categoryFilter),
+    [windowExpense.data, categoryFilter],
   )
+  const totalSpending = Object.values(categoryBreakdown).reduce((sum, value) => sum + value, 0)
 
   const categoriesCount = Object.keys(categoryBreakdown).length
   const subcategoriesCount = useMemo(() => {
-    const subs = new Set<string>()
-    filteredTransactions.filter((t) => t.type === 'Expense' && t.subcategory).forEach((t) => subs.add(`${t.category}::${t.subcategory}`))
-    return subs.size
-  }, [filteredTransactions])
+    const categories = windowExpense.data?.categories ?? {}
+    return Object.entries(categories)
+      .filter(([category]) => !categoryFilter || category === categoryFilter)
+      .reduce((sum, [, entry]) => sum + Object.keys(entry.subcategories).length, 0)
+  }, [windowExpense.data, categoryFilter])
   const topCategoryEntry = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0]
   const topCategory = topCategoryEntry?.[0] || 'N/A'
   const topCategoryAmount = topCategoryEntry?.[1] ?? 0
 
+  // Income and the savings figure derived from it feed the budget-rule
+  // PERCENTAGES, so both come off the basis window. Mixing a month whose salary
+  // has not landed into the denominator is what produced the 1015% needs share
+  // and a 0% savings share. On a category deep-link the income is the income
+  // booked IN that category, as the row filter always meant.
+  const totalIncome = categoryFilter
+    ? (basisIncome.data?.categories[categoryFilter]?.total ?? 0)
+    : (basisTotals.data?.total_income ?? 0)
+  const basisCategoryTotals = useMemo(
+    () => categoryTotals(basisExpense.data, categoryFilter),
+    [basisExpense.data, categoryFilter],
+  )
+  const comparableSpending = Object.values(basisCategoryTotals).reduce((sum, value) => sum + value, 0)
+  // Savings = income - spending - classified realised losses (the `/totals`
+  // `net_savings` rule). A classified loss is out of spending but the cash left.
+  const basisLosses = categoryFilter ? 0 : (basisTotals.data?.capital_losses ?? 0)
+  const savings = spendingRuleSavings(totalIncome, comparableSpending + basisLosses)
+
   // Needs/Wants split is charted as a share of income, so it must sit on the
-  // same complete-months basis as `totalIncome`.
+  // same basis as `totalIncome`.
   //
   // `essential_categories` goes through `resolveEssentialCategories` rather than
   // straight off the wire: the backend column default is the JSON string "[]",
-  // so an unconfigured user sends `[]`, and `calculateSpendingBreakdown`'s
-  // `custom ?? getPrefs()...` override short-circuits the store default with it
-  // -- booking 100% of spend discretionary (0% needs on 50/30/20).
+  // so an unconfigured user sends `[]`, and an empty list would book 100% of
+  // spend discretionary (0% needs on 50/30/20).
   const spendingBreakdown = useMemo(() => {
     if (!preferences) return null
-    return calculateSpendingBreakdown(
-      comparableTransactions,
+    return splitEssentialSpend(
+      basisCategoryTotals,
       resolveEssentialCategories(preferences.essential_categories),
     )
-  }, [comparableTransactions, preferences])
+  }, [basisCategoryTotals, preferences])
+
+  /**
+   * Spend per month on the basis window, keyed `YYYY-MM`, only months that
+   * carry spend (the spine below fills the gaps with real zero months).
+   */
+  const monthlyMap = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const [month, amount] of Object.entries(basisMonthly.data ?? {})) {
+      if (amount > 0) out[month] = amount
+    }
+    return out
+  }, [basisMonthly.data])
 
   /**
    * Per-month AVERAGE. Runs on complete months, so a 27-day month cannot count
    * as a full one in the divisor (real ledger, FY window on 2026-07-27:
    * 94,373.35 with the partial month vs 89,947.25 across the three complete
    * ones), and the divisor is every CALENDAR month in the window rather than
-   * only the months that carry a row -- see `monthlySpendShape` for the measured
+   * only the months that carry spend -- see `monthlySpendShape` for the measured
    * gap, which reaches 81% on a sparse category deep-link.
    *
    * `median` rides along for the subtitle: monthly spend is heavily skewed on
@@ -193,10 +234,10 @@ export function useSpendingAnalysis() {
   const monthlySpend = useMemo(
     () =>
       monthlySpendShape(
-        comparableTransactions.filter((t) => t.type === 'Expense'),
-        comparableSpanRange,
+        Object.entries(monthlyMap).map(([month, amount]) => ({ date: `${month}-01`, amount })),
+        basisRange,
       ),
-    [comparableTransactions, comparableSpanRange],
+    [monthlyMap, basisRange],
   )
   const monthlyAvgSpending = monthlySpend?.mean ?? 0
   const monthlyAvgSubtitle = monthlyAvgSubtitleFor(monthlySpend, formatCurrency)
@@ -219,46 +260,21 @@ export function useSpendingAnalysis() {
    * by construction, so it runs on complete months: a stub bar for a month five
    * days from over reads as a collapse in spending.
    *
-   * The window used to be `slice(max(0, i - 2), i + 1)` divided by its own
-   * length, so the first two points divided by 1 and 2 while the legend, the
-   * tooltip and the chart's ariaLabel all still read "3-month rolling average".
-   * Measured on the real ledger over the DEFAULT FY window (2026-04..2026-06,
-   * exactly three complete months): 2026-04 plotted 77,700.92 from a one-month
-   * window and 2026-05 plotted 80,666.86 from a two-month window; only 2026-06's
-   * 89,947.25 was a real three-month mean. Two of the three "3m avg" points were
-   * therefore raw monthly spend redrawn as a trend.
+   * A short window yields `undefined` rather than a 1- or 2-month mean labelled
+   * "3-month rolling average" (measured on the real ledger's default FY window:
+   * two of the three points were raw monthly spend redrawn as a trend), which
+   * leaves FEWER average points than data points -- see `rollingAvgPointCount`.
    *
-   * A short window now yields `undefined`, which leaves FEWER average points than
-   * data points -- see `rollingAvgPointCount` for why that count has to travel
-   * with the series.
-   *
-   * The series also runs on a CONTIGUOUS month spine rather than only the months
-   * carrying a row. Sliding a 3-element window over a gappy list silently reaches
-   * further back than 3 calendar months, and drops the zero month out of the
-   * average entirely: the real ledger has no expense in 2019-03, so the window
-   * ending 2019-05 averaged Feb/Apr/May and published 654.33 where those three
-   * calendar months average 521.00 (+25.6%). The gap also broke the x-axis, which
-   * jumped Feb to Apr at even spacing as though no time passed.
-   *
-   * That spine is the SAME one the "Monthly Avg" KPI divides by
-   * ({@link spanMonthKeys}), because the chart draws that KPI as its "Avg"
-   * reference line. Spanning only the row-bearing months here while the KPI spans
-   * the selected window put the line below every bar it claimed to average:
-   * measured this session on a yearly-2025 window whose rows start in June, 7
-   * bars of 70,000.00 sat above an Avg line of 40,833.33. Sharing the spine makes
-   * the line the arithmetic mean of the plotted bars by construction, and the
-   * empty months it adds are real zero-spend months, which the axis should show.
+   * The series runs on a CONTIGUOUS month spine, the SAME one the "Monthly Avg"
+   * KPI divides by ({@link spanMonthKeys}), because the chart draws that KPI as
+   * its "Avg" reference line. A gappy list silently reached further back than 3
+   * calendar months (2019-05 averaged Feb/Apr/May: 654.33 vs 521.00), and a
+   * row-months-only spine put the line below every bar it claimed to average.
    */
   const monthlyTrendData = useMemo(() => {
-    const expenses = comparableTransactions.filter((t) => t.type === 'Expense')
-    const monthlyMap: Record<string, number> = {}
-    for (const tx of expenses) {
-      const month = tx.date.substring(0, 7) // YYYY-MM
-      monthlyMap[month] = (monthlyMap[month] || 0) + Math.abs(tx.amount)
-    }
     const withRows = Object.keys(monthlyMap).sort((a, b) => a.localeCompare(b))
     if (withRows.length === 0) return []
-    const sorted = spanMonthKeys(withRows, comparableSpanRange).map((month) => ({
+    const sorted = spanMonthKeys(withRows, basisRange).map((month) => ({
       month,
       label: formatMonthKey(month, { month: 'short', year: '2-digit' }),
       expense: monthlyMap[month] ?? 0,
@@ -273,7 +289,7 @@ export function useSpendingAnalysis() {
           : undefined,
       }
     })
-  }, [comparableTransactions, comparableSpanRange])
+  }, [monthlyMap, basisRange])
 
   /** How many rolling-average points actually exist -- see `countRollingAvgPoints`. */
   const rollingAvgPointCount = useMemo(
@@ -299,24 +315,18 @@ export function useSpendingAnalysis() {
    * `savings_target_percent` -- the two preferences score different numerators
    * and this page computes the first one.
    *
-   * `savings` here is `totalIncome - comparableSpending` (see above): income the
-   * user did not consume, wherever it ended up. `savings_target_percent` is the
-   * third leg of the 50/30/20 triplet and is scored on /budgets against the NET
-   * CHANGE IN THE INVESTMENT PERIMETER -- money actually moved into
-   * SIP/PPF/EPF/NPS/stocks. Those are not the same bar: 20% of income left over
-   * is far easier to clear than 20% of income allocated into instruments, and on
-   * the real ledger for FY2025-26 the two numerators are 1,182,355.68 and
-   * 578,428.79 (see `pages/budget/BudgetPage.tsx`). Reading one preference
-   * against both let /budgets report "under target" while this page reported "on
-   * track" for the same user in the same period.
+   * `savings` here is income the user did not spend or lose, wherever it ended
+   * up. `savings_target_percent` is the third leg of the 50/30/20 triplet and is
+   * scored on /budgets against the NET CHANGE IN THE INVESTMENT PERIMETER --
+   * money actually moved into SIP/PPF/EPF/NPS/stocks. Those are not the same
+   * bar: on the real ledger for FY2025-26 the two numerators are 1,182,355.68
+   * and 578,428.79 (see `pages/budget/BudgetPage.tsx`). Reading one preference
+   * against both let /budgets report "under target" while this page reported
+   * "on track" for the same user in the same period.
    *
    * `savings_goal_percent` is the app's income-minus-expenses target already:
-   * the health score's "Spend Less Than Income" metric
-   * (`components/analytics/health/healthScoreScorers.ts`) and the Trends
-   * cumulative-savings-rate goal line
-   * (`pages/trends-forecasts/components/SavingsRateSection.tsx`) both score it
-   * against exactly this quantity. This page was the only
-   * income-minus-expenses surface reaching for the allocation target instead.
+   * the health score's "Spend Less Than Income" metric and the Trends
+   * cumulative-savings-rate goal line both score it against this quantity.
    * Both columns default to 20.0, so no existing user's setting changes meaning.
    *
    * Consequence for the heading: needs + wants + this no longer necessarily sum

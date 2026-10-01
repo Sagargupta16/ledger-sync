@@ -1,7 +1,7 @@
 import { Banknote, Receipt } from 'lucide-react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
 interface ReturnsBreakdownProps {
@@ -34,7 +34,7 @@ function BreakdownColumn({
   total: number
   tone: 'green' | 'red'
 }>) {
-  const barColor = tone === 'green' ? rawColors.app.green : rawColors.app.red
+  const barColor = tone === 'green' ? colors.app.green : colors.app.red
 
   return (
     <div className="min-w-0 py-4 first:pt-0 last:pb-0 md:px-5 md:py-0 md:first:pl-0 md:last:pr-0">

@@ -188,8 +188,10 @@ export default function QuickInsights({
   // end is capped at today so forward-dated rows cannot stretch the divisor past
   // the elapsed period; see `resolveSpanRange`.
   const totalSpending = insights?.total_spending ?? 0
+  // The monthly series lets the burn rate average COMPLETE months rather than
+  // stretch a part month into a full one.
   const { spanRange, daysInRange, monthsInRange, avgDailySpending, monthlyBurnRate } = computeSpendingPace(
-    totalSpending, dateRange, insights, toLocalDateKey(new Date()),
+    totalSpending, dateRange, insights, toLocalDateKey(new Date()), monthlyQuery.data,
   )
 
   const netCashback = insights?.net_cashback ?? 0

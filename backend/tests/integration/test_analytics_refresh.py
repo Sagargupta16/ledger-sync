@@ -397,3 +397,47 @@ def test_selective_refresh_drops_prelock_cached_monthly_predecessor(test_db_sess
     selective = _summary_values(session, test_user.id)
     engine.run_full_analytics()
     assert _summary_values(session, test_user.id) == selective
+
+
+def test_run_prunes_this_users_old_analytics_audit_rows(test_db_session, test_user, make_user):
+    # Every non-skipped refresh appends an ``analytics`` audit row that nothing
+    # reads; without pruning the table grows by one row per upload forever.
+    from ledger_sync.core.analytics.engine import ANALYTICS_AUDIT_RETENTION_DAYS
+    from ledger_sync.db.models import AuditLog
+
+    session = test_db_session
+    other = make_user("other-audit@example.com")
+    now = datetime.now(UTC).replace(tzinfo=None)
+    stale = now - timedelta(days=ANALYTICS_AUDIT_RETENTION_DAYS + 1)
+    recent = now - timedelta(days=ANALYTICS_AUDIT_RETENTION_DAYS - 1)
+
+    def audit(user_id: int, operation: str, created_at: datetime) -> AuditLog:
+        return AuditLog(
+            user_id=user_id,
+            operation=operation,
+            entity_type="system",
+            action="calculate",
+            created_at=created_at,
+        )
+
+    session.add_all(
+        [
+            audit(test_user.id, "analytics", stale),
+            audit(test_user.id, "analytics", recent),
+            audit(test_user.id, "upload", stale),
+            audit(other.id, "analytics", stale),
+        ]
+    )
+    session.commit()
+
+    _seed(session, test_user.id)
+
+    rows = session.scalars(select(AuditLog).order_by(AuditLog.id)).all()
+    kept = [(row.user_id, row.operation, row.created_at) for row in rows]
+    # This user's stale analytics row is gone; the recent one, the other
+    # operation and the other user's row are untouched; the run added its own.
+    assert (test_user.id, "analytics", stale) not in kept
+    assert (test_user.id, "analytics", recent) in kept
+    assert (test_user.id, "upload", stale) in kept
+    assert (other.id, "analytics", stale) in kept
+    assert sum(1 for user_id, op, _ in kept if user_id == test_user.id and op == "analytics") == 2

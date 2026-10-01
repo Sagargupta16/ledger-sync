@@ -16,7 +16,7 @@ import { WhatIsSection } from './components/WhatIsSection'
 
 export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const { isAuthenticated } = useAuthStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 

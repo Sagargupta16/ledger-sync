@@ -7,9 +7,7 @@ export { default as MultiCategoryTimeAnalysis } from './MultiCategoryTimeAnalysi
 
 // New analytics components
 export { default as FinancialHealthScore } from './FinancialHealthScore'
-export { default as RecurringTransactions } from './RecurringTransactions'
 export { default as TopMerchants } from './TopMerchants'
-export { default as PeriodComparison } from './PeriodComparison'
 export { default as CashFlowForecast } from './CashFlowForecast'
 export { default as CreditCardHealth } from './CreditCardHealth'
 

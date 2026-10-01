@@ -56,7 +56,24 @@ export function generateDemoTransferFlows(txs: Transaction[]): TransferFlow[] {
  */
 const DEMO_LABEL_KIND: LabelKind = 'descriptor'
 
-export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantRow[] {
+/** A positive integer query param, else the endpoint's default. */
+function positiveIntParam(value: unknown, fallback: number): number {
+  const n = Number(value)
+  return Number.isInteger(n) && n >= 1 ? n : fallback
+}
+
+/**
+ * Mirrors `get_merchant_intelligence`: highest spend first, filtered by
+ * `min_transactions` (default 3) and `recurring_only`, then capped at `limit`
+ * (default 50). Both used to be hardcoded (3 and 40), so a caller asking for a
+ * top 10, or for one-off merchants, got the demo's fixed page instead.
+ */
+export function generateDemoMerchantIntelligence(
+  txs: Transaction[],
+  params: Record<string, unknown> = {},
+): MerchantRow[] {
+  const minTransactions = positiveIntParam(params.min_transactions, 3)
+  const limit = positiveIntParam(params.limit, 50)
   const byMerchant = new Map<string, Transaction[]>()
   for (const t of txs.filter(isExpense)) {
     const merchant = t.note ?? t.subcategory ?? t.category
@@ -64,7 +81,7 @@ export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantRo
     byMerchant.get(merchant)?.push(t)
   }
   return [...byMerchant.entries()]
-    .filter(([, rows]) => rows.length >= 3)
+    .filter(([, rows]) => rows.length >= minTransactions)
     .map(([merchant, rows]) => {
       // `[...rows].sort` rather than `rows.toSorted`: toSorted needs Firefox
       // 115 but Vite's default `baseline-widely-available` target is
@@ -93,8 +110,9 @@ export function generateDemoMerchantIntelligence(txs: Transaction[]): MerchantRo
         is_recurring: months >= 6 && rows.length >= 6,
       }
     })
+    .filter((row) => params.recurring_only !== true || row.is_recurring)
     .sort((a, b) => b.total_spent - a.total_spent)
-    .slice(0, 40)
+    .slice(0, limit)
 }
 
 export function generateDemoInvestmentHoldings(txs: Transaction[]): InvestmentHolding[] {

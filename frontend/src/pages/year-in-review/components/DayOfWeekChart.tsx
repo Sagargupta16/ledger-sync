@@ -5,7 +5,7 @@ import { motion } from 'motion/react'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import { rawColors } from '@/constants/colors'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 
 import { computeDayOfWeekAverages } from '../dayOfWeekUtils'
 
@@ -76,8 +76,7 @@ export default function DayOfWeekChart({ grid }: Readonly<DayOfWeekChartProps>) 
               Weekend vs Weekday
             </p>
             <p className="mt-2 font-mono text-sm font-semibold tabular-nums text-foreground">
-              {insights.weekendDelta >= 0 ? '+' : ''}
-              {(insights.weekendDelta * 100).toFixed(0)}%
+              {formatPercent(insights.weekendDelta * 100, true, 0)}
               <span className="font-sans text-xs font-normal text-muted-foreground"> on weekends</span>
             </p>
           </div>

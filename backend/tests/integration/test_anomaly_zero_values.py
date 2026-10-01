@@ -101,3 +101,31 @@ def test_genuinely_absent_values_stay_null(two_user_client) -> None:
     assert row["expected_value"] is None
     assert row["actual_value"] == 900.0
     assert row["deviation_pct"] is None
+
+
+def test_count_and_summary_cover_every_match_not_just_the_page(two_user_client) -> None:
+    """``limit`` pages the list; badges and severity tiles count every match."""
+    client, session, user_a, user_b, _current = two_user_client
+    flags = []
+    for index, severity in enumerate(["high"] * 3 + ["medium"] * 2 + ["low"]):
+        flag = _anomaly(
+            user_a.id, expected=Decimal(1), actual=Decimal(2), description=f"flag {index}"
+        )
+        flag.severity = severity
+        flags.append(flag)
+    dismissed = _anomaly(user_a.id, expected=Decimal(1), actual=Decimal(2))
+    dismissed.is_dismissed = True
+    session.add_all([*flags, dismissed, _anomaly(user_b.id, expected=None, actual=None)])
+    session.commit()
+
+    page = client.get("/api/analytics/v2/anomalies", params={"limit": 2}).json()
+    medium = client.get(
+        "/api/analytics/v2/anomalies", params={"severity": "medium", "limit": 1}
+    ).json()
+
+    assert len(page["data"]) == 2
+    assert page["count"] == 6
+    assert page["summary"] == {"high": 3, "medium": 2, "low": 1}
+    assert len(medium["data"]) == 1
+    assert medium["count"] == 2
+    assert medium["summary"] == {"high": 0, "medium": 2, "low": 0}

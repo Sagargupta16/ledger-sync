@@ -1,16 +1,20 @@
 # Testing Guide
 
-Testing reference for Ledger Sync 2.24.0.
+Testing reference for Ledger Sync 2.26.0.
 
-Verified on 2026-08-09:
+Verified on 2026-09-30:
 
 | Suite | Tests | Files |
 | --- | ---: | ---: |
-| Backend pytest | 844 | 64 |
-| Frontend Vitest | 1,427 | 121 |
-| Total | 2,271 | 185 |
+| Backend pytest | 1,797 | 105 |
+| Frontend Vitest | 2,063 | 187 |
+| Total | 3,860 | 292 |
 
-Backend files are split into 40 unit files and 24 integration files.
+Backend files are split into 48 unit files and 57 integration files. Without
+`LEDGER_SYNC_TEST_POSTGRES_URL`, a local run passes 1,592 tests and skips 205
+PostgreSQL-only tests; CI's `postgres-migrations` job reruns
+`tests/integration/` and three migration/compensation unit files against native
+PostgreSQL.
 
 Counts are a point-in-time baseline, not a permanent assertion. Recalculate
 them when adding or removing tests.
@@ -55,8 +59,8 @@ changes, also run the application and exercise the affected workflow.
 backend/tests/
   conftest.py
   fixtures/
-  unit/             40 test files
-  integration/      24 test files
+  unit/             48 test files
+  integration/      57 test files
 ```
 
 Unit coverage includes:
@@ -66,7 +70,7 @@ Unit coverage includes:
 - Authentication and token-version revocation
 - Cohort spending
 - Core calculator and time filters
-- Encryption v1 compatibility and v2 writes
+- Encryption v3 writes and v1/v2 read-only compatibility
 - Exchange, instrument, and stock rate handling
 - Hash generation and duplicate occurrences
 - Income, investment holding, and quick-insight calculations
@@ -103,7 +107,7 @@ uv run python -m pytest tests/ -q
 uv run python -m pytest tests/unit/test_hash_id.py -v
 
 # One test
-uv run python -m pytest tests/unit/test_hash_id.py::test_hash_generation -v
+uv run python -m pytest tests/unit/test_hash_id.py::TestTransactionHasher::test_hash_length -v
 
 # Last failures
 uv run python -m pytest tests/ --lf
@@ -358,12 +362,16 @@ curl http://localhost:8000/health/db
 curl http://localhost:8000/openapi.json
 ```
 
+`/openapi.json`, `/docs`, and `/redoc` exist only when
+`LEDGER_SYNC_ENVIRONMENT=development`; outside development they return 404.
+
 An authenticated workflow is required to verify financial endpoints. Do not
 put a real token into committed scripts or documentation.
 
 ## Continuous Integration
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`.
+`.github/workflows/ci.yml` runs on every pull request, on pushes to `main`, and
+on manual dispatch.
 
 ### Frontend job
 
@@ -376,11 +384,19 @@ Uses Python 3.13, sets `PYTHONPATH=src`, and runs:
 
 ```bash
 uv sync --locked --no-build --no-install-project --all-extras --group dev
-uv run --no-sync --locked --no-build ruff check src/ tests/
-uv run --no-sync --locked --no-build ruff format --check src/ tests/
+uv run --no-sync --locked --no-build ruff check .
+uv run --no-sync --locked --no-build ruff format --check .
 uv run --no-sync --locked --no-build mypy src/
 uv run --no-sync --locked --no-build pytest tests/ -q
+uv run --no-sync --locked --no-build alembic upgrade head   # empty SQLite file
 ```
+
+### PostgreSQL job
+
+`postgres-migrations` starts an isolated native PostgreSQL cluster on the
+runner, sets `LEDGER_SYNC_TEST_POSTGRES_URL`, and runs `tests/integration/`
+plus `test_ai_settings_migration.py`, `test_compensation_migration.py`, and
+`test_compensation_records.py` from `tests/unit/`.
 
 ### Security job
 
@@ -389,6 +405,9 @@ access for security events.
 
 CI uses a concurrency group and cancels an older run when a newer commit is
 pushed to the same pull request.
+
+On non-PR `main` runs, the four check jobs gate the reusable `migrate` job,
+which gates the GitHub Pages deployment.
 
 ## Test Selection by Change
 

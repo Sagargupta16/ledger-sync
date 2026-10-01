@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ledger_sync.core import calculator
-from ledger_sync.core.insight_builder import Insight, build_insight, expenses_of
+from ledger_sync.core.insight_builder import Insight, build_insight
 from ledger_sync.core.insight_rules import (
     LIFESTYLE_DEFLATION_POSITIVE_PCT,
     LIFESTYLE_INFLATION_ALERT_PCT,
@@ -20,18 +20,17 @@ from ledger_sync.core.insight_rules import (
     SPENDING_TREND_UP_RATIO,
     SPENDING_VELOCITY_DOWN_RATIO,
     SPENDING_VELOCITY_UP_RATIO,
-    completed_month_expenses,
-    completed_monthly_data,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from datetime import date
 
-    from ledger_sync.db.models import Transaction
+    from ledger_sync.core.calculator import LedgerRow
 
 
 def temporal_insights(
-    transactions: list[Transaction],
+    transactions: Sequence[LedgerRow],
     sym: str,
     today: date,
     *,
@@ -40,8 +39,9 @@ def temporal_insights(
     """Recent-window spending trend and the best month by surplus.
 
     Every figure here is an average or a ranking, so the whole generator runs on
-    completed months. With only the in-progress month present the completed set
-    is empty and both halves abstain, which is the honest answer.
+    complete calendar months, a month with no rows counting as 0 (see
+    ``calculator.fill_complete_months``). With only the in-progress month
+    present the set is empty and both halves abstain, which is the honest answer.
 
     With *loss_keys*, classified realised losses leave each month's
     ``expenses`` (the trend compares spending) but ``find_best_worst_months``
@@ -51,7 +51,9 @@ def temporal_insights(
     if not transactions:
         return insights
 
-    monthly_data = completed_monthly_data(calculator.group_by_month(transactions, loss_keys), today)
+    monthly_data = calculator.fill_complete_months(
+        calculator.group_by_month(transactions, loss_keys), today
+    )
     if len(monthly_data) >= RECENT_MONTHS_WINDOW:
         sorted_months = sorted(monthly_data.items())
         recent = sorted_months[-RECENT_MONTHS_WINDOW:]
@@ -100,18 +102,17 @@ def temporal_insights(
     return insights
 
 
-def behavioral_insights(transactions: list[Transaction], sym: str, today: date) -> list[Insight]:
+def behavioral_insights(transactions: Sequence[LedgerRow], sym: str, today: date) -> list[Insight]:
     """Lifestyle inflation across the history and the recent spending velocity."""
     insights: list[Insight] = []
-    expenses = expenses_of(transactions)
+    expenses = calculator.expense_rows(transactions)
     if not expenses:
         return insights
 
-    # Both windows are calendar-month averages, so a half-finished trailing
-    # month drags the late window down and reports a reduction never made.
-    inflation = calculator.calculate_lifestyle_inflation(
-        completed_month_expenses(transactions, today)
-    )
+    # Both windows are calendar-month averages, so the calculator leaves the
+    # half-finished trailing month out: it drags the late window down and
+    # reports a reduction never made.
+    inflation = calculator.calculate_lifestyle_inflation(transactions, today)
     if inflation > LIFESTYLE_INFLATION_ALERT_PCT:
         insights.append(
             build_insight(

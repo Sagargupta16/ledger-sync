@@ -14,7 +14,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
-from benchmark_transaction_pagination import REPEATS, ROWS_PER_USER, _measure_comparison
 from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, insert
@@ -26,6 +25,13 @@ from ledger_sync.api.main import app
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import Transaction, TransactionType, User, UserPreferences
 from ledger_sync.db.session import get_session
+
+# Relative when imported as `tests.benchmark_transaction_ui_path`; top-level
+# when run as a script, where `tests/` itself is on sys.path.
+try:
+    from .benchmark_transaction_pagination import REPEATS, ROWS_PER_USER, _measure_comparison
+except ImportError:
+    from benchmark_transaction_pagination import REPEATS, ROWS_PER_USER, _measure_comparison
 
 
 def benchmark() -> dict:

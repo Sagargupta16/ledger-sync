@@ -26,6 +26,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from ledger_sync.api.transactions_impl import serialize
+from ledger_sync.api.transactions_impl.filters import _base_transaction_query
 from ledger_sync.db.models import Transaction, TransactionType
 
 EXPECTED_HEADER = [
@@ -197,6 +199,64 @@ def test_export_still_honours_date_range(export_client) -> None:
     assert exported == {inside, edge}
     assert before not in exported
     assert after not in exported
+
+
+def test_last_representable_end_date_is_not_an_overflow(export_client) -> None:
+    """``end_date=9999-12-31`` has no next day; it used to 500 on every range endpoint."""
+    client, session, user_a, _user_b, _current = export_client
+    late = _seed_txn(session, user_a.id, "late")
+
+    exported = {row["id"] for row in _export_rows(client, {"end_date": "9999-12-31"})}
+    listed = client.get("/api/transactions", params={"end_date": "9999-12-31"})
+
+    assert exported == {late}
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()["data"]] == [late]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {},
+        {"sort_by": "date", "sort_order": "asc"},
+        {"sort_by": "amount", "sort_order": "desc"},
+        {"sort_by": "amount", "sort_order": "asc"},
+        {"sort_by": "category", "sort_order": "desc"},
+    ],
+)
+def test_export_pages_keep_search_order_across_chunk_boundaries(
+    export_client, monkeypatch, params
+) -> None:
+    """Keyset pages resume after (sort column, id), so ties never repeat or vanish."""
+    client, session, user_a, _user_b, _current = export_client
+    monkeypatch.setattr(serialize, "EXPORT_CHUNK_ROWS", 2)
+    same_day = datetime(2026, 6, 1, tzinfo=UTC)
+    for index, amount in enumerate(["50.00", "10.00", "50.00", "30.00", "50.00"]):
+        _seed_txn(session, user_a.id, f"row{index}", amount=amount, date=same_day)
+
+    exported = [row["id"] for row in _export_rows(client, params)]
+    searched = client.get("/api/transactions/search", params={**params, "limit": 1000})
+
+    assert len(exported) == 5
+    assert exported == [row["id"] for row in searched.json()["data"]]
+
+
+def test_export_holds_no_transaction_open_between_chunks(export_client, monkeypatch) -> None:
+    """A slow download must not outlive PostgreSQL's idle-in-transaction timeout."""
+    _client, session, user_a, _user_b, _current = export_client
+    monkeypatch.setattr(serialize, "EXPORT_CHUNK_ROWS", 2)
+    ids = [_seed_txn(session, user_a.id, f"row{index}") for index in range(5)]
+    query = _base_transaction_query(session, user_a)
+
+    chunks = []
+    for chunk in serialize._export_csv_chunks(session, user_a.id, query, "date", "desc"):
+        # The client may take any time with this chunk: nothing is left open.
+        assert not session.in_transaction()
+        chunks.append(chunk)
+
+    assert len(chunks) == 4  # header, then pages of 2, 2 and 1 rows
+    rows = list(csv.DictReader(io.StringIO("".join(chunks))))
+    assert sorted(row["id"] for row in rows) == sorted(ids)
 
 
 def test_export_combines_filters(export_client) -> None:

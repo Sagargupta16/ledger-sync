@@ -1,7 +1,9 @@
 import { motion } from 'motion/react'
 import { ArrowDown, ChevronRight } from 'lucide-react'
 
-import { rawColors } from '@/constants/colors'
+// CSS var() references, not rawColors: every color here lands in a DOM style,
+// and a var() follows a theme toggle where a resolved hex keeps the old theme.
+import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import type { DrillCrumb, FlowEntry, SankeyView } from '../sankeyDrilldown'
@@ -50,7 +52,7 @@ export default function MobileFlowView({
   if (crumb) {
     const rows = view.rows
     const max = rows.reduce((m, r) => Math.max(m, r.amount), 0)
-    const color = crumb.flow === 'income' ? rawColors.app.green : rawColors.app.red
+    const color = crumb.flow === 'income' ? colors.app.green : colors.app.red
     return (
       <motion.div
         key={viewKey}
@@ -89,6 +91,8 @@ export default function MobileFlowView({
   const savingsShare = totalIncome > 0 ? Math.max(netSavings, 0) / totalIncome : 0
   const expenseShare = totalIncome > 0 ? totalExpense / totalIncome : 0
   const taxDrill = view.meta[view.nodes.findLastIndex((node) => node.name === 'Tax')]?.drill
+  // Same branch as the desktop Sankey, so the phone allocation reconciles too.
+  const capitalLosses = view.meta[view.nodes.findLastIndex((node) => node.name === 'Realised losses')]?.value ?? 0
 
   return (
     <motion.div
@@ -100,7 +104,7 @@ export default function MobileFlowView({
       className="space-y-5"
     >
       {/* Income sources */}
-      <Section step="01" title="Income sources" total={totalIncome} totalColor={rawColors.app.green}>
+      <Section step="01" title="Income sources" total={totalIncome} totalColor={colors.app.green}>
         {incomeByCategory.map((entry, idx) => (
           <FlowRow
             key={entry.name}
@@ -108,7 +112,7 @@ export default function MobileFlowView({
             amount={entry.amount}
             percent={totalIncome > 0 ? entry.amount / totalIncome : 0}
             barWidth={incomeMax > 0 ? entry.amount / incomeMax : 0}
-            color={rawColors.app.green}
+            color={colors.app.green}
             delay={idx * 0.03}
             onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
           />
@@ -153,22 +157,31 @@ export default function MobileFlowView({
           label="Savings"
           amount={Math.max(netSavings, 0)}
           percent={savingsShare}
-          color={rawColors.app.purple}
+          color={colors.app.purple}
         />
         <SplitCard
           label="Expenses"
           amount={totalExpense}
           percent={expenseShare}
-          color={rawColors.app.red}
+          color={colors.app.red}
         />
         {totalTax > 0 && (
           <SplitCard
             label="Tax"
             amount={totalTax}
             percent={totalIncome > 0 ? totalTax / totalIncome : 0}
-            color={rawColors.app.orange}
+            color={colors.app.orange}
             className="col-span-2"
             onDrill={taxDrill ? () => drillInto(taxDrill) : undefined}
+          />
+        )}
+        {capitalLosses > 0 && (
+          <SplitCard
+            label="Realised losses"
+            amount={capitalLosses}
+            percent={totalIncome > 0 ? capitalLosses / totalIncome : 0}
+            color={colors.app.yellow}
+            className="col-span-2"
           />
         )}
       </div>
@@ -193,7 +206,7 @@ export default function MobileFlowView({
             step="04"
             title="Where expenses went"
             total={totalExpense}
-            totalColor={rawColors.app.red}
+            totalColor={colors.app.red}
           >
             {expenseByCategory.map((entry, idx) => (
               <FlowRow
@@ -202,7 +215,7 @@ export default function MobileFlowView({
                 amount={entry.amount}
                 percent={totalExpense > 0 ? entry.amount / totalExpense : 0}
                 barWidth={expenseMax > 0 ? entry.amount / expenseMax : 0}
-                color={rawColors.app.red}
+                color={colors.app.red}
                 delay={idx * 0.03}
                 onDrill={entry.drill ? () => drillInto(entry.drill!) : undefined}
               />
@@ -351,8 +364,7 @@ function SplitShareBar({
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="h-full w-full origin-left"
-              style={{ background: rawColors.app.purple }}
+              className="h-full w-full origin-left bg-app-purple"
             />
           </div>
         )}
@@ -361,25 +373,22 @@ function SplitShareBar({
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="h-full w-full origin-left"
-            style={{ background: rawColors.app.red }}
+            className="h-full w-full origin-left bg-app-red"
           />
         </div>
       </div>
       <div className="flex items-center justify-between mt-2 text-xs">
-        <span className="flex items-center gap-1.5" style={{ color: rawColors.app.purple }}>
+        <span className="flex items-center gap-1.5 text-app-purple">
           <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: rawColors.app.purple }}
+            className="w-2 h-2 rounded-full bg-app-purple"
             aria-hidden
           />
           Saved {formatPercent(savingsShare * 100)}
         </span>
-        <span className="flex items-center gap-1.5" style={{ color: rawColors.app.red }}>
+        <span className="flex items-center gap-1.5 text-app-red">
           Spent {formatPercent(expenseShare * 100)}
           <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: rawColors.app.red }}
+            className="w-2 h-2 rounded-full bg-app-red"
             aria-hidden
           />
         </span>

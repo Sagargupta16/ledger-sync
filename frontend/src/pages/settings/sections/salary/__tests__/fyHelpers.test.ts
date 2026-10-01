@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getFYFromDate } from '@/lib/dateUtils'
+import { getFYFromDate, parseFYLabelStartYear } from '@/lib/dateUtils'
 
-import { currentFYLabel, dateToFY, nextFY, parseBareStartYear } from '../fyHelpers'
+import { currentFYLabel, dateToFY, fyDisplayLabel, nextFY, parseBareStartYear } from '../fyHelpers'
 
 describe('parseBareStartYear', () => {
   it('reads the start year off a bare label', () => {
@@ -52,10 +52,14 @@ describe('dateToFY', () => {
 
   it('agrees with the tax engine on the same date and start month', () => {
     // These two must never diverge -- the salary grid keys and the tax page's
-    // FY selector are compared against each other.
+    // FY selector are compared against each other, by start year: a January
+    // FY displays as "FY 2026" while its storage key stays "2026-27".
     for (const month of [1, 4, 7, 10]) {
       for (const date of ['2026-01-01', '2026-04-01', '2026-07-26', '2026-12-31']) {
-        expect(`FY ${dateToFY(date, month)}`).toBe(getFYFromDate(date, month))
+        expect(parseBareStartYear(dateToFY(date, month))).toBe(
+          parseFYLabelStartYear(getFYFromDate(date, month)),
+        )
+        expect(fyDisplayLabel(dateToFY(date, month), month)).toBe(getFYFromDate(date, month))
       }
     }
   })

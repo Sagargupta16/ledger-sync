@@ -93,7 +93,7 @@ export default function SavingsRateSection({
               Cumulative savings rate
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-5 border-t-2 border-dashed" style={{ borderColor: rawColors.app.green }} aria-hidden="true" />{' '}
+              <span className="w-5 border-t-2 border-dashed border-app-green" aria-hidden="true" />{' '}
               Target: <span className="font-mono tabular-nums text-app-green">{savingsGoalPercent}%</span>
             </li>
             <li className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function SavingsRateSection({
             data,
             [
               { header: 'Date', rowHeader: true, value: (row) => formatDate(row.date, { month: 'long', day: 'numeric', year: 'numeric' }) },
-              { header: 'Cumulative savings rate', value: (row) => `${row.savingsRate.toFixed(1)}%${row.savingsRate < 0 ? ' (deficit)' : ''}` },
+              { header: 'Cumulative savings rate', value: (row) => `${formatPercent(row.savingsRate)}${row.savingsRate < 0 ? ' (deficit)' : ''}` },
             ],
             'Cumulative savings rate by date',
             (row) => row.date,

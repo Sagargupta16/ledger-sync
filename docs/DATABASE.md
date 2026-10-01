@@ -1,6 +1,6 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.24.1.
+Database reference for Ledger Sync 2.26.0.
 
 Updated for the 2026-09-18 domain storage implementation. The current model
 contains 34 application tables; Alembic also maintains its own version table.
@@ -10,7 +10,10 @@ For every column, default, key, relationship, index and source-code link, see
 the [complete schema dictionary](DATABASE_SCHEMA_REFERENCE.md). Its
 [JSON inventory](DATABASE_SCHEMA_REFERENCE.json) and
 [model-derived PostgreSQL DDL](DATABASE_MODEL_SCHEMA.sql) document the same
-source snapshot, with live-verification limits stated explicitly.
+source snapshot, with live-verification limits stated explicitly. All three
+are generated; regenerate them after a model change with
+`uv run --directory backend python scripts/build_schema_reference.py`
+([script](../backend/scripts/build_schema_reference.py)).
 
 ## Runtime Databases
 
@@ -245,9 +248,10 @@ the preference API or serialize valid JSON in application code.
 
 AI keys are stored only as encrypted ciphertext in
 `user_ai_settings.ai_api_key_encrypted`. Ordinary preference queries do not read
-this table. Current v2 writes use AES-256-GCM and HKDF-SHA256 with
-`LEDGER_SYNC_ENCRYPTION_KEY`. Legacy PBKDF2 v1 ciphertexts are read-only
-compatibility data and are upgraded on reveal.
+this table. Current writes use the authenticated `ls-byok:v3:` envelope
+(AES-256-GCM, HKDF-SHA256 with `LEDGER_SYNC_ENCRYPTION_KEY`). Legacy PBKDF2 v1
+and HKDF v2 ciphertexts are read-only compatibility data and are rewrapped to
+v3 when a Bedrock call or key reveal reads them.
 
 ### Account and compensation storage
 
@@ -489,7 +493,8 @@ for the concise warning.
 ## Production Migration Automation
 
 `.github/workflows/ci.yml` calls the reusable `migrate.yml` only after frontend,
-backend, security, and PostgreSQL migration checks pass for a `main` commit.
+GitHub Pages build, backend, security, and PostgreSQL migration checks pass for
+a `main` commit.
 The migration succeeds before that commit's Pages deployment starts. Main
 releases and migrations serialize without canceling an active migration.
 
@@ -537,6 +542,29 @@ and replaces the six existing index definitions atomically, preserving their
 names and key columns. Reads and writes wait until commit; rehearse the entire
 upgrade against representative data and drain transaction traffic for rollout.
 Failure rolls back all replacements. SQLite is unchanged by that revision.
+
+Revision `orm_schema_alignment_2026` follows `domain_storage_cutover_2026` and
+aligns a migration-built schema with the ORM without rewriting data. It counts
+NULLs in every column it would tighten first and stops, changing nothing, if
+any exist; nothing is backfilled or deleted. It then sets NOT NULL on the 118
+columns migrations left nullable (plus `import_logs.user_id` where
+`reconcile_create_all_2026` left it nullable), creates 10 missing ORM indexes,
+and drops duplicate or legacy-named indexes only when an equivalent plain index
+is retained. Each step inspects the live schema and changes only what differs.
+`user_preferences.user_id` stays nullable on purpose. Current writers already
+supply every tightened value, so deploying the backend before the migration is
+safe. PostgreSQL holds ACCESS EXCLUSIVE locks on the affected tables with a 10s
+lock timeout; SQLite rebuilds `users`, `transactions` and
+`recurring_transactions` under the dedicated-connection rule above. The
+revision is irreversible: recover with a verified backup or a forward repair.
+
+After an upgrade, `uv run alembic check` reports no differences between the
+migrated schema and the ORM. `migrations/env.py` filters only the documented
+dialect noise, by exact name: six ORM enums stored as VARCHAR, three unique
+indexes that stand in for same-named unique constraints (dropped only as a
+matched pair), and the nullable `user_preferences.user_id`. Every other
+difference still fails the check, and CI runs it after the SQLite bootstrap and
+the PostgreSQL CLI upgrade.
 
 ## Backup and Recovery
 

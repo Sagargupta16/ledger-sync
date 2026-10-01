@@ -3,7 +3,9 @@ import { TrendingUp } from 'lucide-react'
 import { Sparkline } from '@/components/shared'
 import { Money } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
-import { percentChange } from '@/lib/formatters'
+import { formatFYLabel } from '@/lib/dateUtils'
+import { formatPercent, percentChange } from '@/lib/formatters'
+import { parseFYStartYear } from '@/lib/taxCalculator'
 import type { ProjectedFYBreakdown } from '@/types/salary'
 
 interface Props {
@@ -80,7 +82,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
                   scope="col"
                   className="text-right py-2 px-3 text-muted-foreground font-medium whitespace-nowrap"
                 >
-                  FY {p.fy}
+                  {formatFYLabel(parseFYStartYear(p.fy), p.fyStartMonth)}
                   {p.isProjected && (
                     <>
                       <span className="text-caption text-text-quaternary ml-1" aria-hidden>
@@ -122,7 +124,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
                     <div className="flex items-center justify-end gap-2">
                       {growth !== null && (
                         <span className="text-overline text-text-tertiary tabular-nums whitespace-nowrap">
-                          {growth >= 0 ? '+' : ''}{growth.toFixed(0)}%
+                          {formatPercent(growth, true, 0)}
                         </span>
                       )}
                       <Sparkline
@@ -148,14 +150,14 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
                   key={p.fy}
                   className="py-2.5 px-3 text-right text-muted-foreground tabular-nums whitespace-nowrap"
                 >
-                  {p.effectiveTaxRate.toFixed(1)}%
+                  {formatPercent(p.effectiveTaxRate)}
                 </td>
               ))}
               <td className="hidden sm:table-cell py-2.5 px-3">
                 <div className="flex items-center justify-end gap-2">
                   {rateGrowth !== null && (
                     <span className="text-overline text-text-tertiary tabular-nums whitespace-nowrap">
-                      {rateGrowth >= 0 ? '+' : ''}{rateGrowth.toFixed(0)}%
+                      {formatPercent(rateGrowth, true, 0)}
                     </span>
                   )}
                   <Sparkline

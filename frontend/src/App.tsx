@@ -295,7 +295,7 @@ function AppRoutes() {
 
 // Landing page that shows HomePage
 function LandingPage() {
-  const { isLoading } = useAuthStore()
+  const isLoading = useAuthStore((state) => state.isLoading)
 
   if (isLoading) {
     return (

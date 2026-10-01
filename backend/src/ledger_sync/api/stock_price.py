@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from ledger_sync.api.deps import ProviderUser
 from ledger_sync.api.rate_limit import user_limiter
+from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="/api/stock-price", tags=["stock-price"])
@@ -94,7 +95,8 @@ async def get_stock_price(
 
     """
     symbol = symbol.upper()
-    if on_date is not None and on_date > datetime.now(tz=UTC).date():
+    # Judged on the user's IST calendar day, not the UTC date that trails it.
+    if on_date is not None and on_date > ledger_today():
         raise HTTPException(status_code=400, detail="on_date cannot be in the future")
 
     url = _YAHOO_CHART_URL.format(symbol=quote(symbol, safe=""))

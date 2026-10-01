@@ -38,10 +38,12 @@ describe('returnsAnalysisUtils -- no fabricated return metric', () => {
 })
 
 describe('countRealisedEvents', () => {
+  // Income rows carry their subtype in the subcategory: the note is never
+  // investment-income evidence (shared rule, 2026-09-30).
   const txs: TxLike[] = [
-    { type: 'Income', amount: 2255.18, category: 'Investment Income', note: 'Q3 FY26 MF STCG Profit' },
+    { type: 'Income', amount: 2255.18, category: 'Investment Income', subcategory: 'Stock Market Profit', note: 'Q3 FY26 MF STCG Profit' },
     { type: 'Expense', amount: 943.62, category: 'Investment Expenses', note: 'Q3 FY26 MF LTCG Loss' },
-    { type: 'Income', amount: 500, category: 'Investment Income', note: 'Dividend credited' },
+    { type: 'Income', amount: 500, category: 'Investment Income', subcategory: 'Dividends', note: 'Dividend credited' },
     { type: 'Expense', amount: 25, category: 'Stocks', note: 'Brokerage charge' },
     // Neither realised income nor cost: a salary credit and a grocery run.
     { type: 'Income', amount: 200000, category: 'Salary', note: 'Monthly salary' },
@@ -50,6 +52,12 @@ describe('countRealisedEvents', () => {
 
   it('counts only rows that booked investment income or cost', () => {
     expect(countRealisedEvents(txs)).toBe(4)
+  })
+
+  it('does not count an income row whose only return evidence is its note', () => {
+    expect(countRealisedEvents([
+      { type: 'Income', amount: 2255.18, category: 'Investment Income', note: 'Q3 FY26 MF STCG Profit' },
+    ])).toBe(0)
   })
 
   it('ignores a matching keyword outside an investment category', () => {

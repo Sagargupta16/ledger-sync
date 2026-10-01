@@ -2,7 +2,7 @@ import type { KeyboardEvent } from 'react'
 
 import { motion, AnimatePresence } from 'motion/react'
 import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
@@ -188,7 +188,7 @@ export default function ComparisonPage() {
           <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
           <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
           <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} />
-          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} isPercent />
+          <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={colors.app.blue} isPercent />
         </motion.div>
       </AnimatePresence>
 
@@ -203,7 +203,7 @@ export default function ComparisonPage() {
           <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} maxValue={overviewMax} />
           <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} maxValue={overviewMax} invertChange />
           <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} maxValue={overviewMax} />
-          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={rawColors.app.blue} maxValue={100} isPercent />
+          <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={colors.app.blue} maxValue={100} isPercent />
         </div>
       </motion.div>
 

@@ -14,6 +14,11 @@
  * real running-pace numbers and says so rather than rendering zeroes.
  *
  * The reference date is injected via fake timers, not read from the clock.
+ *
+ * The page reads server aggregates, not the ledger. The fakes below answer each
+ * read from the fixture rows through the demo generators, which mirror the
+ * endpoints (`/totals`, `/category-breakdown`, `/monthly-aggregation`,
+ * `/category-daily-series`), so every assertion still traces to a row here.
  */
 
 import type { ReactNode } from 'react'
@@ -22,8 +27,15 @@ import { act, renderHook } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  generateDemoCategoryBreakdown,
+  generateDemoMonthlyAggregation,
+  generateDemoTotals,
+} from '@/lib/demo/demoCalculations'
+import { generateDemoCategoryDailySeries } from '@/lib/demo/demoDailyReads'
 import type { Transaction } from '@/types'
 
+import type { SpendingRange } from '../spendingAnalysisQueries'
 import { useSpendingAnalysis } from '../useSpendingAnalysis'
 
 function tx(
@@ -63,13 +75,62 @@ const TRANSACTIONS: Transaction[] = [
 
 const transactionsRef: { current: Transaction[] } = { current: TRANSACTIONS }
 
-vi.mock('@/hooks/api/useTransactions', () => ({
-  useTransactions: () => ({
-    data: transactionsRef.current,
-    isPending: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
+/**
+ * Classified realised losses `/totals` holds out of `total_expenses` for the
+ * window. The demo generators classify nothing, so a test that needs one sets
+ * it here; it is added to every totals read.
+ */
+const classifiedLossRef: { current: number } = { current: 0 }
+
+/** A settled read, as a resolved TanStack query exposes it. */
+function settled<T>(data: T | undefined) {
+  return { data, isPending: false, isError: false, refetch: vi.fn() }
+}
+
+vi.mock('@/hooks/api/useAnalytics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/api/useAnalytics')>()
+  return {
+    ...actual,
+    // `/data-date-range`: min/max over the fixture rows.
+    useDataDateRange: () => {
+      const dates = transactionsRef.current.map((t) => t.date).sort((a, b) => a.localeCompare(b))
+      return { minDate: dates[0], maxDate: dates.at(-1), isLoading: false, isError: false, refetch: vi.fn() }
+    },
+  }
+})
+
+vi.mock('../spendingAnalysisQueries', () => ({
+  useExpenseBreakdown: (range: SpendingRange) =>
+    settled(generateDemoCategoryBreakdown(transactionsRef.current, { ...range, transaction_type: 'expense' })),
+  useIncomeBreakdown: (range: SpendingRange, enabled: boolean) =>
+    settled(
+      enabled
+        ? generateDemoCategoryBreakdown(transactionsRef.current, { ...range, transaction_type: 'income' })
+        : undefined,
+    ),
+  useRangeTotals: (range: SpendingRange) => {
+    const totals = generateDemoTotals(transactionsRef.current, range)
+    const losses = classifiedLossRef.current
+    return settled({ ...totals, capital_losses: losses, net_savings: totals.net_savings - losses })
+  },
+  useMonthlyExpense: (range: SpendingRange, category: string | null) => {
+    const byMonth: Record<string, number> = {}
+    if (category) {
+      const series = generateDemoCategoryDailySeries(transactionsRef.current, {
+        ...range,
+        transaction_type: 'expense',
+        category,
+      })
+      for (const row of series.data) {
+        byMonth[row.date.slice(0, 7)] = (byMonth[row.date.slice(0, 7)] ?? 0) + row.amount
+      }
+    } else {
+      for (const [month, row] of Object.entries(generateDemoMonthlyAggregation(transactionsRef.current, range))) {
+        byMonth[month] = row.expense
+      }
+    }
+    return settled(byMonth)
+  },
 }))
 
 /**
@@ -105,6 +166,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('useSpendingAnalysis -- in-progress month', () => {
   beforeEach(() => {
     transactionsRef.current = TRANSACTIONS
+    classifiedLossRef.current = 0
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 6, 26))
   })
@@ -499,5 +561,35 @@ describe('useSpendingAnalysis -- category deep-link with only current-month rows
     expect(result.current.noCompleteMonthBasis).toBe(true)
     expect(result.current.totalSpending).toBe(5000)
     expect(result.current.monthlyAvgSpending).toBe(5000)
+  })
+})
+
+/**
+ * Savings = income - spending - classified realised losses (the `/totals`
+ * `net_savings` rule). The server holds a classified loss out of every
+ * spending read, so Total Spending and the Needs/Wants split never see it, but
+ * the cash still left and the leftover share must say so.
+ */
+describe('useSpendingAnalysis -- classified realised losses', () => {
+  beforeEach(() => {
+    transactionsRef.current = TRANSACTIONS
+    classifiedLossRef.current = 30000
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 6, 26))
+  })
+
+  afterEach(() => {
+    classifiedLossRef.current = 0
+    vi.useRealTimers()
+  })
+
+  it('subtracts the loss from savings without counting it as spending', () => {
+    const { result } = renderHook(() => useSpendingAnalysis(), { wrapper })
+    // Spending reads are untouched by the loss: 3 x 40,000 + July's 30,000.
+    expect(result.current.totalSpending).toBe(150000)
+    // 300,000 income - 120,000 spending - 30,000 loss.
+    expect(result.current.savings).toBe(150000)
+    expect(result.current.budgetRuleMetrics?.savingsPercent).toBeCloseTo(50, 6)
+    expect(result.current.budgetRuleMetrics?.essentialPercent).toBeCloseTo(30, 6)
   })
 })

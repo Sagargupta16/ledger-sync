@@ -16,7 +16,7 @@ export default function TrendSummaryGrid({
   isLoading,
 }: TrendSummaryGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-5 border-b border-border pb-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-5 border-b border-border pb-6 sm:gap-x-6 lg:grid-cols-3">
       <TrendCard
         metrics={metrics.spending}
         icon={CreditCard}
@@ -47,7 +47,7 @@ export default function TrendSummaryGrid({
         averageClassName={metrics.savings.average >= 0 ? 'text-foreground' : 'text-app-red'}
         secondStatLabel="Best Month"
         secondStatClassName="text-app-green"
-        className="sm:col-span-2 lg:col-span-1"
+        className="col-span-2 lg:col-span-1"
       />
     </div>
   )

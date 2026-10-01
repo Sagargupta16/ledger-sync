@@ -10,10 +10,11 @@ Every token embeds a ``tv`` (token_version) claim mirroring
 delete invalidates all outstanding tokens for that user in one write --
 no per-token blocklist required.
 
-During the rollout window, tokens issued by the pre-2026-07 code path
-have no ``tv`` claim. ``verify_token`` treats missing ``tv`` as 0 unless
-``settings.jwt_strict_tv`` is true. Flip that flag on day 8 (refresh TTL
-= 7 days + 1 buffer) to hard-cutoff legacy tokens.
+Tokens issued by the pre-2026-07 code path have no ``tv`` claim.
+``settings.jwt_strict_tv`` defaults to true, so ``verify_token`` rejects
+them: every token minted since 2026-07-04 carries ``tv`` and refresh
+tokens live 7 days. Setting the flag false reopens the legacy window, in
+which a missing ``tv`` is treated as 0.
 
 ## Refresh rotation
 

@@ -14,7 +14,8 @@ import {
 import type { TaxSlab } from '@/lib/taxCalculator'
 import { buildTaxRateCurve, effectiveTaxRate, type TaxRateCurvePoint } from '@/lib/finance/taxRateCurve'
 import { shareOfIncomePercent } from '@/lib/savingsRate'
-import { formatCurrencyShort } from '@/lib/formatters'
+import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatFYLabel } from '@/lib/dateUtils'
 import { rawColors } from '@/constants/colors'
 import { chartTooltipProps, ChartContainer } from '@/components/ui'
 import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
@@ -32,6 +33,8 @@ interface EffectiveTaxRateChartProps {
   currentIncome?: number
   currentTax?: number
   hasEmploymentIncome?: boolean
+  /** 1-indexed FY start month; labels a January year "FY 2024". */
+  fiscalYearStartMonth?: number
 }
 
 const RANGE_OPTIONS = [
@@ -48,6 +51,7 @@ export default function EffectiveTaxRateChart({
   currentIncome = 0,
   currentTax,
   hasEmploymentIncome = true,
+  fiscalYearStartMonth = 4,
 }: Readonly<EffectiveTaxRateChartProps>) {
   const [maxIncome, setMaxIncome] = useState(5000000)
   const { animate, isMobile } = useChartPresentation(101)
@@ -100,7 +104,7 @@ export default function EffectiveTaxRateChart({
           </p>
           {fyYear !== 0 && (
             <p className="mt-2 font-mono text-[11px] tabular-nums text-muted-foreground">
-              FY {fyYear}-{String(fyYear + 1).slice(-2)}
+              {formatFYLabel(fyYear, fiscalYearStartMonth)}
             </p>
           )}
         </div>
@@ -153,7 +157,7 @@ export default function EffectiveTaxRateChart({
               formatter={(value, name) => {
                 if (name === 'newRegimeRate' && !newRegimeAvailable) return null
                 return [
-                  typeof value === 'number' ? `${value.toFixed(2)}%` : '',
+                  typeof value === 'number' ? formatPercent(value, false, 2) : '',
                   name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
                 ]
               }}
@@ -237,23 +241,23 @@ export default function EffectiveTaxRateChart({
         <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:w-auto">
           {newRegimeAvailable && (
             <div className="flex items-center gap-1.5">
-              <div className="w-4 h-0.5 rounded" style={{ backgroundColor: rawColors.app.orange }} />
+              <div className="w-4 h-0.5 rounded bg-app-orange" />
               <span>New Regime</span>
             </div>
           )}
           <div className="flex items-center gap-1.5">
-            <div className="w-4 h-0.5 rounded border-dashed border-t-2" style={{ borderColor: rawColors.app.blue }} />
+            <div className="w-4 h-0.5 rounded border-dashed border-t-2 border-app-blue" />
             <span>Old Regime</span>
           </div>
           {crossoverIncome && (
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.purple }} />
+              <div className="w-2 h-2 rounded-full bg-app-purple" />
               <span>Crossover</span>
             </div>
           )}
           {currentPoint && (
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: rawColors.app.green }} />
+              <div className="w-2 h-2 rounded-full bg-app-green" />
               <span>You, {selectedNewRegime ? 'new' : 'old'} ({currentPoint.effectiveRate}%)</span>
             </div>
           )}
@@ -288,9 +292,9 @@ export default function EffectiveTaxRateChart({
           { header: 'Annual income', rowHeader: true, value: (row) => formatCurrencyShort(row.income) },
           ...(newRegimeAvailable ? [{
             header: 'New regime effective rate',
-            value: (row: TaxRateCurvePoint) => row.newRegimeRate === undefined ? '' : `${row.newRegimeRate.toFixed(2)}%`,
+            value: (row: TaxRateCurvePoint) => row.newRegimeRate === undefined ? '' : formatPercent(row.newRegimeRate, false, 2),
           }] : []),
-          { header: 'Old regime effective rate', value: (row) => `${row.oldRegimeRate.toFixed(2)}%` },
+          { header: 'Old regime effective rate', value: (row) => formatPercent(row.oldRegimeRate, false, 2) },
         ],
         `Effective tax rates for financial year ${fyYear}-${String(fyYear + 1).slice(-2)}`,
         (row) => String(row.income),

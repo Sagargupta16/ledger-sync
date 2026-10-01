@@ -3,8 +3,8 @@ import { motion } from 'motion/react'
 import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
-import ErrorState from '@/components/shared/ErrorState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
+import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
@@ -52,13 +52,10 @@ function GSTAnalysisSkeleton() {
 export default function GSTAnalysisPage() {
   const analysis = useGSTAnalysis()
 
-  return (
-    <PageContainer className="space-y-6">
-      <PageHeader
-        title="Indirect Tax (GST)"
-        subtitle="Estimated GST paid on your expenses"
-      />
-
+  // Navigation, the Income Tax link and the estimate disclaimer do not depend
+  // on the failed queries, so they stay on error.
+  const toolbar = (
+    <>
       <div className="flex flex-col gap-3 border-b border-[var(--hairline-1)] pb-5 sm:flex-row sm:items-center sm:justify-between">
         {analysis.allFYs.length > 0 && (
           <FYNavigator
@@ -88,17 +85,33 @@ export default function GSTAnalysisPage() {
           to inclusive-of-tax spending. Use these figures for awareness of indirect tax paid.
         </p>
       </details>
+    </>
+  )
+
+  if (!analysis.isLoading && analysis.isError) {
+    return (
+      <PageErrorState
+        title="Indirect Tax (GST)"
+        subtitle="Estimated GST paid on your expenses"
+        message="We couldn't load the transactions and preferences needed for this estimate."
+        onRetry={analysis.retry}
+        className="space-y-6"
+      >
+        {toolbar}
+      </PageErrorState>
+    )
+  }
+
+  return (
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Indirect Tax (GST)"
+        subtitle="Estimated GST paid on your expenses"
+      />
+
+      {toolbar}
 
       {analysis.isLoading && <GSTAnalysisSkeleton />}
-
-      {!analysis.isLoading && analysis.isError && (
-        <ErrorState
-          variant="card"
-          title="Unable to load GST analysis"
-          message="We couldn't load the transactions and preferences needed for this estimate."
-          onRetry={analysis.retry}
-        />
-      )}
 
       {!analysis.isLoading && !analysis.isError && !analysis.hasData && (
         <EmptyState

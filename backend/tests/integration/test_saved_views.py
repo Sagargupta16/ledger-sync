@@ -94,3 +94,38 @@ def test_response_contract(views_client) -> None:
     assert set(created.json().keys()) == VIEW_KEYS
     listed = client.get("/api/saved-views").json()
     assert set(listed[0].keys()) == VIEW_KEYS
+
+
+def test_concurrent_same_name_save_updates_the_winner_instead_of_500(
+    views_client, monkeypatch
+) -> None:
+    """Two first saves of one name race on the unique (user, name) index.
+
+    The loser's existence check ran before the winner committed, so its INSERT
+    hits IntegrityError. It must roll back and update the winner's row.
+    """
+    client, session, _, _, _ = views_client
+    winner = client.post("/api/saved-views", json={"name": "Monthly", "filters": {"a": 1}}).json()
+    real_execute = session.execute
+    lookups = {"n": 0}
+
+    class _NotYetVisible:
+        def scalar_one_or_none(self) -> None:
+            return None
+
+    def execute(statement, *args, **kwargs):
+        if "saved_filter_views" in str(statement):
+            lookups["n"] += 1
+            # The loser's first lookup, taken before the winner's row was visible.
+            if lookups["n"] == 1:
+                return _NotYetVisible()
+        return real_execute(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "execute", execute)
+    response = client.post("/api/saved-views", json={"name": "Monthly", "filters": {"b": 2}})
+    monkeypatch.undo()
+
+    assert response.status_code == 200, response.text
+    assert response.json()["id"] == winner["id"]
+    assert response.json()["filters"] == {"b": 2}
+    assert [view["filters"] for view in client.get("/api/saved-views").json()] == [{"b": 2}]

@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 
 import { cn } from '@/lib/cn'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 
 /**
  * Right-aligned money display that never truncates.
@@ -55,10 +55,15 @@ interface MoneyProps {
   readonly formatter?: (value: number) => string
   /** Optional aria-label override; defaults to the formatted value itself. */
   readonly ariaLabel?: string
+  /**
+   * Below `sm`, render the short figure (`formatCurrencyShort`, e.g. "₹12.3L")
+   * so a two-up phone KPI tile never clips digits; the full figure from `sm` up.
+   */
+  readonly compactBelowSm?: boolean
 }
 
 const Money = forwardRef<HTMLSpanElement, MoneyProps>(function Money(
-  { value, width, bold = false, muted = false, className, formatter = formatCurrency, ariaLabel },
+  { value, width, bold = false, muted = false, className, formatter = formatCurrency, ariaLabel, compactBelowSm = false },
   ref,
 ) {
   const formatted = formatter(value)
@@ -75,7 +80,12 @@ const Money = forwardRef<HTMLSpanElement, MoneyProps>(function Money(
         className,
       )}
     >
-      {formatted}
+      {compactBelowSm ? (
+        <>
+          <span className="sm:hidden">{formatCurrencyShort(value)}</span>
+          <span className="hidden sm:inline">{formatted}</span>
+        </>
+      ) : formatted}
     </span>
   )
 })

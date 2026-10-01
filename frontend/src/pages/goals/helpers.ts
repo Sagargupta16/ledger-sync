@@ -1,13 +1,14 @@
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { computeGoalProjection as computeProjection } from '@/lib/finance/goalProjection'
 import { rawColors } from '@/constants/colors'
+import { formatDate } from '@/lib/formatters'
 import type { GoalProjection } from './types'
 
 export { addMonths, differenceInMonths } from '@/lib/finance/goalProjection'
 
 /** Format a Date as "MMM YYYY". */
 export function formatMonthYear(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return formatDate(date, { month: 'short', year: 'numeric' })
 }
 
 // ---------------------------------------------------------------------------

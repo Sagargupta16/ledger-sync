@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.expense_class import capital_loss_sql_filter
@@ -24,7 +24,7 @@ from ledger_sync.core.query_helpers import (
     excluded_accounts_for,
     inclusive_end,
 )
-from ledger_sync.db.models import Transaction, User
+from ledger_sync.db.models import Transaction, TransactionType, User
 
 from .schemas import ToolArguments
 
@@ -75,12 +75,38 @@ def register(spec: ToolSpec) -> ToolSpec:
 
 
 def parse_date(s: str | None) -> datetime | None:
+    """Parse a ``YYYY-MM-DD`` bound as a naive ledger-local midnight.
+
+    ``Transaction.date`` is a naive column holding IST calendar dates, so the
+    bound must be naive too (see ``query_helpers.as_naive``): an aware UTC bound
+    is converted by the driver and shifts every comparison by the offset.
+    """
     if not s:
         return None
     try:
-        return datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=UTC)
+        return datetime.fromisoformat(s)
     except ValueError as exc:
         raise HTTPException(400, f"Invalid date {s!r}, expected YYYY-MM-DD") from exc
+
+
+def matching_categories(
+    db: Session, user: User, category: str, txn_type: TransactionType | None = None
+) -> tuple[list[str], bool]:
+    """Resolve a model-supplied category label to the user's stored names.
+
+    An exact case-insensitive match wins, so "Food" never also sums "Pet Food".
+    Only a label that names no stored category falls back to a substring match.
+    Returns ``(names, exact)``.
+    """
+    stmt = ledger_scope(user, select(Transaction.category).distinct()).where(
+        Transaction.category.ilike(f"%{category}%")
+    )
+    if txn_type is not None:
+        stmt = stmt.where(Transaction.type == txn_type)
+    names = [name for name in db.execute(stmt).scalars() if name]
+    wanted = category.casefold()
+    exact = [name for name in names if name.casefold() == wanted]
+    return (exact, True) if exact else (names, False)
 
 
 def apply_date_range(

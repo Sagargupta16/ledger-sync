@@ -1,6 +1,6 @@
 """Manual writes share import identity and atomic analytics invalidation."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -269,3 +269,48 @@ def test_manual_dimensions_persist_with_owner_and_unchanged_labels(two_user_clie
             if column == "subcategory_id":
                 assert dimension["category_id"] == stored["category_id"]
     assert account_ids[0] != account_ids[1]
+
+
+@pytest.mark.parametrize(
+    ("submitted", "stored"),
+    [(2.675, Decimal("2.68")), ("0.005", Decimal("0.01")), (100.25, Decimal("100.25"))],
+)
+def test_manual_amount_rounds_half_up_like_the_importer(two_user_client, submitted, stored):
+    """Float rounding stored 2.675 as 2.67 while the importer stores 2.68."""
+    client, session, _, _, _ = two_user_client
+    response = client.post(URL, json={**BODY, "amount": submitted})
+    assert response.status_code == 201, response.text
+    assert session.get(Transaction, response.json()["id"]).amount == stored
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"amount": 0},
+        {"amount": 0.004},
+        {"amount": -5},
+        {"amount": 1e17},
+        {"amount": "Infinity"},
+        {"amount": "NaN"},
+        {"category": "c" * 256},
+        {"account": "a" * 256},
+        {"subcategory": "s" * 256},
+        {"note": "n" * 10_001},
+    ],
+)
+def test_manual_transaction_out_of_bounds_is_422_not_500(two_user_client, overrides):
+    client, session, user, _, _ = two_user_client
+    response = client.post(URL, json={**BODY, **overrides})
+    assert response.status_code == 422, response.text
+    assert session.query(Transaction).count() == 0
+    assert get_analytics_state(session, user.id) is None
+
+
+def test_manual_offset_date_is_stored_as_its_wall_clock_time(two_user_client):
+    """An aware date keeps its submitted day instead of shifting through the DB zone."""
+    client, session, _, _, _ = two_user_client
+    response = client.post(URL, json={**BODY, "date": "2026-01-05T00:30:00+05:30"})
+    assert response.status_code == 201, response.text
+    tx = session.get(Transaction, response.json()["id"])
+    assert tx.date == datetime(2026, 1, 5, 0, 30, tzinfo=UTC).replace(tzinfo=None)
+    assert response.json()["date"] == "2026-01-05T00:30:00"

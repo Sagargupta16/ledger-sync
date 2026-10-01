@@ -46,6 +46,8 @@ def _seed_source(connection):
             ai_api_key_encrypted="opaque-synthetic-ciphertext",
             ai_provider="openai",
             ai_model="synthetic-model",
+            created_at=sa.func.current_timestamp(),
+            updated_at=sa.func.current_timestamp(),
         )
     )
     connection.commit()

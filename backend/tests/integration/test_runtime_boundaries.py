@@ -7,8 +7,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy.exc import OperationalError
 
 from ledger_sync.api import main
 from ledger_sync.api.deps import get_current_user
@@ -81,6 +86,65 @@ def test_preflight_and_fastapi_interface():
         assert "POST" in response.headers["access-control-allow-methods"]
 
     asyncio.run(check())
+
+
+class _FiniteBody(BaseModel):
+    value: float = Field(allow_inf_nan=False)
+
+
+def test_every_error_body_carries_detail():
+    """Clients read ``detail`` first; each app handler provides it and keeps its old keys."""
+    synthetic_limiter = Limiter(key_func=lambda: "synthetic-client")
+    application = FastAPI()
+    application.state.limiter = synthetic_limiter
+    application.add_exception_handler(RateLimitExceeded, main.rate_limit_error_handler)
+    application.add_exception_handler(RequestValidationError, main.validation_error_handler)
+    application.add_exception_handler(OperationalError, main.database_error_handler)
+    application.add_exception_handler(Exception, main.generic_error_handler)
+
+    @application.get("/limited")
+    @synthetic_limiter.limit("1/minute")
+    def limited(request: Request):
+        return {"ok": True}
+
+    @application.get("/database")
+    def database():
+        raise OperationalError("SELECT 1", {}, Exception("synthetic outage"))
+
+    @application.get("/crash")
+    def crash():
+        raise RuntimeError("synthetic failure")
+
+    @application.post("/finite")
+    def finite(body: _FiniteBody):
+        return body
+
+    async def check():
+        transport = httpx.ASGITransport(app=application, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            assert (await client.get("/limited")).status_code == 200
+            limited_response = await client.get("/limited")
+            database_response = await client.get("/database")
+            crash_response = await client.get("/crash")
+            nan_response = await client.post(
+                "/finite", content=b'{"value": NaN}', headers={"Content-Type": "application/json"}
+            )
+        return limited_response, database_response, crash_response, nan_response
+
+    limited_response, database_response, crash_response, nan_response = asyncio.run(check())
+
+    assert limited_response.status_code == 429
+    assert limited_response.json()["detail"].startswith("Rate limit exceeded")
+    assert limited_response.json()["error"] == limited_response.json()["detail"]
+    assert database_response.status_code == 503
+    assert database_response.json()["detail"] == "Database unavailable"
+    assert database_response.json()["code"] == "DB_ERROR"
+    assert crash_response.status_code == 500
+    assert crash_response.json()["detail"] == "Internal server error"
+    assert crash_response.json()["error_id"]
+    # A rejected NaN is a 422 that echoes the input, not a 500 from encoding it.
+    assert nan_response.status_code == 422
+    assert nan_response.json()["detail"][0]["input"] == "nan"
 
 
 def test_saved_view_database_work_runs_off_event_loop():

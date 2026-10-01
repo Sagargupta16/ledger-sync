@@ -2,13 +2,12 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   PiggyBank,
-  Loader2,
   X,
   LogIn,
 } from 'lucide-react'
 import * as authApi from '@/services/api/auth'
 import type { OAuthProviderConfig } from '@/types'
-import { Button } from '@/components/ui'
+import { Button, Spinner } from '@/components/ui'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 
 interface AuthModalProps {
@@ -197,7 +196,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                 if (isLoadingProviders) {
                   return (
                     <div className="flex justify-center py-8">
-                      <Loader2 className="w-6 h-6 text-app-blue animate-spin" />
+                      <Spinner size="md" />
                     </div>
                   )
                 }
@@ -214,7 +213,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                           className="w-full py-3"
                         >
                           {pendingProvider === 'google'
-                            ? <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                            ? <span aria-hidden="true" className="inline-flex size-5 items-center justify-center"><Spinner size="sm" tone="current" /></span>
                             : <GoogleIcon className="size-5" />}
                           {pendingProvider === 'google' ? 'Opening Google...' : 'Continue with Google'}
                         </Button>
@@ -229,7 +228,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
                           className="w-full py-3"
                         >
                           {pendingProvider === 'github'
-                            ? <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                            ? <span aria-hidden="true" className="inline-flex size-5 items-center justify-center"><Spinner size="sm" tone="current" /></span>
                             : <GitHubIcon className="size-5" />}
                           {pendingProvider === 'github' ? 'Opening GitHub...' : 'Continue with GitHub'}
                         </Button>

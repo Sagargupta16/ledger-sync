@@ -16,18 +16,30 @@ import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, ACTIVE_DOT, currencyTooltipFormatter, referenceLine } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import ErrorState from '@/components/shared/ErrorState'
 
 import { buildForecast, formatMonth } from './cashFlowUtils'
 
 export default function CashFlowForecast() {
   const chartId = useId().replaceAll(':', '')
-  const { data: monthlyData, isLoading } = useMonthlyAggregation()
+  const { data: monthlyData, isLoading, isError, refetch } = useMonthlyAggregation()
 
   const forecastData = useMemo(() => buildForecast(monthlyData), [monthlyData])
   const { animate, isMobile } = useChartPresentation(forecastData?.combined.length ?? 0)
 
   if (isLoading) {
     return <div className="ledger-panel animate-pulse p-4 sm:p-5"><div className="mb-4 h-8 w-1/3 rounded bg-[var(--overlay-2)]" /><div className="h-64 rounded bg-[var(--overlay-2)]" /></div>
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        variant="card"
+        title="Unable to load cash flow forecast"
+        message="Your monthly totals couldn't be loaded. Try again to see the projection."
+        onRetry={() => { void refetch() }}
+      />
+    )
   }
 
   if (!forecastData) {

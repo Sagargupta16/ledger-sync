@@ -85,12 +85,14 @@ export const dataDateRangeOptions = () =>
 
 /**
  * `/income-analysis` for a window. The key carries every param the request
- * sends, cashback list included, because staleTime is Infinity. The family name
- * matches the Income page's key so preference invalidation reaches both.
+ * sends, cashback list included, because staleTime is Infinity. The Dashboard and
+ * the Income page both read through this factory, so an unfiltered window is one
+ * cache entry (an undefined `category` drops out of the hashed key).
  */
 export const incomeAnalysisOptions = (params: {
   start_date?: string
   end_date?: string
+  category?: string
   cashback_categories: string[]
 }) =>
   queryOptions({

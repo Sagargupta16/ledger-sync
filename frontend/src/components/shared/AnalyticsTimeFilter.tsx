@@ -5,10 +5,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { DURATION, EASING, TAP_FEEDBACK } from '@/constants/animations'
 import { cn } from '@/lib/cn'
+import { formatDate } from '@/lib/formatters'
 import { useMotionStore } from '@/store/motionStore'
 
 export type { AnalyticsViewMode } from '@/lib/dateUtils'
-import { type AnalyticsViewMode, getFYFromDate } from '@/lib/dateUtils'
+import { type AnalyticsViewMode, getFYFromDate, parseFYLabelStartYear, shiftFYLabel } from '@/lib/dateUtils'
 
 /**
  * Shift a `YYYY-MM` key by `delta` months using integer arithmetic.
@@ -47,12 +48,6 @@ const viewModes: { value: AnalyticsViewMode; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
 ]
 
-/** Parse "FY 2024-25" → 2024 (the start year) */
-const parseFYStartYear = (fy: string): number | null => {
-  const match = /FY\s?(\d{4})-(\d{2})/.exec(fy)
-  return match ? Number.parseInt(match[1]) : null
-}
-
 export default function AnalyticsTimeFilter({
   viewMode,
   onViewModeChange,
@@ -79,16 +74,17 @@ export default function AnalyticsTimeFilter({
   const boundaries = useMemo(() => {
     if (!minDate || !maxDate) return null
 
-    const minD = new Date(minDate)
-    const maxD = new Date(maxDate)
-
-    const minYear = minD.getFullYear()
-    const maxYear = maxD.getFullYear()
+    // Read the YYYY-MM-DD strings directly: `new Date('2024-01-01')` is UTC
+    // midnight, so local getters put the 1st of a month in the previous one
+    // west of UTC.
+    const minYear = Number(minDate.substring(0, 4))
+    const maxYear = Number(maxDate.substring(0, 4))
     const minMonth = minDate.substring(0, 7) // YYYY-MM
     const maxMonth = maxDate.substring(0, 7)
 
-    const minFYStartYear = parseFYStartYear(getFYFromDate(minD, fiscalYearStartMonth))
-    const maxFYStartYear = parseFYStartYear(getFYFromDate(maxD, fiscalYearStartMonth))
+    // Both label forms ("FY 2024-25" and the January-start "FY 2024") parse.
+    const minFYStartYear = parseFYLabelStartYear(getFYFromDate(minDate, fiscalYearStartMonth))
+    const maxFYStartYear = parseFYLabelStartYear(getFYFromDate(maxDate, fiscalYearStartMonth))
 
     return { minYear, maxYear, minMonth, maxMonth, minFYStartYear, maxFYStartYear }
   }, [minDate, maxDate, fiscalYearStartMonth])
@@ -102,7 +98,7 @@ export default function AnalyticsTimeFilter({
       case 'monthly':
         return currentMonth > boundaries.minMonth
       case 'fy': {
-        const currentFYStart = parseFYStartYear(currentFY)
+        const currentFYStart = parseFYLabelStartYear(currentFY)
         return currentFYStart != null && boundaries.minFYStartYear != null && currentFYStart > boundaries.minFYStartYear
       }
       default:
@@ -118,7 +114,7 @@ export default function AnalyticsTimeFilter({
       case 'monthly':
         return currentMonth < boundaries.maxMonth
       case 'fy': {
-        const currentFYStart = parseFYStartYear(currentFY)
+        const currentFYStart = parseFYLabelStartYear(currentFY)
         return currentFYStart != null && boundaries.maxFYStartYear != null && currentFYStart < boundaries.maxFYStartYear
       }
       default:
@@ -135,10 +131,10 @@ export default function AnalyticsTimeFilter({
         return currentFY
       case 'yearly':
         return String(currentYear)
-      case 'monthly': {
-        const date = new Date(currentMonth + '-01')
-        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      }
+      case 'monthly':
+        // String form, not `new Date('YYYY-MM-01')`: that parses as UTC
+        // midnight and labels the previous month west of UTC.
+        return formatDate(`${currentMonth}-01`, { month: 'long', year: 'numeric' })
       default:
         return ''
     }
@@ -156,12 +152,8 @@ export default function AnalyticsTimeFilter({
         break
       }
       case 'fy': {
-        const fyRegex = /FY\s?(\d{4})-(\d{2})/
-        const match = fyRegex.exec(currentFY)
-        if (match) {
-          const prevStartYear = Number.parseInt(match[1]) - 1
-          onFYChange(`FY ${prevStartYear}-${String(prevStartYear + 1).slice(-2)}`)
-        }
+        const prevFY = shiftFYLabel(currentFY, -1, fiscalYearStartMonth)
+        if (prevFY) onFYChange(prevFY)
         break
       }
     }
@@ -178,12 +170,8 @@ export default function AnalyticsTimeFilter({
         break
       }
       case 'fy': {
-        const fyRegex = /FY\s?(\d{4})-(\d{2})/
-        const match = fyRegex.exec(currentFY)
-        if (match) {
-          const nextStartYear = Number.parseInt(match[1]) + 1
-          onFYChange(`FY ${nextStartYear}-${String(nextStartYear + 1).slice(-2)}`)
-        }
+        const nextFY = shiftFYLabel(currentFY, 1, fiscalYearStartMonth)
+        if (nextFY) onFYChange(nextFY)
         break
       }
     }

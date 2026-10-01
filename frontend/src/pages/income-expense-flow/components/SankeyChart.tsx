@@ -7,7 +7,7 @@ import { ChartContainer, Spinner } from '@/components/ui'
 import { chartTooltipProps } from '@/components/ui/ChartTooltip'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { rawColors } from '@/constants/colors'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import type { DrillCrumb, FlowEntry, SankeyView } from '../sankeyDrilldown'
 import MobileFlowView from './MobileFlowView'
@@ -312,7 +312,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
                         ) : node.name}
                       </th>
                       <td className="py-2 text-right font-mono text-xs tabular-nums">{formatCurrency(meta?.value ?? 0)}</td>
-                      <td className="py-2 pl-4 text-right font-mono text-xs tabular-nums text-muted-foreground">{(meta?.pct ?? 0).toFixed(1)}%</td>
+                      <td className="py-2 pl-4 text-right font-mono text-xs tabular-nums text-muted-foreground">{formatPercent(meta?.pct ?? 0)}</td>
                     </tr>
                   )
                 })}
@@ -329,7 +329,7 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
             <p className="text-muted-foreground text-lg">
               {depth > 0
                 ? 'No breakdown available for this selection'
-                : `No transaction data available for FY ${currentFY}`}
+                : `No transaction data available for ${currentFY}`}
             </p>
             <p className="text-text-tertiary text-sm mt-2">
               {depth > 0

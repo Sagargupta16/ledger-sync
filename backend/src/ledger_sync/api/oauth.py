@@ -29,7 +29,9 @@ from ledger_sync.api.oauth_providers import (
     _bearer,
     _configured_providers,
     _frontend_restart_url,
+    _provider_call,
     _provider_identity,
+    _provider_json,
     _require_pkce_client,
 )
 from ledger_sync.api.oauth_state import (
@@ -133,15 +135,24 @@ async def _oauth_get(
     client: httpx.AsyncClient,
     url: str,
     *,
+    provider: str,
     headers: dict[str, str] | None = None,
     error_detail: str = "OAuth request failed",
 ) -> dict[str, Any]:
-    """GET with standard error handling for OAuth APIs."""
-    resp = await client.get(url, headers=headers)
+    """GET with standard error handling for OAuth APIs.
+
+    Provider outages are 502 (``_provider_call``); a 4xx rejection of this
+    sign-in attempt stays a 400.
+    """
+    resp = await _provider_call(client.get(url, headers=headers), provider)
     if resp.status_code != 200:
         logger.warning("%s: %s", error_detail, resp.status_code)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail)
-    return resp.json()  # type: ignore[no-any-return]
+    body = _provider_json(resp, provider)
+    if not isinstance(body, dict):
+        logger.warning("%s: unexpected response shape", error_detail)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=error_detail)
+    return body
 
 
 # ─── Google OAuth ──────────────────────────────────────────────────────────────
@@ -166,16 +177,19 @@ async def google_callback(
     redirect_uri = _get_redirect_uri("google")
 
     # Exchange authorization code for tokens
-    resp = await client.post(
-        _GOOGLE_TOKEN_URL,
-        data={
-            "code": body.code,
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "redirect_uri": redirect_uri,
-            "grant_type": "authorization_code",
-            "code_verifier": body.code_verifier,
-        },
+    resp = await _provider_call(
+        client.post(
+            _GOOGLE_TOKEN_URL,
+            data={
+                "code": body.code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+                "code_verifier": body.code_verifier,
+            },
+        ),
+        "Google",
     )
     if resp.status_code != 200:
         # Provider responses can include short-lived codes or internal URLs
@@ -193,7 +207,8 @@ async def google_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Google token exchange failed",
         )
-    access_token = resp.json().get("access_token")
+    token_body = _provider_json(resp, "Google")
+    access_token = token_body.get("access_token") if isinstance(token_body, dict) else None
     if not access_token:
         logger.warning("Google OAuth: no access_token in response")
         raise HTTPException(
@@ -205,6 +220,7 @@ async def google_callback(
     user_info = await _oauth_get(
         client,
         _GOOGLE_USERINFO_URL,
+        provider="Google",
         headers=_bearer(access_token),
         error_detail="Failed to fetch Google user profile",
     )
@@ -254,16 +270,19 @@ async def github_callback(
     redirect_uri = _get_redirect_uri("github")
 
     # Exchange authorization code for access token
-    resp = await client.post(
-        _GITHUB_TOKEN_URL,
-        data={
-            "code": body.code,
-            "client_id": settings.github_client_id,
-            "client_secret": settings.github_client_secret,
-            "redirect_uri": redirect_uri,
-            "code_verifier": body.code_verifier,
-        },
-        headers={"Accept": "application/json"},
+    resp = await _provider_call(
+        client.post(
+            _GITHUB_TOKEN_URL,
+            data={
+                "code": body.code,
+                "client_id": settings.github_client_id,
+                "client_secret": settings.github_client_secret,
+                "redirect_uri": redirect_uri,
+                "code_verifier": body.code_verifier,
+            },
+            headers={"Accept": "application/json"},
+        ),
+        "GitHub",
     )
     if resp.status_code != 200:
         try:
@@ -279,7 +298,9 @@ async def github_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="GitHub token exchange failed",
         )
-    data = resp.json()
+    data = _provider_json(resp, "GitHub")
+    if not isinstance(data, dict):
+        data = {}
     access_token: str | None = data.get("access_token")
     if not access_token:
         logger.warning("GitHub OAuth: no access_token in response: %s", data.get("error"))
@@ -292,6 +313,7 @@ async def github_callback(
     user_info = await _oauth_get(
         client,
         _GITHUB_USER_URL,
+        provider="GitHub",
         headers=_bearer(access_token),
         error_detail="Failed to fetch GitHub user profile",
     )
@@ -317,11 +339,16 @@ async def github_callback(
 
 async def _fetch_github_primary_email(client: httpx.AsyncClient, access_token: str) -> str | None:
     """Fetch primary verified email from GitHub emails API."""
-    resp = await client.get(_GITHUB_EMAILS_URL, headers=_bearer(access_token))
+    resp = await _provider_call(
+        client.get(_GITHUB_EMAILS_URL, headers=_bearer(access_token)), "GitHub"
+    )
     if resp.status_code != 200:
         return None
 
-    emails: list[dict[str, Any]] = resp.json()
+    body = _provider_json(resp, "GitHub")
+    emails: list[dict[str, Any]] = (
+        [entry for entry in body if isinstance(entry, dict)] if isinstance(body, list) else []
+    )
     # Prefer primary + verified email
     for entry in emails:
         if entry.get("primary") and entry.get("verified"):
