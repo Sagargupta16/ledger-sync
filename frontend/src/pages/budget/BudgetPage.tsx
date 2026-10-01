@@ -6,7 +6,7 @@ import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { fadeUpItem, staggerContainer } from '@/constants/animations'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
@@ -73,21 +73,22 @@ export default function BudgetPage() {
       <PageHeader
         title="50/30/20 Budget Rule"
         subtitle="Actual split of your income across Needs, Wants, and Savings"
-        action={
-          <PeriodPicker
-            value={period}
-            onChange={setPeriod}
-            customStart={customStart}
-            customEnd={customEnd}
-            onCustomChange={(s, e) => {
-              setCustomStart(s)
-              setCustomEnd(e)
-            }}
-            minDate={minDate}
-            maxDate={maxDate}
-          />
-        }
       />
+
+      <StickyToolbar label="Budget period">
+        <PeriodPicker
+          value={period}
+          onChange={setPeriod}
+          customStart={customStart}
+          customEnd={customEnd}
+          onCustomChange={(s, e) => {
+            setCustomStart(s)
+            setCustomEnd(e)
+          }}
+          minDate={minDate}
+          maxDate={maxDate}
+        />
+      </StickyToolbar>
 
       {renderBody(dateRangeQuery.isLoading || spendingRuleQuery.isLoading, data)}
     </PageContainer>

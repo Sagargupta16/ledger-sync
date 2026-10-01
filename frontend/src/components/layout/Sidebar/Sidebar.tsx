@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, LogOut, Menu, Search, X } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 
 import ProfileModal from '@/components/shared/ProfileModal'
 import { getProfileInitials } from '@/components/shared/profileModalUtils'

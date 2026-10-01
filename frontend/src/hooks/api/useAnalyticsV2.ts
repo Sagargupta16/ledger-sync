@@ -5,7 +5,7 @@
  * caching, invalidation, and optimistic updates.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { analyticsV2Service } from '@/services/api/analyticsV2'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
@@ -215,6 +215,10 @@ export function useAnomalies(params?: ServiceParams<'getAnomalies'>) {
     queryKey: analyticsV2Keys.anomalies(params),
     queryFn: () => analyticsV2Service.getAnomalies(params),
     staleTime: STABLE_STALE_TIME,
+    // A filter change keeps the previous list on screen until the new one
+    // resolves, so Anomaly Review's pinned filters are not swapped for its
+    // loading skeleton (which also dropped the scroll position).
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -224,6 +228,7 @@ export function useAnomalyCounts(params?: ServiceParams<'getAnomalyCounts'>) {
     queryKey: analyticsV2Keys.anomalyCounts(params),
     queryFn: () => analyticsV2Service.getAnomalyCounts(params),
     staleTime: STABLE_STALE_TIME,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -353,6 +358,10 @@ export function useSpendingRule(params?: ServiceParams<'getSpendingRule'>) {
     queryKey: analyticsV2Keys.spendingRule(params),
     queryFn: () => analyticsV2Service.getSpendingRule(params),
     staleTime: STABLE_STALE_TIME,
+    // One response per period, so the previous period stays a consistent
+    // snapshot while the next loads; swapping to the skeleton instead
+    // collapsed /budgets and threw a scrolled-down reader back to the top.
+    placeholderData: keepPreviousData,
   })
 }
 

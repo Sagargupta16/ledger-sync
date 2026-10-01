@@ -5,7 +5,7 @@
  * Redirects to login if user is not authenticated.
  */
 
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router'
 import Spinner from '@/components/ui/Spinner'
 import { useAuthStore } from '@/store/authStore'
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { Eye, LogIn, X } from 'lucide-react'
 import { exitDemoMode } from '@/lib/demo'

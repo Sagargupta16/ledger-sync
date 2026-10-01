@@ -1,7 +1,5 @@
-"""Vercel serverless entry point — wraps the FastAPI ASGI app with Mangum."""
-
-from mangum import Mangum
+"""Vercel serverless entry point: Vercel's Python runtime serves the FastAPI ASGI ``app``."""
 
 from ledger_sync.api.main import app
 
-handler = Mangum(app, lifespan="off")
+__all__ = ["app"]

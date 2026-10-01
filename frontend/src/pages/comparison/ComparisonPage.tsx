@@ -8,7 +8,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import LoadingSkeleton, { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
 import { PeriodSelector } from './components/PeriodSelector'
 import { KpiCard } from './components/KpiCard'
@@ -106,9 +106,14 @@ export default function ComparisonPage() {
       <PageHeader
         title="Comparison"
         subtitle="Compare financial metrics across time periods"
-        action={
+      />
+
+      {/* Period type + Period A vs B, pinned so either side can change from
+          anywhere on the page. A vs B share one row even on a phone. */}
+      <StickyToolbar label="Comparison periods">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-6">
           <div
-            className="ledger-control flex items-center gap-1 rounded-lg border p-1"
+            className="ledger-control flex items-center gap-1 self-start rounded-lg border p-1"
             role="tablist"
             aria-label="Comparison period type"
           >
@@ -138,34 +143,31 @@ export default function ComparisonPage() {
               </motion.button>
             ))}
           </div>
-        }
-      />
 
-      {/* Period Selectors */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="ledger-panel p-4 sm:p-6"
-      >
-        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <PeriodSelector
-            mode={mode} label="Period A"
-            monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
-            month={effectiveMonthA} year={yearA} fy={fyA}
-            onMonth={setMonthA} onYear={setYearA} onFy={setFyA}
-          />
-          <div className="flex items-center justify-center gap-2 text-muted-foreground sm:pt-6">
-            <Equal className="w-5 h-5" />
-            <span className="text-sm font-medium">vs</span>
-          </div>
-          <PeriodSelector
-            mode={mode} label="Period B"
-            monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
-            month={effectiveMonthB} year={yearB} fy={fyB}
-            onMonth={setMonthB} onYear={setYearB} onFy={setFyB}
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 sm:gap-4 lg:flex-1"
+          >
+            <PeriodSelector
+              mode={mode} label="Period A"
+              monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
+              month={effectiveMonthA} year={yearA} fy={fyA}
+              onMonth={setMonthA} onYear={setYearA} onFy={setFyA}
+            />
+            <div className="flex min-h-11 items-center justify-center gap-1.5 text-muted-foreground sm:gap-2">
+              <Equal className="size-4 sm:size-5" />
+              <span className="text-sm font-medium">vs</span>
+            </div>
+            <PeriodSelector
+              mode={mode} label="Period B"
+              monthOptions={monthOptions} yearOptions={yearOptions} fyOptions={fyOptions}
+              month={effectiveMonthB} year={yearB} fy={fyB}
+              onMonth={setMonthB} onYear={setYearB} onFy={setFyB}
+            />
+          </motion.div>
         </div>
-      </motion.div>
+      </StickyToolbar>
 
       {partialPeriod && (
         <PartialPeriodNotice

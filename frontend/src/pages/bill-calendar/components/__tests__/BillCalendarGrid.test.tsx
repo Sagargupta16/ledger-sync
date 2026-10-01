@@ -35,9 +35,6 @@ function makeProps(overrides: Partial<Props> = {}): Props {
     isLoading: false,
     hasAnyData: true,
     isCurrentViewToday: true,
-    onPreviousMonth: vi.fn(),
-    onNextMonth: vi.fn(),
-    onToday: vi.fn(),
     onSelectDay: vi.fn(),
     ...overrides,
   }

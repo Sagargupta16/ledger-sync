@@ -20,7 +20,7 @@ Open:
 - Health: `http://localhost:8000/health`
 - Database health: `http://localhost:8000/health/db`
 
-The application version is `2.26.0`.
+The application version is `2.27.0`.
 
 ## Authentication
 
@@ -140,7 +140,7 @@ Important limits:
 Production is Vercel serverless:
 
 - `backend/vercel.json` routes requests.
-- `backend/api/index.py` exposes the FastAPI ASGI app to Vercel's Python runtime, plus a Mangum `handler` for an AWS Lambda target.
+- `backend/api/index.py` exposes the FastAPI ASGI app to Vercel's Python runtime.
 - Neon PostgreSQL provides production storage.
 - `.github/workflows/migrate.yml` applies Alembic migrations.
 

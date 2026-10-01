@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import {
   AlertTriangle,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import MetricCard from '@/components/shared/MetricCard'
 import ProgressBar from '@/components/shared/ProgressBar'
 import EmptyState from '@/components/shared/EmptyState'
@@ -111,19 +111,21 @@ export default function OverviewPage() {
   }
 
   const periodSelector = (
-    <AnalyticsTimeFilter
-      viewMode={viewMode}
-      onViewModeChange={setViewMode}
-      currentYear={currentYear}
-      currentMonth={currentMonth}
-      currentFY={currentFY}
-      onYearChange={setCurrentYear}
-      onMonthChange={setCurrentMonth}
-      onFYChange={setCurrentFY}
-      minDate={dataDateRange.minDate}
-      maxDate={dataDateRange.maxDate}
-      fiscalYearStartMonth={fiscalYearStartMonth}
-    />
+    <StickyToolbar label="Time range">
+      <AnalyticsTimeFilter
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        currentYear={currentYear}
+        currentMonth={currentMonth}
+        currentFY={currentFY}
+        onYearChange={setCurrentYear}
+        onMonthChange={setCurrentMonth}
+        onFYChange={setCurrentFY}
+        minDate={dataDateRange.minDate}
+        maxDate={dataDateRange.maxDate}
+        fiscalYearStartMonth={fiscalYearStartMonth}
+      />
+    </StickyToolbar>
   )
 
   const hasTransactions = Boolean(dataDateRange.minDate && dataDateRange.maxDate)
@@ -148,8 +150,8 @@ export default function OverviewPage() {
         <PageHeader
           title="Overview"
           subtitle="Your complete financial picture"
-          action={periodSelector}
         />
+        {periodSelector}
         <EmptyState
           icon={Wallet}
           title="No transactions in this period"
@@ -164,8 +166,8 @@ export default function OverviewPage() {
       <PageHeader
         title="Overview"
         subtitle="Your complete financial picture"
-        action={periodSelector}
       />
+      {periodSelector}
 
       {/* Headline KPIs.
           The delta is the last two COMPLETE months (see `useDashboardMetrics`),

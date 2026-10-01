@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.27.0 - 2026-10-01
+
+Filters stay in reach while you scroll, two Comparison display fixes, and the deferred major dependency upgrades.
+
+### Added
+
+- A shared `StickyToolbar` pins each page's period, FY, sort, and filter controls under the workspace header while the page scrolls, on 18 pages (Dashboard, Overview, Transactions, Income and Expense Analysis, Cash Flow, Net Worth, Investment Analytics, Returns, Trends, Year in Review, Income Tax, GST, Comparison, Anomaly Review, Merchant Intelligence, Bill Calendar, Budget). It gains a hairline and shadow once pinned and keeps keyboard focus clear of it.
+
+### Changed
+
+- Transactions, Budget, and Anomaly Review keep the previous results on screen while a new filter loads, so changing a filter no longer collapses the page to a skeleton or jumps to the top.
+- Bill Calendar's month navigation moved into the pinned toolbar because the summary cards and day panel also follow the month; Income Tax and GST cross-links moved into their page headers.
+- Frontend dependencies: Vitest 5, `@tanstack/react-table` 9, `@vite-pwa/assets-generator` 2, and `react-router` 8 (replaces `react-router-dom`, imports only). `rimraf` is gone from the clean script.
+- Backend dependencies: the unused `mangum` Lambda shim and `python-multipart` are removed; Vercel serves the ASGI `app` directly.
+
+### Fixed
+
+- The Comparison spending chart anchors each period's amount at the outer end of its own bar, so the left and right labels no longer overlap at the zero line.
+- The Comparison category tables name both periods once in the column header instead of repeating the period label on every row.
+
 ## 2.26.0 - 2026-09-30
 
 Second audit pass: one definition per financial metric across pages, the AI assistant, and demo mode; a schema alignment migration; and roughly 110 findings across API contracts, validation, error states, accessibility, and docs.

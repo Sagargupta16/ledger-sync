@@ -169,7 +169,9 @@ export default function TransactionFilters({
           <motion.div
             id="advanced-filters"
             {...DISCLOSURE_TRANSITION}
-            className="ledger-panel space-y-4 overflow-hidden p-4 sm:p-5"
+            // Capped and scrollable: the filter bar is a sticky toolbar, so an
+            // uncapped panel would pin over the whole table on a phone.
+            className="ledger-panel max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5"
             role="region"
             aria-label="Advanced filters"
           >

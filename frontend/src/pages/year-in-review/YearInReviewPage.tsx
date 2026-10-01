@@ -3,7 +3,7 @@ import { Flame } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 
 import DayOfWeekSection from './components/DayOfWeekSection'
@@ -55,8 +55,10 @@ export default function YearInReviewPage() {
       <PageHeader
         title={PAGE_TITLE}
         subtitle={PAGE_SUBTITLE}
-        action={<YearReviewControls review={review} />}
       />
+      <StickyToolbar label="Year and heatmap metric">
+        <YearReviewControls review={review} />
+      </StickyToolbar>
       <YearStatsGrid stats={review.stats} />
       <MonthlyBreakdownChart monthlyBarData={review.monthlyBarData} dims={dims} />
       <YearHeatmapSection review={review} />

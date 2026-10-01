@@ -1,11 +1,11 @@
 import { Info, Landmark } from 'lucide-react'
 import { motion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
 
@@ -54,38 +54,35 @@ export default function GSTAnalysisPage() {
 
   // Navigation, the Income Tax link and the estimate disclaimer do not depend
   // on the failed queries, so they stay on error.
-  const toolbar = (
-    <>
-      <div className="flex flex-col gap-3 border-b border-[var(--hairline-1)] pb-5 sm:flex-row sm:items-center sm:justify-between">
-        {analysis.allFYs.length > 0 && (
-          <FYNavigator
-            fiscalYears={analysis.allFYs}
-            selectedFY={analysis.effectiveFY}
-            onSelect={analysis.setSelectedFY}
-          />
-        )}
-        <Link
-          to={ROUTES.TAX_PLANNING}
-          className="inline-flex min-h-11 items-center justify-center gap-2 self-start whitespace-nowrap rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5"
-          title="View Income Tax planning"
-        >
-          <Landmark className="size-4" aria-hidden="true" />
-          <span>View Income Tax</span>
-        </Link>
-      </div>
-
-      <details className="rounded-lg border border-app-orange/20 bg-app-orange/5 text-sm text-muted-foreground">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
-          <Info className="size-4 shrink-0 text-app-orange" aria-hidden="true" />
-          <strong className="text-foreground">Estimates only, not for filing.</strong>
-          <span className="ml-auto text-xs text-app-orange">How this works</span>
-        </summary>
-        <p className="border-t border-app-orange/15 px-4 py-3 leading-6">
-          Bank statements do not itemize GST, so Ledger Sync applies typical category slab rates
-          to inclusive-of-tax spending. Use these figures for awareness of indirect tax paid.
-        </p>
-      </details>
-    </>
+  const fyNavigator = analysis.allFYs.length > 0 && (
+    <FYNavigator
+      fiscalYears={analysis.allFYs}
+      selectedFY={analysis.effectiveFY}
+      onSelect={analysis.setSelectedFY}
+    />
+  )
+  const incomeTaxLink = (
+    <Link
+      to={ROUTES.TAX_PLANNING}
+      className="inline-flex min-h-11 items-center justify-center gap-2 self-start whitespace-nowrap rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--overlay-5)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5"
+      title="View Income Tax planning"
+    >
+      <Landmark className="size-4" aria-hidden="true" />
+      <span>View Income Tax</span>
+    </Link>
+  )
+  const disclaimer = (
+    <details className="rounded-lg border border-app-orange/20 bg-app-orange/5 text-sm text-muted-foreground">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+        <Info className="size-4 shrink-0 text-app-orange" aria-hidden="true" />
+        <strong className="text-foreground">Estimates only, not for filing.</strong>
+        <span className="ml-auto text-xs text-app-orange">How this works</span>
+      </summary>
+      <p className="border-t border-app-orange/15 px-4 py-3 leading-6">
+        Bank statements do not itemize GST, so Ledger Sync applies typical category slab rates
+        to inclusive-of-tax spending. Use these figures for awareness of indirect tax paid.
+      </p>
+    </details>
   )
 
   if (!analysis.isLoading && analysis.isError) {
@@ -97,7 +94,11 @@ export default function GSTAnalysisPage() {
         onRetry={analysis.retry}
         className="space-y-6"
       >
-        {toolbar}
+        <div className="flex flex-col gap-3 border-b border-[var(--hairline-1)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+          {fyNavigator}
+          {incomeTaxLink}
+        </div>
+        {disclaimer}
       </PageErrorState>
     )
   }
@@ -107,9 +108,12 @@ export default function GSTAnalysisPage() {
       <PageHeader
         title="Indirect Tax (GST)"
         subtitle="Estimated GST paid on your expenses"
+        action={incomeTaxLink}
       />
 
-      {toolbar}
+      {fyNavigator && <StickyToolbar label="Fiscal year">{fyNavigator}</StickyToolbar>}
+
+      {disclaimer}
 
       {analysis.isLoading && <GSTAnalysisSkeleton />}
 

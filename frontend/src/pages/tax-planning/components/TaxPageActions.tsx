@@ -31,51 +31,12 @@ export default function TaxPageActions({
   goToNextFY,
   hasSalaryData,
 }: Readonly<Props>) {
+  // Wraps instead of stacking, with the fiscal year first: on a phone the FY
+  // arrows and the regime switch share one row, so this sticky toolbar stays
+  // at two rows at most.
   return (
-    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      {newRegimeAvailable && (
-        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
-          <legend className="sr-only">Tax regime</legend>
-          <Button
-            type="button"
-            onClick={() => setRegimeOverride('new')}
-            variant={isNewRegime ? 'primary' : 'ghost'}
-            size="sm"
-            aria-pressed={isNewRegime}
-            className="rounded-none border-0 px-3"
-          >
-            New Regime
-          </Button>
-          <Button
-            type="button"
-            onClick={() => setRegimeOverride('old')}
-            variant={isNewRegime ? 'ghost' : 'primary'}
-            size="sm"
-            aria-pressed={!isNewRegime}
-            className="rounded-none border-0 px-3"
-          >
-            Old Regime
-          </Button>
-        </fieldset>
-      )}
-
-      {isCurrentFY && hasSalaryData && (
-        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
-          <legend className="sr-only">Calculation period</legend>
-          <Button type="button" size="sm" variant={showProjection ? 'primary' : 'ghost'}
-            aria-pressed={showProjection} onClick={() => setShowProjection(true)}
-            className="rounded-none border-0 px-3">
-            Full-year estimate
-          </Button>
-          <Button type="button" size="sm" variant={showProjection ? 'ghost' : 'primary'}
-            aria-pressed={!showProjection} onClick={() => setShowProjection(false)}
-            className="rounded-none border-0 px-3">
-            Income received
-          </Button>
-        </fieldset>
-      )}
-
-      <fieldset className="m-0 flex min-w-0 items-center justify-between gap-2 border-0 p-0 sm:justify-start">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+      <fieldset className="m-0 flex min-w-0 grow items-center justify-between gap-2 border-0 p-0 sm:grow-0 sm:justify-start">
         <legend className="sr-only">Fiscal year</legend>
         <Button
           type="button"
@@ -103,6 +64,48 @@ export default function TaxPageActions({
           className="px-2"
         />
       </fieldset>
+
+      {newRegimeAvailable && (
+        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
+          <legend className="sr-only">Tax regime</legend>
+          <Button
+            type="button"
+            onClick={() => setRegimeOverride('new')}
+            variant={isNewRegime ? 'primary' : 'ghost'}
+            size="sm"
+            aria-pressed={isNewRegime}
+            className="rounded-none border-0 px-3"
+          >
+            New<span className="sr-only sm:not-sr-only"> Regime</span>
+          </Button>
+          <Button
+            type="button"
+            onClick={() => setRegimeOverride('old')}
+            variant={isNewRegime ? 'ghost' : 'primary'}
+            size="sm"
+            aria-pressed={!isNewRegime}
+            className="rounded-none border-0 px-3"
+          >
+            Old<span className="sr-only sm:not-sr-only"> Regime</span>
+          </Button>
+        </fieldset>
+      )}
+
+      {isCurrentFY && hasSalaryData && (
+        <fieldset className="m-0 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-border p-0">
+          <legend className="sr-only">Calculation period</legend>
+          <Button type="button" size="sm" variant={showProjection ? 'primary' : 'ghost'}
+            aria-pressed={showProjection} onClick={() => setShowProjection(true)}
+            className="rounded-none border-0 px-3">
+            Full-year estimate
+          </Button>
+          <Button type="button" size="sm" variant={showProjection ? 'ghost' : 'primary'}
+            aria-pressed={!showProjection} onClick={() => setShowProjection(false)}
+            className="rounded-none border-0 px-3">
+            Income received
+          </Button>
+        </fieldset>
+      )}
     </div>
   )
 }

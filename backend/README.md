@@ -190,6 +190,6 @@ Read [MIGRATION_NOTES.md](src/ledger_sync/db/migrations/MIGRATION_NOTES.md) befo
 
 ## Deployment
 
-Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Vercel's Python runtime serves the FastAPI ASGI app directly, so the application lifespan runs in production; the Mangum `handler` in the same module is only for an AWS Lambda target. Database migrations are applied by `.github/workflows/migrate.yml`.
+Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Vercel's Python runtime serves the FastAPI ASGI app directly, so the application lifespan runs in production. Database migrations are applied by `.github/workflows/migrate.yml`.
 
 See [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) and [docs/API.md](../docs/API.md).

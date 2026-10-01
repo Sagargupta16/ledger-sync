@@ -1,10 +1,9 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 
 import { motion } from 'motion/react'
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
-import { Button } from '@/components/ui'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 
 import { formatMonthYear, isSameDay } from '../billUtils'
@@ -27,9 +26,6 @@ interface BillCalendarGridProps {
   readonly isLoading: boolean
   readonly hasAnyData: boolean
   readonly isCurrentViewToday: boolean
-  readonly onPreviousMonth: () => void
-  readonly onNextMonth: () => void
-  readonly onToday: () => void
   readonly onSelectDay: (day: number | null) => void
 }
 
@@ -44,9 +40,6 @@ export default function BillCalendarGrid({
   isLoading,
   hasAnyData,
   isCurrentViewToday,
-  onPreviousMonth,
-  onNextMonth,
-  onToday,
   onSelectDay,
 }: BillCalendarGridProps) {
   const daysInView = calendarGrid.filter((cell) => cell.isCurrentMonth).length
@@ -82,45 +75,8 @@ export default function BillCalendarGrid({
       className="-mx-4 border-y border-[var(--glass-border)] bg-surface-1 py-4 sm:mx-0 sm:rounded-lg sm:border sm:p-5 sm:shadow-[var(--glass-shadow)]"
       {...SCROLL_FADE_UP}
     >
-      <div className="mb-4 flex items-center justify-between gap-2 px-4 sm:px-0">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onPreviousMonth}
-          aria-label="Previous month"
-          icon={<ChevronLeft className="h-5 w-5" />}
-          className="p-2"
-        />
-
-        <div className="flex min-w-0 items-center justify-center gap-2 sm:gap-3">
-          <h2 className="truncate text-base font-semibold text-foreground sm:text-lg">
-            {formatMonthYear(viewYear, viewMonth)}
-          </h2>
-          {!isCurrentViewToday && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onToday}
-              className="bg-app-blue/15 text-app-blue hover:bg-app-blue/25 hover:text-app-blue"
-            >
-              Today
-            </Button>
-          )}
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onNextMonth}
-          aria-label="Next month"
-          icon={<ChevronRight className="h-5 w-5" />}
-          className="p-2"
-        />
-      </div>
-
+      {/* Month navigation lives in the page's sticky toolbar
+          (BillMonthNavigator); the visible month heading moved with it. */}
       {isLoading && (
         <div className="overflow-x-auto pb-1">
           <div className="min-w-[20rem] space-y-2">

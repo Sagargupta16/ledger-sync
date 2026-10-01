@@ -66,7 +66,7 @@ def refresh_analytics(
     cleanup owns session closure.
 
     Defined as a sync ``def`` so FastAPI runs it in an external threadpool
-    automatically -- avoids event-loop issues under Mangum on Vercel.
+    automatically, keeping the synchronous database work off the event loop.
     """
     # Capture before the engine commits or rollback expires the ORM user.
     user_id = current_user.id

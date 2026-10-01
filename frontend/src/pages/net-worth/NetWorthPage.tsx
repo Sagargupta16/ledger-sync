@@ -6,7 +6,7 @@ import MetricCard from '@/components/shared/MetricCard'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import Sparkline from '@/components/shared/Sparkline'
 import { colors, rawColors } from '@/constants/colors'
-import { PageContainer, PageHeader } from '@/components/ui'
+import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -57,12 +57,13 @@ export default function NetWorthPage() {
       <PageHeader
         title="Net Worth"
         subtitle="Assets and liabilities from your transactions (book value, not live market prices)"
-        action={
-          <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
-            <AnalyticsTimeFilter {...m.timeFilterProps} />
-          </div>
-        }
       />
+
+      <StickyToolbar label="Time range">
+        <div className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:min-w-11">
+          <AnalyticsTimeFilter {...m.timeFilterProps} />
+        </div>
+      </StickyToolbar>
 
       {m.partialPeriod && (
         <PartialPeriodNotice

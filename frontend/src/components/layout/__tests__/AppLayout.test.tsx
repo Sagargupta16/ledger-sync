@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { Link, MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { motion, MotionConfig } from 'motion/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

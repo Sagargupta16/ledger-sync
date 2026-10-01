@@ -4,7 +4,7 @@ import { Download, Receipt } from 'lucide-react'
 import type { SortingState } from '@tanstack/react-table'
 import { toast } from 'sonner'
 
-import { Button, PageContainer, PageHeader } from '@/components/ui'
+import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import SavedViewsMenu from '@/components/transactions/SavedViewsMenu'
@@ -233,8 +233,9 @@ export default function TransactionsPage() {
           )}
         </section>
 
-        {/* Filters */}
-        <div>
+        {/* Filters -- pinned once scrolled to, so search, saved views and
+            the advanced filters stay reachable over the whole table. */}
+        <StickyToolbar label="Transaction filters">
           <TransactionFilters
             key={filtersVersion}
             onFilterChange={handleFilterChange}
@@ -245,7 +246,7 @@ export default function TransactionsPage() {
             tagOptions={facets?.tags ?? []}
             savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
           />
-        </div>
+        </StickyToolbar>
 
         {/* Table */}
         <div>

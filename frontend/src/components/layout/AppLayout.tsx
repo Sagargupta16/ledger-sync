@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { useLocation, useOutlet } from 'react-router-dom'
+import { useLocation, useOutlet } from 'react-router'
 
 import { motion, AnimatePresence, useIsPresent } from 'motion/react'
 
