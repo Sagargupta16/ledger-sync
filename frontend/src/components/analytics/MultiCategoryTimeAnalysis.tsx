@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { Download } from 'lucide-react'
-import { calculationsApi } from '@/services/api/calculations'
+import { expenseDailySeriesOptions } from '@/components/analytics/categoryDailySeriesQueries'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import {
   bucketDate,
@@ -44,18 +44,9 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   // Daily per-category sums, aggregated server-side (date-range applied in SQL).
   // The client keeps its own day/week/month bucketing so the ISO-week + label
   // logic is unchanged -- we just feed it daily rows instead of the full ledger.
-  const { data: series, isLoading, isError, refetch } = useQuery({
-    queryKey: ['category-daily-series', 'expense', dateRange?.start_date, dateRange?.end_date],
-    queryFn: async () =>
-      (
-        await calculationsApi.getCategoryDailySeries({
-          transaction_type: 'expense',
-          start_date: dateRange?.start_date,
-          end_date: dateRange?.end_date,
-        })
-      ).data,
-    staleTime: Infinity,
-  })
+  // The Expense Analysis page reads the same factory for a newly selected
+  // window, so by the time this section receives it the series is cached.
+  const { data: series, isLoading, isError, refetch } = useQuery(expenseDailySeriesOptions(dateRange))
 
   // Process data for multi-category time analysis
   const { chartData, totalTransactions, granularity } = useMemo(() => {

@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { rawColors } from '@/constants/colors'
+import { colors, cssVar } from '@/constants/colors'
 import type { Anomaly, AnomalySeverityValue, AnomalyTypeValue } from '@/services/api/analyticsV2'
 import { ANOMALY_TYPE_VALUES, EMITTED_ANOMALY_TYPES } from '@/services/api/analyticsV2'
 
@@ -61,6 +61,7 @@ export interface SeverityStyle {
   bg: string
   text: string
   border: string
+  /** DOM color as a var() reference, so it follows a theme toggle. */
   iconColor: string
 }
 
@@ -69,19 +70,19 @@ export const SEVERITY_STYLES: Record<AnomalySeverityValue, SeverityStyle> = {
     bg: 'bg-app-red/15',
     text: 'text-app-red',
     border: 'border-app-red/20',
-    iconColor: rawColors.app.red,
+    iconColor: colors.app.red,
   },
   medium: {
     bg: 'bg-app-orange/15',
     text: 'text-app-orange',
     border: 'border-app-orange/20',
-    iconColor: rawColors.app.orange,
+    iconColor: colors.app.orange,
   },
   low: {
     bg: 'bg-app-yellow/15',
     text: 'text-app-yellow',
     border: 'border-app-yellow/20',
-    iconColor: rawColors.app.yellow,
+    iconColor: colors.app.yellow,
   },
 }
 
@@ -90,7 +91,7 @@ const UNKNOWN_SEVERITY_STYLE: SeverityStyle = {
   bg: 'bg-[var(--overlay-5)]',
   text: 'text-muted-foreground',
   border: 'border-border',
-  iconColor: rawColors.chart.neutral,
+  iconColor: cssVar('--chart-neutral'),
 }
 
 /**

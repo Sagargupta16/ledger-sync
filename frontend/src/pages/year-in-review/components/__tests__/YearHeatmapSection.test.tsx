@@ -26,6 +26,7 @@ function makeReview(grid: DayCell[]) {
     isFYMode: false,
     currentFY: 'FY 2020-21',
     selectedYear: 2020,
+    periodLabel: '2020',
     monthLabels: [],
     hoveredDay: null,
     setHoveredDay: vi.fn(),

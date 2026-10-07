@@ -15,12 +15,14 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 
+import { DEFAULT_SUBCATEGORY_FOCUS } from '@/components/analytics/categoryDailySeriesQueries'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   hasNoCompleteMonthBasis,
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
+import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
@@ -32,6 +34,7 @@ import {
   useIncomeBreakdown,
   useMonthlyExpense,
   useRangeTotals,
+  useSectionSeries,
   type SpendingRange,
 } from './spendingAnalysisQueries'
 import {
@@ -41,6 +44,22 @@ import {
   monthlyAvgSubtitleFor,
   splitEssentialSpend,
 } from './spendingAnalysisUtils'
+
+type CategoryBreakdownData = ReturnType<typeof useExpenseBreakdown>['data']
+
+/**
+ * Rows the complete-months range holds: in the filtered category when there
+ * is one (expense plus income rows), else every row `/totals` counted.
+ */
+function comparableRows(
+  category: string | null,
+  totals: ReturnType<typeof useRangeTotals>['data'],
+  expense: CategoryBreakdownData,
+  income: CategoryBreakdownData,
+): number {
+  if (!category) return totals?.transaction_count ?? 0
+  return (expense?.categories[category]?.count ?? 0) + (income?.categories[category]?.count ?? 0)
+}
 
 export function useSpendingAnalysis() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -75,7 +94,6 @@ export function useSpendingAnalysis() {
     }),
     [comparableDateRange.start_date, comparableDateRange.end_date],
   )
-  const dateRangeCompat = windowRange
 
   // TOTALS keep the in-progress month -- "spent so far this month" is a number
   // the user wants.
@@ -103,21 +121,15 @@ export function useSpendingAnalysis() {
   const comparableTotals = useRangeTotals(comparableRange)
   const comparableExpense = useExpenseBreakdown(comparableRange)
   const comparableIncome = useIncomeBreakdown(comparableRange, Boolean(categoryFilter))
-  const comparableRowCount = categoryFilter
-    ? (comparableExpense.data?.categories[categoryFilter]?.count ?? 0) +
-      (comparableIncome.data?.categories[categoryFilter]?.count ?? 0)
-    : (comparableTotals.data?.transaction_count ?? 0)
+  const comparableRowCount = comparableRows(
+    categoryFilter,
+    comparableTotals.data,
+    comparableExpense.data,
+    comparableIncome.data,
+  )
   const comparableLoaded = categoryFilter
     ? comparableExpense.data !== undefined && comparableIncome.data !== undefined
     : comparableTotals.data !== undefined
-
-  /**
-   * True when the rates on this page are running on the in-progress month -- the
-   * range held no complete month, or the narrowing left no rows and the fallback
-   * kicked in. Drives the notice copy so a running-pace figure is never presented
-   * as a completed-month result.
-   */
-  const noCompleteMonthBasis = hasNoCompleteMonthBasis(isRangePartialOnly, comparableRowCount)
 
   /**
    * The window every rate and average is computed on, which must follow the
@@ -135,6 +147,9 @@ export function useSpendingAnalysis() {
   const basisExpense = useExpenseBreakdown(basisRange)
   const basisIncome = useIncomeBreakdown(basisRange, Boolean(categoryFilter))
   const basisMonthly = useMonthlyExpense(basisRange, categoryFilter)
+  // Read only to gate the commit: the chart sections below render their own
+  // copies for the window this hook hands them.
+  const sectionSeries = useSectionSeries(windowRange, categoryFilter ?? DEFAULT_SUBCATEGORY_FOCUS)
 
   const reads = [
     windowExpense,
@@ -147,8 +162,45 @@ export function useSpendingAnalysis() {
     basisMonthly,
   ]
   const isError = isPreferencesError || boundsQuery.isError || reads.some((read) => read.isError)
+
+  /**
+   * Everything below renders from ONE window. While a newly selected period
+   * (or category) is loading, the previous window's reads and the ranges they
+   * were fetched for stay on screen together; the new set replaces them in one
+   * render once every read has it. A cached read resolving beside a pending
+   * one can therefore never put two windows on the page, and the page never
+   * swaps to its skeleton mid-scroll. The basis range rides in the snapshot
+   * because it is decided from the comparable reads it belongs with.
+   */
+  const stable = useStablePeriodData(
+    { windowRange, basisRange, categoryFilter, partialPeriod, isRangePartialOnly },
+    [
+      windowExpense,
+      comparableTotals,
+      comparableExpense,
+      categoryFilter ? comparableIncome : null,
+      basisTotals,
+      basisExpense,
+      categoryFilter ? basisIncome : null,
+      basisMonthly,
+      ...sectionSeries,
+    ],
+  )
+  const shown = stable.period
+  const [
+    windowExpenseData,
+    comparableTotalsData,
+    comparableExpenseData,
+    comparableIncomeData,
+    basisTotalsData,
+    basisExpenseData,
+    basisIncomeData,
+    basisMonthlyData,
+  ] = stable.data
+  const shownCategory = shown.categoryFilter
+
   const isLoading =
-    !isError && (isPreferencesPending || boundsQuery.isLoading || reads.some((read) => read.isPending))
+    !isError && (isPreferencesPending || boundsQuery.isLoading || stable.isInitialLoad)
   const retry = () => {
     void Promise.all([
       refetchPreferences(),
@@ -157,19 +209,30 @@ export function useSpendingAnalysis() {
     ])
   }
 
+  /**
+   * True when the rates on this page are running on the in-progress month -- the
+   * range held no complete month, or the narrowing left no rows and the fallback
+   * kicked in. Drives the notice copy so a running-pace figure is never presented
+   * as a completed-month result.
+   */
+  const noCompleteMonthBasis = hasNoCompleteMonthBasis(
+    shown.isRangePartialOnly,
+    comparableRows(shownCategory, comparableTotalsData, comparableExpenseData, comparableIncomeData),
+  )
+
   const categoryBreakdown = useMemo(
-    () => categoryTotals(windowExpense.data, categoryFilter),
-    [windowExpense.data, categoryFilter],
+    () => categoryTotals(windowExpenseData, shownCategory),
+    [windowExpenseData, shownCategory],
   )
   const totalSpending = Object.values(categoryBreakdown).reduce((sum, value) => sum + value, 0)
 
   const categoriesCount = Object.keys(categoryBreakdown).length
   const subcategoriesCount = useMemo(() => {
-    const categories = windowExpense.data?.categories ?? {}
+    const categories = windowExpenseData?.categories ?? {}
     return Object.entries(categories)
-      .filter(([category]) => !categoryFilter || category === categoryFilter)
+      .filter(([category]) => !shownCategory || category === shownCategory)
       .reduce((sum, [, entry]) => sum + Object.keys(entry.subcategories).length, 0)
-  }, [windowExpense.data, categoryFilter])
+  }, [windowExpenseData, shownCategory])
   const topCategoryEntry = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1])[0]
   const topCategory = topCategoryEntry?.[0] || 'N/A'
   const topCategoryAmount = topCategoryEntry?.[1] ?? 0
@@ -179,17 +242,17 @@ export function useSpendingAnalysis() {
   // has not landed into the denominator is what produced the 1015% needs share
   // and a 0% savings share. On a category deep-link the income is the income
   // booked IN that category, as the row filter always meant.
-  const totalIncome = categoryFilter
-    ? (basisIncome.data?.categories[categoryFilter]?.total ?? 0)
-    : (basisTotals.data?.total_income ?? 0)
+  const totalIncome = shownCategory
+    ? (basisIncomeData?.categories[shownCategory]?.total ?? 0)
+    : (basisTotalsData?.total_income ?? 0)
   const basisCategoryTotals = useMemo(
-    () => categoryTotals(basisExpense.data, categoryFilter),
-    [basisExpense.data, categoryFilter],
+    () => categoryTotals(basisExpenseData, shownCategory),
+    [basisExpenseData, shownCategory],
   )
   const comparableSpending = Object.values(basisCategoryTotals).reduce((sum, value) => sum + value, 0)
   // Savings = income - spending - classified realised losses (the `/totals`
   // `net_savings` rule). A classified loss is out of spending but the cash left.
-  const basisLosses = categoryFilter ? 0 : (basisTotals.data?.capital_losses ?? 0)
+  const basisLosses = shownCategory ? 0 : (basisTotalsData?.capital_losses ?? 0)
   const savings = spendingRuleSavings(totalIncome, comparableSpending + basisLosses)
 
   // Needs/Wants split is charted as a share of income, so it must sit on the
@@ -213,11 +276,12 @@ export function useSpendingAnalysis() {
    */
   const monthlyMap = useMemo(() => {
     const out: Record<string, number> = {}
-    for (const [month, amount] of Object.entries(basisMonthly.data ?? {})) {
+    for (const [month, amount] of Object.entries(basisMonthlyData ?? {})) {
       if (amount > 0) out[month] = amount
     }
     return out
-  }, [basisMonthly.data])
+  }, [basisMonthlyData])
+  const shownBasisRange = shown.basisRange
 
   /**
    * Per-month AVERAGE. Runs on complete months, so a 27-day month cannot count
@@ -235,9 +299,9 @@ export function useSpendingAnalysis() {
     () =>
       monthlySpendShape(
         Object.entries(monthlyMap).map(([month, amount]) => ({ date: `${month}-01`, amount })),
-        basisRange,
+        shownBasisRange,
       ),
-    [monthlyMap, basisRange],
+    [monthlyMap, shownBasisRange],
   )
   const monthlyAvgSpending = monthlySpend?.mean ?? 0
   const monthlyAvgSubtitle = monthlyAvgSubtitleFor(monthlySpend, formatCurrency)
@@ -274,7 +338,7 @@ export function useSpendingAnalysis() {
   const monthlyTrendData = useMemo(() => {
     const withRows = Object.keys(monthlyMap).sort((a, b) => a.localeCompare(b))
     if (withRows.length === 0) return []
-    const sorted = spanMonthKeys(withRows, basisRange).map((month) => ({
+    const sorted = spanMonthKeys(withRows, shownBasisRange).map((month) => ({
       month,
       label: formatMonthKey(month, { month: 'short', year: '2-digit' }),
       expense: monthlyMap[month] ?? 0,
@@ -289,7 +353,7 @@ export function useSpendingAnalysis() {
           : undefined,
       }
     })
-  }, [monthlyMap, basisRange])
+  }, [monthlyMap, shownBasisRange])
 
   /** How many rolling-average points actually exist -- see `countRollingAvgPoints`. */
   const rollingAvgPointCount = useMemo(
@@ -340,13 +404,18 @@ export function useSpendingAnalysis() {
   }, [spendingBreakdown, totalIncome, savings, needsTarget, wantsTarget, savingsTarget])
 
   return {
-    categoryFilter,
+    /** The category the content below is filtered to (the shown snapshot's). */
+    categoryFilter: shownCategory,
+    /** The category in the URL, for the filter banner (a control, so live). */
+    selectedCategoryFilter: categoryFilter,
     clearCategoryFilter,
     timeFilterProps,
-    dateRangeCompat,
-    partialPeriod,
+    /** The window the content belongs to, for the sections that read their own data. */
+    dateRangeCompat: shown.windowRange,
+    partialPeriod: shown.partialPeriod,
     noCompleteMonthBasis,
     isLoading,
+    isSettling: stable.isSettling,
     isError,
     retry,
     totalSpending, monthlyAvgSpending, monthlyAvgSubtitle, monthlyAvgLineLabel, savings,

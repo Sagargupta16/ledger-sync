@@ -9,9 +9,6 @@ export { monthKeysBetween } from '@/lib/dateUtils'
 export { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys } from '@/lib/finance/spending'
 export type { BudgetRuleMetrics, MonthlySpendShape } from '@/lib/finance/spending'
 
-/** Color for Savings (semantic, distinct from income green). */
-export const SAVINGS_COLOR = SEMANTIC_COLORS.savings
-
 /**
  * `category -> total` from a `/category-breakdown` payload, narrowed to one
  * category for a `?category=` deep-link. Empty until the payload arrives.
@@ -65,7 +62,9 @@ export function buildSpendingChartData(
   return [
     { name: 'Needs', value: spendingBreakdown.essential, fill: SPENDING_TYPE_COLORS.essential },
     { name: 'Wants', value: spendingBreakdown.discretionary, fill: SPENDING_TYPE_COLORS.discretionary },
-    { name: 'Savings', value: savings, fill: SAVINGS_COLOR },
+    // Semantic savings color (distinct from income green), read per call so a
+    // theme toggle is picked up; a module-level copy froze the load-time hex.
+    { name: 'Savings', value: savings, fill: SEMANTIC_COLORS.savings },
   ].filter((d) => d.value > 0)
 }
 

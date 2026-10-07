@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { computeGoalPace, computeGoalProjection as computeDomainProjection } from '@/lib/finance/goalProjection'
 
@@ -150,24 +150,18 @@ describe('shared goal projection', () => {
 })
 
 describe('goal projection presentation', () => {
-  it('reads refreshed theme colors when computing a projection', () => {
-    const originalGreen = rawColors.app.green
-    try {
-      rawColors.app.green = '#123456'
-      const projection = computeGoalProjection(makeGoal(), TARGET_AMOUNT, null, new Date(2026, 0, 31))
-      expect(projection.statusColor).toBe('#123456')
-    } finally {
-      rawColors.app.green = originalGreen
-    }
+  it('returns a CSS variable reference so the status color follows a theme toggle', () => {
+    const projection = computeGoalProjection(makeGoal(), TARGET_AMOUNT, null, new Date(2026, 0, 31))
+    expect(projection.statusColor).toBe('var(--color-app-green)')
   })
 
   it.each([
-    [TARGET_AMOUNT, null, 'achieved', 'Achieved', rawColors.app.green, null],
-    [0, 0, 'no_data', 'No savings data', rawColors.app.yellow, null],
-    [0, 240_000, 'on_track', 'On Track', rawColors.app.green, 1],
-    [0, 120_000, 'on_track', 'On Track', rawColors.app.green, 0],
-    [0, 30_000, 'slightly_behind', 'Slightly Behind', rawColors.app.yellow, -3],
-    [0, 24_000, 'behind', 'Behind', rawColors.app.red, -4],
+    [TARGET_AMOUNT, null, 'achieved', 'Achieved', colors.app.green, null],
+    [0, 0, 'no_data', 'No savings data', colors.app.yellow, null],
+    [0, 240_000, 'on_track', 'On Track', colors.app.green, 1],
+    [0, 120_000, 'on_track', 'On Track', colors.app.green, 0],
+    [0, 30_000, 'slightly_behind', 'Slightly Behind', colors.app.yellow, -3],
+    [0, 24_000, 'behind', 'Behind', colors.app.red, -4],
   ] as const)('preserves status and presentation with %s saved and %s monthly', (
     currentAmount, savings, status, statusLabel, statusColor, monthsDelta,
   ) => {

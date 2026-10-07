@@ -1,7 +1,7 @@
 import { AnimatePresence } from 'motion/react'
 import { Target, Plus, Trophy, Clock, X } from 'lucide-react'
 import { Button, PageContainer, PageHeader, StatCard } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
@@ -23,7 +23,7 @@ const DEFAULT_PROJECTION = {
   monthsToComplete: null,
   status: 'no_data' as const,
   statusLabel: 'No data',
-  statusColor: rawColors.app.yellow,
+  statusColor: colors.app.yellow,
   monthsDelta: null,
 }
 
@@ -97,14 +97,14 @@ function GoalsContent() {
           title="Total Goals"
           value={String(state.summary.total)}
           icon={<Target className="h-5 w-5" />}
-          iconColor={rawColors.app.blue}
+          iconColor={colors.app.blue}
           delay={0}
         />
         <StatCard
           title="Achieved"
           value={String(state.summary.achieved)}
           icon={<Trophy className="h-5 w-5" />}
-          iconColor={rawColors.app.green}
+          iconColor={colors.app.green}
           delay={0.04}
         />
         <div className="col-span-2 md:col-span-1">
@@ -112,7 +112,7 @@ function GoalsContent() {
             title="In Progress"
             value={String(state.summary.inProgress)}
             icon={<Clock className="h-5 w-5" />}
-            iconColor={rawColors.app.orange}
+            iconColor={colors.app.orange}
             delay={0.08}
           />
         </div>
@@ -131,7 +131,7 @@ function GoalsContent() {
                 className="h-full first:rounded-l-full last:rounded-r-full"
                 style={{
                   width: `${(state.summary.achieved / state.summary.total) * 100}%`,
-                  backgroundColor: rawColors.app.green,
+                  backgroundColor: colors.app.green,
                 }}
                 title={`Achieved: ${state.summary.achieved}`}
               />
@@ -141,7 +141,7 @@ function GoalsContent() {
                 className="h-full first:rounded-l-full last:rounded-r-full"
                 style={{
                   width: `${(state.summary.inProgress / state.summary.total) * 100}%`,
-                  backgroundColor: rawColors.app.orange,
+                  backgroundColor: colors.app.orange,
                 }}
                 title={`In progress: ${state.summary.inProgress}`}
               />

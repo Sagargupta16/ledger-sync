@@ -8,18 +8,20 @@
  */
 
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
+  categoryBreakdownOptions,
   dataDateRangeOptions,
   earningStartEvidenceOptions,
   incomeAnalysisOptions,
-  useCategoryBreakdown,
+  monthlyAggregationOptions,
+  quickInsightsOptions,
+  totalsOptions,
   useRecentTransactions,
-  useMonthlyAggregation,
-  useTotals,
 } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { usePreferencesStore, resolveIncomeClassification } from '@/store/preferencesStore'
 import {
   type AnalyticsViewMode,
@@ -74,8 +76,17 @@ export interface DashboardMetrics {
   // Date boundaries for the time filter navigation
   dataDateRange: { minDate: string | undefined; maxDate: string | undefined }
 
-  // Hook-level date range (for child components expecting { start_date?, end_date? })
+  /**
+   * The window every figure below belongs to, for child components expecting
+   * `{ start_date?, end_date? }`. While `isSettling` it is the PREVIOUS
+   * selection, so a child keyed on it stays on the same window as the page.
+   */
   dateRange: { start_date?: string; end_date?: string }
+  /**
+   * A newly selected period is still loading: every figure is the previous
+   * period's consistent snapshot. Drives the in-place updating cue.
+   */
+  isSettling: boolean
 
   /**
    * `/totals` for the window. `net_savings` is income - spending - classified
@@ -126,11 +137,23 @@ export interface DashboardMetrics {
   hasInvestmentMappings: boolean
 }
 
+export interface DashboardMetricsOptions {
+  /**
+   * Also read `/quick-insights` for the selected window. The Dashboard's
+   * QuickInsights band reads it for the committed `dateRange`, so gating the
+   * page on it lets the band switch with everything else instead of dropping
+   * to its own skeleton once the page has moved on. Overview shows no band.
+   */
+  readonly includeQuickInsights?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Hook implementation
 // ---------------------------------------------------------------------------
 
-export function useDashboardMetrics(): DashboardMetrics {
+export function useDashboardMetrics(
+  { includeQuickInsights = false }: DashboardMetricsOptions = {},
+): DashboardMetrics {
   const defaultTimeRange = usePreferencesStore((state) => state.displayPreferences.defaultTimeRange)
   const preferencesQuery = usePreferences()
   const preferences = preferencesQuery.data
@@ -191,13 +214,20 @@ export function useDashboardMetrics(): DashboardMetrics {
   // endpoint reproduces -- Age of Money's FIFO matching, Days of Buffering's
   // lookback, investment-transfer classification -- but it no longer gates the
   // summary, so the page paints without waiting for it.
+  //
+  // Every read keyed on the window keeps its previous data while the next one
+  // loads, and `useStablePeriodData` below holds the page on the last window
+  // whose reads ALL resolved. A period change therefore never swaps the page
+  // for its skeleton (which threw a scrolled reader back to the top) and never
+  // shows two windows at once (a cached read resolving beside a pending one).
   useRecentTransactions(5) // keep prefetch warm for other pages
-  const totalsQuery = useTotals(dateRange)
-  const monthlyQuery = useMonthlyAggregation(dateRange)
+  const totalsQuery = useQuery({ ...totalsOptions(dateRange), placeholderData: keepPreviousData })
+  const monthlyQuery = useQuery({
+    ...monthlyAggregationOptions(dateRange),
+    placeholderData: keepPreviousData,
+  })
   const dateRangeQuery = useQuery(dataDateRangeOptions())
   const transactionsQuery = useTransactions()
-  const filteredTotals = totalsQuery.data
-  const monthlyData = monthlyQuery.data
   const allTransactions = transactionsQuery.data
 
   // `?? []` per field was the bug: the backend column default is the JSON string
@@ -217,9 +247,36 @@ export function useDashboardMetrics(): DashboardMetrics {
   const incomeQuery = useQuery({
     ...incomeAnalysisOptions({ ...dateRange, cashback_categories: cashbackCategories }),
     enabled: preferencesQuery.isSuccess,
+    placeholderData: keepPreviousData,
   })
   // Shares its cache entry with QuickInsights' identical request.
-  const expenseCategoryQuery = useCategoryBreakdown({ transaction_type: 'expense', ...dateRange })
+  const expenseCategoryQuery = useQuery({
+    ...categoryBreakdownOptions({ transaction_type: 'expense', ...dateRange }),
+    placeholderData: keepPreviousData,
+  })
+  // Read only to gate the commit; QuickInsights renders its own copy.
+  const quickInsightsQuery = useQuery({
+    ...quickInsightsOptions(dateRange),
+    enabled: includeQuickInsights,
+    placeholderData: keepPreviousData,
+  })
+
+  const stable = useStablePeriodData(analyticsDateRange, [
+    totalsQuery,
+    monthlyQuery,
+    incomeQuery,
+    expenseCategoryQuery,
+    includeQuickInsights ? quickInsightsQuery : null,
+  ])
+  const committedRange = stable.period
+  const [filteredTotals, monthlyData, incomeData, expenseCategoryData] = stable.data
+  const committedDateRange = useMemo(
+    () => ({
+      start_date: committedRange.start_date ?? undefined,
+      end_date: committedRange.end_date ?? undefined,
+    }),
+    [committedRange],
+  )
 
   // The saved employment start, else the first salary-like income -- inferred
   // from daily income aggregates rather than the ledger.
@@ -236,15 +293,6 @@ export function useDashboardMetrics(): DashboardMetrics {
   // disagreed by exactly `capital_losses` for the users who had classified one.
 
   const isLedgerLoading = transactionsQuery.isLoading
-  const isSummaryLoading =
-    totalsQuery.isLoading ||
-    monthlyQuery.isLoading ||
-    dateRangeQuery.isLoading ||
-    preferencesQuery.isLoading ||
-    incomeQuery.isLoading ||
-    expenseCategoryQuery.isLoading ||
-    earningEvidenceQuery.isLoading
-  const isLoading = isSummaryLoading || isLedgerLoading
   const isError =
     totalsQuery.isError ||
     monthlyQuery.isError ||
@@ -254,6 +302,17 @@ export function useDashboardMetrics(): DashboardMetrics {
     incomeQuery.isError ||
     expenseCategoryQuery.isError ||
     earningEvidenceQuery.isError
+  // The window reads count only until the first snapshot commits; after that a
+  // period change settles in place. Never loading once a read has failed: a
+  // window read waiting on failed preferences would otherwise hold the
+  // skeleton over the error state.
+  const isSummaryLoading =
+    !isError &&
+    (stable.isInitialLoad ||
+      dateRangeQuery.isLoading ||
+      preferencesQuery.isLoading ||
+      earningEvidenceQuery.isLoading)
+  const isLoading = isSummaryLoading || isLedgerLoading
   const retry = () => {
     void Promise.all([
       totalsQuery.refetch(),
@@ -279,8 +338,8 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   // ------ Filter transactions by selected time range ------
   const filteredTransactions = useMemo(
-    () => filterTransactionsByDateRange(allTransactions, analyticsDateRange),
-    [allTransactions, analyticsDateRange],
+    () => filterTransactionsByDateRange(allTransactions, committedRange),
+    [allTransactions, committedRange],
   )
   const investmentMappings = preferences?.investment_account_mappings
   const hasInvestmentMappings = Object.keys(investmentMappings ?? {}).length > 0
@@ -297,21 +356,21 @@ export function useDashboardMetrics(): DashboardMetrics {
 
   // ------ Income breakdown ------
   const incomeBreakdown = useMemo(() => {
-    if (!hasTransactionsInRange || !incomeQuery.data) return null
-    return incomeQuery.data.category_breakdown
-  }, [hasTransactionsInRange, incomeQuery.data])
+    if (!hasTransactionsInRange || !incomeData) return null
+    return incomeData.category_breakdown
+  }, [hasTransactionsInRange, incomeData])
 
-  const cashbacksTotal = hasTransactionsInRange ? incomeQuery.data?.cashbacks_total ?? 0 : 0
+  const cashbacksTotal = hasTransactionsInRange ? incomeData?.cashbacks_total ?? 0 : 0
 
   // ------ Expense breakdown by category ------
   const expenseBreakdown = useMemo(() => {
     if (!hasTransactionsInRange) return null
-    const categories = expenseCategoryQuery.data?.categories
+    const categories = expenseCategoryData?.categories
     if (!categories) return null
     return Object.fromEntries(
       Object.entries(categories).map(([category, { total }]) => [category, total]),
     )
-  }, [hasTransactionsInRange, expenseCategoryQuery.data])
+  }, [hasTransactionsInRange, expenseCategoryData])
 
   // ------ Chart data ------
   const incomeChartData = useMemo(() => {
@@ -409,7 +468,8 @@ export function useDashboardMetrics(): DashboardMetrics {
     setCurrentFY: markInteracted(setCurrentFY),
     fiscalYearStartMonth,
     dataDateRange,
-    dateRange,
+    dateRange: committedDateRange,
+    isSettling: stable.isSettling,
     filteredTotals,
     isLoading,
     isSummaryLoading,

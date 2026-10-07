@@ -3,6 +3,7 @@ import { Flame } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 
@@ -58,14 +59,17 @@ export default function YearInReviewPage() {
       />
       <StickyToolbar label="Year and heatmap metric">
         <YearReviewControls review={review} />
+        <PeriodSettlingBar active={review.isSettling} />
       </StickyToolbar>
-      <YearStatsGrid stats={review.stats} />
-      <MonthlyBreakdownChart monthlyBarData={review.monthlyBarData} dims={dims} />
-      <YearHeatmapSection review={review} />
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <DayOfWeekSection grid={review.grid} />
-        <YearInsightsPanel stats={review.stats} />
-      </div>
+      <PeriodSettlingContent settling={review.isSettling}>
+        <YearStatsGrid stats={review.stats} />
+        <MonthlyBreakdownChart monthlyBarData={review.monthlyBarData} dims={dims} />
+        <YearHeatmapSection review={review} />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <DayOfWeekSection grid={review.grid} />
+          <YearInsightsPanel stats={review.stats} />
+        </div>
+      </PeriodSettlingContent>
     </PageContainer>
   )
 }

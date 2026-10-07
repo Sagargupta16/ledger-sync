@@ -12,6 +12,7 @@ import LoadingSkeleton, { ChartSkeleton, PageSkeleton } from '@/components/share
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
+import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
 import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
 import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
@@ -84,6 +85,7 @@ export default function DashboardPage() {
     fiscalYearStartMonth,
     dataDateRange, dateRange,
     filteredTransactions, isSummaryLoading, isLedgerLoading, hasTransactionsInRange, isError, retry,
+    isSettling,
     incomeBreakdown, cashbacksTotal,
     incomeChartData,
     expenseChartData,
@@ -92,7 +94,7 @@ export default function DashboardPage() {
     momChanges,
     investmentTransfers,
     hasInvestmentMappings,
-  } = useDashboardMetrics()
+  } = useDashboardMetrics({ includeQuickInsights: true })
 
   // Fixed Commitments from active recurring.
   //
@@ -215,172 +217,175 @@ export default function DashboardPage() {
           minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
           fiscalYearStartMonth={fiscalYearStartMonth}
         />
+        <PeriodSettlingBar active={isSettling} />
       </StickyToolbar>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-[var(--hairline-1)] pb-4">
-        <p className="text-xs leading-5 text-muted-foreground">
-          {dataDateRange.maxDate && <>Latest transaction: <time dateTime={dataDateRange.maxDate}>{formatDate(dataDateRange.maxDate)}</time>. </>}
-          Monthly comparisons use complete months.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<CalendarRange className="size-3.5" />}
-            onClick={focusCurrentFY}
-          >
-            Focus current FY
-          </Button>
-          <Link to={ROUTES.INCOME_EXPENSE_FLOW} className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            Follow the money <ArrowUpRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-      </div>
-
-      <Suspense fallback={<ChartSkeleton />}>
-        <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
-      </Suspense>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            The selected period's money flow, liquidity, and recurring load.
+      <PeriodSettlingContent settling={isSettling}>
+        <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-[var(--hairline-1)] pb-4">
+          <p className="text-xs leading-5 text-muted-foreground">
+            {dataDateRange.maxDate && <>Latest transaction: <time dateTime={dataDateRange.maxDate}>{formatDate(dataDateRange.maxDate)}</time>. </>}
+            Monthly comparisons use complete months.
           </p>
-        </div>
-        <QuickInsights
-          dateRange={dateRange}
-          ageOfMoney={ageOfMoney}
-          daysOfBuffering={daysOfBuffering}
-          fixedCommitmentsMonthly={commitmentSummary.monthlyExpense}
-          fixedCount={commitmentSummary.count}
-          momChanges={momChanges}
-        />
-        {commitmentSummary.needsReview.count > 0 && (
-          <aside aria-label="Recurring estimates needing review" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-app-orange/20 bg-app-orange/5 px-4 py-3">
-            <p className="min-w-0 text-xs leading-5 text-muted-foreground">
-              Fixed costs include {formatCurrency(commitmentSummary.needsReview.monthlyExpense)}/month
-              {' '}from {commitmentSummary.needsReview.count} older, unconfirmed detections.
-              {' '}{formatCurrency(commitmentSummary.current.monthlyExpense)}/month is recent or confirmed.
-            </p>
-            <Link to={ROUTES.SUBSCRIPTIONS} className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              Review recurring items <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<CalendarRange className="size-3.5" />}
+              onClick={focusCurrentFY}
+            >
+              Focus current FY
+            </Button>
+            <Link to={ROUTES.INCOME_EXPENSE_FLOW} className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              Follow the money <ArrowUpRight className="size-3.5" aria-hidden="true" />
             </Link>
-          </aside>
-        )}
-      </section>
+          </div>
+        </div>
 
-      {/* Spending first, then the income that funds it. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        {/* Expense Sources */}
-        <section className="dashboard-source ledger-panel p-4 sm:p-5">
-          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
-            <span className="flex size-7 items-center justify-center text-app-red">
-              <CreditCard className="size-3.5 text-app-red" />
-            </span>
-            <span>Expense Sources</span>
-          </h2>
-          {expenseChartData.length > 0 ? (
-            <div className="dashboard-source-body">
-              <Suspense fallback={PIE_FALLBACK}>
-                <StandardPieChart
-                  data={expenseChartData}
-                  height={180}
-                  showLegend={false}
-                  ariaLabel="Expense sources pie chart"
-                  centerValue={formatCurrencyShort(expenseTotal)}
-                  centerLabel="Total"
-                  onSliceClick={(name) => {
-                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                  }}
-                />
-              </Suspense>
-              <div className="space-y-1">
-                <PieLegend
-                  slices={expenseSlices}
-                  focusRingClass="focus-visible:ring-app-red/40"
-                  onSelect={(name) => {
-                    void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                  }}
-                />
-                <div className="pt-2 mt-2 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Total</span>
-                    <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
+        <Suspense fallback={<ChartSkeleton />}>
+          <MonthlyFlowChart data={monthlyFlow} partialMonthLabel={partialMonthLabel} />
+        </Suspense>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              The selected period's money flow, liquidity, and recurring load.
+            </p>
+          </div>
+          <QuickInsights
+            dateRange={dateRange}
+            ageOfMoney={ageOfMoney}
+            daysOfBuffering={daysOfBuffering}
+            fixedCommitmentsMonthly={commitmentSummary.monthlyExpense}
+            fixedCount={commitmentSummary.count}
+            momChanges={momChanges}
+          />
+          {commitmentSummary.needsReview.count > 0 && (
+            <aside aria-label="Recurring estimates needing review" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-app-orange/20 bg-app-orange/5 px-4 py-3">
+              <p className="min-w-0 text-xs leading-5 text-muted-foreground">
+                Fixed costs include {formatCurrency(commitmentSummary.needsReview.monthlyExpense)}/month
+                {' '}from {commitmentSummary.needsReview.count} older, unconfirmed detections.
+                {' '}{formatCurrency(commitmentSummary.current.monthlyExpense)}/month is recent or confirmed.
+              </p>
+              <Link to={ROUTES.SUBSCRIPTIONS} className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                Review recurring items <ArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            </aside>
+          )}
+        </section>
+
+        {/* Spending first, then the income that funds it. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Expense Sources */}
+          <section className="dashboard-source ledger-panel p-4 sm:p-5">
+            <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+              <span className="flex size-7 items-center justify-center text-app-red">
+                <CreditCard className="size-3.5 text-app-red" />
+              </span>
+              <span>Expense Sources</span>
+            </h2>
+            {expenseChartData.length > 0 ? (
+              <div className="dashboard-source-body">
+                <Suspense fallback={PIE_FALLBACK}>
+                  <StandardPieChart
+                    data={expenseChartData}
+                    height={180}
+                    showLegend={false}
+                    ariaLabel="Expense sources pie chart"
+                    centerValue={formatCurrencyShort(expenseTotal)}
+                    centerLabel="Total"
+                    onSliceClick={(name) => {
+                      void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                    }}
+                  />
+                </Suspense>
+                <div className="space-y-1">
+                  <PieLegend
+                    slices={expenseSlices}
+                    focusRingClass="focus-visible:ring-app-red/40"
+                    onSelect={(name) => {
+                      void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                    }}
+                  />
+                  <div className="pt-2 mt-2 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
-          )}
-        </section>
-        {/* Income Sources */}
-        <section className="dashboard-source ledger-panel p-4 sm:p-5">
-          <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
-            <span className="flex size-7 items-center justify-center text-app-green">
-              <Wallet className="size-3.5 text-app-green" />
-            </span>
-            <span>Income Sources</span>
-          </h2>
-          {incomeChartData.length > 0 ? (
-            <div className="dashboard-source-body">
-              <Suspense fallback={PIE_FALLBACK}>
-                <StandardPieChart
-                  data={incomeChartData}
-                  height={180}
-                  showLegend={false}
-                  ariaLabel="Income sources pie chart"
-                  centerValue={formatCurrencyShort(incomeTotal)}
-                  centerLabel="Total"
-                  // `void navigate(...)`: react-router types it `void |
-                  // Promise<void>`, and these props expect a void return. Same
-                  // convention as CommandPalette and ProfileModal.
-                  onSliceClick={(name) => {
-                    void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                  }}
-                />
-              </Suspense>
-              <div className="space-y-1">
-                <PieLegend
-                  slices={incomeSlices}
-                  focusRingClass="focus-visible:ring-app-green/40"
-                  onSelect={(name) => {
-                    void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                  }}
-                />
-                {incomeBreakdown && (
-                  <div className="pt-2 mt-2 border-t border-border space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Total</span>
-                      <span className="text-sm font-bold text-app-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
-                    </div>
-                    {/* Same figure and label as the band's "Net Cashback Earned"
-                        card: cashback rows minus cashback shared on. It used to
-                        read "Cashbacks Earned" over the whole non-taxable list,
-                        product refunds and reimbursements included. */}
-                    {cashbacksTotal > 0 && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-app-teal">Net Cashback Earned</span>
-                        <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
+            ) : (
+              <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
+            )}
+          </section>
+          {/* Income Sources */}
+          <section className="dashboard-source ledger-panel p-4 sm:p-5">
+            <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
+              <span className="flex size-7 items-center justify-center text-app-green">
+                <Wallet className="size-3.5 text-app-green" />
+              </span>
+              <span>Income Sources</span>
+            </h2>
+            {incomeChartData.length > 0 ? (
+              <div className="dashboard-source-body">
+                <Suspense fallback={PIE_FALLBACK}>
+                  <StandardPieChart
+                    data={incomeChartData}
+                    height={180}
+                    showLegend={false}
+                    ariaLabel="Income sources pie chart"
+                    centerValue={formatCurrencyShort(incomeTotal)}
+                    centerLabel="Total"
+                    // `void navigate(...)`: react-router types it `void |
+                    // Promise<void>`, and these props expect a void return. Same
+                    // convention as CommandPalette and ProfileModal.
+                    onSliceClick={(name) => {
+                      void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                    }}
+                  />
+                </Suspense>
+                <div className="space-y-1">
+                  <PieLegend
+                    slices={incomeSlices}
+                    focusRingClass="focus-visible:ring-app-green/40"
+                    onSelect={(name) => {
+                      void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
+                    }}
+                  />
+                  {incomeBreakdown && (
+                    <div className="pt-2 mt-2 border-t border-border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Total</span>
+                        <span className="text-sm font-bold text-app-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {/* Same figure and label as the band's "Net Cashback Earned"
+                          card: cashback rows minus cashback shared on. It used to
+                          read "Cashbacks Earned" over the whole non-taxable list,
+                          product refunds and reimbursements included. */}
+                      {cashbacksTotal > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-app-teal">Net Cashback Earned</span>
+                          <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
-          )}
-        </section>
+            ) : (
+              <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
+            )}
+          </section>
 
-      </div>
+        </div>
 
-      {isLedgerLoading && hasInvestmentMappings ? (
-        <LoadingSkeleton className="h-32 w-full" />
-      ) : (
-        <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
-      )}
+        {isLedgerLoading && hasInvestmentMappings ? (
+          <LoadingSkeleton className="h-32 w-full" />
+        ) : (
+          <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
+        )}
+      </PeriodSettlingContent>
 
       <Suspense fallback={<HealthScoreFallback />}>
         <FinancialHealthScore />

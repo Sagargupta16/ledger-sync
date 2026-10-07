@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -9,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum,
+    FetchedValue,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -64,6 +66,19 @@ class RecurringTransaction(Base):
         default=0,
     )  # Allowed variance
     expected_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Day of month/week
+    # Amount the user typed, kept beside the detected ``expected_amount``; NULL
+    # means no override. Expand phase only: nothing reads or writes it yet, so a
+    # backend promoted before the migration must never name it. ``deferred``
+    # keeps it out of SELECTs. ``FetchedValue`` (no DDL, no Python default)
+    # stops the ORM from inserting an explicit NULL for an unset nullable
+    # column, and ``eager_defaults=False`` below stops it from adding the column
+    # to INSERT ... RETURNING. See MIGRATION_NOTES.md, Phase 2.
+    user_expected_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=15, scale=2),
+        nullable=True,
+        deferred=True,
+        server_default=FetchedValue(),
+    )
 
     # Detection confidence
     confidence_score: Mapped[float] = mapped_column(Float, default=0)  # 0-100
@@ -94,6 +109,9 @@ class RecurringTransaction(Base):
         Index("uq_recurring_transactions_user_id", "user_id", "id", unique=True),
         Index("ix_recurring_category_account", "category", "account"),
     )
+    # No other column here has a server default, so this only affects
+    # ``user_expected_amount``. Read-only mapping: declarative copies it.
+    __mapper_args__ = MappingProxyType({"eager_defaults": False})
 
 
 class ScheduledTransaction(Base):

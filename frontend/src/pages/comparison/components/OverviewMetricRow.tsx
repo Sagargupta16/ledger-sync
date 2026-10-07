@@ -9,6 +9,7 @@ interface OverviewMetricRowProps {
   valueB: number
   labelA: string
   labelB: string
+  /** Bar fill. Pass a `colors.*` var() token, not a resolved hex, so it follows a theme toggle. */
   color: string
   maxValue: number
   invertChange?: boolean

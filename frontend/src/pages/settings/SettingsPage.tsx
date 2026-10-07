@@ -5,6 +5,7 @@ import { Button, PageContainer, PageHeader } from '@/components/ui'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useSettingsState } from './useSettingsState'
 import { GroupHeader } from './sectionPrimitives'
+import { isSpendingSplitValid, spendingSplitMessage, spendingSplitTotal } from './spendingSplit'
 import DisplayPreferencesSection from './sections/DisplayPreferencesSection'
 import NotificationsSection from './sections/NotificationsSection'
 import DashboardWidgetsSection from './sections/DashboardWidgetsSection'
@@ -21,6 +22,8 @@ import AdvancedSection from './sections/AdvancedSection'
 export default function SettingsPage() {
   const s = useSettingsState()
   const isPending = s.isSaving || s.isResetting || s.applyingRules
+  const splitTotal = s.localPrefs ? spendingSplitTotal(s.localPrefs) : 100
+  const splitBlocked = !isSpendingSplitValid(splitTotal)
   const saveActionLabel = s.saveError ? 'Retry save' : 'Save changes'
   const saveLabel = s.isSaving ? 'Saving changes...' : saveActionLabel
   const unsavedLabel = s.saveError ? 'Save incomplete' : 'Unsaved changes'
@@ -87,9 +90,13 @@ export default function SettingsPage() {
     statusMessage = 'Saving settings and refreshing your financial views...'
   } else if (s.isResetting) {
     statusMessage = 'Resetting preferences...'
+  } else if (splitBlocked) {
+    statusMessage = `Spending Rule: ${spendingSplitMessage(splitTotal)} before you can save.`
   } else if (s.savedAt && !s.hasChanges) {
     statusMessage = `Saved at ${s.savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   }
+  // Disabled buttons drop out of the tab order, so name the reason on them too.
+  const saveBlockedBy = splitBlocked ? 'settings-status' : undefined
 
   return (
     <PageContainer maxWidth="5xl" className="space-y-5">
@@ -124,9 +131,10 @@ export default function SettingsPage() {
                 // so they never reject; `void` adapts them to void-returning
                 // handler props without swallowing an unreported error.
                 onClick={() => void s.handleSave()}
-                disabled={!s.hasChanges || isPending}
+                disabled={!s.hasChanges || isPending || splitBlocked}
                 isLoading={s.isSaving}
                 aria-busy={s.isSaving}
+                aria-describedby={saveBlockedBy}
                 icon={<Save className="h-4 w-4" />}
               >
                 <span>{saveLabel}</span>
@@ -135,7 +143,11 @@ export default function SettingsPage() {
           }
         />
 
-        <output aria-live="polite" className="block text-sm text-muted-foreground">
+        <output
+          id="settings-status"
+          aria-live="polite"
+          className={`block text-sm ${splitBlocked ? 'text-app-red' : 'text-muted-foreground'}`}
+        >
           {statusMessage}
         </output>
 
@@ -308,9 +320,10 @@ export default function SettingsPage() {
                   id="save-settings-floating"
                   type="button"
                   onClick={() => void s.handleSave()}
-                  disabled={isPending}
+                  disabled={isPending || splitBlocked}
                   isLoading={s.isSaving}
                   aria-busy={s.isSaving}
+                  aria-describedby={saveBlockedBy}
                   icon={<Save className="h-4 w-4" />}
                 >
                   <span>{saveLabel}</span>

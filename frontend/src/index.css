@@ -391,8 +391,12 @@
   --chart-input-border: rgba(17, 24, 39, 0.12);
 }
 
-* {
-  border-color: var(--color-border);
+/* Default border color. Inside `@layer base` so Tailwind's layered
+   `border-*` color utilities win; unlayered, this outranked all of them. */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
 }
 
 html {
@@ -736,21 +740,26 @@ output {
   scrollbar-gutter: stable;
 }
 
-.ledger-control {
-  background: var(--ledger-control-bg);
-  border-color: var(--ledger-control-border);
-  box-shadow: var(--ledger-control-shadow);
-}
+/* Layered so a control's own `bg-*`, `border-*`, `shadow-*`/`ring-*` and
+   state utilities (error borders, `focus:border-primary`) win over these
+   defaults. */
+@layer components {
+  .ledger-control {
+    background: var(--ledger-control-bg);
+    border-color: var(--ledger-control-border);
+    box-shadow: var(--ledger-control-shadow);
+  }
 
-.ledger-control:hover {
-  background: var(--ledger-control-bg-hover);
-  border-color: var(--ledger-control-border-hover);
-}
+  .ledger-control:hover {
+    background: var(--ledger-control-bg-hover);
+    border-color: var(--ledger-control-border-hover);
+  }
 
-.ledger-control:focus,
-.ledger-control:focus-visible {
-  border-color: var(--focus-ring);
-  box-shadow: var(--ledger-focus-shadow);
+  .ledger-control:focus,
+  .ledger-control:focus-visible {
+    border-color: var(--focus-ring);
+    box-shadow: var(--ledger-focus-shadow);
+  }
 }
 
 .ledger-panel {
@@ -898,21 +907,25 @@ output {
 
 /* ===== FORM ELEMENTS ===== */
 
-select {
-  background: var(--color-surface-3);
+/* Element defaults live in `@layer base`: unlayered, they outranked both
+   `.ledger-control` and every `bg-*` / `focus:border-*` / `ring-*` utility. */
+@layer base {
+  select {
+    background: var(--color-surface-3);
+  }
+
+  select:focus,
+  input:not([type="checkbox"]):not([type="radio"]):focus {
+    border-color: var(--focus-ring);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-ring-soft);
+  }
 }
 
 select option,
 option {
   background-color: var(--color-surface-dropdown);
   color: var(--color-foreground);
-}
-
-select:focus,
-input:not([type="checkbox"]):not([type="radio"]):focus {
-  border-color: var(--focus-ring);
-  outline: none;
-  box-shadow: 0 0 0 2px var(--focus-ring-soft);
 }
 
 /* ===== MOBILE: prevent iOS Safari auto-zoom on input focus =====

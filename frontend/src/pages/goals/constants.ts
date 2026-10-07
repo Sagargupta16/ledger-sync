@@ -1,4 +1,4 @@
-import { rawColors } from '@/constants/colors'
+import { colors, cssVar } from '@/constants/colors'
 import { GOAL_TYPE_VALUES, type GoalTypeValue } from '@/services/api/analyticsV2'
 
 /**
@@ -15,14 +15,17 @@ import { GOAL_TYPE_VALUES, type GoalTypeValue } from '@/services/api/analyticsV2
  * declaration and the goal-type chip rendered with no background -- and, because
  * `color` was `undefined` in the same object, no text colour either. The same
  * `undefined` also reached `CircularProgress` and `ProgressBar`.
+ *
+ * Values are `var(--color-app-*)` references, so DOM styles follow a theme
+ * toggle without re-rendering. Do not concatenate a hex alpha onto them.
  */
 export const GOAL_TYPE_COLORS: Record<GoalTypeValue, string> = {
-  savings: rawColors.app.green,
-  debt_payoff: rawColors.app.red,
-  investment: rawColors.app.blue,
-  expense_reduction: rawColors.app.orange,
-  income_increase: rawColors.app.purple,
-  custom: rawColors.app.teal,
+  savings: colors.app.green,
+  debt_payoff: colors.app.red,
+  investment: colors.app.blue,
+  expense_reduction: colors.app.orange,
+  income_increase: colors.app.purple,
+  custom: colors.app.teal,
 }
 
 export const GOAL_TYPE_LABELS: Record<GoalTypeValue, string> = {
@@ -39,7 +42,7 @@ export const GOAL_TYPE_OPTIONS: readonly { value: GoalTypeValue; label: string }
   GOAL_TYPE_VALUES.map((value) => ({ value, label: GOAL_TYPE_LABELS[value] }))
 
 /** Neutral chart grey for a goal type this build does not know about. */
-const UNKNOWN_GOAL_TYPE_COLOR = rawColors.chart.neutral
+const UNKNOWN_GOAL_TYPE_COLOR = cssVar('--chart-neutral')
 
 export function goalTypeColor(goalType: string): string {
   return GOAL_TYPE_COLORS[goalType as GoalTypeValue] ?? UNKNOWN_GOAL_TYPE_COLOR

@@ -108,6 +108,11 @@ vi.mock('../spendingAnalysisQueries', () => ({
         ? generateDemoCategoryBreakdown(transactionsRef.current, { ...range, transaction_type: 'income' })
         : undefined,
     ),
+  // The chart sections' series only gate the page's commit; nothing here reads them.
+  useSectionSeries: () => [
+    settled({ data: [], transaction_count: 0 }),
+    settled({ data: [], transaction_count: 0 }),
+  ],
   useRangeTotals: (range: SpendingRange) => {
     const totals = generateDemoTotals(transactionsRef.current, range)
     const losses = classifiedLossRef.current

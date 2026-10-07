@@ -79,6 +79,8 @@ vi.mock('@/hooks/api/usePreferences', () => ({
 
 vi.mock('@/services/api/calculations', () => ({
   calculationsApi: {
+    // The Income Sources breakdown the hook reads to gate its period commit.
+    getCategoryBreakdown: vi.fn(() => Promise.resolve({ data: { categories: {} } })),
     getCategoryDailySeries: vi.fn(() => Promise.resolve({ data: { data: earningEvidence } })),
     getIncomeAnalysis: vi.fn(() => Promise.resolve({ data: incomeResponseRef.current })),
     getDataDateRange: vi.fn(() =>

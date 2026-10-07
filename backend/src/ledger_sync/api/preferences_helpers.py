@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.preferences_schemas import (
+    SPENDING_SPLIT_FIELDS,
     AnomalySettingsConfig,
     BudgetDefaultsConfig,
     CapitalLossConfig,
@@ -33,6 +34,7 @@ from ledger_sync.api.preferences_schemas import (
     SpendingRuleConfig,
     UserPreferencesResponse,
     UserPreferencesUpdate,
+    spending_split_error,
 )
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
 from ledger_sync.db.models import User, UserPreferences
@@ -160,12 +162,28 @@ def _get_or_create_preferences(
     return prefs
 
 
+def _reject_invalid_spending_split(prefs: UserPreferences, values: dict[str, Any]) -> None:
+    """422 before any write when the merged needs/wants/savings split misses 100%.
+
+    Checked only when the batch sets one of the three; omitted ones keep their
+    stored values, so a partial update is judged by the split it would leave.
+    """
+    if not any(field in values for field in SPENDING_SPLIT_FIELDS):
+        return
+    error = spending_split_error(
+        *(values.get(field, getattr(prefs, field)) for field in SPENDING_SPLIT_FIELDS)
+    )
+    if error:
+        raise HTTPException(status_code=422, detail=error)
+
+
 def _apply_preference_updates(
     session: Session, user: User, values: dict[str, Any]
 ) -> UserPreferences:
     """Persist one settings batch and its invalidation together, skipping no-op bumps."""
     prefs = _get_or_create_preferences(session, user, commit=False)
     session.refresh(prefs)
+    _reject_invalid_spending_split(prefs, values)
     changed = False
     for field, value in values.items():
         if field in _DOMAIN_PREFERENCE_WRITERS:

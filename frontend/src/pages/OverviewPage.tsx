@@ -19,6 +19,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
 import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
@@ -43,7 +44,7 @@ export default function OverviewPage() {
   // `isSummaryLoading`, not `isLoading`: nothing on this page reads the full
   // ledger, so waiting for its ~2.9 MB download only delayed the first paint.
   const {
-    filteredTotals, isSummaryLoading, isError, retry,
+    filteredTotals, isSummaryLoading, isSettling, isError, retry,
     incomeChartData, expenseChartData,
     momChanges,
     viewMode, setViewMode,
@@ -125,6 +126,7 @@ export default function OverviewPage() {
         maxDate={dataDateRange.maxDate}
         fiscalYearStartMonth={fiscalYearStartMonth}
       />
+      <PeriodSettlingBar active={isSettling} />
     </StickyToolbar>
   )
 
@@ -169,153 +171,155 @@ export default function OverviewPage() {
       />
       {periodSelector}
 
-      {/* Headline KPIs.
-          The delta is the last two COMPLETE months (see `useDashboardMetrics`),
-          which on any day after the 1st is NOT "this month vs last month" -- and
-          the value it sits beside is the whole selected range, not one month. So
-          the label is the hook's own `momChanges.label` ("Jun vs May"), the same
-          string QuickInsights renders, rather than a hardcoded claim that goes
-          stale the moment the calendar rolls over. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        <MetricCard
-          title="Income" value={formatCurrency(income)} icon={TrendingUp} color="green"
-          change={momChanges?.income} changeLabel={momChanges?.label}
-          onClick={() => void navigate(ROUTES.INCOME_ANALYSIS)}
-        />
-        <MetricCard
-          title="Spending" value={formatCurrency(expenses)} icon={TrendingDown} color="red"
-          change={momChanges?.expense} changeLabel={momChanges?.label} invertChange
-          onClick={() => void navigate(ROUTES.SPENDING_ANALYSIS)}
-        />
-        <MetricCard
-          title="Net Saved" value={formatCurrency(net)} icon={PiggyBank}
-          color={net >= 0 ? 'purple' : 'red'}
-          subtitle={netSavedSubtitle}
-          onClick={() => void navigate(ROUTES.INCOME_EXPENSE_FLOW)}
-        />
-        <MetricCard
-          title="Net Worth" value="View" icon={Wallet} color="blue"
-          subtitle="Assets less liabilities"
-          onClick={() => void navigate(ROUTES.NET_WORTH)}
-        />
-      </div>
+      <PeriodSettlingContent settling={isSettling}>
+        {/* Headline KPIs.
+            The delta is the last two COMPLETE months (see `useDashboardMetrics`),
+            which on any day after the 1st is NOT "this month vs last month" -- and
+            the value it sits beside is the whole selected range, not one month. So
+            the label is the hook's own `momChanges.label` ("Jun vs May"), the same
+            string QuickInsights renders, rather than a hardcoded claim that goes
+            stale the moment the calendar rolls over. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          <MetricCard
+            title="Income" value={formatCurrency(income)} icon={TrendingUp} color="green"
+            change={momChanges?.income} changeLabel={momChanges?.label}
+            onClick={() => void navigate(ROUTES.INCOME_ANALYSIS)}
+          />
+          <MetricCard
+            title="Spending" value={formatCurrency(expenses)} icon={TrendingDown} color="red"
+            change={momChanges?.expense} changeLabel={momChanges?.label} invertChange
+            onClick={() => void navigate(ROUTES.SPENDING_ANALYSIS)}
+          />
+          <MetricCard
+            title="Net Saved" value={formatCurrency(net)} icon={PiggyBank}
+            color={net >= 0 ? 'purple' : 'red'}
+            subtitle={netSavedSubtitle}
+            onClick={() => void navigate(ROUTES.INCOME_EXPENSE_FLOW)}
+          />
+          <MetricCard
+            title="Net Worth" value="View" icon={Wallet} color="blue"
+            subtitle="Assets less liabilities"
+            onClick={() => void navigate(ROUTES.NET_WORTH)}
+          />
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Where money goes / comes from */}
-        <section className="ledger-panel p-4 sm:p-5">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold text-foreground">Category leaders</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              The largest income and spending sources in this period.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-app-green mb-2">Top Income</h3>
-              <ul className="space-y-1.5">
-                {topIncome.length > 0 ? topIncome.map((d) => (
-                  <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
-                    <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
-                  </li>
-                )) : <li className="text-sm text-text-tertiary">No income data</li>}
-              </ul>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          {/* Where money goes / comes from */}
+          <section className="ledger-panel p-4 sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-base font-semibold text-foreground">Category leaders</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The largest income and spending sources in this period.
+              </p>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-app-red mb-2">Top Spending</h3>
-              <ul className="space-y-1.5">
-                {topExpense.length > 0 ? topExpense.map((d) => (
-                  <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
-                    <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
-                  </li>
-                )) : <li className="text-sm text-text-tertiary">No expense data</li>}
-              </ul>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-app-green mb-2">Top Income</h3>
+                <ul className="space-y-1.5">
+                  {topIncome.length > 0 ? topIncome.map((d) => (
+                    <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
+                      <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
+                    </li>
+                  )) : <li className="text-sm text-text-tertiary">No income data</li>}
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-app-red mb-2">Top Spending</h3>
+                <ul className="space-y-1.5">
+                  {topExpense.length > 0 ? topExpense.map((d) => (
+                    <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
+                      <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
+                    </li>
+                  )) : <li className="text-sm text-text-tertiary">No expense data</li>}
+                </ul>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Budgets at risk */}
+          {/* Budgets at risk */}
+          <button
+            type="button"
+            onClick={() => void navigate(ROUTES.BUDGETS)}
+            aria-label="Open budget details"
+            className="ledger-panel p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40 sm:p-5"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <AlertTriangle className="size-4 text-app-orange" />
+                  Budgets at risk
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Categories at or above their alert threshold this month. The selected period applies only to transaction data.
+                </p>
+              </div>
+              <ChevronRight className="mt-0.5 size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+            </div>
+            {atRiskBudgets.length > 0 ? (
+              <div className="space-y-3">
+                {atRiskBudgets.map((b) => (
+                  <div key={b.category}>
+                    <div className="flex items-center justify-between gap-2 text-sm mb-1">
+                      <span className="truncate" title={b.category}>{b.category}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">{formatPercent(b.usage_pct)}</span>
+                    </div>
+                    <ProgressBar
+                      value={b.usage_pct} max={100}
+                      color={b.usage_pct >= 100 ? colors.app.red : colors.app.orange}
+                      ariaLabel={`${b.category} budget ${formatPercent(b.usage_pct)} used`}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-text-tertiary">All budgets are on track.</p>
+            )}
+          </button>
+        </div>
+
+        {/* Goals progress */}
         <button
           type="button"
-          onClick={() => void navigate(ROUTES.BUDGETS)}
-          aria-label="Open budget details"
-          className="ledger-panel p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-orange/40 sm:p-5"
+          onClick={() => void navigate(ROUTES.GOALS)}
+          aria-label="Open financial goals"
+          className="ledger-panel w-full p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40 sm:p-5"
         >
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                <AlertTriangle className="size-4 text-app-orange" />
-                Budgets at risk
+                <Target className="size-4 text-app-purple" />
+                Goal progress
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Categories at or above their alert threshold this month. The selected period applies only to transaction data.
+                Active goals ordered by current completion. The selected period applies only to transaction data.
               </p>
             </div>
             <ChevronRight className="mt-0.5 size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
           </div>
-          {atRiskBudgets.length > 0 ? (
-            <div className="space-y-3">
-              {atRiskBudgets.map((b) => (
-                <div key={b.category}>
-                  <div className="flex items-center justify-between gap-2 text-sm mb-1">
-                    <span className="truncate" title={b.category}>{b.category}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">{formatPercent(b.usage_pct)}</span>
+          {activeGoals.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {activeGoals.map((g) => (
+                <div key={g.name}>
+                  <div className="mb-1 flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                    <span className="truncate" title={g.name}>{g.name}</span>
+                    <span className="break-words text-xs tabular-nums text-muted-foreground sm:shrink-0 sm:text-sm">
+                      {formatCurrency(g.current_amount)} / {formatCurrency(g.target_amount)}
+                    </span>
                   </div>
                   <ProgressBar
-                    value={b.usage_pct} max={100}
-                    color={b.usage_pct >= 100 ? colors.app.red : colors.app.orange}
-                    ariaLabel={`${b.category} budget ${formatPercent(b.usage_pct)} used`}
+                    value={g.progress_pct} max={100} color={colors.app.purple}
+                    ariaLabel={`${g.name} ${formatPercent(g.progress_pct)} complete`}
                   />
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-text-tertiary">All budgets are on track.</p>
+            <p className="text-sm text-text-tertiary">No active goals -- set one to start tracking.</p>
           )}
         </button>
-      </div>
-
-      {/* Goals progress */}
-      <button
-        type="button"
-        onClick={() => void navigate(ROUTES.GOALS)}
-        aria-label="Open financial goals"
-        className="ledger-panel w-full p-4 text-left transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-app-purple/40 sm:p-5"
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-              <Target className="size-4 text-app-purple" />
-              Goal progress
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Active goals ordered by current completion. The selected period applies only to transaction data.
-            </p>
-          </div>
-          <ChevronRight className="mt-0.5 size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
-        </div>
-        {activeGoals.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {activeGoals.map((g) => (
-              <div key={g.name}>
-                <div className="mb-1 flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-                  <span className="truncate" title={g.name}>{g.name}</span>
-                  <span className="break-words text-xs tabular-nums text-muted-foreground sm:shrink-0 sm:text-sm">
-                    {formatCurrency(g.current_amount)} / {formatCurrency(g.target_amount)}
-                  </span>
-                </div>
-                <ProgressBar
-                  value={g.progress_pct} max={100} color={colors.app.purple}
-                  ariaLabel={`${g.name} ${formatPercent(g.progress_pct)} complete`}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-text-tertiary">No active goals -- set one to start tracking.</p>
-        )}
-      </button>
+      </PeriodSettlingContent>
     </PageContainer>
   )
 }
