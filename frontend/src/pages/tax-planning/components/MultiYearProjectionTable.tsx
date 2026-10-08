@@ -3,6 +3,7 @@ import { TrendingUp } from 'lucide-react'
 import { Sparkline } from '@/components/shared'
 import { Money } from '@/components/ui'
 import { rawColors } from '@/constants/colors'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { formatFYLabel } from '@/lib/dateUtils'
 import { formatPercent, percentChange } from '@/lib/formatters'
 import { parseFYStartYear } from '@/lib/taxCalculator'
@@ -12,23 +13,26 @@ interface Props {
   projections: ProjectedFYBreakdown[]
 }
 
+/** A palette key, not a hex: the sparkline SVG resolves it per render, so it follows a theme toggle. */
+type TrendHue = 'green' | 'teal' | 'blue' | 'red'
+
 const ROWS: Array<{
   label: string
   key: keyof ProjectedFYBreakdown
   colorClass: string
-  trendColor: string
+  trendHue: TrendHue
 }> = [
-  { label: 'Base Salary', key: 'baseSalary', colorClass: 'text-income', trendColor: rawColors.app.green },
-  { label: 'Bonus', key: 'bonus', colorClass: 'text-income', trendColor: rawColors.app.green },
-  { label: 'RSU Vesting', key: 'rsuIncome', colorClass: 'text-income', trendColor: rawColors.app.green },
-  { label: 'Employee EPF', key: 'epf', colorClass: 'text-muted-foreground', trendColor: rawColors.app.teal },
-  { label: 'Other', key: 'otherTaxable', colorClass: 'text-muted-foreground', trendColor: rawColors.app.teal },
-  { label: 'Gross Taxable', key: 'grossTaxable', colorClass: 'text-foreground', trendColor: rawColors.app.blue },
-  { label: 'Total Tax', key: 'totalTax', colorClass: 'text-expense', trendColor: rawColors.app.red },
-  { label: 'Share tax withholding', key: 'rsuWithholding', colorClass: 'text-expense', trendColor: rawColors.app.red },
-  { label: 'Cash take-home', key: 'cashTakeHome', colorClass: 'text-income', trendColor: rawColors.app.green },
-  { label: 'Retained share value', key: 'netShareValue', colorClass: 'text-income', trendColor: rawColors.app.teal },
-  { label: 'Combined net compensation', key: 'netCompensation', colorClass: 'text-income', trendColor: rawColors.app.green },
+  { label: 'Base Salary', key: 'baseSalary', colorClass: 'text-income', trendHue: 'green' },
+  { label: 'Bonus', key: 'bonus', colorClass: 'text-income', trendHue: 'green' },
+  { label: 'RSU Vesting', key: 'rsuIncome', colorClass: 'text-income', trendHue: 'green' },
+  { label: 'Employee EPF', key: 'epf', colorClass: 'text-muted-foreground', trendHue: 'teal' },
+  { label: 'Other', key: 'otherTaxable', colorClass: 'text-muted-foreground', trendHue: 'teal' },
+  { label: 'Gross Taxable', key: 'grossTaxable', colorClass: 'text-foreground', trendHue: 'blue' },
+  { label: 'Total Tax', key: 'totalTax', colorClass: 'text-expense', trendHue: 'red' },
+  { label: 'Share tax withholding', key: 'rsuWithholding', colorClass: 'text-expense', trendHue: 'red' },
+  { label: 'Cash take-home', key: 'cashTakeHome', colorClass: 'text-income', trendHue: 'green' },
+  { label: 'Retained share value', key: 'netShareValue', colorClass: 'text-income', trendHue: 'teal' },
+  { label: 'Combined net compensation', key: 'netCompensation', colorClass: 'text-income', trendHue: 'green' },
 ]
 
 /** Total change across the projection horizon, not an annualized return. */
@@ -40,6 +44,8 @@ function totalGrowthPct(values: number[]): number | null {
 }
 
 export default function MultiYearProjectionTable({ projections }: Readonly<Props>) {
+  // Subscribes to theme refreshes, so the sparklines repaint on a toggle.
+  const app = usePaletteSnapshot(rawColors.app)
   const rates = projections.map((p) => p.effectiveTaxRate)
   const rateGrowth = totalGrowthPct(rates)
 
@@ -130,7 +136,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
                       <Sparkline
                         data={values}
                         variant="compact"
-                        color={row.trendColor}
+                        color={app[row.trendHue]}
                         ariaLabel={`${row.label} trend across ${projections.length} fiscal years`}
                       />
                     </div>
@@ -163,7 +169,7 @@ export default function MultiYearProjectionTable({ projections }: Readonly<Props
                   <Sparkline
                     data={rates}
                     variant="compact"
-                    color={rawColors.app.orange}
+                    color={app.orange}
                     ariaLabel={`Effective tax rate trend across ${projections.length} fiscal years`}
                   />
                 </div>

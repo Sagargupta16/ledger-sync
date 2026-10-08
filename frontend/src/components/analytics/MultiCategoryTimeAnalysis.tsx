@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { Download } from 'lucide-react'
 import { expenseDailySeriesOptions } from '@/components/analytics/categoryDailySeriesQueries'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import {
   bucketDate,
   calculateCumulativeData,
@@ -19,7 +20,7 @@ import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
-const COLORS = CHART_COLORS_WARM.slice(0, 6)
+const SERIES_COLOR_COUNT = 6
 const GRANULARITY_OPTIONS = [
   { value: 'auto', label: 'Auto' },
   { value: 'day', label: 'Daily' },
@@ -40,6 +41,9 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
   // happened; cumulative fans upward and hides the timing. Toggle still available.
   const [cumulative, setCumulative] = useState(false)
   const [granularityOverride, setGranularityOverride] = useState<Granularity | 'auto'>('auto')
+  // Sliced per theme: a module-level slice copied the load-time hex and froze it.
+  const warmColors = usePaletteSnapshot(CHART_COLORS_WARM)
+  const seriesColors = useMemo(() => warmColors.slice(0, SERIES_COLOR_COUNT), [warmColors])
 
   // Daily per-category sums, aggregated server-side (date-range applied in SQL).
   // The client keeps its own day/week/month bucketing so the ISO-week + label
@@ -194,7 +198,7 @@ export default function MultiCategoryTimeAnalysis({ dateRange }: MultiCategoryTi
         <TimeSeriesLineChart
           chartData={chartData}
           seriesKeys={topCategories}
-          colors={COLORS}
+          colors={seriesColors}
           ariaLabel="Line chart of spending over time for the top expense categories"
         />
       </div>

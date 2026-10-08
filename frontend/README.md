@@ -1,11 +1,11 @@
 # Ledger Sync Frontend
 
-React 19 and TypeScript 6 application for the Ledger Sync personal finance workspace.
+React 19 and TypeScript 7 application for the Ledger Sync personal finance workspace.
 
 ## Stack
 
 - React 19
-- TypeScript 6
+- TypeScript 7 (typescript-eslint keeps its own TypeScript 6 through `.pnpmfile.cjs`)
 - Vite 8
 - Tailwind CSS 4
 - TanStack Query 5

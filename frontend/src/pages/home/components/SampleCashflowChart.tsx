@@ -63,15 +63,15 @@ export function SampleCashflowChart({ show, reduce }: Readonly<SampleCashflowCha
         <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <li className="inline-flex items-center gap-1.5">
             <span className="size-2 rounded-sm bg-income" aria-hidden="true" />
-            Income
+            <span>Income</span>
           </li>
           <li className="inline-flex items-center gap-1.5">
             <span className="size-2 rounded-sm bg-expense" aria-hidden="true" />
-            Spending
+            <span>Spending</span>
           </li>
           <li className="inline-flex items-center gap-1.5">
             <span className="w-3 border-t border-dashed border-expense" aria-hidden="true" />
-            Avg spend {formatInr(SAMPLE_AVG_SPENDING)}
+            <span>Avg spend {formatInr(SAMPLE_AVG_SPENDING)}</span>
           </li>
         </ul>
       </div>

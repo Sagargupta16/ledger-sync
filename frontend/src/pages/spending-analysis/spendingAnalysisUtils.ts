@@ -52,19 +52,23 @@ export function splitEssentialSpend(
  * Recharts' `Pie` merges each data row over its sector props and reads `fill`
  * from there. That is the replacement for the deprecated `<Cell>` child, and
  * the same value still drives the hand-rolled HTML legend.
+ *
+ * A memoized caller passes `usePaletteSnapshot` copies of both palettes so a
+ * theme toggle re-runs the memo; the defaults serve one-off callers and tests.
  */
 export function buildSpendingChartData(
   spendingBreakdown: SpendingBreakdown,
   totalIncome: number,
   savings: number,
+  spendingColors: { essential: string; discretionary: string } = SPENDING_TYPE_COLORS,
+  semanticColors: { savings: string } = SEMANTIC_COLORS,
 ) {
   if (!spendingBreakdown || totalIncome <= 0) return []
   return [
-    { name: 'Needs', value: spendingBreakdown.essential, fill: SPENDING_TYPE_COLORS.essential },
-    { name: 'Wants', value: spendingBreakdown.discretionary, fill: SPENDING_TYPE_COLORS.discretionary },
-    // Semantic savings color (distinct from income green), read per call so a
-    // theme toggle is picked up; a module-level copy froze the load-time hex.
-    { name: 'Savings', value: savings, fill: SEMANTIC_COLORS.savings },
+    { name: 'Needs', value: spendingBreakdown.essential, fill: spendingColors.essential },
+    { name: 'Wants', value: spendingBreakdown.discretionary, fill: spendingColors.discretionary },
+    // Semantic savings color, distinct from income green.
+    { name: 'Savings', value: savings, fill: semanticColors.savings },
   ].filter((d) => d.value > 0)
 }
 

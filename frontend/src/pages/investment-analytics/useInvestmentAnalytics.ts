@@ -4,6 +4,7 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { capSeriesToToday, getTodayKey } from '@/lib/dateUtils'
 import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 import {
@@ -159,20 +160,22 @@ export function useInvestmentAnalytics() {
       ? Math.min((currentMonthInvestment / monthlyInvestmentTarget) * 100, 100)
       : 0
 
+  // Theme-scoped copy, so the breakdown re-colours on a theme toggle.
+  const categoryColors = usePaletteSnapshot(CATEGORY_COLORS)
   const investmentTypeBreakdown = useMemo(() => {
     const breakdown = filteredInvestmentTotals.byCategory
     return INVESTMENT_CATEGORIES.filter((cat) => breakdown[cat] > 0)
       .map((name) => ({
         name,
         value: breakdown[name],
-        color: CATEGORY_COLORS[name],
+        color: categoryColors[name],
         percentage:
           totalInvestmentValue > 0
             ? ((breakdown[name] / totalInvestmentValue) * 100).toFixed(1)
             : '0',
       }))
       .sort((a, b) => b.value - a.value)
-  }, [filteredInvestmentTotals, totalInvestmentValue])
+  }, [filteredInvestmentTotals, totalInvestmentValue, categoryColors])
 
   // Total accounts with a positive balance, before the top-8 cap below. Lets the
   // table surface a "+N more accounts" note when some are hidden.

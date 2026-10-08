@@ -3,6 +3,7 @@ import { colors, rawColors } from '@/constants/colors'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { computeCFPScore, type CFPRatio } from '@/lib/financialHealthCalculator'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { cfpInputsFromAnalysis } from './healthScoreAnalysis'
 import type { AnalysisResult } from './healthScoreUtils'
 import HealthIndicator from './HealthIndicator'
@@ -33,6 +34,8 @@ interface CFPScoreViewProps {
 
 const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPScoreViewProps>) {
   const isMobile = useIsMobile()
+  // memo() skips the theme-toggle re-render; the snapshot subscribes so the radar repaints.
+  const app = usePaletteSnapshot(rawColors.app)
   // One mapping, shared with the composite-score call site, so the CFP savings
   // rate is the analysis' pooled rate rather than a rate rebuilt from averages.
   const { ratios } = useMemo(
@@ -54,7 +57,7 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
           data={radarData}
           dataKey="score"
           categoryKey="dimension"
-          color={rawColors.app.teal}
+          color={app.teal}
           name="CFP Score"
           height={isMobile ? 200 : 224}
           labelFontSize={isMobile ? 10 : 11}

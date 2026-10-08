@@ -1,4 +1,4 @@
-import { rawColors } from '@/constants/colors'
+import { onRawColorsRefresh, rawColors } from '@/constants/colors'
 import { addDaysToKey } from '@/lib/dateUtils'
 import {
   investmentAccountDeltas,
@@ -22,12 +22,19 @@ import {
 export const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
 export type InvestmentCategory = (typeof INVESTMENT_CATEGORIES)[number]
 
-export const CATEGORY_COLORS: Record<InvestmentCategory, string> = {
-  'FD/Bonds': rawColors.app.pink,
-  'Mutual Funds': rawColors.app.purple,
-  'PPF/EPF': rawColors.app.orange,
-  Stocks: rawColors.app.green,
+/** Resolved hex for Recharts, rebuilt in place on a theme toggle. */
+function buildCategoryColors(): Record<InvestmentCategory, string> {
+  return {
+    'FD/Bonds': rawColors.app.pink,
+    'Mutual Funds': rawColors.app.purple,
+    'PPF/EPF': rawColors.app.orange,
+    Stocks: rawColors.app.green,
+  }
 }
+
+export const CATEGORY_COLORS = buildCategoryColors()
+
+onRawColorsRefresh(() => Object.assign(CATEGORY_COLORS, buildCategoryColors()))
 
 /** Map investment types from preferences to our 4 categories. */
 export function mapToCategory(investmentType: string): InvestmentCategory {

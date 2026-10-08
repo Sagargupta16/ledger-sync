@@ -91,22 +91,18 @@ export const isTaxCategory = (category: string, subcategory?: string | null): bo
 export const tdsAtSourceLabel = (preferredRegime: string): string =>
   `TDS deducted at source (computed, ${preferredRegime === 'old' ? 'old' : 'new'} regime)`
 
-const INCOME_CYCLE = [
-  rawColors.app.green,
-  rawColors.app.green,
-  rawColors.app.greenVibrant,
-  rawColors.app.teal,
-  rawColors.app.tealVibrant,
-]
-const EXPENSE_CYCLE = [
-  rawColors.app.red,
-  rawColors.app.redVibrant,
-  rawColors.app.pink,
-  rawColors.app.pinkVibrant,
-]
+/**
+ * Resolved app hues the view builders paint with. The page passes a
+ * `usePaletteSnapshot(rawColors.app)` copy so its memo re-runs on a theme
+ * toggle; module-level cycles froze the load-time hex.
+ */
+export type SankeyPalette = typeof rawColors.app
 
-const cycleColor = (flow: 'income' | 'expense', i: number): string => {
-  const cycle = flow === 'income' ? INCOME_CYCLE : EXPENSE_CYCLE
+const cycleColor = (palette: SankeyPalette, flow: 'income' | 'expense', i: number): string => {
+  const cycle =
+    flow === 'income'
+      ? [palette.green, palette.green, palette.greenVibrant, palette.teal, palette.tealVibrant]
+      : [palette.red, palette.redVibrant, palette.pink, palette.pinkVibrant]
   return cycle[i % cycle.length]
 }
 
@@ -193,7 +189,11 @@ export function attachOverviewDrills(
  * income reads subs -> parent (money flowing in). Subcategories beyond the
  * top N fold into a non-drillable "Other".
  */
-export function buildCategoryView(transactions: Transaction[], crumb: DrillCrumb): SankeyView {
+export function buildCategoryView(
+  transactions: Transaction[],
+  crumb: DrillCrumb,
+  palette: SankeyPalette = rawColors.app,
+): SankeyView {
   const txnType = crumb.flow === 'income' ? 'Income' : 'Expense'
   const bySub: Record<string, number> = {}
   for (const txn of transactions) {
@@ -205,22 +205,27 @@ export function buildCategoryView(transactions: Transaction[], crumb: DrillCrumb
   }
   const { entries } = foldTopWithOther(bySub, 'Other')
   const total = entries.reduce((sum, e) => sum + e.amount, 0)
-  return buildParentChildView(crumb, entries, total)
+  return buildParentChildView(crumb, entries, total, palette)
 }
 
 /** "Other (n)" drill view: unfold the tail categories the overview folded.
  * Tail entries carry their own category crumbs, so a category inside Other
  * can drill one level deeper to its subcategories. */
-export function buildOtherView(crumb: DrillCrumb): SankeyView {
+export function buildOtherView(crumb: DrillCrumb, palette: SankeyPalette = rawColors.app): SankeyView {
   const entries = crumb.tail ?? []
   const total = entries.reduce((sum, e) => sum + e.amount, 0)
-  return buildParentChildView(crumb, entries, total)
+  return buildParentChildView(crumb, entries, total, palette)
 }
 
 /** Shared two-column layout: parent on the money-source side, children on the
  * other, links always oriented left-to-right in flow direction. */
-function buildParentChildView(crumb: DrillCrumb, children: FlowEntry[], total: number): SankeyView {
-  const parentColor = crumb.flow === 'income' ? rawColors.app.greenVibrant : rawColors.app.red
+function buildParentChildView(
+  crumb: DrillCrumb,
+  children: FlowEntry[],
+  total: number,
+  palette: SankeyPalette,
+): SankeyView {
+  const parentColor = crumb.flow === 'income' ? palette.greenVibrant : palette.red
   const parentMeta: SankeyNodeMeta = { value: total, pct: 100, color: parentColor, drill: null }
 
   const nodes: Array<{ name: string }> = []
@@ -235,14 +240,14 @@ function buildParentChildView(crumb: DrillCrumb, children: FlowEntry[], total: n
     meta.push(parentMeta)
     positive.forEach((e, i) => {
       nodes.push({ name: e.name })
-      meta.push({ value: e.amount, pct: pctOf(e.amount, total), color: cycleColor('expense', i), drill: e.drill ?? null })
+      meta.push({ value: e.amount, pct: pctOf(e.amount, total), color: cycleColor(palette, 'expense', i), drill: e.drill ?? null })
       links.push({ source: 0, target: nodes.length - 1, value: e.amount })
     })
   } else {
     // Children -> parent (last index): income still flows left-to-right.
     positive.forEach((e, i) => {
       nodes.push({ name: e.name })
-      meta.push({ value: e.amount, pct: pctOf(e.amount, total), color: cycleColor('income', i), drill: e.drill ?? null })
+      meta.push({ value: e.amount, pct: pctOf(e.amount, total), color: cycleColor(palette, 'income', i), drill: e.drill ?? null })
     })
     nodes.push({ name: crumb.label })
     meta.push(parentMeta)
@@ -286,8 +291,11 @@ export function buildOverviewView(args: {
   tdsAtSource?: number
   /** Crumb for drilling into the Tax node's own breakdown. */
   taxDrill?: DrillCrumb | null
+  /** Theme-scoped hues; defaults to the live `rawColors.app`. */
+  palette?: SankeyPalette
 }): SankeyView {
   const { incomeEntries, expenseEntries, totalIncome, totalExpense, netSavings } = args
+  const palette = args.palette ?? rawColors.app
   const totalTax = args.totalTax ?? 0
   const tdsAtSource = args.tdsAtSource ?? 0
   const capitalLosses = args.capitalLosses ?? 0
@@ -301,7 +309,7 @@ export function buildOverviewView(args: {
 
   incomeEntries.forEach((e, i) => {
     nodes.push({ name: e.name })
-    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor('income', i), drill: e.drill ?? null })
+    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor(palette, 'income', i), drill: e.drill ?? null })
   })
 
   // TDS enters as an income-side source: part of gross pay that went straight
@@ -310,12 +318,12 @@ export function buildOverviewView(args: {
   if (tdsAtSource > 0) {
     tdsIndex = nodes.length
     nodes.push({ name: 'Tax Deducted at Source' })
-    meta.push({ value: tdsAtSource, pct: pctOf(tdsAtSource, grossIncome), color: rawColors.app.orange, drill: null })
+    meta.push({ value: tdsAtSource, pct: pctOf(tdsAtSource, grossIncome), color: palette.orange, drill: null })
   }
 
   const totalIncomeIndex = nodes.length
   nodes.push({ name: tdsAtSource > 0 ? 'Gross Income' : 'Total Income' })
-  meta.push({ value: grossIncome, pct: 100, color: rawColors.app.indigoVibrant, drill: null })
+  meta.push({ value: grossIncome, pct: 100, color: palette.indigoVibrant, drill: null })
 
   // Tax leaves income before anything else -- its own branch, not an expense
   // category, so "Expenses" reads as living costs and "Savings" stays honest.
@@ -323,7 +331,7 @@ export function buildOverviewView(args: {
   if (totalTax > 0) {
     taxIndex = nodes.length
     nodes.push({ name: 'Tax' })
-    meta.push({ value: totalTax, pct: pctOf(totalTax, grossIncome), color: rawColors.app.orange, drill: args.taxDrill ?? null })
+    meta.push({ value: totalTax, pct: pctOf(totalTax, grossIncome), color: palette.orange, drill: args.taxDrill ?? null })
   }
 
   // Classified realised losses: a negative investment return, so neither an
@@ -332,20 +340,20 @@ export function buildOverviewView(args: {
   if (capitalLosses > 0) {
     lossesIndex = nodes.length
     nodes.push({ name: 'Realised losses' })
-    meta.push({ value: capitalLosses, pct: pctOf(capitalLosses, grossIncome), color: rawColors.app.yellow, drill: null })
+    meta.push({ value: capitalLosses, pct: pctOf(capitalLosses, grossIncome), color: palette.yellow, drill: null })
   }
 
   const savingsIndex = nodes.length
   nodes.push({ name: 'Savings' })
-  meta.push({ value: Math.max(netSavings, 0), pct: pctOf(Math.max(netSavings, 0), grossIncome), color: rawColors.app.purple, drill: null })
+  meta.push({ value: Math.max(netSavings, 0), pct: pctOf(Math.max(netSavings, 0), grossIncome), color: palette.purple, drill: null })
 
   const expensesIndex = nodes.length
   nodes.push({ name: 'Expenses' })
-  meta.push({ value: totalExpense, pct: pctOf(totalExpense, grossIncome), color: rawColors.app.red, drill: null })
+  meta.push({ value: totalExpense, pct: pctOf(totalExpense, grossIncome), color: palette.red, drill: null })
 
   expenseEntries.forEach((e, i) => {
     nodes.push({ name: e.name })
-    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor('expense', i), drill: e.drill ?? null })
+    meta.push({ value: e.amount, pct: pctOf(e.amount, grossIncome), color: cycleColor(palette, 'expense', i), drill: e.drill ?? null })
     links.push({ source: expensesIndex, target: nodes.length - 1, value: e.amount })
   })
 

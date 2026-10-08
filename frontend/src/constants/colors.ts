@@ -182,6 +182,21 @@ export function onRawColorsRefresh(listener: () => void): void {
   rawColorsListeners.add(listener)
 }
 
+let rawColorsVersion = 0
+const versionSubscribers = new Set<() => void>()
+
+/** `useSyncExternalStore` subscription for palette refreshes (see hooks/usePaletteSnapshot). */
+export function subscribeRawColorsVersion(subscriber: () => void): () => void {
+  versionSubscribers.add(subscriber)
+  return () => {
+    versionSubscribers.delete(subscriber)
+  }
+}
+
+export function getRawColorsVersion(): number {
+  return rawColorsVersion
+}
+
 /**
  * Rebuild the resolved color values IN PLACE on the existing `rawColors`
  * object, preserving its identity so modules that imported `rawColors` (and the
@@ -197,6 +212,10 @@ export function refreshRawColors(): void {
   Object.assign(rawColors.chart, next.chart)
   Object.assign(rawColors.surface, next.surface)
   for (const listener of rawColorsListeners) listener()
+  // Bumped only after every in-place rebuild above, so a palette snapshot taken
+  // for the new version never copies a palette whose listener has not run yet.
+  rawColorsVersion += 1
+  for (const subscriber of versionSubscribers) subscriber()
 }
 
 // ─── MetricCard color configs (derived from rawColors) ───────────────────────

@@ -21,6 +21,7 @@ import {
 } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { usePreferencesStore, resolveIncomeClassification } from '@/store/preferencesStore'
 import {
@@ -37,7 +38,7 @@ import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
-import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import { CHART_COLORS, SEMANTIC_COLORS } from '@/constants/chartColors'
 import type { TotalsData } from '@/services/api/calculations'
 
 // ---------------------------------------------------------------------------
@@ -373,18 +374,22 @@ export function useDashboardMetrics(
   }, [hasTransactionsInRange, expenseCategoryData])
 
   // ------ Chart data ------
+  // Theme-scoped palette copies, so the memos below re-run on a theme toggle.
+  const incomeColors = usePaletteSnapshot(INCOME_CATEGORY_COLORS)
+  const semanticColors = usePaletteSnapshot(SEMANTIC_COLORS)
+  const chartColors = usePaletteSnapshot(CHART_COLORS)
+
   const incomeChartData = useMemo(() => {
     if (!incomeBreakdown) return []
-    const defaultColor = SEMANTIC_COLORS.muted
     return Object.entries(incomeBreakdown)
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
         name: category,
         value,
-        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
+        color: incomeColors[category] || semanticColors.muted,
       }))
       .sort((a, b) => b.value - a.value)
-  }, [incomeBreakdown])
+  }, [incomeBreakdown, incomeColors, semanticColors])
 
   const expenseChartData = useMemo(() => {
     if (!expenseBreakdown) return []
@@ -394,8 +399,8 @@ export function useDashboardMetrics(
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({ name: category, value }))
       .sort((a, b) => b.value - a.value)
-      .map((d, i) => ({ ...d, color: getChartColor(i) }))
-  }, [expenseBreakdown])
+      .map((d, i) => ({ ...d, color: chartColors[i % chartColors.length] }))
+  }, [expenseBreakdown, chartColors])
 
   // ------ Sparklines ------
   const incomeSparkline = useMemo(() => {

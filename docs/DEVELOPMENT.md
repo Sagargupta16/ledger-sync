@@ -20,7 +20,7 @@ details, also see:
 | Node.js | 22 or newer |
 | JavaScript package manager | pnpm 11.25.0 |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
-| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4 |
+| Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4 |
 
 Git is required. SQLite is used by default for local development; production
 uses PostgreSQL 17.

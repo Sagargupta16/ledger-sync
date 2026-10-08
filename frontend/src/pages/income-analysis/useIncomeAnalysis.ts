@@ -14,6 +14,7 @@ import {
   hasNoCompleteMonthBasis,
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { rawColors } from '@/constants/colors'
 import { ROLLING_AVG_MONTHS } from '@/lib/chartUtils'
@@ -122,18 +123,20 @@ export function useIncomeAnalysis() {
   const totalIncome = income?.total_income ?? 0
   const cashbacksTotal = income?.cashbacks_total ?? 0
 
+  // Theme-scoped palette copies, so the memo re-runs on a theme toggle.
+  const incomeColors = usePaletteSnapshot(INCOME_CATEGORY_COLORS)
+  const textColors = usePaletteSnapshot(rawColors.text)
   const incomeTypeChartData = useMemo<IncomeCategoryDatum[]>(() => {
-    const defaultColor = rawColors.text.tertiary
     return Object.entries(income?.category_breakdown ?? {})
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
         name: category,
         category,
         value,
-        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
+        color: incomeColors[category] || textColors.tertiary,
       }))
       .sort((a, b) => b.value - a.value)
-  }, [income])
+  }, [income, incomeColors, textColors])
 
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
   const primaryIncomeValue = incomeTypeChartData[0]?.value ?? 0

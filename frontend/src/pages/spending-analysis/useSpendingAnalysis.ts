@@ -22,12 +22,15 @@ import {
   hasNoCompleteMonthBasis,
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys, spendingRuleSavings } from '@/lib/finance/spending'
+import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { resolveEssentialCategories } from '@/store/preferencesStore'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
 import {
   useExpenseBreakdown,
@@ -366,9 +369,12 @@ export function useSpendingAnalysis() {
     [monthlyTrendData],
   )
 
+  // Theme-scoped palette copies, so the slices re-colour on a theme toggle.
+  const spendingColors = usePaletteSnapshot(SPENDING_TYPE_COLORS)
+  const semanticColors = usePaletteSnapshot(SEMANTIC_COLORS)
   const spendingChartData = useMemo(
-    () => buildSpendingChartData(spendingBreakdown, totalIncome, savings),
-    [spendingBreakdown, savings, totalIncome],
+    () => buildSpendingChartData(spendingBreakdown, totalIncome, savings, spendingColors, semanticColors),
+    [spendingBreakdown, savings, totalIncome, spendingColors, semanticColors],
   )
 
   // Spending rule targets from preferences (configurable Needs/Wants).

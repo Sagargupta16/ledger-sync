@@ -4,6 +4,8 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { rawColors } from '@/constants/colors'
 import { getDateKey } from '@/lib/dateUtils'
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
@@ -265,6 +267,8 @@ export function useIncomeExpenseFlow() {
   // The currently displayed view: overview, a category's subcategories, or an
   // unfolded "Other" tail. Fresh { nodes, links } object per level -- Recharts
   // links reference nodes by array index, so indexes are rebuilt per view.
+  // `palette` is a theme-scoped copy, so node colours follow a theme toggle.
+  const palette = usePaletteSnapshot(rawColors.app)
   const view = useMemo(() => {
     const crumb = drillPath.at(-1)
     if (!crumb) {
@@ -278,11 +282,12 @@ export function useIncomeExpenseFlow() {
         totalTax: computed.totalTax,
         tdsAtSource: computed.tdsAtSource,
         taxDrill: computed.taxDrill,
+        palette,
       })
     }
-    if (crumb.view === 'other') return buildOtherView(crumb)
-    return buildCategoryView(flowTransactions, crumb)
-  }, [drillPath, computed, flowTransactions])
+    if (crumb.view === 'other') return buildOtherView(crumb, palette)
+    return buildCategoryView(flowTransactions, crumb, palette)
+  }, [drillPath, computed, flowTransactions, palette])
 
   const chartWidth = isMobile ? 720 : 900
   const sankeyNodeComponent = useMemo(
