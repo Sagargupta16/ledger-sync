@@ -11,12 +11,11 @@ import {
   chartTooltipProps,
   currencyTooltipFormatter,
 } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+import { colors, rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
 import { formatCurrency } from '@/lib/formatters'
 
-import { SAVINGS_COLOR, type BudgetRuleMetrics } from '../spendingAnalysisUtils'
+import type { BudgetRuleMetrics } from '../spendingAnalysisUtils'
 import { BudgetRuleCard } from './BudgetRuleCard'
 
 interface SpendingBreakdown {
@@ -153,7 +152,7 @@ export default function BudgetRuleAnalysis({
               target={`\u2264${needsTarget}%`}
               targetPercent={needsTarget}
               isOverBudget={budgetRuleMetrics?.isOverspendingEssential ?? false}
-              accentColor={SPENDING_TYPE_COLORS.essential}
+              accentColor={colors.app.blue}
               bgClass="border-b border-border"
               iconBgClass="bg-app-blue/20"
               textClass="text-app-blue"
@@ -167,7 +166,7 @@ export default function BudgetRuleAnalysis({
               target={`\u2264${wantsTarget}%`}
               targetPercent={wantsTarget}
               isOverBudget={budgetRuleMetrics?.isOverspendingDiscretionary ?? false}
-              accentColor={SPENDING_TYPE_COLORS.discretionary}
+              accentColor={colors.app.orange}
               bgClass="border-b border-border"
               iconBgClass="bg-app-orange/20"
               textClass="text-app-orange"
@@ -185,7 +184,7 @@ export default function BudgetRuleAnalysis({
               target={`\u2265${savingsTarget}%`}
               targetPercent={savingsTarget}
               isOverBudget={budgetRuleMetrics?.isUnderSaving ?? false}
-              accentColor={SAVINGS_COLOR}
+              accentColor={colors.financial.savings}
               bgClass=""
               iconBgClass="bg-app-green/20"
               textClass="text-app-green"

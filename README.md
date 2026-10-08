@@ -160,7 +160,7 @@ Run migrations only against the intended local development database.
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Recharts 3, Motion 13 |
+| Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4, Recharts 3, Motion 13 |
 | Backend | Python 3.13+, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Database | SQLite for development, Neon PostgreSQL 17 for production |
 | State | TanStack Query 5, Zustand 5 |

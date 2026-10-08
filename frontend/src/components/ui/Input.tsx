@@ -35,7 +35,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           id={inputId}
           className={cn(
             'ledger-control min-h-11 w-full rounded-md px-3 py-2 lg:pointer-fine:min-h-10',
-            'border border-[var(--hairline-2)] text-foreground placeholder:text-text-quaternary',
+            // Border color comes from `.ledger-control` (rest/hover/focus tokens).
+            'border text-foreground placeholder:text-text-quaternary',
             'transition-[color,background-color,border-color] duration-150 ease-out',
             'focus:outline-none',
             'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -104,7 +105,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         id={selectId}
         className={cn(
           'ledger-control min-h-11 w-full rounded-md px-3 py-2 lg:pointer-fine:min-h-10',
-          'border border-[var(--hairline-2)] text-foreground',
+          'border text-foreground',
           'transition-[color,background-color,border-color] duration-150 ease-out',
           'focus:outline-none',
           'disabled:opacity-50 disabled:cursor-not-allowed',

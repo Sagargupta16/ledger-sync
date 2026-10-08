@@ -92,7 +92,7 @@ export default function YearHeatmapSection({
         <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
           <Flame className="h-5 w-5 shrink-0" style={{ color: modeAccent[review.mode] }} />
           <span>
-            {modeLabel} Heatmap -- {review.isFYMode ? review.currentFY : review.selectedYear}
+            {modeLabel} Heatmap -- {review.periodLabel}
           </span>
         </h2>
         <HeatmapLegend mode={review.mode} />

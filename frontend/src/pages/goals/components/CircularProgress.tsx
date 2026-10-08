@@ -1,4 +1,4 @@
-import { rawColors } from '@/constants/colors'
+import { cssVar } from '@/constants/colors'
 
 export default function CircularProgress({
   progress,
@@ -10,6 +10,8 @@ export default function CircularProgress({
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (Math.min(progress, 100) / 100) * circumference
 
+  // Strokes go through `style` (a CSS declaration), so var() tokens resolve at
+  // paint time and the ring follows a theme toggle without a re-render.
   return (
     <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
       <circle
@@ -17,7 +19,7 @@ export default function CircularProgress({
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke={rawColors.chart.svgStroke}
+        style={{ stroke: cssVar('--chart-svg-stroke') }}
         strokeWidth={strokeWidth}
       />
       <circle
@@ -25,7 +27,7 @@ export default function CircularProgress({
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke={color}
+        style={{ stroke: color }}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeDasharray={circumference}

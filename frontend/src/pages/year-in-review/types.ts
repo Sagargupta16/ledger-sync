@@ -1,4 +1,4 @@
-import { rawColors } from '@/constants/colors'
+import { colors, cssVar } from '@/constants/colors'
 
 export type HeatmapMode = 'expense' | 'income' | 'net'
 
@@ -18,26 +18,29 @@ export const MONTHS_SHORT = [
   'Dec',
 ]
 
+/** Translucent tint of a CSS color reference, resolved by the browser. */
+export const tint = (color: string, percent: number): string =>
+  `color-mix(in srgb, ${color} ${percent}%, transparent)`
+
 /**
- * Heatmap stops built from the APP palette (not tailwind-slate). Alpha suffix
- * as 8-bit hex: 33 = 20%, 66 = 40%, A6 = 65%, E6 = 90%. Using the raw hex
- * (rawColors.app.*) lets light-theme AA-adjusted values flow through
- * automatically -- the previous literal `rgba(239,68,68,...)` etc. bypassed
- * theme flip entirely.
+ * Heatmap stops built from the APP palette (not tailwind-slate) at 20%, 40%,
+ * 65% and 90%. Every stop is a `var()` reference mixed in CSS, and the heatmap
+ * only paints DOM, so cells, legend and controls follow a theme toggle with no
+ * re-render. Resolved hex copied at import froze the load-time theme.
  */
-const ramp = (hex: string): string[] => [
-  rawColors.chart.grid,
-  `${hex}33`,
-  `${hex}66`,
-  `${hex}A6`,
-  `${hex}E6`,
+const ramp = (color: string): string[] => [
+  cssVar('--chart-grid'),
+  tint(color, 20),
+  tint(color, 40),
+  tint(color, 65),
+  tint(color, 90),
 ]
 
 /** Level-0 stop: no activity (or a net of exactly zero) reads as an empty cell. */
-export const heatmapNeutral = rawColors.chart.grid
+export const heatmapNeutral = cssVar('--chart-grid')
 
-const expenseRamp = ramp(rawColors.app.red)
-const incomeRamp = ramp(rawColors.app.green)
+const expenseRamp = ramp(colors.app.red)
+const incomeRamp = ramp(colors.app.green)
 
 /**
  * Ramp per mode, split by the SIGN of the value. `net` is diverging: a surplus
@@ -52,7 +55,7 @@ export const heatmapRamps: Record<HeatmapMode, { surplus: string[]; deficit: str
 }
 
 export const modeAccent: Record<HeatmapMode, string> = {
-  expense: rawColors.app.red,
-  income: rawColors.app.green,
-  net: rawColors.app.blue,
+  expense: colors.app.red,
+  income: colors.app.green,
+  net: colors.app.blue,
 }

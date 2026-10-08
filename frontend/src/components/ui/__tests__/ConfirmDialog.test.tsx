@@ -111,6 +111,8 @@ describe('ConfirmDialog', () => {
 
     fireEvent(dialog, new Event('cancel', { cancelable: true }))
     await waitFor(() => expect(dialog).not.toBeInTheDocument(), { timeout: 3000 })
-    expect(trigger).toHaveFocus()
+    // Focus is restored in the unmount effect, a tick after the node detaches;
+    // under a loaded parallel run that tick can land after the first check.
+    await waitFor(() => expect(trigger).toHaveFocus(), { timeout: 3000 })
   })
 })

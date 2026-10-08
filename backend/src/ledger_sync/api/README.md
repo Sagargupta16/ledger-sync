@@ -20,7 +20,7 @@ Open:
 - Health: `http://localhost:8000/health`
 - Database health: `http://localhost:8000/health/db`
 
-The application version is `2.27.0`.
+The application version is `2.28.0`.
 
 ## Authentication
 

@@ -8,6 +8,7 @@ interface KpiCardProps {
   valueB: number
   labelA: string
   labelB: string
+  /** DOM text color. Pass a `colors.*` var() token, not a resolved hex, so it follows a theme toggle. */
   color: string
   invertChange?: boolean
   isPercent?: boolean

@@ -9,9 +9,6 @@ export { monthKeysBetween } from '@/lib/dateUtils'
 export { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys } from '@/lib/finance/spending'
 export type { BudgetRuleMetrics, MonthlySpendShape } from '@/lib/finance/spending'
 
-/** Color for Savings (semantic, distinct from income green). */
-export const SAVINGS_COLOR = SEMANTIC_COLORS.savings
-
 /**
  * `category -> total` from a `/category-breakdown` payload, narrowed to one
  * category for a `?category=` deep-link. Empty until the payload arrives.
@@ -55,17 +52,23 @@ export function splitEssentialSpend(
  * Recharts' `Pie` merges each data row over its sector props and reads `fill`
  * from there. That is the replacement for the deprecated `<Cell>` child, and
  * the same value still drives the hand-rolled HTML legend.
+ *
+ * A memoized caller passes `usePaletteSnapshot` copies of both palettes so a
+ * theme toggle re-runs the memo; the defaults serve one-off callers and tests.
  */
 export function buildSpendingChartData(
   spendingBreakdown: SpendingBreakdown,
   totalIncome: number,
   savings: number,
+  spendingColors: { essential: string; discretionary: string } = SPENDING_TYPE_COLORS,
+  semanticColors: { savings: string } = SEMANTIC_COLORS,
 ) {
   if (!spendingBreakdown || totalIncome <= 0) return []
   return [
-    { name: 'Needs', value: spendingBreakdown.essential, fill: SPENDING_TYPE_COLORS.essential },
-    { name: 'Wants', value: spendingBreakdown.discretionary, fill: SPENDING_TYPE_COLORS.discretionary },
-    { name: 'Savings', value: savings, fill: SAVINGS_COLOR },
+    { name: 'Needs', value: spendingBreakdown.essential, fill: spendingColors.essential },
+    { name: 'Wants', value: spendingBreakdown.discretionary, fill: spendingColors.discretionary },
+    // Semantic savings color, distinct from income green.
+    { name: 'Savings', value: savings, fill: semanticColors.savings },
   ].filter((d) => d.value > 0)
 }
 

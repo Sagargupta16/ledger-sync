@@ -6,7 +6,7 @@ import { DollarSign, TrendingDown, TrendingUp } from 'lucide-react'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { Button } from '@/components/ui'
 
-import { modeAccent, type HeatmapMode } from '../types'
+import { modeAccent, tint, type HeatmapMode } from '../types'
 import type { useYearInReview } from '../useYearInReview'
 
 type YearReviewState = ReturnType<typeof useYearInReview>
@@ -92,7 +92,7 @@ export default function YearReviewControls({
               <motion.span
                 layoutId="heatmapModeTab"
                 className="absolute inset-0 rounded-md border"
-                style={{ backgroundColor: `${modeAccent[value]}18`, borderColor: `${modeAccent[value]}50` }}
+                style={{ backgroundColor: tint(modeAccent[value], 9), borderColor: tint(modeAccent[value], 31) }}
                 initial={false}
                 transition={{ type: 'spring', stiffness: 500, damping: 35 }}
               />

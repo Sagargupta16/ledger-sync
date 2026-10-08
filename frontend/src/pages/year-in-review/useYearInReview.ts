@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useDataDateRange } from '@/hooks/api/useAnalytics'
 import { analyticsV2Keys, useDailySummaries } from '@/hooks/api/useAnalyticsV2'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { parseFYLabelStartYear } from '@/lib/dateRanges'
 import { getCurrentFY, getCurrentMonth, getCurrentYear, MONTHS_PER_YEAR, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
@@ -112,30 +113,46 @@ export function useYearInReview() {
     queryFn: () => analyticsV2Service.getDailySummaries(periodParams),
     staleTime: Infinity,
     enabled: history !== undefined && !historyCovers,
+    placeholderData: keepPreviousData,
   })
-  const dailySummaries = historyCovers ? history : periodQuery.data
   const needsPeriodQuery = history !== undefined && !historyCovers
+  const summariesSource = needsPeriodQuery ? periodQuery : historyQuery
 
-  const isLoading =
-    dateRangeQuery.isLoading ||
-    historyQuery.isPending ||
-    (needsPeriodQuery && periodQuery.isPending) ||
-    preferencesQuery.isPending
+  // The heatmap, stats and bars render from ONE period: while a year the
+  // shared page does not cover is fetched on its own, the previous year's
+  // figures and window stay on screen (marked as updating) instead of the
+  // page swapping to its skeleton, then switch together. See
+  // `useStablePeriodData`.
+  const periodLabel = isFYMode ? currentFY : String(selectedYear)
+  const stable = useStablePeriodData({ period, selectedYear, isFYMode, periodLabel }, [
+    {
+      data: historyCovers ? history : periodQuery.data,
+      isPlaceholderData: needsPeriodQuery && periodQuery.isPlaceholderData,
+      isError: summariesSource.isError,
+      dataUpdatedAt: summariesSource.dataUpdatedAt,
+    },
+  ])
+  const shown = stable.period
+  const [dailySummaries] = stable.data
+
   const isError =
     dateRangeQuery.isError ||
     historyQuery.isError ||
     (needsPeriodQuery && periodQuery.isError) ||
     preferencesQuery.isError
+  const isLoading =
+    !isError &&
+    (dateRangeQuery.isLoading || stable.isInitialLoad || preferencesQuery.isPending)
 
   const { grid, maxExpense, maxIncome, maxNet, monthLabels } = useMemo(() => {
     const { dayExpenses, dayIncomes, dayNets } = aggregateFromDailySummaries(
       dailySummaries ?? [],
-      period.startStr,
-      period.endStr,
+      shown.period.startStr,
+      shown.period.endStr,
     )
     const { cells, mxE, mxI, mxN } = buildDayCells(
-      period.startDate,
-      period.endDate,
+      shown.period.startDate,
+      shown.period.endDate,
       dayExpenses,
       dayIncomes,
       dayNets,
@@ -143,7 +160,7 @@ export function useYearInReview() {
     const labels = deriveMonthLabels(cells)
 
     return { grid: cells, maxExpense: mxE, maxIncome: mxI, maxNet: mxN, monthLabels: labels }
-  }, [dailySummaries, period])
+  }, [dailySummaries, shown.period])
 
   const modeMaxMap: Record<HeatmapMode, number> = {
     expense: maxExpense,
@@ -182,19 +199,19 @@ export function useYearInReview() {
     const nowYear = now.getFullYear()
     const nowMonth = now.getMonth()
     let cutoff = MONTHS_PER_YEAR
-    if (isFYMode) {
-      const fyStartYear = selectedYear
-      const fyEndYear = selectedYear + 1
+    if (shown.isFYMode) {
+      const fyStartYear = shown.selectedYear
+      const fyEndYear = shown.selectedYear + 1
       const isCurrentFY =
         (nowYear === fyStartYear && nowMonth >= fiscalYearStartMonth - 1) ||
         (nowYear === fyEndYear && nowMonth < fiscalYearStartMonth - 1)
       if (isCurrentFY) {
         cutoff = ((nowMonth - (fiscalYearStartMonth - 1) + MONTHS_PER_YEAR) % MONTHS_PER_YEAR) + 1
       }
-    } else if (selectedYear === nowYear) {
+    } else if (shown.selectedYear === nowYear) {
       cutoff = nowMonth + 1
     }
-    return periodMonthOrder(isFYMode, fiscalYearStartMonth).slice(0, cutoff).map((monthIndex) => {
+    return periodMonthOrder(shown.isFYMode, fiscalYearStartMonth).slice(0, cutoff).map((monthIndex) => {
       const spending = stats.monthlyExpense[monthIndex]
       const earning = stats.monthlyIncome[monthIndex]
       return {
@@ -207,7 +224,7 @@ export function useYearInReview() {
         Net: stats.monthlyNet[monthIndex],
       }
     })
-  }, [stats, isFYMode, selectedYear, fiscalYearStartMonth])
+  }, [stats, shown.isFYMode, shown.selectedYear, fiscalYearStartMonth])
 
   const retry = () => {
     const retries: Array<Promise<unknown>> = []
@@ -222,6 +239,7 @@ export function useYearInReview() {
     /** The ledger holds at least one row (drives the upload empty state). */
     hasData: Boolean(maxDate),
     isLoading,
+    isSettling: stable.isSettling,
     isError,
     retry,
     mode,
@@ -238,8 +256,11 @@ export function useYearInReview() {
     setCurrentFY: markInteracted(setCurrentFY),
     dataDateRange,
     fiscalYearStartMonth,
-    selectedYear,
-    isFYMode,
+    /** The year the figures belong to; the previous one while settling. */
+    selectedYear: shown.selectedYear,
+    isFYMode: shown.isFYMode,
+    /** Heading label for the shown period ("2025" or the FY label). */
+    periodLabel: shown.periodLabel,
     grid,
     modeMax,
     monthLabels,

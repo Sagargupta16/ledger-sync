@@ -1,7 +1,7 @@
 import { AlertCircle, AlertTriangle, ListFilter } from 'lucide-react'
 
 import { StatCard } from '@/components/ui'
-import { rawColors } from '@/constants/colors'
+import { cssVar } from '@/constants/colors'
 
 import { SEVERITY_STYLES } from '../constants'
 import type { AnomalySummaryCounts } from '../types'
@@ -41,7 +41,7 @@ export default function AnomalySummary({ summary }: Readonly<Props>) {
             title="Total Detected"
             value={String(total)}
             icon={<ListFilter className="w-5 h-5" />}
-            iconColor={rawColors.chart.neutral}
+            iconColor={cssVar('--chart-neutral')}
             delay={0.08}
           />
         </div>
@@ -57,7 +57,7 @@ export default function AnomalySummary({ summary }: Readonly<Props>) {
             [
               ['high', high, SEVERITY_STYLES.high.iconColor],
               ['medium', medium, SEVERITY_STYLES.medium.iconColor],
-              ['other', other, rawColors.chart.neutral],
+              ['other', other, cssVar('--chart-neutral')],
             ] as const
           ).map(([severity, count, fill]) => (
             <div

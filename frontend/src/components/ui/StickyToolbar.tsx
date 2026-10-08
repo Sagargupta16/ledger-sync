@@ -103,15 +103,15 @@ export default function StickyToolbar({ children, className, label }: StickyTool
       data-sticky-toolbar=""
       data-stuck={isStuck ? '' : undefined}
       className={cn(
-        'sticky top-0 z-30 bg-background py-2',
+        // pb-[7px] + the 1px bottom border keep the old py-2 height exactly.
+        'sticky top-0 z-30 bg-background pt-2 pb-[7px]',
         '-ml-[max(1rem,env(safe-area-inset-left))] -mr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]',
         'md:-ml-[max(1.5rem,env(safe-area-inset-left))] md:-mr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(1.5rem,env(safe-area-inset-left))] md:pr-[max(1.5rem,env(safe-area-inset-right))]',
         'lg:-ml-[max(2rem,env(safe-area-inset-left))] lg:-mr-[max(2rem,env(safe-area-inset-right))] lg:pl-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]',
-        // The hairline is a 1px shadow, not a border: index.css has an
-        // unlayered `* { border-color }` that outranks Tailwind's layered
-        // border-color utilities, so a transparent border could not be hidden.
-        'transition-shadow duration-200 ease-[var(--ease-cinematic)]',
-        'data-[stuck]:shadow-[0_1px_0_var(--hairline-2),var(--glass-shadow-strong)]',
+        // Hairline: a bottom border, transparent until the toolbar pins.
+        'border-b border-transparent',
+        'transition-[border-color,box-shadow] duration-200 ease-[var(--ease-cinematic)]',
+        'data-[stuck]:border-[var(--hairline-2)] data-[stuck]:shadow-[var(--glass-shadow-strong)]',
         className,
       )}
     >

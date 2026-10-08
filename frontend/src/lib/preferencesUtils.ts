@@ -218,16 +218,25 @@ export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
  * seed the singular "Refund & Cashbacks" while real imported data uses the
  * plural "Refunds & Cashbacks" -- so both are listed. Without the plural key a
  * genuine income source falls through to the muted default colour.
+ *
+ * Resolved hex for Recharts, rebuilt in place on a theme toggle like
+ * `SPENDING_TYPE_COLORS` below. Memoized readers go through `usePaletteSnapshot`.
  */
-export const INCOME_CATEGORY_COLORS: Record<string, string> = {
-  'Employment Income': rawColors.app.green,
-  'Investment Income': rawColors.app.orange,
-  'Refunds & Cashbacks': rawColors.app.teal,
-  'Refund & Cashbacks': rawColors.app.teal,
-  'One-time Income': rawColors.app.purple,
-  'Other Income': rawColors.text.tertiary,
-  'Business/Self Employment Income': rawColors.app.pink,
+function buildIncomeCategoryColors(): Record<string, string> {
+  return {
+    'Employment Income': rawColors.app.green,
+    'Investment Income': rawColors.app.orange,
+    'Refunds & Cashbacks': rawColors.app.teal,
+    'Refund & Cashbacks': rawColors.app.teal,
+    'One-time Income': rawColors.app.purple,
+    'Other Income': rawColors.text.tertiary,
+    'Business/Self Employment Income': rawColors.app.pink,
+  }
 }
+
+export const INCOME_CATEGORY_COLORS = buildIncomeCategoryColors()
+
+onRawColorsRefresh(() => Object.assign(INCOME_CATEGORY_COLORS, buildIncomeCategoryColors()))
 
 /**
  * Spending type colors for charts.

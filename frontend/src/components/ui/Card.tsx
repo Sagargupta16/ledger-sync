@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { DURATION, fadeUpWithDelay } from '@/constants/animations'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { cn } from '@/lib/cn'
 import { useMotionStore } from '@/store/motionStore'
 
@@ -127,7 +127,7 @@ export const StatCard = memo(function StatCard({
   value,
   subtitle,
   icon,
-  iconColor = rawColors.app.blueVibrant,
+  iconColor = colors.app.blueVibrant,
   trend,
   delay = 0
 }: StatCardProps) {

@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 from ledger_sync.schemas.salary import GrowthAssumptions
 from ledger_sync.schemas.upload import MAX_AMOUNT
@@ -158,6 +158,22 @@ class RecurringSettingsConfig(BaseModel):
     )
 
 
+SPENDING_SPLIT_FIELDS = ("needs_target_percent", "wants_target_percent", "savings_target_percent")
+
+
+def spending_split_error(needs: float, wants: float, savings: float) -> str | None:
+    """The 422 message when needs + wants + savings is not 100%, else None.
+
+    The tolerance is 0.01 percentage points. The 1e-9 absorbs float error (three
+    33.33 values sum to 99.99000000000001), and the Settings page applies the
+    same rule before it enables Save.
+    """
+    total = needs + wants + savings
+    if abs(total - 100) <= 0.01 + 1e-9:
+        return None
+    return f"Needs, wants and savings must total 100% (currently {total:g}%)."
+
+
 class SpendingRuleConfig(BaseModel):
     """Spending rule target percentages (Needs/Wants/Savings)."""
 
@@ -170,6 +186,15 @@ class SpendingRuleConfig(BaseModel):
     savings_target_percent: Percent = Field(
         description="Target percentage of income for savings",
     )
+
+    @model_validator(mode="after")
+    def _split_totals_100(self) -> SpendingRuleConfig:
+        error = spending_split_error(
+            self.needs_target_percent, self.wants_target_percent, self.savings_target_percent
+        )
+        if error:
+            raise ValueError(error)
+        return self
 
 
 class CreditCardLimitsConfig(BaseModel):
@@ -339,7 +364,9 @@ class UserPreferencesUpdate(BaseModel):
     recurring_min_confidence: Percent | None = None
     recurring_auto_confirm_occurrences: AutoConfirmOccurrences | None = None
 
-    # 9. Spending Rule Targets
+    # 9. Spending Rule Targets. Their total is checked after merging with the
+    # stored values (``_apply_preference_updates``), so a partial update that
+    # changes one of the three cannot leave a split that misses 100%.
     needs_target_percent: Percent | None = None
     wants_target_percent: Percent | None = None
     savings_target_percent: Percent | None = None

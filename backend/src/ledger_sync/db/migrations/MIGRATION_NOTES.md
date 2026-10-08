@@ -18,6 +18,9 @@ Current for Ledger Sync 2.24.1.
   step changes only what differs. Current writers supply every tightened
   value, so a backend-first deploy is safe. It is irreversible; recover with a
   verified backup or a forward repair.
+- `recurring_user_amount_2026` follows `orm_schema_alignment_2026`. It adds
+  the nullable `recurring_transactions.user_expected_amount` column (expand
+  phase); see [Recurring User Amount](#recurring-user-amount).
 
 Alembic imports `ledger_sync.db.models`, which registers every model exported
 from `ledger_sync.db._models`. `create_all()` only creates missing tables. It
@@ -91,6 +94,44 @@ files. Normal operator CLI commands continue to use configured settings.
 If preflight reports conflicting data, preserve a verified backup, review the
 specific accounts or values with their owners, correct them explicitly, and
 retry the migration. No automatic cleanup deletes users or ledger records.
+
+## Recurring User Amount
+
+`recurring_user_amount_2026` is the expand phase of an expand-and-contract
+change. Analytics refresh re-derives `expected_amount` from history for every
+pattern, including confirmed ones, so a user's edited amount is overwritten at
+the next refresh. The new `user_expected_amount NUMERIC(15, 2) NULL` column
+holds the amount the user typed while `expected_amount` stays the detected
+value; NULL means no override. A boolean "amount set by user" flag could not
+keep both values.
+
+Phase 1 (this revision) only adds the column: nullable, no server default, no
+backfill, skipped when it already exists with that shape, and irreversible
+because a downgrade would discard user amounts once phase 2 writes them. The
+ORM maps it `deferred` with `FetchedValue()` and `eager_defaults=False` and no
+app code names it, so a backend that Vercel promotes before `migrate` runs
+never SELECTs, INSERTs, or RETURNs it.
+`tests/integration/test_recurring_user_amount_expand.py` runs the recurring
+list/create/patch/delete endpoints and an analytics refresh at the previous
+head and asserts no emitted statement names the column.
+
+Phase 2 (a later release, after this revision is applied in production):
+
+1. `PATCH /api/analytics/v2/recurring-transactions/{id}` stores an edited
+   amount in `user_expected_amount` and leaves `expected_amount` alone;
+   `POST` keeps writing `expected_amount` for manual rows.
+2. Detection keeps updating `expected_amount` and variance from history and
+   never touches `user_expected_amount`, so the user's amount survives
+   refresh. `test_confirmed_pattern_with_date_trailer_updates_in_place` keeps
+   pinning the detected value.
+3. `GET` returns the effective amount (`user_expected_amount` when set, else
+   `expected_amount`) as `expected_amount`, plus `detected_amount` and
+   `amount_edited`. Monthly totals, sorting, the AI `list_recurring` tool, and
+   scheduled-transaction projections use the effective amount.
+4. The frontend shows an "edited" state with the detected amount beside it and
+   a way to clear the override (PATCH with an explicit reset).
+5. The mapping drops `deferred`, `FetchedValue()`, and `eager_defaults=False`
+   only once no deployed backend can run against a schema without the column.
 
 ## Rollback and Recovery
 

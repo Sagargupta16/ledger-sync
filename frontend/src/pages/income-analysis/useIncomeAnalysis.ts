@@ -1,14 +1,21 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
-import { dataDateRangeOptions, earningStartEvidenceOptions, incomeAnalysisOptions } from '@/hooks/api/useAnalytics'
+import {
+  categoryBreakdownOptions,
+  dataDateRangeOptions,
+  earningStartEvidenceOptions,
+  incomeAnalysisOptions,
+} from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   hasNoCompleteMonthBasis,
   useAnalyticsTimeFilter,
 } from '@/hooks/useAnalyticsTimeFilter'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { rawColors } from '@/constants/colors'
 import { ROLLING_AVG_MONTHS } from '@/lib/chartUtils'
 import { dropPartialMonth } from '@/lib/dateUtils'
@@ -90,24 +97,46 @@ export function useIncomeAnalysis() {
       cashback_categories: cashbackCategories,
     }),
     enabled: preferencesQuery.isSuccess && dateRangeQuery.isSuccess,
+    placeholderData: keepPreviousData,
+  })
+  // Read only to gate the commit: the Income Sources section renders its own
+  // copy for the window this hook hands it (same factory and key).
+  const sourcesQuery = useQuery({
+    ...categoryBreakdownOptions({
+      transaction_type: 'income',
+      start_date: dateRange.start_date ?? undefined,
+      end_date: dateRange.end_date ?? undefined,
+    }),
+    placeholderData: keepPreviousData,
   })
 
-  const income = incomeQuery.data
+  // Everything below renders from ONE window: while a newly selected period
+  // (or source) loads, the previous window's figures and the range they were
+  // fetched for stay on screen together and switch in one render once both
+  // reads have the new one. See `useStablePeriodData`.
+  const stable = useStablePeriodData(
+    { dateRange, partialPeriod, isRangePartialOnly, categoryFilter },
+    [incomeQuery, sourcesQuery],
+  )
+  const shown = stable.period
+  const [income] = stable.data
   const totalIncome = income?.total_income ?? 0
   const cashbacksTotal = income?.cashbacks_total ?? 0
 
+  // Theme-scoped palette copies, so the memo re-runs on a theme toggle.
+  const incomeColors = usePaletteSnapshot(INCOME_CATEGORY_COLORS)
+  const textColors = usePaletteSnapshot(rawColors.text)
   const incomeTypeChartData = useMemo<IncomeCategoryDatum[]>(() => {
-    const defaultColor = rawColors.text.tertiary
     return Object.entries(income?.category_breakdown ?? {})
       .filter(([, value]) => value > 0)
       .map(([category, value]) => ({
         name: category,
         category,
         value,
-        color: INCOME_CATEGORY_COLORS[category] || defaultColor,
+        color: incomeColors[category] || textColors.tertiary,
       }))
       .sort((a, b) => b.value - a.value)
-  }, [income])
+  }, [income, incomeColors, textColors])
 
   const primaryIncomeType = incomeTypeChartData[0]?.name || 'N/A'
   const primaryIncomeValue = incomeTypeChartData[0]?.value ?? 0
@@ -133,10 +162,10 @@ export function useIncomeAnalysis() {
   const hasPartialOnlyBasis = useMemo(
     () =>
       hasNoCompleteMonthBasis(
-        isRangePartialOnly,
+        shown.isRangePartialOnly,
         dropPartialMonth(income?.monthly_data ?? [], 'month').length,
       ) && (income?.monthly_data?.length ?? 0) > 0,
-    [income, isRangePartialOnly],
+    [income, shown.isRangePartialOnly],
   )
 
   const {
@@ -144,9 +173,9 @@ export function useIncomeAnalysis() {
     peakIncome, growthRate, averagePeriod,
   } = useMemo(() => computeIncomeMetrics(income?.monthly_data ?? [], {
     earningStartDate: earningStart.date,
-    startDate: dateRange.start_date,
-    endDate: earlierDateKey(dateRange.end_date, dateBounds.maxDate),
-  }), [income, earningStart.date, dateRange, dateBounds.maxDate])
+    startDate: shown.dateRange.start_date,
+    endDate: earlierDateKey(shown.dateRange.end_date, dateBounds.maxDate),
+  }), [income, earningStart.date, shown.dateRange, dateBounds.maxDate])
 
   const clearCategoryFilter = () => {
     const next = new URLSearchParams(searchParams)
@@ -163,17 +192,25 @@ export function useIncomeAnalysis() {
     void Promise.all(retries)
   }
 
+  const isError = preferencesQuery.isError || dateRangeQuery.isError || incomeQuery.isError ||
+    (needsEarningEvidence && earningEvidenceQuery.isError)
+
   return {
-    isLoading:
-      preferencesQuery.isPending || dateRangeQuery.isPending || incomeQuery.isPending ||
-      (needsEarningEvidence && earningEvidenceQuery.isPending),
-    isError: preferencesQuery.isError || dateRangeQuery.isError || incomeQuery.isError ||
-      (needsEarningEvidence && earningEvidenceQuery.isError),
+    // The income read counts only until the first snapshot commits; after that
+    // a period change settles in place instead of swapping in the skeleton.
+    isLoading: !isError && (
+      preferencesQuery.isPending || dateRangeQuery.isPending || stable.isInitialLoad ||
+      (needsEarningEvidence && earningEvidenceQuery.isPending)
+    ),
+    isSettling: stable.isSettling,
+    isError,
     retry,
+    /** The source in the URL, for the filter banner (a control, so live). */
     categoryFilter,
     clearCategoryFilter,
-    dateRange,
-    partialPeriod,
+    /** The window the figures belong to; the previous one while settling. */
+    dateRange: shown.dateRange,
+    partialPeriod: shown.partialPeriod,
     noCompleteMonthBasis: hasPartialOnlyBasis,
     timeFilterProps,
     totalIncome,

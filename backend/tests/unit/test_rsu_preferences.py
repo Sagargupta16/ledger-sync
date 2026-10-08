@@ -186,6 +186,8 @@ def test_general_preferences_accept_section_valid_values(two_user_client: Any) -
         "payday": 31,
         "savings_goal_percent": 100,
         "needs_target_percent": 0,
+        "wants_target_percent": 50,
+        "savings_target_percent": 50,
         "preferred_tax_regime": "old",
         "earning_start_date": "2024-02-29",
         "monthly_investment_target": 25000.5,

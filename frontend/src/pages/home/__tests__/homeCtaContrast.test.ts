@@ -53,7 +53,7 @@ function classNamesContaining(source: string, utility: string): string[] {
 }
 
 const darkTheme = block('@theme {', '/* ===== LIGHT THEME ===== */')
-const lightTheme = block("[data-theme='light'] {", '\n* {')
+const lightTheme = block("[data-theme='light'] {", '\n@layer base {')
 
 describe('home CTA contrast', () => {
   it.each([
@@ -71,7 +71,7 @@ describe('home CTA contrast', () => {
     }
   })
 
-  it('uses the tested pair for primary CTAs and keeps demo actions secondary', () => {
+  it('uses the tested pair for primary CTAs and the control surface for secondary ones', () => {
     const primaryCtas = [
       ...classNamesContaining(homeSource, 'bg-primary'),
       ...classNamesContaining(heroSource, 'bg-primary'),

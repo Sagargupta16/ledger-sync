@@ -32,6 +32,21 @@ export default function HomePage() {
 
   const handleTryDemo = () => enterDemoMode(queryClient, navigate)
 
+  const handleOpenFeature = (route: string | null) => {
+    if (route === null) {
+      handleGetStarted()
+      return
+    }
+    if (isAuthenticated) {
+      void navigate(route)
+      return
+    }
+    // enterDemoMode replaces "/" with the dashboard; replacing again in the same
+    // tick lands on the page the card describes, with no extra history entry.
+    enterDemoMode(queryClient, navigate)
+    void navigate(route, { replace: true })
+  }
+
   const handleFinalCta = () => {
     if (isAuthenticated) {
       void navigate(ROUTES.UPLOAD)
@@ -97,12 +112,12 @@ export default function HomePage() {
           onTryDemo={handleTryDemo}
         />
         <WhatIsSection />
-        <FeaturesSection />
+        <FeaturesSection isAuthenticated={isAuthenticated} onOpenFeature={handleOpenFeature} />
 
         <section className="border-t border-border bg-[var(--color-surface-2)] py-14 sm:py-18">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
             <div className="max-w-2xl">
-              <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">
+              <p className="ledger-meta mb-3 text-muted-foreground">
                 Your data, one clear view
               </p>
               <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">

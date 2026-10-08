@@ -1,4 +1,4 @@
-import { rawColors } from '@/constants/colors'
+import { onRawColorsRefresh, rawColors } from '@/constants/colors'
 import {
   ACCOUNT_TYPE_VALUES,
   UNCLASSIFIED_ACCOUNT_TYPE,
@@ -53,19 +53,25 @@ function asAccountTypeValue(value: string): AccountTypeValue | null {
     : null
 }
 
-/** Category display configuration */
-export const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.app.green },
-  'Bank Accounts': { label: 'Bank Accounts', color: rawColors.app.blue },
-  Investments: { label: 'Investments', color: rawColors.app.purple },
-  'Loans/Lended': { label: 'Loans/Lended', color: rawColors.app.red },
-  'Credit Cards': { label: 'Credit Cards', color: rawColors.app.orange },
-  cashbank: { label: 'Cash & Bank', color: rawColors.app.blue },
-  invested: { label: 'Investments', color: rawColors.app.purple },
-  lended: { label: 'Lended', color: rawColors.app.teal },
-  liability: { label: 'Liabilities', color: rawColors.app.red },
-  other: { label: 'Other', color: rawColors.text.tertiary },
+/** Category display configuration. Resolved hex for Recharts, rebuilt in place on a theme toggle. */
+function buildCategoryConfig(): Record<string, { label: string; color: string }> {
+  return {
+    'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.app.green },
+    'Bank Accounts': { label: 'Bank Accounts', color: rawColors.app.blue },
+    Investments: { label: 'Investments', color: rawColors.app.purple },
+    'Loans/Lended': { label: 'Loans/Lended', color: rawColors.app.red },
+    'Credit Cards': { label: 'Credit Cards', color: rawColors.app.orange },
+    cashbank: { label: 'Cash & Bank', color: rawColors.app.blue },
+    invested: { label: 'Investments', color: rawColors.app.purple },
+    lended: { label: 'Lended', color: rawColors.app.teal },
+    liability: { label: 'Liabilities', color: rawColors.app.red },
+    other: { label: 'Other', color: rawColors.text.tertiary },
+  }
 }
+
+export const CATEGORY_CONFIG = buildCategoryConfig()
+
+onRawColorsRefresh(() => Object.assign(CATEGORY_CONFIG, buildCategoryConfig()))
 
 /** Classify an account based on classifications map, investment mappings, or name heuristics. */
 export function resolveAccountType(

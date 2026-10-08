@@ -11,15 +11,6 @@ import CircularProgress from './CircularProgress'
 import GoalProjections from './GoalProjections'
 import GoalCardActions, { type GoalCardActionsProps } from './GoalCardActions'
 
-const GOAL_TYPE_TINTS: Record<string, string> = {
-  savings: colors.app.green,
-  debt_payoff: colors.app.red,
-  investment: colors.app.blue,
-  expense_reduction: colors.app.orange,
-  income_increase: colors.app.purple,
-  custom: colors.app.teal,
-}
-
 export default function GoalCard({
   goal,
   effectiveAmount,
@@ -31,9 +22,8 @@ export default function GoalCard({
   avgMonthlySavings: number | null
 }>) {
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
-  // Live theme tokens keep the presentation in sync when the theme changes.
-  // Retain the existing fallback for historical or unknown goal types.
-  const color = GOAL_TYPE_TINTS[goal.goal_type] ?? goalTypeColor(goal.goal_type)
+  // var() token: follows a theme toggle; unknown goal types get the neutral fallback.
+  const color = goalTypeColor(goal.goal_type)
   const progressPct = goal.target_amount > 0 ? (effectiveAmount / goal.target_amount) * 100 : 0
   const remaining = Math.max(0, goal.target_amount - effectiveAmount)
 

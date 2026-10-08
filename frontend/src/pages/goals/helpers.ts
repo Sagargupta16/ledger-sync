@@ -1,6 +1,6 @@
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 import { computeGoalProjection as computeProjection } from '@/lib/finance/goalProjection'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { formatDate } from '@/lib/formatters'
 import type { GoalProjection } from './types'
 
@@ -17,7 +17,7 @@ export function formatMonthYear(date: Date): string {
 
 const GOAL_STATUS_PRESENTATION: Record<
   GoalProjection['status'],
-  { statusLabel: string; color: keyof typeof rawColors.app }
+  { statusLabel: string; color: keyof typeof colors.app }
 > = {
   achieved: { statusLabel: 'Achieved', color: 'green' },
   on_track: { statusLabel: 'On Track', color: 'green' },
@@ -38,6 +38,7 @@ export function computeGoalProjection(
   return {
     ...projection,
     statusLabel: presentation.statusLabel,
-    statusColor: rawColors.app[presentation.color],
+    // var() reference, so the DOM status text follows a theme toggle.
+    statusColor: colors.app[presentation.color],
   }
 }

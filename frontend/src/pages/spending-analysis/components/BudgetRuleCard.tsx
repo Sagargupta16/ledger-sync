@@ -1,5 +1,5 @@
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { colors } from '@/constants/colors'
 import { ProgressBar } from '@/components/shared'
 
 /** A single budget-rule card (Needs/Wants/Savings) with a target progress bar. */
@@ -13,12 +13,13 @@ export function BudgetRuleCard({ title, subtitle, icon: Icon, value, percent, ta
   /** Numeric goal (% of income) -- drives the target tick on the bar. */
   targetPercent: number
   isOverBudget: boolean
+  /** Bar fill. Pass a `colors.*` var() token, not a resolved hex, so it follows a theme toggle. */
   accentColor: string
   bgClass: string
   iconBgClass: string
   textClass: string
 }>) {
-  const barColor = isOverBudget ? SEMANTIC_COLORS.expense : accentColor
+  const barColor = isOverBudget ? colors.financial.expense : accentColor
   const statusColorClass = isOverBudget ? 'text-app-red' : 'text-app-green'
   const deltaPts = percent - targetPercent
 

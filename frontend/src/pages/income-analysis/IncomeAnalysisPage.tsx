@@ -5,6 +5,7 @@ import { FilterBanner } from '@/components/shared/FilterBanner'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
+import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import IncomeCategorySection from './components/IncomeCategorySection'
@@ -17,6 +18,7 @@ export default function IncomeAnalysisPage() {
   const navigate = useNavigate()
   const {
     isLoading,
+    isSettling,
     isError,
     retry,
     categoryFilter,
@@ -64,52 +66,55 @@ export default function IncomeAnalysisPage() {
 
       <StickyToolbar label="Time range">
         <AnalyticsTimeFilter {...timeFilterProps} />
+        <PeriodSettlingBar active={isSettling} />
       </StickyToolbar>
 
       <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
-      {partialPeriod && (
-        <PartialPeriodNotice
-          label={partialPeriod.label}
-          daysElapsed={partialPeriod.daysElapsed}
-          daysTotal={partialPeriod.daysTotal}
-          treatment={
-            noCompleteMonthBasis
-              ? 'There is no completed month here to compare against, so the trend and average cover the month so far and the growth rate and peak are withheld rather than guessed.'
-              : 'Total Income includes it. The trend, average, peak and growth rate cover completed months only, so salary that has not landed yet cannot read as income collapsing.'
-          }
+      <PeriodSettlingContent settling={isSettling} className="space-y-6">
+        {partialPeriod && (
+          <PartialPeriodNotice
+            label={partialPeriod.label}
+            daysElapsed={partialPeriod.daysElapsed}
+            daysTotal={partialPeriod.daysTotal}
+            treatment={
+              noCompleteMonthBasis
+                ? 'There is no completed month here to compare against, so the trend and average cover the month so far and the growth rate and peak are withheld rather than guessed.'
+                : 'Total Income includes it. The trend, average, peak and growth rate cover completed months only, so salary that has not landed yet cannot read as income collapsing.'
+            }
+          />
+        )}
+        <IncomeMetricGrid
+          totalIncome={totalIncome}
+          primaryIncomeType={primaryIncomeType}
+          primaryShare={primaryShare}
+          growthRate={growthRate}
+          incomeSeries={incomeSeries}
+          cashbacksTotal={cashbacksTotal}
+          cashbackShare={cashbackShare}
         />
-      )}
-      <IncomeMetricGrid
-        totalIncome={totalIncome}
-        primaryIncomeType={primaryIncomeType}
-        primaryShare={primaryShare}
-        growthRate={growthRate}
-        incomeSeries={incomeSeries}
-        cashbacksTotal={cashbacksTotal}
-        cashbackShare={cashbackShare}
-      />
-      <p className="text-xs leading-5 text-muted-foreground">
-        {noCompleteMonthBasis ? 'Income average: month so far; growth unavailable.' : `Income average and growth: ${earningsPeriodLabel}.`}
-        {' '}{earningStart.source === 'unknown' ? 'Employment start unconfirmed.' : `Employment start ${earningStart.date} (${earningStart.source}).`}
-        {' '}Zero-income months after employment are included. Chart history follows the selected period.
-      </p>
-      <IncomeTrendSection
-        data={monthlyTrendData}
-        peakIncome={peakIncome}
-        avgIncome={avgIncome}
-        rollingAvgPointCount={rollingAvgPointCount}
-        rollingAvgMonths={rollingAvgMonths}
-      />
-      <IncomeCategorySection
-        data={incomeTypeChartData}
-        totalIncome={totalIncome}
-        onSelectCategory={(name) => {
-          // navigate is typed `void | Promise<void>`; under BrowserRouter it
-          // returns undefined and the prop expects void.
-          void navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
-        }}
-      />
-      <IncomeSourcesSection dateRange={dateRange} />
+        <p className="text-xs leading-5 text-muted-foreground">
+          {noCompleteMonthBasis ? 'Income average: month so far; growth unavailable.' : `Income average and growth: ${earningsPeriodLabel}.`}
+          {' '}{earningStart.source === 'unknown' ? 'Employment start unconfirmed.' : `Employment start ${earningStart.date} (${earningStart.source}).`}
+          {' '}Zero-income months after employment are included. Chart history follows the selected period.
+        </p>
+        <IncomeTrendSection
+          data={monthlyTrendData}
+          peakIncome={peakIncome}
+          avgIncome={avgIncome}
+          rollingAvgPointCount={rollingAvgPointCount}
+          rollingAvgMonths={rollingAvgMonths}
+        />
+        <IncomeCategorySection
+          data={incomeTypeChartData}
+          totalIncome={totalIncome}
+          onSelectCategory={(name) => {
+            // navigate is typed `void | Promise<void>`; under BrowserRouter it
+            // returns undefined and the prop expects void.
+            void navigate(`/transactions?type=Income&category=${encodeURIComponent(name)}`)
+          }}
+        />
+        <IncomeSourcesSection dateRange={dateRange} />
+      </PeriodSettlingContent>
     </PageContainer>
   )
 }

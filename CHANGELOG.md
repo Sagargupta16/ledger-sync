@@ -6,6 +6,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.28.0 - 2026-10-08
+
+Steadier period changes, a livelier landing page, border and theme-color fixes, an enforced 50/30/20 split, and TypeScript 7.
+
+### Added
+
+- The landing page shows an animated sample money-flow from income into spending, investments, savings and tax, counting sample KPIs, an animated income-versus-spending chart, and a feature grid that opens the matching demo page. It adds about 17 KB of JavaScript and still loads no chart library on `/`.
+- Migration `recurring_user_amount_2026` adds a nullable `recurring_transactions.user_expected_amount` column (phase 1 of making edited recurring amounts stick). The app does not read or write it yet, so it is safe whether the backend or the migration deploys first.
+
+### Changed
+
+- Dashboard, Overview, Expense Analysis, Income Analysis and Year in Review keep the previous period's figures on screen, dimmed with a slim updating bar under the pinned filters, until every figure for the new period has loaded, then switch them together. The page no longer collapses to a skeleton or loses its scroll position on a slow network, and figures from two periods never mix.
+- Needs, wants and savings must total 100% in Settings and in the preferences API (422 otherwise); Settings shows the running total and disables Save until it adds up.
+- Tailwind border-color utilities now apply: the global default border and `.ledger-control` rules moved into cascade layers, so active filter pills, info banners, severity chips and error inputs show their intended borders.
+- Charts and swatches that copied their colors at load or inside a memo now follow a theme toggle without a reload: Goals, Comparison KPIs, Budget rule bars, anomaly severity, the Expense and Income Analysis category bars, slices and legends, the Dashboard income and expense pies and CFP radar, Net Worth gradients, Investment allocation, the tax projection sparklines, the Cash Flow Sankey, and the Year in Review heatmap and month cells. A shared `usePaletteSnapshot` hook gives memoized chart data a palette copy that changes on each toggle.
+- The frontend compiles and type-checks with TypeScript 7. typescript-eslint does not support it yet, so `frontend/.pnpmfile.cjs` gives it its own TypeScript 6.
+
 ## 2.27.0 - 2026-10-01
 
 Filters stay in reach while you scroll, two Comparison display fixes, and the deferred major dependency upgrades.

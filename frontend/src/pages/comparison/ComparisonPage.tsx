@@ -3,7 +3,6 @@ import type { KeyboardEvent } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { TrendingUp, TrendingDown, Equal, Upload, Lightbulb } from 'lucide-react'
 import { colors } from '@/constants/colors'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
@@ -187,9 +186,9 @@ export default function ComparisonPage() {
           exit={{ opacity: 0, y: -10 }}
           className="grid grid-cols-1 gap-x-6 gap-y-6 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-4"
         >
-          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} />
-          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} invertChange />
-          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} />
+          <KpiCard title="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={colors.financial.income} />
+          <KpiCard title="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={colors.financial.expense} invertChange />
+          <KpiCard title="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={colors.financial.savings} />
           <KpiCard title="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={colors.app.blue} isPercent />
         </motion.div>
       </AnimatePresence>
@@ -202,9 +201,9 @@ export default function ComparisonPage() {
           Faded bars show {periodA.label}; solid bars show {periodB.label}. Bar length shows magnitude; values retain their sign.
         </p>
         <div className="divide-y divide-border/60">
-          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.income} maxValue={overviewMax} />
-          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.expense} maxValue={overviewMax} invertChange />
-          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={SEMANTIC_COLORS.savings} maxValue={overviewMax} />
+          <OverviewMetricRow label="Income" valueA={periodA.income} valueB={periodB.income} labelA={periodA.label} labelB={periodB.label} color={colors.financial.income} maxValue={overviewMax} />
+          <OverviewMetricRow label="Expenses" valueA={periodA.expense} valueB={periodB.expense} labelA={periodA.label} labelB={periodB.label} color={colors.financial.expense} maxValue={overviewMax} invertChange />
+          <OverviewMetricRow label="Savings" valueA={periodA.savings} valueB={periodB.savings} labelA={periodA.label} labelB={periodB.label} color={colors.financial.savings} maxValue={overviewMax} />
           <OverviewMetricRow label="Savings Rate" valueA={periodA.savingsRate} valueB={periodB.savingsRate} labelA={periodA.label} labelB={periodB.label} color={colors.app.blue} maxValue={100} isPercent />
         </div>
       </motion.div>

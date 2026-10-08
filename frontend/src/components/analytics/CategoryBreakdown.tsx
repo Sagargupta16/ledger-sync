@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { CHART_COLORS } from '@/constants/chartColors'
@@ -78,9 +79,12 @@ export default function CategoryBreakdown({
     [historyByCategory],
   )
 
+  // Theme-scoped copies of the in-place palettes, so rows re-colour on a toggle.
+  const themedColorMap = usePaletteSnapshot(colorMap)
+  const themedDefaultColors = usePaletteSnapshot(defaultColors)
   const { categories, grandTotal } = useMemo(
-    () => buildCategories(categoryData, colorMap, defaultColors, monthlyHistoryByCategory, categoryFilter),
-    [categoryData, colorMap, defaultColors, monthlyHistoryByCategory, categoryFilter],
+    () => buildCategories(categoryData, themedColorMap, themedDefaultColors, monthlyHistoryByCategory, categoryFilter),
+    [categoryData, themedColorMap, themedDefaultColors, monthlyHistoryByCategory, categoryFilter],
   )
 
   // Per-category monthly-average label, derived from the trailing 12-month

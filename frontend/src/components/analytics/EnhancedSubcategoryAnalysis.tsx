@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { Download } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
-import { calculationsApi } from '@/services/api/calculations'
+import {
+  DEFAULT_SUBCATEGORY_FOCUS,
+  expenseCategoryDailySeriesOptions,
+} from '@/components/analytics/categoryDailySeriesQueries'
 import { CHART_COLORS_WARM } from '@/constants/chartColors'
 import {
   bucketDate,
@@ -48,7 +51,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   // changes externally, so we don't need a useEffect sync that tripped
   // the rules-of-hooks "setState in effect" check.
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    categoryFilter ?? 'Food & Dining',
+    categoryFilter ?? DEFAULT_SUBCATEGORY_FOCUS,
   )
   // Per-period by default so spend timing is visible (cumulative hides it).
   const [cumulative, setCumulative] = useState(false)
@@ -79,24 +82,10 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     isError: isSeriesError,
     refetch: refetchSeries,
   } = useQuery({
-    queryKey: [
-      'category-daily-series',
-      'expense',
-      selectedCategory,
-      dateRange?.start_date,
-      dateRange?.end_date,
-    ],
-    queryFn: async () =>
-      (
-        await calculationsApi.getCategoryDailySeries({
-          transaction_type: 'expense',
-          category: selectedCategory,
-          start_date: dateRange?.start_date,
-          end_date: dateRange?.end_date,
-        })
-      ).data,
+    // Shared with the Expense Analysis page, which reads the opening category
+    // for a newly selected window before handing that window down.
+    ...expenseCategoryDailySeriesOptions(selectedCategory, dateRange),
     enabled: Boolean(selectedCategory),
-    staleTime: Infinity,
   })
 
   // Process subcategory data for selected category
