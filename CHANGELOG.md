@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.28.1 - 2026-10-13
+
+A dependency security fix.
+
+### Security
+
+- Transitive source-map-js moves from 1.2.1 to 1.2.2 in the frontend lockfile, fixing an event-loop denial of service through indexed source-map section offsets (Dependabot alert #119). Build tooling only; nothing shipped to the browser changes.
+
+
 ## 2.28.0 - 2026-10-08
 
 Steadier period changes, a livelier landing page, border and theme-color fixes, an enforced 50/30/20 split, and TypeScript 7.
