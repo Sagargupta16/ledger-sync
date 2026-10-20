@@ -526,26 +526,6 @@ body {
   }
 }
 
-/* ===== THEME CROSS-FADE ===== */
-/* Added to <html> only during a theme switch (removed after ~400ms by the
-   theme lib). Gives EVERY element one uniform color/background/border/fill
-   transition so the whole UI cross-fades in sync, instead of cards, body, and
-   borders each easing at their own speed. transform/opacity are deliberately
-   excluded so layout/motion animations (active-tab pill, hovers) aren't
-   dragged into the theme tween. */
-.theme-transition,
-.theme-transition *,
-.theme-transition *::before,
-.theme-transition *::after {
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    fill 150ms ease,
-    stroke 150ms ease,
-    box-shadow 150ms ease !important;
-}
-
 /* ===== SCROLLBAR ===== */
 
 ::-webkit-scrollbar {
@@ -680,24 +660,6 @@ body {
 
 .heatmap-week-appear {
   animation: heatmap-week-reveal var(--duration-normal) var(--ease-cinematic) both;
-}
-
-/* ===== REDUCED MOTION =====
- * Full motion is the default. The persisted in-app setting controls Motion
- * through MotionConfig and this CSS layer without consulting the OS setting. */
-html[data-motion='reduced'],
-html[data-motion='reduced'] *,
-html[data-motion='reduced'] *::before,
-html[data-motion='reduced'] *::after {
-  animation: none !important;
-  scroll-behavior: auto !important;
-  transition: none !important;
-}
-
-html[data-motion='reduced'] .animate-fade-up,
-html[data-motion='reduced'] .heatmap-week-appear {
-  opacity: 1 !important;
-  transform: none !important;
 }
 
 /* ===== PAGE TRANSITION ===== */
@@ -1098,81 +1060,5 @@ input[type='number'] {
   #root select,
   #root textarea {
     min-block-size: 44px;
-  }
-}
-
-/* ===== PRINT STYLESHEET ===== */
-
-@media print {
-
-  /* Hide non-printable elements */
-  nav,
-  aside,
-  .scrollbar-none,
-  button:not([type="submit"]),
-  .recharts-tooltip-wrapper {
-    display: none !important;
-  }
-
-  /* Reset to printable appearance */
-  body {
-    background: white !important;
-    color: black !important;
-  }
-
-  html,
-  #root,
-  .ledger-workspace,
-  .ledger-workspace-bg,
-  .ledger-panel,
-  .ledger-band,
-  .ledger-cell,
-  .ledger-control,
-  [class*='bg-surface-'],
-  [class*='bg-[var(--color-surface-'] {
-    background: white !important;
-    background-image: none !important;
-    color: #111 !important;
-  }
-
-  body::before {
-    display: none !important;
-  }
-
-  * {
-    border-color: #e5e5e5 !important;
-    color: inherit !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    text-shadow: none !important;
-  }
-
-  main {
-    padding: 0 !important;
-  }
-
-  /* Size charts for print */
-  .recharts-responsive-container {
-    page-break-inside: avoid;
-  }
-
-  /* Ensure text is readable */
-  h1,
-  h2,
-  h3 {
-    color: black !important;
-  }
-
-  p,
-  span,
-  td,
-  th {
-    color: #333 !important;
-  }
-
-  @page {
-    margin: 1.5cm;
-    size: A4;
   }
 }
