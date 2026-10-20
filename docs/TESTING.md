@@ -1,6 +1,6 @@
 # Testing Guide
 
-Testing reference for Ledger Sync 2.28.1.
+Testing reference for Ledger Sync 2.28.2.
 
 Verified on 2026-09-30:
 

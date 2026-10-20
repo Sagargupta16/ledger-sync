@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.28.1.
+Current for Ledger Sync 2.28.2.
 
 ## Production Topology
 

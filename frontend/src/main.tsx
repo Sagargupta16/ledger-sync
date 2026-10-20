@@ -2,6 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './fonts.css'
 import './index.css'
+// After index.css: intentional !important overrides (theme fade, Reduced motion, print).
+import './styles/overrides.css'
 import App from './App.tsx'
 
 // ── Suppress known harmless third-party console warnings (production only) ───

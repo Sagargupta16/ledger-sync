@@ -5,12 +5,14 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const themeCss = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
+// The !important overrides (theme fade, Reduced motion, print) live here.
+const overridesCss = readFileSync(resolve(process.cwd(), 'src/styles/overrides.css'), 'utf8')
 
-function themeBlock(start: string, end?: string): string {
-  const startIndex = themeCss.indexOf(start)
-  if (startIndex < 0) throw new Error(`Missing block ${start}: ${themeCss.slice(0, 300)}`)
-  const endIndex = end ? themeCss.indexOf(end, startIndex) : themeCss.length
-  return themeCss.slice(startIndex, endIndex)
+function themeBlock(start: string, end?: string, css: string = themeCss): string {
+  const startIndex = css.indexOf(start)
+  if (startIndex < 0) throw new Error(`Missing block ${start}: ${css.slice(0, 300)}`)
+  const endIndex = end ? css.indexOf(end, startIndex) : css.length
+  return css.slice(startIndex, endIndex)
 }
 
 function token(block: string, name: string): string {
@@ -97,7 +99,8 @@ describe('theme control contrast', () => {
   it('stops root scrolling and CSS animations in reduced mode', () => {
     const reducedBlock = themeBlock(
       "html[data-motion='reduced'],",
-      '/* ===== PAGE TRANSITION ===== */',
+      '/* ===== PRINT STYLESHEET ===== */',
+      overridesCss,
     )
 
     expect(reducedBlock).toContain("html[data-motion='reduced']")

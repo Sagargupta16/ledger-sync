@@ -6,6 +6,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.28.2 - 2026-10-20
+
+The phone app installed from Safari's Add to Home Screen behaves in landscape.
+
+### Fixed
+
+- The installed app no longer sets `apple-mobile-web-app-status-bar-style: black-translucent`. On WebKit's tracker the mode is called deprecated, with the advice to remove the key so the status bar takes the page colour, since Home Screen web apps do not support drawing below the status bar ([webkit.org/b/317153](https://bugs.webkit.org/show_bug.cgi?id=317153)). Delete and re-add the Home Screen icon to pick up the change.
+- In landscape the bottom tab bar pads the left and right safe areas, and the slide-out navigation widens by the left inset, so neither sits under the notch or Dynamic Island. The navigation's profile row now clears the home indicator in both orientations.
+- Toasts clear the phone tab bar and the iOS safe areas instead of covering the tab bar.
+
+### Changed
+
+- The web app manifest's `orientation` is `any` instead of `portrait`. iOS never honoured the lock, and on Android it forced an installed app into portrait, which WCAG 2.1 SC 1.3.4 (AA) does not allow for content that works in both orientations.
+- On a phone in landscape (500px tall or less), the tab bar shows icons only, keeping each label for screen readers and a 44px touch target, so charts and tables get more of the short screen.
+
 ## 2.28.1 - 2026-10-13
 
 A dependency security fix.

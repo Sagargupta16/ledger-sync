@@ -175,11 +175,14 @@ export default function Sidebar() {
         id="workspace-navigation"
         aria-label="Workspace navigation"
         className={cn(
-          'fixed top-0 z-40 h-dvh w-60 border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] transition-transform duration-200 ease-out lg:sticky lg:h-full',
+          // The drawer grows by the left inset and pads it, so a landscape
+          // iPhone keeps the nav clear of the notch; pb-safe lifts the profile
+          // row above the home indicator. Both insets are 0 on desktop.
+          'fixed top-0 z-40 h-dvh w-[calc(15rem+env(safe-area-inset-left,0px))] border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pl-safe transition-transform duration-200 ease-out lg:sticky lg:h-full',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex h-full flex-col pt-safe">
+        <div className="flex h-full flex-col pt-safe pb-safe">
           <BrandHeader />
 
           <div className="border-b border-[var(--hairline-1)] p-2.5">

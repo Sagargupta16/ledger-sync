@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* A phone on its side: ~320-440px tall, so fixed chrome must stay compact.
+   Height, not `orientation` alone, because the keyboard can flip the latter. */
+@custom-variant short-landscape (@media (orientation: landscape) and (max-height: 500px));
+
 @theme {
   /* ===== BASE COLORS =====
      Dark neutrals carry a subtle blue cast (Radix blue-dark 1-2 lineage:
@@ -506,24 +510,20 @@ body {
   }
 }
 
-/* ===== THEME CROSS-FADE ===== */
-/* Added to <html> only during a theme switch (removed after ~400ms by the
-   theme lib). Gives EVERY element one uniform color/background/border/fill
-   transition so the whole UI cross-fades in sync, instead of cards, body, and
-   borders each easing at their own speed. transform/opacity are deliberately
-   excluded so layout/motion animations (active-tab pill, hovers) aren't
-   dragged into the theme tween. */
-.theme-transition,
-.theme-transition *,
-.theme-transition *::before,
-.theme-transition *::after {
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    fill 150ms ease,
-    stroke 150ms ease,
-    box-shadow 150ms ease !important;
+/* Toast offsets (Sonner `offset` / `mobileOffset` in App.tsx). Sonner adds no
+   safe-area handling, so its defaults put phone toasts over the MobileTabBar and,
+   on a landscape iPhone, under the notch or home indicator. Below lg the toasts
+   clear the 68px tab bar; at lg+ only the insets. */
+:root {
+  --toast-offset-bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+  --toast-offset-left: calc(env(safe-area-inset-left, 0px) + 1rem);
+  --toast-offset-right: calc(env(safe-area-inset-right, 0px) + 1rem);
+}
+@media (min-width: 1024px) {
+  :root {
+    --toast-offset-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+    --toast-offset-right: calc(env(safe-area-inset-right, 0px) + 1.5rem);
+  }
 }
 
 /* ===== SCROLLBAR ===== */
@@ -660,24 +660,6 @@ body {
 
 .heatmap-week-appear {
   animation: heatmap-week-reveal var(--duration-normal) var(--ease-cinematic) both;
-}
-
-/* ===== REDUCED MOTION =====
- * Full motion is the default. The persisted in-app setting controls Motion
- * through MotionConfig and this CSS layer without consulting the OS setting. */
-html[data-motion='reduced'],
-html[data-motion='reduced'] *,
-html[data-motion='reduced'] *::before,
-html[data-motion='reduced'] *::after {
-  animation: none !important;
-  scroll-behavior: auto !important;
-  transition: none !important;
-}
-
-html[data-motion='reduced'] .animate-fade-up,
-html[data-motion='reduced'] .heatmap-week-appear {
-  opacity: 1 !important;
-  transform: none !important;
 }
 
 /* ===== PAGE TRANSITION ===== */
@@ -941,9 +923,12 @@ option {
 }
 
 /* ===== SAFE AREA SUPPORT (iOS notch / home indicator) =====
-   With `viewport-fit=cover` + `apple-mobile-web-app-status-bar-style: black-translucent`,
-   the PWA paints under the status bar. These utilities let layout components
-   inset their padding/margin by the device-reported safe area. */
+   With `viewport-fit=cover` the PWA extends to the screen edges, so the notch
+   (left/right in landscape) and the home indicator report insets. These
+   utilities let layout components inset their padding/margin by them. There is
+   no `apple-mobile-web-app-status-bar-style`: on webkit.org/b/317153
+   `black-translucent` is called deprecated, with advice to drop the key so the
+   status bar takes the page colour. */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pr-safe { padding-right: env(safe-area-inset-right); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -1075,81 +1060,5 @@ input[type='number'] {
   #root select,
   #root textarea {
     min-block-size: 44px;
-  }
-}
-
-/* ===== PRINT STYLESHEET ===== */
-
-@media print {
-
-  /* Hide non-printable elements */
-  nav,
-  aside,
-  .scrollbar-none,
-  button:not([type="submit"]),
-  .recharts-tooltip-wrapper {
-    display: none !important;
-  }
-
-  /* Reset to printable appearance */
-  body {
-    background: white !important;
-    color: black !important;
-  }
-
-  html,
-  #root,
-  .ledger-workspace,
-  .ledger-workspace-bg,
-  .ledger-panel,
-  .ledger-band,
-  .ledger-cell,
-  .ledger-control,
-  [class*='bg-surface-'],
-  [class*='bg-[var(--color-surface-'] {
-    background: white !important;
-    background-image: none !important;
-    color: #111 !important;
-  }
-
-  body::before {
-    display: none !important;
-  }
-
-  * {
-    border-color: #e5e5e5 !important;
-    color: inherit !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    text-shadow: none !important;
-  }
-
-  main {
-    padding: 0 !important;
-  }
-
-  /* Size charts for print */
-  .recharts-responsive-container {
-    page-break-inside: avoid;
-  }
-
-  /* Ensure text is readable */
-  h1,
-  h2,
-  h3 {
-    color: black !important;
-  }
-
-  p,
-  span,
-  td,
-  th {
-    color: #333 !important;
-  }
-
-  @page {
-    margin: 1.5cm;
-    size: A4;
   }
 }

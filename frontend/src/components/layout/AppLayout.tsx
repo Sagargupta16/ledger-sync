@@ -81,7 +81,7 @@ export default function AppLayout({ pendingTitle }: Readonly<{ pendingTitle?: st
           <main
             id="main-content"
             aria-busy={Boolean(pendingTitle)}
-            className="relative z-10 min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
+            className="relative z-10 min-h-0 flex-1 overflow-auto overscroll-contain pb-[calc(68px+env(safe-area-inset-bottom,0px))] max-lg:short-landscape:pb-[calc(52px+env(safe-area-inset-bottom,0px))] lg:pb-safe"
           >
             <div className="grid min-h-full">
               <AnimatePresence initial={false} mode="sync">
