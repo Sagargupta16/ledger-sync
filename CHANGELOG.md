@@ -15,6 +15,7 @@ The phone app installed from Safari's Add to Home Screen behaves in landscape.
 - The installed app no longer sets `apple-mobile-web-app-status-bar-style: black-translucent`. On WebKit's tracker the mode is called deprecated, with the advice to remove the key so the status bar takes the page colour, since Home Screen web apps do not support drawing below the status bar ([webkit.org/b/317153](https://bugs.webkit.org/show_bug.cgi?id=317153)). Delete and re-add the Home Screen icon to pick up the change.
 - In landscape the bottom tab bar pads the left and right safe areas, and the slide-out navigation widens by the left inset, so neither sits under the notch or Dynamic Island. The navigation's profile row now clears the home indicator in both orientations.
 - Toasts clear the phone tab bar and the iOS safe areas instead of covering the tab bar.
+- The backend reports its real release on `/health`. `ledger_sync.__version__` stayed at 2.28.0 when 2.28.1 was cut, so the Pages deploy, which waits for the backend to report the frontend's version, timed out and the 2.28.1 frontend never published.
 
 ### Changed
 
