@@ -964,9 +964,9 @@ option {
    With `viewport-fit=cover` the PWA extends to the screen edges, so the notch
    (left/right in landscape) and the home indicator report insets. These
    utilities let layout components inset their padding/margin by them. There is
-   no `apple-mobile-web-app-status-bar-style`: WebKit calls `black-translucent`
-   deprecated and says to drop the key so the status bar takes the page colour
-   (webkit.org/b/317153). */
+   no `apple-mobile-web-app-status-bar-style`: on webkit.org/b/317153
+   `black-translucent` is called deprecated, with advice to drop the key so the
+   status bar takes the page colour. */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pr-safe { padding-right: env(safe-area-inset-right); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
