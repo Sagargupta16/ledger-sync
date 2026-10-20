@@ -323,6 +323,14 @@ const TOASTER_OPTIONS = {
   style: TOASTER_STYLE,
 } as const
 
+/** Safe-area-aware offsets from index.css, so toasts clear the phone tab bar,
+ *  the home indicator and a landscape notch. */
+const TOASTER_OFFSET = {
+  bottom: 'var(--toast-offset-bottom)',
+  left: 'var(--toast-offset-left)',
+  right: 'var(--toast-offset-right)',
+} as const
+
 function App() {
   const resolvedTheme = useThemeStore((state) => state.resolved)
   const motionMode = useMotionStore((state) => state.mode)
@@ -349,6 +357,8 @@ function App() {
               position="bottom-right"
               theme={resolvedTheme}
               toastOptions={TOASTER_OPTIONS}
+              offset={TOASTER_OFFSET}
+              mobileOffset={TOASTER_OFFSET}
             />
           </PreferencesProvider>
         </AuthInitializer>

@@ -33,7 +33,8 @@ const TABS: readonly TabItem[] = [
  *
  * Hidden at lg+ (1024px) where the sidebar owns primary navigation. Pinned
  * to the bottom via `fixed`, sits inside its own safe-area padding so the
- * iOS home indicator doesn't overlap icons.
+ * iOS home indicator doesn't overlap icons, and pads the left/right insets so
+ * a landscape iPhone keeps the outer tabs clear of the notch and corners.
  *
  * Active-tab feedback: the icon colors flip to primary + a small pill
  * highlight slides under the active item (Framer Motion `layoutId` =
@@ -52,9 +53,9 @@ export default function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] lg:hidden"
     >
-      <ul className="flex items-stretch justify-around px-2 pt-1.5">
+      <ul className="flex items-stretch justify-around px-2 pt-1.5 short-landscape:pt-1">
         {TABS.map((tab) => {
           const badge = tab.to === ROUTES.MORE ? moreAlertCount : 0
           return (
@@ -63,8 +64,9 @@ export default function MobileTabBar() {
               to={tab.to}
               className={({ isActive }) =>
                 cn(
-                  'relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]',
-                  // min-height hits Apple's 44x44 guidance comfortably
+                  'relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] short-landscape:min-h-11 short-landscape:py-1',
+                  // min-height hits Apple's 44x44 guidance comfortably; a
+                  // landscape phone keeps exactly 44px and drops the visible label
                   isActive ? 'text-foreground' : 'text-text-tertiary hover:text-foreground',
                 )
               }
@@ -94,7 +96,8 @@ export default function MobileTabBar() {
                   </span>
                   <span
                     className={cn(
-                      'relative z-[1] text-[10px] sm:text-[11px] font-medium leading-none',
+                      // sr-only, not hidden, in landscape so each tab keeps its name
+                      'relative z-[1] text-[10px] sm:text-[11px] font-medium leading-none short-landscape:sr-only',
                       isActive && 'text-foreground',
                     )}
                   >

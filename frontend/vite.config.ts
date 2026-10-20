@@ -72,7 +72,10 @@ export default defineConfig({
         theme_color: '#eaf0f7',
         background_color: '#eaf0f7',
         display: 'standalone',
-        orientation: 'portrait',
+        // Follow the device. 'portrait' locked Android installs to one
+        // orientation (WCAG 2.1 SC 1.3.4) and iOS ignores the member anyway,
+        // so the layout must work in landscape regardless.
+        orientation: 'any',
         // start_url is relative to Vite's `base`, so it resolves to /ledger-sync/ on GH Pages.
         start_url: '.',
         scope: '.',

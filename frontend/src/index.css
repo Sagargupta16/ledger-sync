@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* A phone on its side: ~320-440px tall, so fixed chrome must stay compact.
+   Height, not `orientation` alone, because the keyboard can flip the latter. */
+@custom-variant short-landscape (@media (orientation: landscape) and (max-height: 500px));
+
 @theme {
   /* ===== BASE COLORS =====
      Dark neutrals carry a subtle blue cast (Radix blue-dark 1-2 lineage:
@@ -506,6 +510,22 @@ body {
   }
 }
 
+/* Toast offsets (Sonner `offset` / `mobileOffset` in App.tsx). Sonner adds no
+   safe-area handling, so its defaults put phone toasts over the MobileTabBar and,
+   on a landscape iPhone, under the notch or home indicator. Below lg the toasts
+   clear the 68px tab bar; at lg+ only the insets. */
+:root {
+  --toast-offset-bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+  --toast-offset-left: calc(env(safe-area-inset-left, 0px) + 1rem);
+  --toast-offset-right: calc(env(safe-area-inset-right, 0px) + 1rem);
+}
+@media (min-width: 1024px) {
+  :root {
+    --toast-offset-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+    --toast-offset-right: calc(env(safe-area-inset-right, 0px) + 1.5rem);
+  }
+}
+
 /* ===== THEME CROSS-FADE ===== */
 /* Added to <html> only during a theme switch (removed after ~400ms by the
    theme lib). Gives EVERY element one uniform color/background/border/fill
@@ -941,9 +961,12 @@ option {
 }
 
 /* ===== SAFE AREA SUPPORT (iOS notch / home indicator) =====
-   With `viewport-fit=cover` + `apple-mobile-web-app-status-bar-style: black-translucent`,
-   the PWA paints under the status bar. These utilities let layout components
-   inset their padding/margin by the device-reported safe area. */
+   With `viewport-fit=cover` the PWA extends to the screen edges, so the notch
+   (left/right in landscape) and the home indicator report insets. These
+   utilities let layout components inset their padding/margin by them. There is
+   no `apple-mobile-web-app-status-bar-style`: WebKit calls `black-translucent`
+   deprecated and says to drop the key so the status bar takes the page colour
+   (webkit.org/b/317153). */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pr-safe { padding-right: env(safe-area-inset-right); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
