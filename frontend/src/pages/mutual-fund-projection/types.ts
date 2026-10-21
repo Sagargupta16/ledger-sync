@@ -17,9 +17,3 @@ export interface MutualFundAccount {
   name: string
   balance: number
 }
-
-export interface SIPTransfer {
-  date: string
-  amount: number
-  note?: string | null
-}

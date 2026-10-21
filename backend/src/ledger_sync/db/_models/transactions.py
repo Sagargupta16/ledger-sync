@@ -1,5 +1,7 @@
 """Transaction, ImportLog, and ColumnMappingLog models."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -115,7 +117,7 @@ class Transaction(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="transactions")
+    user: Mapped[User] = relationship("User", back_populates="transactions")
 
     # Composite indexes. EVERY query in this app is user-scoped
     # (``WHERE user_id = ? AND is_deleted = false`` then a date range / type /
@@ -238,7 +240,7 @@ class ImportLog(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="import_logs")
+    user: Mapped[User] = relationship("User", back_populates="import_logs")
 
     def __repr__(self) -> str:
         """Return string representation."""

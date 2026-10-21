@@ -114,7 +114,7 @@ async def _fetch_rates(
 @router.get(
     "",
     responses={
-        400: {"description": "on_date is in the future"},
+        422: {"description": "on_date is in the future"},
         502: {"description": "Unable to fetch rates from external API"},
     },
 )
@@ -163,7 +163,7 @@ async def resolve_exchange_rates(
         # The user's calendar day (IST): for 5.5 hours a day the UTC date is
         # still yesterday, which rejected a vest dated today as "future".
         if on_date > ledger_today():
-            raise HTTPException(status_code=400, detail="on_date cannot be in the future")
+            raise HTTPException(status_code=422, detail="on_date cannot be in the future")
         try:
             rates, priced_on = await _fetch_rates(client, base, on_date)
         except (httpx.HTTPError, ValueError, KeyError) as err:

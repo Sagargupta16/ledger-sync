@@ -5,9 +5,7 @@ import { meanRateSubtitle } from '@/lib/distribution'
 import type { MonthlySpendShape, SpendingBreakdown } from '@/lib/finance/spending'
 import type { CategoryBreakdown } from '@/services/api/calculations'
 
-export { monthKeysBetween } from '@/lib/dateUtils'
-export { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys } from '@/lib/finance/spending'
-export type { BudgetRuleMetrics, MonthlySpendShape } from '@/lib/finance/spending'
+export type { BudgetRuleMetrics } from '@/lib/finance/spending'
 
 /**
  * `category -> total` from a `/category-breakdown` payload, narrowed to one

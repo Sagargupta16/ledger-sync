@@ -13,7 +13,7 @@ from ledger_sync.api.calculations_helpers import (
     _build_category_data_from_rows,
     _build_category_data_from_trends,
 )
-from ledger_sync.core.expense_class import capital_loss_sql_filter
+from ledger_sync.core.expense_class import without_capital_losses
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
     capital_loss_keys_for,
@@ -22,7 +22,7 @@ from ledger_sync.core.query_helpers import (
 from ledger_sync.db.models import CategoryTrend, Transaction, TransactionType, User
 
 
-def without_capital_losses(
+def _without_expense_losses(
     query: SAQuery[Transaction], user: User, tx_type: TransactionType
 ) -> SAQuery[Transaction]:
     """Drop the user's classified realised-loss rows from an EXPENSE query.
@@ -34,8 +34,7 @@ def without_capital_losses(
     """
     if tx_type != TransactionType.EXPENSE:
         return query
-    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
-    return query if not_a_loss is None else query.filter(not_a_loss)
+    return without_capital_losses(query, capital_loss_keys_for(user))
 
 
 def master_categories(db: Session, user: User) -> dict[str, dict[str, list[str]]]:
@@ -108,7 +107,7 @@ def category_breakdown(
     query = build_transaction_query(db, user, start_date, end_date).filter(
         Transaction.type == tx_type
     )
-    query = without_capital_losses(query, user, tx_type)
+    query = _without_expense_losses(query, user, tx_type)
 
     base = query.subquery()
     cat_col = func.coalesce(base.c.category, "Uncategorized")
@@ -173,7 +172,7 @@ def category_daily_series(
     query = build_transaction_query(db, user, start_date, end_date).filter(
         Transaction.type == tx_type
     )
-    query = without_capital_losses(query, user, tx_type)
+    query = _without_expense_losses(query, user, tx_type)
     if category:
         query = query.filter(Transaction.category == category)
 
@@ -206,50 +205,3 @@ def category_daily_series(
         ],
         "transaction_count": sum(r.count for r in rows),
     }
-
-
-def top_categories(
-    db: Session,
-    user: User,
-    start_date: datetime | None,
-    end_date: datetime | None,
-    *,
-    limit: int,
-    tx_type: TransactionType,
-) -> list[dict[str, Any]]:
-    """Top *limit* categories by amount, each with its share of the grand total."""
-    query = build_transaction_query(db, user, start_date, end_date).filter(
-        Transaction.type == tx_type
-    )
-    query = without_capital_losses(query, user, tx_type)
-
-    base = query.subquery()
-    cat_col = func.coalesce(base.c.category, "Uncategorized").label("category")
-
-    rows = (
-        db.query(
-            cat_col,
-            func.coalesce(func.sum(base.c.amount), 0).label("amount"),
-            func.count().label("count"),
-        )
-        .group_by(cat_col)
-        .order_by(func.sum(base.c.amount).desc())
-        .limit(limit)
-        .all()
-    )
-
-    # We need the grand total (not just top-N total) for accurate percentages.
-    grand_total_row = db.query(
-        func.coalesce(func.sum(base.c.amount), 0).label("grand_total"),
-    ).one()
-    grand_total = float(grand_total_row.grand_total)
-
-    return [
-        {
-            "category": row.category,
-            "amount": float(row.amount),
-            "percentage": (float(row.amount) / grand_total * 100) if grand_total > 0 else 0,
-            "count": row.count,
-        }
-        for row in rows
-    ]

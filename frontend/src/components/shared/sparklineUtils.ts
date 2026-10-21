@@ -1,12 +1,12 @@
 export const COMPACT_VIEWBOX_W = 100
 export const COMPACT_VIEWBOX_H = 30
 
-export interface SparkPoint {
+interface SparkPoint {
   x: number
   y: number
 }
 
-export interface CompactGeometry {
+interface CompactGeometry {
   linePath: string
   areaPath: string
   last: SparkPoint
@@ -45,13 +45,13 @@ export function buildCompactGeometry(data: number[]): CompactGeometry | null {
   return { linePath, areaPath, last }
 }
 
-export interface DefaultSparkPoint {
+interface DefaultSparkPoint {
   x: number
   y: number
   value: number
 }
 
-export interface DefaultGeometry {
+interface DefaultGeometry {
   linePath: string
   areaPath: string
   points: DefaultSparkPoint[]

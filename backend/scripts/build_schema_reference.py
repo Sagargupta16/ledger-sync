@@ -838,6 +838,10 @@ MEANINGS = {
     "recurring_transactions": {
         "pattern_name": "Recurring-pattern display name.",
         "expected_amount": "Expected amount per occurrence.",
+        "user_expected_amount": (
+            "User-set amount per occurrence; NULL means none. Added in phase 1"
+            " (recurring_user_amount_2026); the app does not read or write it yet."
+        ),
         "amount_variance": "Allowed amount variation around the expected value.",
         "confidence_score": "Detection confidence, conventionally 0..100.",
         "occurrences_detected": "Number of observed occurrences.",
@@ -921,6 +925,10 @@ def sql(value):
 def default_value(value, expression=None):
     if value is None:
         return None
+    if not hasattr(value, "arg"):
+        # FetchedValue: the ORM leaves the column out of INSERTs and lets the
+        # database supply it (e.g. a column the live schema may not have yet).
+        return "database-supplied (FetchedValue)"
     arg = value.arg
     if callable(arg):
         return "application callable: " + (

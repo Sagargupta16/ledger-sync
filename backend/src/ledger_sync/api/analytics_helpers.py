@@ -14,7 +14,6 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
-from ledger_sync.core.expense_class import capital_loss_sql_filter
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
@@ -243,40 +242,6 @@ def _get_sql_monthly_data(
         }
         for row in rows
     }
-
-
-def _get_sql_category_totals(
-    db: Session,
-    user: User,
-    time_range: TimeRange,
-) -> dict[str, float]:
-    """Return expense totals grouped by category using SQL.
-
-    Only ``EXPENSE`` transactions are included, matching the behaviour of
-    ``calculator.group_by_category``.
-
-    Taxonomies the user classified as realised investment losses are dropped so
-    this ranking agrees with ``CategoryTrend`` / ``/category-breakdown``; a
-    realised loss is a negative investment return, not a spending category.
-    """
-    expense_query = _build_base_query(db, user, time_range).filter(
-        Transaction.type == TransactionType.EXPENSE
-    )
-    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
-    if not_a_loss is not None:
-        expense_query = expense_query.filter(not_a_loss)
-    base = expense_query.subquery()
-
-    rows = (
-        db.query(
-            base.c.category,
-            func.coalesce(func.sum(base.c.amount), 0).label("total"),
-        )
-        .group_by(base.c.category)
-        .all()
-    )
-
-    return {row.category: float(row.total) for row in rows}
 
 
 def _get_sql_account_totals(

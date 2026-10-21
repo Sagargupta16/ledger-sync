@@ -4,14 +4,14 @@ import { computeWeekdaySpending } from '@/lib/finance/spendingStatistics'
 import type { DayCell } from './components/DayOfWeekChart'
 import { DAYS } from './types'
 
-export interface DayOfWeekPoint {
+interface DayOfWeekPoint {
   readonly day: string
   readonly spending: number
   readonly earning: number
   readonly dayIndex: number
 }
 
-export interface DayOfWeekInsights {
+interface DayOfWeekInsights {
   readonly topDay: string
   readonly topAmount: number
   readonly bottomDay: string | undefined

@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   computeDaysInRange,
   computeMonthsInRange,
+  computeSpendingPace,
   medianSpendingDay,
   resolveSpanRange,
-} from '../quickInsightsData'
-import { computeSpendingPace } from '@/lib/finance/spendingStatistics'
+} from '@/lib/finance/spendingStatistics'
 
 /**
  * Two defects these lock, both measured on the real 8,181-row ledger.

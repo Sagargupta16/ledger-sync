@@ -1,4 +1,4 @@
-/** Flexible column name mappings — mirrors backend settings.py. */
+/** Flexible column name mappings -- mirrors backend settings.py. */
 export const COLUMN_MAPPINGS: Record<string, string[]> = {
   date: ['Period', 'Date', 'date', 'period'],
   account: ['Accounts', 'Account', 'account', 'accounts'],

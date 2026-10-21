@@ -28,17 +28,6 @@ class TransferReconcilerMixin:
     def _mark_soft_deletes(self, import_time: datetime, *, transfers: bool) -> int:
         raise NotImplementedError
 
-    def reconcile_transfer(
-        self,
-        normalized_row: dict[str, Any],
-        source_file: str,
-        import_time: datetime,
-        *,
-        occurrence: int = 0,
-    ) -> tuple[Transaction, str]:
-        identity = identity_for(normalized_row, self._ensure_user_id(), occurrence)
-        return self._persist_rows([normalized_row], [identity], source_file, import_time)[0]
-
     def mark_soft_deletes_transfers(self, import_time: datetime) -> int:
         return self._mark_soft_deletes(import_time, transfers=True)
 

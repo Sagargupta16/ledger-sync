@@ -6,7 +6,7 @@ import {
   toLocalDateKey,
 } from '@/lib/dateUtils'
 
-export interface GoalProjectionInput {
+interface GoalProjectionInput {
   target_amount: number
   target_date: string | null
 }

@@ -1,6 +1,6 @@
 # Migration Notes
 
-Current for Ledger Sync 2.24.1.
+Current for Ledger Sync 2.29.0.
 
 ## Revision Chain
 
@@ -196,7 +196,7 @@ transaction boundary, so they remain effective through a transaction pooler.
 
 `ci.yml` calls `migrate.yml` only after frontend, GitHub Pages build, backend,
 security, and PostgreSQL migration checks pass for the same `main` commit. Migrations use
-Python 3.13, locked dependencies, the `production` environment, and the direct
+Python 3.14, locked dependencies, the `production` environment, and the direct
 Neon endpoint stored in the GitHub `LEDGER_SYNC_DATABASE_URL` secret. The
 application's separately configured value uses the pooler. Main releases and
 migration jobs do not cancel an active run.

@@ -1,5 +1,5 @@
 import { calculateXIRR } from '@/lib/xirr'
-import { addMonthsToKey, formatMonthKey, MS_PER_YEAR } from '@/lib/dateUtils'
+import { addMonthsToKey, formatMonthKey, getDateKey, MS_PER_YEAR } from '@/lib/dateUtils'
 import {
   allocateHistoricalSIPValue,
   calculateSIPBenchmarkValue,
@@ -63,9 +63,11 @@ export function buildHistoricalChartData(
   let cumulativeInvested = 0
   const monthlyInvested = new Map<string, number>()
 
+  // Month keys come straight off the ledger date string. `new Date('YYYY-MM-DD')`
+  // parses as UTC midnight, so local getters put a 1st-of-month SIP in the
+  // previous month for anyone west of UTC.
   for (const tx of sipTransfers) {
-    const date = new Date(tx.date)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const monthKey = getDateKey(tx.date).slice(0, 7)
     cumulativeInvested += tx.amount
     monthlyInvested.set(monthKey, cumulativeInvested)
   }
@@ -76,8 +78,7 @@ export function buildHistoricalChartData(
   // compound every contribution forward without re-parsing dates each month.
   const contributionsByMonth = new Map<number, number>()
   for (const tx of sipTransfers) {
-    const d = new Date(tx.date)
-    const idx = d.getFullYear() * 12 + d.getMonth()
+    const idx = monthIndexOfKey(getDateKey(tx.date).slice(0, 7))
     contributionsByMonth.set(idx, (contributionsByMonth.get(idx) ?? 0) + tx.amount)
   }
 

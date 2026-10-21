@@ -323,7 +323,7 @@ export function getOverallStatus(score: number) {
 
 export function getSummary(score: number): string {
   if (score >= 80)
-    return 'You are financially healthy — spending within means, building savings, and managing debt well. Keep it up!'
+    return 'You are financially healthy - spending within means, building savings, and managing debt well. Keep it up!'
   if (score >= 60)
     return 'You are coping well financially but have room for improvement. Focus on strengthening your weaker pillars.'
   if (score >= 40)

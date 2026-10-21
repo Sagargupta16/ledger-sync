@@ -21,7 +21,7 @@ export interface DayCell {
   hasTx: boolean
 }
 
-export interface DayOfWeekChartProps {
+interface DayOfWeekChartProps {
   grid: DayCell[]
 }
 

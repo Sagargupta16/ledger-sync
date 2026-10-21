@@ -69,7 +69,7 @@ function effectiveLatestDate(health: DataHealth, now: Date): string | null {
 }
 
 /** Whole days since an ISO timestamp, floored at 0. Null input passes through. */
-export function daysSince(isoTimestamp: string | null, now: Date = new Date()): number | null {
+function daysSince(isoTimestamp: string | null, now: Date = new Date()): number | null {
   if (!isoTimestamp) return null
   const stamp = isoTimestamp.slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(stamp)) return null

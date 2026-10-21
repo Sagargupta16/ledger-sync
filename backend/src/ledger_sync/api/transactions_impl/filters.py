@@ -1,4 +1,4 @@
-"""Search filters, date bounds, sorting and the user-scoped base query."""
+"""Search filters, date bounds and sorting for the transactions endpoints."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from typing import Annotated, Any
 from fastapi import Query
 from pydantic import BaseModel
 from sqlalchemy import exists, literal, or_
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm import Query as SAQuery
 
 from ledger_sync.api.transaction_pagination import cursor_context
 from ledger_sync.core.query_helpers import (
-    apply_excluded_accounts_filter,
+    date_range_criteria,
     excluded_accounts_for,
     inclusive_end,
 )
@@ -104,10 +104,7 @@ def _apply_date_and_amount_filters(
     filters: SearchFilters,
 ) -> TxQuery:
     """Apply date range and amount range filters."""
-    if filters.start_date:
-        tx_query = tx_query.filter(Transaction.date >= filters.start_date)
-    if filters.end_date:
-        tx_query = tx_query.filter(Transaction.date <= inclusive_end(filters.end_date))
+    tx_query = tx_query.filter(*date_range_criteria(filters.start_date, filters.end_date))
     if filters.min_amount is not None:
         tx_query = tx_query.filter(Transaction.amount >= filters.min_amount)
     if filters.max_amount is not None:
@@ -202,35 +199,3 @@ def _apply_tag_filter(tx_query: TxQuery, user_id: int, tag: str | None) -> TxQue
             & (TransactionTag.tag == tag)
         )
     )
-
-
-def _base_transaction_query(db: Session, user: User) -> SAQuery[Transaction]:
-    """Create base query for non-deleted, non-excluded transactions for user.
-
-    Honours the user's ``excluded_accounts`` preference via
-    ``excluded_accounts_for`` so the raw transactions endpoints stay
-    consistent with the analytics pipeline.
-    """
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-    )
-    return apply_excluded_accounts_filter(query, excluded_accounts_for(user))
-
-
-def _apply_date_range(
-    query: SAQuery[Transaction],
-    start_date: datetime | None,
-    end_date: datetime | None,
-) -> SAQuery[Transaction]:
-    """Apply explicit date-range filters to a transaction query.
-
-    Earning-start is deliberately NOT applied here: transactions
-    endpoints return factual raw data, and the caller supplies the
-    window it wants. View-layer clamping belongs on the client.
-    """
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= inclusive_end(end_date))
-    return query

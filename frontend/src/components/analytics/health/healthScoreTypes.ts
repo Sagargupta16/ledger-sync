@@ -112,34 +112,6 @@ export const DISCRETIONARY_CATEGORIES = [
   'Personal Care',
 ]
 
-export const ESSENTIAL_CATEGORIES = [
-  'Rent',
-  'Utilities',
-  'Groceries',
-  'Healthcare',
-  'Insurance',
-  'Education',
-  'Transportation',
-  'Fuel',
-  'Medicine',
-]
-
-export const INVESTMENT_ACCOUNT_PATTERNS = [
-  'mutual fund',
-  'mf',
-  'grow',
-  'zerodha',
-  'kuvera',
-  'coin',
-  'smallcase',
-  'stocks',
-  'demat',
-  'ppf',
-  'nps',
-  'elss',
-  'epf',
-]
-
 export const INVESTMENT_NOTE_KEYWORDS = [
   'sip',
   'mutual fund',
@@ -203,14 +175,6 @@ export function cvToLabel(cv: number): string {
   return 'High'
 }
 
-export function coefficientOfVariation(values: number[]): number {
-  if (values.length === 0) return 0
-  const mean = values.reduce((a, b) => a + b, 0) / values.length
-  if (mean === 0) return 0
-  const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length
-  return (Math.sqrt(variance) / Math.abs(mean)) * 100
-}
-
 /**
  * Recency-weighted coefficient of variation (%). Recent months count more
  * than old ones, so a now-steady earner isn't flagged "volatile" by long-past
@@ -242,13 +206,17 @@ export function checkIsInvestmentTransaction(
   return healthInvestmentTransferDelta(tx, isInvestmentAccount) > 0
 }
 
+/**
+ * The caller's investment perimeter only (`investmentAccountTest`: the mapped
+ * accounts, or the default keywords when nothing is mapped). A second
+ * substring list here used to widen it, so with mappings configured an
+ * unmapped "Groww Wallet" still counted as an investment.
+ */
 export function isToAccountInvestment(
   toAccount: string | undefined,
   isInvestmentAccount: (name: string) => boolean,
 ): boolean {
-  if (!toAccount) return false
-  if (isInvestmentAccount(toAccount)) return true
-  return matchesPatterns(toAccount.toLowerCase(), INVESTMENT_ACCOUNT_PATTERNS)
+  return toAccount ? isInvestmentAccount(toAccount) : false
 }
 
 export function checkIsInvestmentWithdrawal(

@@ -19,12 +19,11 @@ import { freshDefaults } from './preferencesDefaults'
 import { parseApiPreferences } from './preferencesHydration'
 import type { PreferencesState } from './preferencesTypes'
 
-export type { DisplayPreferences, IncomeClassification, PreferencesState } from './preferencesTypes'
+export type { IncomeClassification } from './preferencesTypes'
 export {
   resolveEssentialCategories,
   resolveIncomeClassification,
   withIncomeClassificationDefaults,
-  type IncomeListPayload,
 } from './preferencesHydration'
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -111,50 +110,14 @@ export const usePreferencesStore = create<PreferencesState>()(
 )
 
 // Selectors for convenience
-export const selectNumberFormat = (state: PreferencesState) =>
-  state.displayPreferences.numberFormat
-
-export const selectCurrencySymbol = (state: PreferencesState) =>
-  state.displayPreferences.currencySymbol
-
-export const selectCurrencyPosition = (state: PreferencesState) =>
-  state.displayPreferences.currencySymbolPosition
-
-export const selectIncomeClassification = (state: PreferencesState) =>
-  state.incomeClassification
-
-export const selectInvestmentMappings = (state: PreferencesState) =>
-  state.investmentAccountMappings
-
-export const selectEssentialCategories = (state: PreferencesState) =>
-  state.essentialCategories
-
 export const selectFiscalYearStartMonth = (state: PreferencesState) =>
   state.fiscalYearStartMonth
-
-// Individual selectors for spending targets to avoid creating new objects on every call.
-// Use these separately or combine with useShallow from zustand/react/shallow.
-export const selectNeedsTargetPercent = (state: PreferencesState) =>
-  state.needsTargetPercent
-export const selectWantsTargetPercent = (state: PreferencesState) =>
-  state.wantsTargetPercent
-export const selectSavingsTargetPercent = (state: PreferencesState) =>
-  state.savingsTargetPercent
 
 export const selectCreditCardLimits = (state: PreferencesState) =>
   state.creditCardLimits
 
-export const selectEarningStartDate = (state: PreferencesState) =>
-  state.earningStartDate
-
-export const selectUseEarningStartDate = (state: PreferencesState) =>
-  state.useEarningStartDate
-
 export const selectDisplayCurrency = (state: PreferencesState) =>
   state.displayCurrency
-
-export const selectExchangeRate = (state: PreferencesState) =>
-  state.exchangeRate
 
 export const selectSalaryStructure = (state: PreferencesState) => state.salaryStructure
 export const selectRsuGrants = (state: PreferencesState) => state.rsuGrants

@@ -126,24 +126,12 @@ export const analyticsService = {
 }
 
 /**
- * Live backend endpoints this client deliberately no longer wraps.
+ * `GET /api/analytics/wrapped`, the four `/charts/*` endpoints and
+ * `/insights/generated` had no client caller, and were removed from the backend
+ * on 2026-10-21. Untyped dead wrappers are how the `GeneratedInsight` response
+ * shape drifted wrong on every single field without a compile error: nothing
+ * consumed it, so nothing disagreed.
  *
- * `GET /api/analytics/wrapped`, `/charts/income-expense`, `/charts/categories`,
- * `/charts/monthly-trends`, `/charts/account-distribution` and
- * `/insights/generated` all still exist and are still tested server-side. Their
- * client methods had zero call sites anywhere under `src/` -- including tests --
- * and three of them had a TanStack hook that nothing mounted either. Untyped
- * dead wrappers are how the `GeneratedInsight` response shape drifted wrong on
- * every single field without a compile error: nothing consumed it, so nothing
- * disagreed.
- *
- * Unlike `useKPIs` / `useOverview` / `useBehavior` -- which
- * `lib/demo/__tests__/seedReaderContract.test.tsx` pins as
- * consumerless-but-serviceable because `DEMO_ROUTES` still answers them -- none
- * of the six above had a `DEMO_ROUTES` entry, so in demo mode they resolved the
- * `[]` catch-all and would have rendered an empty chart rather than data. They
- * were not serviceable, only present.
- *
- * Re-add one as a four-line method when a page actually needs it, and add its
- * params to `DECLARED_PARAMS` in `__tests__/analyticsParamContract.test.ts`.
+ * When a page needs a new endpoint, add a typed method here together with its
+ * params in `DECLARED_PARAMS` in `__tests__/analyticsParamContract.test.ts`.
  */

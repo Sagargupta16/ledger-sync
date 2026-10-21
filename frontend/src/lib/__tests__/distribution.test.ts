@@ -8,7 +8,6 @@ import {
   meanRateSubtitle,
   meanVsTypicalSubtitle,
   medianOf,
-  seriesShape,
   skewFactor,
   typicalVsMeanSubtitle,
 } from '../distribution'
@@ -145,28 +144,6 @@ describe('formatSkewFactor', () => {
   it('rounds to whole numbers at or above 10x', () => {
     expect(formatSkewFactor(10.48)).toBe('10x')
     expect(formatSkewFactor(56.65)).toBe('57x')
-  })
-})
-
-describe('seriesShape', () => {
-  it('returns mean and median together', () => {
-    expect(seriesShape([1, 2, 3, 10])).toEqual({ mean: 4, median: 2.5 })
-  })
-
-  it('returns null for an empty series so 0 cannot pose as a statistic', () => {
-    expect(seriesShape([])).toBeNull()
-  })
-
-  it('handles a single element', () => {
-    expect(seriesShape([407])).toEqual({ mean: 407, median: 407 })
-  })
-
-  it('handles all-identical values', () => {
-    expect(seriesShape([80, 80, 80])).toEqual({ mean: 80, median: 80 })
-  })
-
-  it('handles negative values', () => {
-    expect(seriesShape([-4, -2])).toEqual({ mean: -3, median: -3 })
   })
 })
 

@@ -31,13 +31,12 @@ from typing import Any
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from ledger_sync.core._analytics_helpers import DEFAULT_ESSENTIAL_CATEGORIES
 from ledger_sync.core.analytics.base import _INCOME_LIST_DEFAULTS
 from ledger_sync.core.metric_rules import classify_employment_income
-from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     FYSummary,
     MonthlySummary,
@@ -84,14 +83,6 @@ def _load_migration() -> ModuleType:
 
 
 migration = _load_migration()
-
-
-@pytest.fixture
-def session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
-
 
 _txn_counter = count()
 
@@ -280,11 +271,11 @@ class TestRepairsCorruptedRollups:
     """The victim class: unusable preference lists, so the splits were garbage."""
 
     @pytest.fixture
-    def repaired(self, session: Session) -> tuple[Session, int]:
+    def repaired(self, test_db_session: Session) -> tuple[Session, int]:
         # `"[]"` is the model default for all five columns -- and it is TRUTHY,
         # which is the whole bug.
         user_id = _make_user(
-            session,
+            test_db_session,
             {
                 "essential_categories": "[]",
                 "taxable_income_categories": "[]",
@@ -293,11 +284,11 @@ class TestRepairsCorruptedRollups:
                 "other_income_categories": "[]",
             },
         )
-        _seed_ledger(session, user_id)
-        _seed_corrupted_rollups(session, user_id)
-        session.commit()
-        _run_upgrade(session)
-        return session, user_id
+        _seed_ledger(test_db_session, user_id)
+        _seed_corrupted_rollups(test_db_session, user_id)
+        test_db_session.commit()
+        _run_upgrade(test_db_session)
+        return test_db_session, user_id
 
     def test_monthly_expense_split_is_restored(
         self,
@@ -381,15 +372,15 @@ class TestRepairsCorruptedRollups:
 class TestMissingPreferencesRow:
     """No preferences row at all falls back exactly like an empty one."""
 
-    def test_rollups_are_repaired(self, session: Session) -> None:
-        user_id = _make_user(session, None)
-        _seed_ledger(session, user_id)
-        _seed_corrupted_rollups(session, user_id)
-        session.commit()
+    def test_rollups_are_repaired(self, test_db_session: Session) -> None:
+        user_id = _make_user(test_db_session, None)
+        _seed_ledger(test_db_session, user_id)
+        _seed_corrupted_rollups(test_db_session, user_id)
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        row = _monthly(session, user_id)
+        row = _monthly(test_db_session, user_id)
         assert Decimal(row.essential_expenses) == HOUSING
         assert Decimal(row.salary_income) == SALARY
 
@@ -397,11 +388,11 @@ class TestMissingPreferencesRow:
 class TestLeavesConfiguredUsersAlone:
     """A real user choice is not overwritten by the shipped defaults."""
 
-    def test_configured_lists_are_not_rewritten(self, session: Session) -> None:
+    def test_configured_lists_are_not_rewritten(self, test_db_session: Session) -> None:
         # This user deliberately calls only Shopping essential and files Salary
         # as non-taxable. Their rollups already reflect that and are CORRECT.
         user_id = _make_user(
-            session,
+            test_db_session,
             {
                 "essential_categories": json.dumps(["Shopping"]),
                 "taxable_income_categories": "[]",
@@ -410,8 +401,8 @@ class TestLeavesConfiguredUsersAlone:
                 "other_income_categories": "[]",
             },
         )
-        _seed_ledger(session, user_id)
-        session.add(
+        _seed_ledger(test_db_session, user_id)
+        test_db_session.add(
             MonthlySummary(
                 user_id=user_id,
                 year=2025,
@@ -426,11 +417,11 @@ class TestLeavesConfiguredUsersAlone:
                 discretionary_expenses=HOUSING,
             ),
         )
-        session.commit()
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        row = _monthly(session, user_id)
+        row = _monthly(test_db_session, user_id)
         # Housing is NOT essential for this user and Salary is NOT taxable.
         # Injecting the defaults would flip both.
         assert Decimal(row.essential_expenses) == SHOPPING
@@ -438,12 +429,12 @@ class TestLeavesConfiguredUsersAlone:
         assert Decimal(row.salary_income) == Decimal(0)
         assert Decimal(row.other_income) == TOTAL_INCOME
 
-    def test_a_reset_row_is_still_treated_as_unconfigured(self, session: Session) -> None:
+    def test_a_reset_row_is_still_treated_as_unconfigured(self, test_db_session: Session) -> None:
         # POST /api/preferences/reset persists the shipped non-taxable list
         # verbatim while writing "[]" for the other three. Reading that as
         # "configured" would re-open the bug for every user who hits Reset.
         user_id = _make_user(
-            session,
+            test_db_session,
             {
                 "essential_categories": "[]",
                 "taxable_income_categories": "[]",
@@ -454,25 +445,25 @@ class TestLeavesConfiguredUsersAlone:
                 "other_income_categories": "[]",
             },
         )
-        _seed_ledger(session, user_id)
-        _seed_corrupted_rollups(session, user_id)
-        session.commit()
+        _seed_ledger(test_db_session, user_id)
+        _seed_corrupted_rollups(test_db_session, user_id)
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        assert Decimal(_monthly(session, user_id).salary_income) == SALARY
+        assert Decimal(_monthly(test_db_session, user_id).salary_income) == SALARY
 
 
 class TestSkipsStaleRows:
     """A row whose totals no longer match the ledger needs a full refresh."""
 
-    def test_split_is_left_alone_when_totals_disagree(self, session: Session) -> None:
-        user_id = _make_user(session, {"essential_categories": "[]"})
-        _seed_ledger(session, user_id)
+    def test_split_is_left_alone_when_totals_disagree(self, test_db_session: Session) -> None:
+        user_id = _make_user(test_db_session, {"essential_categories": "[]"})
+        _seed_ledger(test_db_session, user_id)
         # Stored totals from an older ledger state (rows imported since). A
         # split-only rewrite here would leave the parts contradicting the whole.
         stale_total = TOTAL_EXPENSES + Decimal("100000.00")
-        session.add(
+        test_db_session.add(
             MonthlySummary(
                 user_id=user_id,
                 year=2025,
@@ -484,11 +475,11 @@ class TestSkipsStaleRows:
                 discretionary_expenses=stale_total,
             ),
         )
-        session.commit()
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        row = _monthly(session, user_id)
+        row = _monthly(test_db_session, user_id)
         assert Decimal(row.essential_expenses) == Decimal(0)
         assert Decimal(row.discretionary_expenses) == stale_total
 
@@ -496,10 +487,10 @@ class TestSkipsStaleRows:
 class TestUserScoping:
     """One user's repair must never read or write another user's rows."""
 
-    def test_a_second_users_rollups_are_untouched(self, session: Session) -> None:
-        victim = _make_user(session, {"essential_categories": "[]"})
-        _seed_ledger(session, victim)
-        _seed_corrupted_rollups(session, victim)
+    def test_a_second_users_rollups_are_untouched(self, test_db_session: Session) -> None:
+        victim = _make_user(test_db_session, {"essential_categories": "[]"})
+        _seed_ledger(test_db_session, victim)
+        _seed_corrupted_rollups(test_db_session, victim)
 
         other = User(
             email="other@example.com",
@@ -507,11 +498,11 @@ class TestUserScoping:
             is_verified=True,
             hashed_password="",
         )
-        session.add(other)
-        session.flush()
+        test_db_session.add(other)
+        test_db_session.flush()
         # FULLY configured, so the migration must skip this user entirely: only
         # Shopping is essential to them and they file Salary as non-taxable.
-        session.add(
+        test_db_session.add(
             UserPreferences(
                 user_id=other.id,
                 essential_categories=json.dumps(["Shopping"]),
@@ -526,8 +517,8 @@ class TestUserScoping:
         # victim's recompute produces. Totals must match their ledger, otherwise
         # the staleness gate would skip these rows and hide an unscoped write
         # instead of exposing it.
-        _seed_ledger(session, other.id)
-        session.add(
+        _seed_ledger(test_db_session, other.id)
+        test_db_session.add(
             MonthlySummary(
                 user_id=other.id,
                 year=2025,
@@ -542,7 +533,7 @@ class TestUserScoping:
                 discretionary_expenses=HOUSING,
             ),
         )
-        session.add(
+        test_db_session.add(
             FYSummary(
                 user_id=other.id,
                 fiscal_year=FY_LABEL,
@@ -556,21 +547,21 @@ class TestUserScoping:
                 total_expenses=TOTAL_EXPENSES,
             ),
         )
-        session.commit()
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        assert Decimal(_monthly(session, victim).essential_expenses) == HOUSING
-        assert Decimal(_fy(session, victim).salary_income) == SALARY
+        assert Decimal(_monthly(test_db_session, victim).essential_expenses) == HOUSING
+        assert Decimal(_fy(test_db_session, victim).salary_income) == SALARY
 
         # Reading either rollup table without the user_id filter would apply the
         # victim's repair to these rows -- flipping Housing into essential and
         # re-taxing a salary this user deliberately filed as non-taxable.
-        untouched = _monthly(session, other.id)
+        untouched = _monthly(test_db_session, other.id)
         assert Decimal(untouched.essential_expenses) == SHOPPING
         assert Decimal(untouched.discretionary_expenses) == HOUSING
 
-        untouched_fy = _fy(session, other.id)
+        untouched_fy = _fy(test_db_session, other.id)
         assert Decimal(untouched_fy.salary_income) == Decimal(0)
         assert Decimal(untouched_fy.bonus_income) == Decimal(0)
         assert Decimal(untouched_fy.other_income) == TOTAL_INCOME
@@ -579,19 +570,21 @@ class TestUserScoping:
 class TestExcludedAccountsAndDeletedRows:
     """The recompute must honour the same filters the engine applies."""
 
-    def test_excluded_accounts_and_deleted_rows_are_left_out(self, session: Session) -> None:
+    def test_excluded_accounts_and_deleted_rows_are_left_out(
+        self, test_db_session: Session
+    ) -> None:
         user_id = _make_user(
-            session,
+            test_db_session,
             {
                 "essential_categories": "[]",
                 "excluded_accounts": json.dumps(["Bank: Excluded"]),
             },
         )
-        _seed_ledger(session, user_id)
+        _seed_ledger(test_db_session, user_id)
         # Neither of these belongs in a rollup, so including either would break
         # the totals gate and the row would be skipped instead of repaired.
         _txn(
-            session,
+            test_db_session,
             user_id,
             amount=Decimal("50000.00"),
             type=TransactionType.EXPENSE,
@@ -600,7 +593,7 @@ class TestExcludedAccountsAndDeletedRows:
             account="Bank: Excluded",
         )
         _txn(
-            session,
+            test_db_session,
             user_id,
             amount=Decimal("60000.00"),
             type=TransactionType.EXPENSE,
@@ -608,12 +601,12 @@ class TestExcludedAccountsAndDeletedRows:
             subcategory="Rent",
             is_deleted=True,
         )
-        _seed_corrupted_rollups(session, user_id)
-        session.commit()
+        _seed_corrupted_rollups(test_db_session, user_id)
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        row = _monthly(session, user_id)
+        row = _monthly(test_db_session, user_id)
         assert Decimal(row.essential_expenses) == HOUSING
         assert Decimal(row.discretionary_expenses) == SHOPPING
 
@@ -627,10 +620,10 @@ class TestFiscalYearBoundary:
     closes, and the row is skipped as stale instead of repaired.
     """
 
-    def test_a_late_evening_march_31_row_is_counted(self, session: Session) -> None:
-        user_id = _make_user(session, {"taxable_income_categories": "[]"})
+    def test_a_late_evening_march_31_row_is_counted(self, test_db_session: Session) -> None:
+        user_id = _make_user(test_db_session, {"taxable_income_categories": "[]"})
         _txn(
-            session,
+            test_db_session,
             user_id,
             date=datetime(2026, 3, 31, 23, 59, tzinfo=UTC),
             amount=SALARY,
@@ -638,7 +631,7 @@ class TestFiscalYearBoundary:
             category="Employment Income",
             subcategory="Salary",
         )
-        session.add(
+        test_db_session.add(
             FYSummary(
                 user_id=user_id,
                 fiscal_year=FY_LABEL,
@@ -651,8 +644,8 @@ class TestFiscalYearBoundary:
                 other_income=SALARY,
             ),
         )
-        session.commit()
+        test_db_session.commit()
 
-        _run_upgrade(session)
+        _run_upgrade(test_db_session)
 
-        assert Decimal(_fy(session, user_id).salary_income) == SALARY
+        assert Decimal(_fy(test_db_session, user_id).salary_income) == SALARY

@@ -25,7 +25,7 @@ def _to_view_response(view: SavedFilterView) -> SavedViewResponse:
         filters = json.loads(view.filters)
         if not isinstance(filters, dict):
             filters = {}
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         filters = {}
     return SavedViewResponse(
         id=view.id,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { getRsuVestingsByFY, projectFiscalYear } from '@/lib/projectionCalculator'
+import { projectFiscalYear } from '@/lib/projectionCalculator'
 import { netVestingValue, valueRsuVestings, vestingPrice } from '@/lib/rsuVesting'
-import { buildTdsSchedule, rsuExtrasByFyMonth } from '@/lib/tdsScheduleCalculator'
+import { buildTdsSchedule } from '@/lib/tdsScheduleCalculator'
 import { getStandardDeduction, getTaxSlabs } from '@/lib/taxCalculator'
 import {
   DEFAULT_GROWTH_ASSUMPTIONS,
@@ -48,11 +48,12 @@ describe('RSU withholding and tax basis', () => {
         ...grant,
         vestings: [{ ...grant.vestings[0], net_quantity: netQuantity }],
       }
-      const fiscal = getRsuVestingsByFY([actualGrant], 4, 10, 2025, '2026-04-01')
+      const fiscal = valueRsuVestings([actualGrant], {
+        fyStartMonth: 4, stockAppreciationPct: 10, baseStartYear: 2025, today: '2026-04-01',
+      }).filter((event) => event.fy === '2025-26')
 
-      expect(fiscal['2025-26'].shares).toBe(25)
-      expect(fiscal['2025-26'].value).toBe(500_000)
-      expect(rsuExtrasByFyMonth([actualGrant], 2025, 4)).toEqual({ 4: 500_000 })
+      expect(fiscal.reduce((sum, event) => sum + event.grossQuantity, 0)).toBe(25)
+      expect(fiscal.reduce((sum, event) => sum + event.grossValue, 0)).toBe(500_000)
       const actualProjection = project([actualGrant])
       const baselineProjection = project([grant])
       expect(actualProjection.rsuIncome).toBe(baselineProjection.rsuIncome)

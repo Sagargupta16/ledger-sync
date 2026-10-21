@@ -21,7 +21,7 @@ import { isMotionReduced } from '@/store/motionStore'
  * feeds the legend swatch and the tooltip marker, both of which read the datum
  * when no Cell is present.
  */
-export type PieSliceRow = PieSliceDatum & { fill: string }
+type PieSliceRow = PieSliceDatum & { fill: string }
 
 /**
  * Cap the series to a legible wedge count, then pin each wedge's colour to its

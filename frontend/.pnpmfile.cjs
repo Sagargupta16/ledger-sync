@@ -7,6 +7,8 @@
 const TYPESCRIPT_6 = '6.0.3'
 
 function needsTypeScript6(name) {
+  // `pnpm dlx` passes a temporary manifest with no name; skip it.
+  if (typeof name !== 'string') return false
   return name === 'typescript-eslint' || name === 'ts-api-utils' || name.startsWith('@typescript-eslint/')
 }
 

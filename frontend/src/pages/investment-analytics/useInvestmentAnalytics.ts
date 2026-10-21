@@ -5,7 +5,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
-import { capSeriesToToday, getTodayKey } from '@/lib/dateUtils'
+import { capSeriesToToday, getCurrentMonth, getTodayKey } from '@/lib/dateUtils'
 import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 import {
   investmentAccountTest,
@@ -147,8 +147,7 @@ export function useInvestmentAnalytics() {
 
   const currentMonthInvestment = useMemo(() => {
     if (!transactions.length || !investmentAccounts.length) return 0
-    const now = new Date()
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const currentMonthKey = getCurrentMonth()
     return netInvestmentTransferFlow(
       transactions.filter((tx) => tx.date.startsWith(currentMonthKey)),
       isInvestment,

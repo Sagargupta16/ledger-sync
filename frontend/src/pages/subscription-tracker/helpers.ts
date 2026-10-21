@@ -1,4 +1,3 @@
-import { rawColors } from '@/constants/colors'
 import { formatDate as formatDisplayDate } from '@/lib/formatters'
 
 // ---------------------------------------------------------------------------
@@ -8,9 +7,6 @@ import { formatDate as formatDisplayDate } from '@/lib/formatters'
 // The annualization table lives in `@/lib/recurrenceFrequency`, not here. The
 // local switch this replaced had no `daily` case, so a daily subscription hit
 // the `default: 12` arm and was costed as monthly -- 365/12 = ~30x too cheap.
-
-/** Frequency label to annual multiplier */
-export { periodsPerYear as getAnnualFactor } from '@/lib/recurrenceFrequency'
 
 /** Convert any frequency amount to a monthly equivalent */
 export { toMonthlyAmount } from '@/lib/recurrenceFrequency'
@@ -30,11 +26,4 @@ export function capitalize(str: string | null): string {
     biweekly: 'Biweekly',
   }
   return labels[str.toLowerCase()] ?? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
-}
-
-/** Return the confidence indicator color based on percentage threshold */
-export function getConfidenceColor(percent: number): string {
-  if (percent >= 80) return rawColors.app.green
-  if (percent >= 50) return rawColors.app.yellow
-  return rawColors.app.red
 }

@@ -29,21 +29,21 @@ export const CHART_TOOLTIP_STYLE: CSSProperties = {
   lineHeight: 1.5,
 }
 
-export const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
+const CHART_TOOLTIP_LABEL_STYLE: CSSProperties = {
   get color() { return CHART_TEXT.muted },
   marginBottom: '8px',
   fontSize: '11px',
   fontWeight: 600,
 }
 
-export const CHART_TOOLTIP_ITEM_STYLE: CSSProperties = {
+const CHART_TOOLTIP_ITEM_STYLE: CSSProperties = {
   get color() { return CHART_TEXT.primary },
   padding: '4px 0',
   fontVariantNumeric: 'tabular-nums',
 }
 
 /** Cursor style for BarChart hover highlight (subtle instead of default white) */
-export const CHART_CURSOR_STYLE = {
+const CHART_CURSOR_STYLE = {
   get fill() { return CHART_SURFACE.cursor },
   radius: 4,
 }
@@ -62,7 +62,7 @@ export const CHART_LINE_CURSOR_STYLE = {
  * jumps into a smooth slide + fade -- applied to every chart in the app at
  * once via `chartTooltipProps`.
  */
-export const CHART_TOOLTIP_WRAPPER_STYLE: CSSProperties = {
+const CHART_TOOLTIP_WRAPPER_STYLE: CSSProperties = {
   get transition() {
     return isMotionReduced() ? 'none' : 'transform 140ms ease-out, opacity 140ms ease-out'
   },

@@ -14,6 +14,7 @@ export function computeCurrentHealth(
     earningStartDate,
     fixedCategories,
     expenseClassification,
+    essentialCategories,
     balances = null,
     now = new Date(),
   }: {
@@ -21,6 +22,8 @@ export function computeCurrentHealth(
     fixedCategories?: Set<string>
     /** The user's classified realised-loss keys; see `capitalLossConfig`. */
     expenseClassification?: ExpenseClassificationConfig
+    /** The user's essential list (`resolveEssentialCategories`); adds to the built-in Needs keywords. */
+    essentialCategories?: readonly string[]
     balances?: BalancePosition | null
     now?: Date
   } = {},
@@ -39,10 +42,12 @@ export function computeCurrentHealth(
   )
   const lifetime = createEmptyBucket()
   for (const tx of historical) {
-    classifyTransaction(tx, lifetime, isInvestmentAccount, fixedCategories, expenseClassification)
+    classifyTransaction(tx, lifetime, isInvestmentAccount, fixedCategories, expenseClassification, essentialCategories)
     const date = tx.date.slice(0, 10)
     if (date < period.startDate! || date > period.endDate!) continue
-    classifyTransaction(tx, monthly[date.slice(0, 7)], isInvestmentAccount, fixedCategories, expenseClassification)
+    classifyTransaction(
+      tx, monthly[date.slice(0, 7)], isInvestmentAccount, fixedCategories, expenseClassification, essentialCategories,
+    )
   }
   const balanceFlowTotals = {
     cumulativeNetSavings: lifetime.income - lifetime.expense,

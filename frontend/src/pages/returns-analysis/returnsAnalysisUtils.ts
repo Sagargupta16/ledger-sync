@@ -6,8 +6,7 @@ import {
   type InvestmentReturnTransaction,
 } from '@/lib/finance/investmentReturns'
 
-export { computeInvestmentMetrics, countRealisedEvents } from '@/lib/finance/investmentReturns'
-export type TxLike = InvestmentReturnTransaction
+export { computeInvestmentMetrics } from '@/lib/finance/investmentReturns'
 
 /** Format the shared monthly P&L series for the chart. */
 export function groupTransactionsByMonth(

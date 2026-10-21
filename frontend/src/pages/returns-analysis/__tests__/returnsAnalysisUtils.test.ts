@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import * as utils from '../returnsAnalysisUtils'
-import { computeInvestmentMetrics, countRealisedEvents, type TxLike } from '../returnsAnalysisUtils'
+import type { InvestmentReturnTransaction } from '@/lib/finance/investmentReturns'
+import { computeInvestmentMetrics } from '../returnsAnalysisUtils'
 
 /**
  * Guards the removal of the fabricated CAGR / monthly-ROI pair.
@@ -37,10 +38,10 @@ describe('returnsAnalysisUtils -- no fabricated return metric', () => {
   })
 })
 
-describe('countRealisedEvents', () => {
+describe('realised event count', () => {
   // Income rows carry their subtype in the subcategory: the note is never
   // investment-income evidence (shared rule, 2026-09-30).
-  const txs: TxLike[] = [
+  const txs: InvestmentReturnTransaction[] = [
     { type: 'Income', amount: 2255.18, category: 'Investment Income', subcategory: 'Stock Market Profit', note: 'Q3 FY26 MF STCG Profit' },
     { type: 'Expense', amount: 943.62, category: 'Investment Expenses', note: 'Q3 FY26 MF LTCG Loss' },
     { type: 'Income', amount: 500, category: 'Investment Income', subcategory: 'Dividends', note: 'Dividend credited' },
@@ -51,35 +52,35 @@ describe('countRealisedEvents', () => {
   ]
 
   it('counts only rows that booked investment income or cost', () => {
-    expect(countRealisedEvents(txs)).toBe(4)
+    expect(computeInvestmentMetrics(txs).eventCount).toBe(4)
   })
 
   it('does not count an income row whose only return evidence is its note', () => {
-    expect(countRealisedEvents([
+    expect(computeInvestmentMetrics([
       { type: 'Income', amount: 2255.18, category: 'Investment Income', note: 'Q3 FY26 MF STCG Profit' },
-    ])).toBe(0)
+    ]).eventCount).toBe(0)
   })
 
   it('ignores a matching keyword outside an investment category', () => {
     // The investOnly gate: "loss" in a Food expense is not a realised event.
-    expect(countRealisedEvents([{ type: 'Expense', amount: 10, category: 'Food', note: 'loss' }])).toBe(0)
+    expect(computeInvestmentMetrics([{ type: 'Expense', amount: 10, category: 'Food', note: 'loss' }]).eventCount).toBe(0)
   })
 
   it('ignores transfers, which are contributions and not realised outcomes', () => {
-    const transfers: TxLike[] = [
+    const transfers: InvestmentReturnTransaction[] = [
       { type: 'Transfer', amount: 35000, category: 'Investments', note: 'Monthly SIP' },
     ]
-    expect(countRealisedEvents(transfers)).toBe(0)
+    expect(computeInvestmentMetrics(transfers).eventCount).toBe(0)
   })
 
   it('returns 0 for an empty window', () => {
-    expect(countRealisedEvents([])).toBe(0)
+    expect(computeInvestmentMetrics([]).eventCount).toBe(0)
   })
 
   it('counts the same rows the P&L headline sums', () => {
     const { netProfitLoss } = computeInvestmentMetrics(txs)
     // 2255.18 profit + 500 dividend - 943.62 loss - 25 brokerage.
     expect(netProfitLoss).toBeCloseTo(2255.18 + 500 - 943.62 - 25, 2)
-    expect(countRealisedEvents(txs)).toBe(4)
+    expect(computeInvestmentMetrics(txs).eventCount).toBe(4)
   })
 })

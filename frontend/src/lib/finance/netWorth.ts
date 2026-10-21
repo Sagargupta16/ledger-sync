@@ -7,14 +7,14 @@ export interface NetWorthPoint {
   netWorth: number
 }
 
-export interface NetWorthProjectionBandPoint {
+interface NetWorthProjectionBandPoint {
   date: string
   mean: number
   upper: number
   lower: number
 }
 
-export type NetWorthMilestoneStatus = 'achieved' | 'upcoming'
+type NetWorthMilestoneStatus = 'achieved' | 'upcoming'
 
 export interface NetWorthMilestoneProgress {
   status: NetWorthMilestoneStatus
@@ -233,7 +233,7 @@ export function computeNetWorthMilestoneProgress(
   }
 }
 
-export interface CategorizedAccountBalance {
+interface CategorizedAccountBalance {
   category: string
   balance: number
 }
@@ -276,7 +276,7 @@ export function summarizeNetWorthAccounts(
 }
 
 /** One calendar day's Income and Expense totals; a transfer-only day is zeros. */
-export interface DailyCashFlow {
+interface DailyCashFlow {
   date: string
   income: number
   expense: number

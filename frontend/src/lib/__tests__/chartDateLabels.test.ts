@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { chartDateKey, formatChartDate, formatChartPeriod } from '../chartDateLabels'
-import { formatBucketLabel, formatDisplayPeriod } from '../chartPeriodUtils'
+import { formatBucketLabel } from '../chartPeriodUtils'
 import { formatDateTick } from '../formatters'
 
 describe('year-aware chart labels', () => {
@@ -34,7 +34,6 @@ describe('year-aware chart labels', () => {
     expect(chartDateKey('2026-W01')).toBe('2025-12-29')
     expect(formatBucketLabel('2026-01-01', 'day')).toBe('Jan 1 ’26')
     expect(formatBucketLabel('2026-01', 'month')).toBe('Jan ’26')
-    expect(formatDisplayPeriod('01', 'yearly', 2026)).toBe('Jan ’26')
   })
 
   it('does not invent dates for invalid input, numeric buckets or categories', () => {

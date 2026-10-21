@@ -20,7 +20,7 @@ Open:
 - Health: `http://localhost:8000/health`
 - Database health: `http://localhost:8000/health/db`
 
-The application version is `2.28.2`.
+The application version is `2.29.0`.
 
 ## Authentication
 
@@ -116,12 +116,10 @@ The upload endpoint normalizes and reconciles rows, then runs a versioned analyt
 | Account classifications | `/api/account-classifications` |
 | Categorization rules | `/api/categorization-rules` |
 | Saved views | `/api/saved-views` |
-| Reports | `/api/reports` |
 | AI | `/api/ai` |
 | Exchange rates | `/api/exchange-rates` |
 | Instrument rates | `/api/rates` |
 | Stock prices | `/api/stock-price` |
-| Metadata for filters | `/api/meta` |
 
 ## Errors and Limits
 
@@ -132,6 +130,9 @@ Important limits:
 - Upload: 10 requests per authenticated user per minute, 50 per IP per minute.
 - Bedrock chat: 30 requests per authenticated user per minute, 60 per IP per minute.
 - AI tool execution: 120 requests per authenticated user per minute.
+- Analytics refresh (`POST /api/analytics/v2/refresh`): 10 requests per authenticated user per minute.
+- Exchange rates: 60 requests per authenticated user per minute.
+- Stock prices: 60 requests per authenticated user per minute.
 - OAuth authorize and callbacks: 20 requests per IP per minute each.
 - Token refresh: 20 requests per IP per minute.
 

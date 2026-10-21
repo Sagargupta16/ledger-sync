@@ -9,14 +9,14 @@ export interface InvestmentReturnTransaction {
   note?: string | null
 }
 
-export type InvestmentReturnKind =
+type InvestmentReturnKind =
   | 'dividendIncome'
   | 'interestIncome'
   | 'investmentProfit'
   | 'brokerFees'
   | 'investmentLoss'
 
-export interface InvestmentReturnMetrics {
+interface InvestmentReturnMetrics {
   dividendIncome: number
   interestIncome: number
   investmentProfit: number
@@ -157,14 +157,7 @@ export function computeInvestmentMetrics(
   return totals
 }
 
-export function countRealisedEvents(
-  transactions: readonly InvestmentReturnTransaction[],
-  rules: InvestmentReturnRules = unconfiguredRules(),
-): number {
-  return computeInvestmentMetrics(transactions, rules).eventCount
-}
-
-export interface MonthlyInvestmentReturn {
+interface MonthlyInvestmentReturn {
   month: string
   income: number
   expenses: number

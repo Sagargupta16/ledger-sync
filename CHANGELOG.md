@@ -6,6 +6,42 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.29.0 - 2026-10-21
+
+A consistency and cleanup sweep. The backend and frontend now apply the same spending and averaging rules, 14 API routes that no client called are gone, CI tests the Python version production runs, and about 6,600 lines of dead or duplicated code are removed (net).
+
+### Fixed
+
+- The backend reports its real release on `/health`. `ledger_sync.__version__` stayed at 2.28.0 through 2.28.1 and 2.28.2, so the Pages deploy, which waits for the backend to report the frontend's version, timed out and neither frontend published.
+- Pages, AI tools and demo now agree on spending rules (`core/metric_rules.py` and `lib/finance/metricRules.ts`):
+  - Needs keywords ignore surrounding spaces in user entries, and a keyword is a whole word when no letter, mark or digit of any script touches it, so Devanagari keywords match on both sides.
+  - Monthly averages leave out future-dated months and count an empty month between the first month and today as a zero month on the backend too.
+  - The Financial Health score uses the user's Needs categories instead of a fixed list, and the shared investment perimeter.
+  - Returns Analysis counts only mapped investment accounts.
+  - The demo 50/30/20 split uses the shared Needs rule.
+  - The frontend's current and partial month follow the IST ledger day, as the backend does.
+- Mutual Fund Projection no longer shifts a transaction into the previous month for viewers west of UTC.
+- Sign-in provider icons are hidden from screen readers (the button text names the provider), and the page skeleton announces "Loading" once instead of three times.
+- `pnpm dlx` inside `frontend/` no longer crashes in the TypeScript 6 install hook, and the schema reference generator handles `FetchedValue` columns (the reference now names `recurring_user_amount_2026` as head).
+
+### Removed
+
+- API routes with no client: `/api/reports/monthly`, `/api/analytics/wrapped`, `/api/analytics/charts/{income-expense,categories,monthly-trends,account-distribution}`, `/api/analytics/insights/generated`, `/api/calculations/insights`, `/api/calculations/top-categories`, `/api/meta/{types,accounts,filters,buckets}` and `/api/analytics/v2/freshness`, with the report generator, insight engine and other code only they used.
+- Unused code: password hashing and the `bcrypt` dependency (sign-in is OAuth only), the `TimeFilter` class, the upload `AccountClassifier` and `DropZone` components, a second `FYNavigator`, six unused barrel files, 290 of knip's 292 unused frontend exports and types (the other two are kept on purpose), and duplicated helpers across both stacks (jscpd: 28 clones to 12).
+- Unused files and tooling: `backend/requirements.txt` (Vercel installs from `uv.lock`), `frontend/tailwind.config.js` (Tailwind 4 never loaded it), `eslint-plugin-react`, `pip-audit`, `types-openpyxl`, an uninstalled Vitest coverage provider, and three CVE constraints for packages no longer in the lockfile.
+
+### Changed
+
+- Python 3.14 everywhere: `requires-python` is `>=3.14,<3.15`, and CI and the migrate job run 3.14. Production already built with 3.14 because Vercel takes the newest version the range allows.
+- HTTP status codes now match per condition: OAuth not configured is 503 (was 501 or 500), an inactive user refreshing a token gets 403 (was 401), a blank stored AI key is 404 (was 400), and a future `on_date` for stock prices and exchange rates is 422 (was 400).
+- Chart sections share one panel component, loading skeletons share the `LoadingSkeleton` family (one fill, pulse and radius), and RSU vest-date prices are fetched in parallel.
+- `AnalyticsEngine` requires a `user_id`.
+
+### Security
+
+- `vite` `^8.3.3` (Dependabot #120).
+- The recurring-note date-suffix regex is linear (CodeQL #63, polynomial ReDoS).
+
 ## 2.28.2 - 2026-10-20
 
 The phone app installed from Safari's Add to Home Screen behaves in landscape.
@@ -15,7 +51,6 @@ The phone app installed from Safari's Add to Home Screen behaves in landscape.
 - The installed app no longer sets `apple-mobile-web-app-status-bar-style: black-translucent`. On WebKit's tracker the mode is called deprecated, with the advice to remove the key so the status bar takes the page colour, since Home Screen web apps do not support drawing below the status bar ([webkit.org/b/317153](https://bugs.webkit.org/show_bug.cgi?id=317153)). Delete and re-add the Home Screen icon to pick up the change.
 - In landscape the bottom tab bar pads the left and right safe areas, and the slide-out navigation widens by the left inset, so neither sits under the notch or Dynamic Island. The navigation's profile row now clears the home indicator in both orientations.
 - Toasts clear the phone tab bar and the iOS safe areas instead of covering the tab bar.
-- The backend reports its real release on `/health`. `ledger_sync.__version__` stayed at 2.28.0 when 2.28.1 was cut, so the Pages deploy, which waits for the backend to report the frontend's version, timed out and the 2.28.1 frontend never published.
 
 ### Changed
 

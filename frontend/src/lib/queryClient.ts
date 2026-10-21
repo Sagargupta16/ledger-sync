@@ -31,7 +31,7 @@ export const queryClient = new QueryClient({
       // Data only changes on explicit user actions (upload, settings save).
       // Mutations invalidate relevant keys, so keep cache fresh indefinitely.
       staleTime: Infinity,
-      gcTime: 1000 * 60 * 60, // 1 hour — keep unused data in memory longer
+      gcTime: 1000 * 60 * 60, // 1 hour -- keep unused data in memory longer
       retry: 1,
       refetchOnWindowFocus: false,
       // refetchOnMount defaults to true: refetch stale queries on component mount.

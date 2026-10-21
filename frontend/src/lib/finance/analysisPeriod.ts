@@ -46,7 +46,7 @@ export function resolveEarningStart(
   return { date: first, source: first ? 'inferred' : 'unknown' }
 }
 
-export interface AnalysisPeriod {
+interface AnalysisPeriod {
   months: string[]
   startDate: string | null
   endDate: string | null

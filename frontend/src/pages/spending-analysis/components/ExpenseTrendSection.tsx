@@ -18,7 +18,7 @@ import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import { useChartRange } from '@/components/ui/useChartRange'
-import { BRUSH_DEFAULTS } from '@/components/ui/chartDefaults'
+import { BRUSH_DEFAULTS, monthTooltipLabel } from '@/components/ui/chartDefaults'
 import { formatChartPeriod } from '@/lib/chartDateLabels'
 import {
   ACTIVE_DOT,
@@ -146,15 +146,7 @@ export default function ExpenseTrendSection({
                   {...chartTooltipProps}
                   content={<ChartTooltipContent />}
                   cursor={CHART_LINE_CURSOR_STYLE}
-                  labelFormatter={(
-                    _label: unknown,
-                    payload: ReadonlyArray<{ payload?: { month?: string } }>,
-                  ) => {
-                    const month = payload?.[0]?.payload?.month
-                    return month
-                      ? formatMonthKey(month, { month: 'long', year: 'numeric' })
-                      : ''
-                  }}
+                  labelFormatter={monthTooltipLabel}
                   formatter={(value, name) => [
                     currencyTooltipFormatter(value),
                     name === `Spending (${rollingAvgMonths}m avg)` ? `Spending (${rollingAvgMonths}m avg)` : 'Spending',

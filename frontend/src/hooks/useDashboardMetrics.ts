@@ -62,7 +62,7 @@ export interface MonthlyFlowDatum {
   expense: number
 }
 
-export interface DashboardMetrics {
+interface DashboardMetrics {
   // Time-filter state & setters
   viewMode: AnalyticsViewMode
   setViewMode: (v: AnalyticsViewMode) => void
@@ -138,7 +138,7 @@ export interface DashboardMetrics {
   hasInvestmentMappings: boolean
 }
 
-export interface DashboardMetricsOptions {
+interface DashboardMetricsOptions {
   /**
    * Also read `/quick-insights` for the selected window. The Dashboard's
    * QuickInsights band reads it for the committed `dateRange`, so gating the

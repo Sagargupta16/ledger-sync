@@ -11,12 +11,12 @@ export interface InvestmentFlowTransaction {
 
 export type InvestmentAccountTest = (name: string | null | undefined) => boolean
 
-export interface InvestmentAccountDelta {
+interface InvestmentAccountDelta {
   account: string
   amount: number
 }
 
-export interface InvestmentTransferSummary {
+interface InvestmentTransferSummary {
   contributions: number
   withdrawals: number
   netContributions: number
@@ -29,7 +29,7 @@ export interface InvestmentTransferSummary {
  * Mirrors backend `core/metric_rules.py` `DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS`
  * (same 20 keywords, word-boundary matched).
  */
-export const DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS: readonly string[] = [
+const DEFAULT_INVESTMENT_ACCOUNT_KEYWORDS: readonly string[] = [
   'sip', 'mf', 'mutual fund', 'ppf', 'epf', 'nps', 'stocks', 'equity', 'shares', 'elss',
   'recurring deposit', 'rd', 'sukanya samriddhi', 'ssy', 'groww', 'zerodha', 'kite',
   'upstox', 'kuvera', 'coin',

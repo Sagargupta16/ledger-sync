@@ -11,6 +11,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { Money } from '@/components/ui'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import type { Transaction } from '@/types'
@@ -114,7 +115,7 @@ export default function TransactionTable({
                     scope="col"
                     className="px-4 py-2.5 text-left"
                   >
-                    <div className="h-4 skeleton w-20" />
+                    <LoadingSkeleton className="h-4 w-20" />
                   </th>
                 ))}
               </tr>
@@ -124,7 +125,7 @@ export default function TransactionTable({
                 <tr key={`skeleton-row-${i}`} className="border-b border-[var(--hairline-1)]">
                   {Array.from({ length: 7 }, (_, j) => (
                     <td key={`skeleton-cell-${i}-${j}`} className="px-4 py-3">
-                      <div className="h-4 skeleton w-full" />
+                      <LoadingSkeleton className="h-4 w-full" />
                     </td>
                   ))}
                 </tr>
@@ -137,13 +138,13 @@ export default function TransactionTable({
           {Array.from({ length: 6 }, (_, i) => (
             <div key={`skeleton-card-${i}`} className="p-4 rounded-lg bg-[var(--overlay-2)] border border-border space-y-3">
               <div className="flex justify-between">
-                <div className="h-4 skeleton w-24" />
-                <div className="h-5 skeleton w-20" />
+                <LoadingSkeleton className="h-4 w-24" />
+                <LoadingSkeleton className="h-5 w-20" />
               </div>
-              <div className="h-3 skeleton w-32" />
+              <LoadingSkeleton className="h-3 w-32" />
               <div className="flex justify-between">
-                <div className="h-3 skeleton w-16" />
-                <div className="h-3 skeleton w-24" />
+                <LoadingSkeleton className="h-3 w-16" />
+                <LoadingSkeleton className="h-3 w-24" />
               </div>
             </div>
           ))}

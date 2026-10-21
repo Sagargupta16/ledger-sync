@@ -29,7 +29,7 @@ export interface CreditCardCoverageGap {
   readonly unavailable: number
 }
 
-export interface CreditCardTotals {
+interface CreditCardTotals {
   readonly measured: readonly MeasuredCreditCard[]
   readonly unmeasuredCount: number
   readonly gap: CreditCardCoverageGap

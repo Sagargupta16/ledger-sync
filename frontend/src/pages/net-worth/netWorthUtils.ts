@@ -24,7 +24,7 @@ export const NET_WORTH_CATEGORIES = [
   'Other',
 ] as const
 
-export type NetWorthCategory = (typeof NET_WORTH_CATEGORIES)[number]
+type NetWorthCategory = (typeof NET_WORTH_CATEGORIES)[number]
 
 /**
  * Categories excluded from the stacked asset series: liabilities plus the

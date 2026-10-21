@@ -32,7 +32,7 @@ export function toChartData(data: ProjectionResult) {
 export function computeEpfContribution(salary: number, contribPct: number) {
   // Employee contributes contribPct% of basic (all to EPF). The employer's EPF
   // share is 12% of basic minus the EPS diversion (8.33% of capped ₹15k wage),
-  // so it is NOT simply the same % — total corpus inflow is employee + employerEpf,
+  // so it is NOT simply the same % -- total corpus inflow is employee + employerEpf,
   // not 2× the employee share.
   const { employee: yourShare, employerEpf, total: totalMonthly } =
     epfMonthlyContributions(salary, contribPct)

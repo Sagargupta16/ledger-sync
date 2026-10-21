@@ -1,5 +1,7 @@
+import { toLocalDateKey } from '@/lib/dateUtils'
+
 import { ACCOUNTS } from './demoTemplates'
-import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
+import { txId, type MonthCtx } from './demoTxHelpers'
 
 export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   const { rng, txs, year, month, m } = ctx
@@ -10,7 +12,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   txs.push(
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 1)),
+      date: toLocalDateKey(new Date(year, month, 1)),
       amount: salary,
       type: 'Income',
       category: 'Employment Income',
@@ -21,7 +23,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
     },
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 1)),
+      date: toLocalDateKey(new Date(year, month, 1)),
       amount: Math.round(salary * 0.024),
       type: 'Income',
       category: 'Employment Income',
@@ -38,7 +40,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   if (month === 3) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(25, 28))),
+      date: toLocalDateKey(new Date(year, month, rng.int(25, 28))),
       amount: Math.round(ctx.salaryMonthly * (0.8 + rng.next() * 0.5)),
       type: 'Income',
       category: 'Employment Income',
@@ -50,7 +52,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   } else if (ctx.festival && month === 9) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(15, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(15, 25))),
       amount: rng.int(8000, 20000),
       type: 'Income',
       category: 'Employment Income',
@@ -62,7 +64,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   } else if (m % 3 === 0 && rng.next() < 0.3) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(15, 28))),
+      date: toLocalDateKey(new Date(year, month, rng.int(15, 28))),
       amount: rng.int(5000, 25000),
       type: 'Income',
       category: 'Employment Income',
@@ -76,7 +78,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   if (rng.next() < 0.2) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(10, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(10, 25))),
       amount: rng.int(500, 5000),
       type: 'Income',
       category: 'Employment Income',
@@ -96,7 +98,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
     const corpusFactor = 1 + (m / 48) * 3
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(15, 28))),
+      date: toLocalDateKey(new Date(year, month, rng.int(15, 28))),
       amount: Math.round(rng.int(400, 1500) * corpusFactor),
       type: 'Income',
       category: 'Investment Income',
@@ -110,7 +112,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   if (month % 6 === 2) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(10, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(10, 25))),
       amount: rng.int(200, 2000),
       type: 'Income',
       category: 'Investment Income',
@@ -124,7 +126,7 @@ export function generateMonthlyIncome(ctx: MonthCtx): { salary: number } {
   if (rng.next() < 0.15) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(5, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(5, 25))),
       amount: rng.int(1000, 20000),
       type: 'Income',
       category: 'Investment Income',
@@ -148,7 +150,7 @@ function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
     const isCCCashback = rng.next() < 0.3
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, daysInMonth))),
       amount: isCCCashback ? rng.int(100, 2000) : rng.int(5, 100),
       type: 'Income',
       category: 'Refund & Cashbacks',
@@ -166,7 +168,7 @@ function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
   if (rng.next() < 0.25) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, daysInMonth))),
       amount: rng.int(100, 2000),
       type: 'Income',
       category: 'Refund & Cashbacks',
@@ -186,7 +188,7 @@ function generateMonthlyCashbacksAndRefunds(ctx: MonthCtx): void {
   if ((ctx.festival && rng.next() < 0.5) || rng.next() < 0.08) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, 15))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, 15))),
       amount: rng.int(1000, 5000),
       type: 'Income',
       category: 'Other Income',

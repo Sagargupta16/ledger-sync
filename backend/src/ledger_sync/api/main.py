@@ -35,12 +35,10 @@ from ledger_sync.api.error_handlers import (
     validation_error_handler,
 )
 from ledger_sync.api.exchange_rates import router as exchange_rates_router
-from ledger_sync.api.meta import router as meta_router
 from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.api.rates import router as rates_router
-from ledger_sync.api.reports import router as reports_router
 from ledger_sync.api.saved_views import router as saved_views_router
 from ledger_sync.api.stock_price import router as stock_price_router
 from ledger_sync.api.transactions import router as transactions_router
@@ -324,11 +322,9 @@ app.include_router(oauth_router)
 app.include_router(analytics_router)
 app.include_router(analytics_v2_router)
 app.include_router(calculations_router)
-app.include_router(meta_router)
 app.include_router(account_classifications_router)
 app.include_router(categorization_rules_router)
 app.include_router(preferences_router)
-app.include_router(reports_router)
 app.include_router(saved_views_router)
 app.include_router(transactions_router)
 app.include_router(upload_router)

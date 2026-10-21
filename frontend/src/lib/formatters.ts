@@ -236,25 +236,3 @@ export function getOrdinalSuffix(n: number): string {
   if (n === 3 || n === 23) return 'rd'
   return 'th'
 }
-
-/**
- * Safely parse a value that may be a JSON string array or already an array.
- *
- * The elements are FILTERED to strings, not just checked for array-ness.
- * `JSON.parse` returns `any`, so `Array.isArray(parsed) ? parsed : []` handed
- * back a `number[]` (or an array of objects) while the signature promised
- * `string[]` -- the caller would then call `.trim()` or `.toLowerCase()` on a
- * number and throw at runtime. Preference columns are TEXT holding JSON written
- * by an earlier schema, so a non-string element is a live possibility, not a
- * hypothetical.
- */
-export function parseStringArray(raw: string[] | string | undefined): string[] {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw.filter((v) => typeof v === 'string')
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
-  } catch {
-    return []
-  }
-}

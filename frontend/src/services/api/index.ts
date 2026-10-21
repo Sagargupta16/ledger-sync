@@ -1,4 +1,4 @@
-// API services barrel — re-exports for cleaner imports
+// API services barrel -- re-exports for cleaner imports
 export { apiClient } from './client'
 export * as authApi from './auth'
 export { analyticsService } from './analytics'

@@ -7,8 +7,6 @@
 import { toLocalDateKey } from '@/lib/dateUtils'
 import type { RsuGrant, RsuVesting, ValuedRsuVesting } from '@/types/salary'
 
-export type { ValuedRsuVesting } from '@/types/salary'
-
 /** Planning assumption only; actual sell-to-cover quantities override it. */
 export const DEFAULT_RSU_TAX_PERCENT = 30
 export const DEFAULT_RSU_CESS_PERCENT = 4

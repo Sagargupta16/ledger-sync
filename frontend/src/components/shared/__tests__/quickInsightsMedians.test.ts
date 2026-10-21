@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { monthlySpendShape } from '@/pages/spending-analysis/spendingAnalysisUtils'
-
-import { medianSpendingDay, medianSpendingMonth } from '../quickInsightsData'
+import { medianSpendingDay, medianSpendingMonth } from '@/lib/finance/spendingStatistics'
+import { monthlySpendShape } from '@/lib/finance/spending'
 
 /**
  * Real-ledger anchors (8,181 rows, soft-deleted excluded). `medianSpendingDay`

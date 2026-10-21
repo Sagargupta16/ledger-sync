@@ -11,7 +11,7 @@ React 19 and TypeScript 7 application for the Ledger Sync personal finance works
 - TanStack Query 5
 - Zustand 5
 - Recharts 3
-- Motion 12 (`motion/react`)
+- Motion 13 (`motion/react`)
 - Vitest and Testing Library
 
 ## Run Locally
@@ -37,7 +37,7 @@ The dev server runs at `http://localhost:5173` and proxies `/api` to `http://loc
 `src/App.tsx` defines 29 routed page components:
 
 - 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 25 lazy workspace pages, prefetched during browser idle time.
+- 25 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
 - 3 public routes and 26 protected workspace routes.
 
 The protected workspace is organized into:
@@ -113,6 +113,7 @@ The stores in `src/store/` are:
 - `authStore`
 - `demoStore`
 - `themeStore`
+- `motionStore`
 - `preferencesStore`
 - `accountStore`
 - `investmentAccountStore`
@@ -128,7 +129,7 @@ The stores in `src/store/` are:
 2. Flexible headers are mapped to the standard transaction shape.
 3. The browser computes a SHA-256 file hash.
 4. Validated rows are posted as JSON to `/api/upload`.
-5. The frontend requests `/api/analytics/v2/refresh`.
+5. The backend refreshes analytics as part of the upload. The frontend calls `/api/analytics/v2/refresh` only when the user retries a refresh that failed.
 6. Query caches are invalidated so the workspace reloads current data.
 
 There is no multipart file upload and no post-parse mapping screen. The Upload page shows an inline drop zone, progress states, conflict handling, and a static expected-format example.
@@ -153,7 +154,7 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 
 ## Tests
 
-The current frontend suite contains 1,427 tests in 121 files.
+Current suite counts live in [docs/TESTING.md](../docs/TESTING.md).
 
 Lint and test runs ignore `.claude/`. Local agent git worktrees are checked out there, and a second copy of this suite (or a second `tsconfig.json` root) otherwise inflates the test counts and fails `eslint .` across the whole tree. See `globalIgnores` in `eslint.config.js` and `exclude` in `vitest.config.ts`.
 

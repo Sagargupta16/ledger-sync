@@ -108,11 +108,11 @@ def test_historical_price_no_data_returns_502() -> None:
     assert resp.status_code == 502
 
 
-def test_future_on_date_returns_400() -> None:
+def test_future_on_date_returns_422() -> None:
     app = _make_app(_latest_payload(1.0))
     resp = TestClient(app).get("/api/stock-price/AMZN", params={"on_date": "2999-01-01"})
 
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 def test_ist_today_is_not_future_while_utc_is_still_yesterday() -> None:
@@ -124,7 +124,7 @@ def test_ist_today_is_not_future_while_utc_is_still_yesterday() -> None:
 
     assert resp.status_code == 200
     assert resp.json()["as_of"] == "2025-08-14"
-    assert tomorrow.status_code == 400
+    assert tomorrow.status_code == 422
 
 
 @pytest.mark.parametrize("bad", ["THISISWAYTOOLONGSYMBOLX", "AMZN%3Fx%3D1", "AM ZN", "..%2Fquote"])

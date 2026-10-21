@@ -16,10 +16,10 @@ import { rawColors, refreshRawColors } from '@/constants/colors'
 
 export type ThemeMode = 'dark' | 'light'
 
-export const THEME_STORAGE_KEY = 'ledger-sync-theme'
+const THEME_STORAGE_KEY = 'ledger-sync-theme'
 
 /** OS-level preference, used as the default for users with no stored choice. */
-export function osPreferredTheme(): ThemeMode {
+function osPreferredTheme(): ThemeMode {
   const prefersLight =
     globalThis.matchMedia?.('(prefers-color-scheme: light)').matches ?? false
   return prefersLight ? 'light' : 'dark'

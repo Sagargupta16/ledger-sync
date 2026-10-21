@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, getAnnualFactor, toMonthlyAmount } from '../helpers'
+import { periodsPerYear } from '@/lib/recurrenceFrequency'
+
+import { formatDate, toMonthlyAmount } from '../helpers'
 
 describe('formatDate', () => {
   it('shows the same ledger date used for freshness even when a timestamp has an offset', () => {
@@ -15,8 +17,7 @@ describe('formatDate', () => {
  * was understated by 365/12 (~30x).
  *
  * The switch is gone -- these now assert against the shared table in
- * `@/lib/recurrenceFrequency` through this page's re-export, which is the seam
- * the page's components actually import.
+ * `@/lib/recurrenceFrequency`, which this page's `toMonthlyAmount` re-export uses.
  */
 
 /** Round per-occurrence amount so every expected product is exact. */
@@ -24,27 +25,27 @@ const PER_OCCURRENCE = 50
 const DAYS_PER_YEAR = 365
 const MONTHS_PER_YEAR = 12
 
-describe('getAnnualFactor', () => {
+describe('periodsPerYear', () => {
   it('annualizes a daily charge at 365, not 12', () => {
-    expect(getAnnualFactor('daily')).toBe(DAYS_PER_YEAR)
-    expect(getAnnualFactor('daily')).not.toBe(MONTHS_PER_YEAR)
+    expect(periodsPerYear('daily')).toBe(DAYS_PER_YEAR)
+    expect(periodsPerYear('daily')).not.toBe(MONTHS_PER_YEAR)
   })
 
   it('preserves the factors the page already relied on', () => {
-    expect(getAnnualFactor('weekly')).toBe(52)
-    expect(getAnnualFactor('fortnightly')).toBe(26)
-    expect(getAnnualFactor('biweekly')).toBe(26)
-    expect(getAnnualFactor('monthly')).toBe(12)
-    expect(getAnnualFactor('bimonthly')).toBe(6)
-    expect(getAnnualFactor('quarterly')).toBe(4)
-    expect(getAnnualFactor('semiannual')).toBe(2)
-    expect(getAnnualFactor('yearly')).toBe(1)
-    expect(getAnnualFactor('annually')).toBe(1)
+    expect(periodsPerYear('weekly')).toBe(52)
+    expect(periodsPerYear('fortnightly')).toBe(26)
+    expect(periodsPerYear('biweekly')).toBe(26)
+    expect(periodsPerYear('monthly')).toBe(12)
+    expect(periodsPerYear('bimonthly')).toBe(6)
+    expect(periodsPerYear('quarterly')).toBe(4)
+    expect(periodsPerYear('semiannual')).toBe(2)
+    expect(periodsPerYear('yearly')).toBe(1)
+    expect(periodsPerYear('annually')).toBe(1)
   })
 
   it('still defaults to monthly for unknown or missing input', () => {
-    expect(getAnnualFactor(null)).toBe(MONTHS_PER_YEAR)
-    expect(getAnnualFactor('hourly')).toBe(MONTHS_PER_YEAR)
+    expect(periodsPerYear(null)).toBe(MONTHS_PER_YEAR)
+    expect(periodsPerYear('hourly')).toBe(MONTHS_PER_YEAR)
   })
 })
 

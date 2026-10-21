@@ -10,9 +10,9 @@ import type { Transaction } from '@/types'
 
 export type TaxRegime = 'new' | 'old'
 export type TaxRegimeOverride = TaxRegime | null
-export type TaxIncomeBasis = 'gross' | 'net'
+type TaxIncomeBasis = 'gross' | 'net'
 
-export interface IncomeGroupAccumulator {
+interface IncomeGroupAccumulator {
   [key: string]: {
     total: number
     transactions: Transaction[]
@@ -219,7 +219,7 @@ export function computeTaxPlanning(input: Readonly<TaxPlanningInput>) {
 
 export type TaxPlanningResult = ReturnType<typeof computeTaxPlanning>
 
-export interface AnnualTaxPlanningInput {
+interface AnnualTaxPlanningInput {
   recordedTax: TaxPlanningResult
   /** Full-year employment gross, including gross RSU vesting income. */
   projectedEmploymentIncome: number
@@ -255,7 +255,7 @@ export function computeAnnualTaxPlanning({
   })
 }
 
-export type TaxEmploymentOptions = Partial<Pick<
+type TaxEmploymentOptions = Partial<Pick<
   TaxPlanningInput,
   'hasEmploymentIncome' | 'recordedEmploymentIncome' | 'recordedEmploymentCashDeductions'
   | 'estimatedGrossEmploymentIncome' | 'estimatedEmploymentWithholding'
@@ -293,7 +293,7 @@ export function computeTaxForFY(
   })
 }
 
-export interface RegimeComparisonInput {
+interface RegimeComparisonInput {
   grossIncome: number
   fyYear: number
   salaryMonthsCount: number

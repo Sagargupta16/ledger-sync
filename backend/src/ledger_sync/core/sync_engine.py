@@ -229,6 +229,8 @@ class SyncEngine:
         """
         logger.info("Running post-import analytics...")
         try:
+            if self.user_id is None:
+                raise ValueError("user_id is required for analytics")
             analytics_engine = AnalyticsEngine(self.session, user_id=self.user_id)
             analytics_results = analytics_engine.refresh_analytics(source_file=source_file)
             logger.info("Analytics completed: %s", analytics_results)

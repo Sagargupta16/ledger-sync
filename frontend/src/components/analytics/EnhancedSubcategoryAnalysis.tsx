@@ -13,27 +13,20 @@ import {
   calculateCumulativeData,
   formatBucketLabel,
   granularityAdverb,
-  pickGranularity,
   type Granularity,
 } from '@/lib/chartPeriodUtils'
-import { MS_PER_DAY } from '@/lib/dateUtils'
 import TimeSeriesLineChart from '@/components/analytics/TimeSeriesLineChart'
+import {
+  GRANULARITY_OPTIONS,
+  TOTAL_MODE_OPTIONS,
+  resolveGranularity,
+} from '@/components/analytics/timeSeriesControls'
 import ErrorState from '@/components/shared/ErrorState'
 import LoadingSkeleton, { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import { Button, Select } from '@/components/ui'
 import { exportChartAsCsv } from '@/lib/exportCsv'
 
 const COLORS = CHART_COLORS_WARM
-const GRANULARITY_OPTIONS = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'day', label: 'Daily' },
-  { value: 'week', label: 'Weekly' },
-  { value: 'month', label: 'Monthly' },
-]
-const TOTAL_MODE_OPTIONS = [
-  { value: 'cumulative', label: 'Cumulative' },
-  { value: 'regular', label: 'Regular' },
-]
 
 interface EnhancedSubcategoryAnalysisProps {
   readonly dateRange?: { readonly start_date?: string; readonly end_date?: string }
@@ -97,17 +90,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     }
 
     // Auto-pick granularity to keep the chart legible across long ranges.
-    const sortedDates = rows.map((r) => r.date).sort((a, b) => a.localeCompare(b))
-    const spanDays = Math.max(
-      1,
-      Math.round(
-        (new Date(sortedDates[sortedDates.length - 1]).valueOf() -
-          new Date(sortedDates[0]).valueOf()) /
-          MS_PER_DAY,
-      ),
-    )
-    const gran =
-      granularityOverride === 'auto' ? pickGranularity(spanDays) : granularityOverride
+    const gran = resolveGranularity(rows.map((r) => r.date), granularityOverride)
 
     const groupedData: Record<string, Record<string, number>> = {}
 

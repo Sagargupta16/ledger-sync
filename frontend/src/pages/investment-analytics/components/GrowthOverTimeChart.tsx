@@ -1,5 +1,4 @@
 import { useId } from 'react'
-import { motion } from 'motion/react'
 import { Area, AreaChart, Brush, CartesianGrid, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -14,6 +13,7 @@ import {
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import { useChartRange } from '@/components/ui/useChartRange'
@@ -24,7 +24,6 @@ import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
 import { tooltipLabelString } from '@/lib/chartUtils'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import { useMotionStore } from '@/store/motionStore'
 
 import { CATEGORY_COLORS, INVESTMENT_CATEGORIES } from '../investmentUtils'
 
@@ -67,7 +66,6 @@ export function GrowthOverTimeChart({
   filteredGrowthData,
 }: Readonly<GrowthOverTimeChartProps>) {
   const gradientId = useId().replaceAll(':', '')
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const { animate: animateSeries, isMobile } = useChartPresentation(filteredGrowthData.length * INVESTMENT_CATEGORIES.length)
   const range = useChartRange(filteredGrowthData.map((row) => String(row.date)))
   const firstPoint = filteredGrowthData[0]
@@ -78,25 +76,12 @@ export function GrowthOverTimeChart({
   const spansYears = String(firstPoint?.date).slice(0, 4) !== String(lastPoint?.date).slice(0, 4)
 
   return (
-    <motion.section
-      className="ledger-panel min-w-0 p-4 sm:p-6"
-      aria-labelledby="investment-growth-title"
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
+    <ChartSection
+      titleId="investment-growth-title"
+      eyebrow="Wealth / contribution history"
+      title="Investment Growth Over Time"
+      description="How your recorded investment balances build across asset classes."
     >
-      <div className="mb-5">
-        <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-          Wealth / contribution history
-        </p>
-        <h2 id="investment-growth-title" className="text-lg font-semibold tracking-tight text-foreground">
-          Investment Growth Over Time
-        </h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          How your recorded investment balances build across asset classes.
-        </p>
-      </div>
       {isLoading && <ChartSkeleton />}
       {!isLoading &&
         (filteredGrowthData.length === 0 ? (
@@ -114,12 +99,7 @@ export function GrowthOverTimeChart({
               caption={`As of ${formatDate(String(lastPoint?.date ?? ''), { day: 'numeric', month: 'short', year: 'numeric' })}`}
             />
             {filteredGrowthData.length > 6 && <ChartRangeControls range={range} label="Investment growth chart range" />}
-            <motion.div
-              initial={motionEnabled ? { opacity: 0, y: 12 } : false}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
-            >
+            <ChartReveal>
               <ChartContainer
                 height={360}
                 mobileHeight={300}
@@ -201,7 +181,7 @@ export function GrowthOverTimeChart({
                   )}
                 </AreaChart>
               </ChartContainer>
-            </motion.div>
+            </ChartReveal>
             <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
               <p>Contributions and withdrawals change these balances; this is not an investment return.</p>
             </div>
@@ -219,6 +199,6 @@ export function GrowthOverTimeChart({
             )}
           </>
         ))}
-    </motion.section>
+    </ChartSection>
   )
 }

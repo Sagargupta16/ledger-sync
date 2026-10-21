@@ -20,7 +20,7 @@ import type {
   YearlyTaxDatum,
 } from './taxPlanning'
 
-export interface RecordedPayrollOptions {
+interface RecordedPayrollOptions {
   salaryStructure: Record<string, SalaryComponents>
   rsuGrants: RsuGrant[]
   growthAssumptions: GrowthAssumptions
@@ -59,7 +59,7 @@ export function createEmptyFYData(): FYData {
  *   The user sets this in Settings (EPF withdrawal taxable toggle + percent);
  *   the old code hardcoded 0.5, which had no basis in EPF withdrawal rules.
  */
-export function classifyAndAccumulateIncome(
+function classifyAndAccumulateIncome(
   tx: Transaction,
   fyData: FYData,
   incomeClassification: IncomeClassification,
@@ -240,7 +240,7 @@ export function reconcileTaxWithholding(computedTax: number, recordedTax: number
   return { tdsAtSource, taxTotal: recordedTax + tdsAtSource }
 }
 
-export function computeProjectedTax(
+function computeProjectedTax(
   hasTxData: boolean,
   projTotal: number,
   recordedIncomeTax: number,

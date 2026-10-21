@@ -24,7 +24,7 @@ export function isSpendingSplitValid(total: number): boolean {
 }
 
 /** "95", "99.98": at most two decimals, no float noise. */
-export function formatSplitTotal(total: number): string {
+function formatSplitTotal(total: number): string {
   return String(Number(total.toFixed(2)))
 }
 

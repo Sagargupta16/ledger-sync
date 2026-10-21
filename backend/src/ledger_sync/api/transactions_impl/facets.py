@@ -5,15 +5,18 @@ from __future__ import annotations
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.transactions_impl.filters import _base_transaction_query
-from ledger_sync.core.query_helpers import apply_excluded_accounts_filter, excluded_accounts_for
+from ledger_sync.core.query_helpers import (
+    apply_excluded_accounts_filter,
+    build_transaction_query,
+    excluded_accounts_for,
+)
 from ledger_sync.db.models import Transaction, TransactionTag, TransactionType, User
 from ledger_sync.schemas.transactions import TagFacet, TransactionFacetsResponse
 
 
 def transaction_facets(db: Session, user: User) -> TransactionFacetsResponse:
     """Categories, accounts, tags and type counts from DISTINCT / GROUP BY reads."""
-    base = _base_transaction_query(db, user)
+    base = build_transaction_query(db, user)
 
     # Categories are split by whether the label is ever used on a non-transfer
     # row. Transfers carry a routing label in `category` ("Transfer: Bank: HDFC

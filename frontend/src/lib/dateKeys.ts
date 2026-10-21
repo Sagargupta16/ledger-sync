@@ -28,9 +28,7 @@ export const MONTHS_PER_YEAR = 12
  * months -- real months are 28-31 days, so `days / 30.44` mis-sizes every one of
  * them. Step whole months with `addMonthsToKey` and use this for the remainder.
  */
-export const DAYS_PER_AVG_MONTH = 365.25 / MONTHS_PER_YEAR
-
-export type ViewMode = 'monthly' | 'yearly' | 'all_time'
+const DAYS_PER_AVG_MONTH = 365.25 / MONTHS_PER_YEAR
 
 export const getCurrentYear = (): number => new Date().getFullYear()
 
@@ -150,9 +148,6 @@ export const parseLocalDate = (dateStr: string): Date => {
   const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number)
   return new Date(y, m - 1, d)
 }
-
-/** Local weekday (0=Sun..6=Sat) for a `YYYY-MM-DD` date, timezone-stable. */
-export const weekdayOf = (dateStr: string): number => parseLocalDate(dateStr).getDay()
 
 /**
  * Format a Date's LOCAL calendar components as a YYYY-MM-DD key.

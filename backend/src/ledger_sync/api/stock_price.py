@@ -62,7 +62,7 @@ def _historical_close(data: dict[str, Any], on_date: date) -> tuple[float, date]
 @router.get(
     "/{symbol}",
     responses={
-        400: {"description": "on_date is in the future"},
+        422: {"description": "on_date is in the future"},
         502: {"description": "Could not fetch price from upstream"},
     },
 )
@@ -97,7 +97,7 @@ async def get_stock_price(
     symbol = symbol.upper()
     # Judged on the user's IST calendar day, not the UTC date that trails it.
     if on_date is not None and on_date > ledger_today():
-        raise HTTPException(status_code=400, detail="on_date cannot be in the future")
+        raise HTTPException(status_code=422, detail="on_date cannot be in the future")
 
     url = _YAHOO_CHART_URL.format(symbol=quote(symbol, safe=""))
     if on_date is None:

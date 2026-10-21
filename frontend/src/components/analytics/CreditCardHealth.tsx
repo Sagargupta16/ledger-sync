@@ -7,6 +7,7 @@ import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
 import ErrorState from '@/components/shared/ErrorState'
+import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 import ProgressBar from '@/components/shared/ProgressBar'
 import { Money } from '@/components/ui'
 import { colors } from '@/constants/colors'
@@ -284,16 +285,7 @@ export default function CreditCardHealth() {
   } = summarizeCreditCards(creditCards)
 
   if (isLoading) {
-    return (
-      <div className="ledger-panel animate-pulse p-4 sm:p-5">
-        <div className="h-8 bg-muted rounded w-1/3 mb-4" />
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 bg-muted rounded" />
-          ))}
-        </div>
-      </div>
-    )
+    return <PanelSkeleton blockClassName="h-20" blocks={3} />
   }
 
   if (isError) {

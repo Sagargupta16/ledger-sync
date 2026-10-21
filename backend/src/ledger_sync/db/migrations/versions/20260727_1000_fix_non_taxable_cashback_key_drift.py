@@ -94,7 +94,7 @@ def _parse_key_list(raw: object) -> list[object] | None:
         return None
     try:
         parsed = json.loads(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     if not isinstance(parsed, list) or not parsed:
         return None

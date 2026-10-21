@@ -21,7 +21,7 @@ export const ACCOUNTS = {
   voucher: 'Voucher Account',
 } as const
 
-export interface ExpenseTemplate {
+interface ExpenseTemplate {
   category: string
   subcategory: string
   min: number

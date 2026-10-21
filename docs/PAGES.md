@@ -81,9 +81,10 @@ message that their existing error handler can display.
 
 ## Shared Time Filter
 
-`AnalyticsTimeFilter` appears on nine pages:
+`AnalyticsTimeFilter` appears on ten pages:
 
 - Dashboard
+- Overview
 - Expense Analysis
 - Income Analysis
 - Cash Flow

@@ -4,15 +4,11 @@ import {
   type CashFlowForecastModel,
   type MonthlyCashFlowData,
 } from '@/lib/finance/cashFlowForecast'
-import { formatDate } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
 
-export { addMonths, computeGrowthRate } from '@/lib/finance/cashFlowForecast'
-
+/** Axis label with a 2-digit year; formatMonthKey's default prints the full year. */
 export function formatMonth(v: string) {
-  // The string form of formatDate builds from local Y/M/D parts:
-  // `new Date('YYYY-MM-01')` parses as UTC midnight and mislabels the axis
-  // tick (prior month) for negative-offset users.
-  return formatDate(`${v.slice(0, 7)}-01`, { month: 'short', year: '2-digit' })
+  return formatMonthKey(v, { month: 'short', year: '2-digit' })
 }
 
 type CombinedPoint = {
@@ -28,7 +24,7 @@ type CombinedPoint = {
   lowerBase: number | undefined; bandRange: number | undefined
 }
 
-export interface ForecastResult {
+interface ForecastResult {
   combined: CombinedPoint[]
   barData: Array<{ month: string; label: string; income: number; expense: number; isForecast: boolean }>
   forecastStartMonth: string | undefined

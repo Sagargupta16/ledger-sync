@@ -22,7 +22,7 @@ import { SalaryFieldsGrid } from './salary/SalaryFieldsGrid'
 import { currentFYLabel, nextFY, parseBareStartYear } from './salary/fyHelpers'
 import { useRsuGrants } from './salary/useRsuGrants'
 
-export interface SalaryStructureSectionProps {
+interface SalaryStructureSectionProps {
   index: number
   localSalaryStructure: Record<string, SalaryComponents>
   updateSalaryStructure: (structure: Record<string, SalaryComponents>) => void

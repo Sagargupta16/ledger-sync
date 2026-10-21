@@ -38,11 +38,48 @@ interface MonthlyBreakdownChartProps {
   readonly dims: ChartDimensions
 }
 
+/** One in/out bar series, with value labels on top when there is room. */
+function flowBar({ dataKey, name, fill, animate, showLabels }: Readonly<{
+  dataKey: 'Spending' | 'Earning'
+  name?: string
+  fill: string
+  animate: boolean
+  showLabels: boolean
+}>) {
+  return (
+    <Bar
+      dataKey={dataKey}
+      name={name}
+      fill={fill}
+      radius={BAR_RADIUS}
+      maxBarSize={28}
+      opacity={0.9}
+      isAnimationActive={animate}
+      animationDuration={700}
+      animationEasing="ease-out"
+    >
+      {showLabels && (
+        <LabelList
+          dataKey={dataKey}
+          position="top"
+          fill={rawColors.chart.textPrimary}
+          fontSize={11}
+          fontFamily="var(--font-mono)"
+          formatter={(v: unknown) =>
+            !v || v === 0 ? '' : formatCurrencyShort(v as number)
+          }
+        />
+      )}
+    </Bar>
+  )
+}
+
 export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyBreakdownChartProps) {
   const { animate } = useChartPresentation(monthlyBarData.length)
   const xAxisOptions = dims.angleXLabels && monthlyBarData.length > 6
     ? { angle: -45, height: 50 }
     : undefined
+  const showBarLabels = dims.showBarLabels && monthlyBarData.length <= 6
 
   return (
     <motion.div
@@ -101,53 +138,8 @@ export default function MonthlyBreakdownChart({ monthlyBarData, dims }: MonthlyB
                   stroke={rawColors.chart.referenceLineStrong}
                   strokeWidth={1.5}
                 />
-                <Bar
-                  dataKey="Spending"
-                  fill={rawColors.app.red}
-                  radius={BAR_RADIUS}
-                  maxBarSize={28}
-                  opacity={0.9}
-                  isAnimationActive={animate}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                >
-                  {dims.showBarLabels && monthlyBarData.length <= 6 && (
-                    <LabelList
-                      dataKey="Spending"
-                      position="top"
-                      fill={rawColors.chart.textPrimary}
-                      fontSize={11}
-                      fontFamily="var(--font-mono)"
-                      formatter={(v: unknown) =>
-                        !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                      }
-                    />
-                  )}
-                </Bar>
-                <Bar
-                  dataKey="Earning"
-                  name="Income"
-                  fill={rawColors.app.green}
-                  radius={BAR_RADIUS}
-                  maxBarSize={28}
-                  opacity={0.9}
-                  isAnimationActive={animate}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                >
-                  {dims.showBarLabels && monthlyBarData.length <= 6 && (
-                    <LabelList
-                      dataKey="Earning"
-                      position="top"
-                      fill={rawColors.chart.textPrimary}
-                      fontSize={11}
-                      fontFamily="var(--font-mono)"
-                      formatter={(v: unknown) =>
-                        !v || v === 0 ? '' : formatCurrencyShort(v as number)
-                      }
-                    />
-                  )}
-                </Bar>
+                {flowBar({ dataKey: 'Spending', fill: rawColors.app.red, animate, showLabels: showBarLabels })}
+                {flowBar({ dataKey: 'Earning', name: 'Income', fill: rawColors.app.green, animate, showLabels: showBarLabels })}
                 {/* Net cash flow line so savings months pop visually --
                   a peak above the bars means a saving month, a trough
                   between them means an overspending month. */}

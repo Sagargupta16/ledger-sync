@@ -10,11 +10,11 @@
 
 import { useMemo } from 'react'
 
-import { isInvestmentAccount } from '@/constants/accountTypes'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { getDateKey } from '@/lib/dateUtils'
+import { investmentAccountTest } from '@/lib/finance/investmentFlows'
 import { investmentReturnRules } from '@/lib/finance/investmentReturns'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { resolveIncomeClassification } from '@/store/preferencesStore'
@@ -60,8 +60,11 @@ export function useReturnsAnalysis() {
   const investmentAccounts = useMemo(() => {
     const accounts = balanceData?.accounts ?? {}
     const mappings = preferencesQuery.data?.investment_account_mappings ?? {}
+    // The shared investment perimeter: mapped names (case-insensitive), or the
+    // default keywords while nothing is mapped -- the Dashboard's rule.
+    const isInvestment = investmentAccountTest(Object.keys(mappings))
     return Object.entries(accounts)
-      .filter(([name]) => Object.hasOwn(mappings, name) || isInvestmentAccount(name))
+      .filter(([name]) => isInvestment(name))
       .map(([name, data]) => ({
         name,
         balance: data.balance,

@@ -8,7 +8,7 @@ import { calculationsApi, type DateRangeParams } from '@/services/api/calculatio
  * preference save (excluded accounts included) and every upload refreshes it.
  * The all-time slot (no params) is shared by Net Worth and Trends.
  */
-export const dailyNetWorthOptions = (params?: DateRangeParams) =>
+const dailyNetWorthOptions = (params?: DateRangeParams) =>
   queryOptions({
     queryKey: ['calculations', 'daily-net-worth', params] as const,
     queryFn: async () => (await calculationsApi.getDailyNetWorth(params)).data,

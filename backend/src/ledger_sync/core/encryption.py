@@ -99,7 +99,7 @@ def _try_decrypt(body: bytes, material: bytes, version: int) -> str | None:
     associated_data = _V3_PREFIX.encode() if version == 3 else None
     try:
         return AESGCM(key).decrypt(nonce, ciphertext, associated_data).decode()
-    except (InvalidTag, ValueError):
+    except InvalidTag, ValueError:
         return None
 
 

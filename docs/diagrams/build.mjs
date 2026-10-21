@@ -61,8 +61,12 @@ function staticPreview(html) {
   // Resolve the fixed light palette for this passive export, preserving geometry.
   const palette = new Map()
   for (const selector of [/:root,\s*\[data-theme="dark"\]\s*\{([^}]+)\}/, /\[data-theme="light"\]\s*\{([^}]+)\}/]) {
-    for (const [, key, value] of selector.exec(styles)[1].matchAll(/(--[\w-]+)\s*:([^;]+);/g)) {
-      palette.set(key, value.trim())
+    // Split on ';' first (dropping the unterminated tail), then find the first
+    // `--name:` inside each short declaration. One block-wide pattern ending in
+    // `[^;]+;` backtracked super-linearly on long runs without a semicolon.
+    for (const declaration of selector.exec(styles)[1].split(';').slice(0, -1)) {
+      const match = /(--[\w-]+)\s*:([\s\S]+)/.exec(declaration)
+      if (match) palette.set(match[1], match[2].trim())
     }
   }
   const resolvePalette = (text) => text.replace(/var\((--[\w-]+)\)/g, (original, key) => palette.get(key) ?? original)

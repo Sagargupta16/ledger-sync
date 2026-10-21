@@ -15,7 +15,7 @@ flowchart TB
         R_ANALYTICS["Analytics and calculations"]
         R_PLANNING["Preferences, budgets,<br/>goals, rules, saved views"]
         R_AI["AI chat, tools, usage"]
-        R_RATES["Rates, stock prices,<br/>reports, metadata"]
+        R_RATES["Rates and<br/>stock prices"]
     end
 
     subgraph CORE["Domain and service layer"]
@@ -32,8 +32,8 @@ flowchart TB
     end
 
     subgraph DATA["Data layer"]
-        MODELS["SQLAlchemy models<br/>8 domain modules"]
-        MIGRATIONS["Alembic<br/>33 revisions"]
+        MODELS["SQLAlchemy models<br/>11 domain modules"]
+        MIGRATIONS["Alembic<br/>57 revisions"]
         DB[("SQLite local<br/>PostgreSQL 17 production")]
     end
 

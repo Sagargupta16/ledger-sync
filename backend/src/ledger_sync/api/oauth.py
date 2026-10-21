@@ -117,7 +117,7 @@ def initiate_oauth(
     config = next((p for p in _configured_providers() if p.provider == provider), None)
     if config is None:
         raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"{provider.capitalize()} OAuth is not configured",
         )
     return OAuthAuthorization(
@@ -155,6 +155,54 @@ async def _oauth_get(
     return body
 
 
+async def _exchange_code(
+    client: httpx.AsyncClient,
+    token_url: str,
+    *,
+    provider: str,
+    data: dict[str, str],
+    headers: dict[str, str] | None = None,
+) -> str:
+    """Trade the authorization code at *token_url* for the provider access token.
+
+    Provider outages are 502 (``_provider_call``); a rejected exchange or a reply
+    without an access token is a 400. Provider responses can include short-lived
+    codes or internal URLs, so only the status and the ``error`` field are logged.
+    """
+    request_options: dict[str, Any] = {"data": data}
+    if headers is not None:
+        request_options["headers"] = headers
+    resp = await _provider_call(client.post(token_url, **request_options), provider)
+    if resp.status_code != 200:
+        try:
+            error_code = resp.json().get("error")
+        except ValueError:
+            error_code = None
+        logger.warning(
+            "%s token exchange failed: status=%s error=%s",
+            provider,
+            resp.status_code,
+            error_code or "unknown",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{provider} token exchange failed",
+        )
+    token_body = _provider_json(resp, provider)
+    if not isinstance(token_body, dict):
+        token_body = {}
+    access_token: str | None = token_body.get("access_token")
+    if not access_token:
+        logger.warning(
+            "%s OAuth: no access_token in response: %s", provider, token_body.get("error")
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to obtain access token from {provider}",
+        )
+    return access_token
+
+
 # ─── Google OAuth ──────────────────────────────────────────────────────────────
 
 
@@ -169,52 +217,26 @@ async def google_callback(
     """Exchange Google authorization code for JWT tokens."""
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Google OAuth is not configured",
         )
 
     await run_in_threadpool(_validate_state, body, "google", session)
     redirect_uri = _get_redirect_uri("google")
 
-    # Exchange authorization code for tokens
-    resp = await _provider_call(
-        client.post(
-            _GOOGLE_TOKEN_URL,
-            data={
-                "code": body.code,
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-                "redirect_uri": redirect_uri,
-                "grant_type": "authorization_code",
-                "code_verifier": body.code_verifier,
-            },
-        ),
-        "Google",
+    access_token = await _exchange_code(
+        client,
+        _GOOGLE_TOKEN_URL,
+        provider="Google",
+        data={
+            "code": body.code,
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+            "code_verifier": body.code_verifier,
+        },
     )
-    if resp.status_code != 200:
-        # Provider responses can include short-lived codes or internal URLs
-        # -- log only the status and the error field (if any), not full body.
-        try:
-            error_code = resp.json().get("error")
-        except ValueError:
-            error_code = None
-        logger.warning(
-            "Google token exchange failed: status=%s error=%s",
-            resp.status_code,
-            error_code or "unknown",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google token exchange failed",
-        )
-    token_body = _provider_json(resp, "Google")
-    access_token = token_body.get("access_token") if isinstance(token_body, dict) else None
-    if not access_token:
-        logger.warning("Google OAuth: no access_token in response")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to obtain access token from Google",
-        )
 
     # Fetch user profile
     user_info = await _oauth_get(
@@ -262,52 +284,26 @@ async def github_callback(
     """Exchange GitHub authorization code for JWT tokens."""
     if not settings.github_client_id or not settings.github_client_secret:
         raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth is not configured",
         )
 
     await run_in_threadpool(_validate_state, body, "github", session)
     redirect_uri = _get_redirect_uri("github")
 
-    # Exchange authorization code for access token
-    resp = await _provider_call(
-        client.post(
-            _GITHUB_TOKEN_URL,
-            data={
-                "code": body.code,
-                "client_id": settings.github_client_id,
-                "client_secret": settings.github_client_secret,
-                "redirect_uri": redirect_uri,
-                "code_verifier": body.code_verifier,
-            },
-            headers={"Accept": "application/json"},
-        ),
-        "GitHub",
+    access_token = await _exchange_code(
+        client,
+        _GITHUB_TOKEN_URL,
+        provider="GitHub",
+        data={
+            "code": body.code,
+            "client_id": settings.github_client_id,
+            "client_secret": settings.github_client_secret,
+            "redirect_uri": redirect_uri,
+            "code_verifier": body.code_verifier,
+        },
+        headers={"Accept": "application/json"},
     )
-    if resp.status_code != 200:
-        try:
-            error_code = resp.json().get("error")
-        except ValueError:
-            error_code = None
-        logger.warning(
-            "GitHub token exchange failed: status=%s error=%s",
-            resp.status_code,
-            error_code or "unknown",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="GitHub token exchange failed",
-        )
-    data = _provider_json(resp, "GitHub")
-    if not isinstance(data, dict):
-        data = {}
-    access_token: str | None = data.get("access_token")
-    if not access_token:
-        logger.warning("GitHub OAuth: no access_token in response: %s", data.get("error"))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to obtain access token from GitHub",
-        )
 
     # Fetch user profile
     user_info = await _oauth_get(

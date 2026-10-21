@@ -54,12 +54,12 @@ are never deleted or hidden -- just not summed as consumption.
 
 from __future__ import annotations
 
-import json
 import re
-from typing import Any
+from typing import Any, Protocol, Self
 
 from sqlalchemy import ColumnElement, and_, func, not_, or_
 
+from ledger_sync.core.preference_json import parse_json_preference
 from ledger_sync.db.models import Transaction
 
 #: Separator for the exact-match preference keys, matching the four income
@@ -92,12 +92,7 @@ def capital_loss_keys(raw: str | list[Any] | None) -> set[str]:
     an empty list. Empty means "the user has classified nothing", which is the
     shipped state and must leave every aggregate untouched.
     """
-    parsed: Any = raw
-    if isinstance(raw, str):
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
-            return set()
+    parsed = parse_json_preference(raw, None)
     if not isinstance(parsed, list):
         return set()
     keys: set[str] = set()
@@ -152,6 +147,25 @@ def capital_loss_sql_filter(
         )
     ]
     return not_(or_(*matches))
+
+
+class _Filterable(Protocol):
+    """A legacy ``Query`` or a 2.0 ``Select``: both narrow with ``.filter``."""
+
+    def filter(self, *criterion: ColumnElement[bool]) -> Self: ...
+
+
+def without_capital_losses[QueryT: _Filterable](query: QueryT, keys: set[str]) -> QueryT:
+    """Drop the rows whose taxonomy is in *keys* from a ``Transaction`` read.
+
+    Returns *query* UNCHANGED when nothing is classified, so the default case
+    emits exactly the SQL it did before the preference existed. Generic in the
+    query type, so a row-returning aggregate keeps its element types. Only
+    meaningful on a query already restricted to EXPENSE rows -- callers do that
+    themselves, since income-side classification uses a separate list.
+    """
+    predicate = capital_loss_sql_filter(keys)
+    return query if predicate is None else query.filter(predicate)
 
 
 # --- detection patterns (signal only, never an aggregate) -------------------

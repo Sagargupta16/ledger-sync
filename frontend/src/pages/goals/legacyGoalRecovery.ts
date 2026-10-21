@@ -26,7 +26,7 @@ export interface LegacyGoalRecovery {
   signature: string
 }
 
-export interface LegacyGoalData {
+interface LegacyGoalData {
   allocations: Record<string, unknown>
   overrides: Record<string, unknown>
   hidden: unknown[]

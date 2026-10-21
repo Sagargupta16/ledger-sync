@@ -47,7 +47,7 @@ type ServiceParams<K extends keyof typeof analyticsV2Service> = Parameters<
   (typeof analyticsV2Service)[K]
 >[0]
 
-// Query keys — filter properties spread directly to avoid object reference mismatches.
+// Query keys -- filter properties spread directly to avoid object reference mismatches.
 // EVERY param the queryFn sends must appear in the key: staleTime is Infinity,
 // so a param missing from the key means two callers with different values
 // silently share one cache entry (first mount wins). The converse also matters
@@ -369,17 +369,7 @@ export function useSpendingRule(params?: ServiceParams<'getSpendingRule'>) {
 export type {
   Anomaly,
   Budget,
-  CategoryTrend,
-  DailySummary,
   FinancialGoal,
-  FYSummary,
-  InvestmentHolding,
   MerchantIntelligence,
-  MonthlySummary,
-  NetWorthSnapshot,
   RecurringTransaction,
-  SpendingRuleBucket,
-  SpendingRuleCategoryRow,
-  SpendingRuleResponse,
-  TransferFlow,
 } from '@/services/api/analyticsV2'

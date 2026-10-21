@@ -37,6 +37,7 @@ from ledger_sync.api.preferences_schemas import (
     spending_split_error,
 )
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
+from ledger_sync.core.preference_json import parse_json_preference
 from ledger_sync.db.models import User, UserPreferences
 from ledger_sync.services.account_settings import (
     get_credit_card_limits,
@@ -70,18 +71,6 @@ __all__ = [
 # ----- Helper Functions -----
 
 
-def _parse_json_field(value: str | list[Any] | dict[str, Any], default: Any = None) -> Any:
-    """Parse JSON field if it's a string."""
-    if default is None:
-        default = []
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return default
-    return value
-
-
 def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferencesResponse:
     """Read a coherent response, including after a writer's commit released its lock."""
     lock_analytics_user(session, prefs.user_id, read_only=True)
@@ -91,13 +80,17 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
     return UserPreferencesResponse(
         id=prefs.id,
         fiscal_year_start_month=prefs.fiscal_year_start_month,
-        essential_categories=_parse_json_field(prefs.essential_categories),
-        investment_account_mappings=_parse_json_field(prefs.investment_account_mappings),
-        taxable_income_categories=_parse_json_field(prefs.taxable_income_categories),
-        investment_returns_categories=_parse_json_field(prefs.investment_returns_categories),
-        non_taxable_income_categories=_parse_json_field(prefs.non_taxable_income_categories),
-        other_income_categories=_parse_json_field(prefs.other_income_categories),
-        capital_loss_categories=_parse_json_field(prefs.capital_loss_categories),
+        essential_categories=parse_json_preference(prefs.essential_categories, []),
+        investment_account_mappings=parse_json_preference(prefs.investment_account_mappings, []),
+        taxable_income_categories=parse_json_preference(prefs.taxable_income_categories, []),
+        investment_returns_categories=parse_json_preference(
+            prefs.investment_returns_categories, []
+        ),
+        non_taxable_income_categories=parse_json_preference(
+            prefs.non_taxable_income_categories, []
+        ),
+        other_income_categories=parse_json_preference(prefs.other_income_categories, []),
+        capital_loss_categories=parse_json_preference(prefs.capital_loss_categories, []),
         default_budget_alert_threshold=prefs.default_budget_alert_threshold,
         auto_create_budgets=prefs.auto_create_budgets,
         budget_rollover_enabled=prefs.budget_rollover_enabled,
@@ -107,7 +100,7 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
         default_time_range=prefs.default_time_range,
         display_currency=prefs.display_currency,
         anomaly_expense_threshold=prefs.anomaly_expense_threshold,
-        anomaly_types_enabled=_parse_json_field(prefs.anomaly_types_enabled),
+        anomaly_types_enabled=parse_json_preference(prefs.anomaly_types_enabled, []),
         auto_dismiss_recurring_anomalies=prefs.auto_dismiss_recurring_anomalies,
         recurring_min_confidence=prefs.recurring_min_confidence,
         recurring_auto_confirm_occurrences=prefs.recurring_auto_confirm_occurrences,
@@ -120,12 +113,12 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
         },
         earning_start_date=prefs.earning_start_date,
         use_earning_start_date=prefs.use_earning_start_date,
-        fixed_expense_categories=_parse_json_field(prefs.fixed_expense_categories),
+        fixed_expense_categories=parse_json_preference(prefs.fixed_expense_categories, []),
         savings_goal_percent=prefs.savings_goal_percent,
         monthly_investment_target=prefs.monthly_investment_target,
         payday=prefs.payday,
         preferred_tax_regime=prefs.preferred_tax_regime,
-        excluded_accounts=_parse_json_field(prefs.excluded_accounts),
+        excluded_accounts=parse_json_preference(prefs.excluded_accounts, []),
         notify_budget_alerts=prefs.notify_budget_alerts,
         notify_anomalies=prefs.notify_anomalies,
         notify_upcoming_bills=prefs.notify_upcoming_bills,
@@ -136,7 +129,7 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
         salary_is_net_of_tds=prefs.salary_is_net_of_tds,
         salary_structure=compensation["salary_structure"],
         rsu_grants=compensation["rsu_grants"],
-        growth_assumptions=_parse_json_field(prefs.growth_assumptions, {}),
+        growth_assumptions=parse_json_preference(prefs.growth_assumptions, {}),
         created_at=prefs.created_at,
         updated_at=prefs.updated_at,
     )
@@ -195,7 +188,7 @@ def _apply_preference_updates(
             continue
         previous = getattr(prefs, field)
         if isinstance(value, (list, dict)):
-            if _parse_json_field(previous, default=None) == value:
+            if parse_json_preference(previous, []) == value:
                 continue
             value = json.dumps(value)
         elif previous == value:

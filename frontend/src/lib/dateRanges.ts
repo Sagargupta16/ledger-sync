@@ -144,7 +144,7 @@ export interface AnalyticsDateRange {
   end_date: string | null
 }
 
-export interface AnalyticsDateRangeParams {
+interface AnalyticsDateRangeParams {
   viewMode: AnalyticsViewMode
   currentYear: number
   currentMonth: string

@@ -50,8 +50,7 @@ class CohortMixin(AnalyticsEngineBase):
         rows = self._build_cohort_rows(expenses)
 
         # Replace this user's cohort rows wholesale (small table, ≤ 7+31+12).
-        if self.user_id is not None:
-            self.db.execute(delete(CohortSpending).where(CohortSpending.user_id == self.user_id))
+        self.db.execute(delete(CohortSpending).where(CohortSpending.user_id == self.user_id))
 
         now = datetime.now(UTC)
         for dimension, bucket, total, occ in rows:

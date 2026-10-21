@@ -11,8 +11,10 @@ column-projected rows ``api.analytics_helpers`` loads without ORM state.
 
 MONTHLY AVERAGES follow one rule everywhere below: complete calendar months
 only, a month with no rows counts as 0, and the month still in progress on the
-IST ledger day is excluded (``insight_rules.is_partial_month``). Totals and
-shares may include the month in progress; averages may not.
+IST ledger day is excluded (``insight_rules.is_partial_month``), as is every
+month after it. Totals and shares may include the month in progress; averages
+may not. ``complete_month_spine`` is the backend twin of ``completeMonthSpine``
+in ``frontend/src/lib/finance/monthlyAverage.ts``; change both together.
 """
 
 from collections import defaultdict
@@ -77,40 +79,77 @@ def expense_rows[RowT: LedgerRow](rows: Iterable[RowT]) -> list[RowT]:
     return [t for t in rows if t.type == TransactionType.EXPENSE]
 
 
+def _is_complete_month(key: str, today: date) -> bool:
+    """Neither the month in progress on *today* nor a month after it.
+
+    ``isCompleteMonth`` in ``frontend/src/lib/savingsRate.ts``. A future-dated
+    scheduled row has not happened, and ``is_partial_month`` alone calls every
+    future month complete.
+    """
+    return key[:7] <= month_key(today) and not is_partial_month(key, today)
+
+
 def complete_month_expense_rows[RowT: LedgerRow](rows: Iterable[RowT], today: date) -> list[RowT]:
-    """EXPENSE rows outside the month still in progress on *today*."""
-    return [t for t in expense_rows(rows) if not is_partial_month(month_key(t.date), today)]
+    """EXPENSE rows outside the month still in progress on *today* and after it."""
+    return [t for t in expense_rows(rows) if _is_complete_month(month_key(t.date), today)]
 
 
-def _month_span(first: datetime, last: datetime) -> int:
-    """Calendar months from *first* to *last* inclusive, empty months included."""
-    return (last.year - first.year) * 12 + (last.month - first.month) + 1
+def _month_keys_between(first: str, last: str) -> list[str]:
+    """Every ``YYYY-MM`` from *first* to *last* inclusive, gaps included."""
+    year, month = int(first[:4]), int(first[5:7])
+    keys: list[str] = []
+    while (key := f"{year:04d}-{month:02d}") <= last:
+        keys.append(key)
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return keys
+
+
+def complete_month_spine(observed_months: Iterable[str], today: date) -> list[str]:
+    """The complete calendar months an average divides by, oldest first.
+
+    Every month from the first observed month to the last observed one, capped
+    at the current month, empty months included, minus the months that are not
+    complete. A month that ended with no rows before the month in progress is
+    therefore a zero month, not the end of the window. Empty when no complete
+    month exists.
+    """
+    observed = sorted({key[:7] for key in observed_months})
+    if not observed:
+        return []
+    last = min(observed[-1], month_key(today))
+    return [key for key in _month_keys_between(observed[0], last) if _is_complete_month(key, today)]
+
+
+def _complete_month_expenses[RowT: LedgerRow](
+    rows: Iterable[RowT], today: date
+) -> tuple[list[RowT], int]:
+    """EXPENSE rows inside the complete-month spine, and the spine's length."""
+    expenses = expense_rows(rows)
+    months = set(complete_month_spine((month_key(t.date) for t in expenses), today))
+    return [t for t in expenses if month_key(t.date) in months], len(months)
 
 
 def fill_complete_months(
     monthly_data: dict[str, dict[str, float]],
     today: date,
 ) -> dict[str, dict[str, float]]:
-    """``group_by_month`` output as complete calendar months, empty ones as zeros.
+    """``group_by_month`` output over ``complete_month_spine``, empty months as zeros.
 
-    Drops the month still in progress on *today* and inserts an all-zero row for
-    every calendar month missing between the first and last remaining month, in
-    chronological order. An average over the result divides by elapsed months,
-    not by the months that happened to have rows -- a user who spent nothing in
-    March has a lower monthly average, not the same one. May return ``{}``; the
-    caller must abstain rather than average nothing.
+    Drops the month still in progress on *today* and every later month, and
+    inserts an all-zero row for every calendar month of the spine that has no
+    row, in chronological order. An average over the result divides by elapsed
+    months, not by the months that happened to have rows -- a user who spent
+    nothing in March has a lower monthly average, not the same one. May return
+    ``{}``; the caller must abstain rather than average nothing.
     """
-    complete = {k: v for k, v in monthly_data.items() if not is_partial_month(k, today)}
-    if not complete:
+    months = complete_month_spine(monthly_data, today)
+    if not months:
         return {}
-    fields = next(iter(complete.values())).keys()
-    year, month = (int(part) for part in min(complete).split("-"))
-    last = max(complete)
-    filled: dict[str, dict[str, float]] = {}
-    while (key := f"{year:04d}-{month:02d}") <= last:
-        filled[key] = complete[key] if key in complete else dict.fromkeys(fields, 0.0)
-        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
-    return filled
+    fields = next(iter(monthly_data.values())).keys()
+    return {
+        key: monthly_data[key] if key in monthly_data else dict.fromkeys(fields, 0.0)
+        for key in months
+    }
 
 
 def exclude_capital_losses[RowT: LedgerRow](
@@ -186,31 +225,26 @@ def calculate_monthly_burn_rate(
 ) -> float:
     """Average monthly spending over complete calendar months.
 
-    Divides by every calendar month from the first to the last expense month,
-    so a month with no spending counts as 0, and leaves out the month still in
-    progress on *today* (default: the IST ledger day) -- its rows and its slot
-    -- because a month three days old is not a comparable observation.
+    Divides by ``complete_month_spine`` over the expense months, so a month
+    with no spending counts as 0, and leaves out the month still in progress on
+    *today* (default: the IST ledger day) and any later month -- their rows and
+    their slots -- because a month three days old is not a comparable
+    observation.
     """
-    expenses = complete_month_expense_rows(transactions, today or ledger_today())
-    if not expenses:
+    expenses, months = _complete_month_expenses(transactions, today or ledger_today())
+    if not months:
         return 0.0
 
-    dates = [t.date for t in expenses]
-    months_span = _month_span(min(dates), max(dates))
-
     total_spent = sum((_to_decimal(t.amount) for t in expenses), Decimal(0))
-    return float(total_spent / months_span)
+    return float(total_spent / months)
 
 
 def calculate_spending_frequency(
     transactions: Sequence[LedgerRow], today: date | None = None
 ) -> float:
     """Expense transactions per month, under the same complete-month rule as the burn rate."""
-    expenses = complete_month_expense_rows(transactions, today or ledger_today())
-    if not expenses:
-        return 0.0
-    dates = [t.date for t in expenses]
-    return len(expenses) / _month_span(min(dates), max(dates))
+    expenses, months = _complete_month_expenses(transactions, today or ledger_today())
+    return len(expenses) / months if months else 0.0
 
 
 def group_by_month(
@@ -269,10 +303,8 @@ def is_measurable_consistency(monthly_expenses: list[float]) -> bool:
     off one month of history, or off a ledger with no expenses at all.
 
     Callers that publish the score to a user must gate on this first. It lives
-    beside the score rather than in each caller so the two cannot drift: the
-    insight generators already abstain (``insight_generators.spending_insights``,
-    ``insight_rules.MIN_MONTHS_FOR_VOLATILITY``) and this makes the same
-    precondition callable instead of re-derived.
+    beside the score rather than in each caller so the precondition is called,
+    never re-derived.
     """
     return len(monthly_expenses) > 1 and mean(monthly_expenses) != 0
 

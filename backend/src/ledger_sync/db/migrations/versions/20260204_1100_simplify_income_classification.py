@@ -48,7 +48,7 @@ def _extract_categories(json_str: str) -> list[str]:
     try:
         data = json.loads(json_str) if isinstance(json_str, str) else json_str
         return list(data.keys()) if isinstance(data, dict) else []
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return []
 
 

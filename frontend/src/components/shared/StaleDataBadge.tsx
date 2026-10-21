@@ -20,7 +20,7 @@ export function StaleDataBadge({ isFallback, reason }: StaleDataBadgeProps) {
   return (
     <output
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-overline font-medium bg-warning/10 text-warning border border-warning/20"
-      title={reason ?? 'Showing fallback data — couldn\'t reach the live source.'}
+      title={reason ?? 'Showing fallback data - couldn\'t reach the live source.'}
     >
       <Info className="w-3 h-3" aria-hidden />
       Fallback

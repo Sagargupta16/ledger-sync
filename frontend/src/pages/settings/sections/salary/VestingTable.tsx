@@ -4,8 +4,6 @@ import VestingCard from './VestingCard'
 import VestingRow from './VestingRow'
 import type { IndexedVesting, VestingTableProps } from './vestingTableTypes'
 
-export type { VestingTableProps } from './vestingTableTypes'
-
 function GroupDividerRow({ label, count }: Readonly<{ label: string; count: number }>) {
   return (
     <tr>

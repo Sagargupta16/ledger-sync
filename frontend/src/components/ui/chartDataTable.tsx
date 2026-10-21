@@ -8,7 +8,7 @@
  * Extracted from `chartDefaults` so that module stays a styling-tokens file.
  */
 
-export interface ChartDataTableColumn<T> {
+interface ChartDataTableColumn<T> {
   header: string
   /** Render this column's cells as `<th scope="row">`. Set on exactly one column. */
   rowHeader?: boolean

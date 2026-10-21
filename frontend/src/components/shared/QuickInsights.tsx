@@ -17,7 +17,7 @@ import {
 import { useDailySummaries, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { EASING } from '@/constants/animations'
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { formatMonthKey, toLocalDateKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { computeSpendingPace, medianSpendingDay, medianSpendingMonth } from '@/lib/finance/spendingStatistics'
@@ -34,7 +34,6 @@ import {
   buildQuickInsights,
   buildFunFacts,
   DAY_NAMES,
-  monthLabel,
 } from './quickInsightsData'
 
 /**
@@ -259,7 +258,7 @@ export default function QuickInsights({
   // Most expensive month
   const mostExpensiveMonth = insights?.most_expensive_month
     ? {
-        label: monthLabel(insights.most_expensive_month.period),
+        label: formatMonthKey(insights.most_expensive_month.period),
         amount: insights.most_expensive_month.amount,
       }
     : null

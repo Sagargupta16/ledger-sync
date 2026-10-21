@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { getTodayKey } from '@/lib/dateUtils'
@@ -39,26 +40,13 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   const spansYears = String(firstPoint?.date).slice(0, 4) !== String(lastPoint?.date).slice(0, 4)
 
   return (
-    <motion.section
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
-      className="ledger-panel min-w-0 p-4 sm:p-6"
-      aria-labelledby="net-worth-trend-title"
-    >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-            Wealth / transaction trend
-          </p>
-          <h2 id="net-worth-trend-title" className="text-lg font-semibold tracking-tight text-foreground">
-            Net Worth Trend
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Cumulative income less expenses through each date.
-          </p>
-        </div>
+    <ChartSection
+      titleId="net-worth-trend-title"
+      eyebrow="Wealth / transaction trend"
+      title="Net Worth Trend"
+      description="Cumulative income less expenses through each date."
+      headerClassName="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      action={(
         <NetWorthViewToggles
           motionEnabled={motionEnabled}
           showProjection={showProjection}
@@ -68,7 +56,8 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           stackedAllowed={stackedAllowed}
           monthlyGrowth={monthlyGrowth}
         />
-      </div>
+      )}
+    >
       {(() => {
         if (isLoading) {
           return <ChartSkeleton />
@@ -103,12 +92,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               showProjectionLine={showProjectionLine}
             />
             {plotData.length > 6 && <ChartRangeControls range={range} label="Net worth chart range" />}
-            <motion.div
-              initial={motionEnabled ? { opacity: 0, y: 12 } : false}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
-            >
+            <ChartReveal>
               <NetWorthAreaPlot
                 plotData={plotData}
                 allCategories={allCategories}
@@ -122,7 +106,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 milestoneRows={milestoneRows}
                 range={range}
               />
-            </motion.div>
+            </ChartReveal>
             <div className="mt-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
               <p className="max-w-prose">
                   {showProjectionLine
@@ -165,6 +149,6 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
           </>
         )
       })()}
-    </motion.section>
+    </ChartSection>
   )
 }

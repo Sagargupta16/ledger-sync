@@ -1,5 +1,7 @@
+import { toLocalDateKey } from '@/lib/dateUtils'
+
 import { EXPENSE_TEMPLATES, NOTES_MAP } from './demoTemplates'
-import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
+import { txId, type MonthCtx } from './demoTxHelpers'
 
 /** Categories whose spend spikes in the Oct/Nov festival season. */
 const FESTIVAL_SPIKE_SUBCATS = new Set([
@@ -45,7 +47,7 @@ function pushExpense(ctx: MonthCtx, tmpl: Template, day: number): void {
   const notes = NOTES_MAP[tmpl.subcategory]
   ctx.txs.push({
     id: txId(ctx.idx++),
-    date: formatDate(new Date(ctx.year, ctx.month, day)),
+    date: toLocalDateKey(new Date(ctx.year, ctx.month, day)),
     amount: amountFor(ctx, tmpl),
     type: 'Expense',
     category: tmpl.category,

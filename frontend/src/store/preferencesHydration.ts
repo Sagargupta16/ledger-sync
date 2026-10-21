@@ -58,7 +58,7 @@ function arrayOrDefault(v: unknown, fallback: readonly string[]): string[] {
  * and interfaces get no implicit index signature, so a Record parameter would
  * reject the very payload the call sites hold.
  */
-export interface IncomeListPayload {
+interface IncomeListPayload {
   taxable_income_categories?: unknown
   investment_returns_categories?: unknown
   non_taxable_income_categories?: unknown

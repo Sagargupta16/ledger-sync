@@ -4,12 +4,12 @@ flowchart TB
 
     subgraph DELIVERY["Delivery"]
         PAGES["GitHub Pages<br/>React 19 SPA<br/>TypeScript 7 + Vite 8"]
-        VERCEL["Vercel sin1<br/>FastAPI + Mangum<br/>Python 3.13"]
-        NEON[("Neon PostgreSQL 17<br/>26 tables<br/>PgBouncer pooler")]
+        VERCEL["Vercel sin1<br/>FastAPI ASGI app<br/>Python 3.14"]
+        NEON[("Neon PostgreSQL 17<br/>34 tables<br/>PgBouncer pooler")]
     end
 
     subgraph BROWSER["Browser runtime"]
-        APP["Responsive workspace<br/>Light / Dark / System<br/>PWA app shell"]
+        APP["Responsive workspace<br/>Light / Dark<br/>PWA app shell"]
         QUERY["TanStack Query<br/>API server state"]
         STORES["Zustand<br/>auth, preferences,<br/>theme, demo"]
         APP --- QUERY

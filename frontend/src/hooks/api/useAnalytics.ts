@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { analyticsService } from '@/services/api/analytics'
 import { calculationsApi } from '@/services/api/calculations'
@@ -17,16 +16,16 @@ const STABLE = { staleTime: Infinity, refetchOnWindowFocus: false } as const
 // `{ start_date, end_date }` params were silently dropped by FastAPI, so a
 // date-filtered KPI read answered with all-time figures under a type that said
 // otherwise. Key shape is unchanged: no caller passes params today.
-export const kpisOptions = (params?: { time_range?: TimeRange }) =>
+const kpisOptions = (params?: { time_range?: TimeRange }) =>
   queryOptions({ queryKey: ['kpis', params], queryFn: () => analyticsService.getKPIs(params), ...STABLE })
 
 export const recentTransactionsOptions = (limit: number = 5) =>
   queryOptions({ queryKey: ['transactions', 'recent', limit], queryFn: () => analyticsService.getRecentTransactions(limit), ...STABLE })
 
-export const overviewOptions = (timeRange: TimeRange = 'all_time') =>
+const overviewOptions = (timeRange: TimeRange = 'all_time') =>
   queryOptions({ queryKey: ['analytics', 'overview', timeRange], queryFn: () => analyticsService.getOverview(timeRange), ...STABLE })
 
-export const behaviorOptions = (timeRange: TimeRange = 'all_time') =>
+const behaviorOptions = (timeRange: TimeRange = 'all_time') =>
   queryOptions({ queryKey: ['analytics', 'behavior', timeRange], queryFn: () => analyticsService.getBehavior(timeRange), ...STABLE })
 
 export const trendsOptions = (timeRange: TimeRange = 'all_time') =>
@@ -38,8 +37,8 @@ export const trendsOptions = (timeRange: TimeRange = 'all_time') =>
 // sites anywhere under `src/`, and no `DEMO_ROUTES` entry, so unlike the
 // consumerless-but-serviceable `useKPIs` / `useOverview` / `useBehavior` (pinned
 // by `lib/demo/__tests__/seedReaderContract.test.tsx`) they could not have
-// served a page in demo mode either. The `/api/analytics/charts/*` endpoints are
-// still live; see the note at the bottom of `services/api/analytics.ts`.
+// served a page in demo mode either. The `/api/analytics/charts/*` endpoints were
+// removed from the backend on 2026-10-21.
 
 export const categoryBreakdownOptions = (params?: { start_date?: string; end_date?: string; transaction_type?: 'income' | 'expense' }) =>
   queryOptions({
@@ -124,7 +123,7 @@ export const masterCategoriesOptions = () =>
   })
 
 /** Income buckets with row counts + sums, for the Settings classification audit. */
-export const incomeFacetsOptions = () =>
+const incomeFacetsOptions = () =>
   queryOptions({
     queryKey: ['calculations', 'income-facets'] as const,
     queryFn: async () => (await calculationsApi.getIncomeFacets()).data,
@@ -153,15 +152,6 @@ export const useDataDateRange = () => {
     isError: query.isError,
     refetch: query.refetch,
   }
-}
-/**
- * Referentially stable `{ minDate, maxDate }` for `useAnalyticsTimeFilter(bounds)`.
- * Same non-deleted, non-excluded rows `/transactions/all` returns, so the bounds
- * equal the min/max of the ledger array without sorting every row's date.
- */
-export const useDataDateBounds = () => {
-  const { minDate, maxDate } = useDataDateRange()
-  return useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
 }
 export const useMasterCategories = () => useQuery(masterCategoriesOptions())
 export const useIncomeFacets = () => useQuery(incomeFacetsOptions())

@@ -1,4 +1,4 @@
-export interface InsightRowProps {
+interface InsightRowProps {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   label: string
   value: string

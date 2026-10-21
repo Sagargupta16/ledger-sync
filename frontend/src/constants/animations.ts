@@ -2,7 +2,6 @@ import type { Variants } from 'motion/react'
 
 export const EASING = {
   cinematic: [0.16, 1, 0.3, 1] as const,
-  brisk: [0.25, 0.1, 0.25, 1] as const,
   smooth: [0.25, 0.46, 0.45, 0.94] as const,
 }
 
@@ -14,11 +13,10 @@ export const DURATION = {
 
 export const SPRING = {
   activePill: { type: 'spring' as const, stiffness: 500, damping: 40 },
-  card: { type: 'spring' as const, stiffness: 380, damping: 26 },
   control: { type: 'spring' as const, stiffness: 500, damping: 28 },
 }
 
-export const VIEWPORT_MARGIN = '0px 0px -60px 0px'
+const VIEWPORT_MARGIN = '0px 0px -60px 0px'
 
 const ITEM_OFFSET = 16
 const SECTION_OFFSET = 24
@@ -95,27 +93,23 @@ export const sectionReveal: Variants = {
   },
 }
 
-export const waveCascadeContainer: Variants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.04, delayChildren: 0.08 },
-  },
-}
-
-export const waveCascadeItem: Variants = {
-  hidden: { opacity: 0, y: ITEM_OFFSET, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: DURATION.default, ease: EASING.brisk },
-  },
-}
-
-export const CARD_HOVER = {
-  y: -3,
-  transition: SPRING.card,
+// Scroll-in reveal of a chart section (`panel`) and of the plot inside it
+// (`plot`). With motion off, both render in place.
+const REVEAL_EASE = [0.22, 1, 0.36, 1] as const
+const IN_VIEW_REVEAL = {
+  panel: { y: 16, amount: 0.1, duration: 0.45 },
+  plot: { y: 12, amount: 0.2, duration: 0.5 },
 } as const
+
+export function inViewReveal(kind: keyof typeof IN_VIEW_REVEAL, motionEnabled: boolean) {
+  const { y, amount, duration } = IN_VIEW_REVEAL[kind]
+  return {
+    initial: motionEnabled ? { opacity: 0, y } : false,
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount },
+    transition: { duration: motionEnabled ? duration : 0, ease: REVEAL_EASE },
+  } as const
+}
 
 export const TAP_FEEDBACK = { scale: 0.97 } as const
 

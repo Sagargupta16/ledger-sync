@@ -83,9 +83,9 @@ See [docs/PAGES.md](docs/PAGES.md) for the route and data-source catalog and [do
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 22.22+
 - pnpm 11
-- Python 3.13+
+- Python 3.14
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Install and run
@@ -95,8 +95,13 @@ git clone https://github.com/Sagargupta16/ledger-sync.git
 cd ledger-sync
 pnpm install
 pnpm run setup
+cd backend
+uv run alembic upgrade head
+cd ..
 pnpm run dev
 ```
+
+Backend startup does not create tables by default, so apply the migrations before the first run and after pulling new revisions.
 
 Local services run natively; Docker is not required:
 
@@ -161,7 +166,7 @@ Run migrations only against the intended local development database.
 | Layer | Technology |
 | --- | --- |
 | Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4, Recharts 3, Motion 13 |
-| Backend | Python 3.13+, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
+| Backend | Python 3.14, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Database | SQLite for development, Neon PostgreSQL 17 for production |
 | State | TanStack Query 5, Zustand 5 |
 | Deployment | GitHub Pages, Vercel, Neon |

@@ -3,7 +3,7 @@ import { MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, heatmapNeutral, heatmapRamps, type HeatmapMode } from './types'
 
-export function getIntensityLevel(value: number, max: number): number {
+function getIntensityLevel(value: number, max: number): number {
   if (value === 0 || max === 0) return 0
   const ratio = value / max
   if (ratio < 0.15) return 1
@@ -12,9 +12,9 @@ export function getIntensityLevel(value: number, max: number): number {
   return 4
 }
 
-export type HeatmapSign = 'surplus' | 'deficit' | 'neutral'
+type HeatmapSign = 'surplus' | 'deficit' | 'neutral'
 
-export interface HeatmapSwatch {
+interface HeatmapSwatch {
   /** 0 = neutral/empty, 1-4 = increasing magnitude. */
   level: number
   /** Design-token colour: hue from the sign, intensity from the magnitude. */

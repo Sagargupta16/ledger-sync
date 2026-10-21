@@ -176,7 +176,7 @@ class TestHistoricalRates:
         call = resolve_exchange_rates(_CLIENT, base="USD", on_date=future)
         with pytest.raises(HTTPException) as exc:
             asyncio.run(call)
-        assert exc.value.status_code == 400
+        assert exc.value.status_code == 422
 
     def test_ist_today_is_not_future_while_utc_is_still_yesterday(self):
         """00:30 IST on 1 April is 31 March in UTC; the user's today is not future."""

@@ -41,7 +41,7 @@ export const CHART_COLORS: string[] = buildChartColors()
 export const CHART_COLORS_WARM: string[] = buildChartColorsWarm()
 
 // Income-focused palette
-export const INCOME_COLORS: string[] = buildIncomeColors()
+const INCOME_COLORS: string[] = buildIncomeColors()
 
 // Semantic colors for charts. Values resolve from rawColors at module load and
 // are rebuilt in place by refreshChartConstants() on theme toggle, so the keys
@@ -57,29 +57,6 @@ export const SEMANTIC_COLORS = {
   neutral:    rawColors.chart.neutral,
   muted:      rawColors.chart.muted,
 }
-
-/**
- * Canonical labels for the income / expense / savings trio.
- *
- * Use these in chart legends, KPI titles, and any other display copy
- * that references one of these series so the wording stays uniform.
- */
-export const SEMANTIC_LABELS = {
-  income: 'Income',
-  expense: 'Expense',
-  savings: 'Savings',
-  savingsRate: 'Savings Rate',
-} as const
-
-/**
- * Canonical render order when income / expense / savings appear together
- * (legends, stacked bars, KPI rows). Iterate this so every chart agrees.
- */
-export const SERIES_ORDER = [
-  SEMANTIC_LABELS.income,
-  SEMANTIC_LABELS.expense,
-  SEMANTIC_LABELS.savings,
-] as const
 
 /**
  * Canonical Tailwind text-colour class for a transaction-type label.
@@ -110,53 +87,13 @@ export function getSemanticBadgeClass(type: string): string {
   return 'bg-[var(--overlay-2)] text-text-secondary border-[var(--hairline-2)]'
 }
 
-/**
- * Status semantics. Use these instead of hand-rolled red/green/orange/blue
- * Tailwind classes for "this thing succeeded / failed / is risky / is
- * informational." Maps to the ``--color-success / -warning / -error / -info``
- * CSS custom properties declared in ``index.css`` so a future palette swap
- * touches one file, not dozens.
- *
- * Tailwind v4 auto-generates ``text-success``, ``bg-warning``, ``border-error``
- * etc. utilities from those tokens. Prefer those classes directly when you
- * just need a single utility; use the helpers below when you need the full
- * "background + text + border" trio for a badge / inline alert / pill.
- */
-export type Status = 'success' | 'warning' | 'error' | 'info'
-
-/** Tailwind text class for a status semantics. */
-export function getStatusTextClass(status: Status): string {
-  if (status === 'success') return 'text-success'
-  if (status === 'warning') return 'text-warning'
-  if (status === 'error') return 'text-error'
-  return 'text-info'
-}
-
-/**
- * Tailwind badge classes (background + text + border) for inline status
- * indicators. Background uses /10 alpha, border /20, matching the existing
- * convention from ``getSemanticBadgeClass``.
- */
-export function getStatusBadgeClass(status: Status): string {
-  if (status === 'success') return 'bg-success/10 text-success border-success/20'
-  if (status === 'warning') return 'bg-warning/10 text-warning border-warning/20'
-  if (status === 'error') return 'bg-error/10 text-error border-error/20'
-  return 'bg-info/10 text-info border-info/20'
-}
-
 // Read primitive chart colors on demand so theme changes never leave importers
 // holding a stale string value.
 export const getChartAxisColor = (): string => rawColors.chart.axisColor
-export const getChartGridColor = (): string => rawColors.chart.gridSolid
 
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {
   return CHART_COLORS[index % CHART_COLORS.length]
-}
-
-// Get warm color by index with wrap-around
-export const getWarmColor = (index: number): string => {
-  return CHART_COLORS_WARM[index % CHART_COLORS_WARM.length]
 }
 
 // ─── Chart neutral palette (theme-aware via rawColors.chart) ────────────────
@@ -191,7 +128,7 @@ export const CHART_SURFACE = {
   overlayBg: 'rgba(0, 0, 0, 0.5)',
 }
 
-export const CHART_INPUT = {
+const CHART_INPUT = {
   bg: rawColors.chart.inputBg,
   border: rawColors.chart.inputBorder,
 }

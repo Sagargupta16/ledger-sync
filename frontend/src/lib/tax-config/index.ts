@@ -1,8 +1,8 @@
 /**
- * Tax configuration — single source of truth for Indian income tax rules.
+ * Tax configuration -- single source of truth for Indian income tax rules.
  *
  * Each FY has its own entry. When Budget YYYY changes rates, add a new
- * FY entry rather than modifying the old one — historical calculations
+ * FY entry rather than modifying the old one -- historical calculations
  * must stay stable. Loader picks by FY start year with newest-first
  * fallback so "FY 2030" picks up the latest known FY until updated.
  *
@@ -12,24 +12,24 @@
 
 import type { TaxSlab } from '../taxCalculator'
 
-export interface SurchargeBand {
+interface SurchargeBand {
   above: number
   rate: number
 }
 
-export interface RebateConfig {
+interface RebateConfig {
   maxIncome: number
   maxRebate: number
 }
 
-export interface RegimeConfig {
+interface RegimeConfig {
   slabs: TaxSlab[]
   surcharge: SurchargeBand[]
   rebate87A: RebateConfig
   standardDeduction: number
 }
 
-export interface FYTaxConfig {
+interface FYTaxConfig {
   fyStartYear: number
   fyLabel: string
   source: string
@@ -42,7 +42,7 @@ export interface FYTaxConfig {
   cessRate: number
 }
 
-// ─── Old regime — unchanged across FYs ──────────────────────────────────────
+// ─── Old regime -- unchanged across FYs ──────────────────────────────────────
 // Same slabs / surcharge / rebate from FY 2020-21 onward. Embedded in each
 // FY block by reference so a future Budget that changes old-regime rules
 // can diverge without a global edit.
@@ -132,7 +132,7 @@ const NEW_REGIME_FY2024: RegimeConfig = {
   standardDeduction: 75_000,
 }
 
-// ─── FY 2025-26 (Budget 2025 — major revision) ──────────────────────────────
+// ─── FY 2025-26 (Budget 2025 -- major revision) ──────────────────────────────
 
 const NEW_REGIME_FY2025: RegimeConfig = {
   slabs: [

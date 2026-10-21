@@ -268,7 +268,7 @@ def get_ai_key(
 
     if not decrypted.strip() or decrypted.strip() == LEGACY_BEDROCK_PLACEHOLDER:
         raise HTTPException(
-            status_code=400,
+            status_code=404,
             detail="No personal API key is configured; enter a key or select App Bedrock mode",
         )
     if needs_reencrypt:

@@ -25,9 +25,9 @@ import AnomalyValueComparison from './AnomalyValueComparison'
  * static-components` rejects: React sees a fresh component identity each render
  * and remounts the subtree instead of updating it. Taking the icon as a PROP on
  * a module-level component is the repo's existing answer to this -- `MetricCard`,
- * `EmptyState`, `SidebarItem` and `SummaryCard` all declare `icon: LucideIcon`
- * and destructure it as `icon: Icon`. Here the choice is dynamic rather than
- * caller-supplied, so the indirection lives in this file.
+ * `EmptyState` and `SidebarItem` declare `icon: LucideIcon`, `SummaryCard` a
+ * `ComponentType`, and all destructure it as `icon: Icon`. Here the choice is
+ * dynamic rather than caller-supplied, so the indirection lives in this file.
  */
 function AnomalyIcon({ icon: Icon, className }: Readonly<{ icon: LucideIcon; className: string }>) {
   return <Icon className={className} />

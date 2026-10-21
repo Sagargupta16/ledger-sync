@@ -53,7 +53,7 @@ function csvRow(fields: readonly string[]): string {
  * fall back to the row's own date and a synthetic file name -- the export must
  * never publish an empty column where the real one always has a value.
  */
-export function generateDemoExportCsv(
+function generateDemoExportCsv(
   txs: Transaction[],
   params: Record<string, unknown> = {},
 ): string {

@@ -38,8 +38,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.engine import AnalyticsEngine
 from ledger_sync.core.expense_class import (
@@ -49,7 +48,6 @@ from ledger_sync.core.expense_class import (
     is_capital_loss,
     looks_like_capital_loss,
 )
-from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     DailySummary,
     FYSummary,
@@ -178,16 +176,6 @@ def test_detection_never_classifies_on_its_own() -> None:
 
 
 # --- rollup effects ----------------------------------------------------------
-
-
-@pytest.fixture
-def session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine)
-    db = factory()
-    yield db
-    db.close()
 
 
 def _seed(db: Session, *, classify: bool) -> int:
@@ -338,11 +326,11 @@ def _rollup(db: Session, user_id: int) -> MonthlySummary:
     )
 
 
-def test_unclassified_loss_leaves_the_rollup_exactly_as_before(session: Session) -> None:
+def test_unclassified_loss_leaves_the_rollup_exactly_as_before(test_db_session: Session) -> None:
     # Direction 1: the shipped state must not move a single number. 30000 +
     # 14639.68 + 102789.41 = 147429.09 of "expenses", which is the pre-fix
     # behaviour, and the loss must NOT appear in the new column.
-    row = _rollup(session, _seed(session, classify=False))
+    row = _rollup(test_db_session, _seed(test_db_session, classify=False))
 
     assert row.total_expenses == Decimal("147429.09")
     assert row.capital_losses == Decimal("0")
@@ -355,9 +343,9 @@ def test_unclassified_loss_leaves_the_rollup_exactly_as_before(session: Session)
 
 
 def test_classified_loss_leaves_consumption_but_still_lowers_net_savings(
-    session: Session,
+    test_db_session: Session,
 ) -> None:
-    row = _rollup(session, _seed(session, classify=True))
+    row = _rollup(test_db_session, _seed(test_db_session, classify=True))
 
     # Out of expenses and into its own auditable bucket.
     assert row.total_expenses == Decimal("44639.68")
@@ -390,12 +378,12 @@ def test_classified_loss_leaves_consumption_but_still_lowers_net_savings(
 
 
 def test_classified_loss_is_not_split_across_essential_and_discretionary(
-    session: Session,
+    test_db_session: Session,
 ) -> None:
     # The essential/discretionary partition is over CONSUMPTION. Before the fix
     # the loss fell into discretionary and made the user look like a spendthrift
     # for a bad trade.
-    row = _rollup(session, _seed(session, classify=True))
+    row = _rollup(test_db_session, _seed(test_db_session, classify=True))
 
     # Housing (the user's list) and Food & Dining / Groceries (a built-in Needs
     # keyword; the user's list adds to the defaults) are both Needs.
@@ -406,18 +394,18 @@ def test_classified_loss_is_not_split_across_essential_and_discretionary(
     assert row.expense_count == 2
 
 
-def test_daily_summary_net_reconciles_with_the_monthly_rollup(session: Session) -> None:
+def test_daily_summary_net_reconciles_with_the_monthly_rollup(test_db_session: Session) -> None:
     # The YearInReview heatmap and top_category read DailySummary. Left in, the
     # loss paints 31 December as the heaviest SPENDING day of the year and names
     # the loss taxonomy as what the user spent most on.
-    user_id = _seed(session, classify=True)
-    engine = AnalyticsEngine(session, user_id=user_id)
+    user_id = _seed(test_db_session, classify=True)
+    engine = AnalyticsEngine(test_db_session, user_id=user_id)
     engine._calculate_monthly_summaries()
     engine._calculate_daily_summaries()
-    session.commit()
+    test_db_session.commit()
 
     loss_day = (
-        session.query(DailySummary)
+        test_db_session.query(DailySummary)
         .filter(DailySummary.user_id == user_id, DailySummary.date == "2024-12-31")
         .one()
     )
@@ -428,12 +416,15 @@ def test_daily_summary_net_reconciles_with_the_monthly_rollup(session: Session) 
     assert loss_day.net == Decimal("-102789.41")
 
     monthly = (
-        session.query(MonthlySummary)
+        test_db_session.query(MonthlySummary)
         .filter(MonthlySummary.user_id == user_id, MonthlySummary.period_key == "2024-12")
         .one()
     )
     daily_net = sum(
-        (d.net for d in session.query(DailySummary).filter(DailySummary.user_id == user_id)),
+        (
+            d.net
+            for d in test_db_session.query(DailySummary).filter(DailySummary.user_id == user_id)
+        ),
         start=Decimal(0),
     )
     assert daily_net == monthly.net_savings
@@ -448,9 +439,9 @@ def test_daily_summary_net_reconciles_with_the_monthly_rollup(session: Session) 
 # suite. These tests are the ones that fail when it is.
 
 
-def test_unclassified_loss_leaves_the_fy_rollup_exactly_as_before(session: Session) -> None:
+def test_unclassified_loss_leaves_the_fy_rollup_exactly_as_before(test_db_session: Session) -> None:
     # Direction 1 for the FY accumulator: shipped state moves nothing.
-    row = _fy_rollup(session, _seed(session, classify=False))
+    row = _fy_rollup(test_db_session, _seed(test_db_session, classify=False))
 
     assert row.total_expenses == Decimal("147429.09")
     assert row.capital_losses == Decimal("0")
@@ -459,9 +450,9 @@ def test_unclassified_loss_leaves_the_fy_rollup_exactly_as_before(session: Sessi
 
 
 def test_classified_loss_leaves_fy_expenses_but_still_lowers_fy_net_savings(
-    session: Session,
+    test_db_session: Session,
 ) -> None:
-    row = _fy_rollup(session, _seed(session, classify=True))
+    row = _fy_rollup(test_db_session, _seed(test_db_session, classify=True))
 
     # Out of FY consumption, into its own auditable FY bucket.
     assert row.total_expenses == Decimal("44639.68")
@@ -484,41 +475,47 @@ def test_classified_loss_leaves_fy_expenses_but_still_lowers_fy_net_savings(
     )
 
 
-def test_classified_loss_is_never_credited_as_fy_tax_paid(session: Session) -> None:
+def test_classified_loss_is_never_credited_as_fy_tax_paid(test_db_session: Session) -> None:
     # Broker settlement notes carry tax vocabulary. A classified loss leaves the
     # expense branch before the tax test, so a 102,789.41 loss never shows up on
     # the Tax Planning page as tax the user paid.
-    classified = _fy_rollup(session, _seed_with_tax_flavoured_loss(session, classify=True))
+    classified = _fy_rollup(
+        test_db_session, _seed_with_tax_flavoured_loss(test_db_session, classify=True)
+    )
 
     assert classified.capital_losses == Decimal("102789.41")
     assert classified.tax_paid == Decimal("0")
     assert classified.total_expenses == Decimal("44639.68")
 
 
-def test_unclassified_tax_flavoured_loss_is_spending_but_not_tax_paid(session: Session) -> None:
+def test_unclassified_tax_flavoured_loss_is_spending_but_not_tax_paid(
+    test_db_session: Session,
+) -> None:
     # The mirror of the test above: with nothing classified the same row is
     # ordinary spending. Its note's tax vocabulary no longer credits tax_paid --
     # tax paid is read from the row's taxonomy only (``metric_rules.is_tax_paid``),
     # and an F&O loss taxonomy is not income tax.
-    row = _fy_rollup(session, _seed_with_tax_flavoured_loss(session, classify=False))
+    row = _fy_rollup(
+        test_db_session, _seed_with_tax_flavoured_loss(test_db_session, classify=False)
+    )
 
     assert row.capital_losses == Decimal("0")
     assert row.tax_paid == Decimal("0")
     assert row.total_expenses == Decimal("147429.09")
 
 
-def test_fy_tax_paid_reads_the_tax_taxonomy_not_the_note(session: Session) -> None:
+def test_fy_tax_paid_reads_the_tax_taxonomy_not_the_note(test_db_session: Session) -> None:
     # Tax paid is the exact "Taxes" category plus income-tax vocabulary in the
     # category or subcategory. A purchase whose note says "incl GST" is spending,
     # not income tax paid -- it used to be credited from the note.
     user = User(email="fytax@example.com", is_active=True, is_verified=True, hashed_password="")
-    session.add(user)
-    session.flush()
-    session.add(UserPreferences(user_id=user.id))
+    test_db_session.add(user)
+    test_db_session.flush()
+    test_db_session.add(UserPreferences(user_id=user.id))
 
     def expense(tid: str, amount: str, category: str, subcategory: str | None, note: str) -> None:
         when = datetime(2024, 12, 10, tzinfo=UTC)
-        session.add(
+        test_db_session.add(
             Transaction(
                 transaction_id=tid,
                 user_id=user.id,
@@ -539,9 +536,9 @@ def test_fy_tax_paid_reads_the_tax_taxonomy_not_the_note(session: Session) -> No
     expense("tax-1", "25000", "Taxes", None, "Q3 challan")
     expense("tax-2", "18000", "Salary Deductions", "TDS", "Form 16 part A")
     expense("tax-3", "5900", "Shopping", "Electronics", "Headphones incl GST")
-    session.commit()
+    test_db_session.commit()
 
-    row = _fy_rollup(session, user.id)
+    row = _fy_rollup(test_db_session, user.id)
 
     assert row.tax_paid == Decimal("43000")
     assert row.total_expenses == Decimal("48900")

@@ -1,8 +1,8 @@
--- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-09-30
--- Base checkout: b683b2636082b91716828375b5a82363b8509a0f; includes uncommitted changes.
--- Source migration head: orm_schema_alignment_2026
+-- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-21
+-- Base checkout: 52afce19d960690ac806362ae850b4d4a067d479; includes uncommitted changes.
+-- Source migration head: recurring_user_amount_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
--- Includes 34 model tables and 463 columns. Excludes Alembic and the reported manual archive.
+-- Includes 34 model tables and 464 columns. Excludes Alembic and the reported manual archive.
 -- Models do not capture every server default/name retained by historical migrations.
 -- Unqualified object names use the database search_path; public is the application convention.
 
@@ -412,6 +412,7 @@ CREATE TABLE recurring_transactions (
 	expected_amount NUMERIC(15, 2) NOT NULL,
 	amount_variance NUMERIC(15, 2) NOT NULL,
 	expected_day INTEGER,
+	user_expected_amount NUMERIC(15, 2),
 	confidence_score FLOAT NOT NULL,
 	occurrences_detected INTEGER NOT NULL,
 	pattern_kind VARCHAR(16) NOT NULL,

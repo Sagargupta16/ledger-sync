@@ -5,6 +5,8 @@ import time (after source fingerprinting) and on demand, free-string transaction
 and named saved filter views for the Transactions page.
 """
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -65,7 +67,7 @@ class CategorizationRule(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="categorization_rules")
+    user: Mapped[User] = relationship("User", back_populates="categorization_rules")
 
     __table_args__ = (Index("ix_categorization_rules_user", "user_id"),)
 
@@ -105,7 +107,7 @@ class TransactionTag(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="transaction_tags")
+    user: Mapped[User] = relationship("User", back_populates="transaction_tags")
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -161,7 +163,7 @@ class SavedFilterView(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="saved_filter_views")
+    user: Mapped[User] = relationship("User", back_populates="saved_filter_views")
 
     __table_args__ = (Index("ix_saved_filter_views_user_name", "user_id", "name", unique=True),)
 

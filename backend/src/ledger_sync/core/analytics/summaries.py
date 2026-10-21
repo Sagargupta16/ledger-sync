@@ -58,7 +58,7 @@ class SummariesMixin(AnalyticsEngineBase):
         existing = {
             row.period_key: row
             for row in self.db.query(MonthlySummary)
-            .filter(MonthlySummary.user_id == self._require_user_id())
+            .filter(MonthlySummary.user_id == self.user_id)
             .all()
         }
         monthly_data = self._group_monthly_data(transactions, affected_months)
@@ -381,7 +381,7 @@ class SummariesMixin(AnalyticsEngineBase):
         """
         if affected_dates == set():
             return 0
-        user_id = self._require_user_id()
+        user_id = self.user_id
         if transactions is None:
             transactions = self._user_transaction_query().all()
 

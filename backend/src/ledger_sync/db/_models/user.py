@@ -1,5 +1,7 @@
 """User, UserPreferences, and AuditLog models."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -85,77 +87,77 @@ class User(Base):
 
     # Relationships — cascade ensures child records are cleaned up when a user is deleted.
     # lazy="select" avoids loading all children on every user query.
-    transactions: Mapped["list[Transaction]"] = relationship(
+    transactions: Mapped[list[Transaction]] = relationship(
         "Transaction",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    preferences: Mapped["UserPreferences | None"] = relationship(
+    preferences: Mapped[UserPreferences | None] = relationship(
         "UserPreferences",
         back_populates="user",
         uselist=False,
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    import_logs: Mapped["list[ImportLog]"] = relationship(
+    import_logs: Mapped[list[ImportLog]] = relationship(
         "ImportLog",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    ai_usage_logs: Mapped["list[AIUsageLog]"] = relationship(
+    ai_usage_logs: Mapped[list[AIUsageLog]] = relationship(
         "AIUsageLog",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    budgets: Mapped["list[Budget]"] = relationship(
+    budgets: Mapped[list[Budget]] = relationship(
         "Budget",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    financial_goals: Mapped["list[FinancialGoal]"] = relationship(
+    financial_goals: Mapped[list[FinancialGoal]] = relationship(
         "FinancialGoal",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    anomalies: Mapped["list[Anomaly]"] = relationship(
+    anomalies: Mapped[list[Anomaly]] = relationship(
         "Anomaly",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    audit_logs: Mapped["list[AuditLog]"] = relationship(
+    audit_logs: Mapped[list[AuditLog]] = relationship(
         "AuditLog",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    categorization_rules: Mapped["list[CategorizationRule]"] = relationship(
+    categorization_rules: Mapped[list[CategorizationRule]] = relationship(
         "CategorizationRule",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    transaction_tags: Mapped["list[TransactionTag]"] = relationship(
+    transaction_tags: Mapped[list[TransactionTag]] = relationship(
         "TransactionTag",
         back_populates="user",
         lazy="select",
         cascade=CASCADE_ALL_DELETE_ORPHAN,
         passive_deletes=True,
     )
-    saved_filter_views: Mapped["list[SavedFilterView]"] = relationship(
+    saved_filter_views: Mapped[list[SavedFilterView]] = relationship(
         "SavedFilterView",
         back_populates="user",
         lazy="select",
@@ -203,7 +205,7 @@ class UserPreferences(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="preferences")
+    user: Mapped[User] = relationship("User", back_populates="preferences")
 
     # ===== 1. Fiscal Year Configuration =====
     fiscal_year_start_month: Mapped[int] = mapped_column(
@@ -428,7 +430,7 @@ class AuditLog(Base):
     )
 
     # Relationship back to user
-    user: Mapped["User | None"] = relationship("User", back_populates="audit_logs")
+    user: Mapped[User | None] = relationship("User", back_populates="audit_logs")
 
     # Operation details
     operation: Mapped[str] = mapped_column(

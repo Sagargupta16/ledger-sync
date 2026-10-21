@@ -14,8 +14,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ledger_sync.api.analytics_freshness import lock_analytics_read
-from ledger_sync.api.analytics_freshness import router as freshness_router
 from ledger_sync.api.analytics_v2_impl import (
     networth_misc_router,
     recurring_router,
@@ -24,18 +22,25 @@ from ledger_sync.api.analytics_v2_impl import (
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import user_limiter
+from ledger_sync.core.analytics.refresh import lock_analytics_user
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.db.models import User
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="/api/analytics/v2", tags=["analytics-v2"])
 
+
+def lock_analytics_read(request: Request, current_user: CurrentUser, db: DatabaseSession) -> None:
+    """Keep multi-query GETs on one publication; PostgreSQL readers share the lock."""
+    if request.method == "GET":
+        lock_analytics_user(db, current_user.id, read_only=True)
+
+
 # Mount the split sub-routers under the same prefix.
 router.include_router(summaries_router, dependencies=[Depends(lock_analytics_read)])
 router.include_router(recurring_router, dependencies=[Depends(lock_analytics_read)])
 router.include_router(spending_rule_router, dependencies=[Depends(lock_analytics_read)])
 router.include_router(networth_misc_router, dependencies=[Depends(lock_analytics_read)])
-router.include_router(freshness_router, dependencies=[Depends(lock_analytics_read)])
 
 
 @router.post(

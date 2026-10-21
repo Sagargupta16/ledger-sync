@@ -1,24 +1,4 @@
-import type { ViewMode } from '@/lib/dateUtils'
 import { formatChartPeriod } from '@/lib/chartDateLabels'
-
-/**
- * Format a raw period key into a human-readable display string.
- *
- * - monthly  : period unchanged (day number like "01")
- * - yearly   : short month and year (e.g. "Jan ’26")
- * - all_time : period unchanged (e.g. "2024-Q1")
- */
-export function formatDisplayPeriod(
-  period: string,
-  viewMode: ViewMode,
-  currentYear: number
-): string {
-  if (viewMode === 'yearly') {
-    return formatChartPeriod(`${currentYear}-${period.padStart(2, '0')}`)
-  }
-  // monthly and all_time both return the raw period
-  return period
-}
 
 /**
  * Convert a regular (per-period) data array into a cumulative one.

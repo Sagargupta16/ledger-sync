@@ -19,8 +19,6 @@ import type { Transaction } from '@/types'
 export {
   DEFAULT_GST_RATES,
   DEFAULT_GST_RATES_LEGACY,
-  GST_2_0_EFFECTIVE_DATE,
-  GST_SLABS,
   GST_SLABS_CURRENT,
   GST_SLABS_LEGACY,
   getRateTableForDate,

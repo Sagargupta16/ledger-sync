@@ -18,7 +18,7 @@ import {
   assertCurrentSession, clearSessionData, endSession, getSessionGeneration, getSessionSignal, isCurrentSession,
 } from '@/lib/session'
 
-export const AUTH_QUERY_KEY = ['auth', 'user']
+const AUTH_QUERY_KEY = ['auth', 'user']
 
 /**
  * Hook for logout

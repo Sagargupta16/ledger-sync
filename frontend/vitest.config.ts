@@ -14,20 +14,15 @@ export default defineConfig({
     //
     // `.claude` is excluded for a different reason: it holds local agent state,
     // including git worktrees checked out under it. A worktree is a second copy
-    // of this same suite, so without this the local run reports 147 files /
-    // 1741 tests against CI's 116 / 1383 -- inflated counts that make a real
-    // regression impossible to spot by number.
+    // of this same suite, so without this the local run counts every test twice
+    // against CI -- inflated counts that make a real regression impossible to
+    // spot by number.
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
       '**/.claude/**',
       '**/*.tmp.test.{ts,tsx}',
     ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/test/', '**/*.d.ts'],
-    },
   },
   resolve: {
     alias: {

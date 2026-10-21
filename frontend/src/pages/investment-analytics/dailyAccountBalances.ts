@@ -23,7 +23,7 @@ export type GrowthTransaction = InvestmentFlowTransaction & {
 }
 
 /** Answers "is this account name one of the user's investment accounts". */
-export type AccountTest = InvestmentAccountTest
+type AccountTest = InvestmentAccountTest
 
 /**
  * Rows that move an investment account: a transfer with either leg inside the

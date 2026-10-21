@@ -13,7 +13,7 @@ import { currentMonthKey, isCompleteMonth } from '@/lib/savingsRate'
  */
 
 /** Calendar window for an average. Missing bounds fall back to the observed months. */
-export interface MonthWindow {
+interface MonthWindow {
   readonly start?: string | null
   readonly end?: string | null
   /** Keep only the most recent N complete months. */
@@ -30,7 +30,7 @@ export interface CompleteMonthAverage {
 }
 
 /** Trailing window behind "average monthly savings" on Goals and Net Worth. */
-export const SAVINGS_TRAILING_MONTHS = 12
+const SAVINGS_TRAILING_MONTHS = 12
 
 /**
  * Complete calendar months from the window start (or first observed month) to

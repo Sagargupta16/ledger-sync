@@ -48,8 +48,9 @@ describe('shipped sources vs comparator-free sort', () => {
     // Without this the assertion below would be vacuously green if the glob broke.
     const shipped = await appSources((path) => !isTestPath(path))
     expect(shipped.length).toBeGreaterThan(400)
-    // The file that carried the defect Sonar gated on.
-    expect(shipped.some((f) => f.path === '/src/components/shared/recentIncome.ts')).toBe(true)
+    // Where the recent-income sort Sonar gated on lives now (it moved out of
+    // components/shared/recentIncome.ts, which was later deleted).
+    expect(shipped.some((f) => f.path === '/src/lib/recurringCalculations.ts')).toBe(true)
   })
 
   it('passes a comparator to every sort in src', async () => {

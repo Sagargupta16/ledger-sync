@@ -14,7 +14,7 @@ interface PreferencesProviderProps {
 export function PreferencesProvider({ children }: PreferencesProviderProps) {
   // This hook automatically loads preferences and hydrates the store
   // We call the hook to trigger loading/hydration, but render children
-  // regardless of loading/error state — the store has defaults
+  // regardless of loading/error state -- the store has defaults
   usePreferences()
 
   return <>{children}</>

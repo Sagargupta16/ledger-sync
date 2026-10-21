@@ -1,7 +1,6 @@
 import type React from 'react'
 
-import { weekdayOf } from '@/lib/dateUtils'
-import { formatDate, formatPercent } from '@/lib/formatters'
+import { formatPercent } from '@/lib/formatters'
 import {
   meanRateSubtitle,
   meanVsTypicalSubtitle,
@@ -87,55 +86,7 @@ export interface CategoryData {
 
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-/** Format a "YYYY-MM" period key as e.g. "Dec 2024". */
-export function monthLabel(period: string): string {
-  return formatDate(`${period}-01`, { month: 'short', year: 'numeric' })
-}
-
-export type { SpendingDateRange as DateRange } from '@/lib/finance/spendingStatistics'
-
-export interface Transaction {
-  date: string
-  amount: number
-  type: string
-  category?: string
-  subcategory?: string
-  to_account?: string
-}
-
-// Compatibility exports; calculation policies are shared by all consumers.
-export {
-  resolveSpanRange,
-  computeDaysInRange,
-  computeMonthsInRange,
-  monthsCovered,
-  medianSpendingDay,
-  medianSpendingMonth,
-} from '@/lib/finance/spendingStatistics'
-export { medianOf as computeMedian } from '@/lib/distribution'
-
-export function computeWeekendSplit(transactions: Transaction[]) {
-  let weekend = 0
-  let weekday = 0
-  for (const t of transactions) {
-    const day = weekdayOf(t.date)
-    const amount = Math.abs(t.amount)
-    if (day === 0 || day === 6) weekend += amount
-    else weekday += amount
-  }
-  return { weekend, weekday }
-}
-
-export function computePeakDay(transactions: Transaction[]) {
-  const spendingByDay = [0, 0, 0, 0, 0, 0, 0]
-  for (const t of transactions) {
-    spendingByDay[weekdayOf(t.date)] += Math.abs(t.amount)
-  }
-  const peakIndex = spendingByDay.indexOf(Math.max(...spendingByDay))
-  return { name: DAY_NAMES[peakIndex], total: spendingByDay[peakIndex] }
-}
-
-export function ageOfMoneyLabel(days: number): string {
+function ageOfMoneyLabel(days: number): string {
   if (days >= 30) return 'Healthy buffer'
   if (days >= 15) return 'Building runway'
   return 'Living paycheck to paycheck'
@@ -156,53 +107,10 @@ function fixedCostLoad(pct: number): string {
   return 'Low'
 }
 
-export function incomeExpenseRatioLabel(ratio: number): string {
+function incomeExpenseRatioLabel(ratio: number): string {
   if (ratio < 0.7) return 'Great! Spending well below income'
   if (ratio < 0.9) return 'Spending close to income'
   return 'Spending nearly all income'
-}
-
-export function computeTopByCategory(transactions: Transaction[]) {
-  const byCat: Record<string, number> = {}
-  for (const t of transactions) {
-    const cat = t.category || 'Other'
-    byCat[cat] = (byCat[cat] || 0) + Math.abs(t.amount)
-  }
-  return Object.entries(byCat).sort(([, a], [, b]) => b - a)[0] ?? null
-}
-
-export function computeMostExpensiveMonth(transactions: Transaction[]) {
-  const byMonth: Record<string, number> = {}
-  for (const t of transactions) {
-    const key = t.date.slice(0, 7)
-    byMonth[key] = (byMonth[key] || 0) + Math.abs(t.amount)
-  }
-  const entries = Object.entries(byMonth)
-  if (entries.length === 0) return null
-  const [monthKey, amount] = entries.reduce((max, cur) => cur[1] > max[1] ? cur : max, entries[0])
-  return { label: monthLabel(monthKey), amount }
-}
-
-export function computeNetCashback(allTransactions: Transaction[]) {
-  // Match by substring, NOT an exact hardcoded category string. The category is
-  // user-defined and varies ("Refund & Cashbacks" vs "Refunds & Cashbacks"), so
-  // an exact match silently returned 0 cashback for real data that used the
-  // plural spelling. A "cashback" subcategory under any refund/cashback category
-  // is what we want; refunds (Product/Service Refunds, Deposit Return) are not
-  // cashback and stay excluded.
-  const cashbackTxs = allTransactions.filter(
-    (t) =>
-      t.type === 'Income' &&
-      (t.subcategory ?? '').toLowerCase().includes('cashback'),
-  )
-  // "Shared" cashback passed on to others, matched by destination substring so
-  // both "Cashback Shared" and "Transfer: X -> Cashback Shared" leg names count.
-  const sharedTxs = allTransactions.filter(
-    (t) => t.type === 'Transfer' && (t.to_account ?? '').toLowerCase().includes('cashback shared'),
-  )
-  const totalCashback = cashbackTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  const totalShared = sharedTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-  return { netCashback: totalCashback - totalShared, cashbackCount: cashbackTxs.length }
 }
 
 export function fmtChange(v: number | undefined, label: string) {

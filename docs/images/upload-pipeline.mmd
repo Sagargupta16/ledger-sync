@@ -21,7 +21,7 @@ flowchart TB
 
     subgraph ANALYTICS["Analytics consistency"]
         direction LR
-        REFRESH["Full analytics refresh"]
+        REFRESH["Selective refresh"]
         ROLLUPS[("Daily, monthly, category,<br/>FY, cohort, net-worth<br/>and holding rollups")]
         REFRESH --> ROLLUPS
     end
@@ -34,7 +34,7 @@ flowchart TB
     ROLLUPS --> RESPONSE
     REFRESH -. refresh failure does not roll back import .-> RESPONSE
     RESPONSE --> INVALIDATE
-    INVALIDATE -. optional reliability pass .-> REFRESH
+    INVALIDATE -. explicit retry .-> REFRESH
 
     style FILE fill:#dbeafe,color:#17201d,stroke:#2563eb,stroke-width:2px
     style PARSE fill:#e0f2fe,color:#17201d,stroke:#0369a1,stroke-width:2px

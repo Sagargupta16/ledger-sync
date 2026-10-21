@@ -50,7 +50,7 @@ them with preferences; pages and chart adapters supply labels and presentation.
 | Cash and share settlement primitive | [salaryCompensation.ts](../frontend/src/lib/salaryCompensation.ts): `salaryCashEarnings`, `settleSalaryCompensation` | Monthly settlement separates cash earnings, employee deductions, share withholding, cash take-home, retained shares, and excess credit. `buildSalaryPayroll` derives annual cash from those dated rows, not a second aggregate settlement. |
 | Salary growth and bonus recurrence | [projectionCalculator.ts](../frontend/src/lib/projectionCalculator.ts): `projectFiscalYear`, `projectMultipleYears`, `projectAnnualBonus` | Saved salary/growth inputs determine scenarios, then `buildSalaryPayroll` supplies settlement. Derived `ProjectedFYBreakdown.fyStartMonth` carries the calendar basis. The selected regime is reapplied through the same payroll owner; pre-2020 FYs use old rules. |
 | Monthly TDS and inferred withholding | [tdsScheduleCalculator.ts](../frontend/src/lib/tdsScheduleCalculator.ts): `buildTdsSchedule`, `computeTaxPaidTillDate` | `payrollPlanning.ts` passes annual valued RSU events and cash-only bonus extras once. Inference requires net employment receipts; gross receipts do not establish tax paid. |
-| Recurring commitments, income baseline, and freshness | [recurringCalculations.ts](../frontend/src/lib/recurringCalculations.ts): `getRecurringFreshness`, `summarizeRecurringCommitments`, `typicalMonthlyIncome`, `recurringCoveragePercent` | Subscription Tracker and Dashboard supply the time basis. [recentIncome.ts](../frontend/src/components/shared/recentIncome.ts) re-exports the baseline and its types/window constant. [recurrenceFrequency.ts](../frontend/src/lib/recurrenceFrequency.ts) owns annualization, aliases, and cadence. Review status never silently removes active commitments. |
+| Recurring commitments, income baseline, and freshness | [recurringCalculations.ts](../frontend/src/lib/recurringCalculations.ts): `getRecurringFreshness`, `summarizeRecurringCommitments`, `typicalMonthlyIncome`, `recurringCoveragePercent` | Subscription Tracker and Dashboard supply the time basis. [recurrenceFrequency.ts](../frontend/src/lib/recurrenceFrequency.ts) owns annualization, aliases, and cadence. Review status never silently removes active commitments. |
 | Consumption versus capital losses | [expenseClassification.ts](../frontend/src/lib/expenseClassification.ts) classifies type/category/subcategory with configured overrides | [useComparisonData](../frontend/src/pages/comparison/useComparisonData.ts) and [healthScoreAnalysis](../frontend/src/components/analytics/health/healthScoreAnalysis.ts) reuse `isSpending`. A realised loss remains a ledger outflow and negative return while being excluded from consumption. |
 | Savings and allocation ratios | [savingsRate.ts](../frontend/src/lib/savingsRate.ts): `netSavings`, `savingsRatePercent`, pooled rates, investment allocation | [useDashboardMetrics](../frontend/src/hooks/useDashboardMetrics.ts), [useTrendsForecasts](../frontend/src/pages/trends-forecasts/useTrendsForecasts.ts). Pool flows before division; allocation into investments is a different numerator from savings. |
 | SIP scenarios and modeled history | [finance/sipProjection.ts](../frontend/src/lib/finance/sipProjection.ts): `projectMonthlySIP`, `allocateHistoricalSIPValue`, `calculateSIPBenchmarkValue` | [projectionUtils.ts](../frontend/src/pages/mutual-fund-projection/projectionUtils.ts) retains compatibility exports, date labels, chart rounding, account selection, and XIRR delegation. [useMutualFundProjection](../frontend/src/pages/mutual-fund-projection/useMutualFundProjection.ts) supplies the scenario. |
@@ -110,7 +110,11 @@ and unrelated calculators in their existing owners.
   `YYYY-MM-DD` keys, `YYYY-MM` buckets, and clamped calendar-month stepping.
   Do not combine UTC parsing of a date-only string with local date getters.
   Backend ledger-relative ranges use [ledger_clock.py](../backend/src/ledger_sync/core/ledger_clock.py)
-  and naive IST transaction dates. `MS_PER_YEAR` uses 365.25 days for annualized
+  and naive IST transaction dates. The frontend partial-month helpers
+  (`getMonthProgress`, `isPartialMonth`, `dropPartialMonth`,
+  `resolvePartialPeriod`, `completeMonthKeys`) read the current month on the
+  same IST ledger day through `getLedgerTodayKey`, whatever the viewer's
+  timezone. `MS_PER_YEAR` uses 365.25 days for annualized
   return math; recurring money annualization uses its own 365-day convention.
   Carry inactive months for balance levels, not for income/expense flows.
   Goal and milestone ETAs share whole calendar months plus rounded fractional
@@ -613,8 +617,8 @@ explicit domain contracts; a single denominator must not replace all of them.
 
 Active-month category averages remain distinct from calendar-month averages.
 Balance carry-forward does not apply to spending/income flows. Compatibility
-files `quickInsightsData.ts`, `recentIncome.ts`, and `dayOfWeekUtils.ts` delegate
-their arithmetic and retain only adaptation/labels.
+files `quickInsightsData.ts` and `dayOfWeekUtils.ts` delegate their arithmetic
+and retain only adaptation/labels.
 
 ### Days of Buffering and Age of Money
 
@@ -953,8 +957,8 @@ net savings.
 
 The model keeps up to 12 historical observations and uses the latest six as
 its growth/variability basis, with a minimum of three. Its explicit existing
-completion policy excludes the current month before its last local calendar
-day and includes it on that last day. Partial months are not extrapolated.
+completion policy excludes the current month before its last IST ledger
+calendar day and includes it on that last day. Partial months are not extrapolated.
 This helper removes the partial current month; callers must supply historical
 data and must not interpret that rule as a filter for all future-dated input.
 Dashboard comparisons separately use `completeMonthKeys`, which also rejects
@@ -1061,8 +1065,7 @@ Confirmation, edits, and pausing remain explicit user actions.
 `RECENT_INCOME_MONTHS`, `MonthlyIncomeRow`, and `recurringCoveragePercent`.
 The baseline is the median of the latest twelve usable positive-income months
 before the current month; zero-income months are excluded, not filled in as
-spending months are. The compatibility `recentIncome.ts` re-exports this API.
-Current recurring costs are compared with this recent baseline, not an all-time
+spending months are. Current recurring costs are compared with this recent baseline, not an all-time
 income mean.
 
 ## Anomaly Detection

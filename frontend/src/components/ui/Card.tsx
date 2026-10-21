@@ -69,58 +69,17 @@ export const Card = memo(function Card({
   )
 })
 
-interface CardHeaderProps {
-  title: string
-  subtitle?: string
-  icon?: ReactNode
-  action?: ReactNode
-}
-
-/**
- * Card header with title, optional icon, and action slot.
- * Clear typographic hierarchy with inline icons.
- */
-export const CardHeader = memo(function CardHeader({
-  title,
-  subtitle,
-  icon,
-  action
-}: CardHeaderProps) {
-  return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-      <div className="flex min-w-0 flex-1 basis-40 items-start gap-2.5">
-        {icon && (
-          <div className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4">
-            {icon}
-          </div>
-        )}
-        <div className="min-w-0">
-          <h3 className="text-pretty text-sm font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{title}</h3>
-          {subtitle && (
-            <p className="mt-1 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]">{subtitle}</p>
-          )}
-        </div>
-      </div>
-      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 [&>*]:max-w-full">{action}</div>}
-    </div>
-  )
-})
-
 interface StatCardProps {
   title: string
   value: string | number
   subtitle?: string
   icon?: ReactNode
   iconColor?: string
-  trend?: {
-    value: number
-    isPositive: boolean
-  }
   delay?: number
 }
 
 /**
- * Statistic card with a full-width figure and optional trend.
+ * Statistic card with a full-width figure.
  */
 export const StatCard = memo(function StatCard({
   title,
@@ -128,7 +87,6 @@ export const StatCard = memo(function StatCard({
   subtitle,
   icon,
   iconColor = colors.app.blueVibrant,
-  trend,
   delay = 0
 }: StatCardProps) {
   return (
@@ -149,14 +107,6 @@ export const StatCard = memo(function StatCard({
           <p className="metric-value ledger-figure max-w-full font-semibold leading-tight tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere]" title={String(value)}>{value}</p>
           {subtitle && (
             <p className="mt-1.5 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]">{subtitle}</p>
-          )}
-          {trend && (
-            <p className={cn(
-              'mt-3 text-xs font-medium tabular-nums [overflow-wrap:anywhere]',
-              trend.isPositive ? 'text-app-green' : 'text-app-red'
-            )}>
-              {trend.isPositive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
-            </p>
           )}
         </div>
       </div>

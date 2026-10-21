@@ -5,7 +5,7 @@ export interface DateSpan {
   readonly end: string
 }
 
-export interface AlignedSpans {
+interface AlignedSpans {
   readonly a: DateSpan
   readonly b: DateSpan
   /** Set when B was still in progress and both spans were truncated to match. */

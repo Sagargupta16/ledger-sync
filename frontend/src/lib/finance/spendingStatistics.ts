@@ -3,7 +3,7 @@ import { medianOf } from '@/lib/distribution'
 
 import { completeMonthAverage, completeMonthSpine, totalsByMonth } from './monthlyAverage'
 
-export interface SpendingDateRange {
+interface SpendingDateRange {
   start_date?: string
   end_date?: string
 }
@@ -43,7 +43,7 @@ export function computeDaysInRange(
 }
 
 /** Partial months use the covered fraction of their actual calendar length. */
-export function monthsCovered(startKey: string, endKey: string): number {
+function monthsCovered(startKey: string, endKey: string): number {
   const start = startKey.slice(0, 10)
   const end = endKey.slice(0, 10)
   if (end < start) return monthsCovered(end, start)

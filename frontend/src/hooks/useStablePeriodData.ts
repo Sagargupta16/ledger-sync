@@ -44,11 +44,11 @@ export interface PeriodRead<T = unknown> {
 type ReadData<R> = R extends PeriodRead<infer T> ? T | undefined : undefined
 
 /** The `data` of each read, position for position. */
-export type PeriodReadData<R extends readonly (PeriodRead | null)[]> = {
+type PeriodReadData<R extends readonly (PeriodRead | null)[]> = {
   -readonly [K in keyof R]: ReadData<R[K]>
 }
 
-export interface StablePeriodData<P, D> {
+interface StablePeriodData<P, D> {
   /** The period `data` belongs to: the selection once settled, the previous one while settling. */
   readonly period: P
   readonly data: D

@@ -17,60 +17,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import get_current_user
-from ledger_sync.api.main import app
-from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction, TransactionType, User
-from ledger_sync.db.session import get_session
-
-TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
-
-
-@pytest.fixture
-def session() -> Session:
-    # SQLite in-memory with StaticPool so the test thread and the
-    # request thread (FastAPI uses a thread per request) share the
-    # same connection. Without this the FastAPI handler hits a
-    # different in-memory DB and sees no rows.
-    from sqlalchemy.pool import StaticPool
-
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    session_local = sessionmaker(bind=engine)
-    db = session_local()
-    yield db
-    db.close()
-
-
-@pytest.fixture
-def user(session: Session) -> User:
-    user = User(
-        email="open-balance@example.com",
-        hashed_password=TEST_BCRYPT_HASH,
-        full_name="Test",
-        is_active=True,
-        is_verified=True,
-    )
-    session.add(user)
-    session.commit()
-    return user
-
-
-@pytest.fixture
-def client(session: Session, user: User) -> TestClient:
-    app.dependency_overrides[get_session] = lambda: session
-    app.dependency_overrides[get_current_user] = lambda: user
-    test_client = TestClient(app)
-    yield test_client
-    app.dependency_overrides.clear()
+from ledger_sync.db.models import Transaction, TransactionType
 
 
 def _add_tx(
@@ -101,8 +50,9 @@ def _add_tx(
     )
 
 
-def test_no_start_date_opens_at_zero(client: TestClient, session: Session, user: User) -> None:
+def test_no_start_date_opens_at_zero(two_user_client) -> None:
     """Without a start_date the cumulative series starts from zero."""
+    client, session, user, _, _ = two_user_client
     _add_tx(
         session,
         user.id,
@@ -121,8 +71,9 @@ def test_no_start_date_opens_at_zero(client: TestClient, session: Session, user:
     assert body["cumulative_data"][0]["net_worth"] == pytest.approx(1000.0)
 
 
-def test_start_date_seeds_opening_balance(client: TestClient, session: Session, user: User) -> None:
+def test_start_date_seeds_opening_balance(two_user_client) -> None:
     """Transactions before start_date contribute to the opening balance."""
+    client, session, user, _, _ = two_user_client
     # Pre-window: 5000 income, 1500 expense -> opening balance 3500
     _add_tx(
         session,
@@ -162,11 +113,10 @@ def test_start_date_seeds_opening_balance(client: TestClient, session: Session, 
     assert body["cumulative_data"][0]["net_worth"] == pytest.approx(3500.0 + 800.0)
 
 
-def test_transfers_before_start_date_are_ignored(
-    client: TestClient, session: Session, user: User
-) -> None:
+def test_transfers_before_start_date_are_ignored(two_user_client) -> None:
     """Transfers don't touch the opening balance -- the cashflow model
     only counts income and expense, matching the frontend chart."""
+    client, session, user, _, _ = two_user_client
     # Pre-window transfer: should be ignored
     _add_tx(
         session,

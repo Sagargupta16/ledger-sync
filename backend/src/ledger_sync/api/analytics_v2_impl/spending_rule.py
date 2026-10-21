@@ -79,7 +79,6 @@ investment_account_mappings) and a rollup would drift if a user tunes those.
 from __future__ import annotations
 
 import calendar
-import json
 from datetime import date, datetime
 from typing import Annotated, Any
 
@@ -96,7 +95,7 @@ from ledger_sync.api.analytics_v2_impl.spending_rule_aggregate import (
     _CategoryRow as _CategoryRow,
 )
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
-    _DEFAULT_NEEDS,
+    _DEFAULT_NEEDS as _DEFAULT_NEEDS,
 )
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
     _is_transfer_category as _is_transfer_category,
@@ -104,6 +103,8 @@ from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.insight_rules import is_partial_month, month_key
 from ledger_sync.core.ledger_clock import ledger_now
+from ledger_sync.core.metric_rules import essential_keywords
+from ledger_sync.core.preference_json import parse_json_preference
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     as_naive,
@@ -119,15 +120,6 @@ from ledger_sync.db.models import (
 )
 
 router = APIRouter()
-
-
-def _parse_json_pref(raw: str | None, fallback: Any) -> Any:
-    if not raw:
-        return fallback
-    try:
-        return json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return fallback
 
 
 def _complete_months_between(start: datetime, end: datetime, today: date) -> int:
@@ -236,13 +228,13 @@ def get_spending_rule_breakdown(
     prefs: UserPreferences | None = (
         db.query(UserPreferences).filter(UserPreferences.user_id == current_user.id).one_or_none()
     )
-    user_essentials = _parse_json_pref(prefs.essential_categories if prefs else None, [])
+    user_essentials = parse_json_preference(prefs.essential_categories if prefs else None, [])
 
     # User overrides ADD to the built-in Indian defaults rather than
     # replacing them. Previously an empty override reverted to defaults,
     # but a user adding "Charity" would silently LOSE all defaults including
     # Education / Housing / Groceries -- a nasty override-drops-defaults foot-gun.
-    essential_set: set[str] = set(_DEFAULT_NEEDS) | {s.lower() for s in user_essentials if s}
+    essential_set = essential_keywords(user_essentials)
     # The raw mapped account names, matched exactly; no mapping at all selects
     # the default keyword fallback (``core.metric_rules.is_investment_account``).
     mapped_investment_accounts = investment_accounts_for(current_user)

@@ -2,7 +2,7 @@ import type { FlowBranch } from '../sampleData'
 
 export const NODE_WIDTH = 10
 
-export interface FlowLink extends FlowBranch {
+interface FlowLink extends FlowBranch {
   /** Ribbon thickness in px, proportional to `value`. */
   thickness: number
   /** Centre-line cubic from the source node to the target node. */
@@ -14,7 +14,7 @@ export interface FlowLink extends FlowBranch {
   share: number
 }
 
-export interface FlowLayout {
+interface FlowLayout {
   width: number
   height: number
   source: { y: number; height: number }

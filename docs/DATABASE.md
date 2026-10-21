@@ -1,6 +1,6 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.28.2.
+Database reference for Ledger Sync 2.29.0.
 
 Updated for the 2026-09-18 domain storage implementation. The current model
 contains 34 application tables; Alembic also maintains its own version table.
@@ -223,7 +223,9 @@ plus their following month, whose comparison values depend on the changed
 month. Other analytics domains still rebuild from one shared active-ledger load.
 Unknown change scope, preference changes, algorithm changes, or an oversized
 dirty-day set request a full rebuild. `run_full_analytics()` remains an explicit
-recovery operation. `/api/analytics/v2/freshness` exposes publication status.
+recovery operation. `/api/analytics/v2/data-health` reports
+`rollups_calculated_at` and `rollups_stale` (rollups older than the latest
+import).
 
 ## User Preferences Storage
 

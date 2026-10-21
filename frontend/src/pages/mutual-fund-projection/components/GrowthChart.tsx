@@ -13,9 +13,11 @@ import {
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
 import { chartDataTable } from '@/components/ui/chartDataTable'
+import TooltipValueList from '@/components/ui/TooltipValueList'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
@@ -56,17 +58,7 @@ function GrowthTooltip({ active, payload }: TooltipContentProps) {
       <p className="mb-3 text-[10px] text-muted-foreground">
         {point.isHistorical ? 'Contribution history · allocated value' : 'Projection · scenario estimate'}
       </p>
-      <dl className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-            <dt className="flex items-baseline gap-2 text-xs text-muted-foreground">
-              <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} aria-hidden="true" />
-              {row.label}
-            </dt>
-            <dd className="font-mono text-xs font-semibold tabular-nums text-foreground">{formatCurrency(row.value)}</dd>
-          </div>
-        ))}
-      </dl>
+      <TooltipValueList rows={rows} />
     </div>
   )
 }
@@ -126,12 +118,7 @@ function GrowthChartContent(props: Readonly<GrowthChartContentProps>) {
         ]}
         caption="Dashed blue = projected value"
       />
-      <motion.div
-        initial={motionEnabled ? { opacity: 0, y: 12 } : false}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
-      >
+      <ChartReveal>
         <ChartContainer
           height={360}
           mobileHeight={300}
@@ -232,7 +219,7 @@ function GrowthChartContent(props: Readonly<GrowthChartContentProps>) {
             )}
           </ComposedChart>
         </ChartContainer>
-      </motion.div>
+      </ChartReveal>
       <p className="mt-4 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
         Historical portfolio values are allocated across contributions. The dashed path and tinted region show estimates using your selected assumptions, not observed market values.
       </p>
@@ -262,26 +249,13 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
   const periodId = useId()
 
   return (
-    <motion.section
-      className="ledger-panel min-w-0 p-4 sm:p-6"
-      aria-labelledby="investment-growth-title"
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-            Wealth / scenario planner
-          </p>
-          <h2 id="investment-growth-title" className="text-lg font-semibold tracking-tight">
-            Investment Growth Path
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Historical contributions and portfolio value with the selected projection scenario
-          </p>
-        </div>
+    <ChartSection
+      titleId="investment-growth-title"
+      eyebrow="Wealth / scenario planner"
+      title="Investment Growth Path"
+      description="Historical contributions and portfolio value with the selected projection scenario"
+      headerClassName="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      action={(
         <fieldset className="ledger-control m-0 grid w-full grid-cols-3 gap-1 rounded-md border p-1 sm:w-auto sm:grid-cols-6">
           <legend className="sr-only">Projection period presets</legend>
           {PRESETS.map((preset) => (
@@ -308,7 +282,8 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
             </motion.button>
           ))}
         </fieldset>
-      </div>
+      )}
+    >
       {chartData.length === 0 ? (
         <ChartEmptyState
           height={384}
@@ -325,6 +300,6 @@ export function GrowthChart(props: Readonly<GrowthChartProps>) {
           isMobile={isMobile}
         />
       )}
-    </motion.section>
+    </ChartSection>
   )
 }

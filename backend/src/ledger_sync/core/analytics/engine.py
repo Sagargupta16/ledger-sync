@@ -123,7 +123,7 @@ class AnalyticsEngine(
         start_time = time.time()
 
         try:
-            state = prepare_refresh(self.db, self._require_user_id())
+            state = prepare_refresh(self.db, self.user_id)
             version = AnalyticsVersion.from_state(state)
             calculation_day = ledger_today()
             if not force_full and analytics_is_current(state):
@@ -284,7 +284,7 @@ class AnalyticsEngine(
 
             if ledger_today() != calculation_day:
                 raise StaleAnalyticsRefreshError("IST day changed while refreshing; retry refresh")
-            publish_refresh(self.db, self._require_user_id(), version)
+            publish_refresh(self.db, self.user_id, version)
             self.db.commit()
 
             total_time = (time.time() - start_time) * 1000
@@ -318,7 +318,7 @@ class AnalyticsEngine(
         self.db.execute(
             delete(AuditLog)
             .where(
-                AuditLog.user_id == self._require_user_id(),
+                AuditLog.user_id == self.user_id,
                 AuditLog.operation == _ANALYTICS_AUDIT_OPERATION,
                 AuditLog.created_at < cutoff,
             )

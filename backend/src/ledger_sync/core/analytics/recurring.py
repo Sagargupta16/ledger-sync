@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from statistics import median
+from typing import ClassVar
 
 from sqlalchemy import delete, select, update
 
@@ -42,8 +43,10 @@ _OBLIGATION = re.compile(
 _NON_OBLIGATION = re.compile(
     r"\b(?:refunds?|reimbursements?|cashbacks?|reversals?|security deposit)\b", re.IGNORECASE
 )
+# Leading literal space, not \s+: normalize_recurring_note collapses whitespace
+# to single spaces first, and \s+ made the trailing-anchor search polynomial.
 _RECURRING_DATE_SUFFIX = re.compile(
-    r"\s+(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r" (?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
     r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
     r"\s+\d{4}|\d{1,2}[/\-]\d{4})$"
 )
@@ -106,7 +109,7 @@ class RecurringMixin(AnalyticsEngineBase):
     # enforced below. Penalty scales with expected cadence -- wider
     # cycles tolerate more jitter -- and is applied to the median folded
     # day residual in ``_folded_confidence``.
-    _FREQ_BANDS: list[tuple[float, RecurrenceFrequency, float]] = [
+    _FREQ_BANDS: ClassVar[tuple[tuple[float, RecurrenceFrequency, float], ...]] = (
         (4, RecurrenceFrequency.WEEKLY, 8),
         (11, RecurrenceFrequency.BIWEEKLY, 5),
         (20, RecurrenceFrequency.MONTHLY, 3),
@@ -114,7 +117,7 @@ class RecurringMixin(AnalyticsEngineBase):
         (80, RecurrenceFrequency.QUARTERLY, 2),
         (130, RecurrenceFrequency.SEMIANNUAL, 1.5),
         (270, RecurrenceFrequency.YEARLY, 1),
-    ]
+    )
     # Cadences longer than this are out of scope for personal finance
     # recurring detection (annual upper bound = 400 days to allow some
     # leap-year / late-by-a-week tolerance).
@@ -155,8 +158,6 @@ class RecurringMixin(AnalyticsEngineBase):
         alone collapsed them into one dict entry -- so one row absorbed the
         other's statistics and the loser froze.
         """
-        if self.user_id is None:
-            return {}
         confirmed = (
             self.db.query(RecurringTransaction)
             .filter(
@@ -196,7 +197,7 @@ class RecurringMixin(AnalyticsEngineBase):
         # Schedules own their amount, cadence, and dates even when their detected
         # source is replaced. Detach only this user's disappearing sources before
         # deletion; the FK intentionally never cascade-deletes a user's schedule.
-        user_id = self._require_user_id()
+        user_id = self.user_id
         unconfirmed_sources = select(RecurringTransaction.id).where(
             RecurringTransaction.user_id == user_id,
             RecurringTransaction.is_user_confirmed.is_(False),
@@ -215,12 +216,12 @@ class RecurringMixin(AnalyticsEngineBase):
         )
 
         # Delete only non-confirmed records; user-confirmed ones are preserved
-        del_stmt = delete(RecurringTransaction).where(
-            RecurringTransaction.is_user_confirmed.is_(False),
+        self.db.execute(
+            delete(RecurringTransaction).where(
+                RecurringTransaction.is_user_confirmed.is_(False),
+                RecurringTransaction.user_id == user_id,
+            )
         )
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(RecurringTransaction.user_id == self.user_id)
-        self.db.execute(del_stmt)
 
         confirmed_names = self._load_confirmed_recurring()
         min_conf = self.recurring_min_confidence
