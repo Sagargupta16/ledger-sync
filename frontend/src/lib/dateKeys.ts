@@ -32,28 +32,6 @@ const DAYS_PER_AVG_MONTH = 365.25 / MONTHS_PER_YEAR
 
 export const getCurrentYear = (): number => new Date().getFullYear()
 
-/**
- * Current `YYYY-MM` on the user's LOCAL calendar.
- *
- * Derived from local components, not `toISOString()`. `toISOString()` converts
- * to UTC first, so in a positive-offset zone (IST = UTC+5:30) the first 5.5
- * hours after local midnight still report the previous UTC day -- and on the
- * 1st of a month that is the previous MONTH. This value seeds the monthly
- * time-filter state in `useAnalyticsTimeFilter`, `useDashboardMetrics` and
- * `useYearInReview`, and flows into `getAnalyticsDateRange`, so the whole app
- * would silently load last month's data. Worst case is 1 April, where the
- * previous month is also the previous fiscal year.
- */
-export const getCurrentMonth = (): string => toLocalDateKey(new Date()).slice(0, 7)
-
-/**
- * Today's `YYYY-MM-DD` on the user's LOCAL calendar.
- *
- * The safe replacement for `new Date().toISOString().split('T')[0]`, which is
- * a UTC date key and lands on yesterday for the first 5.5 hours of an IST day.
- */
-export const getTodayKey = (): string => toLocalDateKey(new Date())
-
 /** The ledger's own calendar: stored dates are naive Asia/Kolkata (IST) days. */
 const LEDGER_TIME_ZONE = 'Asia/Kolkata'
 
@@ -69,6 +47,26 @@ export const getLedgerTodayKey = (now: Date = new Date()): string => {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
   return `${part('year')}-${part('month')}-${part('day')}`
 }
+
+/**
+ * Current `YYYY-MM` on the LEDGER calendar (IST), the month `getTodayKey` falls in.
+ *
+ * Never derive it from `toISOString()`: that converts to UTC first, so the first
+ * 5.5 hours of an IST day still report the previous UTC day -- and on the 1st of
+ * a month the previous MONTH, which seeds the monthly time filter in
+ * `useAnalyticsTimeFilter`, `useDashboardMetrics` and `useYearInReview`. The
+ * ledger calendar is also what the partial-month helpers and the backend use,
+ * so every "is this month complete / in progress" check agrees.
+ */
+export const getCurrentMonth = (now: Date = new Date()): string => getLedgerTodayKey(now).slice(0, 7)
+
+/**
+ * Today's `YYYY-MM-DD` on the LEDGER calendar (IST): stored ledger dates are IST
+ * days, so "today" must be one too, whatever the viewer's own timezone is. The
+ * safe replacement for `new Date().toISOString().split('T')[0]`, a UTC key that
+ * lands on yesterday for the first 5.5 hours of an IST day.
+ */
+export const getTodayKey = (now: Date = new Date()): string => getLedgerTodayKey(now)
 
 /**
  * Add `n` calendar months to a `YYYY-MM-DD` key, clamping the day to the target
@@ -202,7 +200,7 @@ export const formatMonthKey = (
  * as a full `YYYY-MM-DD`.
  */
 export const capSeriesToToday = <T>(rows: readonly T[], key: keyof T): T[] => {
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
   const currentMonth = today.slice(0, 7)
   return rows.filter((row) => {
     const raw = row[key]

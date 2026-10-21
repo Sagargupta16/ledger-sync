@@ -3,7 +3,7 @@ import {
   checkIsInvestmentTransaction,
   checkIsInvestmentWithdrawal,
 } from '@/components/analytics/health/healthScoreTypes'
-import { isPartialMonth, monthKeysBetween, toLocalDateKey } from '@/lib/dateUtils'
+import { isPartialMonth, monthKeysBetween, getTodayKey } from '@/lib/dateUtils'
 import { investmentAccountTest } from '@/lib/finance/investmentFlows'
 import { isEssentialExpense } from '@/lib/finance/metricRules'
 import { shareOfIncomePercent } from '@/lib/savingsRate'
@@ -80,7 +80,7 @@ export function generateDemoSpendingRule(
   // `_complete_months_between`: every month in the window counts (an empty one
   // is a zero month), the month still in progress does not, and a window
   // inside the current month has 0. Totals and shares still include it.
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
   const firstDate = rows.reduce<string | undefined>((min, t) => (min === undefined || t.date < min ? t.date : min), undefined)
   const windowStart = (params.start_date as string | undefined) ?? firstDate ?? today
   const windowEnd = (params.end_date as string | undefined) ?? today
@@ -134,8 +134,8 @@ export function generateDemoSpendingRule(
       // The populated branch yields a stored `YYYY-MM-DD` (local calendar), so
       // the empty-ledger fallback has to be the same shape. A UTC key here made
       // the two branches disagree by a day for any user east of Greenwich.
-      start: sorted[0]?.date ?? toLocalDateKey(new Date()),
-      end: sorted.at(-1)?.date ?? toLocalDateKey(new Date()),
+      start: sorted[0]?.date ?? getTodayKey(),
+      end: sorted.at(-1)?.date ?? getTodayKey(),
       months,
     },
     income_total: income,

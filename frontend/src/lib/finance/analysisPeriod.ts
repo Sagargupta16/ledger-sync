@@ -1,4 +1,4 @@
-import { addMonthsToMonthKey, formatMonthKey, monthKeysBetween, toLocalDateKey } from '@/lib/dateUtils'
+import { addMonthsToMonthKey, formatMonthKey, monthKeysBetween, getCurrentMonth, getTodayKey } from '@/lib/dateUtils'
 import { isCompleteMonth } from '@/lib/savingsRate'
 
 export interface EarningEvidence {
@@ -31,7 +31,7 @@ export function resolveEarningStart(
 ): EarningStart {
   const saved = validDate(savedDate)
   if (saved) return { date: saved, source: 'saved' }
-  const today = toLocalDateKey(now)
+  const today = getTodayKey(now)
   let first: string | null = null
   for (const row of rows) {
     if (row.type !== 'Income' || !Number.isFinite(row.amount) || row.amount <= 0) continue
@@ -71,7 +71,7 @@ export function resolveAnalysisPeriod(
   { earningStartDate, startDate, endDate, recentMonths, now = new Date() }: PeriodOptions = {},
 ): AnalysisPeriod {
   const empty: AnalysisPeriod = { months: [], startDate: null, endDate: null }
-  const currentMonth = toLocalDateKey(now).slice(0, 7)
+  const currentMonth = getCurrentMonth(now)
   const observed = monthKeys.filter((key) => /^\d{4}-(0[1-9]|1[0-2])$/.test(key) && key <= currentMonth)
     .sort((a, b) => a.localeCompare(b))
   if (!observed.length) return empty

@@ -9,7 +9,7 @@
  * classification data, never from a hardcoded account list.
  */
 
-import { MS_PER_DAY, addDaysToKey, getDateKey, inclusiveDaySpan, toLocalDateKey } from '@/lib/dateUtils'
+import { MS_PER_DAY, addDaysToKey, getDateKey, inclusiveDaySpan, getTodayKey } from '@/lib/dateUtils'
 
 interface IncomeBucket {
   date: string
@@ -142,7 +142,7 @@ export function computeDailyBurn(
   transactions: ReadonlyArray<{ type: string; amount: number; date: string }>,
   lookbackDays = 90,
 ): DailyBurn | null {
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = getTodayKey()
   const cutoffKey = addDaysToKey(todayKey, -(lookbackDays - 1))
 
   const spendByDay = new Map<string, number>()

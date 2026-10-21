@@ -1,4 +1,4 @@
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 import { computeWeekdaySpending } from '@/lib/finance/spendingStatistics'
 
 import type { DayCell } from './components/DayOfWeekChart'
@@ -21,7 +21,7 @@ interface DayOfWeekInsights {
 /** Label the shared elapsed-weekday calculations for the chart. */
 export function computeDayOfWeekAverages(
   grid: readonly DayCell[],
-  today: string = toLocalDateKey(new Date()),
+  today: string = getTodayKey(),
 ): { data: DayOfWeekPoint[]; insights: DayOfWeekInsights | null } {
   const model = computeWeekdaySpending(grid, today)
   return {

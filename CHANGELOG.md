@@ -19,8 +19,9 @@ A consistency and cleanup sweep. The backend and frontend now apply the same spe
   - The Financial Health score uses the user's Needs categories instead of a fixed list, and the shared investment perimeter.
   - Returns Analysis counts only mapped investment accounts.
   - The demo 50/30/20 split uses the shared Needs rule.
-  - The frontend's current and partial month follow the IST ledger day, as the backend does.
+  - Every frontend "today" and "this month" (`getTodayKey`, `getCurrentMonth`, the partial-month helpers and the 21 places that built today from the browser clock) is the IST ledger day, as the backend does, so pages no longer disagree about the current month for viewers outside IST.
 - Mutual Fund Projection no longer shifts a transaction into the previous month for viewers west of UTC.
+- When the AI assistant uses all 6 tool rounds without answering, the chat now says so instead of leaving the last "Looking up your data..." status as the reply.
 - Sign-in provider icons are hidden from screen readers (the button text names the provider), and the page skeleton announces "Loading" once instead of three times.
 - `pnpm dlx` inside `frontend/` no longer crashes in the TypeScript 6 install hook, and the schema reference generator handles `FetchedValue` columns (the reference now names `recurring_user_amount_2026` as head).
 

@@ -1,4 +1,4 @@
-import { daysInMonth, monthKeysBetween, MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
+import { daysInMonth, monthKeysBetween, MS_PER_DAY, parseLocalDate, getTodayKey } from '@/lib/dateUtils'
 import { medianOf } from '@/lib/distribution'
 
 import { completeMonthAverage, completeMonthSpine, totalsByMonth } from './monthlyAverage'
@@ -150,7 +150,7 @@ interface WeekdayObservation {
 /** Elapsed weekday averages count zero-spend days and exclude future grid cells. */
 export function computeWeekdaySpending(
   grid: readonly WeekdayObservation[],
-  today: string = toLocalDateKey(new Date()),
+  today: string = getTodayKey(),
 ) {
   const totals = Array.from({ length: 7 }, () => ({ expense: 0, income: 0, count: 0 }))
   for (const cell of grid) {

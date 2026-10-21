@@ -17,7 +17,7 @@ import {
 import { useDailySummaries, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
 import { EASING } from '@/constants/animations'
-import { formatMonthKey, toLocalDateKey } from '@/lib/dateUtils'
+import { formatMonthKey, getTodayKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { computeSpendingPace, medianSpendingDay, medianSpendingMonth } from '@/lib/finance/spendingStatistics'
@@ -190,7 +190,7 @@ export default function QuickInsights({
   // The monthly series lets the burn rate average COMPLETE months rather than
   // stretch a part month into a full one.
   const { spanRange, daysInRange, monthsInRange, avgDailySpending, monthlyBurnRate } = computeSpendingPace(
-    totalSpending, dateRange, insights, toLocalDateKey(new Date()), monthlyQuery.data,
+    totalSpending, dateRange, insights, getTodayKey(), monthlyQuery.data,
   )
 
   const netCashback = insights?.net_cashback ?? 0

@@ -252,14 +252,15 @@ async function runToolLoop(params: LoopParams): Promise<void> {
 
   if (await runRounds(params, convo, MAX_TOOL_ROUNDS)) return
 
-  // Fell off the round limit -- still show whatever the model last said.
-  const lastAssistant = convo.at(-1)
-  if (lastAssistant?.role === 'assistant' && lastAssistant.blocks) {
-    params.onFinalText(
-      textFromBlocks(lastAssistant.blocks) ||
-        `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
-    )
-  }
+  // Fell off the round limit -- still show whatever the model last said. The
+  // final message is the round's tool results (a user turn), so look back for
+  // the last assistant turn instead of reading `convo.at(-1)`, which never
+  // matched and left the bubble showing the last status line.
+  const lastAssistant = convo.findLast((message) => message.role === 'assistant')
+  params.onFinalText(
+    (lastAssistant?.blocks ? textFromBlocks(lastAssistant.blocks) : '') ||
+      `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
+  )
 }
 
 /**

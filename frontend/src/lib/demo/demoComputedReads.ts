@@ -2,7 +2,7 @@ import type { DataHealth } from '@/services/api/analyticsV2'
 import type { CapitalLossCandidate } from '@/services/api/analyticsV2DataHealth'
 import type { IncomeFacetsData, QuickInsightsData } from '@/services/api/calculations'
 import type { TransactionFacets } from '@/services/api/transactions'
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 import { looksLikeCapitalLoss } from '@/lib/expenseClassification'
 import type { Transaction } from '@/types'
 
@@ -141,7 +141,7 @@ function demoCapitalLossCandidates(txs: Transaction[]): CapitalLossCandidate[] {
  */
 export function generateDemoDataHealth(txs: Transaction[]): DataHealth {
   const now = new Date()
-  const today = toLocalDateKey(now)
+  const today = getTodayKey(now)
 
   // txs arrive sorted newest-first.
   const latest = txs[0]?.date ?? null

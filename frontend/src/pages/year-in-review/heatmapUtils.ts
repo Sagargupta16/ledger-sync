@@ -1,5 +1,5 @@
 import { colors } from '@/constants/colors'
-import { MS_PER_DAY, toLocalDateKey } from '@/lib/dateUtils'
+import { MS_PER_DAY, toLocalDateKey, getTodayKey } from '@/lib/dateUtils'
 import type { DayCell } from './components/DayOfWeekChart'
 import { MONTHS_SHORT, heatmapNeutral, heatmapRamps, type HeatmapMode } from './types'
 
@@ -151,7 +151,7 @@ export function buildDayCells(
   dayIncomes: Record<string, number>,
   dayNets?: Record<string, number>,
 ) {
-  const todayStr = toLocalDateKey(new Date())
+  const todayStr = getTodayKey()
   const startDow = startDate.getDay()
   const cells: DayCell[] = []
   let mxE = 0
@@ -268,7 +268,7 @@ export function accumulateStats(grid: DayCell[]) {
   // Days that have actually happened in the period. The grid spans the whole
   // calendar/fiscal year, so for the current year its tail is future-dated and
   // would inflate any "X of N days" denominator. Cap N at today.
-  const todayStr = toLocalDateKey(new Date())
+  const todayStr = getTodayKey()
   let totalExpense = 0
   let totalIncome = 0
   // Sum of each day's net, which (from the rollups) already subtracts

@@ -1,4 +1,4 @@
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 import type { ExpenseClassificationConfig } from '@/lib/expenseClassification'
 import { resolveAnalysisPeriod, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import type { Transaction } from '@/types'
@@ -28,7 +28,7 @@ export function computeCurrentHealth(
     now?: Date
   } = {},
 ) {
-  const today = toLocalDateKey(now)
+  const today = getTodayKey(now)
   const historical = transactions.filter((tx) => tx.date.slice(0, 10) <= today)
   if (historical.length < 10) return null
   const earningStart = resolveEarningStart(earningStartDate, historical, now)
