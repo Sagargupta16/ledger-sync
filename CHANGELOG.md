@@ -40,6 +40,7 @@ A consistency and cleanup sweep. The backend and frontend now apply the same spe
 ### Security
 
 - `vite` `^8.3.3` (Dependabot #120).
+- `certifi` 2026.10.19 through a constraint (GHSA-6q48-6c7w-9gw2, critical: bundled emSign root CAs had compromised intermediate keys; reached via httpx).
 - The recurring-note date-suffix regex is linear (CodeQL #63, polynomial ReDoS).
 
 ## 2.28.2 - 2026-10-20
