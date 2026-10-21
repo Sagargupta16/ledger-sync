@@ -40,7 +40,7 @@ export interface DataTableColumn<T> {
   readonly mobilePrimary?: boolean
 }
 
-export interface DataTableProps<T> {
+interface DataTableProps<T> {
   readonly columns: readonly DataTableColumn<T>[]
   readonly rows: readonly T[]
   readonly rowKey: (row: T, index: number) => string

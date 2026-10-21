@@ -6,7 +6,7 @@
  * helper; import from there rather than from this module.
  */
 
-import { getDateKey, toLocalDateKey } from './dateKeys'
+import { getDateKey, getTodayKey } from './dateKeys'
 
 /**
  * Filter an array of items with a `date` field by optional start/end date strings.
@@ -144,7 +144,7 @@ export interface AnalyticsDateRange {
   end_date: string | null
 }
 
-export interface AnalyticsDateRangeParams {
+interface AnalyticsDateRangeParams {
   viewMode: AnalyticsViewMode
   currentYear: number
   currentMonth: string
@@ -199,7 +199,7 @@ export const getAnalyticsDateRange = ({
 export const capEndDateAtToday = <T extends { start_date: string | null; end_date: string | null }>(
   range: T
 ): T => {
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
   if (range.end_date && range.end_date > today) return { ...range, end_date: today }
   return range
 }

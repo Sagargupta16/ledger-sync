@@ -110,7 +110,9 @@ describe('FinancialHealthScore CFP input parity', () => {
       totalExpenses: 120000,
       avgMonthlyIncome: 100000,
       avgMonthlyExpense: 40000,
-      avgMonthlyEssentialExpense: 20000,
+      // Rent plus the EMI: the shared Needs rule (lib/finance/metricRules) counts
+      // a loan EMI as essential, the same as /budgets.
+      avgMonthlyEssentialExpense: 25000,
       totalDebtOutstanding: 15000,
     })
     expect(summary.balances?.liquidAssets ?? null).toBe(observed)

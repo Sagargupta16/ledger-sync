@@ -16,11 +16,9 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics_engine import AnalyticsEngine
-from ledger_sync.db.base import Base
 from ledger_sync.db.models import AccountType
 
 #: Which bucket each account type feeds, split by balance sign.
@@ -48,15 +46,6 @@ _NEGATIVE_BUCKET: dict[AccountType, str] = {
 _LIABILITY_BUCKETS = ("credit_card_outstanding", "loans_payable", "other_liabilities")
 
 
-@pytest.fixture
-def session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    db = sessionmaker(bind=engine)()
-    yield db
-    db.close()
-
-
 def _buckets(session: Session, account_type_value: str, balance: str) -> dict[str, Decimal]:
     engine = AnalyticsEngine(session, user_id=1)
     return engine._categorize_account_balances(
@@ -72,16 +61,20 @@ def test_every_account_type_is_covered_by_the_case_maps() -> None:
 
 
 @pytest.mark.parametrize("account_type", list(AccountType))
-def test_positive_balance_lands_in_its_bucket(session: Session, account_type: AccountType) -> None:
-    buckets = _buckets(session, account_type.value, "1000")
+def test_positive_balance_lands_in_its_bucket(
+    test_db_session: Session, account_type: AccountType
+) -> None:
+    buckets = _buckets(test_db_session, account_type.value, "1000")
     expected = _POSITIVE_BUCKET[account_type]
     assert buckets[expected] == Decimal("1000")
     assert sum(buckets.values()) == Decimal("1000")
 
 
 @pytest.mark.parametrize("account_type", list(AccountType))
-def test_negative_balance_lands_in_its_bucket(session: Session, account_type: AccountType) -> None:
-    buckets = _buckets(session, account_type.value, "-1000")
+def test_negative_balance_lands_in_its_bucket(
+    test_db_session: Session, account_type: AccountType
+) -> None:
+    buckets = _buckets(test_db_session, account_type.value, "-1000")
     expected = _NEGATIVE_BUCKET[account_type]
     # Liability buckets store the magnitude, and no asset bucket goes negative.
     assert expected in _LIABILITY_BUCKETS
@@ -89,32 +82,32 @@ def test_negative_balance_lands_in_its_bucket(session: Session, account_type: Ac
     assert all(buckets[k] == 0 for k in buckets if k not in _LIABILITY_BUCKETS)
 
 
-def test_loans_lended_is_the_only_loan_vocabulary_on_the_wire(session: Session) -> None:
+def test_loans_lended_is_the_only_loan_vocabulary_on_the_wire(test_db_session: Session) -> None:
     """``"Loans"`` is not an enum value, so it must not reach ``loans_payable``."""
     assert AccountType.LOANS.value == "Loans/Lended"
     assert "Loans" not in {member.value for member in AccountType}
 
-    real = _buckets(session, AccountType.LOANS.value, "-5000")
+    real = _buckets(test_db_session, AccountType.LOANS.value, "-5000")
     assert real["loans_payable"] == Decimal("5000")
     assert real["other_assets"] == Decimal(0)
 
     # An unrecognised type is not a loan: its negative balance is an unclassified
     # liability, not loans_payable, and it does not shrink other_assets.
-    drifted = _buckets(session, "Loans", "-5000")
+    drifted = _buckets(test_db_session, "Loans", "-5000")
     assert drifted["loans_payable"] == Decimal(0)
     assert drifted["other_liabilities"] == Decimal("5000")
     assert drifted["other_assets"] == Decimal(0)
 
 
-def test_unclassified_account_defaults_to_other_wallets(session: Session) -> None:
+def test_unclassified_account_defaults_to_other_wallets(test_db_session: Session) -> None:
     """No classification row -> the enum's own default, not a bare literal."""
-    engine = AnalyticsEngine(session, user_id=1)
+    engine = AnalyticsEngine(test_db_session, user_id=1)
     buckets = engine._categorize_account_balances({"Acct": Decimal("700")}, {})
     assert buckets["other_assets"] == Decimal("700")
 
 
-def test_internal_card_prepayment_preserves_total_net_worth(session: Session) -> None:
-    engine = AnalyticsEngine(session, user_id=1)
+def test_internal_card_prepayment_preserves_total_net_worth(test_db_session: Session) -> None:
+    engine = AnalyticsEngine(test_db_session, user_id=1)
     buckets = engine._categorize_account_balances(
         {"Bank": Decimal("9000"), "Card": Decimal("1000")},
         {
@@ -127,8 +120,8 @@ def test_internal_card_prepayment_preserves_total_net_worth(session: Session) ->
     assert sum(buckets.values()) == Decimal("10000")
 
 
-def test_bucketed_net_worth_equals_account_balances(session: Session) -> None:
-    engine = AnalyticsEngine(session, user_id=1)
+def test_bucketed_net_worth_equals_account_balances(test_db_session: Session) -> None:
+    engine = AnalyticsEngine(test_db_session, user_id=1)
     balances = {
         "Bank": Decimal("9000.25"),
         "Prepaid card": Decimal("1000.75"),
@@ -152,7 +145,7 @@ def test_bucketed_net_worth_equals_account_balances(session: Session) -> None:
 
 
 def test_overdrawn_non_card_account_is_a_liability_and_net_worth_is_unchanged(
-    session: Session,
+    test_db_session: Session,
 ) -> None:
     """Bank 9,000 and an overdrawn wallet at -1,500: net worth stays 7,500.
 
@@ -160,7 +153,7 @@ def test_overdrawn_non_card_account_is_a_liability_and_net_worth_is_unchanged(
     and liabilities 0. Now assets read 9,000 and liabilities 1,500 -- the Net
     Worth page's split -- with the same net.
     """
-    engine = AnalyticsEngine(session, user_id=1)
+    engine = AnalyticsEngine(test_db_session, user_id=1)
     buckets = engine._categorize_account_balances(
         {"Bank": Decimal("9000"), "Wallet": Decimal("-1500")},
         {"Bank": AccountType.BANK_ACCOUNTS.value, "Wallet": AccountType.OTHER_WALLETS.value},

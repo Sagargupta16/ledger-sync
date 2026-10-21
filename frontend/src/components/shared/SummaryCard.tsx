@@ -12,23 +12,13 @@ interface SummaryCardProps {
   colorClass: string
   /** Tailwind class for the icon background tint (e.g. 'bg-app-green/15'). */
   bgClass: string
-  /** Optional class for a legacy caller-specific icon treatment. */
-  shadowClass?: string
   /** Stagger delay for the entrance animation. */
   delay: number
-  /**
-   * When true, uses tighter mobile padding (``p-4 md:p-6``). Default
-   * uses ``p-6`` flat. Pages with several cards in a row (subscription
-   * tracker, income-expense flow) typically want compact; pages with
-   * fewer can leave it off.
-   */
-  compact?: boolean
 }
 
 /**
- * Compact icon + label + value card. Used by the bill-calendar,
- * subscription-tracker, and income-expense-flow pages for the row of
- * top-of-page summary metrics.
+ * Compact icon + label + value card. Used by the bill-calendar and
+ * subscription-tracker pages for the row of top-of-page summary metrics.
  *
  * Distinct from ``MetricCard`` (in shared/) which carries change badges,
  * subtitles, and an animated number; this version is intentionally
@@ -40,13 +30,10 @@ export default function SummaryCard({
   value,
   colorClass,
   bgClass,
-  shadowClass,
   delay,
-  compact = false,
 }: Readonly<SummaryCardProps>) {
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   const entrance = fadeUpWithDelay(delay)
-  const padding = compact ? 'p-4 md:p-6' : 'p-6'
   return (
     <motion.div
       {...entrance}
@@ -56,12 +43,12 @@ export default function SummaryCard({
         delay: reduceMotion ? 0 : entrance.transition.delay,
         duration: reduceMotion ? 0 : DURATION.quick,
       }}
-      className={cn('metric-card ledger-panel flex h-full min-w-0 flex-col justify-between gap-4', padding)}
+      className="metric-card ledger-panel flex h-full min-w-0 flex-col justify-between gap-4 p-4 md:p-6"
     >
       <div className="flex min-w-0 items-start gap-2.5">
         <span
           aria-hidden="true"
-          className={cn('flex size-6 shrink-0 items-center justify-center rounded-full', bgClass, shadowClass)}
+          className={cn('flex size-6 shrink-0 items-center justify-center rounded-full', bgClass)}
         >
           <Icon className={cn('size-3.5', colorClass)} />
         </span>

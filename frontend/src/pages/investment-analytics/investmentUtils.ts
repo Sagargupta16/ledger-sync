@@ -93,7 +93,7 @@ export function processInvestmentTransaction(
 }
 
 /** One forward-filled day of the stacked growth chart. */
-export type GrowthPoint = Record<string, string | number>
+type GrowthPoint = Record<string, string | number>
 
 export type { GrowthTransaction }
 

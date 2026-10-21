@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, case, func
 from sqlalchemy.orm import Query, Session
 
-from ledger_sync.core.expense_class import capital_loss_sql_filter
+from ledger_sync.core.expense_class import without_capital_losses
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
     capital_loss_keys_for,
@@ -360,10 +360,9 @@ def quick_insights(
         ).one()
     )
     transfer_count = int(transfer_count or 0)
-    expenses = base.filter(Transaction.type == TransactionType.EXPENSE)
-    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
-    if not_a_loss is not None:
-        expenses = expenses.filter(not_a_loss)
+    expenses = without_capital_losses(
+        base.filter(Transaction.type == TransactionType.EXPENSE), capital_loss_keys_for(user)
+    )
     days = _expense_days(expenses)
     income = _income_sources(base)
     count: int = days["count"]

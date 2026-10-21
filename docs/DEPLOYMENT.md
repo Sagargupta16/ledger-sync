@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.28.2.
+Current for Ledger Sync 2.29.0.
 
 ## Production Topology
 
@@ -54,7 +54,9 @@ Store secret values in Vercel or GitHub Actions. Never commit them.
 | `LEDGER_SYNC_ENVIRONMENT` | `production` |
 | `LEDGER_SYNC_FRONTEND_URL` | `https://sagargupta.online/ledger-sync` |
 | `LEDGER_SYNC_CORS_ORIGINS` | JSON array of allowed browser origins |
-| `PYTHON_VERSION` | `3.13` in Vercel project settings |
+
+The Python version is not a Vercel setting: the build takes it from
+`requires-python` in `backend/pyproject.toml` (see [Vercel Backend](#vercel-backend)).
 
 At least one OAuth client pair is required for sign-in:
 
@@ -125,7 +127,7 @@ the pooler for application traffic. Do not expose either value in logs.
 `ci.yml` runs the frontend, GitHub Pages build, backend, security, and
 PostgreSQL migration checks; both migration paths end with `alembic check`.
 On `main`, only a successful set of checks calls `migrate.yml`, which uses the
-`production` environment and Python 3.13. Only a successful migration calls
+`production` environment and Python 3.14. Only a successful migration calls
 `deploy-frontend.yml`. Run the **CI** workflow manually on `main` to repeat the
 same gated release path; the two reusable workflows have no independent push
 or manual triggers.
@@ -272,8 +274,17 @@ The Vercel project root must be `backend`.
 
 `api/index.py` imports the FastAPI ASGI `app`. Vercel's Python runtime serves
 the ASGI app directly, so the application lifespan runs in production (the old
-Mangum Lambda shim was removed in 2.27.0). Vercel installs the locked Python
-environment through uv.
+Mangum Lambda shim was removed in 2.27.0).
+
+What the build log shows ("Installing required dependencies from uv.lock",
+"Using Python 3.14 from backend/pyproject.toml"):
+
+- Dependencies come from `backend/uv.lock`. There is no `requirements.txt`.
+- The Python version comes from `requires-python` in `backend/pyproject.toml`,
+  pinned to one minor version so it matches CI. Change both together.
+- Because `vercel.json` uses the `builds` key, Vercel ignores the project's
+  Build and Development Settings ("the Build and Development Settings defined
+  in your Project Settings will not apply"). Environment variables still apply.
 
 After changing Vercel environment values, redeploy the backend so the function
 receives the new configuration.
@@ -312,7 +323,7 @@ Repository settings:
 
 After CI and database migrations pass for the same commit, the deployment workflow:
 
-1. Installs pnpm 11.25.0 from the root `packageManager` field.
+1. Installs the pnpm version pinned in the root `packageManager` field.
 2. Uses Node.js 24.
 3. Installs the frozen frontend lockfile with dependency lifecycle scripts
    disabled (`--frozen-lockfile --ignore-scripts`).

@@ -1,11 +1,11 @@
-import { addDaysToKey, inclusiveDaySpan, toLocalDateKey } from '@/lib/dateUtils'
+import { addDaysToKey, inclusiveDaySpan, getTodayKey } from '@/lib/dateUtils'
 
 export interface DateSpan {
   readonly start: string
   readonly end: string
 }
 
-export interface AlignedSpans {
+interface AlignedSpans {
   readonly a: DateSpan
   readonly b: DateSpan
   /** Set when B was still in progress and both spans were truncated to match. */
@@ -29,7 +29,7 @@ export interface AlignedSpans {
 export function alignToElapsed(
   rangeA: DateSpan,
   rangeB: DateSpan,
-  today: string = toLocalDateKey(new Date()),
+  today: string = getTodayKey(),
 ): AlignedSpans {
   // B already finished, or has not begun -- nothing to align either way.
   if (rangeB.end <= today || rangeB.start > today) {

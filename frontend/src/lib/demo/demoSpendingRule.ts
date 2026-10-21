@@ -3,29 +3,31 @@ import {
   checkIsInvestmentTransaction,
   checkIsInvestmentWithdrawal,
 } from '@/components/analytics/health/healthScoreTypes'
-import { isInvestmentAccount } from '@/constants/accountTypes'
-import { isPartialMonth, monthKeysBetween, toLocalDateKey } from '@/lib/dateUtils'
+import { isPartialMonth, monthKeysBetween, getTodayKey } from '@/lib/dateUtils'
+import { investmentAccountTest } from '@/lib/finance/investmentFlows'
+import { isEssentialExpense } from '@/lib/finance/metricRules'
 import { shareOfIncomePercent } from '@/lib/savingsRate'
 import type { Transaction } from '@/types'
 
-import { isExpense, isIncome } from './demoHelpers'
+import { ESSENTIAL_CATEGORIES, isExpense, isIncome } from './demoHelpers'
+import { DEMO_INVESTMENT_MAPPINGS } from './demoPreferences'
 
-const NEEDS_CATEGORIES = new Set([
-  'Housing',
-  'Food & Dining',
-  'Healthcare',
-  'Transportation',
-  'Education',
-  'Family',
-  'EMI',
-])
+/** The demo user's mapped accounts, as the endpoint reads `investment_account_mappings`. */
+const isInvestmentAccount = investmentAccountTest(Object.keys(DEMO_INVESTMENT_MAPPINGS))
+
+/**
+ * The endpoint's Needs rule (`is_essential_expense`): the built-in keywords plus
+ * the demo user's `essential_categories`, on the category OR the subcategory.
+ */
+const bucketOf = (t: Transaction): SpendingBucket =>
+  isEssentialExpense(t.category, t.subcategory, ESSENTIAL_CATEGORIES) ? 'needs' : 'wants'
 
 /**
  * Net change in the investment perimeter: allocations in, minus redemptions out.
  *
  * Reuses the app's existing perimeter predicates rather than adding a fourth
  * definition of "is this an investment movement" -- the health panel already
- * decides it this way, and `isInvestmentAccount` is the shared name classifier.
+ * decides it this way, over the shared `investmentAccountTest` perimeter.
  * Can be negative (a net-withdrawal window), which is a real outcome and is not
  * clamped, matching the endpoint's signed `bucket_totals["savings"]`.
  */
@@ -63,17 +65,22 @@ export function generateDemoSpendingRule(
   // figure at all.
   const savings = netInvestmentPerimeterFlow(rows)
 
-  const byCategory = new Map<string, Transaction[]>()
+  // One row per (category, bucket), like the endpoint's `category_rows`: the
+  // Needs rule reads the subcategory too, so one category can feed both buckets.
+  const byCategory = new Map<string, { category: string; bucket: SpendingBucket; list: Transaction[] }>()
   for (const t of expenses) {
-    if (!byCategory.has(t.category)) byCategory.set(t.category, [])
-    byCategory.get(t.category)?.push(t)
+    const bucket = bucketOf(t)
+    const key = `${bucket}:${t.category}`
+    const group = byCategory.get(key) ?? { category: t.category, bucket, list: [] }
+    group.list.push(t)
+    byCategory.set(key, group)
   }
 
   // Averages use COMPLETE calendar months only, like the endpoint's
   // `_complete_months_between`: every month in the window counts (an empty one
   // is a zero month), the month still in progress does not, and a window
   // inside the current month has 0. Totals and shares still include it.
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
   const firstDate = rows.reduce<string | undefined>((min, t) => (min === undefined || t.date < min ? t.date : min), undefined)
   const windowStart = (params.start_date as string | undefined) ?? firstDate ?? today
   const windowEnd = (params.end_date as string | undefined) ?? today
@@ -81,12 +88,11 @@ export function generateDemoSpendingRule(
   const months = monthKeysBetween(windowStart, windowEnd).filter((m) => m !== inProgress).length
   let needs = 0
   let wants = 0
-  const categories = [...byCategory.entries()].map(([category, list]) => {
+  const categories = [...byCategory.values()].map(({ category, bucket, list }) => {
     const total = list.reduce((s, t) => s + t.amount, 0)
     const completeTotal = list
       .filter((t) => t.date.slice(0, 7) !== inProgress)
       .reduce((s, t) => s + t.amount, 0)
-    const bucket: SpendingBucket = NEEDS_CATEGORIES.has(category) ? 'needs' : 'wants'
     if (bucket === 'needs') needs += total
     else wants += total
     const subTotals = new Map<string, number>()
@@ -128,8 +134,8 @@ export function generateDemoSpendingRule(
       // The populated branch yields a stored `YYYY-MM-DD` (local calendar), so
       // the empty-ledger fallback has to be the same shape. A UTC key here made
       // the two branches disagree by a day for any user east of Greenwich.
-      start: sorted[0]?.date ?? toLocalDateKey(new Date()),
-      end: sorted.at(-1)?.date ?? toLocalDateKey(new Date()),
+      start: sorted[0]?.date ?? getTodayKey(),
+      end: sorted.at(-1)?.date ?? getTodayKey(),
       months,
     },
     income_total: income,

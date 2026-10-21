@@ -27,13 +27,13 @@ import type { LucideIcon } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 
-export interface NavItem {
+interface NavItem {
   path: string
   label: string
   icon: LucideIcon
 }
 
-export interface NavSection {
+interface NavSection {
   title: string
   items: NavItem[]
 }

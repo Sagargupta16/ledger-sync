@@ -84,7 +84,6 @@ export default function RecurringSummarySection({
           colorClass="text-app-red"
           bgClass="bg-app-red/20"
           delay={0}
-          compact
         />
         <SummaryCard
           icon={ArrowUpCircle}
@@ -93,7 +92,6 @@ export default function RecurringSummarySection({
           colorClass="text-app-green"
           bgClass="bg-app-green/20"
           delay={0.04}
-          compact
         />
         <SummaryCard
           icon={TrendingUp}
@@ -102,7 +100,6 @@ export default function RecurringSummarySection({
           colorClass={summary.netMonthly >= 0 ? 'text-app-green' : 'text-app-red'}
           bgClass={summary.netMonthly >= 0 ? 'bg-app-green/20' : 'bg-app-red/20'}
           delay={0.08}
-          compact
         />
         <SummaryCard
           icon={Hash}
@@ -111,7 +108,6 @@ export default function RecurringSummarySection({
           colorClass="text-app-blue"
           bgClass="bg-app-blue/20"
           delay={0.12}
-          compact
         />
         {summary.pausedExpenseCount > 0 && (
           <SummaryCard
@@ -121,7 +117,6 @@ export default function RecurringSummarySection({
             colorClass="text-app-purple"
             bgClass="bg-app-purple/20"
             delay={0.16}
-            compact
           />
         )}
       </div>

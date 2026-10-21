@@ -9,10 +9,7 @@
  * widget). Users had to re-decode the legend on every page.
  *
  * Anything that displays an expense-category breakdown should pass the
- * map below to ``CategoryBreakdown``'s ``colorMap`` prop, or call
- * ``getExpenseCategoryColor(name)`` directly. Unknown categories fall
- * back to a deterministic hash-based colour from the chart palette so
- * they stay stable across renders/runs.
+ * map below to ``CategoryBreakdown``'s ``colorMap`` prop.
  *
  * What's NOT in here
  * ------------------
@@ -26,7 +23,6 @@
  * Each of those covers a different taxonomy, so they stay separate.
  */
 
-import { CHART_COLORS } from './chartColors'
 import { rawColors, onRawColorsRefresh } from './colors'
 
 /**
@@ -69,25 +65,3 @@ export const EXPENSE_CATEGORY_COLORS: Record<string, string> = buildExpenseCateg
 
 // Rebuild category hues in place after a theme toggle re-resolves rawColors.
 onRawColorsRefresh(() => Object.assign(EXPENSE_CATEGORY_COLORS, buildExpenseCategoryColors()))
-
-/**
- * Deterministic per-category colour with a stable fallback.
- *
- * - If the category is in ``EXPENSE_CATEGORY_COLORS``, return that
- *   semantic colour.
- * - Otherwise, hash the name and pick from ``CHART_COLORS``. This means
- *   an unknown category gets the **same** colour every time it appears,
- *   so users don't see it shift between renders.
- */
-export function getExpenseCategoryColor(category: string): string {
-  const explicit = EXPENSE_CATEGORY_COLORS[category]
-  if (explicit) return explicit
-
-  // djb2-style hash over the category name; lightweight and deterministic.
-  let hash = 5381
-  for (let i = 0; i < category.length; i++) {
-    hash = (hash * 33) ^ (category.codePointAt(i) ?? 0)
-  }
-  const idx = Math.abs(hash) % CHART_COLORS.length
-  return CHART_COLORS[idx]
-}

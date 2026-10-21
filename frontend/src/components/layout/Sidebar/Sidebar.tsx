@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, LogOut, Menu, Search, X } from 'lucide-react'
@@ -35,6 +35,7 @@ import SidebarItem from './SidebarItem'
 import SidebarSection from './SidebarSection'
 import ThemeToggle from './ThemeToggle'
 import MotionToggle from './MotionToggle'
+import { useDrawerFocusTrap } from './useDrawerFocusTrap'
 
 function countAlertBadges(
   anomalyCount: number,
@@ -111,41 +112,7 @@ export default function Sidebar() {
     ? { full_name: 'Demo workspace', email: 'Explore sample data' }
     : user
 
-  useEffect(() => {
-    if (!isMobileOpen || showProfile) return
-
-    const sidebar = sidebarRef.current
-    const focusableSelector =
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    sidebar?.querySelector<HTMLElement>(focusableSelector)?.focus()
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        closeMobile()
-        return
-      }
-      if (event.key !== 'Tab' || !sidebar) return
-
-      const focusable = [
-        mobileToggleRef.current,
-        ...sidebar.querySelectorAll<HTMLElement>(focusableSelector),
-      ].filter((element): element is HTMLElement => element !== null)
-      const first = focusable[0]
-      const last = focusable.at(-1)
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last?.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first?.focus()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [closeMobile, isMobileOpen, showProfile])
+  useDrawerFocusTrap(isMobileOpen && !showProfile, sidebarRef, mobileToggleRef, closeMobile)
 
   return (
     <>

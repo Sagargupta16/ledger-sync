@@ -16,7 +16,7 @@ const SOURCE_LOADERS = import.meta.glob('/src/**/*.{ts,tsx}', {
   import: 'default',
 }) as Record<string, () => Promise<string>>
 
-export interface SourceFile {
+interface SourceFile {
   /** Root-absolute path, e.g. `/src/components/analytics/TopMerchants.tsx`. */
   readonly path: string
   readonly text: string
@@ -64,7 +64,7 @@ function matchingParen(text: string, open: number): number {
 }
 
 /** A call site as written, normalised to one line. */
-export interface CallForm {
+interface CallForm {
   /** `hookName(args)` with whitespace collapsed, e.g. `useBudgets({ active_only: true })`. */
   readonly form: string
   /** Paths that contain this exact form. */

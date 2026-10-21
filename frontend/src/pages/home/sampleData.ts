@@ -23,13 +23,13 @@ export interface FlowBranch {
   color: string
 }
 
-export interface SampleMonth {
+interface SampleMonth {
   month: string
   income: number
   spending: number
 }
 
-export interface SampleKpi {
+interface SampleKpi {
   label: string
   value: number
   format: (value: number) => string

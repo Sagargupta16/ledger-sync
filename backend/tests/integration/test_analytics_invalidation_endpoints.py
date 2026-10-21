@@ -9,7 +9,6 @@ from sqlalchemy import event, func, select
 from ledger_sync.core.analytics.engine import AnalyticsEngine
 from ledger_sync.core.analytics.refresh import analytics_is_current, get_analytics_state
 from ledger_sync.db.models import (
-    AnalyticsState,
     AuditLog,
     CohortSpending,
     DailySummary,
@@ -246,31 +245,16 @@ def test_budget_creation_requires_refresh(two_user_client):
     assert not analytics_is_current(get_analytics_state(session, user.id))
 
 
-def test_freshness_endpoint_and_refresh_preserve_existing_envelope(two_user_client):
-    client, session, user, other, current = two_user_client
-    original_updated_at = user.updated_at
-    response = client.get("/api/analytics/v2/freshness")
-    assert response.status_code == 200
-    assert response.json()["status"] == "uninitialized"
-    assert session.scalar(select(func.count()).select_from(AnalyticsState)) == 0
-    session.refresh(user)
-    assert user.updated_at == original_updated_at
+def test_refresh_preserves_existing_envelope(two_user_client):
+    client, session, _, _, _ = two_user_client
     response = client.post("/api/analytics/v2/refresh")
     assert response.status_code == 200, response.text
     assert set(response.json()) == {"success", "analytics"}
     assert all(type(value) is int for value in response.json()["analytics"].values())
-    assert client.get("/api/analytics/v2/freshness").json()["is_current"] is True
     assert client.post("/api/analytics/v2/refresh").json() == {"success": True, "analytics": {}}
     assert session.scalar(select(func.count()).select_from(AuditLog)) == 1
     assert client.post("/api/analytics/v2/refresh?force_full=true").status_code == 200
     assert session.scalar(select(func.count()).select_from(AuditLog)) == 2
-    assert client.put("/api/preferences", json={"excluded_accounts": ["Hidden"]}).status_code == 200
-    metadata = client.get("/api/analytics/v2/freshness").json()
-    assert metadata["status"] == "stale"
-    assert metadata["current"]["preferences_version"] == 1
-    assert metadata["published"]["preferences_version"] == 0
-    current["user"] = other
-    assert client.get("/api/analytics/v2/freshness").json()["status"] == "uninitialized"
 
 
 @pytest.mark.parametrize("mode", ["transactions", "full"])

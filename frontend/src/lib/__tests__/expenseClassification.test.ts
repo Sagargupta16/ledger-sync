@@ -7,7 +7,6 @@ import {
   isCapitalLoss,
   isSpending,
   looksLikeCapitalLoss,
-  splitExpenseTotals,
   type ExpenseClass,
   type ExpenseClassifiable,
 } from '../expenseClassification'
@@ -271,78 +270,5 @@ describe('classified keys (capital_loss_categories)', () => {
   it('builds the same key string the backend `classification_key` does', () => {
     expect(classificationKey(' Investment Expenses ', 'F&O Loss')).toBe('investment expenses::f&o loss')
     expect(classificationKey(null, undefined)).toBe('::')
-  })
-})
-
-describe('splitExpenseTotals', () => {
-  // Synthetic fixture with round numbers so the arithmetic is readable and no
-  // real ledger figure is committed.
-  const ledger: ExpenseClassifiable[] = [
-    { type: 'Expense', amount: 30000, category: 'Investment Expenses', subcategory: 'Stocks Market Loss' },
-    { type: 'Expense', amount: 20000, category: 'Investment Expenses', subcategory: 'F&O Loss' },
-    { type: 'Expense', amount: 4000, category: 'Investment Expenses', subcategory: 'Brokerage & Other Fees' },
-    { type: 'Expense', amount: 1000, category: 'Investment Expenses', subcategory: 'Financial Advisor Fees' },
-    { type: 'Expense', amount: 45000, category: 'Food & Dining', subcategory: 'Groceries' },
-  ]
-  const classified = capitalLossConfig([
-    'Investment Expenses::Stocks Market Loss',
-    'Investment Expenses::F&O Loss',
-  ])
-
-  it('splits rows into the three buckets once the losses are classified', () => {
-    const totals = splitExpenseTotals(ledger, classified)
-    expect(totals.capitalLoss).toBe(50000)
-    expect(totals.investmentCost).toBe(5000)
-    expect(totals.consumption).toBe(45000)
-    expect(totals.total).toBe(100000)
-    expect(totals.spending).toBe(50000)
-  })
-
-  it('counts every row as spending while nothing is classified', () => {
-    const totals = splitExpenseTotals(ledger)
-    expect(totals.capitalLoss).toBe(0)
-    expect(totals.investmentCost).toBe(55000)
-    expect(totals.spending).toBe(100000)
-    expect(totals.total).toBe(100000)
-  })
-
-  it('keeps spending plus capital loss equal to the unfiltered total', () => {
-    const totals = splitExpenseTotals(ledger, classified)
-    expect(totals.consumption + totals.investmentCost).toBe(totals.spending)
-    expect(totals.spending + totals.capitalLoss).toBe(totals.total)
-  })
-
-  it('ignores non-expense rows', () => {
-    const totals = splitExpenseTotals([
-      { type: 'Income', amount: 5000, category: 'Employment Income', subcategory: 'Salary' },
-      { type: 'Transfer', amount: 9000, category: 'Transfer: Bank: A -> Bank: B' },
-      { type: 'Expense', amount: 250, category: 'Food & Dining' },
-    ])
-    expect(totals.total).toBe(250)
-    expect(totals.consumption).toBe(250)
-  })
-
-  it('uses absolute amounts and skips non-finite ones', () => {
-    const totals = splitExpenseTotals([
-      { type: 'Expense', amount: -400, category: 'Food & Dining' },
-      { type: 'Expense', amount: Number.NaN, category: 'Food & Dining' },
-      { type: 'Expense', amount: Number.POSITIVE_INFINITY, category: 'Food & Dining' },
-      { type: 'Expense', category: 'Food & Dining' },
-    ])
-    expect(totals.total).toBe(400)
-    expect(totals.consumption).toBe(400)
-  })
-
-  it('returns zeroes for empty, null and undefined input', () => {
-    for (const input of [[], null, undefined]) {
-      const totals = splitExpenseTotals(input)
-      expect(totals).toEqual({
-        consumption: 0,
-        investmentCost: 0,
-        capitalLoss: 0,
-        spending: 0,
-        total: 0,
-      })
-    }
   })
 })

@@ -7,7 +7,7 @@ interface ChartDimensions {
   breakpoint: Breakpoint
   /** Whether to show the legend (hide on mobile) */
   showLegend: boolean
-  /** Chart margins — tighter on mobile */
+  /** Chart margins -- tighter on mobile */
   margin: { top: number; right: number; bottom: number; left: number }
   /** Max tick labels to show on X axis */
   maxXLabels: number
@@ -68,7 +68,7 @@ const DIMENSIONS: Record<Breakpoint, Omit<ChartDimensions, 'breakpoint'>> = {
  * const dims = useChartDimensions()
  * <ResponsiveContainer height={dims.chartHeight}>
  *   <BarChart margin={dims.margin}>
- *     <XAxis tick={{ fontSize: dims.tickFontSize }} interval={getSmartInterval(data.length, dims.maxXLabels)} />
+ *     <XAxis tick={{ fontSize: dims.tickFontSize }} />
  *     {dims.showLegend && <Legend />}
  *   </BarChart>
  * </ResponsiveContainer>

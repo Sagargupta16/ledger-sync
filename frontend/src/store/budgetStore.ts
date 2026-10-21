@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export interface Budget {
+interface Budget {
   category: string
   limit: number
   period: 'monthly' | 'yearly'

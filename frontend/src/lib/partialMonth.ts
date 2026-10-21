@@ -8,7 +8,7 @@
  */
 
 import type { AnalyticsDateRange } from './dateRanges'
-import { daysInMonth, formatMonthKey, toLocalDateKey } from './dateKeys'
+import { addDaysToKey, daysInMonth, formatMonthKey, getLedgerTodayKey, toLocalDateKey } from './dateKeys'
 
 /**
  * How far through a `YYYY-MM` month we are, as elapsed / total days.
@@ -16,8 +16,12 @@ import { daysInMonth, formatMonthKey, toLocalDateKey } from './dateKeys'
  * A month in the past is complete (`isPartial: false`, `fraction: 1`); a future
  * month has no elapsed days. Only the CURRENT month is partial -- and not on its
  * final day, where every calendar day already exists.
+ *
+ * "Current" is read on the ledger calendar (IST, `getLedgerTodayKey`), the
+ * backend `ledger_clock` twin, so the in-progress month matches the server's
+ * whatever the viewer's own timezone is.
  */
-export interface PeriodProgress {
+interface PeriodProgress {
   /** True only for the in-progress month -- the one whose totals are incomplete. */
   readonly isPartial: boolean
   /** Days of the month that have already happened (1..daysTotal). */
@@ -30,7 +34,8 @@ export interface PeriodProgress {
 
 export const getMonthProgress = (monthKey: string, now: Date = new Date()): PeriodProgress => {
   const daysTotal = daysInMonth(monthKey)
-  const currentMonth = toLocalDateKey(now).slice(0, 7)
+  const today = getLedgerTodayKey(now)
+  const currentMonth = today.slice(0, 7)
   const month = monthKey.slice(0, 7)
 
   if (month < currentMonth) {
@@ -43,7 +48,7 @@ export const getMonthProgress = (monthKey: string, now: Date = new Date()): Peri
   // complete for comparison purposes. Calling it partial there would delete a
   // whole real month from every trend on the 31st, and `PartialPeriodNotice`
   // (which hides itself at daysElapsed >= daysTotal) would not explain the gap.
-  const daysElapsed = now.getDate()
+  const daysElapsed = Number(today.slice(8, 10))
   return {
     isPartial: daysElapsed < daysTotal,
     daysElapsed,
@@ -105,9 +110,9 @@ export const projectPartialMonth = (
   return fraction > 0 ? total / fraction : total
 }
 
-/** Last calendar day of the month BEFORE `now`, as a local `YYYY-MM-DD` key. */
+/** Last calendar day of the month BEFORE `now` on the ledger calendar, as a `YYYY-MM-DD` key. */
 export const endOfPreviousMonth = (now: Date = new Date()): string =>
-  toLocalDateKey(new Date(now.getFullYear(), now.getMonth(), 0))
+  addDaysToKey(`${getLedgerTodayKey(now).slice(0, 7)}-01`, -1)
 
 /**
  * The in-progress month that a selected analytics window overlaps, if any.
@@ -142,8 +147,7 @@ export const resolvePartialPeriod = (
   range: AnalyticsDateRange,
   now: Date = new Date()
 ): PartialPeriod | null => {
-  const todayKey = toLocalDateKey(now)
-  const monthKey = todayKey.slice(0, 7)
+  const monthKey = getLedgerTodayKey(now).slice(0, 7)
   const { daysElapsed, daysTotal } = getMonthProgress(monthKey, now)
   if (daysElapsed >= daysTotal) return null
 

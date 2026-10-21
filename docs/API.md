@@ -1,14 +1,14 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.28.2.
+Human-readable reference for Ledger Sync API version 2.29.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
 verified against that document on 2026-09-09.
 
 Current OpenAPI inventory:
 
-- 108 paths
-- 123 HTTP operations
+- 95 paths
+- 110 HTTP operations
 - Swagger UI at `/docs`
 - ReDoc at `/redoc`
 - Raw schema at `/openapi.json`
@@ -158,6 +158,7 @@ Common status codes:
 | 204 | Successful deletion with no body |
 | 400 | Invalid operation or upstream request |
 | 401 | Missing, expired, or revoked token |
+| 403 | Authenticated account is disabled |
 | 404 | Resource not found |
 | 409 | Import, identity, saved-key conflict, or required OAuth restart |
 | 413 | Upload body exceeds the configured size limit |
@@ -220,13 +221,7 @@ against intervening edits.
 | `GET` | `/api/analytics/overview` | Income, expenses, savings, and account overview |
 | `GET` | `/api/analytics/behavior` | Spending behavior metrics |
 | `GET` | `/api/analytics/trends` | Trend metrics |
-| `GET` | `/api/analytics/wrapped` | Year summary |
 | `GET` | `/api/analytics/kpis` | Dashboard KPIs |
-| `GET` | `/api/analytics/charts/income-expense` | Income and expense chart data |
-| `GET` | `/api/analytics/charts/categories` | Category chart data |
-| `GET` | `/api/analytics/charts/monthly-trends` | Monthly trend chart data |
-| `GET` | `/api/analytics/charts/account-distribution` | Account distribution chart data |
-| `GET` | `/api/analytics/insights/generated` | Rule-generated financial insights |
 | `GET` | `/api/analytics/v2/monthly-summaries` | Persisted monthly rollups |
 | `GET` | `/api/analytics/v2/daily-summaries` | Persisted daily rollups |
 | `GET` | `/api/analytics/v2/cohort-spending` | Day and month spending cohorts |
@@ -245,10 +240,9 @@ against intervening edits.
 | `GET`, `POST` | `/api/analytics/v2/budgets` | List or create category budgets |
 | `GET`, `POST` | `/api/analytics/v2/goals` | List or create financial goals |
 | `PATCH`, `DELETE` | `/api/analytics/v2/goals/{goal_id}` | Update saved goal details/progress or delete the current user's goal |
-| `GET` | `/api/analytics/v2/freshness` | Current and published input versions, publication timestamp, and stale/current status |
 | `POST` | `/api/analytics/v2/refresh` | Refresh invalidated analytics; `?force_full=true` forces a recovery rebuild |
 
-### Calculations and reports
+### Calculations
 
 | Methods | Path | Purpose |
 | --- | --- | --- |
@@ -258,7 +252,6 @@ against intervening edits.
 | `GET` | `/api/calculations/yearly-aggregation` | Yearly values |
 | `GET` | `/api/calculations/category-breakdown` | Category and subcategory totals |
 | `GET` | `/api/calculations/account-balances` | Ledger-derived account balances |
-| `GET` | `/api/calculations/insights` | Calculated insight metrics |
 | `GET` | `/api/calculations/category-monthly-history` | Monthly history for categories |
 | `GET` | `/api/calculations/data-date-range` | Earliest and latest active transaction dates |
 | `GET` | `/api/calculations/income-facets` | Income category and subcategory buckets with row counts and totals |
@@ -266,17 +259,11 @@ against intervening edits.
 | `GET` | `/api/calculations/category-daily-series` | Daily category series |
 | `GET` | `/api/calculations/quick-insights` | Dashboard quick-insight values |
 | `GET` | `/api/calculations/daily-net-worth` | Daily ledger net worth |
-| `GET` | `/api/calculations/top-categories` | Highest-value categories |
-| `GET` | `/api/reports/monthly` | Monthly HTML report |
 
-### Metadata, accounts, and preferences
+### Accounts and preferences
 
 | Methods | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/meta/types` | Transaction type values |
-| `GET` | `/api/meta/accounts` | Active account names |
-| `GET` | `/api/meta/filters` | Filter values |
-| `GET` | `/api/meta/buckets` | Dynamic budget-rule buckets |
 | `GET`, `POST` | `/api/account-classifications` | Read all mappings or upsert one |
 | `GET` | `/api/account-classifications/closed` | List accounts marked closed |
 | `PUT` | `/api/account-classifications/status` | Update an account's open/closed status |
@@ -620,6 +607,10 @@ prior trading day within seven days. Historical responses include `as_of`.
 | Upload | IP | 50/minute |
 | Bedrock chat | Authenticated user | 30/minute |
 | Bedrock chat | IP | 60/minute |
+| AI tool execution | Authenticated user | 120/minute |
+| Analytics refresh | Authenticated user | 10/minute |
+| Exchange rates | Authenticated user | 60/minute |
+| Stock price | Authenticated user | 60/minute |
 
 One limiter checks both the account and IP bounds. Cross-instance per-minute
 enforcement requires distributed SlowAPI storage; the default is process-local.

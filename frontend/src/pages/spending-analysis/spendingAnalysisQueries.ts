@@ -35,7 +35,7 @@ export interface SpendingRange {
 }
 
 /** The loading/error surface every read below exposes. */
-export interface SpendingRead<T> {
+interface SpendingRead<T> {
   readonly data: T | undefined
   readonly isPending: boolean
   readonly isError: boolean

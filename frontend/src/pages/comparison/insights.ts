@@ -15,7 +15,7 @@ function generateExpenseInsight(periodA: PeriodSummary, periodB: PeriodSummary):
   if (Math.abs(expChange) < 5) return null
   return expChange > 0
     ? `Spending increased by ${formatPercent(Math.abs(expChange))}. Review discretionary categories.`
-    : `Spending decreased by ${formatPercent(Math.abs(expChange))} — good cost control.`
+    : `Spending decreased by ${formatPercent(Math.abs(expChange))} - good cost control.`
 }
 
 function generateSavingsRateInsight(periodA: PeriodSummary, periodB: PeriodSummary): string | null {
@@ -54,8 +54,8 @@ function generateTxVolumeInsight(periodA: PeriodSummary, periodB: PeriodSummary)
   const txChange = pctChange(periodB.transactions, periodA.transactions)
   if (Math.abs(txChange) < 15) return null
   return txChange > 0
-    ? `Transaction volume surged ${formatPercent(Math.abs(txChange))} — more frequent activity.`
-    : `Transaction count fell ${formatPercent(Math.abs(txChange))} — fewer transactions recorded.`
+    ? `Transaction volume surged ${formatPercent(Math.abs(txChange))} - more frequent activity.`
+    : `Transaction count fell ${formatPercent(Math.abs(txChange))} - fewer transactions recorded.`
 }
 
 export function generateAllInsights(

@@ -1,9 +1,7 @@
-import { motion } from 'motion/react'
-
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
+import ChartSection from '@/components/ui/ChartSection'
 import { formatCurrency } from '@/lib/formatters'
-import { useMotionStore } from '@/store/motionStore'
 
 interface AssetAllocationChartProps {
   isLoading: boolean
@@ -15,7 +13,6 @@ export function AssetAllocationChart({
   assetAllocation,
 }: Readonly<AssetAllocationChartProps>) {
   const total = assetAllocation.reduce((sum, item) => sum + item.value, 0)
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const largestAllocation = assetAllocation.reduce<(typeof assetAllocation)[number] | undefined>(
     (largest, item) => !largest || item.value > largest.value ? item : largest,
     undefined,
@@ -25,30 +22,18 @@ export function AssetAllocationChart({
     : '0.0'
 
   return (
-    <motion.section
-      className="ledger-panel min-w-0 p-4 sm:p-6"
-      aria-labelledby="asset-allocation-title"
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
+    <ChartSection
+      titleId="asset-allocation-title"
+      eyebrow="Wealth / portfolio composition"
+      title="Asset Allocation"
+      description="Where your invested book value sits."
+      headerClassName="mb-5 flex flex-wrap items-start justify-between gap-3"
+      action={!isLoading && assetAllocation.length > 0 && (
+        <p className="rounded-md border border-border/70 px-2.5 py-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {assetAllocation.length} asset {assetAllocation.length === 1 ? 'class' : 'classes'}
+        </p>
+      )}
     >
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-            Wealth / portfolio composition
-          </p>
-          <h2 id="asset-allocation-title" className="text-lg font-semibold tracking-tight text-foreground">
-            Asset Allocation
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Where your invested book value sits.</p>
-        </div>
-        {!isLoading && assetAllocation.length > 0 && (
-          <p className="rounded-md border border-border/70 px-2.5 py-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {assetAllocation.length} asset {assetAllocation.length === 1 ? 'class' : 'classes'}
-          </p>
-        )}
-      </div>
       {isLoading ? (
         <ChartSkeleton />
       ) : (
@@ -82,6 +67,6 @@ export function AssetAllocationChart({
           )}
         </>
       )}
-    </motion.section>
+    </ChartSection>
   )
 }

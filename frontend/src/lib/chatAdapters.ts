@@ -44,7 +44,7 @@ export interface ToolSpec {
   parameters: Record<string, unknown> // JSON Schema
 }
 
-export interface SendParams {
+interface SendParams {
   model: string
   systemPrompt: string
   messages: ChatMessage[]
@@ -54,14 +54,14 @@ export interface SendParams {
   signal: AbortSignal
 }
 
-export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'other'
+type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'other'
 
-export interface UsageInfo {
+interface UsageInfo {
   inputTokens: number
   outputTokens: number
 }
 
-export interface ChatResponse {
+interface ChatResponse {
   blocks: Block[]
   stopReason: StopReason
   /**
@@ -243,13 +243,39 @@ function toOpenAIMessages(system: string, messages: ChatMessage[]): OpenAIMessag
   return out
 }
 
-// OpenAI reasoning models (o1/o3/o4...) reject `max_tokens` and require
-// `max_completion_tokens`. Match the leading "o<digit>" family.
-const OPENAI_REASONING_MODEL = /^o\d/i
+// --- Browser-direct endpoints ------------------------------------------------
+// Shared with the Settings connection test so both send the same request.
+
+export const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions'
+export const ANTHROPIC_MESSAGES_URL = 'https://api.anthropic.com/v1/messages'
+
+export function openAIHeaders(apiKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  }
+}
+
+export function anthropicHeaders(apiKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+    'x-api-key': apiKey,
+  }
+}
+
+/**
+ * OpenAI reasoning models (o1/o3/o4...) reject `max_tokens` and require
+ * `max_completion_tokens`. Match the leading "o<digit>" family.
+ */
+export function isOpenAIReasoningModel(model: string): boolean {
+  return /^o\d/i.test(model)
+}
 
 async function callOpenAI(params: SendParams): Promise<ChatResponse> {
   const tokenLimit = 1024
-  const isReasoning = OPENAI_REASONING_MODEL.test(params.model)
+  const isReasoning = isOpenAIReasoningModel(params.model)
   const body = {
     model: params.model,
     ...(isReasoning ? { max_completion_tokens: tokenLimit } : { max_tokens: tokenLimit }),
@@ -260,12 +286,9 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
     })),
   }
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch(OPENAI_CHAT_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${params.apiKey}`,
-    },
+    headers: openAIHeaders(params.apiKey),
     body: JSON.stringify(body),
     signal: params.signal,
   })
@@ -355,14 +378,9 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
       input_schema: t.parameters,
     })),
   }
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'x-api-key': params.apiKey,
-    },
+    headers: anthropicHeaders(params.apiKey),
     body: JSON.stringify(body),
     signal: params.signal,
   })

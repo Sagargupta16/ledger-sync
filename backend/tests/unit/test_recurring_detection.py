@@ -17,11 +17,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics_engine import AnalyticsEngine
-from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     RecurrenceFrequency,
     RecurringTransaction,
@@ -29,21 +27,6 @@ from ledger_sync.db.models import (
     TransactionType,
     User,
 )
-
-
-@pytest.fixture
-def session() -> Session:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
-
-
-@pytest.fixture
-def user(session: Session) -> User:
-    user = User(email="rec@example.com", hashed_password="", is_active=True, is_verified=True)
-    session.add(user)
-    session.commit()
-    return user
 
 
 def _txn(
@@ -80,21 +63,21 @@ def _detect(session: Session, user: User, txns: list[Transaction]) -> list[Recur
     return session.query(RecurringTransaction).all()
 
 
-def test_expected_amount_uses_median_not_mean(session: Session, user: User) -> None:
+def test_expected_amount_uses_median_not_mean(test_db_session: Session, test_user: User) -> None:
     """One stray 10,000 row must not drag the stored amount off 100."""
     amounts = ["100", "100", "100", "10000"]
-    txns = [_txn(user.id, i, d, amounts[i], "Rent") for i, d in enumerate(_monthly_dates(4))]
-    records = _detect(session, user, txns)
+    txns = [_txn(test_user.id, i, d, amounts[i], "Rent") for i, d in enumerate(_monthly_dates(4))]
+    records = _detect(test_db_session, test_user, txns)
     assert len(records) == 1
     assert records[0].expected_amount == Decimal("100")  # mean would be 2575
     assert records[0].amount_variance == Decimal("0")  # MAD of [0,0,0,9900] is 0
 
 
-def test_amount_variance_is_scaled_mad(session: Session, user: User) -> None:
+def test_amount_variance_is_scaled_mad(test_db_session: Session, test_user: User) -> None:
     """Variance = 1.4826 * MAD, in stdev-like units, robust to the outlier."""
     amounts = ["100", "110", "90", "10000"]
-    txns = [_txn(user.id, i, d, amounts[i], "Rent") for i, d in enumerate(_monthly_dates(4))]
-    records = _detect(session, user, txns)
+    txns = [_txn(test_user.id, i, d, amounts[i], "Rent") for i, d in enumerate(_monthly_dates(4))]
+    records = _detect(test_db_session, test_user, txns)
     assert len(records) == 1
     # median = 105; |dev| = [5, 5, 15, 9895]; MAD = 10; 1.4826 * 10 = 14.826
     # (column scale is 2, so compare at cent precision)
@@ -103,17 +86,17 @@ def test_amount_variance_is_scaled_mad(session: Session, user: User) -> None:
 
 
 def test_confirmed_pattern_with_date_trailer_updates_in_place(
-    session: Session,
-    user: User,
+    test_db_session: Session,
+    test_user: User,
 ) -> None:
     """A confirmed 'Rent Mar 2026' record matches the 'rent' group label.
 
     The refresh must update the confirmed row's stats instead of creating
     an unconfirmed duplicate and freezing the confirmed one.
     """
-    session.add(
+    test_db_session.add(
         RecurringTransaction(
-            user_id=user.id,
+            user_id=test_user.id,
             pattern_name="Rent Mar 2026",
             category="Housing",
             account="HDFC Bank",
@@ -127,11 +110,11 @@ def test_confirmed_pattern_with_date_trailer_updates_in_place(
             is_active=True,
         )
     )
-    session.commit()
+    test_db_session.commit()
 
     notes = ["Rent Jan 2026", "Rent Feb 2026", "Rent Mar 2026", "Rent Apr 2026"]
-    txns = [_txn(user.id, i, d, "150", notes[i]) for i, d in enumerate(_monthly_dates(4))]
-    records = _detect(session, user, txns)
+    txns = [_txn(test_user.id, i, d, "150", notes[i]) for i, d in enumerate(_monthly_dates(4))]
+    records = _detect(test_db_session, test_user, txns)
 
     assert len(records) == 1  # no unconfirmed duplicate
     assert records[0].is_user_confirmed is True
@@ -143,11 +126,13 @@ def test_confirmed_pattern_with_date_trailer_updates_in_place(
     assert records[0].last_occurrence == datetime(2026, 4, 1, tzinfo=UTC).replace(tzinfo=None)
 
 
-def test_confirmed_pattern_exact_name_still_matches(session: Session, user: User) -> None:
+def test_confirmed_pattern_exact_name_still_matches(
+    test_db_session: Session, test_user: User
+) -> None:
     """Plain lowercase matching (no trailer) keeps working for manual records."""
-    session.add(
+    test_db_session.add(
         RecurringTransaction(
-            user_id=user.id,
+            user_id=test_user.id,
             pattern_name="Netflix",
             category="Entertainment",
             account="HDFC Bank",
@@ -161,10 +146,10 @@ def test_confirmed_pattern_exact_name_still_matches(session: Session, user: User
             is_active=True,
         )
     )
-    session.commit()
+    test_db_session.commit()
 
-    txns = [_txn(user.id, i, d, "649", "Netflix") for i, d in enumerate(_monthly_dates(3))]
-    records = _detect(session, user, txns)
+    txns = [_txn(test_user.id, i, d, "649", "Netflix") for i, d in enumerate(_monthly_dates(3))]
+    records = _detect(test_db_session, test_user, txns)
 
     assert len(records) == 1
     assert records[0].is_user_confirmed is True
@@ -189,27 +174,27 @@ def test_confirmed_pattern_exact_name_still_matches(session: Session, user: User
     ],
 )
 def test_calendar_regularity_alone_does_not_make_a_bill(
-    session: Session,
-    user: User,
+    test_db_session: Session,
+    test_user: User,
     note: str,
     category: str,
     subcategory: str | None,
     expected_kind: str,
 ) -> None:
-    txns = [_txn(user.id, i, d, "500", note) for i, d in enumerate(_monthly_dates(4))]
+    txns = [_txn(test_user.id, i, d, "500", note) for i, d in enumerate(_monthly_dates(4))]
     for txn in txns:
         txn.category = category
         txn.subcategory = subcategory
-    records = _detect(session, user, txns)
+    records = _detect(test_db_session, test_user, txns)
     assert len(records) == 1
     assert records[0].pattern_kind == expected_kind
     assert records[0].is_user_confirmed is False
 
 
-def test_weekly_domestic_help_is_a_commitment(session: Session, user: User) -> None:
+def test_weekly_domestic_help_is_a_commitment(test_db_session: Session, test_user: User) -> None:
     dates = [datetime(2026, 1, day, tzinfo=UTC) for day in (3, 10, 17, 24)]
-    txns = [_txn(user.id, i, d, "500", "Maid - Helper A") for i, d in enumerate(dates)]
-    records = _detect(session, user, txns)
+    txns = [_txn(test_user.id, i, d, "500", "Maid - Helper A") for i, d in enumerate(dates)]
+    records = _detect(test_db_session, test_user, txns)
     assert records[0].frequency == RecurrenceFrequency.WEEKLY
     assert records[0].pattern_kind == "commitment"
 
@@ -223,34 +208,36 @@ def test_weekly_domestic_help_is_a_commitment(session: Session, user: User) -> N
     ],
 )
 def test_bill_wording_cannot_override_unsupported_calendar_timing(
-    session: Session, user: User, date_specs: list[tuple[int, int, int]]
+    test_db_session: Session, test_user: User, date_specs: list[tuple[int, int, int]]
 ) -> None:
     txns = [
-        _txn(user.id, i, datetime(*spec, tzinfo=UTC), "500", "Rent")
+        _txn(test_user.id, i, datetime(*spec, tzinfo=UTC), "500", "Rent")
         for i, spec in enumerate(date_specs)
     ]
-    records = _detect(session, user, txns)
+    records = _detect(test_db_session, test_user, txns)
     assert all(record.pattern_kind == "habit" for record in records)
 
 
-def test_numbered_payees_are_not_merged(session: Session, user: User) -> None:
+def test_numbered_payees_are_not_merged(test_db_session: Session, test_user: User) -> None:
     txns = [
-        _txn(user.id, provider * 10 + i, d, str(provider * 100), f"Internet provider {provider}")
+        _txn(
+            test_user.id, provider * 10 + i, d, str(provider * 100), f"Internet provider {provider}"
+        )
         for provider in (1, 2)
         for i, d in enumerate(_monthly_dates(4))
     ]
-    records = _detect(session, user, txns)
+    records = _detect(test_db_session, test_user, txns)
     assert {r.pattern_name for r in records} == {"Internet provider 1", "Internet provider 2"}
     assert all(r.occurrences_detected == 4 for r in records)
     assert {r.expected_amount for r in records} == {Decimal("100"), Decimal("200")}
 
 
 def test_manual_commitment_amount_and_state_survive_matching_detection(
-    session: Session, user: User
+    test_db_session: Session, test_user: User
 ) -> None:
-    session.add(
+    test_db_session.add(
         RecurringTransaction(
-            user_id=user.id,
+            user_id=test_user.id,
             pattern_name="Netflix",
             category="Entertainment",
             account="Manual",
@@ -266,9 +253,9 @@ def test_manual_commitment_amount_and_state_survive_matching_detection(
             is_active=False,
         )
     )
-    session.commit()
-    txns = [_txn(user.id, i, d, "99", "Netflix") for i, d in enumerate(_monthly_dates(4))]
-    records = _detect(session, user, txns)
+    test_db_session.commit()
+    txns = [_txn(test_user.id, i, d, "99", "Netflix") for i, d in enumerate(_monthly_dates(4))]
+    records = _detect(test_db_session, test_user, txns)
     assert len(records) == 1
     assert records[0].expected_amount == Decimal("1200")
     assert records[0].expected_day == 15
@@ -276,11 +263,13 @@ def test_manual_commitment_amount_and_state_survive_matching_detection(
     assert records[0].is_active is False
 
 
-def test_confirmed_numbered_payees_keep_separate_history(session: Session, user: User) -> None:
+def test_confirmed_numbered_payees_keep_separate_history(
+    test_db_session: Session, test_user: User
+) -> None:
     for provider in (1, 2):
-        session.add(
+        test_db_session.add(
             RecurringTransaction(
-                user_id=user.id,
+                user_id=test_user.id,
                 pattern_name=f"Internet provider {provider}",
                 category="Utilities",
                 account="Manual",
@@ -295,24 +284,26 @@ def test_confirmed_numbered_payees_keep_separate_history(session: Session, user:
                 is_active=True,
             )
         )
-    session.commit()
+    test_db_session.commit()
     txns = [
-        _txn(user.id, provider * 10 + i, d, str(provider * 100), f"Internet provider {provider}")
+        _txn(
+            test_user.id, provider * 10 + i, d, str(provider * 100), f"Internet provider {provider}"
+        )
         for provider in (1, 2)
         for i, d in enumerate(_monthly_dates(4))
     ]
-    records = _detect(session, user, txns)
+    records = _detect(test_db_session, test_user, txns)
     assert len(records) == 2
     assert all(r.occurrences_detected == 4 for r in records)
 
 
 def test_payee_names_that_begin_with_month_names_are_not_trimmed(
-    session: Session, user: User
+    test_db_session: Session, test_user: User
 ) -> None:
     txns = [
-        _txn(user.id, provider * 10 + i, d, "500", name)
+        _txn(test_user.id, provider * 10 + i, d, "500", name)
         for provider, name in enumerate(("Maid - Marchant", "Maid - May"))
         for i, d in enumerate(_monthly_dates(4))
     ]
-    records = _detect(session, user, txns)
+    records = _detect(test_db_session, test_user, txns)
     assert {r.pattern_name for r in records} == {"Maid - Marchant", "Maid - May"}

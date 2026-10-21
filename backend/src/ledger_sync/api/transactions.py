@@ -22,11 +22,9 @@ from ledger_sync.api.transactions_impl.filters import (
     END_DATE_DESC,
     START_DATE_DESC,
     SearchFilters,
-    _apply_date_range,
     _apply_search_filters,
     _apply_sorting,
     _apply_tag_filter,
-    _base_transaction_query,
     _transaction_cursor_context,
 )
 from ledger_sync.api.transactions_impl.serialize import (
@@ -39,6 +37,7 @@ from ledger_sync.api.transactions_impl.writes import (
     create_manual_transaction,
     replace_transaction_tags,
 )
+from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.schemas.transactions import (
     TransactionCreateRequest,
     TransactionFacetsResponse,
@@ -109,8 +108,7 @@ def get_transactions(
 
     """
     # Build query - filter by user and date range
-    query = _base_transaction_query(db, current_user)
-    query = _apply_date_range(query, start_date, end_date)
+    query = build_transaction_query(db, current_user, start_date, end_date)
 
     transactions, total, page_offset, has_more, next_cursor = transaction_page(
         _apply_sorting(query, "date", "desc"),
@@ -168,8 +166,7 @@ def get_all_transactions(
     header, and cross-origin JS could not read them anyway -- the CORS layer
     sets no ``expose_headers``.
     """
-    query = _base_transaction_query(db, current_user)
-    query = _apply_date_range(query, start_date, end_date)
+    query = build_transaction_query(db, current_user, start_date, end_date)
     # The cap is read here, at call time, so it stays one module-level knob.
     return capped_response_dicts(query, MAX_ALL_TRANSACTIONS)
 
@@ -235,7 +232,7 @@ def search_transactions(
 
     """
     # Start with base query - filter by user
-    tx_query = _base_transaction_query(db, current_user)
+    tx_query = build_transaction_query(db, current_user)
 
     # Apply all search filters
     tx_query = _apply_search_filters(tx_query, filters)
@@ -293,12 +290,12 @@ def export_transactions(
 
     ``start_date``/``end_date`` are unchanged: ``SearchFilters`` already
     carries both, and ``_apply_date_and_amount_filters`` applies exactly the
-    bounds ``_apply_date_range`` did (``>= start``, ``<= inclusive_end(end)``).
+    bounds ``build_transaction_query`` does (``>= start``, ``<= inclusive_end(end)``).
 
     The body streams in ``EXPORT_CHUNK_ROWS`` keyset pages, each read in its
     own short transaction (see ``_export_csv_chunks``).
     """
-    query = _base_transaction_query(db, current_user)
+    query = build_transaction_query(db, current_user)
     query = _apply_search_filters(query, filters)
     query = _apply_tag_filter(query, current_user.id, filters.tag)
     return StreamingResponse(

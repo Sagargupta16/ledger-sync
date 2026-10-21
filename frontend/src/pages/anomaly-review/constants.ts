@@ -25,7 +25,7 @@ import { ANOMALY_TYPE_VALUES, EMITTED_ANOMALY_TYPES } from '@/services/api/analy
  * column on the backend, so a value outside the known set can reach the browser,
  * and `SEVERITY_STYLES[unknown].bg` throws rather than degrading.
  */
-export const ANOMALY_TYPE_LABELS: Record<AnomalyTypeValue, string> = {
+const ANOMALY_TYPE_LABELS: Record<AnomalyTypeValue, string> = {
   high_expense: 'High Expense',
   unusual_category: 'Unusual Category',
   large_transfer: 'Large Transfer',
@@ -35,7 +35,7 @@ export const ANOMALY_TYPE_LABELS: Record<AnomalyTypeValue, string> = {
   closed_account_activity: 'Closed Account Activity',
 }
 
-export const ANOMALY_TYPE_ICONS: Record<AnomalyTypeValue, LucideIcon> = {
+const ANOMALY_TYPE_ICONS: Record<AnomalyTypeValue, LucideIcon> = {
   high_expense: TrendingUp,
   unusual_category: HelpCircle,
   large_transfer: ArrowRightLeft,
@@ -51,13 +51,13 @@ export const SEVERITY_LABELS: Record<AnomalySeverityValue, string> = {
   low: 'Low',
 }
 
-export const SEVERITY_ICONS: Record<AnomalySeverityValue, LucideIcon> = {
+const SEVERITY_ICONS: Record<AnomalySeverityValue, LucideIcon> = {
   high: AlertTriangle,
   medium: AlertCircle,
   low: Info,
 }
 
-export interface SeverityStyle {
+interface SeverityStyle {
   bg: string
   text: string
   border: string

@@ -55,7 +55,7 @@ export interface TransactionFacets {
 export const transactionsService = {
   /**
    * Get ALL transactions (for charts and analytics that need complete data).
-   * Uses the dedicated /all endpoint — single request, no pagination loop.
+   * Uses the dedicated /all endpoint -- single request, no pagination loop.
    */
   getTransactions: async (filters?: TransactionFilters): Promise<Transaction[]> => {
     // If a specific limit is provided, use the search endpoint (supports all filters)

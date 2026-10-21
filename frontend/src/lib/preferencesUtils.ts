@@ -9,8 +9,8 @@ import { onRawColorsRefresh, rawColors } from '@/constants/colors'
 import { isEssentialExpense } from '@/lib/finance/metricRules'
 
 // Income types now based on tax treatment classification
-export type IncomeType = 'taxable' | 'investmentReturns' | 'cashback' | 'other'
-export type SpendingType = 'essential' | 'discretionary'
+type IncomeType = 'taxable' | 'investmentReturns' | 'cashback' | 'other'
+type SpendingType = 'essential' | 'discretionary'
 
 interface Transaction {
   category?: string
@@ -68,7 +68,7 @@ export const classifyIncomeType = (
  * case-insensitively at word boundaries on the category OR the subcategory
  * ("Bills & Utilities::Electricity" and "Insurance::Health Insurance" are needs).
  */
-export const classifySpendingType = (
+const classifySpendingType = (
   transaction: Transaction,
   customEssentialCategories?: string[]
 ): SpendingType => {
@@ -76,81 +76,6 @@ export const classifySpendingType = (
   return isEssentialExpense(transaction.category, transaction.subcategory, essentialCategories)
     ? 'essential'
     : 'discretionary'
-}
-
-/**
- * Get investment type for an account based on user mappings
- */
-export const getInvestmentType = (
-  accountName: string,
-  customMappings?: Record<string, string>
-): string => {
-  const mappings = customMappings ?? getPrefs().investmentAccountMappings
-  return mappings[accountName] || 'Other'
-}
-
-/**
- * Calculate income breakdown by actual data category (for display in charts)
- */
-export const calculateIncomeByCategoryBreakdown = (
-  transactions: Transaction[]
-): Record<string, number> => {
-  const breakdown: Record<string, number> = {}
-
-  transactions
-    .filter((t) => t.type === 'Income')
-    .forEach((t) => {
-      const category = t.category || 'Other'
-      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount ?? 0)
-    })
-
-  return breakdown
-}
-
-/**
- * Get total cashbacks amount using preferences classification
- */
-export const calculateCashbacksTotal = (
-  transactions: Transaction[],
-  incomeClassification?: IncomeClassification
-): number => {
-  const classification = incomeClassification ?? getPrefs().incomeClassification
-
-  return transactions
-    .filter((t) => t.type === 'Income')
-    .filter((t) => matchesClassification(t, classification.nonTaxable))
-    .reduce((sum, t) => sum + Math.abs(t.amount ?? 0), 0)
-}
-
-/**
- * Get total taxable income using preferences classification
- */
-export const calculateTaxableIncomeTotal = (
-  transactions: Transaction[],
-  incomeClassification?: IncomeClassification
-): number => {
-  const classification = incomeClassification ?? getPrefs().incomeClassification
-
-  return transactions
-    .filter((t) => t.type === 'Income')
-    .filter((t) => matchesClassification(t, classification.taxable))
-    .reduce((sum, t) => sum + Math.abs(t.amount ?? 0), 0)
-}
-
-/**
- * Calculate expense breakdown by category (mirror of income by category)
- */
-export const calculateExpenseByCategoryBreakdown = (
-  transactions: Transaction[]
-): Record<string, number> => {
-  const breakdown: Record<string, number> = {}
-  transactions
-    .filter((t) => t.type === 'Expense')
-    .forEach((t) => {
-      const category = t.category || 'Other'
-      breakdown[category] = (breakdown[category] || 0) + Math.abs(t.amount ?? 0)
-    })
-  return breakdown
 }
 
 /**
@@ -176,37 +101,6 @@ export const calculateSpendingBreakdown = (
     })
 
   return { essential, discretionary, total: essential + discretionary }
-}
-
-/**
- * Calculate investment breakdown by type from account balances
- */
-export const calculateInvestmentBreakdown = (
-  accounts: Record<string, { balance: number }>,
-  investmentAccountNames: string[],
-  customMappings?: Record<string, string>
-): Record<string, number> => {
-  const breakdown: Record<string, number> = {}
-
-  investmentAccountNames.forEach((accountName) => {
-    const accountData = accounts[accountName]
-    if (accountData) {
-      const investmentType = getInvestmentType(accountName, customMappings)
-      breakdown[investmentType] = (breakdown[investmentType] || 0) + Math.abs(accountData.balance)
-    }
-  })
-
-  return breakdown
-}
-
-/**
- * Income type display names (now by tax treatment)
- */
-export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
-  taxable: 'Taxable Income',
-  investmentReturns: 'Investment Returns',
-  cashback: 'Cashbacks & Refunds',
-  other: 'Other Income',
 }
 
 /**

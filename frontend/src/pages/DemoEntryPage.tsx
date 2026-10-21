@@ -8,7 +8,7 @@ import { enterDemoMode } from '@/lib/demo'
 import { Spinner } from '@/components/ui'
 
 /**
- * /demo entry point — enables direct-link sharing.
+ * /demo entry point -- enables direct-link sharing.
  * Enters demo mode on mount and redirects to dashboard.
  */
 export default function DemoEntryPage() {
@@ -20,13 +20,13 @@ export default function DemoEntryPage() {
     // `void navigate(...)`: typed `void | Promise<void>` by react-router but
     // returns undefined under BrowserRouter (App.tsx), and nothing here waits
     // on the transition.
-    // Already logged in as real user — go to dashboard
+    // Already logged in as real user -- go to dashboard
     if (isAuthenticated && !isDemoMode()) {
       void navigate(ROUTES.DASHBOARD, { replace: true })
       return
     }
 
-    // Already in demo mode — go to dashboard
+    // Already in demo mode -- go to dashboard
     if (isDemoMode()) {
       void navigate(ROUTES.DASHBOARD, { replace: true })
       return

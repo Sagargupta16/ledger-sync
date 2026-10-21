@@ -4,7 +4,6 @@ Centralises duplicated patterns such as income/expense conditional
 aggregation columns and the base filtered-transaction query builder.
 """
 
-import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -13,6 +12,7 @@ from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql.selectable import Subquery
 
 from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
+from ledger_sync.core.preference_json import parse_json_preference
 
 # Date formatting lives in ``sql_dates``; importers keep using these names from here.
 from ledger_sync.core.sql_dates import fmt_date as fmt_date
@@ -83,7 +83,7 @@ def apply_earning_start_date(
 
     try:
         earning_dt = datetime.strptime(prefs.earning_start_date, "%Y-%m-%d").replace(tzinfo=UTC)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return current_start
 
     if current_start is None:
@@ -232,12 +232,7 @@ def excluded_accounts_for(user: User) -> set[str]:
     """
     prefs = user.preferences
     raw = getattr(prefs, "excluded_accounts", None) if prefs else None
-    if not raw:
-        return set()
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, ValueError):
-        return set()
+    parsed = parse_json_preference(raw, None)
     if not isinstance(parsed, list):
         return set()
     return {str(a) for a in parsed if a}
@@ -254,12 +249,7 @@ def investment_accounts_for(user: User) -> list[str]:
     """
     prefs = user.preferences
     raw = getattr(prefs, "investment_account_mappings", None) if prefs else None
-    if not raw:
-        return []
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, ValueError):
-        return []
+    parsed = parse_json_preference(raw, None)
     if not isinstance(parsed, dict):
         return []
     return [str(name) for name in parsed if name]
@@ -299,6 +289,38 @@ def excluded_accounts_criteria(excluded: set[str]) -> list[ColumnElement[bool]]:
         Transaction.from_account.is_(None) | Transaction.from_account.notin_(excluded),
         Transaction.to_account.is_(None) | Transaction.to_account.notin_(excluded),
     ]
+
+
+def ledger_criteria(user_id: int, excluded: set[str]) -> list[ColumnElement[bool]]:
+    """The WHERE clauses every ledger read starts from.
+
+    Live (not soft-deleted) rows owned by *user_id*, minus the *excluded*
+    accounts (``excluded_accounts_criteria``). The one base predicate behind
+    ``build_transaction_query``, the analytics engine's base query and the AI
+    tools' ``ledger_scope``, for both ``Query`` and ``select()`` call styles.
+    """
+    return [
+        Transaction.user_id == user_id,
+        Transaction.is_deleted.is_(False),
+        *excluded_accounts_criteria(excluded),
+    ]
+
+
+def date_range_criteria(
+    start_date: datetime | None, end_date: datetime | None
+) -> list[ColumnElement[bool]]:
+    """Inclusive ``[start_date, end_date]`` day window; empty for an open range.
+
+    *end_date* covers its whole day (``inclusive_end``): a date-only bound parses
+    to midnight, and ``<=`` against it dropped every same-day row that carries a
+    time. A bound that already has a time component is kept as-is.
+    """
+    criteria: list[ColumnElement[bool]] = []
+    if start_date:
+        criteria.append(Transaction.date >= start_date)
+    if end_date:
+        criteria.append(Transaction.date <= inclusive_end(end_date))
+    return criteria
 
 
 def apply_excluded_accounts_filter[QueryT: Query[Any]](query: QueryT, excluded: set[str]) -> QueryT:
@@ -352,17 +374,8 @@ def build_transaction_query(
     if apply_earning_start:
         start_date = apply_earning_start_date(user, start_date)
 
-    query = db.query(Transaction).filter(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
+    excluded = excluded_accounts_for(user) if apply_excluded_accounts else set()
+    return db.query(Transaction).filter(
+        *ledger_criteria(user.id, excluded),
+        *date_range_criteria(start_date, end_date),
     )
-
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= inclusive_end(end_date))
-
-    if apply_excluded_accounts:
-        query = apply_excluded_accounts_filter(query, excluded_accounts_for(user))
-
-    return query

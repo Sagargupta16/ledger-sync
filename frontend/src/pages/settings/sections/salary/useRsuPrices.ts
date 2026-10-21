@@ -32,13 +32,14 @@ async function fetchConvertedPrice(symbol: string, targetCurrency: string, onDat
 }
 
 async function fetchHistoricalPrices(symbol: string, currency: string, dates: string[]) {
+  // Each vest date is independent, so fetch them together.
+  const settled = await Promise.allSettled(
+    dates.map(async (date) => [date, await fetchConvertedPrice(symbol, currency, date)] as const),
+  )
   const fetched = new Map<string, number>()
-  for (const date of dates) {
-    try {
-      fetched.set(date, await fetchConvertedPrice(symbol, currency, date))
-    } catch {
-      // Failed dates remain unlocked estimates for an explicit retry.
-    }
+  for (const result of settled) {
+    // Failed dates remain unlocked estimates for an explicit retry.
+    if (result.status === 'fulfilled') fetched.set(result.value[0], result.value[1])
   }
   return fetched
 }

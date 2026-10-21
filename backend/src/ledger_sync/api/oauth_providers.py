@@ -75,7 +75,7 @@ def _frontend_restart_url(provider: str, query: str) -> str:
     frontend = urlsplit(settings.frontend_url)
     if frontend.scheme not in {"https", "http"} or not frontend.netloc:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Sign-in redirect is not configured",
         )
     return f"{_get_redirect_uri(known_provider)}?{query}"

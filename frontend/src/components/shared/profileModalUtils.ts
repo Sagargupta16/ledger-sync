@@ -1,7 +1,7 @@
 import { formatDate } from '@/lib/formatters'
 import type { User } from '@/types'
 
-export interface ProfileDisplay {
+interface ProfileDisplay {
   initials: string
   displayName: string
   memberSince: string | null

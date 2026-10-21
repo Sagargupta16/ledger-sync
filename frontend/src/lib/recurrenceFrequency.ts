@@ -73,7 +73,7 @@ const PERIODS_PER_YEAR: Readonly<Record<RecurrenceFrequency, number>> = {
  * strides land on the same day-of-month every N months. They are different
  * kinds of step, which is why this is not derivable from `PERIODS_PER_YEAR`.
  */
-export type RecurrenceCadence =
+type RecurrenceCadence =
   | { readonly unit: 'day'; readonly stride: number }
   | { readonly unit: 'month'; readonly stride: number }
 

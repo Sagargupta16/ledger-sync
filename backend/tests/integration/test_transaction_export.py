@@ -27,7 +27,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.transactions_impl import serialize
-from ledger_sync.api.transactions_impl.filters import _base_transaction_query
+from ledger_sync.core.query_helpers import build_transaction_query
 from ledger_sync.db.models import Transaction, TransactionType
 
 EXPECTED_HEADER = [
@@ -246,7 +246,7 @@ def test_export_holds_no_transaction_open_between_chunks(export_client, monkeypa
     _client, session, user_a, _user_b, _current = export_client
     monkeypatch.setattr(serialize, "EXPORT_CHUNK_ROWS", 2)
     ids = [_seed_txn(session, user_a.id, f"row{index}") for index in range(5)]
-    query = _base_transaction_query(session, user_a)
+    query = build_transaction_query(session, user_a)
 
     chunks = []
     for chunk in serialize._export_csv_chunks(session, user_a.id, query, "date", "desc"):

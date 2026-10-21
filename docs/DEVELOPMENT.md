@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.28.2.
+Current for Ledger Sync 2.29.0.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -15,10 +15,10 @@ details, also see:
 
 | Tool | Supported baseline |
 | --- | --- |
-| Python | 3.13 or newer |
+| Python | 3.14 (`requires-python = ">=3.14,<3.15"`) |
 | Python package manager | uv |
-| Node.js | 22 or newer |
-| JavaScript package manager | pnpm 11.25.0 |
+| Node.js | 22.22.0 or newer (the `react-router` 8 engines minimum) |
+| JavaScript package manager | pnpm, the version in `package.json` `packageManager` |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4 |
 
@@ -41,7 +41,10 @@ cd ..
 
 `pnpm run setup` installs the backend development group and frontend
 dependencies. The root install provides the task runner used by the combined
-commands.
+commands. `alembic upgrade head` creates the local schema: backend startup does
+not create tables unless the development-only
+`LEDGER_SYNC_DB_BOOTSTRAP_ON_STARTUP=true` option is set (default off). Rerun it
+after pulling new revisions.
 
 ### Local configuration
 
@@ -239,8 +242,10 @@ The web upload endpoint does not receive multipart files. The browser:
 4. Sends `TransactionUploadRequest` JSON to `POST /api/upload`.
 
 The backend normalizes and reconciles the rows, persists the ledger, and then
-attempts a full analytics refresh. The CLI retains the file-based ingestion
-path.
+runs a selective `refresh_analytics()` in a separate transaction: a current
+generation skips all work, daily and monthly summaries and category trends
+rebuild only their dirty days and months, and the other rollup domains rebuild
+in full. The CLI retains the file-based ingestion path.
 
 ## Frontend Development
 
@@ -361,8 +366,8 @@ Focused backend checks:
 
 ```powershell
 cd backend
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy src/
 uv run pytest tests/ -q
 ```
@@ -401,8 +406,11 @@ For the second case:
    failure.
 
 A database migration is not the first assumption. The provider endpoint does
-not query application data, but backend startup initializes the database, so an
-unreachable database can prevent the service from starting at all.
+not query application data, and backend startup does not open the database
+unless `LEDGER_SYNC_DB_BOOTSTRAP_ON_STARTUP=true` is set (development only,
+default off). A failed provider request therefore usually means the backend is
+not running or the proxy or origin is wrong. Missing tables show up later, on
+the first data request, when `uv run alembic upgrade head` has not been run.
 
 ## Common Problems
 
@@ -416,7 +424,7 @@ pnpm.cmd run check
 
 ### Backend does not start
 
-- Confirm Python 3.13 and uv are available.
+- Confirm Python 3.14 and uv are available.
 - Run `uv sync --group dev` inside `backend`.
 - Run `uv run alembic upgrade head`.
 - Check whether port 8000 is already in use.
@@ -424,7 +432,7 @@ pnpm.cmd run check
 
 ### Frontend does not start
 
-- Confirm Node.js 22 and pnpm 11.25.0.
+- Confirm Node.js 22.22.0 or newer and the pnpm version in `packageManager`.
 - Run `pnpm install --frozen-lockfile` inside `frontend`.
 - Run `pnpm run clean` if the Vite cache is stale.
 - Check whether port 5173 is already in use.

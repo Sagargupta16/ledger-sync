@@ -8,23 +8,13 @@ import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/formatters'
 import { useMotionStore } from '@/store/motionStore'
 
-export type { AnalyticsViewMode } from '@/lib/dateUtils'
-import { type AnalyticsViewMode, getFYFromDate, parseFYLabelStartYear, shiftFYLabel } from '@/lib/dateUtils'
-
-/**
- * Shift a `YYYY-MM` key by `delta` months using integer arithmetic.
- *
- * Date-based math (new Date(key+'-01') is UTC midnight, setMonth() is local,
- * toISOString() is UTC) skips/sticks on months for non-UTC users. Integer math
- * on year/month is timezone-independent.
- */
-function shiftMonth(yyyymm: string, delta: number): string {
-  const [year, month] = yyyymm.split('-').map(Number)
-  const zeroBased = year * 12 + (month - 1) + delta
-  const newYear = Math.floor(zeroBased / 12)
-  const newMonth = (zeroBased % 12) + 1
-  return `${newYear}-${String(newMonth).padStart(2, '0')}`
-}
+import {
+  addMonthsToMonthKey,
+  type AnalyticsViewMode,
+  getFYFromDate,
+  parseFYLabelStartYear,
+  shiftFYLabel,
+} from '@/lib/dateUtils'
 
 interface AnalyticsTimeFilterProps {
   readonly viewMode: AnalyticsViewMode
@@ -148,7 +138,7 @@ export default function AnalyticsTimeFilter({
         onYearChange(currentYear - 1)
         break
       case 'monthly': {
-        onMonthChange(shiftMonth(currentMonth, -1))
+        onMonthChange(addMonthsToMonthKey(currentMonth, -1))
         break
       }
       case 'fy': {
@@ -166,7 +156,7 @@ export default function AnalyticsTimeFilter({
         onYearChange(currentYear + 1)
         break
       case 'monthly': {
-        onMonthChange(shiftMonth(currentMonth, 1))
+        onMonthChange(addMonthsToMonthKey(currentMonth, 1))
         break
       }
       case 'fy': {

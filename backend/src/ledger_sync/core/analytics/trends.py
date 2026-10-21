@@ -98,8 +98,7 @@ class TrendsMixin(AnalyticsEngineBase):
         ):
             # Delete existing for this user and insert new
             del_stmt = delete(CategoryTrend)
-            if self.user_id is not None:
-                del_stmt = del_stmt.where(CategoryTrend.user_id == self.user_id)
+            del_stmt = del_stmt.where(CategoryTrend.user_id == self.user_id)
             self.db.execute(del_stmt)
             self.db.add_all(desired.values())
             return len(desired)
@@ -121,7 +120,7 @@ class TrendsMixin(AnalyticsEngineBase):
         stored = (
             self.db.query(CategoryTrend)
             .filter(
-                CategoryTrend.user_id == self._require_user_id(),
+                CategoryTrend.user_id == self.user_id,
                 CategoryTrend.period_key >= first_affected,
             )
             .all()
@@ -223,7 +222,7 @@ class TrendsMixin(AnalyticsEngineBase):
             )
 
         # Get account classifications for coloring
-        classifications = get_account_type_lookup(self.db, self._require_user_id())
+        classifications = get_account_type_lookup(self.db, self.user_id)
 
         # Aggregate flows
         flows: dict[tuple[str, str], dict[str, Any]] = defaultdict(
@@ -246,8 +245,7 @@ class TrendsMixin(AnalyticsEngineBase):
 
         # Delete existing for this user and insert new
         del_stmt = delete(TransferFlow)
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(TransferFlow.user_id == self.user_id)
+        del_stmt = del_stmt.where(TransferFlow.user_id == self.user_id)
         self.db.execute(del_stmt)
 
         count = 0

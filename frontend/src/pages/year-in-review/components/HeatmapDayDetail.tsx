@@ -6,7 +6,7 @@ interface Props {
   monthlyDetail: MonthlyHeatmapDetail | null
 }
 
-export interface MonthlyHeatmapDetail {
+interface MonthlyHeatmapDetail {
   label: string
   expense: number
   income: number

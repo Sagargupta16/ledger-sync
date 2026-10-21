@@ -1,18 +1,23 @@
 # Testing Guide
 
-Testing reference for Ledger Sync 2.28.2.
+Testing reference for Ledger Sync 2.29.0.
 
-Verified on 2026-09-30:
+Collected on 2026-10-21:
 
 | Suite | Tests | Files |
 | --- | ---: | ---: |
-| Backend pytest | 1,797 | 105 |
-| Frontend Vitest | 2,063 | 187 |
-| Total | 3,860 | 292 |
+| Backend pytest | 1,817 | 106 |
+| Frontend Vitest | 1,792 | 190 |
+| Total | 3,609 | 296 |
 
-Backend files are split into 48 unit files and 57 integration files. Without
-`LEDGER_SYNC_TEST_POSTGRES_URL`, a local run passes 1,592 tests and skips 205
-PostgreSQL-only tests; CI's `postgres-migrations` job reruns
+Backend counts come from `pytest --collect-only`, which expands parametrized
+cases. Frontend counts come from `vitest list`, which lists each `it.each` or
+`test.each` table once (79 of them), so a full run reports more frontend tests
+than this table.
+
+Backend files are split into 49 unit files and 57 integration files. Without
+`LEDGER_SYNC_TEST_POSTGRES_URL`, 186 tests skip locally (PostgreSQL-only cases),
+leaving 1,631 to run; CI's `postgres-migrations` job reruns
 `tests/integration/` and three migration/compensation unit files against native
 PostgreSQL.
 
@@ -59,7 +64,7 @@ changes, also run the application and exercise the affected workflow.
 backend/tests/
   conftest.py
   fixtures/
-  unit/             48 test files
+  unit/             49 test files
   integration/      57 test files
 ```
 
@@ -217,8 +222,8 @@ For each authenticated endpoint, cover:
 Run from `backend/`:
 
 ```bash
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy src/
 ```
 
@@ -226,7 +231,7 @@ uv run mypy src/
 
 ### Tooling
 
-- Vitest 4
+- Vitest 5
 - jsdom
 - React Testing Library
 - `@testing-library/jest-dom`
@@ -249,7 +254,6 @@ Current coverage areas:
 - Authentication modal and OAuth callback
 - Shared data table and transaction filters
 - Quick insights
-- Account-type constants
 - Shared analytics time filter
 - Chat provider adapters
 - Date, file, formatting, and financial utilities
@@ -378,9 +382,15 @@ on manual dispatch.
 Uses the shared Node workflow with `working-directory: frontend`. It installs
 dependencies, lints, builds, and runs Vitest.
 
+### Pages build job
+
+`frontend-pages-build` repeats the GitHub Pages build exactly as
+`deploy-frontend.yml` runs it: `pnpm install --frozen-lockfile --ignore-scripts`,
+`GITHUB_PAGES=true pnpm run build`, then the `404.html` copy.
+
 ### Backend job
 
-Uses Python 3.13, sets `PYTHONPATH=src`, and runs:
+Uses Python 3.14, sets `PYTHONPATH=src`, and runs:
 
 ```bash
 uv sync --locked --no-build --no-install-project --all-extras --group dev
@@ -389,6 +399,7 @@ uv run --no-sync --locked --no-build ruff format --check .
 uv run --no-sync --locked --no-build mypy src/
 uv run --no-sync --locked --no-build pytest tests/ -q
 uv run --no-sync --locked --no-build alembic upgrade head   # empty SQLite file
+uv run --no-sync --locked --no-build alembic check          # same file
 ```
 
 ### PostgreSQL job
@@ -396,7 +407,8 @@ uv run --no-sync --locked --no-build alembic upgrade head   # empty SQLite file
 `postgres-migrations` starts an isolated native PostgreSQL cluster on the
 runner, sets `LEDGER_SYNC_TEST_POSTGRES_URL`, and runs `tests/integration/`
 plus `test_ai_settings_migration.py`, `test_compensation_migration.py`, and
-`test_compensation_records.py` from `tests/unit/`.
+`test_compensation_records.py` from `tests/unit/`, then a CLI
+`alembic upgrade head` and `alembic check` against that cluster.
 
 ### Security job
 
@@ -406,7 +418,8 @@ access for security events.
 CI uses a concurrency group and cancels an older run when a newer commit is
 pushed to the same pull request.
 
-On non-PR `main` runs, the four check jobs gate the reusable `migrate` job,
+On non-PR `main` runs, the five check jobs (`frontend`, `frontend-pages-build`,
+`backend`, `postgres-migrations`, `security`) gate the reusable `migrate` job,
 which gates the GitHub Pages deployment.
 
 ## Test Selection by Change

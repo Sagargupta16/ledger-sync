@@ -14,9 +14,8 @@
 import { ReferenceLine } from 'recharts'
 
 import { CHART_TEXT, CHART_SURFACE, getChartAxisColor } from '@/constants/chartColors'
+import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort, formatDateTick } from '@/lib/formatters'
-import { CHART_ANIMATION_THRESHOLD } from '@/constants'
-import { isMotionReduced } from '@/store/motionStore'
 
 // ─── CartesianGrid defaults ─────────────────────────────────────────────────
 
@@ -34,7 +33,7 @@ export const AXIS_TICK = {
   fontFamily: 'var(--font-mono)',
   style: { fontVariantNumeric: 'tabular-nums' },
 } as const
-export const AXIS_LINE = {
+const AXIS_LINE = {
   get stroke() { return CHART_SURFACE.axisLine },
 } as const
 
@@ -115,16 +114,6 @@ export function areaGradientUrl(id: string) {
 
 /** Default rounded corners for bar charts [topLeft, topRight, bottomLeft, bottomRight] */
 export const BAR_RADIUS: [number, number, number, number] = [5, 5, 0, 0]
-
-/** Smaller radius for stacked/grouped bars */
-export const BAR_RADIUS_SM: [number, number, number, number] = [3, 3, 0, 0]
-
-// ─── Animation helper ───────────────────────────────────────────────────────
-
-/** Check if animations should be enabled based on data size and motion preference. */
-export function shouldAnimate(dataLength: number): boolean {
-  return !isMotionReduced() && dataLength < CHART_ANIMATION_THRESHOLD
-}
 
 // ─── Active dot (hover glow) ────────────────────────────────────────────────
 
@@ -224,16 +213,17 @@ export function currencyTooltipFormatter(value: unknown): string {
   return formatCurrency(typeof value === 'number' ? value : Number(value) || 0)
 }
 
-// ─── Legend defaults ────────────────────────────────────────────────────────
-
-export const LEGEND_DEFAULTS = {
-  wrapperStyle: {
-    paddingTop: '16px',
-    fontSize: '12px',
-    get color() { return CHART_TEXT.secondary },
-  },
-  iconType: 'circle' as const,
-  iconSize: 8,
+/**
+ * Tooltip heading for month-keyed series, for `<Tooltip labelFormatter={...} />`.
+ * Reads the hovered row's `YYYY-MM` `month` rather than the axis label and
+ * spells it out ("March 2026").
+ */
+export function monthTooltipLabel(
+  _label: unknown,
+  payload: ReadonlyArray<{ payload?: { month?: string } }>,
+): string {
+  const month = payload?.[0]?.payload?.month
+  return month ? formatMonthKey(month, { month: 'long', year: 'numeric' }) : ''
 }
 
 // ─── Brush (drag-to-zoom) defaults ──────────────────────────────────────────

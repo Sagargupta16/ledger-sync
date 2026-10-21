@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { CalendarDays } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
+import LoadingSkeleton, { SkeletonStatus } from '@/components/shared/LoadingSkeleton'
 import { SCROLL_FADE_UP } from '@/constants/animations'
 
 import { formatMonthYear, isSameDay } from '../billUtils'
@@ -78,7 +79,7 @@ export default function BillCalendarGrid({
       {/* Month navigation lives in the page's sticky toolbar
           (BillMonthNavigator); the visible month heading moved with it. */}
       {isLoading && (
-        <div className="overflow-x-auto pb-1">
+        <SkeletonStatus className="overflow-x-auto pb-1" label="Loading bill calendar">
           <div className="min-w-[20rem] space-y-2">
             <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {DAY_NAMES.map((name) => (
@@ -95,9 +96,9 @@ export default function BillCalendarGrid({
                 <div key={rowId} className="grid grid-cols-7 gap-0.5 sm:gap-1">
                   {Array.from({ length: 7 }, (_, index) => `${rowId}-col-${index}`).map(
                     (cellId) => (
-                      <div
+                      <LoadingSkeleton
                         key={cellId}
-                        className="min-h-[60px] min-w-11 animate-pulse rounded-md bg-[var(--overlay-2)] sm:min-h-[72px]"
+                        className="min-h-[60px] min-w-11 rounded-md sm:min-h-[72px]"
                       />
                     ),
                   )}
@@ -105,7 +106,7 @@ export default function BillCalendarGrid({
               ),
             )}
           </div>
-        </div>
+        </SkeletonStatus>
       )}
 
       {!isLoading && !hasAnyData && (

@@ -17,15 +17,12 @@
  * transaction date rather than applying one flat set -- the same per-period
  * approach used in tax-config/.
  */
-export const GST_2_0_EFFECTIVE_DATE = '2025-09-22'
+const GST_2_0_EFFECTIVE_DATE = '2025-09-22'
 
 /** Slab set in force on or after 2025-09-22 (GST 2.0). */
 export const GST_SLABS_CURRENT = [0, 3, 5, 18, 40] as const
 /** Slab set in force before 2025-09-22 (pre-GST 2.0). */
 export const GST_SLABS_LEGACY = [0, 3, 5, 12, 18, 28] as const
-
-/** Back-compat export -- the CURRENT (GST 2.0) slab set. */
-export const GST_SLABS = GST_SLABS_CURRENT
 
 /**
  * Default GST rates by category -- CURRENT (GST 2.0, effective 2025-09-22).

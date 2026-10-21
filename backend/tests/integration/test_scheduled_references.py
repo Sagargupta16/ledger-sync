@@ -155,9 +155,10 @@ def test_detector_without_owner_cannot_unlink_or_delete_any_sources(scheduled_db
     _schedule(connection, 100, 10)
     connection.commit()
     with Session(connection) as session:
-        detector = RecurringMixin(session)
-        with pytest.raises(RuntimeError, match="user_id"):
-            detector._detect_recurring_transactions([])
+        # The owner is a required constructor argument, so an ownerless
+        # detector is rejected before it can touch any row.
+        with pytest.raises(TypeError, match="user_id"):
+            RecurringMixin(session)
         assert session.get(RecurringTransaction, 10) is not None
         assert session.get(ScheduledTransaction, 100).recurring_transaction_id == 10
 

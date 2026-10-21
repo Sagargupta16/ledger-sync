@@ -1,4 +1,4 @@
-import { addMonthsToMonthKey, formatMonthKey, toLocalDateKey } from '@/lib/dateUtils'
+import { addMonthsToMonthKey, formatMonthKey, getCurrentMonth } from '@/lib/dateUtils'
 import { percentChange } from '@/lib/formatters'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 
@@ -40,7 +40,7 @@ export function computeIncomeMetrics(
   const averagePeriod = resolveAnalysisPeriod(monthKeys, { earningStartDate: fullEarningStart, startDate, endDate, now })
   const empty = (month: string): IncomeMonth => ({ month, income: 0 })
   const complete = fillAnalysisMonths(rows, chartPeriod.months, empty)
-  const currentMonth = toLocalDateKey(now).slice(0, 7)
+  const currentMonth = getCurrentMonth(now)
   const partial = rows.filter((row) => row.month === currentMonth)
   const basis = complete.length ? complete : partial
   const averageBasis = fillAnalysisMonths(rows, averagePeriod.months, empty)

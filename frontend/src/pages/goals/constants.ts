@@ -19,7 +19,7 @@ import { GOAL_TYPE_VALUES, type GoalTypeValue } from '@/services/api/analyticsV2
  * Values are `var(--color-app-*)` references, so DOM styles follow a theme
  * toggle without re-rendering. Do not concatenate a hex alpha onto them.
  */
-export const GOAL_TYPE_COLORS: Record<GoalTypeValue, string> = {
+const GOAL_TYPE_COLORS: Record<GoalTypeValue, string> = {
   savings: colors.app.green,
   debt_payoff: colors.app.red,
   investment: colors.app.blue,
@@ -28,7 +28,7 @@ export const GOAL_TYPE_COLORS: Record<GoalTypeValue, string> = {
   custom: colors.app.teal,
 }
 
-export const GOAL_TYPE_LABELS: Record<GoalTypeValue, string> = {
+const GOAL_TYPE_LABELS: Record<GoalTypeValue, string> = {
   savings: 'Savings',
   debt_payoff: 'Debt Payoff',
   investment: 'Investment',

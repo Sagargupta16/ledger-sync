@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import {
-  calculateCashbacksTotal,
-  calculateSpendingBreakdown,
-  classifyIncomeType,
-} from '@/lib/preferencesUtils'
+import { calculateSpendingBreakdown, classifyIncomeType } from '@/lib/preferencesUtils'
 import {
   resolveEssentialCategories,
   resolveIncomeClassification,
@@ -312,20 +308,5 @@ describe('call-site resolvers (the store fix alone was unreachable)', () => {
 
     expect(breakdown.essential).toBe(2000)
     expect(breakdown.discretionary).toBe(1000)
-  })
-
-  it('totals cashbacks through the useDashboardMetrics call shape', () => {
-    usePreferencesStore.getState().hydrateFromApi(API_PREFS_NEW_USER)
-
-    // The old shape was `{ taxable: preferences.taxable_income_categories || [], ... }`,
-    // i.e. four empty lists, so no key matched and the cashback KPI read 0.
-    const cashbacks = [
-      income('Refunds & Cashbacks', 'Credit Card Cashbacks'),
-      income('Refunds & Cashbacks', 'Other Cashbacks'),
-    ]
-
-    expect(
-      calculateCashbacksTotal(cashbacks, resolveIncomeClassification(API_PREFS_NEW_USER)),
-    ).toBe(2000)
   })
 })

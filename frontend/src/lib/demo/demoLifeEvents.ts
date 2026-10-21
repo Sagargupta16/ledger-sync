@@ -1,5 +1,7 @@
+import { toLocalDateKey } from '@/lib/dateUtils'
+
 import { ACCOUNTS } from './demoTemplates'
-import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
+import { txId, type MonthCtx } from './demoTxHelpers'
 
 /**
  * Sparse, memorable life events layered over the monthly baseline. These give
@@ -24,7 +26,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
     txs.push(
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, rng.int(2, 6))),
+        date: toLocalDateKey(new Date(year, month, rng.int(2, 6))),
         amount: Math.round(rng.int(9000, 16000) * scale),
         type: 'Expense',
         category: 'Transportation',
@@ -35,7 +37,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
       },
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, rng.int(7, 10))),
+        date: toLocalDateKey(new Date(year, month, rng.int(7, 10))),
         amount: Math.round(rng.int(12000, 22000) * scale),
         type: 'Expense',
         category: 'Entertainment & Recreations',
@@ -46,7 +48,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
       },
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, rng.int(8, 12))),
+        date: toLocalDateKey(new Date(year, month, rng.int(8, 12))),
         amount: Math.round(rng.int(5000, 12000) * scale),
         type: 'Expense',
         category: 'Entertainment & Recreations',
@@ -63,7 +65,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
   if (month === 6) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 12)),
+      date: toLocalDateKey(new Date(year, month, 12)),
       amount: Math.round((18_000 * ctx.inflation) / 100) * 100,
       type: 'Expense',
       category: 'Healthcare',
@@ -78,7 +80,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
   if (month === 1) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 8)),
+      date: toLocalDateKey(new Date(year, month, 8)),
       amount: 12_500,
       type: 'Expense',
       category: 'Miscellaneous',
@@ -94,7 +96,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
   if (m % 12 === 3) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(10, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(10, 25))),
       amount: Math.round(rng.int(55_000, 95_000) * ctx.inflation),
       type: 'Expense',
       category: 'Gadgets & Accessories',
@@ -110,7 +112,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
     txs.push(
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, 14)),
+        date: toLocalDateKey(new Date(year, month, 14)),
         amount: 42_000,
         type: 'Expense',
         category: 'Healthcare',
@@ -121,7 +123,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
       },
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, 15)),
+        date: toLocalDateKey(new Date(year, month, 15)),
         amount: 6_500,
         type: 'Expense',
         category: 'Healthcare',
@@ -132,7 +134,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
       },
       {
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, 18)),
+        date: toLocalDateKey(new Date(year, month, 18)),
         amount: 3_800,
         type: 'Expense',
         category: 'Healthcare',
@@ -148,7 +150,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
   if (m >= 26 && m <= 28) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(5, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(5, 25))),
       amount: rng.int(5_000, 15_000),
       type: 'Expense',
       category: 'Miscellaneous',
@@ -164,7 +166,7 @@ export function generateLifeEvents(ctx: MonthCtx): void {
   if (m >= 18 && m < 30) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 7)),
+      date: toLocalDateKey(new Date(year, month, 7)),
       amount: 4_250,
       type: 'Expense',
       category: 'EMI',

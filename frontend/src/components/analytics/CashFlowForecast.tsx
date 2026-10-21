@@ -17,6 +17,7 @@ import { rawColors } from '@/constants/colors'
 import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, ACTIVE_DOT, currencyTooltipFormatter, referenceLine } from '@/components/ui/chartDefaults'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import ErrorState from '@/components/shared/ErrorState'
+import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 
 import { buildForecast, formatMonth } from './cashFlowUtils'
 
@@ -28,7 +29,7 @@ export default function CashFlowForecast() {
   const { animate, isMobile } = useChartPresentation(forecastData?.combined.length ?? 0)
 
   if (isLoading) {
-    return <div className="ledger-panel animate-pulse p-4 sm:p-5"><div className="mb-4 h-8 w-1/3 rounded bg-[var(--overlay-2)]" /><div className="h-64 rounded bg-[var(--overlay-2)]" /></div>
+    return <PanelSkeleton blockClassName="h-64" />
   }
 
   if (isError) {

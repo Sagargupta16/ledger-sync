@@ -13,41 +13,10 @@ from sqlalchemy import update
 from ledger_sync.api import oauth, oauth_state
 from ledger_sync.api.deps import get_http_client
 from ledger_sync.api.main import app
-from ledger_sync.core.auth.passwords import get_password_hash, verify_password
 from ledger_sync.core.auth.tokens import create_access_token, create_refresh_token, verify_token
 from ledger_sync.db.models import AuditLog, User
 from ledger_sync.schemas.auth import Token
 from ledger_sync.services.auth_service import AuthService
-
-
-class TestPasswords:
-    """Test password hashing and verification."""
-
-    def test_hash_and_verify_correct_password(self):
-        password = "test-password-123"
-        hashed = get_password_hash(password)
-        assert verify_password(password, hashed) is True
-
-    def test_verify_wrong_password(self):
-        password = "test-password-123"
-        hashed = get_password_hash(password)
-        assert verify_password("wrong-password", hashed) is False
-
-    def test_hash_is_not_plaintext(self):
-        password = "test-password-123"
-        hashed = get_password_hash(password)
-        assert hashed != password
-
-    def test_different_passwords_different_hashes(self):
-        hash1 = get_password_hash("password1")
-        hash2 = get_password_hash("password2")
-        assert hash1 != hash2
-
-    def test_same_password_different_hashes(self):
-        """Bcrypt should produce different hashes for the same password (different salts)."""
-        hash1 = get_password_hash("same-password")
-        hash2 = get_password_hash("same-password")
-        assert hash1 != hash2
 
 
 class TestTokens:

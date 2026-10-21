@@ -5,7 +5,7 @@ import {
   recurringCoverageLabel,
   type QuickInsightsParams,
 } from '../quickInsightsData'
-import { RECENT_INCOME_MONTHS, typicalMonthlyIncome } from '../recentIncome'
+import { RECENT_INCOME_MONTHS, typicalMonthlyIncome } from '@/lib/recurringCalculations'
 
 /**
  * Guards the Recurring Coverage denominator against the defect it shipped with:

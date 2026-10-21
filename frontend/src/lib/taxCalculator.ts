@@ -31,7 +31,7 @@ export interface SlabBreakdownEntry {
   taxAmount: number
 }
 
-export interface TaxCalculationResult {
+interface TaxCalculationResult {
   tax: number
   slabBreakdown: SlabBreakdownEntry[]
   rebate87A: number
@@ -42,31 +42,18 @@ export interface TaxCalculationResult {
 }
 
 // ────────────────────────────────────────────
-// Tax Slab Definitions — sourced from tax-config/
+// Tax Slab Definitions -- sourced from tax-config/
 // ────────────────────────────────────────────
 
 import { getTaxConfig } from './tax-config'
 
-/**
- * OLD TAX REGIME (with Section 80C, HRA, LTA deductions).
- * Kept as an exported alias for the *current* old-regime slabs so
- * existing imports keep working. The slabs themselves live in
- * tax-config/ — this re-export freezes them at the current FY.
- */
-export const TAX_SLABS_OLD_REGIME: TaxSlab[] = getTaxConfig(
-  new Date().getUTCFullYear(),
-).oldRegime.slabs
-
-/** NEW TAX REGIME — FY 2025-26 onwards (Budget 2025 revision) */
-export const TAX_SLABS_NEW_FY2025: TaxSlab[] = getTaxConfig(2025).newRegime.slabs
-
 /** Old-regime slabs for the given FY. */
-export function getOldRegimeSlabs(fyStartYear: number = new Date().getUTCFullYear()): TaxSlab[] {
+function getOldRegimeSlabs(fyStartYear: number = new Date().getUTCFullYear()): TaxSlab[] {
   return getTaxConfig(fyStartYear).oldRegime.slabs
 }
 
 /** New-regime slabs for the given FY. */
-export function getNewRegimeSlabs(fyStartYear: number): TaxSlab[] {
+function getNewRegimeSlabs(fyStartYear: number): TaxSlab[] {
   return getTaxConfig(fyStartYear).newRegime.slabs
 }
 
@@ -209,7 +196,7 @@ export function calculateTax(
     // to 0 at the cliff, over-taxing by tens of thousands for incomes a few
     // rupees over the ceiling.
     //
-    // The OLD regime has NO such relief — it is a hard cliff at the ceiling
+    // The OLD regime has NO such relief -- it is a hard cliff at the ceiling
     // (e.g. taxable income of 5,00,001 pays full slab tax, no rebate). So this
     // branch must stay gated to the new regime, otherwise the old regime
     // under-taxes the band just above its 5L ceiling.

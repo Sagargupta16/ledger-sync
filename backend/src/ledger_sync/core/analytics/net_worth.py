@@ -52,7 +52,7 @@ class NetWorthMixin(AnalyticsEngineBase):
         account_balances = _compute_account_balances(all_transactions)
 
         # Categorize accounts
-        classifications = get_account_type_lookup(self.db, self._require_user_id())
+        classifications = get_account_type_lookup(self.db, self.user_id)
 
         # Calculate totals by category
         totals = self._categorize_account_balances(account_balances, classifications)
@@ -115,8 +115,7 @@ class NetWorthMixin(AnalyticsEngineBase):
                 NetWorthSnapshot.snapshot_date.desc(),
             )
         )
-        if self.user_id is not None:
-            prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)
+        prev_query = prev_query.filter(NetWorthSnapshot.user_id == self.user_id)
         prev_snapshot = prev_query.first()
 
         net_worth_change = Decimal(0)
@@ -235,8 +234,7 @@ class NetWorthMixin(AnalyticsEngineBase):
 
         # Delete existing auto-computed holdings for this user
         del_stmt = delete(InvestmentHolding)
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(InvestmentHolding.user_id == self.user_id)
+        del_stmt = del_stmt.where(InvestmentHolding.user_id == self.user_id)
         self.db.execute(del_stmt)
 
         now = datetime.now(UTC)

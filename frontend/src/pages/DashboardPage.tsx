@@ -8,7 +8,7 @@ import PieLegend from '@/components/shared/PieLegend'
 import { capPieSlices } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import QuickInsights from '@/components/shared/QuickInsights'
-import LoadingSkeleton, { ChartSkeleton, PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import LoadingSkeleton, { ChartSkeleton, PageSkeleton, PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
@@ -38,16 +38,6 @@ const MonthlyFlowChart = lazy(() => import('@/components/analytics/MonthlyFlowCh
 const FinancialHealthScore = lazy(() => import('@/components/analytics/FinancialHealthScore'))
 
 const PIE_FALLBACK = <LoadingSkeleton className="h-[180px] w-full" />
-
-/** Same shape as FinancialHealthScore's own loading state. */
-function HealthScoreFallback() {
-  return (
-    <div className="ledger-panel animate-pulse p-4 sm:p-5">
-      <div className="mb-4 h-8 w-1/3 rounded bg-muted" />
-      <div className="h-32 rounded bg-muted" />
-    </div>
-  )
-}
 
 function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
   hasHistory: boolean
@@ -387,7 +377,8 @@ export default function DashboardPage() {
         )}
       </PeriodSettlingContent>
 
-      <Suspense fallback={<HealthScoreFallback />}>
+      {/* Same shape as FinancialHealthScore's own loading state. */}
+      <Suspense fallback={<PanelSkeleton />}>
         <FinancialHealthScore />
       </Suspense>
 

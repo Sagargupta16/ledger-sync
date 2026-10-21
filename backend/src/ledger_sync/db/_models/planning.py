@@ -1,5 +1,7 @@
 """Recurring patterns, scheduled transactions, anomalies, budgets, and goals."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import MappingProxyType
@@ -218,7 +220,7 @@ class Anomaly(Base):
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="anomalies")
+    user: Mapped[User] = relationship("User", back_populates="anomalies")
 
     # Metadata
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
@@ -273,7 +275,7 @@ class Budget(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="budgets")
+    user: Mapped[User] = relationship("User", back_populates="budgets")
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
@@ -341,7 +343,7 @@ class FinancialGoal(Base):
     status: Mapped[GoalStatus] = mapped_column(Enum(GoalStatus), default=GoalStatus.ACTIVE)
 
     # Relationship back to user
-    user: Mapped["User"] = relationship("User", back_populates="financial_goals")
+    user: Mapped[User] = relationship("User", back_populates="financial_goals")
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

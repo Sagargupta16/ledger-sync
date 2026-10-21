@@ -8,7 +8,6 @@ Every mixin in this package assumes it will be combined with this base.
 from __future__ import annotations
 
 import calendar
-import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -20,9 +19,10 @@ from ledger_sync.core._analytics_helpers import (
     DEFAULT_ESSENTIAL_CATEGORIES,
     DEFAULT_INVESTMENT_ACCOUNT_PATTERNS,
 )
-from ledger_sync.core.expense_class import capital_loss_keys, capital_loss_sql_filter
+from ledger_sync.core.expense_class import capital_loss_keys, without_capital_losses
 from ledger_sync.core.metric_rules import essential_keywords
-from ledger_sync.core.query_helpers import apply_excluded_accounts_filter
+from ledger_sync.core.preference_json import parse_json_preference
+from ledger_sync.core.query_helpers import ledger_criteria
 from ledger_sync.db.models import Transaction, UserPreferences
 from ledger_sync.utils.logging import get_analytics_logger
 
@@ -92,48 +92,32 @@ _INCOME_LIST_DEFAULTS: dict[str, tuple[str, ...]] = {
 class AnalyticsEngineBase:
     """Base: constructor, preferences, and shared query helpers."""
 
-    def __init__(self, db: Session, user_id: int | None = None) -> None:
+    def __init__(self, db: Session, user_id: int) -> None:
         """Initialize analytics engine.
 
         Args:
             db: Database session
-            user_id: ID of the authenticated user. REQUIRED in production.
-                ``None`` is accepted only for legacy single-user tooling paths.
-                All per-user aggregations below (anomalies, recurring patterns,
-                budgets, etc.) will refuse to run without a concrete user_id.
+            user_id: ID of the authenticated user. Every aggregation below
+                (anomalies, recurring patterns, budgets, etc.) is scoped to it.
 
         """
         self.db: Session = db
-        self.user_id: int | None = user_id
+        self.user_id: int = user_id
         self.logger: logging.Logger = get_analytics_logger()
         self._preferences: UserPreferences | None = None
         self._load_preferences()
-
-    # ─── user-scope guard ───────────────────────────────────────────────────
-
-    def _require_user_id(self) -> int:
-        """Return ``self.user_id`` or raise if it is ``None``.
-
-        Used by code paths that aggregate per-user data and would otherwise
-        leak across users.
-        """
-        if self.user_id is None:
-            raise RuntimeError(
-                "AnalyticsEngine requires a user_id for per-user aggregations; "
-                "got None. This usually means the engine was constructed from "
-                "a tooling path that should be updated to pass a concrete user.",
-            )
-        return self.user_id
 
     # ─── preferences loading / parsing ──────────────────────────────────────
 
     def _load_preferences(self) -> None:
         """Load user preferences from database (tolerates missing rows)."""
         try:
-            stmt = select(UserPreferences)
-            if self.user_id is not None:
-                stmt = stmt.where(UserPreferences.user_id == self.user_id)
-            stmt = stmt.limit(1).execution_options(populate_existing=True)
+            stmt = (
+                select(UserPreferences)
+                .where(UserPreferences.user_id == self.user_id)
+                .limit(1)
+                .execution_options(populate_existing=True)
+            )
             result = self.db.execute(stmt)
             self._preferences = result.scalar_one_or_none()
             if self._preferences:
@@ -143,21 +127,6 @@ class AnalyticsEngineBase:
         except (OSError, RuntimeError, ValueError) as e:
             self.logger.warning("Could not load preferences: %s, using defaults", e)
             self._preferences = None
-
-    def _parse_json_field(
-        self,
-        value: str | list[Any] | dict[str, Any] | None,
-        default: Any,
-    ) -> Any:
-        """Parse a JSON string from preferences, returning ``default`` on failure."""
-        if value is None:
-            return default
-        if isinstance(value, str):
-            try:
-                return json.loads(value)
-            except json.JSONDecodeError:
-                return default
-        return value
 
     def _configured_json(
         self,
@@ -177,7 +146,7 @@ class AnalyticsEngineBase:
         or an EMPTY collection. Empty counts as unset only for the fields whose
         accessors call this helper -- see each property for why.
         """
-        parsed = self._parse_json_field(value, None)
+        parsed = parse_json_preference(value, None)
         if isinstance(parsed, (list, dict)) and parsed:
             return parsed
         return None
@@ -233,7 +202,7 @@ class AnalyticsEngineBase:
         back to a non-empty default would instead hide real accounts.
         ``query_helpers.excluded_accounts_for`` applies the same reading.
         """
-        accounts = self._parse_json_field(
+        accounts = parse_json_preference(
             self._preferences.excluded_accounts if self._preferences else None,
             [],
         )
@@ -419,10 +388,9 @@ class AnalyticsEngineBase:
         check on ``account`` alone misses transfers landing in an
         excluded account (the credit side ends up in net worth).
         """
-        query = self.db.query(Transaction).filter(Transaction.is_deleted.is_(False))
-        if self.user_id is not None:
-            query = query.filter(Transaction.user_id == self.user_id)
-        query = apply_excluded_accounts_filter(query, self.excluded_accounts)
+        query = self.db.query(Transaction).filter(
+            *ledger_criteria(self.user_id, self.excluded_accounts)
+        )
         return query.populate_existing()
 
     def _exclude_capital_losses[QueryT: Query[Any]](self, query: QueryT) -> QueryT:
@@ -440,10 +408,7 @@ class AnalyticsEngineBase:
         do that themselves, since income-side classification uses the separate
         ``investment_returns_categories`` list.
         """
-        predicate = capital_loss_sql_filter(self.capital_loss_keys)
-        if predicate is None:
-            return query
-        return query.filter(predicate)
+        return without_capital_losses(query, self.capital_loss_keys)
 
     # ─── fiscal year helper (shared by summaries and fy_summaries mixins) ──
 

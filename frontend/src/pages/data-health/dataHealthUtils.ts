@@ -5,7 +5,7 @@
  * ladder are unit-testable without a QueryClient.
  */
 
-import { inclusiveDaySpan, toLocalDateKey } from '@/lib/dateUtils'
+import { inclusiveDaySpan, getTodayKey } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 import type { DataHealth } from '@/services/api/analyticsV2'
 
@@ -42,7 +42,7 @@ export function freshnessLevel(gapDays: number): FreshnessLevel {
 /** Whole days after `latestDate` up to and including today. 0 when caught up. */
 export function unimportedDayGap(latestDate: string | null, now: Date = new Date()): number {
   if (!latestDate) return 0
-  const todayKey = toLocalDateKey(now)
+  const todayKey = getTodayKey(now)
   if (latestDate >= todayKey) return 0
   // inclusiveDaySpan counts both endpoints; the last data day is not a gap day.
   return inclusiveDaySpan(latestDate, todayKey) - 1
@@ -60,7 +60,7 @@ export function unimportedDayGap(latestDate: string | null, now: Date = new Date
  */
 function effectiveLatestDate(health: DataHealth, now: Date): string | null {
   if (!health.latest_date) return null
-  const todayKey = toLocalDateKey(now)
+  const todayKey = getTodayKey(now)
   if (health.latest_date <= todayKey) return health.latest_date
   // Rows exist, but the newest verifiable one is unknown -- the endpoint only
   // reports the max date. Treat today as the boundary rather than trusting a
@@ -69,7 +69,7 @@ function effectiveLatestDate(health: DataHealth, now: Date): string | null {
 }
 
 /** Whole days since an ISO timestamp, floored at 0. Null input passes through. */
-export function daysSince(isoTimestamp: string | null, now: Date = new Date()): number | null {
+function daysSince(isoTimestamp: string | null, now: Date = new Date()): number | null {
   if (!isoTimestamp) return null
   const stamp = isoTimestamp.slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(stamp)) return null

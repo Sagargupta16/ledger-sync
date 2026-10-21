@@ -38,7 +38,9 @@ describe('health investment transfer accounting', () => {
   it('preserves configured names and the existing unknown-destination fallback', () => {
     expect(healthInvestmentTransferDelta(transfer('Bank', 'Long term', 100), isInvestment)).toBe(100)
     expect(healthInvestmentTransferDelta(transfer('Bank', 'Unknown', 100, 'Monthly SIP'), isInvestment)).toBe(100)
-    expect(healthInvestmentTransferDelta(transfer('Bank', 'PPF', 100), isInvestment)).toBe(100)
+    // The configured perimeter is the whole perimeter, as on the Dashboard and
+    // the backend: an unmapped "PPF" no longer counts by its name alone.
+    expect(healthInvestmentTransferDelta(transfer('Bank', 'PPF', 100), isInvestment)).toBe(0)
   })
 
   it('does not mistake an investment withdrawal note for an incoming contribution', () => {

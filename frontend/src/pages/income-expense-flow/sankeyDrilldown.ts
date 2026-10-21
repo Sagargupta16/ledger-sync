@@ -96,7 +96,7 @@ export const tdsAtSourceLabel = (preferredRegime: string): string =>
  * `usePaletteSnapshot(rawColors.app)` copy so its memo re-runs on a theme
  * toggle; module-level cycles froze the load-time hex.
  */
-export type SankeyPalette = typeof rawColors.app
+type SankeyPalette = typeof rawColors.app
 
 const cycleColor = (palette: SankeyPalette, flow: 'income' | 'expense', i: number): string => {
   const cycle =

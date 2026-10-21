@@ -114,7 +114,7 @@ describe('epfMonthlyContributions', () => {
     expect(c.employee).toBeCloseTo(6_000, 1)
     expect(c.epsDiversion).toBeCloseTo(1_249.5, 1)
     expect(c.employerEpf).toBeCloseTo(4_750.5, 1)
-    // total corpus inflow is ~10,750/mo — NOT 12,000 (the old 12%+12% bug).
+    // total corpus inflow is ~10,750/mo -- NOT 12,000 (the old 12%+12% bug).
     expect(c.total).toBeCloseTo(10_750.5, 1)
     expect(c.total).toBeLessThan(12_000)
   })

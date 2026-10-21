@@ -115,7 +115,7 @@ def decode_token(token: str) -> TokenPayload | None:
             tv=payload.get("tv"),  # None on legacy pre-tv tokens; enforced below
             jti=payload.get("jti"),
         )
-    except (jwt.PyJWTError, ValueError):
+    except jwt.PyJWTError, ValueError:
         return None
 
 
@@ -159,7 +159,7 @@ def verify_token(
 
     try:
         user_id = int(payload.sub)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
     return TokenData(user_id=user_id, email=payload.email, tv=payload.tv, jti=payload.jti)

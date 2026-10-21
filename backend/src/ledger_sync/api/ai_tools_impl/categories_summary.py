@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND, effective_pattern_kind
+from ledger_sync.core.expense_class import without_capital_losses
+from ledger_sync.core.query_helpers import capital_loss_keys_for
 from ledger_sync.db.models import (
     FinancialGoal,
     MonthlySummary,
@@ -33,7 +34,6 @@ from .registry import (
     parse_date,
     register,
     to_decimal,
-    without_capital_losses,
 )
 from .schemas import (
     CategorySpendingArguments,
@@ -47,8 +47,6 @@ from .schemas import (
 
 def _exec_get_monthly_summary(user: User, db: Session, args: dict[str, Any]) -> Any:
     period = str(args.get("period", "")).strip()
-    if not period:
-        raise HTTPException(400, "period is required (YYYY-MM)")
     row = db.execute(
         select(MonthlySummary).where(
             MonthlySummary.user_id == user.id, MonthlySummary.period_key == period
@@ -96,11 +94,11 @@ def _exec_list_categories(user: User, db: Session, args: dict[str, Any]) -> Any:
     tx_type = TransactionType(txn_type)
 
     def _scoped(stmt: Select[Any]) -> Select[Any]:
-        # Same population as /api/calculations/top-categories: excluded
+        # Same population as /api/calculations/category-breakdown: excluded
         # accounts dropped and, for spending, classified realised losses too.
         stmt = ledger_scope(user, stmt).where(Transaction.type == tx_type)
         if tx_type == TransactionType.EXPENSE:
-            stmt = without_capital_losses(stmt, user)
+            stmt = without_capital_losses(stmt, capital_loss_keys_for(user))
         return apply_date_range(stmt, start, end)
 
     stmt = (
@@ -149,8 +147,6 @@ register(
 
 def _exec_get_category_spending(user: User, db: Session, args: dict[str, Any]) -> Any:
     category = str(args.get("category", "")).strip()
-    if not category:
-        raise HTTPException(400, "category is required")
     start = parse_date(args.get("start_date"))
     end = parse_date(args.get("end_date"))
     names, exact = matching_categories(db, user, category, TransactionType.EXPENSE)
@@ -165,7 +161,7 @@ def _exec_get_category_spending(user: User, db: Session, args: dict[str, Any]) -
         Transaction.category.in_(names),
     )
     # Spending, as /category-breakdown counts it: classified losses excluded.
-    stmt = apply_date_range(without_capital_losses(stmt, user), start, end)
+    stmt = apply_date_range(without_capital_losses(stmt, capital_loss_keys_for(user)), start, end)
     row = db.execute(stmt).one()
     return {
         "category": category,

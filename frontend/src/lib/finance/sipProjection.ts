@@ -8,13 +8,13 @@ export interface SIPProjectionInputs {
   initialInvested: number
 }
 
-export interface SIPProjectionMonth {
+interface SIPProjectionMonth {
   month: number
   value: number
   invested: number
 }
 
-export interface SIPProjectionResult {
+interface SIPProjectionResult {
   months: SIPProjectionMonth[]
   summary: { value: number; invested: number; returns: number }
 }

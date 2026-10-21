@@ -6,6 +6,13 @@ import { AlertCircle, CheckCircle, Sparkles, Trash2 } from 'lucide-react'
 
 import ErrorState from '@/components/shared/ErrorState'
 import Button from '@/components/ui/Button'
+import {
+  ANTHROPIC_MESSAGES_URL,
+  OPENAI_CHAT_URL,
+  anthropicHeaders,
+  isOpenAIReasoningModel,
+  openAIHeaders,
+} from '@/lib/chatAdapters'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import {
@@ -256,27 +263,19 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       let body = ''
 
       if (provider === 'openai') {
-        url = 'https://api.openai.com/v1/chat/completions'
-        headers = {
-          Authorization: `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json',
-        }
+        url = OPENAI_CHAT_URL
+        headers = openAIHeaders(apiKey.trim())
         // o-series reasoning models reject max_tokens; they need
         // max_completion_tokens (and reasoning eats tokens, so allow more).
-        const isReasoning = /^o\d/i.test(model)
+        const isReasoning = isOpenAIReasoningModel(model)
         body = JSON.stringify({
           model: model.trim(),
           messages: [{ role: 'user', content: testPrompt }],
           ...(isReasoning ? { max_completion_tokens: 16 } : { max_tokens: 5 }),
         })
       } else if (provider === 'anthropic') {
-        url = 'https://api.anthropic.com/v1/messages'
-        headers = {
-          'x-api-key': apiKey.trim(),
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        }
+        url = ANTHROPIC_MESSAGES_URL
+        headers = anthropicHeaders(apiKey.trim())
         body = JSON.stringify({
           model: model.trim(),
           messages: [{ role: 'user', content: testPrompt }],

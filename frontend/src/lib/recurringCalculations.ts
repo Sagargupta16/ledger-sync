@@ -4,7 +4,7 @@ import { medianOf } from '@/lib/distribution'
 import { currentMonthKey, shareOfIncomePercent } from '@/lib/savingsRate'
 import type { RecurringTransaction } from '@/services/api/analyticsV2'
 
-export type RecurringFreshness = 'confirmed' | 'recent' | 'needs-review' | 'unassessed' | 'paused'
+type RecurringFreshness = 'confirmed' | 'recent' | 'needs-review' | 'unassessed' | 'paused'
 
 export type RecurringFreshnessInput = Pick<
   RecurringTransaction,
@@ -136,7 +136,7 @@ export function summarizeRecurringCommitments(
 
 export const RECENT_INCOME_MONTHS = 12
 
-export interface MonthlyIncomeRow {
+interface MonthlyIncomeRow {
   readonly period: string
   readonly income: { readonly total: number }
 }

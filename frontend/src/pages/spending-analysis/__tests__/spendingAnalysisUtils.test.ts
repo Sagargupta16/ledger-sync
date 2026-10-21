@@ -21,12 +21,9 @@
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  monthlyAvgLineLabelFor,
-  monthlyAvgSubtitleFor,
-  monthlySpendShape,
-  spanMonthKeys,
-} from '../spendingAnalysisUtils'
+import { monthlySpendShape, spanMonthKeys } from '@/lib/finance/spending'
+
+import { monthlyAvgLineLabelFor, monthlyAvgSubtitleFor } from '../spendingAnalysisUtils'
 
 const NOW = new Date(2026, 6, 27)
 

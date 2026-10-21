@@ -113,7 +113,7 @@
  * numerator; do not reach for whichever one is already imported.
  */
 
-import { isPartialMonth } from '@/lib/dateUtils'
+import { getLedgerTodayKey, isPartialMonth } from '@/lib/dateUtils'
 
 /** One period's income/expense pair. Both are positive magnitudes. */
 export interface PeriodFlows {
@@ -213,9 +213,13 @@ export function pooledSavingsRatePercent(periods: readonly PeriodFlows[]): numbe
   return savingsRatePercent(sumFlows(periods))
 }
 
-/** Current calendar month as a "YYYY-MM" key, in LOCAL time. */
+/**
+ * Current calendar month as a "YYYY-MM" key on the LEDGER calendar (IST): the
+ * same date key `isPartialMonth` reads, so the two cannot disagree about which
+ * month is current, and the backend's `ledger_clock` twin.
+ */
 export function currentMonthKey(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return getLedgerTodayKey(now).slice(0, 7)
 }
 
 /**

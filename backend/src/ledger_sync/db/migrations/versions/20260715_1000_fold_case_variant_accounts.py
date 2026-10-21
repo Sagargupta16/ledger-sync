@@ -153,7 +153,7 @@ def _fold_planning_tables(bind: sa.Connection, canonical: dict[tuple[int, str], 
 def _parse_excluded_account_names(raw: str | None) -> list[object] | None:
     try:
         names = json.loads(raw or "[]")
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return names if isinstance(names, list) else None
 

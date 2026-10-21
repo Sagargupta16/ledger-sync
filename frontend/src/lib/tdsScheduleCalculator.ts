@@ -24,9 +24,9 @@
 
 import { calculateGrossFromNet, calculateTax, type TaxSlab } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
-import { sumRsuCompensation, valueRsuVestings, type RsuValuationOptions } from '@/lib/rsuVesting'
+import { sumRsuCompensation } from '@/lib/rsuVesting'
 import { settleSalaryCompensation } from '@/lib/salaryCompensation'
-import type { RsuGrant, ValuedRsuVesting } from '@/types/salary'
+import type { ValuedRsuVesting } from '@/types/salary'
 
 /** Month labels in fiscal-year order, starting from the FY start month. */
 const ALL_MONTHS = [
@@ -85,26 +85,6 @@ export interface TdsScheduleParams {
   fyStartYear: number
 }
 
-/**
- * Bucket RSU vestings into 0-based fiscal-month indices for a target FY.
- *
- * Only vestings that fall inside the given fiscal year are included; the
- * returned map feeds ``extraByMonth``. Index 0 = the FY start month.
- */
-export function rsuExtrasByFyMonth(
-  grants: RsuGrant[],
-  fyStartYear: number,
-  fyStartMonth: number,
-  options: Omit<RsuValuationOptions, 'fyStartMonth'> = {},
-): Record<number, number> {
-  const out: Record<number, number> = {}
-  for (const event of valueRsuVestings(grants, { ...options, fyStartMonth })) {
-    if (event.fyStartYear !== fyStartYear) continue
-    out[event.monthIndex] = (out[event.monthIndex] ?? 0) + event.grossValue
-  }
-  return out
-}
-
 export interface TaxPaidTillDate {
   /** Estimated withholding from cash and shares through the months paid so far. */
   taxPaid: number
@@ -127,7 +107,7 @@ export interface TaxPaidTillDate {
   unmatchedRsuNetReceipts?: number
 }
 
-export interface TaxPaidTillDateParams {
+interface TaxPaidTillDateParams {
   /** Fixed base salary for the full year (from Settings -- the certain thing). */
   baseAnnual: number
   /** Number of months you have actually been paid this FY. */

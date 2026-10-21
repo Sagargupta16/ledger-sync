@@ -15,8 +15,10 @@ import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
 import { capitalLossConfig } from '@/lib/expenseClassification'
 import ErrorState from '@/components/shared/ErrorState'
+import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 import { analysisPeriodLabel, type EarningStart } from '@/lib/finance/analysisPeriod'
 import { investmentAccountTest } from '@/lib/finance/investmentFlows'
+import { resolveEssentialCategories } from '@/store/preferencesStore'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
@@ -32,16 +34,7 @@ import HealthIndicator from './health/HealthIndicator'
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
-const LoadingSkeleton = memo(function LoadingSkeleton() {
-  return (
-    <div className="ledger-panel animate-pulse p-4 sm:p-5">
-      <div className="mb-4 h-8 w-1/3 rounded bg-muted" />
-      <div className="h-32 rounded bg-muted" />
-    </div>
-  )
-})
-
-const EmptyState = memo(function EmptyState() {
+const HealthScoreEmpty = memo(function HealthScoreEmpty() {
   return (
     <div className="ledger-panel p-4 sm:p-5">
       <h3 className="mb-2 text-base font-semibold">Financial Health</h3>
@@ -159,6 +152,9 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
   // leaves the score's expenses exactly as it leaves the Dashboard's.
   const lossCategories = preferences?.capital_loss_categories
   const expenseClassification = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
+  // The Needs list the spending rule reads, so "essential" means the same here as on /budgets.
+  const rawEssentials = preferences?.essential_categories
+  const essentialCategories = useMemo(() => resolveEssentialCategories(rawEssentials), [rawEssentials])
 
   const userFixedCategories = useMemo<Set<string>>(() => {
     const raw = preferences?.fixed_expense_categories
@@ -207,10 +203,11 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     earningStartDate: preferences?.earning_start_date,
     fixedCategories: userFixedCategories.size > 0 ? userFixedCategories : undefined,
     expenseClassification,
+    essentialCategories,
     balances: balancePosition,
   }), [
     transactions, isInvestmentAccount, userFixedCategories, expenseClassification,
-    balancePosition, preferences?.earning_start_date,
+    essentialCategories, balancePosition, preferences?.earning_start_date,
   ])
   const analysisData = currentHealth?.analysis
 
@@ -219,7 +216,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
     return computeCFPScore(cfpInputsFromAnalysis(analysisData)).compositeScore
   }, [analysisData])
 
-  if (isLoading) return <LoadingSkeleton />
+  if (isLoading) return <PanelSkeleton />
   if (isError) {
     const retryHealth = () => {
       if (!propTransactions) void transactionsQuery.refetch()
@@ -237,10 +234,10 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
       />
     )
   }
-  if (!analysisData) return <EmptyState />
+  if (!analysisData) return <HealthScoreEmpty />
 
   const metrics = calculateMetrics(analysisData, savingsGoalPercent)
-  if (metrics.length === 0) return <EmptyState />
+  if (metrics.length === 0) return <HealthScoreEmpty />
 
   const overallScore = metrics.reduce((sum, m) => sum + (m.score * m.weight) / 100, 0)
   const fhnStatus = getOverallStatus(overallScore)

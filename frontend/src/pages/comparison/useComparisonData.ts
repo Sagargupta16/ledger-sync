@@ -3,18 +3,19 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import {
   daysInMonth,
+  formatMonthKey,
+  getCurrentMonth,
   getCurrentYear,
   getCurrentFY,
   getFYDateRange,
   getDateKey,
   getAvailableFYs,
   inclusiveDaySpan,
-  toLocalDateKey,
 } from '@/lib/dateUtils'
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import type { CompareMode, PartialPeriod, PeriodSummary, CategoryDelta } from './types'
-import { pctChange, getMonthOptions, getYearOptions, formatMonthLabel } from './utils'
+import { pctChange, getMonthOptions, getYearOptions } from './utils'
 import { alignToElapsed, type DateSpan } from './periodAlign'
 import { generateAllInsights } from './insights'
 
@@ -45,7 +46,7 @@ export function useComparisonData() {
 
   // Month selectors
   const monthOptions = useMemo(() => getMonthOptions(transactions), [transactions])
-  const currentMonthKey = useMemo(() => toLocalDateKey(new Date()).slice(0, 7), [])
+  const currentMonthKey = useMemo(() => getCurrentMonth(), [])
   const defaultMonths = useMemo(() => {
     const complete = monthOptions.filter((m) => m < currentMonthKey)
     return { a: complete[1] || monthOptions[1] || '', b: complete[0] || monthOptions[0] || '' }
@@ -150,8 +151,8 @@ export function useComparisonData() {
       return {
         a: monthSpan(effectiveMonthA),
         b: monthSpan(effectiveMonthB),
-        labelA: formatMonthLabel(effectiveMonthA),
-        labelB: formatMonthLabel(effectiveMonthB),
+        labelA: formatMonthKey(effectiveMonthA),
+        labelB: formatMonthKey(effectiveMonthB),
       }
     }
     if (mode === 'year') {

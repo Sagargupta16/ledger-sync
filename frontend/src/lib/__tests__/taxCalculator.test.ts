@@ -1,13 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import {
   calculateTax,
-  TAX_SLABS_OLD_REGIME,
-  TAX_SLABS_NEW_FY2025,
   getTaxSlabs,
   getStandardDeduction,
   parseFYStartYear,
 } from '../taxCalculator'
 import { getFYFromDate } from '../dateUtils'
+import { getTaxConfig } from '../tax-config'
+
+/** FY 2025-26 slab tables, read straight from the versioned config. */
+const TAX_SLABS_OLD_REGIME = getTaxConfig(2025).oldRegime.slabs
+const TAX_SLABS_NEW_FY2025 = getTaxConfig(2025).newRegime.slabs
 
 describe('calculateTax - base slabs', () => {
   it('taxes income below first slab at 0', () => {
@@ -60,7 +63,7 @@ describe('calculateTax - Section 87A rebate', () => {
   })
 
   it('regression: OLD regime is a HARD CLIFF above 5L (no marginal relief)', () => {
-    // The old regime has NO 87A marginal relief — only the new regime does.
+    // The old regime has NO 87A marginal relief -- only the new regime does.
     // Taxable 5,10,000 (no SD), old regime:
     //   2.5-5L * 5%  = 12,500
     //   5L-5.1L * 20% = 2,000

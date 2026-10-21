@@ -2,10 +2,11 @@ import { motion } from 'motion/react'
 
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { chartDataTable } from '@/components/ui/chartDataTable'
+import ChartSection from '@/components/ui/ChartSection'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { useMotionStore } from '@/store/motionStore'
 
-export interface InvestmentAccount {
+interface InvestmentAccount {
   readonly name: string
   readonly balance: number
   readonly transactions: number
@@ -62,27 +63,19 @@ export default function ReturnsHoldingsChart({
   const topAccount = accounts[0]
 
   return (
-    <motion.section
-      className="ledger-panel @container min-w-0 p-4 sm:p-6"
-      aria-labelledby="holdings-value-title"
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className="mb-5">
-        <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-          Wealth / account ledger
-        </p>
-        <h2 id="holdings-value-title" className="text-lg font-semibold tracking-tight text-foreground">
-          Investment Accounts by Book Value
-        </h2>
-        <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">
+    <ChartSection
+      className="@container"
+      titleId="holdings-value-title"
+      eyebrow="Wealth / account ledger"
+      title="Investment Accounts by Book Value"
+      description={(
+        <>
           Closing ledger balances, including activity before the selected period.
           {topAccount && <> Top account: <span className="font-medium text-foreground">{topAccount.name}</span>.</>}
-        </p>
-      </div>
-
+        </>
+      )}
+      descriptionClassName="text-pretty"
+    >
       {accounts.length === 0 ? (
         <ChartEmptyState height={280} message="No investment account balances through the selected period" />
       ) : (
@@ -153,6 +146,6 @@ export default function ReturnsHoldingsChart({
         'Investment accounts ranked by ledger balance. All account values are included.',
         (account) => account.name,
       )}
-    </motion.section>
+    </ChartSection>
   )
 }

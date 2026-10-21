@@ -3,42 +3,22 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics_helpers import (
     _get_sql_account_totals,
-    _get_sql_category_totals,
     _get_sql_monthly_data,
     _get_sql_totals,
     get_filtered_transactions,
 )
-from ledger_sync.api.analytics_metrics import (
-    behavior_metrics,
-    kpi_metrics,
-    trend_metrics,
-    wrapped_insights,
-)
+from ledger_sync.api.analytics_metrics import behavior_metrics, kpi_metrics, trend_metrics
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core import calculator
 from ledger_sync.core.query_helpers import capital_loss_keys_for
 from ledger_sync.core.time_filter import TimeRange
-from ledger_sync.db.models import User, UserPreferences
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 TIME_RANGE_FILTER_DESC = "Time range filter"
-
-
-def _load_preferences(db: Session, user: User) -> UserPreferences | None:
-    """Read a user's preferences row, or ``None`` when they have none yet.
-
-    Read-only counterpart to ``preferences_helpers._get_or_create_preferences``:
-    a GET must not write a defaults row as a side effect. Consumers treat
-    ``None`` as "use the shipped defaults", so a missing row is not an error.
-    """
-    stmt = select(UserPreferences).where(UserPreferences.user_id == user.id).limit(1)
-    return db.execute(stmt).scalar_one_or_none()
 
 
 @router.get("/overview")
@@ -126,22 +106,6 @@ def get_trends(
     return trend_metrics(transactions, capital_loss_keys_for(current_user))
 
 
-@router.get("/wrapped")
-def get_yearly_wrapped(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-) -> dict[str, Any]:
-    """Get yearly wrapped insights - text-based narratives."""
-    transactions = get_filtered_transactions(db, current_user, time_range)
-    return {"insights": wrapped_insights(transactions, capital_loss_keys_for(current_user))}
-
-
-# New Enhanced Endpoints for Phase 2 Expansion
-
-
 @router.get("/kpis")
 def get_kpis(
     current_user: CurrentUser,
@@ -165,127 +129,3 @@ def get_kpis(
     """
     transactions = get_filtered_transactions(db, current_user, time_range)
     return kpi_metrics(transactions, capital_loss_keys_for(current_user))
-
-
-@router.get("/charts/income-expense")
-def get_income_expense_chart(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-) -> dict[str, Any]:
-    """Get data for income vs expense doughnut chart.
-
-    A classified realised loss gets its own slice. Dropping it from "Expenses"
-    without adding it back left the chart short by the loss amount, so the two
-    slices no longer accounted for where the money went. The slice is omitted
-    entirely when nothing is classified, which is every user's default state.
-    """
-    totals = _get_sql_totals(db, current_user, time_range)
-
-    data: list[dict[str, Any]] = [
-        {"name": "Income", "value": totals["total_income"]},
-        {"name": "Expenses", "value": totals["total_expenses"]},
-    ]
-    if totals["capital_losses"]:
-        data.append({"name": "Capital Losses", "value": totals["capital_losses"]})
-
-    return {"data": data}
-
-
-@router.get("/charts/categories")
-def get_categories_chart(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-    limit: Annotated[int, Query(description="Number of top categories to return")] = 10,
-) -> dict[str, Any]:
-    """Get data for top categories bar chart."""
-    category_totals = _get_sql_category_totals(db, current_user, time_range)
-
-    # Sort and limit
-    sorted_categories = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)[:limit]
-
-    return {"data": [{"category": cat, "amount": amt} for cat, amt in sorted_categories]}
-
-
-@router.get("/charts/monthly-trends")
-def get_monthly_trends_chart(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-) -> dict[str, Any]:
-    """Get data for monthly trends line chart.
-
-    ``net`` subtracts ``capital_losses`` as well as ``expenses``: the loss is not
-    consumption but the cash did leave, so a per-month ``income - expenses`` net
-    would sit above the user's real balance change by exactly the loss.
-    """
-    monthly_data = _get_sql_monthly_data(db, current_user, time_range)
-
-    # Format for line chart
-    chart_data = [
-        {
-            "month": month,
-            "income": data["income"],
-            "expenses": data["expenses"],
-            "capital_losses": data["capital_losses"],
-            "net": data["income"] - data["expenses"] - data["capital_losses"],
-        }
-        for month, data in sorted(monthly_data.items())
-    ]
-
-    return {"data": chart_data}
-
-
-@router.get("/charts/account-distribution")
-def get_account_distribution_chart(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-) -> dict[str, Any]:
-    """Get data for account distribution doughnut chart."""
-    account_totals = _get_sql_account_totals(db, current_user, time_range)
-
-    # Sort by value
-    sorted_accounts = sorted(account_totals.items(), key=lambda x: x[1], reverse=True)
-
-    return {"data": [{"account": acc, "value": amt} for acc, amt in sorted_accounts]}
-
-
-@router.get("/insights/generated")
-def get_generated_insights(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    time_range: Annotated[
-        TimeRange, Query(description=TIME_RANGE_FILTER_DESC)
-    ] = TimeRange.ALL_TIME,
-) -> dict[str, Any]:
-    """Get AI-generated insights from transaction data.
-
-    The user's preferences row is loaded so every amount in every insight string
-    carries THEIR display symbol. Constructing the engine with no argument
-    silently resolved to the shipped default, so a user on USD read
-    rupee-prefixed figures. The row is read, never created: this is a GET.
-    """
-    from ledger_sync.core.insights import InsightEngine
-
-    transactions = get_filtered_transactions(db, current_user, time_range)
-
-    if not transactions:
-        return {"insights": []}
-
-    # Classified realised losses are not spending (see InsightEngine).
-    engine = InsightEngine(
-        _load_preferences(db, current_user), loss_keys=capital_loss_keys_for(current_user)
-    )
-    insights = engine.generate_all_insights(transactions)
-
-    return {"insights": insights}

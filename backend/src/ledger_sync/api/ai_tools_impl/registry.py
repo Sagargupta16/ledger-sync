@@ -13,16 +13,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from ledger_sync.core.expense_class import capital_loss_sql_filter
 from ledger_sync.core.query_helpers import (
-    capital_loss_keys_for,
-    excluded_accounts_criteria,
+    date_range_criteria,
     excluded_accounts_for,
-    inclusive_end,
+    ledger_criteria,
 )
 from ledger_sync.db.models import Transaction, TransactionType, User
 
@@ -80,13 +77,9 @@ def parse_date(s: str | None) -> datetime | None:
     ``Transaction.date`` is a naive column holding IST calendar dates, so the
     bound must be naive too (see ``query_helpers.as_naive``): an aware UTC bound
     is converted by the driver and shifts every comparison by the offset.
+    The tool's ``DateString`` argument model has already rejected any other shape.
     """
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s)
-    except ValueError as exc:
-        raise HTTPException(400, f"Invalid date {s!r}, expected YYYY-MM-DD") from exc
+    return datetime.fromisoformat(s) if s else None
 
 
 def matching_categories(
@@ -113,11 +106,7 @@ def apply_date_range(
     stmt: Select[Any], start: datetime | None, end: datetime | None
 ) -> Select[Any]:
     """Inclusive ``[start, end]`` day window, same end rule as the REST endpoints."""
-    if start is not None:
-        stmt = stmt.where(Transaction.date >= start)
-    if end is not None:
-        stmt = stmt.where(Transaction.date <= inclusive_end(end))
-    return stmt
+    return stmt.where(*date_range_criteria(start, end))
 
 
 def ledger_scope(user: User, stmt: Select[Any]) -> Select[Any]:
@@ -127,21 +116,7 @@ def ledger_scope(user: User, stmt: Select[Any]) -> Select[Any]:
     all drop excluded accounts; a tool that did not answered the chat with
     balances and totals the rest of the app deliberately hides.
     """
-    return stmt.where(
-        Transaction.user_id == user.id,
-        Transaction.is_deleted.is_(False),
-        *excluded_accounts_criteria(excluded_accounts_for(user)),
-    )
-
-
-def without_capital_losses(stmt: Select[Any], user: User) -> Select[Any]:
-    """Drop the user's classified realised losses from an EXPENSE statement.
-
-    Same rule ``/category-breakdown`` applies: a realised loss is a negative
-    investment return, not a spending category. No-op when nothing is classified.
-    """
-    not_a_loss = capital_loss_sql_filter(capital_loss_keys_for(user))
-    return stmt if not_a_loss is None else stmt.where(not_a_loss)
+    return stmt.where(*ledger_criteria(user.id, excluded_accounts_for(user)))
 
 
 def to_decimal(v: Decimal | float | None) -> float:

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { FADE_UP } from '@/constants/animations'
 
-export interface StatCardProps {
+interface StatCardProps {
   label: string
   value: string
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>

@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { Landmark, IndianRupee, PiggyBank, TrendingUp, Percent } from 'lucide-react'
 import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 import { StaleDataBadge } from '@/components/shared/StaleDataBadge'
 import MetricCard from '@/components/shared/MetricCard'
-import { projectPPF, projectEPF, projectNPS } from '@/lib/instrumentCalculators'
+import { projectPPF, projectEPF, projectNPS, type ProjectionResult } from '@/lib/instrumentCalculators'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useInstrumentRates } from '@/hooks/api/useInstrumentRates'
 import type { InstrumentRates } from '@/services/api/rates'
@@ -19,6 +19,22 @@ import {
   type Instrument,
 } from './instrumentProjectionUtils'
 
+/** Maturity, contributions and interest tiles, plus the instrument's own fourth tile. */
+function ProjectionMetrics({
+  result,
+  contributedTitle = 'Total Contributed',
+  children,
+}: Readonly<{ result: ProjectionResult; contributedTitle?: string; children: ReactNode }>) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
+      <MetricCard title={contributedTitle} value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
+      <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
+      {children}
+    </div>
+  )
+}
+
 function PPFTab({
   initialBalance,
   rates,
@@ -32,12 +48,9 @@ function PPFTab({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
-        <MetricCard title="Total Invested" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
-        <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
+      <ProjectionMetrics result={result} contributedTitle="Total Invested">
         <MetricCard title="Rate" value={`${rate}% p.a.`} icon={Percent} color="orange" />
-      </div>
+      </ProjectionMetrics>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SliderInput id="ppf-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={5000000} step={10000} formatValue={formatCurrencyCompact} />
         <SliderInput id="ppf-annual" label="Annual Contribution" value={annual} onChange={setAnnual} min={500} max={150000} step={500} formatValue={formatCurrencyCompact} />
@@ -69,13 +82,10 @@ function EPFTab({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
-        <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
-        <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
+      <ProjectionMetrics result={result}>
         <MetricCard title="Monthly (You + Employer)" value={formatCurrency(totalMonthly)} icon={Percent} color="orange"
           subtitle={`You ${formatCurrencyCompact(yourShare)} + Employer ${formatCurrencyCompact(employerEpf)}`} />
-      </div>
+      </ProjectionMetrics>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SliderInput id="epf-balance" label="Current EPF Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} formatValue={formatCurrencyCompact} />
         <SliderInput id="epf-salary" label="Monthly Basic Salary" value={salary} onChange={setSalary} min={15000} max={500000} step={1000} formatValue={formatCurrencyCompact} />
@@ -121,12 +131,9 @@ function NPSTab({ rates }: Readonly<{ rates: InstrumentRates }>) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard title="Maturity Value" value={formatCurrency(result.projectedValue)} icon={TrendingUp} color="green" />
-        <MetricCard title="Total Contributed" value={formatCurrency(result.totalContributed)} icon={PiggyBank} color="blue" />
-        <MetricCard title="Interest Earned" value={formatCurrency(result.totalReturns)} icon={IndianRupee} color="purple" />
+      <ProjectionMetrics result={result}>
         <MetricCard title="Weighted Return" value={`${formatPercent(weightedReturn)} p.a.`} icon={Percent} color="orange" />
-      </div>
+      </ProjectionMetrics>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <SliderInput id="nps-balance" label="Current Balance" value={balance} onChange={setBalance} min={0} max={10000000} step={10000} formatValue={formatCurrencyCompact} />
         <SliderInput id="nps-monthly" label="Monthly Contribution" value={monthly} onChange={setMonthly} min={500} max={100000} step={500} formatValue={formatCurrencyCompact} />

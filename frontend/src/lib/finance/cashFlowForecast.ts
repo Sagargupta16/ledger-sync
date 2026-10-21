@@ -1,7 +1,5 @@
 import { addMonthsToMonthKey, dropPartialMonth } from '@/lib/dateUtils'
 
-export { addMonthsToMonthKey as addMonths } from '@/lib/dateUtils'
-
 export interface MonthlyCashFlow {
   readonly income: number
   readonly expense: number
@@ -62,7 +60,7 @@ export interface CashFlowForecastModel {
 }
 
 /** Largest monthly trend (either direction) the projection will compound. */
-export const MAX_MONTHLY_GROWTH = 0.05
+const MAX_MONTHLY_GROWTH = 0.05
 
 function median(values: readonly number[]): number {
   const sorted = [...values].sort((a, b) => a - b)
@@ -88,7 +86,7 @@ function robustMonthlyRate(values: readonly number[]): number {
   return Math.min(MAX_MONTHLY_GROWTH, Math.max(-MAX_MONTHLY_GROWTH, rate))
 }
 
-export function computeGrowthRate(series: readonly { income: number; expense: number }[]) {
+function computeGrowthRate(series: readonly { income: number; expense: number }[]) {
   if (series.length <= 1) return { incomeGrowth: 0, expenseGrowth: 0 }
   return {
     incomeGrowth: robustMonthlyRate(series.map((month) => month.income)),

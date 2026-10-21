@@ -16,6 +16,7 @@ matched as the user wrote it (case-insensitively), never widened.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from functools import lru_cache
@@ -26,33 +27,55 @@ from ledger_sync.core.expense_class import KEY_SEPARATOR, classification_key
 # ─── shared matcher ─────────────────────────────────────────────────────────
 
 
-@lru_cache(maxsize=64)
-def _word_regex(patterns: frozenset[str]) -> re.Pattern[str] | None:
-    """One compiled ``\\b(?:p1|p2|...)\\b`` for a pattern set, or None when empty.
+def _is_word_char(char: str) -> bool:
+    """A letter, combining mark or digit in any script, or ``_``.
 
-    Alternation backtracks through every alternative at each position, so it
-    answers exactly what ``any(re.search(rf"\\b{p}\\b", text))`` answers, in one
-    scan instead of one per keyword -- the rollups run this per ledger row.
+    The boundary rule ``phrasePattern`` in ``frontend/src/lib/finance/metricRules.ts``
+    uses too. Neither ``\\b`` works for Indian labels: JavaScript's is
+    ASCII-only, so no Devanagari keyword ever matched, and Python's leaves out
+    combining marks, so a Hindi word ending in a vowel sign never matched
+    itself.
     """
-    if not patterns:
-        return None
-    body = "|".join(re.escape(pattern) for pattern in sorted(patterns))
-    return re.compile(rf"\b(?:{body})\b")
+    return char == "_" or unicodedata.category(char)[0] in "LMN"
+
+
+def _occurs_as_word(text: str, keyword: str) -> bool:
+    """True when *keyword* occurs in *text* with no word character either side."""
+    start = text.find(keyword)
+    while start != -1:
+        end = start + len(keyword)
+        if (start == 0 or not _is_word_char(text[start - 1])) and (
+            end == len(text) or not _is_word_char(text[end])
+        ):
+            return True
+        start = text.find(keyword, start + 1)
+    return False
+
+
+@lru_cache(maxsize=4096)
+def _matches_lowered(text: str, patterns: frozenset[str]) -> bool:
+    """Cached per (label, pattern set): the rollups test every ledger row, labels repeat.
+
+    Patterns are trimmed and blanks dropped, as ``phrasePattern`` does, so a
+    user entry saved as " Rent " still matches "Rent".
+    """
+    keywords = (pattern.strip() for pattern in patterns)
+    return any(_occurs_as_word(text, keyword) for keyword in keywords if keyword)
 
 
 def matches_any_word(text: str | None, patterns: Iterable[str]) -> bool:
-    """True when any lower-cased *pattern* sits at word boundaries in *text*.
+    """True when any lower-cased *pattern* appears in *text* as a whole word.
 
-    Case-insensitive via lower-casing *text* once. Word boundaries stop short
-    keywords such as "rd" or "mf" matching inside "weird" or "management firm",
-    while multi-word patterns ("home loan", "food & dining") still match
-    verbatim.
+    Case-insensitive via lower-casing *text* once. "Whole word" means no
+    letter, combining mark or digit of any script touches either end, which
+    stops short keywords such as "rd" or "mf" matching inside "weird" or
+    "management firm", while multi-word patterns ("home loan",
+    "food & dining") still match verbatim.
     """
     lowered = (text or "").lower().strip()
     if not lowered:
         return False
-    regex = _word_regex(frozenset(patterns))
-    return regex is not None and regex.search(lowered) is not None
+    return _matches_lowered(lowered, frozenset(patterns))
 
 
 # ─── essentials (Needs) ─────────────────────────────────────────────────────

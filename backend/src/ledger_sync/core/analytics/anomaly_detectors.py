@@ -99,7 +99,7 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
         See module docstring for the algorithm rationale.
         """
         sym = self._currency_symbol
-        user_id = self._require_user_id()
+        user_id = self.user_id
         period_col = fmt_year_month(Transaction.date)
         monthly_query = (
             self.db.query(

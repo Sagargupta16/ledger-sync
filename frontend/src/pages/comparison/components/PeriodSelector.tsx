@@ -1,8 +1,8 @@
 import { useId } from 'react'
 
 import { Calendar } from 'lucide-react'
+import { formatMonthKey } from '@/lib/dateUtils'
 import type { CompareMode } from '../types'
-import { formatMonthLabel } from '../utils'
 
 interface PeriodSelectorProps {
   mode: CompareMode
@@ -36,7 +36,7 @@ export function PeriodSelector({
       {mode === 'month' && (
         <select id={selectId} className={selectClass} value={month} onChange={(e) => onMonth(e.target.value)}>
           {monthOptions.map((m) => (
-            <option key={m} value={m}>{formatMonthLabel(m)}</option>
+            <option key={m} value={m}>{formatMonthKey(m)}</option>
           ))}
         </select>
       )}

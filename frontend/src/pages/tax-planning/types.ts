@@ -1,10 +1,1 @@
-export type {
-  FYData,
-  IncomeClassification,
-  IncomeGroupAccumulator,
-  TaxIncomeBasis,
-  TaxPlanningInput,
-  TaxPlanningResult,
-  TaxRegimeOverride,
-  YearlyTaxDatum,
-} from '@/lib/finance/taxPlanning'
+export type { IncomeClassification, TaxRegimeOverride } from '@/lib/finance/taxPlanning'

@@ -122,8 +122,7 @@ class AnomaliesMixin(AnomalyDetectorsMixin):
         # anomalies are preserved so users don't have to re-dismiss the same
         # finding on every refresh.
         del_stmt = delete(Anomaly).where(Anomaly.is_reviewed.is_(False))
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
+        del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
         self.db.execute(del_stmt)
 
         # Cap per shape, not across shapes: month rows (period_key) and single-
@@ -164,7 +163,7 @@ class AnomaliesMixin(AnomalyDetectorsMixin):
         silently absorbing it. Only rows dated AFTER the recorded close
         date count; the account's own history never triggers it.
         """
-        close_dates = get_closed_account_dates(self.db, self._require_user_id())
+        close_dates = get_closed_account_dates(self.db, self.user_id)
         if not close_dates:
             return
 
@@ -206,7 +205,7 @@ class AnomaliesMixin(AnomalyDetectorsMixin):
     def _update_budget_tracking(self) -> int:
         """Update budget tracking with current month's spending."""
         sym = self._currency_symbol
-        user_id = self._require_user_id()
+        user_id = self.user_id
         budget_query = (
             self.db.query(Budget)
             .filter(Budget.user_id == user_id)

@@ -25,11 +25,7 @@ export {
   projectNetWorth,
   projectNetWorthLinearBand,
 } from '@/lib/finance/netWorth'
-export type {
-  NetWorthMilestoneStatus as MilestoneStatus,
-  NetWorthPoint,
-  NetWorthProjectionBandPoint,
-} from '@/lib/finance/netWorth'
+export type { NetWorthPoint } from '@/lib/finance/netWorth'
 
 export interface Milestone {
   /** Target threshold in base currency (INR). */

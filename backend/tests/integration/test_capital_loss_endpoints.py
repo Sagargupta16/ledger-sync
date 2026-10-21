@@ -3,7 +3,7 @@
 Three endpoint behaviours are pinned here, all of which were wrong at the
 boundary rather than in the engine:
 
-1. ``/api/calculations/category-breakdown`` and ``/top-categories`` LEAKED
+1. ``/api/calculations/category-breakdown`` LEAKED
    TRANSFER rows into an expense ranking whenever ``transaction_type`` was
    omitted. Transfers are 66% of rupee volume on a real ledger (the same rupee
    written twice, once leaving the bank and once arriving at the broker), so the
@@ -39,11 +39,8 @@ LOSS_KEY = f"{LOSS_CATEGORY}::{LOSS_SUBCATEGORY}"
 TOTALS_URL = "/api/calculations/totals"
 MONTHLY_URL = "/api/calculations/monthly-aggregation"
 BREAKDOWN_URL = "/api/calculations/category-breakdown"
-TOP_URL = "/api/calculations/top-categories"
 HEALTH_URL = "/api/analytics/v2/data-health"
 OVERVIEW_URL = "/api/analytics/overview"
-TRENDS_CHART_URL = "/api/analytics/charts/monthly-trends"
-INC_EXP_CHART_URL = "/api/analytics/charts/income-expense"
 QUICK_URL = "/api/calculations/quick-insights"
 
 
@@ -147,19 +144,6 @@ def test_category_breakdown_omits_transfers_when_type_is_unspecified(two_user_cl
     # It also must not inflate the denominator every percentage is computed from.
     assert body["total"] == pytest.approx(147429.09)
     assert max(c["total"] for c in body["categories"].values()) < 500000
-
-
-def test_top_categories_omits_transfers_when_type_is_unspecified(two_user_client) -> None:
-    client, session, user_a, _, _ = two_user_client
-    _seed_ledger(session, user_a.id)
-
-    rows = client.get(TOP_URL).json()
-    names = {row["category"] for row in rows}
-
-    assert names
-    assert not any("Transfer" in name for name in names)
-    # Percentages are shares of spending, so they must sum to 100 here.
-    assert sum(row["percentage"] for row in rows) == pytest.approx(100.0)
 
 
 def test_explicit_income_type_still_selects_income(two_user_client) -> None:

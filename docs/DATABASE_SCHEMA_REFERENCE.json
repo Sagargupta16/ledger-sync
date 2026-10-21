@@ -1,7 +1,7 @@
 {
-  "as_of": "2026-09-30",
+  "as_of": "2026-10-21",
   "basis": "Offline current working-tree SQLAlchemy metadata, API schemas and migration source; no database connection or remote inspection.",
-  "source_commit": "b683b2636082b91716828375b5a82363b8509a0f",
+  "source_commit": "52afce19d960690ac806362ae850b4d4a067d479",
   "source_state": "Working tree including uncommitted changes; source_commit is the base checkout only.",
   "source_files_sha256": [
     {
@@ -18,31 +18,27 @@
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-      "sha256": "b5794000e3111934b03874436d00a4e292ccdb2843403d3d47e05390abad527b"
+      "sha256": "85f8bba78a260559c72f3cb90fc40bdb131d38a4e8fffd2991b916a2042fd8ee"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-      "sha256": "7ffdfa1e67e4a1af4d46d3cb33a91ca0b0af7bc6b25b679c354190910315cce3"
+      "sha256": "fe300b02347bef59481c97654080781bce0330d24823c41facfc6541b56e9c5b"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-      "sha256": "4ce297e4aa3ba87578ffc5170f275d3fa1a35616462ebe1b455afb47e3945fda"
+      "sha256": "a4ca075718ad4d619b98410a2df135e23defb0daddf679d2f6f84efec82d6846"
     },
     {
       "path": "backend/src/ledger_sync/api/ai_usage.py",
       "sha256": "c7634cfd5971ad3828e84f682c751b846dedb48ff61c4ba8bb7ab7fe07aa92b9"
     },
     {
-      "path": "backend/src/ledger_sync/api/analytics.py",
-      "sha256": "f2adc2aa900ab121ad4f4c47a1ec85b068b90b78eb020c939dd221e778ff0287"
-    },
-    {
       "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-      "sha256": "da656ef610b1c4a9dff43b8584c9b8d05ba254a169e730359331b89080322287"
+      "sha256": "36241a415af6c67011953c20f8d672b3d6454543d60d2656e3ea0280e5d8e329"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2.py",
-      "sha256": "9362af4514f863c2e62923d709b7681410882705d9f9fd3d57390363e4cf92dc"
+      "sha256": "dd062daddf091e8cad2d8781f6647bd2ce04c39b40bdd6436f96ce28f05c3a5f"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py",
@@ -50,7 +46,7 @@
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py",
-      "sha256": "cd8e5a5f4946280d5e1b8c3d2fa49823e010632bb36f0ec728ce6a6ff680bc01"
+      "sha256": "f7340559eb51a836224bc81a0646bccce33d5e21175a760350d6d1ec4279efb8"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
@@ -66,7 +62,7 @@
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-      "sha256": "482bcfb40c4de89a2884dd34fe1de54088ad412eaccac240c58ab34a2eb7a612"
+      "sha256": "63949cd5fa189ab58cbe8259ca501cda4faaf764bde2169739785c40fc01831c"
     },
     {
       "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule_aggregate.py",
@@ -94,11 +90,7 @@
     },
     {
       "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
-      "sha256": "01428920c2c35d097a806212915c9e93e00068f88fdbc38645cbe8aac774d0b6"
-    },
-    {
-      "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
-      "sha256": "15f078ca1f9fd1589b97df38906033ef7ec604f7f121af314c4b799256fef373"
+      "sha256": "7462ca7bc6e64288939b9a377d8cb905c57703938c9ffe9f3bbab222fa314eeb"
     },
     {
       "path": "backend/src/ledger_sync/api/categorization_rules.py",
@@ -109,24 +101,20 @@
       "sha256": "4928605948f7fa7538ab7f482e2cf9f8d7bdda0c998e3f7c295a732cbde5cd77"
     },
     {
-      "path": "backend/src/ledger_sync/api/meta.py",
-      "sha256": "405807cf5eedca8f6bbac4aa846cbadc38bbc69ac804ff15104723545ca4db84"
-    },
-    {
       "path": "backend/src/ledger_sync/api/oauth_state.py",
       "sha256": "d853f70ab0aa18004fd40c187ca7a8e33685a0a558160593a80bfdbdba34aa1a"
     },
     {
       "path": "backend/src/ledger_sync/api/preferences_ai.py",
-      "sha256": "f070fd9356b7add244e5609c6a0585b38980a388f0edc4bfa1df1631d2195a3a"
+      "sha256": "a1409921edfee275368ec4f75a592b16163147d6267828c3347ef6fd3f1e1cab"
     },
     {
       "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-      "sha256": "0bfd4d987b255abf25f694391614af79e7dd6cb0c3a1245564169ab23de7e769"
+      "sha256": "f095e7a8aae6803b04e4b9666989e41b037a71857da50b68b91d1ac2309b39e3"
     },
     {
       "path": "backend/src/ledger_sync/api/saved_views.py",
-      "sha256": "e1e38818d7c721509095250b9b04a162d8577c79d7a94b2be40b3ea18402d578"
+      "sha256": "f52a3f9580a91eb3cf88cbcc6af10dcf1219e9d14a875d42fb1e927aa72d0325"
     },
     {
       "path": "backend/src/ledger_sync/api/transaction_pagination.py",
@@ -134,11 +122,11 @@
     },
     {
       "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
-      "sha256": "32b52ce39c7222a28619a9d9d3d8974de09ea47150cad484d122fb887bb399c2"
+      "sha256": "6c050bace50e7fa57aab97247c02947d68fae8ba619ab147b6a888a74b57b6b8"
     },
     {
       "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
-      "sha256": "5657e081f9c73ad209d1b1ca5b33c037cc6b311fa96f2e276b85b0914e0d6472"
+      "sha256": "c7fa84c9caba90db98aca852c23afedd1201fd5b1c7af4bf2b1fcc86d44dfa84"
     },
     {
       "path": "backend/src/ledger_sync/api/transactions_impl/serialize.py",
@@ -158,15 +146,15 @@
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-      "sha256": "0fed86b1a57b35f8ad60ca616560e37035ce91d4fefa6f051b5f375700975fec"
+      "sha256": "57f71233c7e572d4c19af446515664814aa2d4009d67ef173a25fab9299a7d2d"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/anomaly_detectors.py",
-      "sha256": "7d5e64fabafcb5c5fbdeb161f53cbb52341e2dbf92b58787c3706e49992250a0"
+      "sha256": "e54c7584550580649e45657d2dcf1863b98448da58364867164abcf39f7e528e"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/base.py",
-      "sha256": "6920053b40d9932ab0f8d5e777998f2b2f8bb6bbc144b28936f2871c19ae3641"
+      "sha256": "3b21f63cb23d2f60a2a1640ac24fb5d1f1f646163587949b5d8e216db86f653f"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/classification.py",
@@ -174,27 +162,27 @@
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/cohort.py",
-      "sha256": "2f260412f18ac2983f891c70404bfb87d15ed2b62983bbeee0e9d075c467a680"
+      "sha256": "75513a2db8d116979f24240593d9ce94330240c0d41564bacc45fb8e5a836d9f"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/engine.py",
-      "sha256": "528e9e77264c14e22f2e787e0f7d72032988af3b8427b148074a2716a9866acc"
+      "sha256": "b7b4c4f85238d23cc967eba5b400dc8c78b26c99a79d04360b8695af5a9cc260"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/fy_summaries.py",
-      "sha256": "21a56e8348de28e3121e0d7896c25c8fe00c057bb0b0c2a41c4e5ea53859befb"
+      "sha256": "b8933844765d67fa197746b87f9811e5db90fe82d43c37cc7b69e3d75a553023"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/merchants.py",
-      "sha256": "896d93ce5caf883937b60a7c6cdb0e70039a1dfcb89e5ea230a0a445e8fb4fba"
+      "sha256": "79f8babd520a36c88bf9477ad4b17d6f4f0de3ef3489074076ee5c69cd531380"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/net_worth.py",
-      "sha256": "f9cb4dba633b14d2f593e8838d1a02da05209ff566935c1586d71cf2ced9463f"
+      "sha256": "1dbc163d53a82b6627403b46249e3310a77708a2fbe951aa25d88b0f2839aade"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-      "sha256": "47e1ad076fd9c4654aab89b1b9d768c18edd0bcfe69a45d40cc9a5575930fc24"
+      "sha256": "28936fff92a542317cff38493c10654b176232bf5ac5ab534ed890a1e83655c1"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/refresh.py",
@@ -202,19 +190,19 @@
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/summaries.py",
-      "sha256": "fa800e297990b380ef4bb6d5d66f14846bbe3addb2407d4ceda7d0d6997b89bf"
+      "sha256": "b5343dfe10b1c4cae3da01095b247d936afdf82c05ff6976400c84042565e004"
     },
     {
       "path": "backend/src/ledger_sync/core/analytics/trends.py",
-      "sha256": "da3b1146f6da237773ab7169c8cd01dbe7c29a7cefcf7d33e3332f1588b7f459"
+      "sha256": "d2fc06be6f3237e57fbee043972e5a6fc5d0a2778bdaaebb90f30248243bbf70"
     },
     {
       "path": "backend/src/ledger_sync/core/calculator.py",
-      "sha256": "15782e3d81d2a3602919367e3ac01e0d8bd4b45be0c9e25208aa513953495aee"
+      "sha256": "6b47f710ebc2d0312f12d229b7d4cdeca0d221526d16c3a1de5a83bb37adec59"
     },
     {
       "path": "backend/src/ledger_sync/core/expense_class.py",
-      "sha256": "acbc17ff046dea6a907957539a63ea46f054df325ec4a5a6abc118c2fe642d56"
+      "sha256": "733c9ac197d44f2fd4350b4fc008c540e0d870c577addf62c3409f3c032ec32a"
     },
     {
       "path": "backend/src/ledger_sync/core/import_identity.py",
@@ -230,7 +218,7 @@
     },
     {
       "path": "backend/src/ledger_sync/core/query_helpers.py",
-      "sha256": "b708285348637e1af84a5bb2ea9d6570f57d7ee3f3d4d316631596d3890bffdc"
+      "sha256": "c2a746fd3c8559b891bac47c88768976103fb3b079ffb93cc1bf19bddde5a11d"
     },
     {
       "path": "backend/src/ledger_sync/core/reconciler.py",
@@ -238,11 +226,7 @@
     },
     {
       "path": "backend/src/ledger_sync/core/reconciler_transfers.py",
-      "sha256": "37a93b9f6fb465a82cdf3652c8d252b9126087e0ab78a6f0c7051b38067db05c"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/report_generator.py",
-      "sha256": "021bcffc4f1d15029a4900ad9f826921fce99cac05319f2067dfb7395e87d76d"
+      "sha256": "e61e08141d532457d1f7716d01da80b7fc147a164c3b7b06588c88ffe3c6a1ff"
     },
     {
       "path": "backend/src/ledger_sync/core/rules.py",
@@ -250,11 +234,7 @@
     },
     {
       "path": "backend/src/ledger_sync/core/sync_engine.py",
-      "sha256": "6d46916ade47c83604fdc15e714425d7cf73fb8606cd730f3d92b18f83e7bc32"
-    },
-    {
-      "path": "backend/src/ledger_sync/core/time_filter.py",
-      "sha256": "aecda0920b0b53068119f34bc2f29828acef3b53bc0bddf893a9fb0ba5b315ab"
+      "sha256": "df622dfdf618a4fa97705bb2e02aa562a083427e3a1b7539168c43dabf2aa62d"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/ai_settings.py",
@@ -286,19 +266,19 @@
     },
     {
       "path": "backend/src/ledger_sync/db/_models/organization.py",
-      "sha256": "736edf3937bdcb2253220eb50cdb974539890dc6210199ed55b9c8afbf01a7ec"
+      "sha256": "8d39cf5cfc622f79bc18de3e4ba351cbe8842197f9d68a90a62782f418faa082"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/planning.py",
-      "sha256": "d75c51774551da0a769f98a875faad2406e247dcfee3abdcaddeb166001a824c"
+      "sha256": "55ff88c08315eb815f9cd345d734ee40dec19c7c5bce3baa3fb55cdd74c4a802"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/transactions.py",
-      "sha256": "c33df8b703ddf50e47bfc0d0ea6f0dadb1c364691b750587f1e7eb1a4233d209"
+      "sha256": "5e45da4a310b55ff86000f5080413a981873203abbfda4b35dea97c8bb09fe4d"
     },
     {
       "path": "backend/src/ledger_sync/db/_models/user.py",
-      "sha256": "645159d05b73c582c5cafd040276e29497967b607648fd46a2d10b746c22ea65"
+      "sha256": "89b014144a06610422f692ee33c26c5a45b1ff2f7fa3e77910a7dfc92d5c309b"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260111_0946_343e4412d829_separate_transfers_into_dedicated_table.py",
@@ -330,7 +310,7 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260204_1100_simplify_income_classification.py",
-      "sha256": "b547e57fdc5ab3869ee2cde02c322bbbbe92b7c630abdb87efdf278072fa58f7"
+      "sha256": "45f461c34d85d0b224c81d8d1b2b314b8b173d6495f93a6175f6164f296a77bc"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260204_1200_income_subcategory_format.py",
@@ -438,7 +418,7 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260715_1000_fold_case_variant_accounts.py",
-      "sha256": "8715055615b800c60490748b39eb4ab76ebd116a49526cb2fb60b3168b34e3c4"
+      "sha256": "17aef9e86434edd488f197112a8a1e3dfa247cfcaefef55038c914706e7ee530"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260721_1000_add_closed_account_status.py",
@@ -454,11 +434,11 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260727_1000_fix_non_taxable_cashback_key_drift.py",
-      "sha256": "82356cbf8270dbf3308df764bda898fd6c8ea424d58c4b1c4a1ca85ffe1bca8f"
+      "sha256": "6dc8015f2753feb09f53cf4169d9d83ecbeaf0df4335328c2ed37c3885573c7e"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260727_1100_backfill_rollup_preference_splits.py",
-      "sha256": "f8f825be2cd7e25269399de88118117e479fd78b5915775c6ea3e577d49b302d"
+      "sha256": "46678526353832425013cd9105cf954e923a0be0ae7d6777dd67c379b80d3688"
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260727_1200_add_capital_loss_categories.py",
@@ -522,7 +502,11 @@
     },
     {
       "path": "backend/src/ledger_sync/db/migrations/versions/20260930_1000_orm_schema_alignment.py",
-      "sha256": "6b1d6c1bb632e3c797845b68428d26b41f759bb369dd40dc105354862e0e99b1"
+      "sha256": "793bb9239c7e374cbd410d8f08ee3f4338fcba491738d6a60f2819a5169caa55"
+    },
+    {
+      "path": "backend/src/ledger_sync/db/migrations/versions/20261007_1000_recurring_user_expected_amount.py",
+      "sha256": "0f1924acaf9881715721973c698450ef5c49fca0b60c8f7f9a665c517f9648ef"
     },
     {
       "path": "backend/src/ledger_sync/schemas/salary.py",
@@ -546,11 +530,11 @@
     },
     {
       "path": "backend/src/ledger_sync/services/auth_service.py",
-      "sha256": "b487f925571521363622b51f909004da86d2c13b069bd2a5616dbe6b0614f2a9"
+      "sha256": "44964eab710ecfec1ad20779721559a4607319c9727223272dcb75c7bb1cdf94"
     },
     {
       "path": "backend/src/ledger_sync/services/calculation_service.py",
-      "sha256": "1e249dc54a9fd643e373de813a4427ccaa7eee0c6d76162685bb32c5f43ea308"
+      "sha256": "1d94a33d5d54dff984cffb435d82b859a0b123b007183ca3a1e9da732684c33c"
     },
     {
       "path": "backend/src/ledger_sync/services/compensation.py",
@@ -566,7 +550,7 @@
     }
   ],
   "source_hash_scope": "Model definitions, salary API schemas, migration revisions and every code-reference file linked by the dictionary.",
-  "source_migration_head": "orm_schema_alignment_2026",
+  "source_migration_head": "recurring_user_amount_2026",
   "production": {
     "project": "neon-cinereous-compass",
     "project_id": "gentle-sunset-94386320",
@@ -580,7 +564,7 @@
   "live_verification": "No live database or remote lookup in this refresh. The prior reference reported a Neon export header of PostgreSQL 17.11, but full export processing was blocked by approval review. Live parity and historical infrastructure identifiers remain unverified here.",
   "counts": {
     "application_tables": 34,
-    "columns": 463,
+    "columns": 464,
     "foreign_keys": 43,
     "explicit_indexes": 76,
     "unique_constraints": 14,
@@ -747,7 +731,7 @@
       "data_kind": "Authoritative identity",
       "notes": "Email is unique. OAuth provider plus provider ID is unique when populated. No separate database table for each login session: token_version participates in JWT revocation.",
       "model": "User",
-      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L37",
+      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L39",
       "columns": [
         {
           "name": "id",
@@ -765,7 +749,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L56"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L58"
         },
         {
           "name": "email",
@@ -783,7 +767,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Unique account email.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L57"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L59"
         },
         {
           "name": "hashed_password",
@@ -801,7 +785,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Password hash, never a plaintext password; may be empty for OAuth users.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L58"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L60"
         },
         {
           "name": "full_name",
@@ -819,7 +803,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional profile name.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L59"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L61"
         },
         {
           "name": "is_active",
@@ -837,7 +821,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether this record is currently active.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L60"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L62"
         },
         {
           "name": "is_verified",
@@ -855,7 +839,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Account/email verification state.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L61"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L63"
         },
         {
           "name": "auth_provider",
@@ -873,7 +857,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "OAuth provider name; NULL for an identity without an OAuth provider.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L64"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L66"
         },
         {
           "name": "auth_provider_id",
@@ -891,7 +875,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User identifier issued by that OAuth provider.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L65"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L67"
         },
         {
           "name": "token_version",
@@ -909,7 +893,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JWT revocation counter; existing tokens carry its version.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L70"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L72"
         },
         {
           "name": "created_at",
@@ -927,7 +911,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L75"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L77"
         },
         {
           "name": "updated_at",
@@ -945,7 +929,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L78"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L80"
         },
         {
           "name": "last_login",
@@ -963,7 +947,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Most recent recorded login timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L84"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L86"
         }
       ],
       "primary_key": [
@@ -1013,13 +997,13 @@
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-          "line": 49,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L49"
+          "line": 46,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L46"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-          "line": 37,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L37"
+          "line": 36,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L36"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_usage.py",
@@ -1027,19 +1011,14 @@
           "url": "../backend/src/ledger_sync/api/ai_usage.py#L94"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics.py",
-          "line": 33,
-          "url": "../backend/src/ledger_sync/api/analytics.py#L33"
-        },
-        {
           "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-          "line": 44,
-          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L44"
+          "line": 43,
+          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L43"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2.py",
-          "line": 57,
-          "url": "../backend/src/ledger_sync/api/analytics_v2.py#L57"
+          "line": 62,
+          "url": "../backend/src/ledger_sync/api/analytics_v2.py#L62"
         },
         {
           "path": "backend/src/ledger_sync/api/calculations_impl/aggregates.py",
@@ -1052,29 +1031,19 @@
           "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L26"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
-          "line": 118,
-          "url": "../backend/src/ledger_sync/api/calculations_impl/insights.py#L118"
-        },
-        {
           "path": "backend/src/ledger_sync/api/deps.py",
           "line": 27,
           "url": "../backend/src/ledger_sync/api/deps.py#L27"
         },
         {
-          "path": "backend/src/ledger_sync/api/meta.py",
-          "line": 154,
-          "url": "../backend/src/ledger_sync/api/meta.py#L154"
-        },
-        {
           "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-          "line": 144,
-          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L144"
+          "line": 139,
+          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L139"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
-          "line": 14,
-          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L14"
+          "line": 17,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L17"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
@@ -1097,11 +1066,6 @@
           "url": "../backend/src/ledger_sync/core/query_helpers.py#L68"
         },
         {
-          "path": "backend/src/ledger_sync/core/report_generator.py",
-          "line": 86,
-          "url": "../backend/src/ledger_sync/core/report_generator.py#L86"
-        },
-        {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
           "line": 91,
           "url": "../backend/src/ledger_sync/services/auth_account_data.py#L91"
@@ -1113,8 +1077,8 @@
         },
         {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 149,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L149"
+          "line": 154,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L154"
         },
         {
           "path": "backend/src/ledger_sync/services/calculation_service.py",
@@ -1132,7 +1096,7 @@
       "data_kind": "User configuration",
       "notes": "A unique user_id enforces one-to-one ownership. The remaining flexible lists/objects are JSON encoded in TEXT. Account limits, AI configuration, salary plans and RSU grants are stored in their own domain records and aggregated into the existing preferences API.",
       "model": "UserPreferences",
-      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L185",
+      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L187",
       "columns": [
         {
           "name": "id",
@@ -1150,7 +1114,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L194"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L196"
         },
         {
           "name": "user_id",
@@ -1168,7 +1132,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L197"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L199"
         },
         {
           "name": "fiscal_year_start_month",
@@ -1186,7 +1150,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "First month of the fiscal year; default 4 (April).",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L209"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L211"
         },
         {
           "name": "essential_categories",
@@ -1204,7 +1168,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of category labels treated as essential.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L217"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L219"
         },
         {
           "name": "investment_account_mappings",
@@ -1222,7 +1186,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON object mapping account patterns to investment types.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L227"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L229"
         },
         {
           "name": "taxable_income_categories",
@@ -1240,7 +1204,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of taxable income Category::Subcategory keys.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L236"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L238"
         },
         {
           "name": "investment_returns_categories",
@@ -1258,7 +1222,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of investment-return income keys.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L242"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L244"
         },
         {
           "name": "non_taxable_income_categories",
@@ -1276,7 +1240,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of non-taxable income keys.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L248"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L250"
         },
         {
           "name": "other_income_categories",
@@ -1294,7 +1258,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of other-income keys.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L254"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L256"
         },
         {
           "name": "capital_loss_categories",
@@ -1312,7 +1276,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of expense keys explicitly classified as realized investment losses.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L274"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L276"
         },
         {
           "name": "default_budget_alert_threshold",
@@ -1330,7 +1294,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Default budget usage percentage that triggers an alert.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L282"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L284"
         },
         {
           "name": "auto_create_budgets",
@@ -1348,7 +1312,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Preference controlling automatic budget creation.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L287"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L289"
         },
         {
           "name": "budget_rollover_enabled",
@@ -1366,7 +1330,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Preference enabling budget rollover behavior.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L288"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L290"
         },
         {
           "name": "number_format",
@@ -1384,7 +1348,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Number grouping style, such as indian or international.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L291"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L293"
         },
         {
           "name": "currency_symbol",
@@ -1402,7 +1366,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Display symbol; does not change accounting currency.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L296"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L298"
         },
         {
           "name": "currency_symbol_position",
@@ -1420,7 +1384,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Display placement before/after the number.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L297"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L299"
         },
         {
           "name": "default_time_range",
@@ -1438,7 +1402,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Preferred initial reporting range.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L302"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L304"
         },
         {
           "name": "display_currency",
@@ -1456,7 +1420,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Display conversion currency; stored transactions remain INR.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L307"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L309"
         },
         {
           "name": "anomaly_expense_threshold",
@@ -1474,7 +1438,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Expense-to-baseline multiplier used by anomaly settings.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L314"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L316"
         },
         {
           "name": "anomaly_types_enabled",
@@ -1492,7 +1456,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of enabled anomaly API values.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L319"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L321"
         },
         {
           "name": "auto_dismiss_recurring_anomalies",
@@ -1510,7 +1474,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Preference for suppressing recognized recurring anomalies.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L324"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L326"
         },
         {
           "name": "recurring_min_confidence",
@@ -1528,7 +1492,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Minimum displayed recurring-pattern confidence, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L331"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L333"
         },
         {
           "name": "recurring_auto_confirm_occurrences",
@@ -1546,7 +1510,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Configured occurrence threshold for recurring confirmation.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L336"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L338"
         },
         {
           "name": "needs_target_percent",
@@ -1564,7 +1528,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Target needs share, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L343"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L345"
         },
         {
           "name": "wants_target_percent",
@@ -1582,7 +1546,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Target wants share, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L344"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L346"
         },
         {
           "name": "savings_target_percent",
@@ -1600,7 +1564,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Target savings share, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L345"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L347"
         },
         {
           "name": "earning_start_date",
@@ -1618,7 +1582,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional YYYY-MM-DD date string.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L348"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L350"
         },
         {
           "name": "use_earning_start_date",
@@ -1636,7 +1600,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether reports apply the earning-start boundary.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L349"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L351"
         },
         {
           "name": "fixed_expense_categories",
@@ -1654,7 +1618,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of fixed-expense Category::Subcategory keys.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L354"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L356"
         },
         {
           "name": "savings_goal_percent",
@@ -1672,7 +1636,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Savings target percentage.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L357"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L359"
         },
         {
           "name": "monthly_investment_target",
@@ -1690,7 +1654,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Monthly investment target amount; currently FLOAT, not NUMERIC.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L358"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L360"
         },
         {
           "name": "payday",
@@ -1708,7 +1672,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Configured payday in the month.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L361"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L363"
         },
         {
           "name": "preferred_tax_regime",
@@ -1726,7 +1690,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Preferred tax regime, default new.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L364"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L366"
         },
         {
           "name": "excluded_accounts",
@@ -1744,7 +1708,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of account names excluded from analytics.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L368"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L370"
         },
         {
           "name": "notify_budget_alerts",
@@ -1762,7 +1726,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Budget-alert preference.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L371"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L373"
         },
         {
           "name": "notify_anomalies",
@@ -1780,7 +1744,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Anomaly-notification preference.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L372"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L374"
         },
         {
           "name": "notify_upcoming_bills",
@@ -1798,7 +1762,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Upcoming-bill notification preference.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L373"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L375"
         },
         {
           "name": "notify_days_ahead",
@@ -1816,7 +1780,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Advance notice window in days.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L374"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L376"
         },
         {
           "name": "show_tds_schedule",
@@ -1834,7 +1798,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Opt-in display of the projected monthly TDS schedule.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L380"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L382"
         },
         {
           "name": "epf_withdrawal_taxable",
@@ -1852,7 +1816,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User choice to treat EPF withdrawal inflows as taxable.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L390"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L392"
         },
         {
           "name": "epf_taxable_percent",
@@ -1870,7 +1834,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Taxable share when EPF taxation is enabled, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L391"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L393"
         },
         {
           "name": "salary_is_net_of_tds",
@@ -1888,7 +1852,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether recorded salary is net of TDS and reporting should infer gross pay.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L400"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L402"
         },
         {
           "name": "growth_assumptions",
@@ -1906,7 +1870,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON object of salary/bonus/stock projection assumptions.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L404"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L406"
         },
         {
           "name": "created_at",
@@ -1924,7 +1888,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L407"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L409"
         },
         {
           "name": "updated_at",
@@ -1942,7 +1906,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L408"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L410"
         }
       ],
       "primary_key": [
@@ -1984,14 +1948,9 @@
           "url": "../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L48"
         },
         {
-          "path": "backend/src/ledger_sync/api/analytics.py",
-          "line": 33,
-          "url": "../backend/src/ledger_sync/api/analytics.py#L33"
-        },
-        {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-          "line": 235,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L235"
+          "line": 228,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L228"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py",
@@ -2000,13 +1959,13 @@
         },
         {
           "path": "backend/src/ledger_sync/api/preferences_helpers.py",
-          "line": 83,
-          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L83"
+          "line": 74,
+          "url": "../backend/src/ledger_sync/api/preferences_helpers.py#L74"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/base.py",
-          "line": 109,
-          "url": "../backend/src/ledger_sync/core/analytics/base.py#L109"
+          "line": 107,
+          "url": "../backend/src/ledger_sync/core/analytics/base.py#L107"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -2015,8 +1974,8 @@
         },
         {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 184,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L184"
+          "line": 189,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L189"
         }
       ]
     },
@@ -2244,8 +2203,8 @@
         },
         {
           "path": "backend/src/ledger_sync/services/auth_service.py",
-          "line": 186,
-          "url": "../backend/src/ledger_sync/services/auth_service.py#L186"
+          "line": 191,
+          "url": "../backend/src/ledger_sync/services/auth_service.py#L191"
         }
       ]
     },
@@ -2258,7 +2217,7 @@
       "data_kind": "Audit",
       "notes": "user_id is nullable. entity_type plus entity_id is a logical reference, not a foreign key. Source writers determine what is recorded; the schema does not guarantee an immutable, complete audit trail.",
       "model": "AuditLog",
-      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L415",
+      "model_source": "../backend/src/ledger_sync/db/_models/user.py#L417",
       "columns": [
         {
           "name": "id",
@@ -2276,7 +2235,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L420"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L422"
         },
         {
           "name": "user_id",
@@ -2294,7 +2253,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional actor/owner; nullable for records without an attached user.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L424"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L426"
         },
         {
           "name": "operation",
@@ -2312,7 +2271,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Operation label such as upload or reconcile.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L434"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L436"
         },
         {
           "name": "entity_type",
@@ -2330,7 +2289,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Logical entity kind, such as transaction.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L439"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L441"
         },
         {
           "name": "entity_id",
@@ -2348,7 +2307,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional logical identifier; not enforced as an FK.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L443"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L445"
         },
         {
           "name": "action",
@@ -2366,7 +2325,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Action label such as create, update, delete or soft_delete.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L446"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L448"
         },
         {
           "name": "old_value",
@@ -2384,7 +2343,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON-encoded prior state.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L450"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L452"
         },
         {
           "name": "new_value",
@@ -2402,7 +2361,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON-encoded new state.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L451"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L453"
         },
         {
           "name": "changes_summary",
@@ -2420,7 +2379,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Human-readable description of changes.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L452"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L454"
         },
         {
           "name": "source_file",
@@ -2438,7 +2397,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source filename/entry marker, not the file contents.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L458"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L460"
         },
         {
           "name": "user_agent",
@@ -2456,7 +2415,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional client user-agent context.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L459"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L461"
         },
         {
           "name": "created_at",
@@ -2474,7 +2433,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/user.py#L462"
+          "source": "../backend/src/ledger_sync/db/_models/user.py#L464"
         }
       ],
       "primary_key": [
@@ -2876,7 +2835,7 @@
       "data_kind": "Diagnostic model",
       "notes": "No user_id or foreign key. A search of backend/src found no ColumnMappingLog construction outside the model. Treat this as a defined diagnostic table, not proof that current web uploads populate it.",
       "model": "ColumnMappingLog",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L248",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L250",
       "columns": [
         {
           "name": "id",
@@ -2894,7 +2853,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L253"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L255"
         },
         {
           "name": "file_name",
@@ -2912,7 +2871,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L256"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L258"
         },
         {
           "name": "file_hash",
@@ -2930,7 +2889,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L257"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L259"
         },
         {
           "name": "original_columns",
@@ -2948,7 +2907,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON array of original spreadsheet header names.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L260"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L262"
         },
         {
           "name": "mapped_columns",
@@ -2966,7 +2925,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "JSON object mapping original headers to normalized field names.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L261"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L263"
         },
         {
           "name": "unmapped_columns",
@@ -2984,7 +2943,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of ignored/unmapped headers.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L265"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L267"
         },
         {
           "name": "is_valid",
@@ -3002,7 +2961,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether mapping validation succeeded.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L271"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L273"
         },
         {
           "name": "validation_errors",
@@ -3020,7 +2979,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of validation errors.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L272"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L274"
         },
         {
           "name": "validation_warnings",
@@ -3038,7 +2997,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional JSON array of validation warnings.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L276"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L278"
         },
         {
           "name": "created_at",
@@ -3056,7 +3015,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L282"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L284"
         }
       ],
       "primary_key": [
@@ -3077,7 +3036,7 @@
       "data_kind": "Ledger source of truth",
       "notes": "Public transaction_id remains stable. source_fingerprint is a separate versioned import identity. Account/category text remains a historical display snapshot alongside nullable dimension IDs. Six user-leading indexes cover active rows only.",
       "model": "Transaction",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L50",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L52",
       "columns": [
         {
           "name": "transaction_id",
@@ -3095,7 +3054,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable public SHA-256-shaped primary key; legacy IDs are retained.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L56"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L58"
         },
         {
           "name": "source_fingerprint",
@@ -3113,7 +3072,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Nullable v2 canonical-source hash including occurrence; independent of mutable category rules.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L59"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L61"
         },
         {
           "name": "fingerprint_version",
@@ -3131,7 +3090,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "1 for legacy identity; 2 for current fingerprint format.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L60"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L62"
         },
         {
           "name": "user_id",
@@ -3149,7 +3108,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L63"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L65"
         },
         {
           "name": "date",
@@ -3167,7 +3126,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction timestamp/calendar date; SQL type has no timezone.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L68"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L70"
         },
         {
           "name": "amount",
@@ -3185,7 +3144,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction/planned amount in INR.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L69"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L71"
         },
         {
           "name": "currency",
@@ -3203,7 +3162,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Accounting currency; database CHECK allows INR only.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L70"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L72"
         },
         {
           "name": "type",
@@ -3221,7 +3180,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction kind; database enum names and API values are listed below.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L71"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L73"
         },
         {
           "name": "account",
@@ -3239,7 +3198,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Account label; see dimension IDs on transactions.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L74"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L76"
         },
         {
           "name": "category",
@@ -3257,7 +3216,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L75"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L77"
         },
         {
           "name": "subcategory",
@@ -3275,7 +3234,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L76"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L78"
         },
         {
           "name": "account_id",
@@ -3293,7 +3252,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable ledger account ID; qualified by user_id in its FK.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L77"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L79"
         },
         {
           "name": "from_account_id",
@@ -3311,7 +3270,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source transfer account dimension ID, qualified by owner.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L78"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L80"
         },
         {
           "name": "to_account_id",
@@ -3329,7 +3288,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Destination transfer account dimension ID, qualified by owner.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L79"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L81"
         },
         {
           "name": "category_id",
@@ -3347,7 +3306,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable ledger category ID; qualified by user_id in its FK.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L80"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L82"
         },
         {
           "name": "subcategory_id",
@@ -3365,7 +3324,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stable subcategory ID; qualified by user_id and category_id.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L81"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L83"
         },
         {
           "name": "from_account",
@@ -3383,7 +3342,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source account label for a transfer.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L84"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L86"
         },
         {
           "name": "to_account",
@@ -3401,7 +3360,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Destination account label for a transfer.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L85"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L87"
         },
         {
           "name": "note",
@@ -3419,7 +3378,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional free-text description.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L88"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L90"
         },
         {
           "name": "source_file",
@@ -3437,7 +3396,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Source filename/entry marker, not the file contents.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L91"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L93"
         },
         {
           "name": "last_seen_at",
@@ -3455,7 +3414,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Most recent reconciliation sighting.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L92"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L94"
         },
         {
           "name": "is_deleted",
@@ -3473,7 +3432,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Soft-delete flag; active ledger reads exclude true rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L102"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L104"
         },
         {
           "name": "created_at",
@@ -3491,7 +3450,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L105"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L107"
         },
         {
           "name": "updated_at",
@@ -3509,7 +3468,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L110"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L112"
         }
       ],
       "primary_key": [
@@ -3766,28 +3725,28 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 101,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L101"
+          "line": 99,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L99"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/registry.py",
-          "line": 101,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L101"
+          "line": 94,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L94"
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/transactions.py",
-          "line": 60,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L60"
+          "line": 59,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L59"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_helpers.py",
-          "line": 71,
-          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L71"
+          "line": 70,
+          "url": "../backend/src/ledger_sync/api/analytics_helpers.py#L70"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py",
-          "line": 268,
-          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L268"
+          "line": 261,
+          "url": "../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L261"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/spending_rule_aggregate.py",
@@ -3810,24 +3769,14 @@
           "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L26"
         },
         {
-          "path": "backend/src/ledger_sync/api/calculations_impl/insights.py",
-          "line": 125,
-          "url": "../backend/src/ledger_sync/api/calculations_impl/insights.py#L125"
-        },
-        {
-          "path": "backend/src/ledger_sync/api/meta.py",
-          "line": 31,
-          "url": "../backend/src/ledger_sync/api/meta.py#L31"
-        },
-        {
           "path": "backend/src/ledger_sync/api/transaction_pagination.py",
           "line": 85,
           "url": "../backend/src/ledger_sync/api/transaction_pagination.py#L85"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
-          "line": 27,
-          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L27"
+          "line": 30,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L30"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
@@ -3851,8 +3800,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-          "line": 176,
-          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L176"
+          "line": 175,
+          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L175"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomaly_detectors.py",
@@ -3861,8 +3810,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/base.py",
-          "line": 413,
-          "url": "../backend/src/ledger_sync/core/analytics/base.py#L413"
+          "line": 382,
+          "url": "../backend/src/ledger_sync/core/analytics/base.py#L382"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/classification.py",
@@ -3891,8 +3840,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 179,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L179"
+          "line": 180,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L180"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/summaries.py",
@@ -3906,13 +3855,13 @@
         },
         {
           "path": "backend/src/ledger_sync/core/calculator.py",
-          "line": 255,
-          "url": "../backend/src/ledger_sync/core/calculator.py#L255"
+          "line": 289,
+          "url": "../backend/src/ledger_sync/core/calculator.py#L289"
         },
         {
           "path": "backend/src/ledger_sync/core/expense_class.py",
-          "line": 144,
-          "url": "../backend/src/ledger_sync/core/expense_class.py#L144"
+          "line": 139,
+          "url": "../backend/src/ledger_sync/core/expense_class.py#L139"
         },
         {
           "path": "backend/src/ledger_sync/core/import_identity.py",
@@ -3931,8 +3880,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/query_helpers.py",
-          "line": 298,
-          "url": "../backend/src/ledger_sync/core/query_helpers.py#L298"
+          "line": 288,
+          "url": "../backend/src/ledger_sync/core/query_helpers.py#L288"
         },
         {
           "path": "backend/src/ledger_sync/core/reconciler.py",
@@ -3948,11 +3897,6 @@
           "path": "backend/src/ledger_sync/core/rules.py",
           "line": 72,
           "url": "../backend/src/ledger_sync/core/rules.py#L72"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/time_filter.py",
-          "line": 26,
-          "url": "../backend/src/ledger_sync/core/time_filter.py#L26"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -3980,7 +3924,7 @@
       "data_kind": "Import metadata",
       "notes": "A forced re-import updates the existing record and counts. This is not an append-only attempt log. file_name/source_file are metadata, not stored spreadsheet binaries or a foreign key to transactions.",
       "model": "ImportLog",
-      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L211",
+      "model_source": "../backend/src/ledger_sync/db/_models/transactions.py#L213",
       "columns": [
         {
           "name": "id",
@@ -3998,7 +3942,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L216"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L218"
         },
         {
           "name": "user_id",
@@ -4016,7 +3960,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L219"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L221"
         },
         {
           "name": "file_hash",
@@ -4034,7 +3978,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
         },
         {
           "name": "file_name",
@@ -4052,7 +3996,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L224"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L226"
         },
         {
           "name": "imported_at",
@@ -4070,7 +4014,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Latest import time for this user/file-hash record.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L227"
         },
         {
           "name": "rows_processed",
@@ -4088,7 +4032,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count processed in the recorded import.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
         },
         {
           "name": "rows_inserted",
@@ -4106,7 +4050,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count inserted as new ledger rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
         },
         {
           "name": "rows_updated",
@@ -4124,7 +4068,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count updated during reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
         },
         {
           "name": "rows_deleted",
@@ -4142,7 +4086,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count marked deleted by snapshot reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L235"
         },
         {
           "name": "rows_skipped",
@@ -4160,7 +4104,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count skipped by import processing.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L236"
         }
       ],
       "primary_key": [
@@ -4976,7 +4920,7 @@
       "data_kind": "User configuration",
       "notes": "API validates match_field as note or account. Matching is case-insensitive contains, ordered by sort_order then id; first match wins. Import fingerprints are captured before applying rules.",
       "model": "CategorizationRule",
-      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L30",
+      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L32",
       "columns": [
         {
           "name": "id",
@@ -4994,7 +4938,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L42"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L44"
         },
         {
           "name": "user_id",
@@ -5012,7 +4956,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L45"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L47"
         },
         {
           "name": "match_field",
@@ -5030,7 +4974,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Field to search: note or account, enforced by API validation.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L49"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L51"
         },
         {
           "name": "pattern",
@@ -5048,7 +4992,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Case-insensitive substring to match.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L50"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L52"
         },
         {
           "name": "category",
@@ -5066,7 +5010,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L51"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L53"
         },
         {
           "name": "subcategory",
@@ -5084,7 +5028,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L52"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L54"
         },
         {
           "name": "is_active",
@@ -5102,7 +5046,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether this record is currently active.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L53"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L55"
         },
         {
           "name": "sort_order",
@@ -5120,7 +5064,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Ascending rule priority; id breaks ties.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L54"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L56"
         },
         {
           "name": "created_at",
@@ -5138,7 +5082,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L57"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L59"
         },
         {
           "name": "updated_at",
@@ -5156,7 +5100,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L60"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L62"
         }
       ],
       "primary_key": [
@@ -5218,7 +5162,7 @@
       "data_kind": "User annotation",
       "notes": "Tags are trimmed and case-sensitive. There is no separate tags lookup table. The owner-qualified transaction FK cascades on hard deletion; soft deletion does not invoke FK cascades.",
       "model": "TransactionTag",
-      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L80",
+      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L82",
       "columns": [
         {
           "name": "id",
@@ -5236,7 +5180,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L90"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L92"
         },
         {
           "name": "user_id",
@@ -5254,7 +5198,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L93"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L95"
         },
         {
           "name": "transaction_id",
@@ -5272,7 +5216,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Required owner-qualified link to the tagged transaction.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L96"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L98"
         },
         {
           "name": "tag",
@@ -5290,7 +5234,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Trimmed, case-sensitive tag string.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L100"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L102"
         },
         {
           "name": "created_at",
@@ -5308,7 +5252,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L103"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L105"
         }
       ],
       "primary_key": [
@@ -5374,13 +5318,13 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/facets.py",
-          "line": 53,
-          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L53"
+          "line": 56,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/facets.py#L56"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/filters.py",
-          "line": 200,
-          "url": "../backend/src/ledger_sync/api/transactions_impl/filters.py#L200"
+          "line": 197,
+          "url": "../backend/src/ledger_sync/api/transactions_impl/filters.py#L197"
         },
         {
           "path": "backend/src/ledger_sync/api/transactions_impl/serialize.py",
@@ -5403,7 +5347,7 @@
       "data_kind": "User configuration",
       "notes": "filters is opaque JSON text. The frontend owns its FilterValues keys; POST upserts by name. A saved view does not copy transaction rows.",
       "model": "SavedFilterView",
-      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L132",
+      "model_source": "../backend/src/ledger_sync/db/_models/organization.py#L134",
       "columns": [
         {
           "name": "id",
@@ -5421,7 +5365,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L143"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L145"
         },
         {
           "name": "user_id",
@@ -5439,7 +5383,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L146"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L148"
         },
         {
           "name": "name",
@@ -5457,7 +5401,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User-facing name.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L149"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L151"
         },
         {
           "name": "filters",
@@ -5475,7 +5419,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Opaque JSON-encoded frontend filter object.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L150"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L152"
         },
         {
           "name": "created_at",
@@ -5493,7 +5437,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L153"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L155"
         },
         {
           "name": "updated_at",
@@ -5511,7 +5455,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/organization.py#L156"
+          "source": "../backend/src/ledger_sync/db/_models/organization.py#L158"
         }
       ],
       "primary_key": [
@@ -6303,7 +6247,7 @@
       "data_kind": "Derived patterns plus user confirmation",
       "notes": "pattern_kind distinguishes commitment from habit. Only appropriate commitments should feed bills/expected payments. No FK links each source transaction to a pattern.",
       "model": "RecurringTransaction",
-      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L37",
+      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L41",
       "columns": [
         {
           "name": "id",
@@ -6321,7 +6265,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L42"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L46"
         },
         {
           "name": "user_id",
@@ -6339,7 +6283,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L45"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L49"
         },
         {
           "name": "pattern_name",
@@ -6357,7 +6301,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Recurring-pattern display name.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L50"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L54"
         },
         {
           "name": "category",
@@ -6375,7 +6319,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L51"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L55"
         },
         {
           "name": "subcategory",
@@ -6393,7 +6337,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L52"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L56"
         },
         {
           "name": "account",
@@ -6411,7 +6355,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Account label; see dimension IDs on transactions.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L53"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L57"
         },
         {
           "name": "transaction_type",
@@ -6429,7 +6373,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction kind for this pattern/aggregate.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L54"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L58"
         },
         {
           "name": "frequency",
@@ -6447,7 +6391,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Recurrence frequency enum.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L57"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L61"
         },
         {
           "name": "expected_amount",
@@ -6465,7 +6409,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Expected amount per occurrence.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L61"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L65"
         },
         {
           "name": "amount_variance",
@@ -6483,7 +6427,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Allowed amount variation around the expected value.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L62"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L66"
         },
         {
           "name": "expected_day",
@@ -6501,7 +6445,25 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Expected calendar day, interpreted with the recurrence frequency.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L66"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L70"
+        },
+        {
+          "name": "user_expected_amount",
+          "type": "NUMERIC(15, 2)",
+          "types": {
+            "postgresql": "NUMERIC(15, 2)",
+            "sqlite": "NUMERIC(15, 2)"
+          },
+          "storage_adapter": "Numeric",
+          "storage_note": null,
+          "nullable": true,
+          "primary_key": false,
+          "application_default": null,
+          "model_server_default": "database-supplied (FetchedValue)",
+          "application_on_update": null,
+          "auto_integer_primary_key": false,
+          "meaning": "User-set amount per occurrence; NULL means none. Added in phase 1 (recurring_user_amount_2026); the app does not read or write it yet.",
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L78"
         },
         {
           "name": "confidence_score",
@@ -6519,7 +6481,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Detection confidence, conventionally 0..100.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L69"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L86"
         },
         {
           "name": "occurrences_detected",
@@ -6537,7 +6499,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Number of observed occurrences.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L70"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L87"
         },
         {
           "name": "pattern_kind",
@@ -6555,7 +6517,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "commitment or habit.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L78"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L95"
         },
         {
           "name": "last_occurrence",
@@ -6573,7 +6535,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Last observed occurrence.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L81"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L98"
         },
         {
           "name": "next_expected",
@@ -6591,7 +6553,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Next predicted occurrence.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L82"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L99"
         },
         {
           "name": "times_missed",
@@ -6609,7 +6571,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored missed-occurrence count.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L83"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L100"
         },
         {
           "name": "is_active",
@@ -6627,7 +6589,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether this record is currently active.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L86"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L103"
         },
         {
           "name": "is_user_confirmed",
@@ -6645,7 +6607,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether the pattern has user confirmation.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L87"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L104"
         },
         {
           "name": "first_detected",
@@ -6663,7 +6625,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Timestamp when pattern was first detected.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L90"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L107"
         },
         {
           "name": "last_updated",
@@ -6681,7 +6643,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Last application update/calculation timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L91"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L108"
         }
       ],
       "primary_key": [
@@ -6744,8 +6706,8 @@
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 251,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L251"
+          "line": 247,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L247"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/recurring.py",
@@ -6759,8 +6721,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 71,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L71"
+          "line": 74,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L74"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -6778,7 +6740,7 @@
       "data_kind": "Planning data",
       "notes": "Excluded from historical transaction totals. Optional source FK includes user_id and uses NO ACTION, not cascading deletion. Application code explicitly unlinks schedules before replacing detected sources.",
       "model": "ScheduledTransaction",
-      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L99",
+      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L119",
       "columns": [
         {
           "name": "id",
@@ -6796,7 +6758,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L108"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L128"
         },
         {
           "name": "user_id",
@@ -6814,7 +6776,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L109"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L129"
         },
         {
           "name": "name",
@@ -6832,7 +6794,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User-facing name.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L114"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L134"
         },
         {
           "name": "amount",
@@ -6850,7 +6812,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction/planned amount in INR.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L115"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L135"
         },
         {
           "name": "type",
@@ -6868,7 +6830,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Transaction kind; database enum names and API values are listed below.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L116"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L136"
         },
         {
           "name": "category",
@@ -6886,7 +6848,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L117"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L137"
         },
         {
           "name": "subcategory",
@@ -6904,7 +6866,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L118"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L138"
         },
         {
           "name": "account",
@@ -6922,7 +6884,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Account label; see dimension IDs on transactions.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L119"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L139"
         },
         {
           "name": "frequency",
@@ -6940,7 +6902,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Recurrence frequency enum.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L122"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L142"
         },
         {
           "name": "expected_day",
@@ -6958,7 +6920,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Expected calendar day, interpreted with the recurrence frequency.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L126"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L146"
         },
         {
           "name": "next_due_date",
@@ -6976,7 +6938,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Next planned payment/receipt timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L127"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L147"
         },
         {
           "name": "end_date",
@@ -6994,7 +6956,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional schedule end; NULL means no configured end.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L128"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L148"
         },
         {
           "name": "recurring_transaction_id",
@@ -7012,7 +6974,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional owner-qualified source pattern ID.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L131"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L151"
         },
         {
           "name": "is_active",
@@ -7030,7 +6992,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether this record is currently active.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L137"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L157"
         },
         {
           "name": "note",
@@ -7048,7 +7010,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional free-text description.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L138"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L158"
         },
         {
           "name": "created_at",
@@ -7066,7 +7028,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L141"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L161"
         },
         {
           "name": "updated_at",
@@ -7084,7 +7046,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L142"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L162"
         }
       ],
       "primary_key": [
@@ -7182,8 +7144,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/recurring.py",
-          "line": 205,
-          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L205"
+          "line": 206,
+          "url": "../backend/src/ledger_sync/core/analytics/recurring.py#L206"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -7201,7 +7163,7 @@
       "data_kind": "Derived findings plus user review",
       "notes": "A linked transaction must belong to the same user. Hard-deleting that transaction cascades to the anomaly. A period-only anomaly may have NULL transaction_id.",
       "model": "Anomaly",
-      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L159",
+      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L179",
       "columns": [
         {
           "name": "id",
@@ -7219,7 +7181,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L164"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L184"
         },
         {
           "name": "user_id",
@@ -7237,7 +7199,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L167"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L187"
         },
         {
           "name": "anomaly_type",
@@ -7255,7 +7217,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "AnomalyType enum.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L172"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L192"
         },
         {
           "name": "severity",
@@ -7273,7 +7235,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Severity label: low, medium, high or critical by convention.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L173"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L193"
         },
         {
           "name": "description",
@@ -7291,7 +7253,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Descriptive text.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L174"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L194"
         },
         {
           "name": "transaction_id",
@@ -7309,7 +7271,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional owner-qualified link to a ledger transaction.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L178"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L198"
         },
         {
           "name": "period_key",
@@ -7327,7 +7289,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Calendar month key, YYYY-MM.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L184"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L204"
         },
         {
           "name": "expected_value",
@@ -7345,7 +7307,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Baseline/expected amount used by the detector.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L187"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L207"
         },
         {
           "name": "actual_value",
@@ -7363,7 +7325,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Observed amount used by the detector.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L191"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L211"
         },
         {
           "name": "deviation_pct",
@@ -7381,7 +7343,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Deviation from expected value, percent.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L195"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L215"
         },
         {
           "name": "is_reviewed",
@@ -7399,7 +7361,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether the finding has been reviewed.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L198"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L218"
         },
         {
           "name": "is_dismissed",
@@ -7417,7 +7379,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether the finding has been dismissed.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L199"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L219"
         },
         {
           "name": "review_notes",
@@ -7435,7 +7397,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User's review annotation.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L200"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L220"
         },
         {
           "name": "detected_at",
@@ -7453,7 +7415,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Detection timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L206"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L226"
         },
         {
           "name": "reviewed_at",
@@ -7471,7 +7433,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional review timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L207"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L227"
         }
       ],
       "primary_key": [
@@ -7582,7 +7544,7 @@
       "data_kind": "User limits plus calculated tracking",
       "notes": "Separate partial unique indexes enforce category-only and subcategory scopes, including inactive budgets. monthly_limit must be positive. Category names are text links.",
       "model": "Budget",
-      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L221",
+      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L241",
       "columns": [
         {
           "name": "id",
@@ -7600,7 +7562,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L226"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L246"
         },
         {
           "name": "user_id",
@@ -7618,7 +7580,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L229"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L249"
         },
         {
           "name": "category",
@@ -7636,7 +7598,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Category label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L234"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L254"
         },
         {
           "name": "subcategory",
@@ -7654,7 +7616,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional subcategory label; a text value, not itself a foreign key.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L235"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L255"
         },
         {
           "name": "monthly_limit",
@@ -7672,7 +7634,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Positive monthly limit for the category scope.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L238"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L258"
         },
         {
           "name": "alert_threshold_pct",
@@ -7690,7 +7652,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Usage percentage at which to alert.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L239"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L259"
         },
         {
           "name": "current_month_spent",
@@ -7708,7 +7670,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Calculated current-month spending.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L242"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L262"
         },
         {
           "name": "current_month_remaining",
@@ -7726,7 +7688,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Calculated remaining amount.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L243"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L263"
         },
         {
           "name": "current_month_pct",
@@ -7744,7 +7706,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Calculated budget usage percentage.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L247"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L267"
         },
         {
           "name": "avg_monthly_actual",
@@ -7762,7 +7724,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Historical mean monthly spending.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L250"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L270"
         },
         {
           "name": "months_over_budget",
@@ -7780,7 +7742,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored count of months exceeding the limit.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L251"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L271"
         },
         {
           "name": "months_under_budget",
@@ -7798,7 +7760,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored count of months below the limit.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L252"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L272"
         },
         {
           "name": "is_active",
@@ -7816,7 +7778,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Whether this record is currently active.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L255"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L275"
         },
         {
           "name": "created_at",
@@ -7834,7 +7796,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L261"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L281"
         },
         {
           "name": "updated_at",
@@ -7852,7 +7814,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L262"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L282"
         }
       ],
       "primary_key": [
@@ -7949,8 +7911,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/anomalies.py",
-          "line": 211,
-          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L211"
+          "line": 210,
+          "url": "../backend/src/ledger_sync/core/analytics/anomalies.py#L210"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -7968,7 +7930,7 @@
       "data_kind": "Planning data",
       "notes": "target_amount must be positive. Progress fields are stored values, not database-generated columns. No account or transaction FK allocates contributions to a goal.",
       "model": "FinancialGoal",
-      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L292",
+      "model_source": "../backend/src/ledger_sync/db/_models/planning.py#L312",
       "columns": [
         {
           "name": "id",
@@ -7986,7 +7948,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": true,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L297"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L317"
         },
         {
           "name": "user_id",
@@ -8004,7 +7966,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L300"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L320"
         },
         {
           "name": "name",
@@ -8022,7 +7984,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "User-facing name.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L305"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L325"
         },
         {
           "name": "description",
@@ -8040,7 +8002,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Descriptive text.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L306"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L326"
         },
         {
           "name": "goal_type",
@@ -8058,7 +8020,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "savings, investment, debt_payoff or custom by API convention.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L307"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L327"
         },
         {
           "name": "target_amount",
@@ -8076,7 +8038,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Positive goal target amount.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L313"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L333"
         },
         {
           "name": "current_amount",
@@ -8094,7 +8056,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored accumulated progress amount.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L314"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L334"
         },
         {
           "name": "target_date",
@@ -8112,7 +8074,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional target completion date.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L315"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L335"
         },
         {
           "name": "progress_pct",
@@ -8130,7 +8092,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored completion percentage.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L318"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L338"
         },
         {
           "name": "monthly_target",
@@ -8148,7 +8110,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored monthly contribution target.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L319"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L339"
         },
         {
           "name": "on_track",
@@ -8166,7 +8128,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Stored progress assessment.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L320"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L340"
         },
         {
           "name": "status",
@@ -8184,7 +8146,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "GoalStatus enum.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L323"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L343"
         },
         {
           "name": "created_at",
@@ -8202,7 +8164,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Row creation timestamp supplied by the application.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L329"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L349"
         },
         {
           "name": "updated_at",
@@ -8220,7 +8182,7 @@
           "application_on_update": "application callable: lambda: datetime.now(UTC)",
           "auto_integer_primary_key": false,
           "meaning": "Last ORM update timestamp; onupdate is application behavior, not a database trigger.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L330"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L350"
         },
         {
           "name": "completed_at",
@@ -8238,7 +8200,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Optional completion timestamp.",
-          "source": "../backend/src/ledger_sync/db/_models/planning.py#L336"
+          "source": "../backend/src/ledger_sync/db/_models/planning.py#L356"
         }
       ],
       "primary_key": [
@@ -8285,8 +8247,8 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 328,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L328"
+          "line": 324,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L324"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py",
@@ -9855,8 +9817,8 @@
         },
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 53,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L53"
+          "line": 51,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L51"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/summaries.py",
@@ -9877,11 +9839,6 @@
           "path": "backend/src/ledger_sync/core/analytics/summaries.py",
           "line": 60,
           "url": "../backend/src/ledger_sync/core/analytics/summaries.py#L60"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/report_generator.py",
-          "line": 134,
-          "url": "../backend/src/ledger_sync/core/report_generator.py#L134"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -10279,18 +10236,13 @@
         },
         {
           "path": "backend/src/ledger_sync/api/calculations_impl/categories.py",
-          "line": 97,
-          "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L97"
+          "line": 96,
+          "url": "../backend/src/ledger_sync/api/calculations_impl/categories.py#L96"
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/trends.py",
           "line": 46,
           "url": "../backend/src/ledger_sync/core/analytics/trends.py#L46"
-        },
-        {
-          "path": "backend/src/ledger_sync/core/report_generator.py",
-          "line": 97,
-          "url": "../backend/src/ledger_sync/core/report_generator.py#L97"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -10506,8 +10458,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/cohort.py",
-          "line": 54,
-          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L54"
+          "line": 53,
+          "url": "../backend/src/ledger_sync/core/analytics/cohort.py#L53"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -10813,8 +10765,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/trends.py",
-          "line": 248,
-          "url": "../backend/src/ledger_sync/core/analytics/trends.py#L248"
+          "line": 247,
+          "url": "../backend/src/ledger_sync/core/analytics/trends.py#L247"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -12081,8 +12033,8 @@
       "code_references": [
         {
           "path": "backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py",
-          "line": 197,
-          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L197"
+          "line": 193,
+          "url": "../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L193"
         },
         {
           "path": "backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py",
@@ -12370,8 +12322,8 @@
         },
         {
           "path": "backend/src/ledger_sync/core/analytics/net_worth.py",
-          "line": 237,
-          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L237"
+          "line": 236,
+          "url": "../backend/src/ledger_sync/core/analytics/net_worth.py#L236"
         },
         {
           "path": "backend/src/ledger_sync/services/auth_account_data.py",
@@ -12393,7 +12345,7 @@
           "primary_key": true
         }
       ],
-      "expected_head": "orm_schema_alignment_2026"
+      "expected_head": "recurring_user_amount_2026"
     },
     {
       "name": "import_logs_duplicate_archive_20260917",
@@ -12415,7 +12367,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Internal integer row identifier.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L216"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L218"
         },
         {
           "name": "user_id",
@@ -12433,7 +12385,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Owning application user; see the foreign-key section.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L219"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L221"
         },
         {
           "name": "file_hash",
@@ -12451,7 +12403,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "SHA-256 file hash used to recognize imports.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L223"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
         },
         {
           "name": "file_name",
@@ -12469,7 +12421,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Original/import filename metadata.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L224"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L226"
         },
         {
           "name": "imported_at",
@@ -12487,7 +12439,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Latest import time for this user/file-hash record.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L225"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L227"
         },
         {
           "name": "rows_processed",
@@ -12505,7 +12457,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count processed in the recorded import.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L230"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
         },
         {
           "name": "rows_inserted",
@@ -12523,7 +12475,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count inserted as new ledger rows.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L231"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
         },
         {
           "name": "rows_updated",
@@ -12541,7 +12493,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count updated during reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L232"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
         },
         {
           "name": "rows_deleted",
@@ -12559,7 +12511,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count marked deleted by snapshot reconciliation.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L233"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L235"
         },
         {
           "name": "rows_skipped",
@@ -12577,7 +12529,7 @@
           "application_on_update": null,
           "auto_integer_primary_key": false,
           "meaning": "Count skipped by import processing.",
-          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L234"
+          "source": "../backend/src/ledger_sync/db/_models/transactions.py#L236"
         }
       ],
       "note": "CREATE TABLE AS copy: original constraints, indexes, defaults and ownership FK are not copied."

@@ -9,7 +9,7 @@
  * classification data, never from a hardcoded account list.
  */
 
-import { MS_PER_DAY, addDaysToKey, getDateKey, inclusiveDaySpan, toLocalDateKey } from '@/lib/dateUtils'
+import { MS_PER_DAY, addDaysToKey, getDateKey, inclusiveDaySpan, getTodayKey } from '@/lib/dateUtils'
 
 interface IncomeBucket {
   date: string
@@ -124,7 +124,7 @@ export function computeLiquidPosition(
 }
 
 /** Burn rate over the observed window, both central tendencies reported. */
-export interface DailyBurn {
+interface DailyBurn {
   /** Total outflow divided by the observed span. Drives the headline buffer. */
   readonly mean: number
   /** Median of every calendar day in the span, no-spend days counted as 0. */
@@ -142,7 +142,7 @@ export function computeDailyBurn(
   transactions: ReadonlyArray<{ type: string; amount: number; date: string }>,
   lookbackDays = 90,
 ): DailyBurn | null {
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = getTodayKey()
   const cutoffKey = addDaysToKey(todayKey, -(lookbackDays - 1))
 
   const spendByDay = new Map<string, number>()
@@ -187,7 +187,7 @@ export function computeDailyBurn(
  * re-flattened so the displayed pool can never drift from the pool that was
  * divided, and so a caller can label the burn rate it was measured against.
  */
-export interface BufferBreakdown {
+interface BufferBreakdown {
   /** Days the net pool covers TOTAL outflow at the mean burn. */
   readonly days: number
   readonly liquid: LiquidPosition
@@ -213,7 +213,7 @@ export interface BufferBreakdown {
  *
  * @returns `null` when there is no spending in the window to rate against
  */
-export function computeBufferBreakdown(
+function computeBufferBreakdown(
   liquid: LiquidPosition,
   transactions: ReadonlyArray<{ type: string; amount: number; date: string }>,
   lookbackDays = 90,

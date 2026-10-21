@@ -42,7 +42,7 @@ export const DASHBOARD_WIDGETS = [
  * advisor would actually look at first; the rest are available via Settings
  * > Dashboard Widgets for power users who want more.
  */
-export const DEFAULT_VISIBLE_WIDGETS: readonly string[] = [
+const DEFAULT_VISIBLE_WIDGETS: readonly string[] = [
   'savings_rate',
   'top_spending',
   'top_income',
@@ -99,7 +99,7 @@ function matchClassification(lower: string, rules: Array<{ keywords: string[]; e
   return null
 }
 
-export interface AccountStats {
+interface AccountStats {
   balance: number
   transactions: number
 }

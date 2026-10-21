@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   classifyInvestmentReturn,
   computeInvestmentMetrics,
-  countRealisedEvents,
   groupInvestmentReturnsByMonth,
   investmentReturnRules,
   type InvestmentReturnTransaction,
@@ -24,7 +23,7 @@ describe('recorded investment returns', () => {
     expect(metrics.interestIncome).toBe(100)
     expect(metrics.investmentProfit).toBe(0)
     expect(metrics.netProfitLoss).toBe(100)
-    expect(countRealisedEvents([interest])).toBe(1)
+    expect(computeInvestmentMetrics([interest]).eventCount).toBe(1)
     expect(groupInvestmentReturnsByMonth([interest])).toEqual([
       { month: '2026-08', income: 100, expenses: 0, net: 100, cumulative: 100 },
     ])
@@ -99,7 +98,7 @@ describe('recorded investment returns', () => {
       brokerFees: 75, investmentLoss: 0, totalIncome: 0,
       totalExpenses: 75, netProfitLoss: -75, eventCount: 1,
     })
-    expect(countRealisedEvents([tx])).toBe(1)
+    expect(computeInvestmentMetrics([tx]).eventCount).toBe(1)
     expect(groupInvestmentReturnsByMonth([tx])).toEqual([
       { month: '2026-08', income: 0, expenses: 75, net: -75, cumulative: -75 },
     ])
@@ -130,7 +129,7 @@ describe('recorded investment returns', () => {
     ]
     expect(unrelated.map((tx) => classifyInvestmentReturn(tx))).toEqual([null, null, null, null, null, null])
     expect(computeInvestmentMetrics(unrelated).netProfitLoss).toBe(0)
-    expect(countRealisedEvents(unrelated)).toBe(0)
+    expect(computeInvestmentMetrics(unrelated).eventCount).toBe(0)
   })
 
   it('reconciles exact P&L with monthly outcomes and fee/loss classification', () => {

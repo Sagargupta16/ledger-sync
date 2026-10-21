@@ -14,7 +14,7 @@ import {
 
 /**
  * Clamp a nullable start-date to the earning-start preference when active.
- * This is the **view-layer** application of earning-start — charts visually
+ * This is the **view-layer** application of earning-start -- charts visually
  * start at the earning date; underlying data is untouched.
  *
  * Exported for unit testing only.
@@ -77,7 +77,7 @@ export function hasNoCompleteMonthBasis(
 /** Either the legacy transactions array (min/max derived from it) or an
  * explicit ``{minDate, maxDate}`` bounds object (from the lightweight
  * ``/data-date-range`` endpoint -- no full-ledger fetch). */
-export type TimeFilterDateSource =
+type TimeFilterDateSource =
   | Array<{ date: string }>
   | { minDate?: string; maxDate?: string }
   | undefined

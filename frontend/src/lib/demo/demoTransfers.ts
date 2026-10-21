@@ -1,5 +1,7 @@
+import { toLocalDateKey } from '@/lib/dateUtils'
+
 import { ACCOUNTS } from './demoTemplates'
-import { formatDate, txId, type MonthCtx } from './demoTxHelpers'
+import { txId, type MonthCtx } from './demoTxHelpers'
 
 export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   const { rng, txs, year, month, daysInMonth } = ctx
@@ -11,7 +13,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   txs.push(
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 2)),
+      date: toLocalDateKey(new Date(year, month, 2)),
       amount: Math.round((salary * (0.38 + rng.next() * 0.06)) / 1000) * 1000,
       type: 'Transfer',
       category: 'Transfer',
@@ -25,7 +27,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
     },
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 10)),
+      date: toLocalDateKey(new Date(year, month, 10)),
       amount: sipAmount,
       type: 'Transfer',
       category: 'Investment',
@@ -47,7 +49,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   for (let s = 0; s < stockTxCount; s++) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, daysInMonth))),
       amount: rng.int(2000, 15000),
       type: 'Transfer',
       category: 'Investment',
@@ -69,7 +71,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
 
   txs.push({
     id: txId(ctx.idx++),
-    date: formatDate(new Date(year, month, 1)),
+    date: toLocalDateKey(new Date(year, month, 1)),
     amount: Math.round(salary * 0.12),
     type: 'Transfer',
     category: 'Investment',
@@ -87,7 +89,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
     const ppfQuarterly = rng.pick(ctx.m < 24 ? [10000, 12500, 15000] : [25000, 30000, 37500])
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 15)),
+      date: toLocalDateKey(new Date(year, month, 15)),
       amount: ppfQuarterly,
       type: 'Transfer',
       category: 'Investment',
@@ -104,7 +106,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   if (month % 4 === 2 && rng.next() < 0.5) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(20, 28))),
+      date: toLocalDateKey(new Date(year, month, rng.int(20, 28))),
       amount: rng.int(15000, 40000),
       type: 'Transfer',
       category: 'Investment',
@@ -121,7 +123,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   if (rng.next() < 0.25) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(5, 25))),
+      date: toLocalDateKey(new Date(year, month, rng.int(5, 25))),
       amount: rng.int(5000, 80000),
       type: 'Transfer',
       category: 'Investment',
@@ -139,7 +141,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   for (let w = 0; w < walletTopups; w++) {
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, daysInMonth))),
       amount: rng.pick([500, 1000, 1500, 2000]),
       type: 'Transfer',
       category: 'Transfer',
@@ -155,7 +157,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
 
   txs.push({
     id: txId(ctx.idx++),
-    date: formatDate(new Date(year, month, 3)),
+    date: toLocalDateKey(new Date(year, month, 3)),
     amount: 2200,
     type: 'Transfer',
     category: 'Transfer',
@@ -174,7 +176,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
     const friendAmt = rng.int(200, 5000)
     txs.push({
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(1, daysInMonth))),
+      date: toLocalDateKey(new Date(year, month, rng.int(1, daysInMonth))),
       amount: friendAmt,
       type: 'Transfer',
       category: 'Transfer',
@@ -197,7 +199,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
   txs.push(
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, rng.int(5, 10))),
+      date: toLocalDateKey(new Date(year, month, rng.int(5, 10))),
       amount: rng.int(1000, 4000),
       type: 'Transfer',
       category: 'Transfer',
@@ -215,7 +217,7 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
     },
     {
       id: txId(ctx.idx++),
-      date: formatDate(new Date(year, month, 5)),
+      date: toLocalDateKey(new Date(year, month, 5)),
       amount: rng.int(10000, 20000),
       type: 'Transfer',
       category: 'Transfer',
@@ -250,7 +252,7 @@ function generateCCBillPayments(ctx: MonthCtx): void {
     if (ccBillAmount > 0) {
       txs.push({
         id: txId(ctx.idx++),
-        date: formatDate(new Date(year, month, 25)),
+        date: toLocalDateKey(new Date(year, month, 25)),
         amount: ccBillAmount,
         type: 'Transfer',
         category: 'Transfer',

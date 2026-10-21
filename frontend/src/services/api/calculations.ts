@@ -66,9 +66,6 @@ export interface CategoryBreakdown {
  */
 export type AccountBalances = AccountBalancesResponse
 
-/** One entry of the `accounts` map, keyed by account name. */
-export type AccountBalance = AccountBalancesResponse['accounts'][string]
-
 export interface DateRangeParams {
   start_date?: string
   end_date?: string

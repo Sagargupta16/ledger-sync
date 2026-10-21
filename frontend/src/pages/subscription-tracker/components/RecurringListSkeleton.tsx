@@ -1,12 +1,11 @@
+import LoadingSkeleton, { SkeletonStatus } from '@/components/shared/LoadingSkeleton'
+
 export default function RecurringListSkeleton() {
   return (
-    <div className="space-y-3" aria-label="Loading recurring items">
-      {Array.from({ length: 4 }, (_, index) => (
-        <div
-          key={index}
-          className="h-24 animate-pulse rounded-lg bg-[var(--overlay-2)] sm:h-20"
-        />
+    <SkeletonStatus className="space-y-3" label="Loading recurring items">
+      {Array.from({ length: 4 }, (_, index) => `recurring-row-${index + 1}`).map((rowKey) => (
+        <LoadingSkeleton key={rowKey} className="h-24 sm:h-20" />
       ))}
-    </div>
+    </SkeletonStatus>
   )
 }

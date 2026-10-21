@@ -54,8 +54,7 @@ class FYSummariesMixin(AnalyticsEngineBase):
 
         # Delete existing for this user and insert new
         del_stmt = delete(FYSummary)
-        if self.user_id is not None:
-            del_stmt = del_stmt.where(FYSummary.user_id == self.user_id)
+        del_stmt = del_stmt.where(FYSummary.user_id == self.user_id)
         self.db.execute(del_stmt)
 
         count = 0

@@ -28,16 +28,12 @@ either way. The defect is the false positive, not a masked true positive.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
 
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.engine import AnalyticsEngine
-from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     Anomaly,
     Budget,
@@ -55,16 +51,6 @@ _LOSS_KEY = f"{_LOSS_CATEGORY}::{_LOSS_SUBCATEGORY}"
 # the ledger by an order of magnitude, which is what real data looks like.
 _LOSS_AMOUNT = "400000"
 _ROUTINE_AMOUNT = "20000"
-
-
-@pytest.fixture
-def session() -> Iterator[Session]:
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine)
-    db = factory()
-    yield db
-    db.close()
 
 
 def _txn(
@@ -162,23 +148,23 @@ def _detect(db: Session, user_id: int) -> list[Anomaly]:
 # --- monthly + large-transaction detectors -----------------------------------
 
 
-def test_classified_loss_month_is_not_flagged_as_overspending(session: Session) -> None:
-    user_id = _seed(session, classify=True)
+def test_classified_loss_month_is_not_flagged_as_overspending(test_db_session: Session) -> None:
+    user_id = _seed(test_db_session, classify=True)
 
-    anomalies = _detect(session, user_id)
+    anomalies = _detect(test_db_session, user_id)
 
     # Nothing at all: the routine spend is flat, so with the loss excluded there
     # is no signal left in the series.
     assert anomalies == []
 
 
-def test_unclassified_loss_month_still_flags_exactly_as_before(session: Session) -> None:
+def test_unclassified_loss_month_still_flags_exactly_as_before(test_db_session: Session) -> None:
     # Direction 2 of the contract: the shipped state must be unchanged. The loss
     # is still spending to the engine, so it still trips both detectors -- and
     # that is what makes the /data-health prompt worth showing.
-    user_id = _seed(session, classify=False)
+    user_id = _seed(test_db_session, classify=False)
 
-    anomalies = _detect(session, user_id)
+    anomalies = _detect(test_db_session, user_id)
 
     assert anomalies, "an unclassified loss must keep its pre-preference flags"
     flagged_months = {a.period_key for a in anomalies if a.period_key}
@@ -207,17 +193,19 @@ def _add_loss_history(db: Session, user_id: int) -> None:
     db.commit()
 
 
-def test_classified_loss_row_is_not_flagged_as_a_large_transaction(session: Session) -> None:
+def test_classified_loss_row_is_not_flagged_as_a_large_transaction(
+    test_db_session: Session,
+) -> None:
     # 400,000 against a 60,000 rolling median in the same category: ratio 6.67
     # (above the 5.0 high-severity gate) and log-space z of 14.7, so it clears
     # every gate the detector has. Only the classification keeps it out.
-    user_id = _seed(session, classify=True)
-    _add_loss_history(session, user_id)
+    user_id = _seed(test_db_session, classify=True)
+    _add_loss_history(test_db_session, user_id)
 
-    anomalies = _detect(session, user_id)
+    anomalies = _detect(test_db_session, user_id)
     loss_txn_ids = {
         t.transaction_id
-        for t in session.query(Transaction).filter(
+        for t in test_db_session.query(Transaction).filter(
             Transaction.user_id == user_id, Transaction.category == _LOSS_CATEGORY
         )
     }
@@ -226,16 +214,18 @@ def test_classified_loss_row_is_not_flagged_as_a_large_transaction(session: Sess
     assert not {a.transaction_id for a in anomalies} & loss_txn_ids
 
 
-def test_unclassified_loss_row_is_still_flagged_as_a_large_transaction(session: Session) -> None:
+def test_unclassified_loss_row_is_still_flagged_as_a_large_transaction(
+    test_db_session: Session,
+) -> None:
     # The same ledger with nothing classified: the alert fires, at high severity,
     # which is exactly the noise the /data-health prompt asks the user to fix.
-    user_id = _seed(session, classify=False)
-    _add_loss_history(session, user_id)
+    user_id = _seed(test_db_session, classify=False)
+    _add_loss_history(test_db_session, user_id)
 
-    anomalies = _detect(session, user_id)
+    anomalies = _detect(test_db_session, user_id)
     loss_txn_ids = {
         t.transaction_id
-        for t in session.query(Transaction).filter(
+        for t in test_db_session.query(Transaction).filter(
             Transaction.user_id == user_id, Transaction.category == _LOSS_CATEGORY
         )
     }
@@ -245,13 +235,13 @@ def test_unclassified_loss_row_is_still_flagged_as_a_large_transaction(session: 
     assert {a.severity for a in anomalies if a.transaction_id in flagged} == {"high"}
 
 
-def test_a_real_large_transaction_is_still_flagged(session: Session) -> None:
+def test_a_real_large_transaction_is_still_flagged(test_db_session: Session) -> None:
     # The guard must be surgical: excluding losses must not blind the detector to
     # a genuine outlier in an ordinary category.
-    user_id = _seed(session, classify=True)
-    _add_loss_history(session, user_id)
+    user_id = _seed(test_db_session, classify=True)
+    _add_loss_history(test_db_session, user_id)
     for i in range(5):
-        session.add(
+        test_db_session.add(
             _txn(
                 user_id,
                 str(3000 + i * 200),
@@ -269,10 +259,10 @@ def test_a_real_large_transaction_is_still_flagged(session: Session) -> None:
         datetime(2024, 11, 8, tzinfo=UTC),
         seq=9400,
     )
-    session.add(genuine)
-    session.commit()
+    test_db_session.add(genuine)
+    test_db_session.commit()
 
-    anomalies = _detect(session, user_id)
+    anomalies = _detect(test_db_session, user_id)
 
     assert genuine.transaction_id in {a.transaction_id for a in anomalies}
 
@@ -292,13 +282,13 @@ def _budget(db: Session, user_id: int, category: str, limit: str) -> Budget:
     return budget
 
 
-def test_classified_loss_does_not_consume_its_category_budget(session: Session) -> None:
+def test_classified_loss_does_not_consume_its_category_budget(test_db_session: Session) -> None:
     # A budget on the taxonomy the loss is booked to. current_month_spent is
     # persisted and read straight into the budget UI, so a leak here shows the
     # user a blown budget for money they never spent.
     now = datetime.now(UTC)
-    user_id = _seed(session, classify=True, loss_month=now.month)
-    session.add(
+    user_id = _seed(test_db_session, classify=True, loss_month=now.month)
+    test_db_session.add(
         _txn(
             user_id,
             _LOSS_AMOUNT,
@@ -308,21 +298,21 @@ def test_classified_loss_does_not_consume_its_category_budget(session: Session) 
             seq=9500,
         )
     )
-    session.commit()
-    budget = _budget(session, user_id, _LOSS_CATEGORY, "5000")
+    test_db_session.commit()
+    budget = _budget(test_db_session, user_id, _LOSS_CATEGORY, "5000")
 
-    AnalyticsEngine(session, user_id=user_id)._update_budget_tracking()
-    session.commit()
-    session.refresh(budget)
+    AnalyticsEngine(test_db_session, user_id=user_id)._update_budget_tracking()
+    test_db_session.commit()
+    test_db_session.refresh(budget)
 
     assert budget.current_month_spent == Decimal("0")
     assert budget.current_month_remaining == Decimal("5000")
 
 
-def test_unclassified_loss_still_consumes_the_budget(session: Session) -> None:
+def test_unclassified_loss_still_consumes_the_budget(test_db_session: Session) -> None:
     now = datetime.now(UTC)
-    user_id = _seed(session, classify=False, loss_month=now.month)
-    session.add(
+    user_id = _seed(test_db_session, classify=False, loss_month=now.month)
+    test_db_session.add(
         _txn(
             user_id,
             _LOSS_AMOUNT,
@@ -332,22 +322,22 @@ def test_unclassified_loss_still_consumes_the_budget(session: Session) -> None:
             seq=9500,
         )
     )
-    session.commit()
-    budget = _budget(session, user_id, _LOSS_CATEGORY, "5000")
+    test_db_session.commit()
+    budget = _budget(test_db_session, user_id, _LOSS_CATEGORY, "5000")
 
-    AnalyticsEngine(session, user_id=user_id)._update_budget_tracking()
-    session.commit()
-    session.refresh(budget)
+    AnalyticsEngine(test_db_session, user_id=user_id)._update_budget_tracking()
+    test_db_session.commit()
+    test_db_session.refresh(budget)
 
     assert budget.current_month_spent == Decimal(_LOSS_AMOUNT)
 
 
-def test_a_real_expense_budget_is_untouched_by_the_exclusion(session: Session) -> None:
+def test_a_real_expense_budget_is_untouched_by_the_exclusion(test_db_session: Session) -> None:
     # The guard must be surgical: only the classified taxonomy is dropped, so a
     # budget on ordinary spending still tracks normally.
     now = datetime.now(UTC)
-    user_id = _seed(session, classify=True, loss_month=now.month)
-    session.add(
+    user_id = _seed(test_db_session, classify=True, loss_month=now.month)
+    test_db_session.add(
         _txn(
             user_id,
             _ROUTINE_AMOUNT,
@@ -357,11 +347,11 @@ def test_a_real_expense_budget_is_untouched_by_the_exclusion(session: Session) -
             seq=9600,
         )
     )
-    session.commit()
-    budget = _budget(session, user_id, "Food & Dining", "30000")
+    test_db_session.commit()
+    budget = _budget(test_db_session, user_id, "Food & Dining", "30000")
 
-    AnalyticsEngine(session, user_id=user_id)._update_budget_tracking()
-    session.commit()
-    session.refresh(budget)
+    AnalyticsEngine(test_db_session, user_id=user_id)._update_budget_tracking()
+    test_db_session.commit()
+    test_db_session.refresh(budget)
 
     assert budget.current_month_spent == Decimal(_ROUTINE_AMOUNT)

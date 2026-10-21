@@ -14,7 +14,6 @@ from ledger_sync.api.calculations_helpers import (
     _resolve_transaction_type,
 )
 from ledger_sync.api.calculations_impl import aggregates, categories
-from ledger_sync.api.calculations_impl.insights import financial_insights
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.db.models import TransactionType
 from ledger_sync.services.calculation_service import (
@@ -158,22 +157,6 @@ def get_account_balances(
     ``from_account`` and ``to_account``) instead of hydrating every row.
     """
     return _compute_account_statistics(account_balances(db, current_user, start_date, end_date))
-
-
-@router.get("/insights")
-def get_financial_insights(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    start_date: OptionalStartDate = None,
-    end_date: OptionalEndDate = None,
-) -> dict[str, Any]:
-    """Calculate comprehensive financial insights.
-
-    Classified realised capital losses are not spending here, as on ``/totals``;
-    ``savings_rate`` still nets them off. Reads five projected columns rather
-    than hydrating every transaction.
-    """
-    return financial_insights(db, current_user, start_date, end_date)
 
 
 @router.get(
@@ -342,25 +325,3 @@ def get_daily_net_worth(
     only matters where a figure claims to measure consumption.
     """
     return aggregates.daily_net_worth(db, current_user, start_date, end_date)
-
-
-@router.get("/top-categories", responses=INVALID_TRANSACTION_TYPE_RESPONSE)
-def get_top_categories(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    start_date: OptionalStartDate = None,
-    end_date: OptionalEndDate = None,
-    limit: Annotated[int, Query(ge=1, le=50)] = 10,
-    transaction_type: OptionalTransactionType = None,
-) -> list[dict[str, Any]]:
-    """Get top N categories by amount.
-
-    Defaults to EXPENSE for the same reason as ``/category-breakdown``: with no
-    type filter this ranked transfers alongside spending, and since transfers
-    dominate rupee volume the "top categories" were the user's own account
-    moves, with every ``percentage`` divided by a transfer-inflated grand total.
-    """
-    tx_type = _resolve_transaction_type(transaction_type) or TransactionType.EXPENSE
-    return categories.top_categories(
-        db, current_user, start_date, end_date, limit=limit, tx_type=tx_type
-    )

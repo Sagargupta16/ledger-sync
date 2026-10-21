@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -226,10 +225,7 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
             )
         )
     if txn_type:
-        try:
-            stmt = stmt.where(Transaction.type == TransactionType(txn_type))
-        except ValueError as exc:
-            raise HTTPException(400, f"Invalid type {txn_type!r}") from exc
+        stmt = stmt.where(Transaction.type == TransactionType(txn_type))
     if min_amount is not None:
         stmt = stmt.where(Transaction.amount >= Decimal(str(min_amount)))
     if max_amount is not None:

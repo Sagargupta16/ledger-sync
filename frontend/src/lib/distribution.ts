@@ -78,22 +78,6 @@ export function formatSkewFactor(factor: number): string {
   return factor >= 10 ? `${Math.round(factor)}x` : `${factor.toFixed(1)}x`
 }
 
-/** Mean and median of a period series (per-day or per-month totals). */
-export interface SeriesShape {
-  readonly mean: number
-  readonly median: number
-}
-
-/**
- * Mean and median of one period series, or `null` for an empty series so
- * callers cannot accidentally render a 0 as a real statistic.
- */
-export function seriesShape(values: readonly number[]): SeriesShape | null {
-  if (values.length === 0) return null
-  const sum = values.reduce((total, value) => total + value, 0)
-  return { mean: sum / values.length, median: medianOf(values) }
-}
-
 // ─── Subtitle copy ───────────────────────────────────────────────────────────
 // Lives here rather than in the card builder so the wording is unit-testable
 // against measured numbers, and so one skew rule drives every KPI that shows a

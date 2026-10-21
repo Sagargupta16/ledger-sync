@@ -3,12 +3,12 @@ import { useState } from 'react'
 import { chartDateKey } from '@/lib/chartDateLabels'
 import { addMonthsToKey } from '@/lib/dateUtils'
 
-export interface ChartRange {
+interface ChartRange {
   startIndex: number
   endIndex: number
 }
 
-export interface ChartRangePreset extends ChartRange {
+interface ChartRangePreset extends ChartRange {
   label: string
 }
 

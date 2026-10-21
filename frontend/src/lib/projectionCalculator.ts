@@ -7,7 +7,7 @@
 
 import { parseFYStartYear as parseFYStart } from '@/lib/taxCalculator'
 import { MONTHS_PER_YEAR } from '@/lib/dateUtils'
-import { sumRsuCompensation, todayKey, valueRsuVestings } from '@/lib/rsuVesting'
+import { sumRsuCompensation, valueRsuVestings } from '@/lib/rsuVesting'
 import { salaryCashEarnings } from '@/lib/salaryCompensation'
 import { shareOfIncomePercent } from '@/lib/savingsRate'
 import { buildSalaryPayroll } from '@/lib/finance/payrollPlanning'
@@ -45,28 +45,14 @@ interface RsuFYData {
   details: Array<{ stock_name: string; shares: number; value: number }>
 }
 
-/** Group RSU vestings by fiscal year with optional stock appreciation.
+/**
+ * Group valued RSU vestings by fiscal year.
  *
  * Vested rows (date <= today) are realized income: they use the locked
  * vest-date price when available and never get appreciation applied.
  * Upcoming rows are projections: current price grown by the appreciation
  * assumption for the years between the base FY and the vesting FY.
  */
-export function getRsuVestingsByFY(
-  grants: RsuGrant[],
-  fyStartMonth: number,
-  stockAppreciationPct: number,
-  baseStartYear?: number,
-  today: string = todayKey(),
-): Record<string, RsuFYData> {
-  return groupRsuVestingsByFY(valueRsuVestings(grants, {
-    fyStartMonth,
-    stockAppreciationPct,
-    baseStartYear,
-    today,
-  }))
-}
-
 function groupRsuVestingsByFY(events: ValuedRsuVesting[]): Record<string, RsuFYData> {
   const result: Record<string, RsuFYData> = {}
 

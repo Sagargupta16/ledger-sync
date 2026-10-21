@@ -87,7 +87,7 @@ function ModeCard(props: Readonly<ModeCardProps>) {
   )
 }
 
-export function AppMessageBadge({
+function AppMessageBadge({
   usage,
 }: Readonly<{ usage: UsageResponse | undefined }>) {
   if (!usage) return null

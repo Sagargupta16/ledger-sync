@@ -1,10 +1,12 @@
 [project]
 name = "ledger-sync"
-version = "2.28.2"
+version = "2.29.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
-requires-python = ">=3.13"
+# One minor version: Vercel picks the newest Python this allows (it ran 3.14
+# while CI tested 3.13). Move CI, migrate.yml and this pin together.
+requires-python = ">=3.14,<3.15"
 dependencies = [
     # <2.1: SQLAlchemy 2.1.1's order_by typing fails mypy (18 arg-type errors, 2026-09-29).
     "sqlalchemy>=2.0.51,<2.1",
@@ -18,7 +20,6 @@ dependencies = [
     "fastapi>=0.138.0",
     "uvicorn[standard]>=0.49.0",
     "PyJWT>=2.12.0",
-    "bcrypt>=4.0.1",
     "psycopg[binary]>=3.3.4",
     "slowapi>=0.1.10",
     "httpx>=0.28.0",
@@ -36,8 +37,6 @@ dev = [
     "ruff>=0.15.0",
     "mypy>=2.1.0",
     "pandas-stubs>=2.2.0",
-    "types-openpyxl>=3.1.0",
-    "pip-audit>=2.7.0",
     "pre-commit>=4.0.0",
 ]
 
@@ -46,28 +45,25 @@ package = true
 # Transitive-dep CVE overrides:
 #   pygments >=2.20.0      -- CVE-2026-4539
 #   python-dotenv >=1.2.2  -- CVE-2026-28684
-#   pillow >=12.2.0        -- CVE-2026-25990, CVE-2026-40192
-#   pyasn1 >=0.6.3         -- CVE-2026-30922
 #   mako >=1.3.12          -- CVE-2026-44307
 #   urllib3 >=2.7.0        -- CVE-2026-44431, CVE-2026-44432
 #   starlette >=1.3.1      -- CVE-2026-48710/48817/48818/54282/54283 (FastAPI allows >=0.46)
 #   idna >=3.18            -- CVE-2026-45409
-#   msgpack >=1.2.1        -- GHSA-6v7p-g79w-8964 (OOB read on Unpacker reuse; via cachecontrol)
+#   certifi >=2026.10.19   -- GHSA-6q48-6c7w-9gw2 (emSign roots with compromised intermediate keys; via httpx)
+# Keep only packages present in uv.lock; drop a line once nothing pulls it in.
 constraint-dependencies = [
     "pygments>=2.20.0",
     "python-dotenv>=1.2.2",
-    "pillow>=12.2.0",
-    "pyasn1>=0.6.3",
     "mako>=1.3.12",
     "urllib3>=2.7.0",
     "starlette>=1.3.1",
     "idna>=3.18",
-    "msgpack>=1.2.1",
+    "certifi>=2026.10.19",
 ]
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -133,12 +129,6 @@ select = [
 # Audited 2026-07-26, no real credential. Kept file-scoped on purpose so a
 # genuine hardcoded key added to any OTHER test fixture still fails CI.
 "tests/unit/test_auth.py" = ["S105", "S106"]
-# S603: this test shells out to `alembic upgrade head` to prove a from-scratch
-# database bootstrap works -- the argv is this interpreter plus string literals,
-# never user input. File-scoped rather than an inline noqa because ruff 0.15
-# (pinned in .pre-commit-config.yaml) raises S603 here while 0.16 does not, so
-# an inline directive fails one version or the other on RUF100.
-"tests/integration/test_migrations_from_scratch.py" = ["S101", "S603"]
 # Migration SQL is static DDL built from module-level constants and hardcoded
 # table lists, never from user input. The remaining S608 is a multi-line
 # f-string INSERT of default preference values whose diagnostic anchors to the
@@ -156,15 +146,9 @@ select = [
 # typer.Argument()/Option() in parameter defaults IS the typer API. B008 cannot
 # be satisfied here without abandoning the framework's declarative style.
 "src/ledger_sync/cli/**/*.py" = ["B008"]
-# RUF012: RecurrenceFrequency map is a module-level constant lookup that is
-# never mutated; annotating it ClassVar is a live-code change owned by another
-# agent's in-flight edit to this file, so it is deliberately deferred.
-"src/ledger_sync/core/analytics/recurring.py" = ["RUF012"]
 # DTZ001: normalizer.normalize_date() intentionally produces naive wall-clock
-# datetimes to match the naive DateTime columns. See the report accompanying
-# this change -- the UTC-vs-IST anchoring defect lives in the *callers* that
-# compare these to datetime.now(UTC), not in the parser. File is owned by
-# another agent's in-flight edit, so the ignore is scoped rather than inline.
+# datetimes to match the naive DateTime columns; IST anchoring belongs to the
+# callers (core/ledger_clock.py), not the parser.
 "src/ledger_sync/ingest/normalizer.py" = ["DTZ001"]
 # INP001: Vercel resolves the serverless entrypoint by file path (api/index.py,
 # routed from vercel.json). Adding api/__init__.py would make it a package and
@@ -176,16 +160,12 @@ select = [
 "scripts/**/*.py" = ["INP001", "T201"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = "openpyxl.*"
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "slowapi.*"

@@ -178,12 +178,3 @@ if (typeof window !== 'undefined') {
 // Utility functions for non-React contexts (e.g., Axios interceptors)
 export const getAccessToken = () => useAuthStore.getState().accessToken
 export const getRefreshToken = () => useAuthStore.getState().refreshToken
-export const isAuthenticated = () => {
-  const state = useAuthStore.getState()
-  return !!state.accessToken && !!state.user
-}
-
-// Selectors for React components (enable Zustand render optimization)
-export const selectAccessToken = (state: AuthState) => state.accessToken
-export const selectUser = (state: AuthState) => state.user
-export const selectIsAuthenticated = (state: AuthState) => !!state.accessToken && !!state.user

@@ -1,4 +1,3 @@
-import { motion } from 'motion/react'
 import {
   Bar,
   Brush,
@@ -22,8 +21,10 @@ import {
   xAxisDefaults,
   yAxisDefaults,
 } from '@/components/ui'
+import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import TooltipValueList from '@/components/ui/TooltipValueList'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
@@ -31,9 +32,8 @@ import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import { rawColors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
-import { useMotionStore } from '@/store/motionStore'
 
-export interface MonthlyComboDatum {
+interface MonthlyComboDatum {
   readonly month: string
   readonly income: number
   readonly expenses: number
@@ -81,19 +81,7 @@ function ComboTooltip({
   return (
     <div role="tooltip" style={CHART_TOOLTIP_STYLE}>
       <p className="mb-3 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{formatChartDate(point.month)}</p>
-      <dl className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-            <dt className="flex items-baseline gap-2 text-xs text-muted-foreground">
-              <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} aria-hidden="true" />
-              {row.label}
-            </dt>
-            <dd className="font-mono text-xs font-semibold tabular-nums text-foreground">
-              {formatCurrency(row.value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <TooltipValueList rows={rows} />
     </div>
   )
 }
@@ -110,7 +98,6 @@ export default function ReturnsMonthlyChart({
   // wore the colour of a different month's profit or loss.
   const { animate: animateSeries, isMobile } = useChartPresentation(data.length * 2)
   const range = useChartRange(data.map((row) => row.month))
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
   const bars = data.map((datum) => ({
     ...datum,
     fill: getNetColor(datum.net),
@@ -120,28 +107,13 @@ export default function ReturnsMonthlyChart({
   const periodNet = latest?.cumulative ?? 0
 
   return (
-    <motion.section
-      className="ledger-panel min-w-0 p-4 sm:p-6"
-      aria-labelledby="monthly-returns-title"
-      initial={motionEnabled ? { opacity: 0, y: 16 } : false}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.1 }}
-      transition={{ duration: motionEnabled ? 0.45 : 0, ease: [0.22, 1, 0.36, 1] }}
+    <ChartSection
+      titleId="monthly-returns-title"
+      eyebrow="Wealth / realised cash"
+      title="Monthly Investment P&L"
+      description="Monthly profit and loss, with the running total for your selected period."
+      descriptionClassName="text-pretty"
     >
-      <div className="mb-5">
-        <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-app-blue">
-            Wealth / realised cash
-          </p>
-          <h2 id="monthly-returns-title" className="text-lg font-semibold tracking-tight text-foreground">
-            Monthly Investment P&amp;L
-          </h2>
-          <p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">
-            Monthly profit and loss, with the running total for your selected period.
-          </p>
-        </div>
-      </div>
-
       {data.length === 0 ? (
         <ChartEmptyState
           height={280}
@@ -176,12 +148,7 @@ export default function ReturnsMonthlyChart({
             caption={`Break-even at ${formatCurrency(0)}`}
           />
           {data.length > 6 && <ChartRangeControls range={range} label="Investment returns chart range" />}
-          <motion.div
-            initial={motionEnabled ? { opacity: 0, y: 12 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: motionEnabled ? 0.5 : 0, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <ChartReveal>
             <ChartContainer
               height={360}
               mobileHeight={300}
@@ -231,7 +198,7 @@ export default function ReturnsMonthlyChart({
                 )}
               </ComposedChart>
             </ChartContainer>
-          </motion.div>
+          </ChartReveal>
           <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
             <p>Income and booked gains, less realised losses and broker costs.</p>
           </div>
@@ -249,6 +216,6 @@ export default function ReturnsMonthlyChart({
           )}
         </>
       )}
-    </motion.section>
+    </ChartSection>
   )
 }

@@ -4,10 +4,8 @@
  * the tax projection calculator, and the TDS schedule calculator.
  */
 
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 import type { RsuGrant, RsuVesting, ValuedRsuVesting } from '@/types/salary'
-
-export type { ValuedRsuVesting } from '@/types/salary'
 
 /** Planning assumption only; actual sell-to-cover quantities override it. */
 export const DEFAULT_RSU_TAX_PERCENT = 30
@@ -15,7 +13,7 @@ export const DEFAULT_RSU_CESS_PERCENT = 4
 
 /** Today's date as a local YYYY-MM-DD key. */
 export function todayKey(): string {
-  return toLocalDateKey(new Date())
+  return getTodayKey()
 }
 
 /** A vesting is vested once its date is today or earlier. */

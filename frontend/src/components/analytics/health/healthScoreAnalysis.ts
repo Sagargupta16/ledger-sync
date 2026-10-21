@@ -7,13 +7,13 @@ import {
   sumFlows,
 } from '@/lib/savingsRate'
 import { isSpending, type ExpenseClassificationConfig } from '@/lib/expenseClassification'
+import { isEssentialExpense } from '@/lib/finance/metricRules'
 import { completeMonthSpine } from '@/lib/finance/monthlyAverage'
 
 import type { AnalysisResult, BalancePosition, MonthlyBucket } from './healthScoreTypes'
 import {
   DEBT_CATEGORIES,
   DISCRETIONARY_CATEGORIES,
-  ESSENTIAL_CATEGORIES,
   healthInvestmentTransferDelta,
   matchesCategoryList,
   weightedCoefficientOfVariation,
@@ -32,12 +32,16 @@ export function createEmptyBucket(): MonthlyBucket {
   }
 }
 
+/** No user essentials: the built-in Needs keywords alone. Stable for the pattern cache. */
+const NO_USER_ESSENTIALS: readonly string[] = []
+
 export function classifyTransaction(
   tx: Transaction,
   bucket: MonthlyBucket,
   isInvestmentAccount: (name: string) => boolean,
   userFixedCategories?: Set<string>,
   expenseClassification?: ExpenseClassificationConfig,
+  essentialCategories: readonly string[] = NO_USER_ESSENTIALS,
 ): void {
   const amount = Math.abs(tx.amount)
   const category = tx.category || 'Other'
@@ -64,7 +68,9 @@ export function classifyTransaction(
     bucket.categories[category] = (bucket.categories[category] || 0) + amount
     if (matchesCategoryList(category, DEBT_CATEGORIES)) bucket.debt += amount
     if (matchesCategoryList(category, DISCRETIONARY_CATEGORIES)) bucket.discretionary += amount
-    const isEssential = matchesCategoryList(category, ESSENTIAL_CATEGORIES)
+    // The shared Needs rule (built-in keywords plus the user's essential list,
+    // category or subcategory), so this ratio agrees with /budgets.
+    const isEssential = isEssentialExpense(category, tx.subcategory, essentialCategories)
     const isUserFixed = userFixedCategories
       ? userFixedCategories.has(category.toLowerCase()) ||
         userFixedCategories.has(`${category}::${tx.subcategory ?? ''}`.toLowerCase())

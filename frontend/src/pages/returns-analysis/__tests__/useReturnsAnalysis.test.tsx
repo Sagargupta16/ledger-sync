@@ -50,9 +50,10 @@ describe('useReturnsAnalysis investment contracts', () => {
   it('requests closing balances through the end date without dropping opening contributions', () => {
     const { result } = renderHook(() => useReturnsAnalysis())
     expect(mocks.balances).toHaveBeenCalledWith({ end_date: '2026-08-31' })
+    // Mapped accounts only, the shared investment perimeter: the unmapped
+    // 'Stocks account' no longer slips in through a name-keyword guess.
     expect(result.current.investmentAccounts).toEqual([
       { name: 'Long term', balance: 6000, transactions: 2 },
-      { name: 'Stocks account', balance: -1500, transactions: 1 },
     ])
   })
 

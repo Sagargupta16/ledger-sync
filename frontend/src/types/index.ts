@@ -38,44 +38,10 @@ export interface Transaction {
   tags?: string[]
 }
 
-// Meta types
-export interface Account {
-  id: string
-  name: string
-  type?: string
-}
-
-export interface Category {
-  id: string
-  name: string
-}
-
-export interface Filter {
-  types: string[]
-  categories: string[]
-  accounts: string[]
-}
-
-// Analytics types
-export interface KPIs {
-  total_income: number
-  total_expenses: number
-  net_savings: number
-  savings_rate: number
-  top_expense_category: string
-  biggest_expense: number
-  average_daily_spending: number
-}
-
 /**
- * Local heuristic account-type slugs, re-exported from their single declaration
- * in `@/constants/accountTypes` -- the module that owns `inferAccountType`.
- *
- * This file used to DECLARE a competing `'investment' | 'deposit' | 'loan'`
- * union. It was a strict subset (no `'credit_card'`) and nominally distinct, so
- * `inferAccountType()`'s return value was NOT assignable to it:
- *   Type '.../constants/accountTypes").AccountType[]' is not assignable to type
- *   '.../types/index").AccountType[]'.
+ * Local account-type slugs, re-exported from their single declaration in
+ * `@/constants/accountTypes`. This file used to declare a competing, narrower
+ * union, which made the two nominally incompatible.
  *
  * Note this is the CLIENT-side slug vocabulary, not the wire vocabulary. Backend
  * `AccountType` enum VALUES ('Cash', 'Bank Accounts', 'Credit Cards', ...) live
@@ -139,15 +105,6 @@ export interface OAuthCallbackRequest {
   code: string
   state: string
   code_verifier: string
-}
-
-export interface MonthlyAggregation {
-  [monthKey: string]: {
-    income: number
-    expense: number
-    net_savings: number
-    transactions: number
-  }
 }
 
 /**

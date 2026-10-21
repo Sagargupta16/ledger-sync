@@ -2,7 +2,8 @@ import { CheckCircle2, Circle, Target, TrendingUp } from 'lucide-react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { DataTable, type DataTableColumn } from '@/components/ui'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatMonthKey } from '@/lib/dateUtils'
+import { formatCurrency } from '@/lib/formatters'
 
 import type { MilestoneRow } from '../netWorthProjection'
 
@@ -20,11 +21,6 @@ function formatMonthsAway(monthsAway: number): string {
   const years = Math.floor(monthsAway / 12)
   const rem = Math.round(monthsAway - years * 12)
   return rem > 0 ? `${years}y ${rem}mo` : `${years}y`
-}
-
-/** "Mar 2024". A date-only key is a calendar day, not a UTC instant. */
-function formatMonthYear(iso: string): string {
-  return formatDate(iso, { month: 'short', year: 'numeric' })
 }
 
 function StatusCell({ row }: Readonly<{ row: MilestoneRow }>) {
@@ -83,11 +79,11 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       mobileLabel: 'First reached',
       cell: (row) => {
         if (row.date === null || row.status !== 'achieved') {
-          return <span className="text-muted-foreground">—</span>
+          return <span className="text-muted-foreground">-</span>
         }
         return (
           <span className="text-sm font-medium text-app-green">
-            {formatMonthYear(row.date)}
+            {formatMonthKey(row.date)}
           </span>
         )
       },
@@ -103,11 +99,11 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
           if (row.status === 'achieved') {
             return <span className="text-app-yellow text-xs">dipped below</span>
           }
-          return <span className="text-muted-foreground">—</span>
+          return <span className="text-muted-foreground">-</span>
         }
         return (
           <span className="text-sm font-medium text-app-green">
-            {formatMonthYear(row.stableSince)}
+            {formatMonthKey(row.stableSince)}
           </span>
         )
       },
@@ -119,7 +115,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
       mobileLabel: 'Expected',
       cell: (row) => {
         if (row.status === 'achieved') {
-          return <span className="text-muted-foreground">—</span>
+          return <span className="text-muted-foreground">-</span>
         }
         if (row.date === null || row.distance === null) {
           return <span className="text-muted-foreground text-xs">need positive growth</span>
@@ -127,7 +123,7 @@ function buildColumns(): DataTableColumn<MilestoneRow>[] {
         return (
           <div className="text-right">
             <div className="text-sm font-semibold text-app-blue">
-              {formatMonthYear(row.date)}
+              {formatMonthKey(row.date)}
             </div>
             <div className="text-xs text-muted-foreground">
               in {formatMonthsAway(row.distance)}

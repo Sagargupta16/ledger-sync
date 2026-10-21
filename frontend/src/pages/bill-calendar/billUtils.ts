@@ -43,7 +43,7 @@ export function capitalize(str: string | null): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
-export function getCategoryColor(category: string): string {
+function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] ?? rawColors.app.blue
 }
 
@@ -87,7 +87,7 @@ export function getBillDotColor(bill: PlacedBill): string {
 }
 
 /** Find the first bill from a given start day through end of month */
-export function findFirstBillFromDay(
+function findFirstBillFromDay(
   billMap: Map<number, PlacedBill[]>,
   startDay: number,
   daysInMonth: number,

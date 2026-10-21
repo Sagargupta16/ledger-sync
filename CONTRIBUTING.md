@@ -4,12 +4,19 @@ Thanks for improving Ledger Sync. Keep changes focused and verify the affected b
 
 ## Setup
 
+Requires Node.js 22.22+, Python 3.14, and uv. Corepack provides the pnpm version pinned in `packageManager`.
+
 ```bash
 corepack enable
 pnpm install
 pnpm run setup
+cd backend
+uv run alembic upgrade head
+cd ..
 pnpm run dev
 ```
+
+Backend startup does not create tables by default; rerun the migration after pulling new revisions.
 
 Local services:
 

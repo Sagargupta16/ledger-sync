@@ -17,7 +17,7 @@ import { referenceLine, type ReferenceLineVariant } from './chartDefaults'
  * annual insurance premium or a bonus month drags a mean baseline far enough
  * that "unusual" stops meaning anything.
  */
-export function median(values: readonly number[]): number {
+function median(values: readonly number[]): number {
   const clean = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b)
   if (clean.length === 0) return 0
   const mid = Math.floor(clean.length / 2)

@@ -10,21 +10,30 @@
 const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 
 /**
+ * A letter, combining mark or digit in any script, or `_`: the backend
+ * `_is_word_char`. Neither `\b` works for Indian labels: the JS one is
+ * ASCII-only, so no Devanagari keyword ever matched, and Python's leaves out
+ * combining marks, so a Hindi word ending in a vowel sign never matched itself.
+ */
+const WORD_CHAR = String.raw`[\p{L}\p{M}\p{N}_]`
+
+/**
  * Case-insensitive whole-word test for any of `phrases`, the JS twin of the
- * backend's `re.search(rf"\b{re.escape(p)}\b", text)`: "rd" never matches inside
- * "weird" and "education" still matches "Education & Learning". `null` when no
- * phrase is non-blank.
+ * backend's `matches_any_word`: no word character may touch either end, so
+ * "rd" never matches inside "weird" and "education" still matches
+ * "Education & Learning". `null` when no phrase is non-blank.
  */
 export function phrasePattern(phrases: Iterable<string>): RegExp | null {
   const words = [...phrases].map((phrase) => phrase.trim()).filter(Boolean)
   if (words.length === 0) return null
-  return new RegExp(String.raw`\b(?:${words.map(escapeRegExp).join('|')})\b`, 'i')
+  const body = words.map(escapeRegExp).join('|')
+  return new RegExp(`(?<!${WORD_CHAR})(?:${body})(?!${WORD_CHAR})`, 'iu')
 }
 
 // ─── essentials (Needs) ─────────────────────────────────────────────────────
 
 /** Built-in Needs keywords, backend `DEFAULT_NEEDS`. The user's list ADDS to these. */
-export const DEFAULT_NEEDS_KEYWORDS: readonly string[] = [
+const DEFAULT_NEEDS_KEYWORDS: readonly string[] = [
   'rent', 'housing', 'home loan', 'home-loan', 'emi', 'utilities', 'electricity', 'water',
   'gas', 'cooking gas', 'cylinder', 'groceries', 'grocery', 'food', 'food & dining', 'fuel',
   'petrol', 'diesel', 'transport', 'transportation', 'commute', 'insurance',
@@ -59,14 +68,15 @@ export function isEssentialExpense(
 
 // ─── salary vs bonus ────────────────────────────────────────────────────────
 
-export type EmploymentIncomeKind = 'salary' | 'bonus'
+type EmploymentIncomeKind = 'salary' | 'bonus'
 
-const SALARY_PATTERN = /\b(?:salary|stipends?)\b/i
-const BONUS_PATTERN = /\b(?:bonus(?:es)?|rsus?)\b/i
+// Backend `SALARY_KEYWORDS` / `BONUS_KEYWORDS`, on the same whole-word rule.
+const SALARY_PATTERN = phrasePattern(['salary', 'stipend', 'stipends'])
+const BONUS_PATTERN = phrasePattern(['bonus', 'bonuses', 'rsu', 'rsus'])
 
 const employmentKindOf = (text: string): EmploymentIncomeKind | null => {
-  if (BONUS_PATTERN.test(text)) return 'bonus'
-  return SALARY_PATTERN.test(text) ? 'salary' : null
+  if (BONUS_PATTERN?.test(text)) return 'bonus'
+  return SALARY_PATTERN?.test(text) ? 'salary' : null
 }
 
 /**

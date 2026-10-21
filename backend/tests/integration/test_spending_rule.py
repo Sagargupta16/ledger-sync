@@ -12,53 +12,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from ledger_sync.api.deps import get_current_user
-from ledger_sync.api.main import app
-from ledger_sync.db.base import Base
-from ledger_sync.db.models import Transaction, TransactionType, User, UserPreferences
-from ledger_sync.db.session import get_session
-
-
-@pytest.fixture
-def rule_client():
-    # StaticPool + check_same_thread=False lets one in-memory DB be shared
-    # between the fixture thread and the TestClient request thread. Without
-    # StaticPool, each new connection gets its own fresh (empty) in-memory DB.
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    # sessionmaker returns a class, PascalCase is idiomatic
-    TestSession = sessionmaker(bind=engine)  # noqa: N806
-    session = TestSession()
-
-    user = User(email="rule@example.com", is_active=True, is_verified=True, hashed_password="")
-    session.add(user)
-    session.flush()
-    session.add(UserPreferences(user_id=user.id, essential_categories="[]"))
-    session.commit()
-
-    def override_get_session():
-        yield session
-
-    def override_get_current_user():
-        return user
-
-    app.dependency_overrides[get_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_get_current_user
-
-    client = TestClient(app)
-    yield client, session, user
-
-    app.dependency_overrides.clear()
-    session.close()
+from ledger_sync.db.models import Transaction, TransactionType, UserPreferences
 
 
 def _add_txn(
@@ -91,8 +47,8 @@ def _add_txn(
     )
 
 
-def test_empty_history_returns_zero_buckets(rule_client):
-    client, _, _ = rule_client
+def test_empty_history_returns_zero_buckets(two_user_client):
+    client, _, _, _, _ = two_user_client
     r = client.get("/api/analytics/v2/spending-rule")
     assert r.status_code == 200, r.json()
     body = r.json()
@@ -101,8 +57,8 @@ def test_empty_history_returns_zero_buckets(rule_client):
     assert body["buckets"]["needs"]["amount"] == 0
 
 
-def test_rent_classified_as_needs(rule_client):
-    client, session, user = rule_client
+def test_rent_classified_as_needs(two_user_client):
+    client, session, user, _, _ = two_user_client
     _add_txn(session, user.id, date=datetime(2026, 6, 1, tzinfo=UTC), amount=25000, category="Rent")
     _add_txn(
         session,
@@ -124,9 +80,9 @@ def test_rent_classified_as_needs(rule_client):
     assert body["unallocated_amount"] == 75000
 
 
-def test_dining_classified_as_needs_per_defaults(rule_client):
+def test_dining_classified_as_needs_per_defaults(two_user_client):
     """`Food & Dining` is in the built-in Needs defaults so it lands in Needs."""
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -148,8 +104,8 @@ def test_dining_classified_as_needs_per_defaults(rule_client):
     assert body["buckets"]["needs"]["amount"] == 3000
 
 
-def test_transfer_to_ppf_classified_as_savings(rule_client):
-    client, session, user = rule_client
+def test_transfer_to_ppf_classified_as_savings(two_user_client):
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -183,12 +139,12 @@ def test_transfer_to_ppf_classified_as_savings(rule_client):
     assert savings_cat_rows[0]["category"] == "Investment"
 
 
-def test_generic_transfer_relabelled_to_instrument_name(rule_client):
+def test_generic_transfer_relabelled_to_instrument_name(two_user_client):
     """When the user's Excel has category='Transfer' (generic), the /budgets
     page should show 'PPF' / 'Mutual Funds' / etc based on the destination
     account, not the literal word 'Transfer'.
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -229,7 +185,7 @@ def test_generic_transfer_relabelled_to_instrument_name(rule_client):
     assert "Mutual Funds" in savings_cats
 
 
-def test_ledger_sync_template_transfer_pattern_relabelled(rule_client):
+def test_ledger_sync_template_transfer_pattern_relabelled(two_user_client):
     """The ledger-sync default Excel template stores TRANSFER rows as
     ``category = "Transfer: <from> → <to>"``. That's NOT a generic single-word
     label -- it's the compound form. The prettifier must catch this pattern
@@ -242,7 +198,7 @@ def test_ledger_sync_template_transfer_pattern_relabelled(rule_client):
       Stocks       ₹48,000
       Mutual Funds ₹35,000
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -294,13 +250,13 @@ def test_ledger_sync_template_transfer_pattern_relabelled(rule_client):
     assert "PPF" in savings_cats
 
 
-def test_same_category_different_subs_collapse_into_one_row(rule_client):
+def test_same_category_different_subs_collapse_into_one_row(two_user_client):
     """A user with Food & Dining / {Cafeteria, Delivery, Groceries} should
     see ONE Food & Dining row on the /budgets page, with top_subs listing
     the sub-breakdown. Previously the page had 3 separate rows dominating
     the Needs column.
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -350,10 +306,10 @@ def test_same_category_different_subs_collapse_into_one_row(rule_client):
     assert row["subcategory"] is None
 
 
-def test_top_subs_capped_at_three(rule_client):
+def test_top_subs_capped_at_three(two_user_client):
     """A category with >3 subs shows only the top 3 in top_subs, but the
     total row still aggregates all of them."""
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     for amt, sub in [(500, "A"), (400, "B"), (300, "C"), (200, "D"), (100, "E")]:
         _add_txn(
             session,
@@ -380,10 +336,10 @@ def test_top_subs_capped_at_three(rule_client):
     assert [s["name"] for s in misc["top_subs"]] == ["A", "B", "C"]
 
 
-def test_transfer_relabel_fallback_when_dest_unknown(rule_client):
+def test_transfer_relabel_fallback_when_dest_unknown(two_user_client):
     """Destination account doesn't match any known instrument -- fall back
     to 'Investment' instead of leaving 'Transfer'."""
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -413,8 +369,8 @@ def test_transfer_relabel_fallback_when_dest_unknown(rule_client):
     assert "Transfer" not in savings_cats
 
 
-def test_scores_delta_signed_correctly(rule_client):
-    client, session, user = rule_client
+def test_scores_delta_signed_correctly(two_user_client):
+    client, session, user, _, _ = two_user_client
     _add_txn(session, user.id, date=datetime(2026, 6, 1, tzinfo=UTC), amount=40000, category="Rent")
     _add_txn(
         session, user.id, date=datetime(2026, 6, 2, tzinfo=UTC), amount=20000, category="Dining"
@@ -449,8 +405,8 @@ def test_scores_delta_signed_correctly(rule_client):
     assert body["buckets"]["savings"]["score_delta"] > 0
 
 
-def test_monthly_average_uses_period_length(rule_client):
-    client, session, user = rule_client
+def test_monthly_average_uses_period_length(two_user_client):
+    client, session, user, _, _ = two_user_client
     for m in (4, 5, 6):
         _add_txn(
             session, user.id, date=datetime(2026, m, 1, tzinfo=UTC), amount=20000, category="Rent"
@@ -475,14 +431,14 @@ def test_monthly_average_uses_period_length(rule_client):
     assert 19_500 < rent_row["avg_monthly"] < 20_500
 
 
-def test_monthly_average_leaves_out_the_month_in_progress(rule_client, monkeypatch):
+def test_monthly_average_leaves_out_the_month_in_progress(two_user_client, monkeypatch):
     """Complete calendar months only; an empty month still counts as 0.
 
     On 15 Jun the June rows are in every total but not in the averages, and
     May (no rent) still counts: 30,000 over Apr-May is 15,000 a month, not
     the 60,000 / 3 the in-progress month would make it.
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     # ledger_now() is naive IST by contract; built aware, then made naive.
     frozen_now = datetime(2026, 6, 15, 12, 0, tzinfo=UTC).replace(tzinfo=None)
     monkeypatch.setattr(
@@ -503,12 +459,12 @@ def test_monthly_average_leaves_out_the_month_in_progress(rule_client, monkeypat
     assert body["buckets"]["needs"]["amount"] == 60000
 
 
-def test_user_essentials_add_to_defaults(rule_client):
+def test_user_essentials_add_to_defaults(two_user_client):
     """User's essential_categories ADD to the built-in Indian defaults --
     they don't replace them. A user who tags 'Vacation' as essential should
     NOT silently lose Rent / Groceries / Education from Needs (which was
     the historical broken behavior)."""
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     prefs = session.query(UserPreferences).filter_by(user_id=user.id).one()
     prefs.essential_categories = '["Vacation"]'
     session.commit()
@@ -525,7 +481,7 @@ def test_user_essentials_add_to_defaults(rule_client):
     assert body["buckets"]["wants"]["amount"] == 0
 
 
-def test_compound_category_matches_default_needs_via_word_boundary(rule_client):
+def test_compound_category_matches_default_needs_via_word_boundary(two_user_client):
     """A category labelled 'Education & Learning' should still be classified
     as Needs -- the default set has 'education' as a keyword, and matching
     is now word-boundary based, not exact-string.
@@ -535,7 +491,7 @@ def test_compound_category_matches_default_needs_via_word_boundary(rule_client):
     string match, so any compound label like 'Health & Insurance' or
     'Home Loan / EMI' missed the default keywords they contained.
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session,
         user.id,
@@ -568,8 +524,8 @@ def test_compound_category_matches_default_needs_via_word_boundary(rule_client):
     assert body["buckets"]["wants"]["amount"] == 0
 
 
-def test_response_shape_matches_frontend_contract(rule_client):
-    client, _, _ = rule_client
+def test_response_shape_matches_frontend_contract(two_user_client):
+    client, _, _, _, _ = two_user_client
     r = client.get("/api/analytics/v2/spending-rule")
     assert r.status_code == 200, r.json()
     body = r.json()
@@ -622,9 +578,9 @@ def test_response_shape_matches_frontend_contract(rule_client):
         ),
     ],
 )
-def test_every_date_bound_shape_returns_200(rule_client, params, label):
+def test_every_date_bound_shape_returns_200(two_user_client, params, label):
     """Neither the naive nor the aware shape may reach the `now` comparison raw."""
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(
         session, user.id, date=datetime(2026, 6, 10, tzinfo=UTC), amount=25000, category="Rent"
     )
@@ -635,14 +591,14 @@ def test_every_date_bound_shape_returns_200(rule_client, params, label):
     assert r.json()["buckets"]["needs"]["amount"] == 25000, label
 
 
-def test_date_only_end_bound_includes_that_whole_day(rule_client):
+def test_date_only_end_bound_includes_that_whole_day(two_user_client):
     """A `YYYY-MM-DD` end parses to midnight; `<=` would drop that day's rows.
 
     `inclusive_end()` stretches it to 23:59:59.999999. The ingest normaliser
     stores midnight-local so today's real rows land exactly on the boundary,
     but a row carrying a time component must not fall off the end either.
     """
-    client, session, user = rule_client
+    client, session, user, _, _ = two_user_client
     _add_txn(session, user.id, date=datetime(2026, 6, 30, tzinfo=UTC), amount=1000, category="Rent")
     _add_txn(
         session,
@@ -662,13 +618,13 @@ def test_date_only_end_bound_includes_that_whole_day(rule_client):
     assert body["buckets"]["needs"]["amount"] == 5000
 
 
-def test_period_echoes_the_requested_end_not_the_internal_bound(rule_client):
+def test_period_echoes_the_requested_end_not_the_internal_bound(two_user_client):
     """`period.end` reports what the caller asked for.
 
     The widened `end_bound` is a query detail. Leaking it would make the UI
     render "30 Jun 2026, 23:59:59.999999" as the range label.
     """
-    client, _, _ = rule_client
+    client, _, _, _, _ = two_user_client
     body = client.get(
         "/api/analytics/v2/spending-rule",
         params={"start_date": "2026-06-01", "end_date": "2026-06-30"},

@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/api/client'
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey } from '@/lib/dateUtils'
 
 interface PreferencesResponse {
   readonly currency_symbol?: string
@@ -36,7 +36,7 @@ export async function buildFinancialContext(): Promise<string> {
   // Local calendar day, not UTC: toISOString() can be a day off for users east
   // of UTC late in the evening, which would skew "this month"/"last month" tool
   // queries the model makes.
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
 
   // Tool results are raw INR ledger amounts; the backend never converts them to
   // the display currency. Labelling them with the display symbol (e.g. $) would

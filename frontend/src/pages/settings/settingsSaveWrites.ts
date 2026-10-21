@@ -30,7 +30,7 @@ function ruleChanged(server: CategorizationRule | undefined, rule: LocalRule, so
   )
 }
 
-export async function settleWrites(writes: Promise<unknown>[]): Promise<void> {
+async function settleWrites(writes: Promise<unknown>[]): Promise<void> {
   const results = await Promise.allSettled(writes)
   const failure = results.find((result) => result.status === 'rejected')
   if (failure?.status === 'rejected') throw failure.reason

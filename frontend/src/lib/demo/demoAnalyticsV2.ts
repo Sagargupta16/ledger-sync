@@ -12,6 +12,7 @@ import type { Transaction } from '@/types'
 import { toLocalDateKey } from '@/lib/dateUtils'
 import { savingsRatePercentOr, savingsRatePercentFromNet, shareOfIncomePercent } from '@/lib/savingsRate'
 import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
+import { isEssentialExpense } from '@/lib/finance/metricRules'
 
 import { generateDemoMonthlyAggregation } from './demoCalculations'
 import { DEMO_INVESTMENT_MAPPINGS } from './demoPreferences'
@@ -40,7 +41,9 @@ function computeIncomeBreakdown(txs: Transaction[], mk: string) {
 function computeExpenseBreakdown(txs: Transaction[], mk: string) {
   const expenseItems = txs.filter((t) => isExpense(t) && monthKey(t.date) === mk)
   const essential = sum(
-    expenseItems.filter((t) => ESSENTIAL_CATEGORIES.includes(t.category)).map((t) => t.amount),
+    expenseItems
+      .filter((t) => isEssentialExpense(t.category, t.subcategory, ESSENTIAL_CATEGORIES))
+      .map((t) => t.amount),
   )
   return { items: expenseItems, essential }
 }

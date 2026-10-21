@@ -19,7 +19,7 @@ export function getDaysInMonth(year: number, month: number): number {
 }
 
 /** Clamp a day to the valid range for a given month */
-export function clampDay(d: number, daysInMonth: number): number {
+function clampDay(d: number, daysInMonth: number): number {
   return Math.min(Math.max(d, 1), daysInMonth)
 }
 
@@ -27,7 +27,7 @@ export function clampDay(d: number, daysInMonth: number): number {
  * Collect recurring days within a month by walking from a reference date
  * at a given interval (in days).
  */
-export function getRecurringDaysInMonth(
+function getRecurringDaysInMonth(
   nextExpected: string,
   year: number,
   month: number,
@@ -65,17 +65,17 @@ export function getDailyDays(daysInMonth: number): number[] {
   return Array.from({ length: daysInMonth }, (_, index) => index + 1)
 }
 
-export function getWeeklyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
+function getWeeklyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
   if (!tx.next_expected) return []
   return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 7)
 }
 
-export function getFortnightlyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
+function getFortnightlyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
   if (!tx.next_expected) return []
   return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 14)
 }
 
-export function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): number[] {
+function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): number[] {
   const expectedDay = tx.expected_day ?? (tx.next_expected ? parseLocalDate(tx.next_expected).getDate() : null)
   if (expectedDay == null || !Number.isFinite(expectedDay)) return []
   return [clampDay(expectedDay, daysInMonth)]
@@ -85,7 +85,7 @@ export function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): n
  * Days for a bill due every `strideMonths` months on `expected_day`, phased off
  * `next_expected` or the last payment. A missing phase cannot supply a due month.
  */
-export function getEveryNthMonthDays(
+function getEveryNthMonthDays(
   tx: RecurringTransaction,
   month: number,
   daysInMonth: number,
@@ -101,11 +101,11 @@ export function getEveryNthMonthDays(
   return []
 }
 
-export function getQuarterlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
+function getQuarterlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
   return getEveryNthMonthDays(tx, month, daysInMonth, 3)
 }
 
-export function getYearlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
+function getYearlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
   if (tx.expected_day == null || !tx.next_expected) return []
   const nextDate = parseLocalDate(tx.next_expected)
   if (nextDate.getMonth() === month) {

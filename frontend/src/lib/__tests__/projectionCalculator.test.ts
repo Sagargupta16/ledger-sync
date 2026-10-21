@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getRsuVestingsByFY,
-  projectFiscalYear,
-  projectMultipleYears,
-} from '../projectionCalculator'
+import { projectFiscalYear, projectMultipleYears } from '../projectionCalculator'
+import { type RsuValuationOptions, valueRsuVestings } from '@/lib/rsuVesting'
 import type { SalaryComponents, RsuGrant, GrowthAssumptions } from '@/types/salary'
 import { DEFAULT_GROWTH_ASSUMPTIONS } from '@/types/salary'
 
@@ -30,9 +27,23 @@ const testGrant: RsuGrant = {
   ],
 }
 
-describe('getRsuVestingsByFY', () => {
+/** Gross shares and value per fiscal year, from the valuation projectFiscalYear reads. */
+function grossByFY(
+  grants: RsuGrant[],
+  options: RsuValuationOptions,
+): Record<string, { shares: number; value: number }> {
+  const out: Record<string, { shares: number; value: number }> = {}
+  for (const event of valueRsuVestings(grants, options)) {
+    const bucket = (out[event.fy] ??= { shares: 0, value: 0 })
+    bucket.shares += event.grossQuantity
+    bucket.value += event.grossValue
+  }
+  return out
+}
+
+describe('RSU vestings by fiscal year', () => {
   it('groups vestings by fiscal year (April start)', () => {
-    const result = getRsuVestingsByFY([testGrant], 4, 0)
+    const result = grossByFY([testGrant], { fyStartMonth: 4, stockAppreciationPct: 0 })
     expect(result['2025-26']).toBeDefined()
     expect(result['2025-26'].shares).toBe(25)
     expect(result['2025-26'].value).toBe(2500)
@@ -44,14 +55,16 @@ describe('getRsuVestingsByFY', () => {
   it('applies stock appreciation to upcoming vestings', () => {
     // Pin "today" before every vesting so all rows stay projections --
     // vested rows intentionally never get appreciation applied.
-    const result = getRsuVestingsByFY([testGrant], 4, 10, 2025, '2025-04-01')
+    const result = grossByFY([testGrant], {
+      fyStartMonth: 4, stockAppreciationPct: 10, baseStartYear: 2025, today: '2025-04-01',
+    })
     expect(result['2025-26'].value).toBe(2500)
     expect(result['2026-27'].value).toBeCloseTo(25 * 110, 0)
     expect(result['2027-28'].value).toBeCloseTo(30 * 121, 0)
   })
 
   it('returns empty for no grants', () => {
-    const result = getRsuVestingsByFY([], 4, 0)
+    const result = grossByFY([], { fyStartMonth: 4, stockAppreciationPct: 0 })
     expect(Object.keys(result)).toHaveLength(0)
   })
 
@@ -70,7 +83,9 @@ describe('getRsuVestingsByFY', () => {
     }
     // Fixed "today" between the second and third vesting; appreciation 10%/yr
     // from base FY 2025.
-    const result = getRsuVestingsByFY([vestedGrant], 4, 10, 2025, '2026-07-09')
+    const result = grossByFY([vestedGrant], {
+      fyStartMonth: 4, stockAppreciationPct: 10, baseStartYear: 2025, today: '2026-07-09',
+    })
     // FY 2025-26 holds both vested rows: locked 150 and fallback current 200,
     // neither appreciated.
     expect(result['2025-26'].value).toBe(6 * 150 + 23 * 200)
@@ -93,7 +108,7 @@ describe('getRsuVestingsByFY', () => {
         { date: '2100-06-15', quantity: 1 }, // FY 2100 -> "2100-01"
       ],
     }
-    const result = getRsuVestingsByFY([futureGrant], 4, 0)
+    const result = grossByFY([futureGrant], { fyStartMonth: 4, stockAppreciationPct: 0 })
     expect(result['2099-00']).toBeDefined()
     expect(result['2100-01']).toBeDefined()
   })

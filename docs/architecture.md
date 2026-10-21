@@ -81,7 +81,6 @@ The registered routers cover:
 - Tags, rules, and saved views
 - Analytics and calculations
 - Preferences and classifications
-- Reports
 - Goals
 - Currency, instrument, and stock rates
 - AI chat, tools, and usage
@@ -102,11 +101,10 @@ Key modules:
 | `calculator.py` | Pure on-demand financial metrics |
 | [ledger_math.py](../backend/src/ledger_sync/core/ledger_math.py) | Shared `Decimal` account balances and signed transfers across the investment boundary; callers own authorization and exclusions |
 | `query_helpers.py` | Database-agnostic SQL and shared filters |
-| `time_filter.py` | Relative ranges anchored on the IST ledger clock |
+| `time_filter.py` | `TimeRange` options; `api/analytics_helpers.py` resolves them on the IST ledger clock |
 | `ledger_clock.py` | Single source of naive IST `now`, `today`, month, and financial-year boundaries |
 | `expense_class.py` | Realised-capital-loss taxonomy that keeps trading losses out of consumption totals |
 | `rules.py` | Categorization rule matching |
-| `report_generator.py` | Monthly report construction |
 | `encryption.py` | AES-256-GCM BYOK key encryption and legacy migration |
 | `auth/` | JWT creation, decoding, and token-version verification |
 
@@ -310,7 +308,6 @@ Writers and refreshes serialize on the user's database row. Refresh takes that
 lock before loading inputs, guards the publication version, and commits derived
 rows, publication metadata, and the analytics audit together. Multi-query
 analytics reads share a reader lock on PostgreSQL to avoid crossing publications.
-`/api/analytics/v2/freshness` reports current and published versions.
 A refresh failure rolls back that work,
 independently of the preceding import commit. Data Health exposes coverage and
 rollup freshness.
@@ -389,8 +386,8 @@ flowchart TB
 `taxPlanningUtils.ts` re-exports tax planning and history functions.
 `returnsAnalysisUtils.ts`, `netWorthUtils.ts`, `netWorthProjection.ts`,
 `cashFlowUtils.ts`, SIP `projectionUtils.ts`, goal `helpers.ts`,
-`spendingAnalysisUtils.ts`, `quickInsightsData.ts`, `recentIncome.ts`, and
-`dayOfWeekUtils.ts` retain compatibility and presentation work. Put a correction
+`spendingAnalysisUtils.ts`, `quickInsightsData.ts`, and `dayOfWeekUtils.ts`
+retain compatibility and presentation work. Put a correction
 in the canonical module and test a consumer; do not create a second formula in
 an adapter.
 
@@ -527,8 +524,10 @@ utilities. Repeated visual patterns belong in shared components.
 | `components/shared/` | Cross-feature states, authentication UI, command palette, and preferences |
 | `components/analytics/` | Reusable financial visualizations |
 | `components/transactions/` | Ledger filters, table, tags, pagination, and saved views |
-| `components/upload/` | Drop zone, account classification, and upload result UI |
 | `components/chat/` | AI panel, messages, and orchestration |
+
+The upload drop zone, review, feedback, and import history are page-local under
+`pages/upload-sync/components/`.
 
 [PageContainer](../frontend/src/components/ui/PageContainer.tsx) and
 [PageHeader](../frontend/src/components/ui/PageHeader.tsx) define page-level
@@ -572,6 +571,8 @@ flowchart TB
 | [ChartSeriesLegend](../frontend/src/components/ui/ChartSeriesLegend.tsx) | HTML series names outside the plot, with optional latest values and a caption. |
 | [PieChartLedger](../frontend/src/components/ui/PieChartLedger.tsx) | Ranked amount/share rows, coordinated slice hover/focus, and native buttons for category drilldown. |
 | [useChartPresentation](../frontend/src/components/ui/useChartPresentation.ts) | Live viewport, theme, and motion subscriptions; returns `isMobile`, `theme`, and `animate`. |
+| [ChartSection](../frontend/src/components/ui/ChartSection.tsx) | Panel shell for a full-width custom chart section: scroll-in reveal, eyebrow/title/description header labeled by `titleId`, and an optional header control. |
+| [TooltipValueList](../frontend/src/components/ui/TooltipValueList.tsx) | Color-keyed label and currency rows for a custom chart tooltip. |
 
 Financial definitions remain in the named finance domains, shared helpers,
 and backend calculations. For example,
@@ -1049,8 +1050,9 @@ health, and recovery procedures.
 CI checks include:
 
 - Frontend shared workflow for install, lint, build, and Vitest
-- Backend Python 3.13 job for Ruff, format check, mypy, pytest, and an
-  `alembic upgrade head` run against an empty database
+- GitHub Pages build run exactly as the deployment workflow runs it
+- Backend Python 3.14 job for Ruff, format check, mypy, pytest, and an
+  `alembic upgrade head` plus `alembic check` run against an empty database
 - Shared security scan workflow
 - Native PostgreSQL bootstrap, constraints, data preservation, and rollback guards
 

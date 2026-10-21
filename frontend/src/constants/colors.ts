@@ -3,7 +3,7 @@
  *
  * Single source of truth: CSS variables in index.css.
  * This file reads computed values at runtime so JS/Recharts/SVG always
- * match whatever is defined in CSS — change index.css and everything updates.
+ * match whatever is defined in CSS -- change index.css and everything updates.
  *
  * Usage in components:
  * - Tailwind classes: `text-app-blue`, `bg-app-green/20`, etc.
@@ -90,7 +90,7 @@ export const colors = {
   },
 } as const
 
-// ─── Resolved hex values (for Recharts, SVG, canvas — reads from CSS at runtime) ─
+// ─── Resolved hex values (for Recharts, SVG, canvas -- reads from CSS at runtime) ─
 
 /** Call once after DOM is ready (e.g. in a top-level useEffect or module scope). */
 function buildRawColors() {

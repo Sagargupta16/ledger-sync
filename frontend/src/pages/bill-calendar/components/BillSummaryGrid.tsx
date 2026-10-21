@@ -30,7 +30,7 @@ export default function BillSummaryGrid({
     else nextBillPrimary = `In ${daysUntil} days`
   }
   const nextBillContext = nextBill
-    ? `${nextBill.name} — ${formatCurrency(nextBill.amount)}`
+    ? `${nextBill.name} - ${formatCurrency(nextBill.amount)}`
     : 'Next Upcoming Bill'
 
   return (
@@ -42,7 +42,6 @@ export default function BillSummaryGrid({
         colorClass="text-app-red"
         bgClass="bg-app-red/20"
         delay={0}
-        compact
       />
       <SummaryCard
         icon={Hash}
@@ -51,7 +50,6 @@ export default function BillSummaryGrid({
         colorClass="text-app-blue"
         bgClass="bg-app-blue/20"
         delay={0.04}
-        compact
       />
       <div className="col-span-2 sm:col-span-1">
         <SummaryCard
@@ -61,7 +59,6 @@ export default function BillSummaryGrid({
           colorClass="text-app-orange"
           bgClass="bg-app-orange/20"
           delay={0.08}
-          compact
         />
       </div>
     </div>

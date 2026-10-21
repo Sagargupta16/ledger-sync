@@ -35,7 +35,7 @@ export class FileParseError extends Error {
 // Excel's day-0 epoch (1899-12-30 UTC); serial date numbers count days from here.
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
 export const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
-export const MAX_UPLOAD_ROWS = 100_000
+const MAX_UPLOAD_ROWS = 100_000
 const MAX_AMOUNT = 9_999_999_999_999.99
 const MAX_LABEL_LENGTH = 255
 const MAX_NOTE_LENGTH = 10_000

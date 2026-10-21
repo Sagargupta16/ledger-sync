@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
-import { Calculator, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react'
+import { Calculator, TrendingUp, TrendingDown, IndianRupee, type LucideIcon } from 'lucide-react'
 import { Money } from '@/components/ui'
+import { cn } from '@/lib/cn'
 import { formatPercent, percentChange } from '@/lib/formatters'
 
 interface TaxSummaryCardsProps {
@@ -32,6 +34,55 @@ function YoyBadge({ current, previous }: Readonly<{ current: number; previous: n
   )
 }
 
+function TaxSummaryTile({
+  icon: Icon,
+  iconClassName,
+  iconBackgroundClassName,
+  label,
+  value,
+  previous,
+  note,
+  delay,
+  isLoading,
+  className,
+}: Readonly<{
+  icon: LucideIcon
+  iconClassName: string
+  iconBackgroundClassName: string
+  label: ReactNode
+  value: number
+  previous: number | null | undefined
+  note: ReactNode
+  delay: number
+  isLoading: boolean
+  className?: string
+}>) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className={cn('ledger-panel min-w-0 p-4 sm:p-5', className)}
+    >
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-md', iconBackgroundClassName)}>
+          <Icon className={cn('size-4', iconClassName)} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-kpi-label text-muted-foreground">{label}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="ledger-figure text-kpi-hero font-semibold">
+              {isLoading ? '...' : <Money value={value} compactBelowSm bold className="whitespace-normal text-left" />}
+            </p>
+            {!isLoading && <YoyBadge current={value} previous={previous} />}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{note}</p>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export default function TaxSummaryCards({
   isLoading,
   netTaxableIncome,
@@ -45,82 +96,40 @@ export default function TaxSummaryCards({
   return (
     // Two-up on phones with short figures; full figures from `sm` up.
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="ledger-panel min-w-0 p-4 sm:p-5"
-      >
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-green/15">
-            <TrendingUp className="size-4 text-app-green" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-kpi-label text-muted-foreground">
-              {isProjecting ? 'Cash take-home' : 'Income after estimated tax'}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : <Money value={netTaxableIncome} compactBelowSm bold className="whitespace-normal text-left" />}
-              </p>
-              {!isLoading && <YoyBadge current={netTaxableIncome} previous={prevNetTaxableIncome} />}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isProjecting ? 'Employment payroll after tax and employee EPF' : 'After estimated tax and known employee deductions'}
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="ledger-panel min-w-0 p-4 sm:p-5"
-      >
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-app-blue/15">
-            <IndianRupee className="size-4 text-app-blue" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-kpi-label text-muted-foreground">Taxable Income</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : <Money value={grossTaxableIncome} compactBelowSm bold className="whitespace-normal text-left" />}
-              </p>
-              {!isLoading && <YoyBadge current={grossTaxableIncome} previous={prevGrossTaxableIncome} />}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Before standard deduction</p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="ledger-panel col-span-2 min-w-0 p-4 sm:col-span-1 sm:p-5"
-      >
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
-            <Calculator className="size-4 text-primary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-kpi-label text-muted-foreground">
-              {isProjecting ? 'Estimated annual tax liability' : 'Tax on recorded income'}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="ledger-figure text-kpi-hero font-semibold">
-                {isLoading ? '...' : <Money value={totalTax} compactBelowSm bold className="whitespace-normal text-left" />}
-              </p>
-              {!isLoading && <YoyBadge current={totalTax} previous={prevTotalTax} />}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isProjecting ? 'Full-year employment and other recorded taxable income' : 'Liability if no further taxable income is received this FY'}
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      <TaxSummaryTile
+        icon={TrendingUp}
+        iconClassName="text-app-green"
+        iconBackgroundClassName="bg-app-green/15"
+        label={isProjecting ? 'Cash take-home' : 'Income after estimated tax'}
+        value={netTaxableIncome}
+        previous={prevNetTaxableIncome}
+        note={isProjecting ? 'Employment payroll after tax and employee EPF' : 'After estimated tax and known employee deductions'}
+        delay={0.1}
+        isLoading={isLoading}
+      />
+      <TaxSummaryTile
+        icon={IndianRupee}
+        iconClassName="text-app-blue"
+        iconBackgroundClassName="bg-app-blue/15"
+        label="Taxable Income"
+        value={grossTaxableIncome}
+        previous={prevGrossTaxableIncome}
+        note="Before standard deduction"
+        delay={0.2}
+        isLoading={isLoading}
+      />
+      <TaxSummaryTile
+        icon={Calculator}
+        iconClassName="text-primary"
+        iconBackgroundClassName="bg-primary/15"
+        label={isProjecting ? 'Estimated annual tax liability' : 'Tax on recorded income'}
+        value={totalTax}
+        previous={prevTotalTax}
+        note={isProjecting ? 'Full-year employment and other recorded taxable income' : 'Liability if no further taxable income is received this FY'}
+        delay={0.3}
+        isLoading={isLoading}
+        className="col-span-2 sm:col-span-1"
+      />
     </div>
   )
 }

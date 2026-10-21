@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_GST_RATES,
   DEFAULT_GST_RATES_LEGACY,
-  GST_SLABS,
   GST_SLABS_CURRENT,
   GST_SLABS_LEGACY,
   calculateGSTFromInclusive,
@@ -26,7 +25,6 @@ const expense = (overrides: Partial<Transaction>): Transaction => ({
 describe('GST_SLABS', () => {
   it('current (GST 2.0) slabs drop 12/28 and add 40', () => {
     expect(GST_SLABS_CURRENT).toEqual([0, 3, 5, 18, 40])
-    expect(GST_SLABS).toEqual([0, 3, 5, 18, 40]) // back-compat export = current
   })
 
   it('legacy (pre-2025-09-22) slabs keep 12 and 28', () => {

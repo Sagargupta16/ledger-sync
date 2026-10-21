@@ -4,9 +4,10 @@ import {
   MONTHS_PER_YEAR,
   parseLocalDate,
   toLocalDateKey,
+  getTodayKey,
 } from '@/lib/dateUtils'
 
-export interface GoalProjectionInput {
+interface GoalProjectionInput {
   target_amount: number
   target_date: string | null
 }
@@ -100,7 +101,7 @@ function resolveDeadlineState(
   now: Date,
 ): GoalDeadlineState {
   if (!targetDate) return 'none'
-  if (toLocalDateKey(targetDate) < toLocalDateKey(now)) return 'past_due'
+  if (toLocalDateKey(targetDate) < getTodayKey(now)) return 'past_due'
   return monthsRemaining > 0 ? 'scheduled' : 'due_soon'
 }
 

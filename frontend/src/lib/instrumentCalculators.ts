@@ -11,9 +11,9 @@
  * Employees earning above the ceiling can still contribute on full salary,
  * but the legal floor is always computed on the capped wage.
  */
-export const EPF_STATUTORY_RATE_PCT = 12
+const EPF_STATUTORY_RATE_PCT = 12
 export const EPF_WAGE_CEILING = 15000
-export const EPF_MIN_MONTHLY_CONTRIBUTION = (EPF_WAGE_CEILING * EPF_STATUTORY_RATE_PCT) / 100
+const EPF_MIN_MONTHLY_CONTRIBUTION = (EPF_WAGE_CEILING * EPF_STATUTORY_RATE_PCT) / 100
 
 /** Existing projection minimum: the wage-ceiling floor or 12% of full basic. */
 export function minimumEpfContribution(monthlyBasic: number): number {
@@ -25,10 +25,10 @@ export function minimumEpfContribution(monthlyBasic: number): number {
  * scheme (not the EPF corpus). The EPS wage is capped at the ₹15,000 ceiling,
  * so the diversion maxes out at 8.33% × 15,000 = ₹1,250/month.
  */
-export const EPS_DIVERSION_RATE_PCT = 8.33
+const EPS_DIVERSION_RATE_PCT = 8.33
 
-export interface EpfMonthlyContributions {
-  /** Employee share — 12% statutory, more with VPF; all lands in EPF. */
+interface EpfMonthlyContributions {
+  /** Employee share -- 12% statutory, more with VPF; all lands in EPF. */
   employee: number
   /** Employer share that actually reaches the EPF corpus (post EPS diversion). */
   employerEpf: number
@@ -45,7 +45,7 @@ export interface EpfMonthlyContributions {
  * and all of it lands in EPF. The employer contributes a flat 12% of basic, but
  * 8.33% of the EPS wage (capped at the ₹15,000 ceiling = ₹1,250/mo) is diverted
  * to the EPS pension scheme, which does NOT earn EPF interest. So the employer's
- * EPF-corpus share is 12%·basic − 8.33%·min(basic, 15000) — exactly 3.67% only
+ * EPF-corpus share is 12%·basic − 8.33%·min(basic, 15000) -- exactly 3.67% only
  * at the ceiling, and larger above it. Passing a flat employer % (e.g. 3.67%, or
  * mirroring the employee's VPF %) is wrong for any salary off the ceiling.
  *
@@ -129,7 +129,7 @@ export function projectPPF(
  * The monthly inflow into the EPF corpus is the employee share (12% statutory,
  * higher with VPF) plus the employer's EPF share, which is 12% of basic minus
  * the EPS diversion (8.33% of the capped ₹15,000 wage). See
- * `epfMonthlyContributions` for the statutory model — passing a flat employer
+ * `epfMonthlyContributions` for the statutory model -- passing a flat employer
  * percentage (e.g. mirroring the employee %) over-states the corpus because the
  * employer's 8.33% EPS slice does not earn EPF interest.
  *
@@ -181,7 +181,7 @@ export function projectEPF(
   }
 }
 
-export interface NPSParams {
+interface NPSParams {
   monthlyContribution: number
   equityPct?: number
   corpBondPct?: number

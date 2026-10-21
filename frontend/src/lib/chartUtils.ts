@@ -1,24 +1,11 @@
 /**
  * Shared chart utilities for consistent visualization behavior.
  *
- * - Smart axis label intervals that prevent overlap
  * - Currency-aware label formatters for Recharts LabelList
  */
 
 import { CHART_TEXT } from '@/constants/chartColors'
 import { formatCurrencyShort } from './formatters'
-
-/**
- * Calculate a smart tick interval that prevents label overlap.
- * Adjusts based on data length and available chart width.
- *
- * @param dataLength - Number of data points
- * @param maxLabels - Max labels to show (default 12)
- */
-export function getSmartInterval(dataLength: number, maxLabels = 12): number {
-  if (dataLength <= maxLabels) return 0 // Show all
-  return Math.ceil(dataLength / maxLabels) - 1
-}
 
 /**
  * Narrow a Recharts tooltip `label` down to the text it actually carries.

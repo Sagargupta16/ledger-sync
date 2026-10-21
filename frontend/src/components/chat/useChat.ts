@@ -246,81 +246,94 @@ interface LoopParams {
  * The caller only sees the final assistant text via `onFinalText`.
  */
 async function runToolLoop(params: LoopParams): Promise<void> {
-  // `convo` grows as the loop runs -- we mutate this local array, not the
+  // `convo` grows as the rounds run -- we mutate this local array, not the
   // React state, to avoid render-per-round and race conditions.
   const convo: ChatMessage[] = [...params.conversation]
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const response = await sendChat(params.provider, {
-      model: params.model,
-      systemPrompt: params.systemPrompt,
-      messages: convo,
-      apiKey: params.apiKey,
-      region: params.region ?? undefined,
-      tools: params.tools.length > 0 ? params.tools : undefined,
-      signal: params.signal,
-    })
+  if (await runRounds(params, convo, MAX_TOOL_ROUNDS)) return
 
-    // Report usage back to our server. For Bedrock the backend already
-    // logged it (usage === null) so we skip; for OpenAI/Anthropic we post
-    // the provider-reported token counts so the user's usage dashboard
-    // and limit enforcement stay accurate.
-    if (response.usage) {
-      aiUsageService
-        .log({
-          provider: params.provider,
-          model: params.model,
-          input_tokens: response.usage.inputTokens,
-          output_tokens: response.usage.outputTokens,
-          tool_rounds: 1,
-        })
-        .catch((err: unknown) => {
-          // Usage logging is best-effort -- never fail the chat over it.
-          console.warn('[useChat] failed to log usage:', err)
-        })
-    }
+  // Fell off the round limit -- still show whatever the model last said. The
+  // final message is the round's tool results (a user turn), so look back for
+  // the last assistant turn instead of reading `convo.at(-1)`, which never
+  // matched and left the bubble showing the last status line.
+  const lastAssistant = convo.findLast((message) => message.role === 'assistant')
+  params.onFinalText(
+    (lastAssistant?.blocks ? textFromBlocks(lastAssistant.blocks) : '') ||
+      `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
+  )
+}
 
-    // Append the assistant turn (whatever mix of text + tool_use).
-    convo.push({ role: 'assistant', blocks: response.blocks })
+/**
+ * One send + tool-execution round per call. Rounds are chained, not looped:
+ * each needs the previous round's tool results in `convo`, so they cannot run
+ * concurrently. Resolves true once the model gives a final answer, false when
+ * `roundsLeft` runs out first.
+ */
+async function runRounds(params: LoopParams, convo: ChatMessage[], roundsLeft: number): Promise<boolean> {
+  if (roundsLeft <= 0) return false
 
-    const toolUses = response.blocks.filter(
-      (b): b is Extract<Block, { type: 'tool_use' }> => b.type === 'tool_use',
-    )
+  const response = await sendChat(params.provider, {
+    model: params.model,
+    systemPrompt: params.systemPrompt,
+    messages: convo,
+    apiKey: params.apiKey,
+    region: params.region ?? undefined,
+    tools: params.tools.length > 0 ? params.tools : undefined,
+    signal: params.signal,
+  })
 
-    if (response.stopReason !== 'tool_use' || toolUses.length === 0) {
-      params.onFinalText(textFromBlocks(response.blocks))
-      return
-    }
-
-    // Show a status hint while tools run (LLM often returns some text alongside
-    // its tool request -- use that if available, otherwise a generic message).
-    const interimText = textFromBlocks(response.blocks)
-    params.onStatus(interimText || 'Looking up your data…')
-
-    // Execute all tool_use blocks in parallel and append the results as a
-    // single user turn.
-    const results = await Promise.all(
-      toolUses.map(async (tu) => ({
-        tool_use_id: tu.tool_use_id,
-        content: await executeTool(tu.name, tu.input),
-      })),
-    )
-    convo.push({
-      role: 'user',
-      blocks: results.map((r) => ({
-        type: 'tool_result',
-        tool_use_id: r.tool_use_id,
-        content: r.content,
-      })),
-    })
+  // Report usage back to our server. For Bedrock the backend already
+  // logged it (usage === null) so we skip; for OpenAI/Anthropic we post
+  // the provider-reported token counts so the user's usage dashboard
+  // and limit enforcement stay accurate.
+  if (response.usage) {
+    aiUsageService
+      .log({
+        provider: params.provider,
+        model: params.model,
+        input_tokens: response.usage.inputTokens,
+        output_tokens: response.usage.outputTokens,
+        tool_rounds: 1,
+      })
+      .catch((err: unknown) => {
+        // Usage logging is best-effort -- never fail the chat over it.
+        console.warn('[useChat] failed to log usage:', err)
+      })
   }
 
-  // Fell off the loop limit -- still show whatever the model last said.
-  const lastAssistant = convo.at(-1)
-  if (lastAssistant?.role === 'assistant' && lastAssistant.blocks) {
-    params.onFinalText(
-      textFromBlocks(lastAssistant.blocks) ||
-        `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
-    )
+  // Append the assistant turn (whatever mix of text + tool_use).
+  convo.push({ role: 'assistant', blocks: response.blocks })
+
+  const toolUses = response.blocks.filter(
+    (b): b is Extract<Block, { type: 'tool_use' }> => b.type === 'tool_use',
+  )
+
+  if (response.stopReason !== 'tool_use' || toolUses.length === 0) {
+    params.onFinalText(textFromBlocks(response.blocks))
+    return true
   }
+
+  // Show a status hint while tools run (LLM often returns some text alongside
+  // its tool request -- use that if available, otherwise a generic message).
+  const interimText = textFromBlocks(response.blocks)
+  params.onStatus(interimText || 'Looking up your data…')
+
+  // Execute all tool_use blocks in parallel and append the results as a
+  // single user turn.
+  const results = await Promise.all(
+    toolUses.map(async (tu) => ({
+      tool_use_id: tu.tool_use_id,
+      content: await executeTool(tu.name, tu.input),
+    })),
+  )
+  convo.push({
+    role: 'user',
+    blocks: results.map((r) => ({
+      type: 'tool_result',
+      tool_use_id: r.tool_use_id,
+      content: r.content,
+    })),
+  })
+
+  return runRounds(params, convo, roundsLeft - 1)
 }

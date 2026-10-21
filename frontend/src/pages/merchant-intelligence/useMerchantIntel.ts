@@ -23,7 +23,7 @@ export const MIN_TRANSACTIONS = 2
 /** Endpoint cap (`Query(ge=1, le=200)`); ask for all of it in one round trip. */
 export const ROW_LIMIT = 200
 
-export interface UseMerchantIntelResult {
+interface UseMerchantIntelResult {
   readonly isLoading: boolean
   readonly isError: boolean
   readonly retry: () => void
