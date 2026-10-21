@@ -25,7 +25,7 @@ export function resolveGranularity(dates: readonly string[], override: Granulari
   const spanDays = Math.max(
     1,
     Math.round(
-      (new Date(sortedDates[sortedDates.length - 1]).valueOf() -
+      (new Date(sortedDates.at(-1) ?? '').valueOf() -
         new Date(sortedDates[0]).valueOf()) /
         MS_PER_DAY,
     ),

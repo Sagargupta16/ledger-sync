@@ -44,6 +44,30 @@ function invokeArchify(commandArgs) {
   return JSON.parse(result.stdout)
 }
 
+const isNameChar = (char) => /[\w-]/.test(char)
+const isSpace = (char) => /\s/.test(char)
+
+/**
+ * The first `--name: value` in one declaration, as [name, value], or null.
+ * Same result as matching `(--[\w-]+)\s*:([\s\S]+)`, in one linear pass: a
+ * failed name run is skipped whole, since any later `--` inside it ends at
+ * the same character and fails the same way.
+ */
+function customProperty(declaration) {
+  let start = declaration.indexOf('--')
+  while (start !== -1) {
+    let end = start + 2
+    while (end < declaration.length && isNameChar(declaration[end])) end++
+    let colon = end
+    while (colon < declaration.length && isSpace(declaration[colon])) colon++
+    if (end > start + 2 && declaration[colon] === ':' && colon + 1 < declaration.length) {
+      return [declaration.slice(start, end), declaration.slice(colon + 1)]
+    }
+    start = declaration.indexOf('--', end > start + 2 ? end : start + 1)
+  }
+  return null
+}
+
 function staticPreview(html) {
   const matches = [...html.matchAll(/<svg\b[\s\S]*?<\/svg>/g)]
   if (matches.length !== 1) throw new Error('Expected one delivered diagram SVG')
@@ -61,12 +85,12 @@ function staticPreview(html) {
   // Resolve the fixed light palette for this passive export, preserving geometry.
   const palette = new Map()
   for (const selector of [/:root,\s*\[data-theme="dark"\]\s*\{([^}]+)\}/, /\[data-theme="light"\]\s*\{([^}]+)\}/]) {
-    // Split on ';' first (dropping the unterminated tail), then find the first
-    // `--name:` inside each short declaration. One block-wide pattern ending in
-    // `[^;]+;` backtracked super-linearly on long runs without a semicolon.
+    // Split on ';' first (dropping the unterminated tail), then scan each
+    // declaration for its first `--name:`. A regex here backtracked
+    // super-linearly on long runs without a semicolon or colon.
     for (const declaration of selector.exec(styles)[1].split(';').slice(0, -1)) {
-      const match = /(--[\w-]+)\s*:([\s\S]+)/.exec(declaration)
-      if (match) palette.set(match[1], match[2].trim())
+      const property = customProperty(declaration)
+      if (property) palette.set(property[0], property[1].trim())
     }
   }
   const resolvePalette = (text) => text.replace(/var\((--[\w-]+)\)/g, (original, key) => palette.get(key) ?? original)

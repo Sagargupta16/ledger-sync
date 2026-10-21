@@ -27,7 +27,7 @@ export function phrasePattern(phrases: Iterable<string>): RegExp | null {
   const words = [...phrases].map((phrase) => phrase.trim()).filter(Boolean)
   if (words.length === 0) return null
   const body = words.map(escapeRegExp).join('|')
-  return new RegExp(String.raw`(?<!${WORD_CHAR})(?:${body})(?!${WORD_CHAR})`, 'iu')
+  return new RegExp(`(?<!${WORD_CHAR})(?:${body})(?!${WORD_CHAR})`, 'iu')
 }
 
 // ─── essentials (Needs) ─────────────────────────────────────────────────────
