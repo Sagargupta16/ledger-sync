@@ -187,7 +187,7 @@ def _unzip(body: bytes) -> bytes:
                 raise MoneyManagerBackupError(_too_large())
             with archive.open(entry) as handle:
                 data = handle.read(MAX_DATABASE_BYTES + 1)
-    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError) as error:
+    except (zipfile.BadZipFile, RuntimeError, EOFError) as error:
         raise MoneyManagerBackupError("The zip file could not be read.") from error
     if len(data) > MAX_DATABASE_BYTES:
         raise MoneyManagerBackupError(_too_large())

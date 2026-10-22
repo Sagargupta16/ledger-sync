@@ -85,7 +85,7 @@ export function SpendingButterflyChart({ rows, maxValue, labelA, labelB, compact
             { key: 'periodB', label: labelB, color: colors.app.red, format: absCurrency },
           ]}
           formatLabel={asIs}
-          footer={(row) => <Difference row={row} />}
+          footer={difference}
         />
       }
     >
@@ -135,6 +135,8 @@ function Difference({ row }: Readonly<{ row: ChartRow }>) {
     </div>
   )
 }
+
+const difference = (row: ChartRow) => <Difference row={row} />
 
 /** "+₹1,200.00" when B spent more, "-₹1,200.00" when it spent less, unsigned at zero. */
 function signedCurrency(value: number): string {

@@ -162,7 +162,8 @@ function place(readout: Readout, width: number, height: number, frameWidth: numb
 
 function speak({ from, to, value, share, opens }: Readout): string {
   const name = to === undefined ? from : `${from} to ${to}`
-  return `${name}: ${value}${share ? `, ${share}` : ''}${opens ? '. Press Enter for the breakdown' : ''}`
+  const shareText = share ? `, ${share}` : ''
+  return `${name}: ${value}${shareText}${opens ? '. Press Enter for the breakdown' : ''}`
 }
 
 /** Keeps a box start between INSET and `max`; INSET wins when the box is wider than the room. */

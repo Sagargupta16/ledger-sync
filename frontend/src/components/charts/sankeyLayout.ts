@@ -98,8 +98,8 @@ export function computeSankeyLayout<N extends SankeyNodeInput, L extends SankeyL
 function toColumns(nodes: WorkNode[], align: 'justify' | 'left'): WorkNode[][] {
   const waiting = new Map(nodes.map((node) => [node, node.inLinks.length]))
   const queue = nodes.filter((node) => node.inLinks.length === 0)
-  for (let index = 0; index < queue.length; index++) {
-    const node = queue[index]
+  // An array iterator rereads the length each step, so this also visits the nodes pushed below.
+  for (const node of queue) {
     for (const { target } of node.outLinks) {
       target.depth = Math.max(target.depth, node.depth + 1)
       const left = (waiting.get(target) ?? 0) - 1

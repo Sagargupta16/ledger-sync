@@ -199,9 +199,10 @@ def test_identical_copies_with_different_categories_still_reject(test_db_session
     _legacy(test_db_session, test_user.id, _source(category="Travel"), tagged=False)
     before = set(test_db_session.scalars(select(Transaction.transaction_id)))
     engine = SyncEngine(test_db_session, test_user.id)
+    rows = [_source(), _source()]
 
     with pytest.raises(NormalizationError, match=re.escape("2026-01-15, 100.00 on Cash")) as error:
-        engine.import_rows([_source(), _source()], "new.csv", "new")
+        engine.import_rows(rows, "new.csv", "new")
 
     assert "ambiguous source identities" in str(error.value)
     assert set(test_db_session.scalars(select(Transaction.transaction_id))) == before

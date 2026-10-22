@@ -188,8 +188,10 @@ function valueSpan(scale: LinearScale, a: number, b = a): Span | null {
 
 /** Pixels from key a's band start to key b's band end; null unless both keys are visible. */
 function categorySpan({ category }: CartesianState, a?: string, b = a): Span | null {
-  const i = category.keys.findIndex((key) => key === a)
-  const j = category.keys.findIndex((key) => key === b)
+  // Keys are always strings, so a missing key never matches one.
+  if (a === undefined || b === undefined) return null
+  const i = category.keys.indexOf(a)
+  const j = category.keys.indexOf(b)
   if (i < 0 || j < 0) return null
   return [category.start(Math.min(i, j)), category.start(Math.max(i, j)) + category.bandwidth]
 }

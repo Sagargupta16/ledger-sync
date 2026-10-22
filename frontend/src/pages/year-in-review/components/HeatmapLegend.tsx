@@ -32,7 +32,7 @@ function Stops({ mode, highlightKey = null, onToggle }: Readonly<Props>) {
   }
 
   return (
-    <div role="group" aria-label="Highlight days by level" className="flex">
+    <fieldset aria-label="Highlight days by level" className="m-0 flex min-w-0 border-0 p-0">
       {stops.map((stop) => {
         const pressed = stop.key === highlightKey
         const receded = highlightKey !== null && !pressed
@@ -53,7 +53,7 @@ function Stops({ mode, highlightKey = null, onToggle }: Readonly<Props>) {
           </button>
         )
       })}
-    </div>
+    </fieldset>
   )
 }
 

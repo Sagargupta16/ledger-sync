@@ -123,7 +123,8 @@ function PieMarks({ slices, ratio, padAngle, activeKey, setActive, onSelect }: M
   }, [frame.entered, hasSlices])
 
   const canSelect = (key: string | null) => onSelect !== undefined && slices.some((slice) => slice.key === key && slice.selectable !== false)
-  const keyAt = (event: PointerEvent<SVGGElement>) => (event.target instanceof Element ? event.target.getAttribute('data-slice') : null)
+  // Every target under this <g> is an SVG element; one without data-slice reads as null.
+  const keyAt = (event: PointerEvent<SVGGElement>) => (event.target instanceof SVGElement ? (event.target.dataset.slice ?? null) : null)
   // Hover is mouse only (a tap emulates it). The disc keyed '' holds the slice across gaps and the hole.
   const onPointerOver = (event: PointerEvent<SVGGElement>) => {
     const key = keyAt(event)

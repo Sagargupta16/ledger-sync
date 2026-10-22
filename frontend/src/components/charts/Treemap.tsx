@@ -98,7 +98,7 @@ export default function Treemap({
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = level.findIndex((node) => node.id === selectedId)
     const current = index >= 0 ? level[index] : undefined
-    const step = STEP_KEYS[event.key]
+    const moveTo = tileForKey(event.key, index, level.length)
     if ((event.key === 'Escape' || event.key === 'Backspace') && open) {
       leave(true)
       event.stopPropagation()
@@ -109,10 +109,8 @@ export default function Treemap({
     } else if ((event.key === 'Enter' || event.key === ' ') && current) {
       const target = category(current.id)
       if (target && canOpen(target)) enter(target, true)
-    } else if ((event.key === 'Home' || event.key === 'End') && level.length > 0) {
-      select(level[event.key === 'Home' ? 0 : level.length - 1])
-    } else if (step !== undefined && level.length > 0) {
-      select(level[nextIndex(index, step, level.length)])
+    } else if (moveTo !== undefined) {
+      select(level[moveTo])
     } else return
     event.preventDefault()
   }
@@ -194,6 +192,15 @@ export default function Treemap({
       <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
     </div>
   )
+}
+
+/** The tile Home, End or an arrow key lands on among `count`, or undefined for any other key and for an empty level. */
+function tileForKey(key: string, index: number, count: number): number | undefined {
+  if (count === 0) return undefined
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  const step = STEP_KEYS[key]
+  return step === undefined ? undefined : nextIndex(index, step, count)
 }
 
 /** The next tile for an arrow key: from no selection, the first or the last; otherwise one step, held at the ends. */

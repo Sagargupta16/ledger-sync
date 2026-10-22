@@ -122,15 +122,17 @@ def test_foreign_currency_rows_reject_the_backup_with_a_count() -> None:
         "tx-usd", "1", "2026-05-05", 5, "acc-card", category="cat-food", currency="cur-usd"
     )
 
+    body = builder.backup()
     with pytest.raises(MoneyManagerBackupError, match="1 in a currency other than INR"):
-        read_backup(builder.backup())
+        read_backup(body)
 
 
 def test_a_row_without_an_account_rejects_the_backup() -> None:
     builder = household().entry("tx-lost", "1", "2026-05-05", 5, "acc-missing", category="cat-food")
 
+    body = builder.backup()
     with pytest.raises(MoneyManagerBackupError, match="1 without an account"):
-        read_backup(builder.backup())
+        read_backup(body)
 
 
 @pytest.mark.parametrize(
@@ -146,8 +148,9 @@ def test_a_sqlite_file_without_money_manager_tables_is_refused() -> None:
     other = BackupBuilder()
     other.db.execute("DROP TABLE ZINOUTCOME")
 
+    body = other.backup()
     with pytest.raises(MoneyManagerBackupError, match="not a Money Manager backup"):
-        read_backup(other.backup())
+        read_backup(body)
 
 
 def test_stores_over_the_size_cap_are_refused(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,5 +165,6 @@ def test_stores_over_the_size_cap_are_refused(monkeypatch: pytest.MonkeyPatch) -
 def test_a_backup_without_transactions_is_refused() -> None:
     empty = BackupBuilder().account("acc-bank", "Savings Bank")
 
+    body = empty.backup()
     with pytest.raises(MoneyManagerBackupError, match="no transactions"):
-        read_backup(empty.backup())
+        read_backup(body)

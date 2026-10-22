@@ -112,14 +112,18 @@ export function arcPath({ cx, cy, innerRadius, outerRadius, startAngle, endAngle
 /** Corner radii clockwise from top-left, the order of `BAR_RADIUS`. */
 export type CornerRadii = readonly [number, number, number, number]
 
+/** A clockwise corner arc of `radius` ending at (x, y); nothing for a square corner. */
+const corner = (radius: number, x: number, y: number) =>
+  radius ? `A${fmt(radius)},${fmt(radius)} 0 0 1 ${fmt(x)},${fmt(y)}` : ''
+
 export function roundedRectPath(x: number, y: number, width: number, height: number, radii: CornerRadii): string {
   if (width <= 0 || height <= 0) return ''
   const limit = Math.min(width, height) / 2
   const [tl, tr, br, bl] = radii.map((radius) => Math.max(0, Math.min(radius, limit)))
   const r = x + width
   const b = y + height
-  return `M${fmt(x + tl)},${fmt(y)}H${fmt(r - tr)}${tr ? `A${fmt(tr)},${fmt(tr)} 0 0 1 ${fmt(r)},${fmt(y + tr)}` : ''}`
-    + `V${fmt(b - br)}${br ? `A${fmt(br)},${fmt(br)} 0 0 1 ${fmt(r - br)},${fmt(b)}` : ''}`
-    + `H${fmt(x + bl)}${bl ? `A${fmt(bl)},${fmt(bl)} 0 0 1 ${fmt(x)},${fmt(b - bl)}` : ''}`
-    + `V${fmt(y + tl)}${tl ? `A${fmt(tl)},${fmt(tl)} 0 0 1 ${fmt(x + tl)},${fmt(y)}` : ''}Z`
+  return `M${fmt(x + tl)},${fmt(y)}H${fmt(r - tr)}${corner(tr, r, y + tr)}`
+    + `V${fmt(b - br)}${corner(br, r - br, b)}`
+    + `H${fmt(x + bl)}${corner(bl, x, b - bl)}`
+    + `V${fmt(y + tl)}${corner(tl, x + tl, y)}Z`
 }

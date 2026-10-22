@@ -76,6 +76,7 @@ export default function Bars(props: BarsProps) {
   const { dataKey, color, colorFor, fillOpacity = 1, stroke, strokeDasharray, label, onSelect, stackKeys } = props
   const { activeIndex, rowOffset, rows } = chart
   const intro = frame.entered && !introPlayed
+  const onIntroStart = intro ? () => setIntroPlayed(true) : undefined
   const hover = chartTransition('hover', frame.animate)
   const update = chartTransition('update', frame.animate)
   const first = (props.groupIndex ?? 0) === 0 && (!chart.stacked(dataKey) || stackKeys?.[0] === dataKey)
@@ -98,13 +99,8 @@ export default function Bars(props: BarsProps) {
           const index = rowOffset + shape.index
           const fill = colorFor?.(shape.row, index) ?? color
           const opacity = typeof fillOpacity === 'function' ? fillOpacity(shape.row, index) : fillOpacity
-          const delay = intro ? staggerDelay(shape.index, rows.length) : 0
-          const geometry = intro ? chartTransition('bar', frame.animate, delay) : update
-          const text = label?.(shape.value, shape.row) ?? ''
-          const spot = text ? labelSpot(shape, text, chart.layout === 'horizontal') : null
-          // A faint bar mostly shows the card, so its label keeps the card's text colour.
-          const onBar = spot?.inside === true && opacity >= 0.6
-          const labelDelay = intro ? delay + CHART_MOTION.bar * 0.7 : CHART_MOTION.update * 0.7
+          const { geometry, labelDelay } = barTiming(intro, shape.index, rows.length, frame.animate)
+          const { text, spot, onBar } = barLabel(shape, label, opacity, chart.layout === 'horizontal')
           const name = `${chart.label(shape.index)}: ${text || String(shape.value)}`
           return (
             <motion.g
@@ -119,7 +115,7 @@ export default function Bars(props: BarsProps) {
                 animate={{ d: barPath(frame.entered ? shape.rect : shape.base, shape.radii) }}
                 exit={{ d: barPath(shape.seat, shape.radii), transition: update }}
                 transition={geometry}
-                onAnimationStart={intro ? () => setIntroPlayed(true) : undefined}
+                onAnimationStart={onIntroStart}
                 fill={fill}
                 fillOpacity={opacity}
                 stroke={stroke}
@@ -146,6 +142,21 @@ export default function Bars(props: BarsProps) {
       </AnimatePresence>
     </g>
   )
+}
+
+/** Geometry transition and label fade delay of bar `index`: staggered on the first reveal, the update tween after. */
+function barTiming(intro: boolean, index: number, count: number, animate: boolean) {
+  if (!intro) return { geometry: chartTransition('update', animate), labelDelay: CHART_MOTION.update * 0.7 }
+  const delay = staggerDelay(index, count)
+  return { geometry: chartTransition('bar', animate, delay), labelDelay: delay + CHART_MOTION.bar * 0.7 }
+}
+
+/** The bar's value label, where it sits, and whether it takes the bar's text colour. */
+function barLabel(shape: BarShape, label: BarsProps['label'], opacity: number, horizontal: boolean) {
+  const text = label?.(shape.value, shape.row) ?? ''
+  const spot = text ? labelSpot(shape, text, horizontal) : null
+  // A faint bar mostly shows the card, so its label keeps the card's text colour.
+  return { text, spot, onBar: spot?.inside === true && opacity >= 0.6 }
 }
 
 /** Final geometry of every drawable bar; gaps (null) and zeros draw nothing. */

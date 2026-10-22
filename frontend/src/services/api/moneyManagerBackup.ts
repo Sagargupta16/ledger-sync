@@ -48,7 +48,7 @@ const MAX_BODY_BYTES = 4_500_000
 /** Gzip with the browser's native stream: a 4.96 MB backup posts as 1.32 MB. */
 export async function gzipBackup(file: Blob): Promise<Blob> {
   if (typeof CompressionStream === 'undefined') {
-    throw new Error('This browser cannot compress the backup. Update your browser and try again.')
+    throw new TypeError('This browser cannot compress the backup. Update your browser and try again.')
   }
   return new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob()
 }

@@ -113,7 +113,11 @@ function unique(ids: readonly string[]): string[] {
   const used = new Set<string>()
   return ids.map((id) => {
     let candidate = id
-    for (let repeat = 1; used.has(candidate); repeat++) candidate = `${id}#${repeat}`
+    let repeat = 1
+    while (used.has(candidate)) {
+      candidate = `${id}#${repeat}`
+      repeat++
+    }
     used.add(candidate)
     return candidate
   })

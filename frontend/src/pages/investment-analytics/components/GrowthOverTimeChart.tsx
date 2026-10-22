@@ -3,6 +3,7 @@ import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
 import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
 import CartesianTooltip from '@/components/charts/CartesianTooltip'
 import ChartBrush from '@/components/charts/ChartBrush'
+import type { ChartRow } from '@/components/charts/chartContext'
 import Crosshair from '@/components/charts/Crosshair'
 import Grid from '@/components/charts/Grid'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
@@ -46,6 +47,8 @@ function TooltipTotal({ value }: Readonly<{ value: number }>) {
     </div>
   )
 }
+
+const tooltipTotal = (row: ChartRow) => <TooltipTotal value={rowTotal(row)} />
 
 function InvestmentBalanceSummary({
   latestBalance,
@@ -127,7 +130,7 @@ export function GrowthOverTimeChart({
               tooltip={(
                 <CartesianTooltip
                   series={TOP_DOWN.map((category) => ({ key: category, label: category, color: colors[category] }))}
-                  footer={(row) => <TooltipTotal value={rowTotal(row)} />}
+                  footer={tooltipTotal}
                 />
               )}
             >

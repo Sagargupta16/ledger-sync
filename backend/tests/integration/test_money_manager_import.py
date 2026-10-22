@@ -117,8 +117,9 @@ def test_a_backup_that_removes_too_much_needs_confirmation(
         big.entry(f"tx-{index}", "1", "2026-06-01", 10 + index, "acc-bank", category="cat-food")
     _import(test_db_session, test_user, big.backup())
 
+    trimmed = household().backup()
     with pytest.raises(LargeDeletionError, match="remove 40 of your 43"):
-        _import(test_db_session, test_user, household().backup())
+        _import(test_db_session, test_user, trimmed)
     assert (
         len([row for row in _rows(test_db_session, test_user).values() if not row.is_deleted]) == 43
     )

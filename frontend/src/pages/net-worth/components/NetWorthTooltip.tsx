@@ -41,7 +41,7 @@ export function NetWorthTooltip({ layers, color, projection }: Readonly<NetWorth
     return (
       <CartesianTooltip
         series={[...layers].reverse()}
-        footer={(row) => <Total value={layers.reduce((sum, layer) => sum + (amount(row, layer.key) ?? 0), 0)} />}
+        footer={stackTotal(layers)}
       />
     )
   }
@@ -106,3 +106,8 @@ function Total({ value }: Readonly<{ value: number }>) {
     </div>
   )
 }
+
+/** The stacked view's footer: every layer's value on the row, summed. */
+const stackTotal = (layers: readonly TooltipSeries[]) => (row: ChartRow) => (
+  <Total value={layers.reduce((sum, layer) => sum + (amount(row, layer.key) ?? 0), 0)} />
+)

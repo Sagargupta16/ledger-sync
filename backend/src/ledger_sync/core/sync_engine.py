@@ -159,22 +159,7 @@ class SyncEngine:
         A dry run or a guarded snapshot that removes too much rolls back instead.
         """
         options = options or SnapshotOptions()
-        # Source identity precedes mutable user categorization. Existing public
-        # IDs remain stable when rules or classifications change.
-        self._canonicalize_account_casing(normalized_rows)
-        self._canonicalize_category_casing(normalized_rows)
-        if self.user_id is None:
-            raise ValueError("user_id is required for imports")
-        capture_source_identities(normalized_rows, self.user_id)
-        if self.user_id is not None:
-            active_rules = rules.load_active_rules(self.session, self.user_id)
-            if active_rules:
-                for row in normalized_rows:
-                    rules.apply_rules_to_row(active_rules, row)
-
-        self._canonicalize_category_casing(normalized_rows)
-        for row in normalized_rows:
-            self.normalizer.validate_normalized_row(row)
+        user_id = self._prepare_rows(normalized_rows)
 
         transactions = [r for r in normalized_rows if not r.get("is_transfer", False)]
         transfers = [r for r in normalized_rows if r.get("is_transfer", False)]
@@ -185,7 +170,7 @@ class SyncEngine:
 
         try:
             live_before = self._live_count() if options.guard_deletions else 0
-            attach_ledger_dimensions(self.session, self.user_id, normalized_rows)
+            attach_ledger_dimensions(self.session, user_id, normalized_rows)
             stats.merge(
                 self.reconciler.reconcile_batch(
                     normalized_rows=transactions,
@@ -212,19 +197,11 @@ class SyncEngine:
 
             # The prior log, both ledger groups, and the replacement log are
             # committed as one unit, including empty-group soft deletions.
-            # Reuse the unique import identity on forced imports. Inserting a
-            # replacement before a pending DELETE would violate its unique key.
-            import_log = existing_import or ImportLog(user_id=self.user_id, file_hash=file_hash)
-            import_log.file_name = source_file
-            import_log.imported_at = import_time
-            import_log.rows_processed = stats.processed
-            import_log.rows_inserted = stats.inserted
-            import_log.rows_updated = stats.updated
-            import_log.rows_deleted = stats.deleted
-            import_log.rows_skipped = stats.skipped
-            self.session.add(import_log)
+            self._record_import(
+                existing_import, user_id, file_hash, source_file, import_time, stats
+            )
             if stats.inserted or stats.updated or stats.deleted:
-                mark_ledger_changed(self.session, self.user_id, self.reconciler.affected_dates)
+                mark_ledger_changed(self.session, user_id, self.reconciler.affected_dates)
             self.session.commit()
         except Exception:
             self.session.rollback()
@@ -232,6 +209,47 @@ class SyncEngine:
 
         logger.info("Import completed: %s", stats)
         return stats
+
+    def _prepare_rows(self, normalized_rows: list[dict[str, Any]]) -> int:
+        """Canonicalize labels, capture source identity, apply rules, validate; return the user."""
+        # Source identity precedes mutable user categorization. Existing public
+        # IDs remain stable when rules or classifications change.
+        self._canonicalize_account_casing(normalized_rows)
+        self._canonicalize_category_casing(normalized_rows)
+        if self.user_id is None:
+            raise ValueError("user_id is required for imports")
+        capture_source_identities(normalized_rows, self.user_id)
+        active_rules = rules.load_active_rules(self.session, self.user_id)
+        if active_rules:
+            for row in normalized_rows:
+                rules.apply_rules_to_row(active_rules, row)
+        self._canonicalize_category_casing(normalized_rows)
+        for row in normalized_rows:
+            self.normalizer.validate_normalized_row(row)
+        return self.user_id
+
+    def _record_import(
+        self,
+        existing_import: ImportLog | None,
+        user_id: int,
+        file_hash: str,
+        source_file: str,
+        import_time: datetime,
+        stats: ReconciliationStats,
+    ) -> None:
+        """Write this import's counts, reusing the unique log row on a forced re-import.
+
+        Inserting a replacement before a pending DELETE would violate its unique key.
+        """
+        import_log = existing_import or ImportLog(user_id=user_id, file_hash=file_hash)
+        import_log.file_name = source_file
+        import_log.imported_at = import_time
+        import_log.rows_processed = stats.processed
+        import_log.rows_inserted = stats.inserted
+        import_log.rows_updated = stats.updated
+        import_log.rows_deleted = stats.deleted
+        import_log.rows_skipped = stats.skipped
+        self.session.add(import_log)
 
     def import_rows(
         self,

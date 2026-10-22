@@ -325,11 +325,7 @@ def _adopt_unambiguous_legacy_rows(
     conflicts: list[tuple[_Pending, list[Transaction]]] = []
     for shape, group in pending.items():
         candidates = legacy[shape]
-        if any(_crosses_boundary(candidates, row, identity) for row, identity in group):
-            conflicts.append((group, candidates))
-            continue
-        one_to_one = len(candidates) == 1 and source_counts[shape] == 1
-        if not one_to_one and not _interchangeable(candidates, annotated):
+        if not _owner_is_certain(group, candidates, source_counts[shape], annotated):
             conflicts.append((group, candidates))
             continue
         # Interchangeable copies pair in a stable order; leftovers on either side
@@ -340,3 +336,13 @@ def _adopt_unambiguous_legacy_rows(
             claimed.add(candidate.transaction_id)
     if conflicts:
         raise _conflict_error(conflicts)
+
+
+def _owner_is_certain(
+    group: _Pending, candidates: list[Transaction], source_count: int, annotated: set[str]
+) -> bool:
+    """One stored copy for one source row, or interchangeable copies with no v1 clash."""
+    if any(_crosses_boundary(candidates, row, identity) for row, identity in group):
+        return False
+    one_to_one = len(candidates) == 1 and source_count == 1
+    return one_to_one or _interchangeable(candidates, annotated)

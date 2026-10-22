@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 
-import { useCartesian, useChartFrame } from './chartContext'
+import { useCartesian, useChartFrame, type FrameState } from './chartContext'
 import { CHART_MOTION, chartTransition, staggerDelay } from './chartMotion'
 import { areaPath, linePath, type Curve, type Point } from './paths'
 import type { CategoryScale } from './scales'
@@ -97,13 +97,8 @@ export function SeriesPath({
   const box = `${plot.x},${plot.y},${plot.width},${plot.height}`
   const [shape, setShape] = useState<Shape>(() => ({ structure, box, d, epoch: 0, rewipe: false, snap: true }))
   // Previous-render bookkeeping, updated during render as React documents.
-  if (shape.structure !== structure) {
-    // Growing out of an empty path is still the entrance, so it keeps the full draw.
-    const rewipe = frame.animate && frame.entered && shape.d !== ''
-    setShape({ structure, box, d, epoch: shape.epoch + 1, rewipe, snap: true })
-  } else if (shape.box !== box || shape.d !== d) {
-    setShape({ ...shape, box, d, snap: shape.box !== box })
-  }
+  const next = nextShape(shape, { structure, box, d }, frame)
+  if (next) setShape(next)
 
   const isFill = bottom !== undefined
   const id = `${frame.chartId}-${dataKey.replaceAll(/[^\w-]/g, '_')}`
@@ -111,15 +106,9 @@ export function SeriesPath({
   const wipes = isFill || Boolean(dash)
   const clipped = frame.animate && (wipes || shape.rewipe)
   const drawing = frame.animate && !wipes && !shape.rewipe // a solid stroke yet to draw in
-  const shown = frame.entered
+  const visible = frame.entered ? 1 : 0
   const delay = seriesIndex * SERIES_STAGGER
-  const morph = shape.snap ? { duration: 0 } : chartTransition('update', frame.animate)
-  const draw = chartTransition('draw', frame.animate, delay)
-  // A round cap paints a dot at length 0, so the head also fades in as it starts.
-  const fade = chartTransition('hover', frame.animate, delay)
-  const wipe = shape.rewipe
-    ? chartTransition('update', true)
-    : chartTransition(isFill ? 'area' : 'draw', true, delay)
+  const { morph, draw, fade, wipe } = pathTransitions(shape, frame.animate, isFill, delay)
   const marks = dots ? runs.flatMap((run) => run.top) : []
   const pop = (index: number) =>
     frame.animate ? { ...POP, delay: delay + staggerDelay(index, marks.length) } : { duration: 0 }
@@ -139,14 +128,14 @@ export function SeriesPath({
         {clipped && (
           <clipPath id={clipId}>
             <motion.rect key={shape.epoch} x={0} y={0} height={1} transform={clipBox}
-              initial={{ width: 0 }} animate={{ width: shown ? 1 : 0 }} transition={wipe} />
+              initial={{ width: 0 }} animate={{ width: visible }} transition={wipe} />
           </clipPath>
         )}
       </defs>
       <g key={`${shape.epoch}${wipes ? 'w' : 'd'}`} clipPath={clipped ? `url(#${clipId})` : undefined}>
         <motion.path
           initial={drawing ? { d, pathLength: 0, opacity: 0 } : false}
-          animate={wipes ? { d } : { d, pathLength: shown ? 1 : 0, opacity: shown ? 1 : 0 }}
+          animate={wipes ? { d } : { d, pathLength: visible, opacity: visible }}
           transition={{ d: morph, pathLength: draw, opacity: fade }}
           fill={isFill ? `url(#${id})` : 'none'} stroke={isFill ? 'none' : color}
           strokeWidth={strokeWidth} strokeDasharray={dash} strokeOpacity={opacity}
@@ -155,12 +144,35 @@ export function SeriesPath({
         {marks.map((point, index) => (
           <motion.circle key={point.row} r={3} fill={color} fillOpacity={opacity}
             initial={drawing ? { cx: point.x, cy: point.y, scale: 0 } : false}
-            animate={{ cx: point.x, cy: point.y, scale: shown ? 1 : 0 }}
+            animate={{ cx: point.x, cy: point.y, scale: visible }}
             transition={{ cx: morph, cy: morph, scale: pop(index) }} />
         ))}
       </g>
     </>
   )
+}
+
+/** The bookkeeping after this render, or null when nothing changed: a new structure remounts, a new box snaps, new data morphs. */
+function nextShape(shape: Shape, { structure, box, d }: Pick<Shape, 'structure' | 'box' | 'd'>, frame: FrameState): Shape | null {
+  if (shape.structure !== structure) {
+    // Growing out of an empty path is still the entrance, so it keeps the full draw.
+    const rewipe = frame.animate && frame.entered && shape.d !== ''
+    return { structure, box, d, epoch: shape.epoch + 1, rewipe, snap: true }
+  }
+  if (shape.box !== box || shape.d !== d) return { ...shape, box, d, snap: shape.box !== box }
+  return null
+}
+
+/** The path's morph, draw, fade and wipe transitions, from what the last render drew. */
+function pathTransitions(shape: Shape, animate: boolean, isFill: boolean, delay: number) {
+  const entrance = isFill ? 'area' : 'draw'
+  return {
+    morph: shape.snap ? { duration: 0 } : chartTransition('update', animate),
+    draw: chartTransition('draw', animate, delay),
+    // A round cap paints a dot at length 0, so the head also fades in as it starts.
+    fade: chartTransition('hover', animate, delay),
+    wipe: shape.rewipe ? chartTransition('update', true) : chartTransition(entrance, true, delay),
+  }
 }
 
 /** The active-row ring: series fill, a surface-coloured outline, a spring on appear. */

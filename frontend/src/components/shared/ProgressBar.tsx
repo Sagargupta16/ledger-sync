@@ -98,8 +98,10 @@ export default function ProgressBar({
   const semanticValue = Math.max(0, Math.min(semanticMax, value))
   const update = chartTransition('update', moving)
   // Seconds into the entrance when the fill edge reaches the tick, or stops short of it.
-  const tickDelay =
-    grown || targetPct === null ? 0 : crossingTime(pct > 0 ? targetPct / pct : 1) * CHART_MOTION.bar
+  let tickDelay = 0
+  if (!grown && targetPct !== null) {
+    tickDelay = crossingTime(pct > 0 ? targetPct / pct : 1) * CHART_MOTION.bar
+  }
 
   return (
     <>

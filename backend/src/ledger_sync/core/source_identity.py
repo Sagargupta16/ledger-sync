@@ -55,7 +55,7 @@ def match_source_uids(
         if has_source_uid(row)
     }
     by_system: dict[str, list[str]] = defaultdict(list)
-    for system, uid in keyed:
+    for system, uid in keyed.keys():
         by_system[system].append(uid)
     for system, uids in by_system.items():
         for start in range(0, len(uids), _CHUNK_SIZE):

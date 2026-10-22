@@ -1,7 +1,6 @@
 """POST /api/upload/money-manager and the upload tokens that automations use."""
 
 import gzip
-from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,14 +20,17 @@ Client = tuple[TestClient, Session, User, User, dict[str, User]]
 
 
 @pytest.fixture
-def client(two_user_client: Client, monkeypatch: pytest.MonkeyPatch) -> Iterator[Client]:
-    """Signed-in requests act as ``current["user"]``; a token request has no override."""
+def client(two_user_client: Client, monkeypatch: pytest.MonkeyPatch) -> Client:
+    """Signed-in requests act as ``current["user"]``; a token request has no override.
+
+    two_user_client's teardown clears this override with the others.
+    """
     monkeypatch.setattr(limiter, "enabled", False)
     current = two_user_client[4]
     app.dependency_overrides[get_upload_principal] = lambda: UploadPrincipal(
         user_id=current["user"].id
     )
-    yield two_user_client
+    return two_user_client
 
 
 def _body(**edits: str) -> bytes:

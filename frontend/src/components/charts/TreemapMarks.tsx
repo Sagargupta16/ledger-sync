@@ -146,6 +146,9 @@ function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered,
   }, [still, showLabel, tile.delay, revealed, labelOpacity])
 
   const paint = tilePaint(tile.color, tile.strength, active)
+  const strokeWidth = active ? 2 : 1
+  const rest = dim ? DIM : 1
+  const pointerEvents = live ? undefined : 'none'
   const cursor = openable ? 'cursor-pointer' : undefined
   const onPointerEnter = (event: PointerEvent<SVGPathElement>) => {
     if (event.pointerType === 'mouse') onHover(tile.node.id)
@@ -154,10 +157,9 @@ function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered,
 
   // Print and Reduced draw the final view at once: nothing waits on an animation frame.
   if (still) {
-    const rest = dim ? DIM : 1
     return (
-      <g opacity={shown ? rest : 0} pointerEvents={live ? undefined : 'none'}>
-        <path d={tilePath(rect, gap, radius)} style={paint} strokeWidth={active ? 2 : 1} className={cursor} data-tile={tile.key}
+      <g opacity={shown ? rest : 0} pointerEvents={pointerEvents}>
+        <path d={tilePath(rect, gap, radius)} style={paint} strokeWidth={strokeWidth} className={cursor} data-tile={tile.key}
           onPointerEnter={onPointerEnter} onPointerUp={onPointerUp} />
         {label && showLabel && (
           <g transform={`translate(${rect.x + gap / 2 + pad} ${rect.y + gap / 2 + pad})`} pointerEvents="none">
@@ -168,9 +170,9 @@ function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered,
     )
   }
   return (
-    <motion.g style={{ opacity }} pointerEvents={live ? undefined : 'none'}>
-      <motion.g initial={false} animate={{ opacity: dim ? DIM : 1 }} transition={chartTransition('hover', true)}>
-        <motion.path d={d} style={paint} strokeWidth={active ? 2 : 1} className={`transition-[fill,stroke] duration-150 ${cursor ?? ''}`}
+    <motion.g style={{ opacity }} pointerEvents={pointerEvents}>
+      <motion.g initial={false} animate={{ opacity: rest }} transition={chartTransition('hover', true)}>
+        <motion.path d={d} style={paint} strokeWidth={strokeWidth} className={`transition-[fill,stroke] duration-150 ${cursor ?? ''}`}
           data-tile={tile.key} onPointerEnter={onPointerEnter} onPointerUp={onPointerUp} />
         {label && (
           <motion.g style={{ x: labelX, y: labelY, opacity: labelOpacity }} pointerEvents="none">

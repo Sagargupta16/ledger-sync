@@ -186,7 +186,7 @@ function Brush({ range, values, color = 'var(--color-primary)', height, formatLa
   const dimmed = 'absolute inset-y-0 bg-card/60'
 
   return (
-    <div role="group" aria-label={ariaLabel} className="mt-2 px-3">
+    <fieldset aria-label={ariaLabel} className="m-0 mt-2 min-w-0 border-0 p-0 px-3">
       <div
         ref={track}
         style={style}
@@ -222,7 +222,7 @@ function Brush({ range, values, color = 'var(--color-primary)', height, formatLa
         />
         {handle('end')}
       </div>
-    </div>
+    </fieldset>
   )
 }
 

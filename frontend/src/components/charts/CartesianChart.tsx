@@ -116,11 +116,11 @@ function rowForKey(key: string, index: number | null, count: number): number | u
 }
 
 interface ScopeProps extends CartesianChartProps {
-  activeIndex: number | null
-  setActiveIndex: (index: number | null) => void
+  readonly activeIndex: number | null
+  readonly setActiveIndex: (index: number | null) => void
   /** What this scope renders: the SVG marks, or the HTML tooltip layer. */
-  content: ReactNode
-  pointerLayer?: boolean
+  readonly content: ReactNode
+  readonly pointerLayer?: boolean
 }
 
 /** Provides the scales; rendered once inside the SVG (marks) and once in the overlay (tooltip). */
@@ -171,6 +171,12 @@ function categoryText(value: unknown): string {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : ''
 }
 
+/** The plot's default right margin: room for right-axis ticks when there is one, tighter on phones. */
+function rightMargin(hasRight: boolean, isMobile: boolean): number {
+  if (hasRight) return isMobile ? 40 : 48
+  return isMobile ? 8 : 16
+}
+
 function useCartesianState({
   data, categoryKey, series, layout = 'horizontal', categoryKind = 'point',
   valueDomain, value2Domain, valueTicks, value2Ticks, includeZero = true, extraValues = NO_VALUES,
@@ -186,7 +192,7 @@ function useCartesianState({
     const hasRight = series.some((spec) => spec.axis === 'right')
     const margin: Margin = {
       top: 16,
-      right: hasRight ? (frame.isMobile ? 40 : 48) : frame.isMobile ? 8 : 16,
+      right: rightMargin(hasRight, frame.isMobile),
       bottom: 28,
       left: frame.isMobile ? 48 : 56,
       ...marginOverride,
@@ -206,12 +212,7 @@ function useCartesianState({
       const values: number[] = axis === 'left' ? [...extraValues] : []
       for (const spec of series) {
         if ((spec.axis ?? 'left') !== axis) continue
-        const stack = stacks.get(spec.key)
-        if (stack) for (const segment of stack) values.push(segment.y0, segment.y1)
-        else for (const row of rows) {
-          const value = numberAt(row, spec.key)
-          if (value !== null) values.push(value)
-        }
+        pushSeriesValues(values, spec.key, stacks, rows, numberAt)
       }
       if (includeZero) values.push(0)
       return values.length ? [Math.min(...values), Math.max(...values)] as const : [0, 1] as const
@@ -286,4 +287,20 @@ function stackSeries(
     }
   }
   return stacks
+}
+
+/** Adds what series `key` plots to `values`: both ends of each stacked segment, else every finite row value. */
+function pushSeriesValues(
+  values: number[],
+  key: string,
+  stacks: ReadonlyMap<string, readonly StackedValue[]>,
+  rows: readonly ChartRow[],
+  numberAt: (row: ChartRow, key: string) => number | null,
+): void {
+  const stack = stacks.get(key)
+  if (stack) for (const segment of stack) values.push(segment.y0, segment.y1)
+  else for (const row of rows) {
+    const value = numberAt(row, key)
+    if (value !== null) values.push(value)
+  }
 }
