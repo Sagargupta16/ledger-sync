@@ -1,5 +1,5 @@
 -- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-22
--- Base checkout: 589cc9f38b589f126a88b6f26d9d46766b3bbd13; includes uncommitted changes.
+-- Base checkout: 0225ad09bea0fbde5490e85b59573bb053b76d1f; includes uncommitted changes.
 -- Source migration head: money_manager_source_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
 -- Includes 35 model tables and 483 columns. Excludes Alembic and the reported manual archive.

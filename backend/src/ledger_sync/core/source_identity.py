@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from ledger_sync.db.models import Transaction
 from ledger_sync.ingest.hash_id import TransactionHasher
@@ -59,10 +59,15 @@ def match_source_uids(
         by_system[system].append(uid)
     for system, uids in by_system.items():
         for start in range(0, len(uids), _CHUNK_SIZE):
-            stmt = select(Transaction).where(
-                Transaction.user_id == user_id,
-                Transaction.source_system == system,
-                Transaction.source_uid.in_(uids[start : start + _CHUNK_SIZE]),
+            stmt = (
+                select(Transaction)
+                .where(
+                    Transaction.user_id == user_id,
+                    Transaction.source_system == system,
+                    Transaction.source_uid.in_(uids[start : start + _CHUNK_SIZE]),
+                )
+                # The column is deferred for the expand phase; read it in this query.
+                .options(undefer(Transaction.source_uid))
             )
             for transaction in session.scalars(stmt):
                 fingerprint = keyed[(system, transaction.source_uid or "")]

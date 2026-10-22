@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
     Enum,
+    FetchedValue,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -21,7 +23,8 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, MappedColumn, mapped_column, relationship
+from sqlalchemy.types import TypeEngine
 
 from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db._models.enums import TransactionType
@@ -31,6 +34,11 @@ if TYPE_CHECKING:
     from ledger_sync.db._models.user import User
 
 _LEDGER_ACCOUNT_KEY = ("ledger_accounts.user_id", "ledger_accounts.id")
+
+
+def _source_column(column_type: TypeEngine[Any]) -> MappedColumn[Any]:
+    """A nullable column the current mapping never names unless code sets it."""
+    return mapped_column(column_type, nullable=True, deferred=True, server_default=FetchedValue())
 
 
 def _live_index(name: str, *columns: str) -> Index:
@@ -62,11 +70,15 @@ class Transaction(Base):
     fingerprint_version: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     # Stable identity from a source that has one (a Money Manager backup's UID).
     # A row matched by it keeps its public ID when the source edits any field.
-    source_system: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    source_uid: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Expand phase of money_manager_source_2026: Vercel can serve this mapping
+    # before the migration runs, so these columns are deferred (out of SELECT)
+    # and ``FetchedValue`` with ``eager_defaults=False`` keeps an unset one out
+    # of INSERT and RETURNING. Only the backup import writes or reads them.
+    source_system: Mapped[str | None] = _source_column(String(32))
+    source_uid: Mapped[str | None] = _source_column(String(64))
+    source_updated_at: Mapped[datetime | None] = _source_column(DateTime())
     # Naive IST time the source recorded; ``date`` stays the ledger day.
-    occurred_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    occurred_at: Mapped[datetime | None] = _source_column(DateTime())
 
     # User foreign key - links transaction to owner
     user_id: Mapped[int] = mapped_column(
@@ -207,6 +219,9 @@ class Transaction(Base):
         _live_index("ix_transactions_user_from_account", "user_id", "from_account"),
         _live_index("ix_transactions_user_to_account", "user_id", "to_account"),
     )
+    # Only the deferred source columns carry a server default (FetchedValue), so
+    # this keeps them out of INSERT ... RETURNING and nothing else.
+    __mapper_args__ = MappingProxyType({"eager_defaults": False})
 
     def __repr__(self) -> str:
         """Return string representation."""

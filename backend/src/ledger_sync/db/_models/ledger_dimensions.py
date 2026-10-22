@@ -7,11 +7,14 @@ rename transaction labels. Account settings live on the stable account identity.
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import MappingProxyType
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
+    FetchedValue,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -21,11 +24,17 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
+from sqlalchemy.types import TypeEngine
 
 from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db._models.enums import AccountType
 from ledger_sync.db.base import Base
+
+
+def _settings_column(column_type: TypeEngine[Any]) -> MappedColumn[Any]:
+    """A nullable column the current mapping never names unless code sets it."""
+    return mapped_column(column_type, nullable=True, deferred=True, server_default=FetchedValue())
 
 
 class LedgerAccount(Base):
@@ -46,12 +55,15 @@ class LedgerAccount(Base):
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
     # Settings a Money Manager backup carries and an Excel export does not. NULL
     # for accounts only ever seen in spreadsheets. Days are 1-31; the paying
-    # account is another of this user's accounts.
-    source_uid: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    account_group: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    statement_day: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    payment_day: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    paid_from_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # account is another of this user's accounts. Expand phase of
+    # money_manager_source_2026, like the transaction source columns: deferred,
+    # with ``FetchedValue`` and ``eager_defaults=False`` keeping an unset one
+    # out of every statement the previous schema would reject.
+    source_uid: Mapped[str | None] = _settings_column(String(64))
+    account_group: Mapped[str | None] = _settings_column(String(64))
+    statement_day: Mapped[int | None] = _settings_column(SmallInteger())
+    payment_day: Mapped[int | None] = _settings_column(SmallInteger())
+    paid_from_account_id: Mapped[int | None] = _settings_column(Integer())
     # Legacy classification timestamps survive consolidation; imported identities
     # without classification history may have no timestamps.
     created_at: Mapped[datetime | None] = mapped_column(
@@ -66,6 +78,9 @@ class LedgerAccount(Base):
         UniqueConstraint("user_id", "key", name="uq_ledger_accounts_user_key"),
         {"sqlite_autoincrement": True},
     )
+    # ``is_closed`` also has a server default, but every writer sets it through
+    # its Python default, so turning off eager fetching changes nothing for it.
+    __mapper_args__ = MappingProxyType({"eager_defaults": False})
 
 
 class LedgerAccountAlias(Base):
