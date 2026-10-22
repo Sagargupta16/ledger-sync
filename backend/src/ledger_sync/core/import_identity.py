@@ -1,13 +1,13 @@
 """Versioned source identity and batched adoption of legacy transaction IDs."""
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.db.models import Anomaly, Transaction, TransactionTag, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.ingest.normalizer import NormalizationError
 
@@ -216,26 +216,17 @@ def _legacy_category_encoding(category: str | None, subcategory: str | None) -> 
     return f"{_HASHER.normalize_for_hash(category)}|{_HASHER.normalize_for_hash(subcategory)}"
 
 
-def _adopt_unambiguous_legacy_rows(
-    session: Session,
-    user_id: int,
-    rows: list[dict[str, Any]],
-    identities: list[ImportIdentity],
-    matches: dict[str, Transaction],
-    claimed: set[str],
-) -> None:
-    """Legacy rules discarded raw categories; adopt only exact one-to-one shapes.
+_Shape = tuple[str, ...]
+_Pending = list[tuple[dict[str, Any], ImportIdentity]]
 
-    This is a migration bridge, not fuzzy deduplication. When multiple unmatched
-    source rows could own a legacy annotation, reject the snapshot rather than
-    silently choosing one. Already-adopted rows never use this fallback.
-    """
-    if all(identity.fingerprint in matches for identity in identities):
-        return
-    source_counts: dict[tuple[str, ...], int] = defaultdict(int)
-    for row in rows:
-        source_counts[_economic_shape(row)] += 1
-    legacy: dict[tuple[str, ...], list[Transaction]] = defaultdict(list)
+# Conflicting groups named in the rejection; the rest are counted.
+_CONFLICTS_SHOWN = 3
+
+
+def _unclaimed_legacy_by_shape(
+    session: Session, user_id: int, claimed: set[str]
+) -> dict[_Shape, list[Transaction]]:
+    legacy: dict[_Shape, list[Transaction]] = defaultdict(list)
     for transaction in session.scalars(
         select(Transaction).where(
             Transaction.user_id == user_id, Transaction.source_fingerprint.is_(None)
@@ -248,26 +239,98 @@ def _adopt_unambiguous_legacy_rows(
             for field in ("date", "amount", "account", "note", "type", "from_account", "to_account")
         }
         legacy[_economic_shape(values)].append(transaction)
+    return legacy
+
+
+def _annotated_ids(session: Session, user_id: int) -> set[str]:
+    """Transactions that carry something of their own: a tag or an anomaly."""
+    tagged = select(TransactionTag.transaction_id).where(TransactionTag.user_id == user_id)
+    flagged = select(Anomaly.transaction_id).where(
+        Anomaly.user_id == user_id, Anomaly.transaction_id.is_not(None)
+    )
+    return {*session.scalars(tagged), *(tid for tid in session.scalars(flagged) if tid)}
+
+
+def _interchangeable(candidates: list[Transaction], annotated: set[str]) -> bool:
+    """Stored copies identical in every stored field, with nothing attached to any of them.
+
+    For such copies every one-to-one pairing with the file's identical rows
+    stores the same ledger, so choosing one is not a guess about ownership.
+    """
+    labels = {(c.category, c.subcategory, c.currency) for c in candidates}
+    return len(labels) == 1 and not any(c.transaction_id in annotated for c in candidates)
+
+
+def _crosses_boundary(
+    candidates: list[Transaction], row: dict[str, Any], identity: ImportIdentity
+) -> bool:
+    """A v1 digest that names a candidate whose raw fields disagree but encode the same."""
+    source = _source_row(row)
+    return any(
+        candidate.transaction_id == identity.legacy_source_id
+        and not _same_legacy_fields(candidate, source)
+        and _legacy_category_encoding(candidate.category, candidate.subcategory)
+        == _legacy_category_encoding(source.get("category"), source.get("subcategory"))
+        for candidate in candidates
+    )
+
+
+def _conflict_error(conflicts: list[tuple[_Pending, list[Transaction]]]) -> NormalizationError:
+    described = [
+        f"{group[0][0]['date']:%Y-%m-%d}, {group[0][0]['amount']} on {group[0][0]['account']} "
+        f"({len(group)} in the file, {len(candidates)} stored)"
+        for group, candidates in conflicts[:_CONFLICTS_SHOWN]
+    ]
+    more = len(conflicts) - len(described)
+    listing = "; ".join(described) + (f"; and {more} more" if more > 0 else "")
+    return NormalizationError(
+        "Legacy transactions have ambiguous source identities after categorization. "
+        "No snapshot changes were committed. Review these duplicate source rows "
+        f"before re-importing: {listing}. Existing transactions and annotations are preserved."
+    )
+
+
+def _adopt_unambiguous_legacy_rows(
+    session: Session,
+    user_id: int,
+    rows: list[dict[str, Any]],
+    identities: list[ImportIdentity],
+    matches: dict[str, Transaction],
+    claimed: set[str],
+) -> None:
+    """Legacy rules discarded raw categories; adopt only shapes whose owner is certain.
+
+    This is a migration bridge, not fuzzy deduplication. A shape with one stored
+    copy and one source row is adopted directly. Several identical rows are
+    paired only when their stored copies are interchangeable; when they could
+    own different categories or annotations, the whole snapshot is rejected
+    rather than silently choosing. Already-adopted rows never use this fallback.
+    """
+    if all(identity.fingerprint in matches for identity in identities):
+        return
+    legacy = _unclaimed_legacy_by_shape(session, user_id, claimed)
+    source_counts = Counter(_economic_shape(row) for row in rows)
+    pending: dict[_Shape, _Pending] = defaultdict(list)
     for row, identity in zip(rows, identities, strict=True):
-        if identity.fingerprint in matches:
-            continue
         shape = _economic_shape(row)
-        candidates = legacy.get(shape, [])
-        if not candidates:
+        if identity.fingerprint not in matches and legacy.get(shape):
+            pending[shape].append((row, identity))
+    annotated = _annotated_ids(session, user_id) if pending else set()
+    conflicts: list[tuple[_Pending, list[Transaction]]] = []
+    for shape, group in pending.items():
+        candidates = legacy[shape]
+        if any(_crosses_boundary(candidates, row, identity) for row, identity in group):
+            conflicts.append((group, candidates))
             continue
-        source = _source_row(row)
-        ambiguous_boundary = any(
-            candidate.transaction_id == identity.legacy_source_id
-            and not _same_legacy_fields(candidate, source)
-            and _legacy_category_encoding(candidate.category, candidate.subcategory)
-            == _legacy_category_encoding(source.get("category"), source.get("subcategory"))
-            for candidate in candidates
-        )
-        if ambiguous_boundary or len(candidates) != 1 or source_counts[shape] != 1:
-            raise NormalizationError(
-                "Legacy transactions have ambiguous source identities after categorization. "
-                "No snapshot changes were committed. Review these duplicate source rows "
-                "before re-importing; existing transactions and annotations are preserved."
-            )
-        matches[identity.fingerprint] = candidates[0]
-        claimed.add(candidates[0].transaction_id)
+        one_to_one = len(candidates) == 1 and source_counts[shape] == 1
+        if not one_to_one and not _interchangeable(candidates, annotated):
+            conflicts.append((group, candidates))
+            continue
+        # Interchangeable copies pair in a stable order; leftovers on either side
+        # follow the normal insert and soft-delete path.
+        ordered = sorted(candidates, key=lambda candidate: candidate.transaction_id)
+        for (_row, identity), candidate in zip(group, ordered, strict=False):
+            matches[identity.fingerprint] = candidate
+            claimed.add(candidate.transaction_id)
+    if conflicts:
+        raise _conflict_error(conflicts)
