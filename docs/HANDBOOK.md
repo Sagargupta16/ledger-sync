@@ -87,6 +87,7 @@ Supported files:
 - `.xlsx`
 - `.xls`
 - `.csv`
+- `.mmbak`, a Money Manager (Realbyte) backup; see [Money Manager backups](#money-manager-backups)
 
 The source file is parsed in the browser. The browser maps flexible column names, validates rows, and computes a SHA-256 file hash. Only structured transaction rows and file metadata are sent to the backend.
 
@@ -130,6 +131,62 @@ account-scoped and is hidden in demo mode, where no server-side imports occur.
 The review summarizes the selected snapshot; it is not a row editor or
 column-remapping screen. The table below the drop zone remains an
 expected-format example, not imported data.
+
+### Money Manager backups
+
+Money Manager exports a `.mmbak` backup (More > Backup). Drop it on the Upload
+page like a spreadsheet. The browser compresses it and the server reads it, so
+nothing is parsed on the phone. Before anything is saved, the review shows the
+backup's transactions, transfers, accounts and date range, and what the import
+would add, update and remove.
+
+A backup carries more than an Excel export:
+
+- Every transaction keeps its Money Manager ID. When you later change an
+  amount, date, account, note or category in Money Manager, the next backup
+  updates that transaction in place instead of replacing it, so its history
+  in Ledger Sync stays attached.
+- Times of day, card statement and payment days, and which account pays each
+  card are saved. An account you have not classified yet takes the type its
+  Money Manager group implies (Credit Cards, Bank Accounts and so on).
+- Uploading the same backup again reports that the ledger is already up to
+  date.
+
+Like a spreadsheet, a backup is a complete snapshot: transactions missing from
+it are removed. If one would remove more than 5% of your ledger, the import
+waits for you to confirm it on this page.
+
+### Automatic sync with an iOS Shortcut
+
+If Files > Browse > iCloud Drive shows a Money Manager folder holding `.mmbak`
+files, an iOS Shortcut can upload the newest one whenever Money Manager closes.
+
+1. In Ledger Sync, open Settings > Upload tokens, create a token named
+   "iPhone Shortcut" and copy it. It is shown once. A token can only upload
+   backups; it cannot read your data.
+2. On the iPhone, turn on Settings > Shortcuts > Advanced > Allow Sharing Large
+   Amounts of Data.
+3. Create a shortcut with these actions:
+   1. **Wait** 10 seconds.
+   2. **Get Contents of Folder**: iCloud Drive > Money Manager.
+   3. **Filter Files**: File Extension is `mmbak`, sorted by Creation Date,
+      Latest First, limit 1.
+   4. **Make Archive**: format gzip (.gz).
+   5. **Get Contents of URL**: `https://ledger-sync-api.vercel.app/api/upload/money-manager`,
+      Method POST, headers `Authorization: Bearer <your token>` and
+      `Content-Type: application/gzip`, Request Body File set to the archive.
+   6. **Get Dictionary Value** `status` from the result, then **If** it has no
+      value, **Show Notification** with the result. A successful upload
+      returns `imported` or `unchanged` and stays silent.
+4. Add triggers: App, Money Manager, Is Closed, Run Immediately; and a daily
+   Time of Day run as a safety net. On iOS 27, add both triggers inside the
+   shortcut and turn on Allow Running When Locked.
+
+Without a visible Money Manager folder, turn on the shortcut's Show in Share
+Sheet, replace actions 1 to 3 with Receive Files from Share Sheet, and run it
+from Money Manager > More > Backup > Export. Revoke the token in Settings to
+stop the automation at once. A Shortcut upload that would remove more than 5%
+of the ledger is refused; upload that backup from the Upload page instead.
 
 ## Transactions
 
@@ -214,11 +271,11 @@ It combines:
 - Total and average spending.
 - Largest expense and category count.
 - Needs, Wants, and Savings context.
-- Category and subcategory breakdown.
+- Category and subcategory breakdown, as a treemap above the list. Tap or click a category to zoom into its subcategories, and use the breadcrumb (or Escape) to zoom out.
 - Monthly trend.
 - Multi-category and cohort analysis.
 
-Category deep links keep the selected category visible until cleared.
+Category deep links keep the selected category visible until cleared, and open the treemap on that category.
 
 The Savings card here is income minus expenses, scored against your Savings Goal
 in Settings. The Budget Rule page shows a Savings card too, but it counts only
@@ -246,7 +303,7 @@ Small categories are grouped into Other so the visible flows reconcile with the 
 
 **Route:** `/comparison`
 
-Choose Month, Year, or FY, then select two independent periods. The page compares income, expenses, savings, savings rate, expense distribution, and category movement.
+Choose Month, Year, or FY, then select two independent periods. The page compares income, expenses, savings, savings rate, expense distribution, and category movement. The slope chart draws your top 10 expense categories from period A to period B: a rising line means you spent more, and the marker beside each end value shows how its rank moved.
 
 There is no custom date-range comparison.
 

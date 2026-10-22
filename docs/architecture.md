@@ -175,6 +175,9 @@ The web and CLI paths share normalization and hashing but enter differently:
 
 - Web import parses files in the browser and calls `SyncEngine.import_rows`.
 - CLI import reads a local file and calls `SyncEngine.import_file`.
+- A Money Manager backup is read on the server by
+  [money_manager.py](../backend/src/ledger_sync/ingest/money_manager.py) and
+  also enters through `SyncEngine.import_rows`.
 
 The web upload router does not pass the source file through an Excel loader.
 
@@ -233,6 +236,41 @@ one worker phase. It then refreshes analytics separately and reports its status.
 A failed analytics refresh leaves the saved ledger intact. The frontend offers
 an analytics-only retry instead of a second import. An upload timeout can occur
 after persistence, so recovery first directs the user to import history.
+
+### Money Manager backups
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/money-manager-import-dark.svg">
+  <img alt="Money Manager .mmbak import: iPhone Shortcut or browser dry run, backend checks, reconcile, commit" src="diagrams/money-manager-import-light.svg" width="100%">
+</picture>
+
+A `.mmbak` backup is Money Manager's Core Data SQLite store. The browser gzips
+it, because Vercel refuses request bodies over 4.5 MB, and posts the bytes to
+`POST /api/upload/money-manager`. The server unpacks gzip or zip within a 64 MB
+cap and loads the store into an in-memory connection: query-only, defensive,
+untrusted schema off, and a 10-second query deadline. It checks the store's
+integrity and tables, then reads live transactions, accounts and categories
+into the same upload rows a spreadsheet produces, plus each row's UID and
+timestamps. From there the rows take the snapshot path above, with three
+differences:
+
+- Identity resolves the source UID first
+  ([source_identity.py](../backend/src/ledger_sync/core/source_identity.py)),
+  so edits update rows in place.
+- `dry_run=true` reconciles and rolls back to produce the review.
+- Without a reviewed confirmation, a snapshot that would soft-delete more than
+  max(25, 5% of live rows) rolls back with 409.
+
+[money_manager_import.py](../backend/src/ledger_sync/services/money_manager_import.py)
+adds the backup's account settings to the same commit and reports an
+already-imported store as `unchanged`.
+
+The same route accepts an upload token instead of a session.
+[upload_tokens.py](../backend/src/ledger_sync/services/upload_tokens.py) stores
+only token hashes. `get_upload_principal` in `api/deps.py` resolves a token to
+its user for this one route, and token uploads never preview or lift the guard.
+An iOS Shortcut can therefore sync the newest backup without OAuth; the steps
+are in the [Handbook](HANDBOOK.md#automatic-sync-with-an-ios-shortcut).
 
 ### Analytics and calculation boundaries
 
@@ -473,7 +511,7 @@ or compose the kit directly when a chart needs its own marks:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/chart-kit-dark.svg">
-  <img alt="Pages and analytics wrappers render CartesianChart, Pie, Radar, Sankey; all draw in ChartFrame on Motion" src="diagrams/chart-kit-light.svg" width="100%">
+  <img alt="Pages and wrappers render Cartesian, Pie, Radar, Treemap, Sankey, Slope charts, all in ChartFrame on Motion" src="diagrams/chart-kit-light.svg" width="100%">
 </picture>
 
 | Kit source | Responsibility |
@@ -486,6 +524,8 @@ or compose the kit directly when a chart needs its own marks:
 | [CartesianTooltip](../frontend/src/components/charts/CartesianTooltip.tsx), [Crosshair](../frontend/src/components/charts/Crosshair.tsx) | HTML tooltip and cursor that glide between rows. On phones the tooltip pins to the top of the frame; arrow-key readings go to a polite live region. |
 | [ChartBrush](../frontend/src/components/charts/ChartBrush.tsx) | Drag-to-zoom range strip under a chart. Changes go through `useChartRange`, so tables keep every row. |
 | [PieChart](../frontend/src/components/charts/PieChart.tsx), [RadarChart](../frontend/src/components/charts/RadarChart.tsx), [SankeyDiagram](../frontend/src/components/charts/SankeyDiagram.tsx) | Roots of their own on ChartFrame. Slices sweep open from 12 o'clock, radar series grow out of the centre, and Sankey ribbons sweep in, with drill-downs gliding between views. |
+| [Treemap](../frontend/src/components/charts/Treemap.tsx), [treemapLayout](../frontend/src/components/charts/treemapLayout.ts) | Squarified two-level treemap (category, then subcategory). A category zooms in as one motion with a breadcrumb back out; labels show what fits. |
+| [SlopeChart](../frontend/src/components/charts/SlopeChart.tsx), [slopeLayout](../frontend/src/components/charts/slopeLayout.ts) | Two periods on one value scale, one line per item, with rank moves. Overlapping labels spread apart with hairline leaders. |
 | [chartMotion](../frontend/src/components/charts/chartMotion.ts) | Durations, easing, and stagger for every mark, so all charts move alike. |
 
 Presentation helpers in `components/ui/` sit around the plots:

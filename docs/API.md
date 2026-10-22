@@ -198,7 +198,10 @@ Common status codes:
 | `GET` | `/api/transactions/export` | Filtered CSV export |
 | `PUT` | `/api/transactions/{transaction_id}/tags` | Replace a transaction's tags |
 | `POST` | `/api/upload` | Replace the current user's complete INR ledger snapshot |
+| `POST` | `/api/upload/money-manager` | Replace the ledger with a Money Manager `.mmbak` backup (raw body) |
 | `GET` | `/api/upload/history` | Most-recent-first import history and row counts |
+| `GET`, `POST` | `/api/upload-tokens` | List active upload tokens, or create one (plaintext returned once) |
+| `DELETE` | `/api/upload-tokens/{token_id}` | Revoke an upload token |
 | `GET`, `POST` | `/api/saved-views` | List or create saved filters |
 | `DELETE` | `/api/saved-views/{view_id}` | Delete a saved filter |
 | `GET`, `POST` | `/api/categorization-rules` | List or create rules |
@@ -388,6 +391,62 @@ most-recent-first order. `limit` accepts 1 through 100. Each row includes the
 file name and hash, an explicit-UTC import timestamp, and processed, inserted,
 updated, deleted, and skipped counts; `total_count` reports the full unpaginated
 history size.
+
+### Money Manager backups
+
+A Money Manager (Realbyte) backup is read on the server, so the body is the
+`.mmbak` file itself, raw or gzip- or zip-compressed. Vercel refuses request
+bodies over 4.5 MB, so the frontend gzips it (a 5 MB backup compresses to
+about 1.3 MB).
+
+```http
+POST /api/upload/money-manager?file_name=20260501_090000.mmbak&dry_run=true
+Content-Type: application/gzip
+Authorization: Bearer <access_token or upload token>
+```
+
+```json
+{
+  "status": "preview",
+  "file_name": "20260501_090000.mmbak",
+  "stats": { "processed": 1250, "inserted": 40, "updated": 3, "deleted": 1, "unchanged": 1207 },
+  "summary": { "transactions": 1000, "transfers": 250, "accounts": 12, "first_date": "2024-04-01", "last_date": "2026-10-20" },
+  "analytics_status": "skipped",
+  "analytics_message": null
+}
+```
+
+- The backup replaces the ledger like `POST /api/upload`: missing rows are
+  soft-deleted. Each row keeps its Money Manager UID in
+  `transactions.source_uid`, so a later backup that edits a row's amount, date,
+  account, note or category updates it in place under the same public ID.
+  Rows imported earlier from a spreadsheet are adopted on the first backup.
+- `status` is `imported`, `preview` (`dry_run=true`; nothing committed) or
+  `unchanged` (this exact database was already imported; `force=true`
+  re-imports it). Errors carry `detail` and no `status`.
+- A backup that would remove more than 5% of the live ledger (at least 25
+  rows) returns 409 and changes nothing, unless `allow_large_delete=true`
+  confirms a reviewed preview.
+- Live accounts store the backup's group, card statement and payment days and
+  paying account. An account with no type takes the one its Money Manager group
+  implies; a chosen type is never replaced.
+- 400 covers an unreadable file, non-INR transactions and rows without an
+  account; 413 a body over the upload limit.
+
+### Upload tokens
+
+Automations such as an iOS Shortcut cannot run the OAuth sign-in, so a user
+creates an upload token in Settings. `POST /api/upload-tokens` with
+`{"name": "iPhone Shortcut"}` returns 201 with `token` (`lsu_...`) once; only its
+SHA-256 is stored. `GET /api/upload-tokens` lists active tokens with their
+prefix, creation, expiry and last use; `DELETE /api/upload-tokens/{token_id}`
+revokes one (204). A user holds at most five active tokens, and each expires
+after 365 days.
+
+A token authenticates `POST /api/upload/money-manager` and nothing else. It
+cannot read data, preview, or override the deletion guard: `dry_run` and
+`allow_large_delete` are ignored and every token upload commits under the
+guard. A revoked, expired or unknown token returns 401.
 
 `GET /api/exchange-rates?base=USD` returns the latest rates. Adding
 `on_date=YYYY-MM-DD` requests the rate published for that historical date and
@@ -605,6 +664,9 @@ prior trading day within seven days. Historical responses include `as_of`.
 | Token refresh | IP | 20/minute |
 | Upload | Authenticated user | 10/minute |
 | Upload | IP | 50/minute |
+| Money Manager backup upload | User or upload token | 10/minute and 60/hour |
+| Money Manager backup upload | IP | 50/minute |
+| Upload token creation | Authenticated user | 10/hour |
 | Bedrock chat | Authenticated user | 30/minute |
 | Bedrock chat | IP | 60/minute |
 | AI tool execution | Authenticated user | 120/minute |

@@ -164,7 +164,7 @@ edges:
     to: vercel-deploy
     label: polls /health, /health/db
     flow: message
-    evidence: [.github/workflows/deploy-frontend.yml:72-77, backend/src/ledger_sync/api/main.py:342-367]
+    evidence: [.github/workflows/deploy-frontend.yml:72-77, backend/src/ledger_sync/api/main.py:349-374]
   - from: wait
     to: deploy
     label: "yes"
@@ -175,7 +175,7 @@ edges:
     to: neon-db
     label: SELECT 1 (/health/db)
     flow: message
-    evidence: [backend/src/ledger_sync/api/main.py:348-357, .github/workflows/deploy-frontend.yml:77]
+    evidence: [backend/src/ledger_sync/api/main.py:355-364, .github/workflows/deploy-frontend.yml:77]
   - { from: deploy, to: live, evidence: .github/workflows/deploy-frontend.yml:108-110 }
   # decisions.md 3: Vercel deploys main through its Git integration, outside Actions
   - { from: push, to: vercel-deploy, label: "Git integration, main only", flow: message, evidence: CLAUDE.md:121 }

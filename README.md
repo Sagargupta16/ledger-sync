@@ -27,6 +27,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Reviews the date range, accounts, and row counts before replacing the complete ledger snapshot.
 - Uses deterministic SHA-256 transaction IDs plus occurrence counters so repeated imports remain idempotent without collapsing legitimate duplicate rows.
 - Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again.
+- Imports Money Manager `.mmbak` backups directly. Each transaction keeps its Money Manager ID, so later edits update it in place. Card statement and payment days and times of day come along, and an upload-only token lets an iOS Shortcut sync the newest backup automatically ([Handbook](docs/HANDBOOK.md#money-manager-backups)).
 
 ### Financial workspace
 

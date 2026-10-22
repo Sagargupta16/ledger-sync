@@ -3,7 +3,7 @@
 Database reference for Ledger Sync 2.30.0.
 
 Updated for the 2026-09-18 domain storage implementation. The current model
-contains 34 application tables; Alembic also maintains its own version table.
+contains 35 application tables; Alembic also maintains its own version table.
 This describes the source checkout, not a confirmation of production deployment.
 
 For every column, default, key, relationship, index and source-code link, see
@@ -63,6 +63,7 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `users` | OAuth identity, profile, active state, and token revocation version |
 | `user_preferences` | Fiscal year, income/category rules, display, planning, and notification settings |
 | `user_ai_settings` | AI mode, provider, model, encrypted personal key, and token limits |
+| `upload_tokens` | Hashed, revocable, upload-only credentials for automations such as an iOS Shortcut |
 | `audit_logs` | User-scoped import and analytics audit records |
 | `ai_usage_log` | Provider, model, token, round, and cost usage |
 
@@ -71,7 +72,7 @@ re-exported through `_models/__init__.py` and `models.py`.
 | Table | Purpose |
 | --- | --- |
 | `transactions` | Active and soft-deleted income, expense, and transfer ledger rows |
-| `ledger_accounts` | Stable user-owned account identities, classification, closure, and credit limit |
+| `ledger_accounts` | Stable user-owned account identities, classification, closure, credit limit, and the Money Manager group, card days and paying account |
 | `ledger_account_aliases` | Exact lowercased source labels mapped to account identities |
 | `ledger_categories` | Stable user-owned category identities |
 | `ledger_subcategories` | Subcategory identities qualified by owner and parent category |
@@ -159,6 +160,17 @@ the importer accepts only an exact, unambiguous one-to-one economic match.
 Ambiguous legacy duplicates reject the entire snapshot without moving tags or
 anomaly reviews. Do not replace this migration bridge with fuzzy matching.
 
+A Money Manager backup also supplies each row's own UID, stored as
+`(source_system, source_uid)` with a unique per-user index. That identity is
+matched first: the stored row with the UID is updated in place (amount, date,
+account, note and labels included) and keeps its public ID. A row without a UID
+yet is adopted when its fingerprint matches, or once, when its date, amount,
+account, type and transfer ends occur exactly once on both sides. Because an
+edited row keeps its ID while its content fingerprint moves, the reconciler
+clears a fingerprint before handing it to another row, and gives a new row a
+derived ID when an older row already holds its fingerprint as an ID. `occurred_at`
+keeps the source's time of day; `date` stays the ledger day.
+
 Dimension keys use exact Python lowercasing, not fuzzy or Unicode casefold
 merging. Original labels remain on transactions for compatibility and audit.
 The five dimension columns are nullable for legacy-writer compatibility; current
@@ -170,7 +182,8 @@ For each authenticated user:
 
 1. Normalize incoming rows.
 2. Lock the owning user, capture source fingerprints, then apply rules.
-3. Resolve dimension IDs and source identities with bounded batch queries.
+3. Resolve dimension IDs and source identities (source UIDs first, then
+   fingerprints and verified legacy IDs) with bounded batch queries.
 4. Insert unknown sources or update existing rows without changing public IDs.
 5. Refresh `last_seen_at` and restore a matching soft-deleted row.
 6. Mark active rows not seen in the current import as deleted.

@@ -12,6 +12,7 @@ directly.
 | [System overview](#system-overview) | Hosting, the browser app, backend, database and outside services | [system-overview.yaml](system-overview.yaml) |
 | [Backend layers](#backend-layers) | Routers, services, core, ingest and the ORM | [backend-layers.yaml](backend-layers.yaml) |
 | [Statement import](#statement-import) | Parse, review, upload checks, reconcile, commit, analytics refresh | [statement-import.yaml](statement-import.yaml) |
+| [Money Manager import](#money-manager-import) | A `.mmbak` from the Upload page or an iOS Shortcut: checks, UID-first reconcile, guard, commit | [money-manager-import.yaml](money-manager-import.yaml) |
 | [Analytics boundaries](#analytics-boundaries) | Where each number comes from: rollups, SQL, the ledger, the browser | [analytics-boundaries.yaml](analytics-boundaries.yaml) |
 | [Shared finance rules](#shared-finance-rules) | Page hooks, lib/finance and the metric-rules mirror | [finance-composition.yaml](finance-composition.yaml) |
 | [Chart kit](#chart-kit) | The in-house animated SVG chart kit and who uses it | [chart-kit.yaml](chart-kit.yaml) |
@@ -42,6 +43,13 @@ directly.
   <img alt="Statement import flow: browser review, backend checks, reconcile, commit, analytics refresh" src="statement-import-light.svg" width="100%">
 </picture>
 
+## Money Manager import
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="money-manager-import-dark.svg">
+  <img alt="Money Manager .mmbak import: iPhone Shortcut or browser dry run, backend checks, reconcile, commit" src="money-manager-import-light.svg" width="100%">
+</picture>
+
 ## Analytics boundaries
 
 <picture>
@@ -60,7 +68,7 @@ directly.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="chart-kit-dark.svg">
-  <img alt="Pages and analytics wrappers render CartesianChart, Pie, Radar, Sankey; all draw in ChartFrame on Motion" src="chart-kit-light.svg" width="100%">
+  <img alt="Pages and wrappers render Cartesian, Pie, Radar, Treemap, Sankey, Slope charts, all in ChartFrame on Motion" src="chart-kit-light.svg" width="100%">
 </picture>
 
 ## Session lifecycle

@@ -112,7 +112,7 @@ edges:
   - from: spa
     to: api
     label: "HTTPS /api, JWT"
-    evidence: ["frontend/src/services/api/client.ts:201", ".github/workflows/deploy-frontend.yml:47-49#VITE_API_BASE_URL", "backend/src/ledger_sync/api/main.py:309-315"]
+    evidence: ["frontend/src/services/api/client.ts:201", ".github/workflows/deploy-frontend.yml:47-49#VITE_API_BASE_URL", "backend/src/ledger_sync/api/main.py:314-320"]
   # declared: Workbox globPatterns
   - { from: sw, to: pages, label: precache shell, evidence: "frontend/vite.config.ts:94-103" }
   - { from: spa, to: google, label: authorize redirect, evidence: ["frontend/src/services/api/auth.ts:40", "frontend/src/services/api/auth.ts:231"] }
@@ -121,7 +121,7 @@ edges:
   - { from: api, to: google, label: "code exchange, profile", evidence: "backend/src/ledger_sync/api/oauth.py:227-248" }
   # token exchange, then GitHub /user (oauth.py:311) and /user/emails (oauth.py:339)
   - { from: api, to: github, label: "code exchange, profile", evidence: ["backend/src/ledger_sync/api/oauth.py:294-317", "backend/src/ledger_sync/api/oauth.py:334-340"] }
-  - { from: api, to: db, label: SQL, evidence: ["backend/src/ledger_sync/db/session.py:39", "backend/src/ledger_sync/api/deps.py:102"] }
+  - { from: api, to: db, label: SQL, evidence: ["backend/src/ledger_sync/db/session.py:39", "backend/src/ledger_sync/api/deps.py:133"] }
   - { from: api, to: fx, label: rates, evidence: "backend/src/ledger_sync/api/exchange_rates.py:100" }
   - { from: api, to: yahoo, label: quotes, evidence: "backend/src/ledger_sync/api/stock_price.py:121" }
   # app credentials, or the user's own bearer key (ai_chat_bedrock.py:188-201)

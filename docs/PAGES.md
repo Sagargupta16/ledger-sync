@@ -243,7 +243,7 @@ Each side has an independent period selector. The page compares:
 - Savings
 - Savings rate
 - Expense distribution
-- Category movement
+- Category movement, as a slope chart of the top 10 expense categories by combined spend: each line runs from period A to period B, with rank moves, colored by rise or fall
 - Generated comparison insights
 
 There is no custom-range mode, net-worth delta, or normalized trend overlay.
@@ -264,6 +264,8 @@ Headline metrics:
 - Daily Average
 
 Also displays a spending heatmap, monthly breakdown, day-of-week analysis, and generated year insights. It does not include merchant-growth, category-growth, net-worth, or milestone sections.
+
+The heatmap is desktop-only; phones get month tiles, because day cells are far below a 44px touch target. It waves in week by week and retints in a sweep when the year changes. Legend swatches highlight one level, and the grid is one tab stop: arrow keys move, Enter or Space selects a day, and Escape clears.
 
 ## Wealth
 
@@ -601,7 +603,7 @@ Related endpoints:
 
 **Source:** `frontend/src/pages/upload-sync/UploadSyncPage.tsx`
 
-Accepts `.xlsx`, `.xls`, and `.csv`.
+Accepts `.xlsx`, `.xls`, and `.csv`, and Money Manager `.mmbak` backups (below).
 
 Flow:
 
@@ -626,13 +628,22 @@ The account-scoped Import History section reads `GET /api/upload/history`, lists
 the most recent runs and row counts, and switches to mobile cards below `sm`.
 Demo mode omits the section because it has no server-side import log.
 
+A Money Manager `.mmbak` backup takes its own flow (`useMoneyManagerImport.ts`).
+The browser gzips the file with `CompressionStream` (bodies over 4.5 MB are
+refused before sending) and posts it to `/api/upload/money-manager` with
+`dry_run=true`. `MoneyManagerReview` shows the backup's transactions,
+transfers, accounts and date range with what the import would add, update and
+remove, behind a complete-ledger checkbox. Confirming posts the same bytes with
+`allow_large_delete=true`. An `unchanged` reply shows "Already up to date" with
+a forced re-import, and errors show the backend's detail.
+
 ### Settings
 
 **Route:** `/settings`
 
 **Source:** `frontend/src/pages/settings/SettingsPage.tsx`
 
-Twelve sections:
+Thirteen sections:
 
 1. Financial Settings
 2. Income and Salary Structure
@@ -646,8 +657,9 @@ Twelve sections:
 10. Dashboard Widgets
 11. AI Assistant
 12. Advanced
+13. Upload tokens (list, create and revoke the `lsu_` tokens an iOS Shortcut uses; actions apply immediately, outside Save)
 
-Only Financial Settings starts expanded. The other eleven sections start collapsed to keep the initial desktop and phone scan compact.
+Only Financial Settings starts expanded. The other twelve sections start collapsed to keep the initial desktop and phone scan compact.
 
 Settings are grouped under Money Setup, Categories and Classification, Profile and Display, and Advanced. Save persists staged preference changes. Reset restores default preferences but preserves account classifications.
 

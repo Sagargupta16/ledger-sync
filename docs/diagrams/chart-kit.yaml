@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
 # Chart kit composition, planned from the code on 2026-10-22 (branch feat/chart-motion).
-# Evidence paths are relative to the repo root; every edge is a real render (<X ... />) or import.
+# Evidence paths are relative to the repo root; every edge is a real render (<X ... />) or call.
 #
 # leftOut (put back on request):
 # - Callers of the Standard* wrappers (MonthlyFlowChart, CohortSpendingAnalysis, FIRECalculatorPage,
@@ -8,17 +8,21 @@
 #   renders StandardBarChart (components/analytics/MonthlyFlowChart.tsx:81).
 # - CashFlowForecast panel: it only renders CashFlowForecastChart (components/analytics/CashFlowForecast.tsx:71).
 # - Sankey internals SankeyMarks, SankeyReadout, sankeyModel, sankeyLayout: folded into the SankeyDiagram node
-#   (components/charts/SankeyDiagram.tsx:17-24).
+#   (components/charts/SankeyDiagram.tsx:93-161).
+# - Treemap internals TreemapMarks, treemapLayout, treemapModel: folded into the Treemap node
+#   (components/charts/Treemap.tsx:190).
+# - ExpenseTreemap renders CategoryTreemap (components/analytics/ExpenseTreemap.tsx:21) and ComparisonPage renders
+#   CategorySlopeChart (pages/comparison/ComparisonPage.tsx:216): named in notes, one hop further out.
 # - Grid's TickLayer, used by Axis (components/charts/Axis.tsx:15): folded into the CartesianChart children node.
 # - Shared helpers scales.ts, paths.ts, chartContext.ts, useElementSize.ts, usePrinting.ts: imported by most kit
 #   files, so no node and no arrows (loop.md rung 1); named in the CartesianChart and ChartFrame notes
-#   (components/charts/CartesianChart.tsx:15, components/charts/ChartFrame.tsx:15-17).
-# - Per-file animation imports: every mark imports chartMotion and motion/react (Bars.tsx:8-11, Grid.tsx:10-13,
-#   PieChart.tsx:9-16, RadarChart.tsx:10-14, SankeyDiagram.tsx:10-16, ChartBrush.tsx:8-15) and ChartFrame takes
-#   useInView from Motion (ChartFrame.tsx:61); drawn as one kit -> Motion 14 arrow. The chartMotion tokens
+#   (components/charts/CartesianChart.tsx:130, components/charts/ChartFrame.tsx:59-62).
+# - Per-file animation use: every mark calls chartTransition or CHART_MOTION and draws motion elements
+#   (Bars.tsx:79-88, PieChart.tsx:174-188, SankeyDiagram.tsx:27, ChartBrush.tsx:198, TreemapMarks.tsx:110,
+#   SlopeChart.tsx:121-136) and ChartFrame calls useInView (ChartFrame.tsx:61); drawn as one kit -> Motion 14 arrow. The chartMotion tokens
 #   (components/charts/chartMotion.ts:9) are folded into the Motion 14 node note.
 # - Folded nodes: StandardBarChart (used by MonthlyFlowChart), StandardAreaChart and TimeSeriesLineChart are one
-#   "Standard x/y wrappers" node (StandardBarChart.tsx:110, StandardAreaChart.tsx:81, TimeSeriesLineChart.tsx:38);
+#   "Standard x/y wrappers" node (StandardBarChart.tsx:110, StandardAreaChart.tsx:84, TimeSeriesLineChart.tsx:41);
 #   Bars, LineSeries, AreaSeries, Axis, Grid, References, CartesianTooltip and Crosshair are one
 #   "CartesianChart children" node (Bars.tsx:71, LineSeries.tsx:46, AreaSeries.tsx:25, Axis.tsx:68, Grid.tsx:33,
 #   References.tsx:63, CartesianTooltip.tsx:65, Crosshair.tsx:24).
@@ -76,15 +80,33 @@ nodes:
     in: wrappers
     evidence:
       - "frontend/src/components/analytics/StandardBarChart.tsx:110#StandardBarChart"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:81#StandardAreaChart"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:38#TimeSeriesLineChart"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:84#StandardAreaChart"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:41#TimeSeriesLineChart"
   std-pie:
     icon: tabler:chart-pie
     label: StandardPieChart
     in: wrappers
     evidence: "frontend/src/components/analytics/StandardPieChart.tsx:70#StandardPieChart"
 
+  cat-treemap:
+    icon: tabler:chart-treemap
+    label: CategoryTreemap
+    note: used by ExpenseTreemap
+    in: wrappers
+    evidence:
+      - "frontend/src/components/analytics/CategoryTreemap.tsx:43#CategoryTreemap"
+      - "frontend/src/components/analytics/ExpenseTreemap.tsx:21#CategoryTreemap"
+
   # Pages that compose the kit directly.
+  page-pie:
+    icon: tabler:app-window
+    label: Page pies
+    badge: x2
+    note: GST rate mix, budget rule
+    in: pages
+    evidence:
+      - "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart"
+      - "frontend/src/pages/spending-analysis/components/BudgetRuleAnalysis.tsx:123#PieChart"
   page-xy:
     icon: tabler:app-window
     label: Page x/y charts
@@ -105,21 +127,21 @@ nodes:
       - "frontend/src/pages/comparison/components/SpendingButterflyChart.tsx:69#CartesianChart"
       - "frontend/src/pages/year-in-review/components/MonthlyBreakdownChart.tsx:68#CartesianChart"
       - "frontend/src/pages/mutual-fund-projection/components/GrowthPlot.tsx:91#CartesianChart"
-  page-pie:
-    icon: tabler:app-window
-    label: Page pies
-    badge: x2
-    note: GST rate mix, budget rule
-    in: pages
-    evidence:
-      - "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart"
-      - "frontend/src/pages/spending-analysis/components/BudgetRuleAnalysis.tsx:123#PieChart"
   page-sankey:
     icon: tabler:app-window
     label: Cash Flow page
     note: FlowDiagramPanel
     in: pages
     evidence: "frontend/src/pages/income-expense-flow/components/FlowDiagramPanel.tsx:57#SankeyDiagram"
+
+  page-slope:
+    icon: tabler:app-window
+    label: Comparison page
+    note: CategorySlopeChart
+    in: pages
+    evidence:
+      - "frontend/src/pages/comparison/components/CategorySlopeChart.tsx:51#SlopeChart"
+      - "frontend/src/pages/comparison/ComparisonPage.tsx:216#CategorySlopeChart"
 
   # The kit: chart roots first, then what they compose.
   radar:
@@ -144,12 +166,27 @@ nodes:
     label: PieChart
     in: kit
     evidence: "frontend/src/components/charts/PieChart.tsx:61#PieChart"
+  treemap:
+    icon: tabler:chart-treemap
+    label: Treemap
+    note: zoomable tiles
+    in: kit
+    evidence:
+      - "frontend/src/components/charts/Treemap.tsx:39#Treemap"
+      - "frontend/src/components/charts/Treemap.tsx:189#ChartFrame"
   sankey:
     icon: tabler:chart-sankey
     label: SankeyDiagram
     note: marks, readout, layout model
     in: kit
     evidence: "frontend/src/components/charts/SankeyDiagram.tsx:55#SankeyDiagram"
+  slope:
+    icon: tabler:trending-up
+    label: SlopeChart
+    in: kit
+    evidence:
+      - "frontend/src/components/charts/SlopeChart.tsx:57#SlopeChart"
+      - "frontend/src/components/charts/SlopeChart.tsx:81#ChartFrame"
   frame:
     icon: tabler:frame
     label: ChartFrame
@@ -162,7 +199,7 @@ nodes:
     note: marks, axes, references, tooltip
     in: kit
     evidence:
-      - "frontend/src/components/charts/CartesianChart.tsx:113#CartesianContext"
+      - "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
       - "frontend/src/components/charts/Bars.tsx:71#Bars"
       - "frontend/src/components/charts/LineSeries.tsx:46#LineSeries"
       - "frontend/src/components/charts/AreaSeries.tsx:25#AreaSeries"
@@ -198,20 +235,21 @@ edges:
     to: cartesian
     label: renders
     evidence:
-      - "frontend/src/components/analytics/StandardBarChart.tsx:161#CartesianChart"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:129#CartesianChart"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:72#CartesianChart"
+      - "frontend/src/components/analytics/StandardBarChart.tsx:165#CartesianChart"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:138#CartesianChart"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:82#CartesianChart"
   - from: std-xy
     to: brush
     label: zoom
     evidence:
-      - "frontend/src/components/analytics/StandardBarChart.tsx:208#ChartBrush"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:177#ChartBrush"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:91#ChartBrush"
+      - "frontend/src/components/analytics/StandardBarChart.tsx:212#ChartBrush"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:187#ChartBrush"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:101#ChartBrush"
   - { from: std-pie, to: pie, label: renders, evidence: "frontend/src/components/analytics/StandardPieChart.tsx:115#PieChart" }
 
+  - { from: cat-treemap, to: treemap, label: renders, evidence: "frontend/src/components/analytics/CategoryTreemap.tsx:103#Treemap" }
+
   # Pages render the roots directly.
-  - { from: page-pie, to: pie, label: renders, evidence: "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart" }
   - from: page-xy
     to: cartesian
     label: renders
@@ -228,25 +266,31 @@ edges:
       - "frontend/src/pages/trends-forecasts/components/MonthlyTrendSection.tsx:112#ChartBrush"
       - "frontend/src/pages/trends-forecasts/components/SavingsRateSection.tsx:139#ChartBrush"
   - { from: page-sankey, to: sankey, label: renders, evidence: "frontend/src/pages/income-expense-flow/components/FlowDiagramPanel.tsx:57#SankeyDiagram" }
+  - { from: page-slope, to: slope, label: renders, evidence: "frontend/src/pages/comparison/components/CategorySlopeChart.tsx:51#SlopeChart" }
+  - { from: page-pie, to: pie, label: renders, evidence: "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart" }
 
   # Inside the kit.
-  - { from: radar, to: frame, evidence: "frontend/src/components/charts/RadarChart.tsx:75#ChartFrame" }
-  - { from: cartesian, to: frame, label: wraps in, evidence: "frontend/src/components/charts/CartesianChart.tsx:82#ChartFrame" }
+  - { from: radar, to: frame, evidence: "frontend/src/components/charts/RadarChart.tsx:74#ChartFrame" }
+  - { from: cartesian, to: frame, label: wraps in, evidence: "frontend/src/components/charts/CartesianChart.tsx:81#ChartFrame" }
   - from: cartesian
     to: children
     label: scales via context
-    evidence: "frontend/src/components/charts/CartesianChart.tsx:113#CartesianContext"
-  - { from: pie, to: frame, evidence: "frontend/src/components/charts/PieChart.tsx:97#ChartFrame" }
+    evidence: "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
+  - { from: pie, to: frame, evidence: "frontend/src/components/charts/PieChart.tsx:95#ChartFrame" }
+  - { from: treemap, to: frame, evidence: "frontend/src/components/charts/Treemap.tsx:189#ChartFrame" }
   - { from: sankey, to: frame, evidence: "frontend/src/components/charts/SankeyDiagram.tsx:91#ChartFrame" }
+  - { from: slope, to: frame, evidence: "frontend/src/components/charts/SlopeChart.tsx:81#ChartFrame" }
 
-  # Animation: every mark imports the chartMotion tokens and motion/react; ChartFrame takes useInView.
+  # Animation: every mark calls the chartMotion tokens and draws motion elements; ChartFrame calls useInView.
   - from: kit
     to: motion
     label: animates with
     evidence:
-      - "frontend/src/components/charts/Bars.tsx:11#chartTransition"
-      - "frontend/src/components/charts/Bars.tsx:8#motion"
-      - "frontend/src/components/charts/PieChart.tsx:16#chartTransition"
-      - "frontend/src/components/charts/SankeyDiagram.tsx:16#CHART_MOTION"
-      - "frontend/src/components/charts/ChartBrush.tsx:15#chartTransition"
+      - "frontend/src/components/charts/Bars.tsx:79#chartTransition"
+      - "frontend/src/components/charts/Bars.tsx:88#motion"
+      - "frontend/src/components/charts/PieChart.tsx:174#chartTransition"
+      - "frontend/src/components/charts/SankeyDiagram.tsx:27#CHART_MOTION"
+      - "frontend/src/components/charts/ChartBrush.tsx:198#chartTransition"
+      - "frontend/src/components/charts/TreemapMarks.tsx:110#chartTransition"
+      - "frontend/src/components/charts/SlopeChart.tsx:121#chartTransition"
       - "frontend/src/components/charts/ChartFrame.tsx:61#useInView"
