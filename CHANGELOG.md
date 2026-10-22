@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.30.0 - 2026-10-22
+
+Charts are drawn by an in-house animated SVG kit instead of Recharts, every architecture and flow diagram is redrawn from the code, and re-importing an older ledger with repeated identical rows no longer fails.
+
+### Added
+
+- An in-house SVG chart kit in `frontend/src/components/charts/`, built on React 19 and Motion 14, draws every chart in the app:
+  - Charts animate once they scroll into view. Bars grow out of the zero line in a stagger, lines draw in left to right with their fills wiping in behind them, pie slices sweep open from 12 o'clock, radar series grow out of the centre, and Sankey ribbons sweep in with beads drifting along them.
+  - Changing a filter or range moves the marks, axes and grid to the new data instead of replaying the entrance (a line whose point count changes wipes in again). Sankey drill-downs glide the nodes and ribbons both views share.
+  - Tooltips glide between rows with the cursor and, on phones, pin to the top of the chart so a finger never covers them. x/y charts, pies, radars and the Sankey can be stepped through with the arrow keys.
+  - The Reduced motion setting and printing draw the finished chart at once, and very long series skip the entrance.
+- Architecture and flow diagrams drawn with Orrery from YAML specs in `docs/diagrams/`: system overview, backend layers, statement import, analytics boundaries, shared finance rules, chart kit, session lifecycle, token refresh, OAuth sign-in (a sequence), AI chat and release delivery. Every node and edge cites the file and line it comes from, so `orrery verify` fails when the code moves on. Each figure has light and dark SVGs and an editable `.drawio.svg`.
+
+### Changed
+
+- The frontend ships 398 kB less JavaScript than 2.29.0 (95 kB, 11%, gzipped): the 469 kB Recharts chunk (128 kB gzipped) is gone, and the kit's shared chunks come to 40 kB (19 kB gzipped).
+- Motion moves from 13.4 to 14.4, React and React DOM to 19.3.1, React Router to 8.5.0, TanStack Query to 5.104.5, TanStack Table to 9.3.1, lucide-react to 1.60.0 and react-dropzone to 20.1.4. Tooling: ESLint 10.13.0, typescript-eslint 8.72.0, Vitest 5.0.5, jsdom 30.1.3, PostCSS 8.5.31, @vitejs/plugin-react 6.1.2, globals 17.13.0 and @types/node 26.6.5.
+
+### Removed
+
+- Recharts, its `vendor-recharts` chunk and the adapters around it: `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `chartBaseline`, and the axis, grid, reference-line and brush presets in `chartDefaults`.
+- The Archify and Mermaid diagrams the Orrery figures replace (`docs/diagrams/*.json`, `docs/diagrams/build.mjs` and `docs/images/`).
+
+### Fixed
+
+- Re-importing a ledger whose rows predate source fingerprints no longer fails with "Legacy transactions have ambiguous source identities" just because it holds identical transactions (two same-day payments with the same amount, account and note). When every stored copy of a repeated row has the same category, subcategory and currency and none carries a tag or anomaly, the copies are paired with the file's rows in a fixed order, and any extra copy on either side is inserted or removed as usual. Copies that do differ still reject the whole file, and the message now names up to three of the conflicting groups (date, amount, account, how many in the file and how many stored).
+
 ## 2.29.0 - 2026-10-21
 
 A consistency and cleanup sweep. The backend and frontend now apply the same spending and averaging rules, 14 API routes that no client called are gone, CI tests the Python version production runs, and about 6,600 lines of dead or duplicated code are removed (net).
