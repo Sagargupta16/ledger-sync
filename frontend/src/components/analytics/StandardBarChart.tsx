@@ -1,5 +1,9 @@
 /**
- * Reusable bar chart wrapper with standardized premium styling.
+ * Reusable bar chart on the in-house chart kit: columns over time, or a ranking
+ * (`layout="vertical"`), with one or more series side by side or stacked. Once
+ * the chart scrolls into view the bars grow out of the zero line in a stagger,
+ * each later side-by-side series a beat behind the first; a data or zoom change
+ * then morphs them, and negative values grow downward.
  *
  * Usage:
  *   <StandardBarChart
@@ -12,95 +16,86 @@
  *   />
  */
 
-import { useState, type ComponentProps } from 'react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList, Brush,
-} from 'recharts'
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { formatChartDate } from '@/lib/chartDateLabels'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import {
-  GRID_DEFAULTS, xAxisDefaults,
-  BAR_RADIUS, BRUSH_DEFAULTS, referenceLine,
-} from '@/components/ui/chartDefaults'
-import { CHART_TEXT } from '@/constants/chartColors'
-import { barLabelFormatter, barLabelStyle, tooltipLabelString } from '@/lib/chartUtils'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import Bars from '@/components/charts/Bars'
+import CartesianChart from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import { FrameContext, useChartFrame } from '@/components/charts/chartContext'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
+import { ReferenceLine } from '@/components/charts/References'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { BAR_RADIUS } from '@/components/ui/chartDefaults'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import type { ChartRangeControl } from '@/components/ui/useChartRange'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { formatChartDate } from '@/lib/chartDateLabels'
+import { formatCurrency } from '@/lib/formatters'
 
 import {
-  buildChartMargin, buildGridProps, buildBarYAxisProps, renderBarShape, renderBarDataTable,
-  renderReferenceLine, renderBaseline,
+  barFill, barSlots, baselineValue, leadSeries, referenceLineProps, renderBarDataTable,
   type BarConfig, type BaselineProp, type ReferenceLineConfig,
 } from './standardBarChartParts'
 
-type TooltipPayloadEntry = {
-  payload?: Record<string, unknown>
-}
+/** Px reserved left of the plot for its labels: values in columns, names in a ranking (desktop, phone). */
+const AXIS_WIDTH = { horizontal: [56, 48], vertical: [112, 84] } as const
+/** Seconds each later side-by-side series waits before its bars start to grow. */
+const GROUP_OFFSET = 0.08
 
 interface StandardBarChartProps {
   readonly data: ReadonlyArray<object>
+  /** Row field holding the category; `onBarClick` receives its value. */
   readonly dataKey?: string
   readonly bars: BarConfig[]
   readonly height?: number
+  /** `vertical` is a ranking: categories down the left (`yCategoryKey`), values along the bottom. */
   readonly layout?: 'horizontal' | 'vertical'
-  readonly showLabels?: boolean
   readonly showLegend?: boolean
   readonly emptyMessage?: string
-  /** Simple single-value formatter. */
+  /** Value format in the tooltip and the screen-reader table (default formatCurrency). */
   readonly tooltipFormatter?: (value: number) => string
+  /** Tooltip heading from the raw category (default formatChartDate). */
   readonly tooltipLabelFormatter?: (label: string) => string
-  /**
-   * Advanced formatter that also receives the hovered row payload.
-   * Use when the tooltip needs fields beyond the bar value (e.g. "score: N -- avg: ₹X/mo").
-   * Takes precedence over `tooltipFormatter` when both are provided.
-   */
-  readonly tooltipValueWithPayload?: (
-    value: number,
-    payload: Record<string, unknown>,
-  ) => [string, string] | string
+  /** Bottom-axis labels: categories in columns, values in a ranking. */
   readonly xTickFormatter?: (value: string | number) => string
+  /** Left-axis labels: values in columns, categories in a ranking. */
   readonly yTickFormatter?: (value: string | number) => string
-  readonly xAngle?: number
-  readonly xHeight?: number
+  /** Px for the left-axis labels (default 56, 48 on phones; rankings 112, 84 on phones). */
   readonly yWidth?: number
+  /** Ranking only: the row field naming each category (default `dataKey`). */
   readonly yCategoryKey?: string
-  readonly xDomain?: [number | 'auto', number | 'auto']
-  readonly xType?: 'number' | 'category'
-  readonly yType?: 'number' | 'category'
-  readonly barSize?: number
-  readonly barGap?: number
   readonly stacked?: boolean
-  /** Optional timeline window; the accessible table always retains every row. */
-  readonly brush?: Pick<ComponentProps<typeof Brush>, 'startIndex' | 'endIndex' | 'onChange'>
+  /**
+   * Plot-only zoom from useChartRange: the plot shows the selected window and a
+   * brush under it drags or steps the window. The accessible table keeps every
+   * row. Columns only; pair it with ChartRangeControls above the chart.
+   */
+  readonly range?: ChartRangeControl
   readonly referenceLines?: ReferenceLineConfig[]
   /**
-   * Draw a median baseline across the first bar series so a reader can tell
-   * which bars are unusual, not just how tall each one is. Opt-in -- off by
-   * default so existing charts are unaffected. Only valid for the default
-   * horizontal layout (a y-axis line means nothing on a ranking chart).
-   *
-   * Pass `true` to summarize every point, or an options object to scope it to a
-   * trailing window (chronological series only) or switch the statistic.
+   * Opt-in median line across the first series, so a reader can tell which bars
+   * are unusual, not just how tall each one is. Columns only (a value line across
+   * a ranking means nothing). `true` summarizes every point; options scope it to
+   * a trailing window (chronological series only) or switch the statistic.
    */
   readonly baseline?: BaselineProp
+  /** Space around the plot, axis labels included; `left` defaults to the axis width (`yWidth`). */
   readonly margin?: { top?: number; right?: number; bottom?: number; left?: number }
-  /** Disable vertical grid line (useful for horizontal-layout bar charts). Default: inherit from GRID_DEFAULTS. */
+  /** Hide the vertical or horizontal grid lines; by default only the value-tick lines show. */
   readonly hideVerticalGrid?: boolean
   readonly hideHorizontalGrid?: boolean
   /**
-   * Per-bar click handler. Receives the clicked row's `dataKey` value (the
-   * category/label) so callers can deep-link (e.g. to a filtered list). When
-   * set, bars render with a pointer cursor.
+   * Per-bar click handler; receives the row's `dataKey` value so callers can
+   * deep-link. Bars then take a pointer cursor and Enter or Space selects one.
    */
   readonly onBarClick?: (label: string) => void
   /**
-   * Accessible description of the chart, forwarded to ChartContainer (role=img).
-   * Pass this rather than wrapping the chart in your own `role="img"` div -- such
-   * a wrapper also encloses the sr-only data table below, and ARIA presentational
+   * Accessible description of the chart, announced as one image. Pass this
+   * rather than wrapping the chart in your own `role="img"` div -- such a
+   * wrapper also encloses the sr-only data table below, and ARIA presentational
    * children would hide it from screen readers again.
    */
   readonly ariaLabel?: string
@@ -112,46 +107,22 @@ interface StandardBarChartProps {
   readonly rowHeaderLabel?: string
 }
 
-function buildTooltipFormatter(
-  tooltipValueWithPayload: StandardBarChartProps['tooltipValueWithPayload'],
-  tooltipFormatter: StandardBarChartProps['tooltipFormatter'],
-) {
-  if (tooltipValueWithPayload) {
-    return (
-      value: number | undefined,
-      _name: string | undefined,
-      entry: TooltipPayloadEntry,
-    ): [string, string] | string =>
-      tooltipValueWithPayload(value ?? 0, entry.payload ?? {})
-  }
-  return (value: number | undefined): string => (tooltipFormatter ?? formatCurrency)(value ?? 0)
-}
-
 export default function StandardBarChart({
   data,
   dataKey = 'displayPeriod',
   bars,
   height = 400,
   layout = 'horizontal',
-  showLabels = false,
   showLegend = true,
   emptyMessage,
   tooltipFormatter,
   tooltipLabelFormatter,
-  tooltipValueWithPayload,
   xTickFormatter,
   yTickFormatter,
-  xAngle,
-  xHeight,
   yWidth,
   yCategoryKey,
-  xDomain,
-  xType,
-  yType,
-  barSize,
-  barGap,
   stacked = false,
-  brush,
+  range,
   referenceLines,
   baseline,
   margin,
@@ -161,143 +132,115 @@ export default function StandardBarChart({
   ariaLabel,
   rowHeaderLabel,
 }: StandardBarChartProps) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
-  const { animate, isMobile } = useChartPresentation(data.length)
+  const isMobile = useIsMobile()
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  // Hover-isolate only makes sense for a single-series ranking chart. With
-  // grouped/stacked bars, dimming by row index would fade unrelated series.
-  const isolateOnHover = bars.length === 1 && !stacked
   const isRanking = layout === 'vertical'
-  const xOpts = xAngle === undefined ? undefined : { angle: xAngle, height: xHeight }
-  const xDefaults = xAxisDefaults(data.length, xOpts)
-
-  const chartMargin = buildChartMargin(margin, xAngle)
-  const gridProps = buildGridProps(
-    isRanking ? { ...GRID_DEFAULTS, vertical: true, horizontal: false } : GRID_DEFAULTS,
-    hideVerticalGrid,
-    hideHorizontalGrid,
-  )
-  const tooltipFormatterProp = buildTooltipFormatter(tooltipValueWithPayload, tooltipFormatter)
   // Row label comes from the category axis, which swaps sides with the layout.
   const labelKey = isRanking ? (yCategoryKey ?? dataKey) : dataKey
-  const rowHeaderName = rowHeaderLabel ?? (isRanking ? 'Category' : 'Period')
-  const hasNegative = data.some((row) =>
-    bars.some((bar) => Number((row as Record<string, unknown>)[bar.key]) < 0),
-  )
+  const [categoryFormat, valueFormat] = isRanking ? [yTickFormatter, xTickFormatter] : [xTickFormatter, yTickFormatter]
+  const slots = barSlots(bars, stacked)
+  const typical = baselineValue(baseline, data, bars, layout)
+  const lines = (referenceLines ?? []).map((ref) => referenceLineProps(ref, layout))
+  // A reference outside the data's span would otherwise fall off the value axis.
+  const extraValues = [...lines, ...(typical ? [typical] : [])].flatMap((line) => line.value ?? [])
+  const zoom = isRanking ? undefined : range
+  const formatValue = tooltipFormatter ?? formatCurrency
+  const series = bars.map((bar) => ({ key: bar.key, label: bar.label ?? bar.key, color: bar.color }))
+  const select = onBarClick && ((row: Record<string, unknown>) => {
+    const label = row[dataKey]
+    if (typeof label === 'string') onBarClick(label)
+  })
 
   return (
     <>
-      {showLegend && bars.length > 1 && (
-        <ChartSeriesLegend items={bars.map((bar) => ({
-          key: bar.key,
-          label: bar.label ?? bar.key,
-          color: bar.color,
-        }))} />
-      )}
-      <ChartContainer height={height} ariaLabel={ariaLabel}>
-        <BarChart
-          key={brush ? 'windowed' : 'full'}
-          data={data}
-          layout={layout}
-          margin={chartMargin}
-          barGap={barGap ?? '16%'}
-          barCategoryGap="24%"
-        >
-          <CartesianGrid {...gridProps} />
-          <XAxis
-            dataKey={isRanking ? undefined : dataKey}
-            type={xType ?? (isRanking ? 'number' : 'category')}
-            domain={xDomain}
-            {...xDefaults}
-            interval={isMobile || isRanking ? 'preserveStartEnd' : xDefaults.interval}
-            {...(isRanking && { tickFormatter: (value: number) => formatCurrencyShort(value) })}
-            {...(xTickFormatter && { tickFormatter: xTickFormatter })}
+      {showLegend && bars.length > 1 && <ChartSeriesLegend items={series} />}
+      <CartesianChart
+        data={data}
+        categoryKey={labelKey}
+        series={bars.map((bar, index) => ({ key: bar.key, stackId: slots[index].stackId }))}
+        layout={layout}
+        categoryKind="band"
+        extraValues={extraValues}
+        visibleRange={zoom}
+        margin={{ left: yWidth ?? AXIS_WIDTH[layout][isMobile ? 1 : 0], ...margin }}
+        height={height}
+        ariaLabel={ariaLabel}
+        tooltip={
+          <CartesianTooltip
+            series={series}
+            formatLabel={tooltipLabelFormatter ?? formatChartDate}
+            formatValue={formatValue}
           />
-          <YAxis
-            {...buildBarYAxisProps(isRanking, isMobile, labelKey, {
-              width: yWidth,
-              type: yType,
-              tickFormatter: yTickFormatter,
-            })}
-          />
-          <Tooltip
-            {...chartTooltipProps}
-            content={<ChartTooltipContent />}
-            labelFormatter={(label) => (tooltipLabelFormatter ?? formatChartDate)(tooltipLabelString(label))}
-            formatter={tooltipFormatterProp as never}
-          />
-          {referenceLines?.map(renderReferenceLine)}
-          {renderBaseline(baseline, data, bars, layout)}
-          {hasNegative && !referenceLines?.some((ref) => (isRanking ? ref.x : ref.y) === 0)
-            && referenceLine({ ...(isRanking ? { x: 0 } : { y: 0 }), variant: 'zero' })}
-          {bars.map((bar) => (
-            <Bar
-              key={bar.key}
+        }
+      >
+        <Grid hideHorizontal={hideHorizontalGrid} hideVertical={hideVerticalGrid} />
+        <Crosshair />
+        {/* The axis draws the zero line itself unless a configured line already sits at 0. */}
+        <ValueAxis tickFormatter={valueFormat} zeroLine={!lines.some((line) => line.value === 0)} />
+        <CategoryAxis tickFormatter={categoryFormat} interval={isRanking ? 0 : 'preserveStartEnd'} />
+        {bars.map((bar, index) => (
+          <SeriesEntrance key={bar.key} delay={slots[index].groupIndex * GROUP_OFFSET}>
+            <Bars
               dataKey={bar.key}
-              name={bar.label ?? bar.key}
-              fill={bar.color}
+              color={bar.color}
+              colorFor={(row, rowIndex) => barFill(bar, row, rowIndex)}
               fillOpacity={bar.fillOpacity}
-              radius={bar.radius ?? BAR_RADIUS}
-              shape={renderBarShape(bar, activeIndex, isolateOnHover, layout)}
-              isAnimationActive={animate && !brush}
-              animationDuration={480}
-              animationEasing="ease-out"
-              maxBarSize={bar.barSize ?? barSize ?? 36}
+              radius={Math.max(...(bar.radius ?? BAR_RADIUS))}
+              stackKeys={slots[index].stackKeys}
+              groupIndex={slots[index].groupIndex}
+              groupCount={slots[index].groupCount}
               barSize={bar.barSize}
-              stackId={stacked ? 'stack' : bar.stackId}
-              cursor={onBarClick ? 'pointer' : undefined}
-              onMouseEnter={
-                isolateOnHover
-                  ? (_entry: unknown, index: number) => setActiveIndex(index)
-                  : undefined
-              }
-              onMouseLeave={isolateOnHover ? () => setActiveIndex(null) : undefined}
-              onClick={
-                onBarClick
-                  ? (entry: unknown) => {
-                      const row = (entry as { payload?: Record<string, unknown> })?.payload
-                      const label = row?.[dataKey]
-                      if (typeof label === 'string') onBarClick(label)
-                    }
-                  : undefined
-              }
-            >
-              {showLabels && (
-                <LabelList
-                  dataKey={bar.key}
-                  position={isRanking ? 'right' : 'top'}
-                  formatter={barLabelFormatter as never}
-                  style={{ ...barLabelStyle, fill: CHART_TEXT.secondary, fontFamily: 'var(--font-mono)' }}
-                />
-              )}
-            </Bar>
-          ))}
-          {brush && !isRanking && (
-            <Brush
-              {...BRUSH_DEFAULTS}
-              dataKey={dataKey}
-              tickFormatter={xTickFormatter}
-              {...brush}
+              // Crosshair already bands the active slot; a second band would double its tint.
+              highlightBand={false}
+              onSelect={select}
             />
-          )}
-        </BarChart>
-      </ChartContainer>
-      {/* Screen-reader fallback, rendered as a SIBLING of ChartContainer --
-          inside it, the role="img" wrapper would make it presentational.
-          Call sites must pass `ariaLabel` rather than wrapping this component in
-          their own role="img" div, which would swallow the table too. */}
+          </SeriesEntrance>
+        ))}
+        {lines.map((line) => (
+          <ReferenceLine key={`${line.value ?? ''}|${line.category ?? ''}|${line.label ?? ''}`} {...line} />
+        ))}
+        {typical && <ReferenceLine value={typical.value} variant="avg" label={typical.label} />}
+      </CartesianChart>
+      {zoom && <ChartBrush range={zoom} values={leadSeries(data, bars)} />}
+      {/* Screen-reader fallback, rendered as a SIBLING of the chart -- inside its
+          role="img" frame it would be presentational. Call sites must pass
+          `ariaLabel` rather than wrapping this component in their own
+          role="img" div, which would swallow the table too. */}
       {renderBarDataTable(
         data,
         bars,
         labelKey,
-        rowHeaderName,
+        rowHeaderLabel ?? (isRanking ? 'Category' : 'Period'),
         ariaLabel ?? 'Chart data',
-        tooltipFormatter ?? formatCurrency,
+        formatValue,
       )}
     </>
   )
+}
+
+/**
+ * Holds a later series' entrance back by `delay` seconds after the chart
+ * enters, so grouped bars rise a beat apart. Bars read `entered` from the
+ * frame. A chart that has already entered (new data, a remount) or does not
+ * animate shows the series at once.
+ */
+function SeriesEntrance({ delay, children }: { readonly delay: number; readonly children: ReactNode }) {
+  const frame = useChartFrame()
+  const [held, setHeld] = useState(() => delay > 0 && frame.animate && !frame.entered)
+  // A layout effect starts the wait at the commit that enters the chart, not after
+  // the first series has set up its bars, so the gap stays near `delay`.
+  useLayoutEffect(() => {
+    if (!held || !frame.entered) return
+    const timer = setTimeout(() => setHeld(false), delay * 1000)
+    return () => clearTimeout(timer)
+  }, [held, frame.entered, delay])
+  const value = useMemo(
+    () => ({ ...frame, entered: frame.entered && (!held || !frame.animate) }),
+    [frame, held],
+  )
+  return <FrameContext.Provider value={value}>{children}</FrameContext.Provider>
 }

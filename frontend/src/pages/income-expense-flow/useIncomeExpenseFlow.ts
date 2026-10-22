@@ -1,11 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { getDateKey } from '@/lib/dateUtils'
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
@@ -15,7 +14,6 @@ import {
   selectGrowthAssumptions, selectRsuGrants, selectSalaryStructure, usePreferencesStore,
 } from '@/store/preferencesStore'
 
-import { createSankeyNodeComponent } from './components/SankeyNodeRenderer'
 import {
   attachOverviewDrills,
   buildCategoryView,
@@ -28,6 +26,7 @@ import {
   type DrillCrumb,
   type FlowEntry,
 } from './sankeyDrilldown'
+import { useDrillNavigation } from './useDrillNavigation'
 
 export function useIncomeExpenseFlow() {
   const transactionsQuery = useTransactions()
@@ -49,8 +48,8 @@ export function useIncomeExpenseFlow() {
     void transactionsQuery.refetch()
     void preferencesQuery.refetch()
   }
-  // Gate the horizontal Sankey to lg+ (>=1024px): it uses left/right:200 margins
-  // that crush a tablet, so phones and tablets get the vertical MobileFlowView.
+  // Gate the horizontal Sankey to lg+ (>=1024px): four labelled columns need
+  // the width, so phones and tablets get the vertical MobileFlowView.
   const isMobile = useIsMobile(1024)
 
   // Share the tax engine and classified employment inputs. The flow estimates
@@ -73,12 +72,10 @@ export function useIncomeExpenseFlow() {
 
   const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
-  // Drill path (breadcrumb stack). Empty = the full overview diagram.
-  const [drillPath, setDrillPath] = useState<DrillCrumb[]>([])
-  // Last navigation direction + the clicked node's chart coordinates. Forward
-  // zooms the new view IN from the clicked spot; back zooms it OUT from center.
-  const [drillDirection, setDrillDirection] = useState<'in' | 'out'>('in')
-  const [zoomOrigin, setZoomOrigin] = useState<{ x: number; y: number } | null>(null)
+  // Drill path and zoom; a period switch resets both to the overview.
+  const { drillPath, drillDirection, zoomOrigin, drillInto, drillTo, drillBack } = useDrillNavigation(
+    `${dateRange.start_date ?? ''}|${dateRange.end_date ?? ''}`,
+  )
 
   const fyTransactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -103,35 +100,6 @@ export function useIncomeExpenseFlow() {
       capitalLosses: fyTransactions.filter(isLoss).reduce((sum, txn) => sum + txn.amount, 0),
     }
   }, [fyTransactions, lossConfig])
-
-  // Changing the time filter can remove the drilled category entirely, so a
-  // period switch always returns to the overview. State-adjust-during-render
-  // (not an effect) per React's "adjusting state when props change" pattern.
-  const rangeKey = `${dateRange.start_date ?? ''}|${dateRange.end_date ?? ''}`
-  const [prevRangeKey, setPrevRangeKey] = useState(rangeKey)
-  if (rangeKey !== prevRangeKey) {
-    setPrevRangeKey(rangeKey)
-    setDrillPath([])
-  }
-
-  const drillInto = useCallback((crumb: DrillCrumb, origin?: { x: number; y: number }) => {
-    setDrillDirection('in')
-    setZoomOrigin(origin ?? null)
-    setDrillPath((path) => [...path, crumb])
-  }, [])
-
-  /** Truncate to the first `depth` crumbs; 0 = back to overview. */
-  const drillTo = useCallback((depth: number) => {
-    setDrillDirection('out')
-    setZoomOrigin(null)
-    setDrillPath((path) => (depth >= path.length ? path : path.slice(0, depth)))
-  }, [])
-
-  const drillBack = useCallback(() => {
-    setDrillDirection('out')
-    setZoomOrigin(null)
-    setDrillPath((path) => path.slice(0, -1))
-  }, [])
 
   const computed = useMemo(() => {
     const incomeByCategory = flowTransactions
@@ -265,11 +233,12 @@ export function useIncomeExpenseFlow() {
   ])
 
   // The currently displayed view: overview, a category's subcategories, or an
-  // unfolded "Other" tail. Fresh { nodes, links } object per level -- Recharts
-  // links reference nodes by array index, so indexes are rebuilt per view.
-  // `palette` is a theme-scoped copy, so node colours follow a theme toggle.
-  const palette = usePaletteSnapshot(rawColors.app)
+  // unfolded "Other" tail. Fresh { nodes, links } object per level, linked by
+  // array index; SankeyChart maps them to ids that stay stable across levels,
+  // so a node shown at two levels morphs between them. The palette is CSS
+  // var() references, so a theme toggle repaints without rebuilding the view.
   const view = useMemo(() => {
+    const palette = colors.app
     const crumb = drillPath.at(-1)
     if (!crumb) {
       return buildOverviewView({
@@ -287,19 +256,7 @@ export function useIncomeExpenseFlow() {
     }
     if (crumb.view === 'other') return buildOtherView(crumb, palette)
     return buildCategoryView(flowTransactions, crumb, palette)
-  }, [drillPath, computed, flowTransactions, palette])
-
-  const chartWidth = isMobile ? 720 : 900
-  const sankeyNodeComponent = useMemo(
-    () =>
-      createSankeyNodeComponent({
-        meta: view.meta,
-        chartWidth,
-        fontSize: isMobile ? 11 : 13,
-        onDrill: drillInto,
-      }),
-    [view.meta, chartWidth, isMobile, drillInto],
-  )
+  }, [drillPath, computed, flowTransactions])
 
   return {
     ...computed,
@@ -317,6 +274,5 @@ export function useIncomeExpenseFlow() {
     drillInto,
     drillTo,
     drillBack,
-    sankeyNodeComponent,
   }
 }

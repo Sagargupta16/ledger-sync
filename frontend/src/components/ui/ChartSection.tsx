@@ -64,10 +64,3 @@ export default function ChartSection({
     </motion.section>
   )
 }
-
-/** Scroll-in reveal for the plot inside a chart section. */
-export function ChartReveal({ children }: Readonly<{ children: ReactNode }>) {
-  const motionEnabled = useMotionStore((state) => state.mode === 'full')
-
-  return <motion.div {...inViewReveal('plot', motionEnabled)}>{children}</motion.div>
-}

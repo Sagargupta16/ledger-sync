@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useDataDateRange, useTrends } from '@/hooks/api/useAnalytics'
 import { useDailyNetWorth, useEarningStartEvidence } from '@/hooks/api/useCalculations'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -306,11 +306,10 @@ export function useTrendsForecasts() {
   /**
    * How many rolling-average points actually exist -- see `countRollingAvgPoints`.
    *
-   * Probed against recharts 3.10 with the real FY 2026-27 months (Apr/May/Jun
-   * complete): the average path is `d="M595,25.2630323076923Z"`, a moveto plus
-   * closepath that paints nothing, versus a full 3-point curve back when the
-   * window truncated. All three series share one window, so counting `incomeAvg`
-   * answers for `expensesAvg` and `savingsAvg` too.
+   * With the real FY 2026-27 months (Apr/May/Jun complete) there is exactly one
+   * average point, which a stroke cannot show, so LineSeries marks it with a dot
+   * and the caption says so. All three series share one window, so counting
+   * `incomeAvg` answers for `expensesAvg` and `savingsAvg` too.
    */
   const rollingAvgPointCount = useMemo(
     () => countRollingAvgPoints(monthlyTrendWithAvg, (d) => d.incomeAvg),
@@ -334,8 +333,6 @@ export function useTrendsForecasts() {
   )
 
   const recentChartData = useMemo(() => chartData.slice(-8), [chartData])
-
-  const [activeLabel, setActiveLabel] = useState<string | null>(null)
 
   const retry = () => {
     const retries: Array<Promise<unknown>> = []
@@ -367,7 +364,5 @@ export function useTrendsForecasts() {
     peakExpenses,
     peakSavings,
     recentChartData,
-    activeLabel,
-    setActiveLabel,
   }
 }

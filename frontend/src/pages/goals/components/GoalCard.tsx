@@ -86,22 +86,13 @@ export default function GoalCard({
 
       {/* Funded vs on-pace -- the tick marks where you should be by now */}
       <div className="mt-5">
-        <div className="relative">
-          <ProgressBar
-            value={progressPct}
-            color={color}
-            height={8}
-            target={onPacePct}
-            ariaLabel={`${goal.name} progress: ${Math.round(progressPct)} percent funded`}
-          />
-          {onPacePct !== undefined && (
-            <span
-              className="pointer-events-none absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
-              style={{ left: `${onPacePct}%` }}
-              aria-hidden="true"
-            />
-          )}
-        </div>
+        <ProgressBar
+          value={progressPct}
+          color={color}
+          height={8}
+          target={onPacePct}
+          ariaLabel={`${goal.name} progress: ${Math.round(progressPct)} percent funded`}
+        />
         <div className="mt-2 flex justify-between font-mono text-[10px] text-text-tertiary tabular-nums" aria-hidden="true">
           <span>0%</span>
           <span>100% funded</span>

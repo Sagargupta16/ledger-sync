@@ -1,52 +1,20 @@
+import { useCallback, useMemo, useState } from 'react'
+
 import { motion } from 'motion/react'
 import { LineChart as LineChartIcon } from 'lucide-react'
-import {
-  Area,
-  Brush,
-  ComposedChart,
-  CartesianGrid,
-  Line,
-  ReferenceLine,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
+import ChartBrush from '@/components/charts/ChartBrush'
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
-import { chartDataTable } from '@/components/ui/chartDataTable'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import { useChartRange } from '@/components/ui/useChartRange'
-import { BRUSH_DEFAULTS, monthTooltipLabel } from '@/components/ui/chartDefaults'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { formatChartPeriod } from '@/lib/chartDateLabels'
-import {
-  ACTIVE_DOT,
-  areaGradient,
-  areaGradientUrl,
-  chartTooltipProps,
-  ChartContainer,
-  GRID_DEFAULTS,
-  referenceLine,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
 import { rawColors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatMonthKey } from '@/lib/dateUtils'
-import { formatCurrency } from '@/lib/formatters'
 
-import { formatTooltipName } from '../trendsUtils'
 import type { useTrendsForecasts } from '../useTrendsForecasts'
-
-const MAX_VISIBLE_LABELS = {
-  mobile: 4,
-  tablet: 8,
-  desktop: 8,
-} as const
+import MonthlyTrendPanel, { type ActiveMonth, type TrendKey, type TrendPanelSpec } from './MonthlyTrendPanel'
 
 type MonthlyTrendData = ReturnType<typeof useTrendsForecasts>['monthlyTrendWithAvg']
 
@@ -56,11 +24,7 @@ interface MonthlyTrendSectionProps {
   readonly peakIncome: number
   readonly peakExpenses: number
   readonly peakSavings: number
-  /** Count of months that have a real rolling average (not the data length). */
-  readonly rollingAvgPointCount: number
   readonly rollingAvgMonths: number
-  readonly activeLabel: string | null
-  readonly onActiveLabelChange: (label: string | null) => void
 }
 
 export default function MonthlyTrendSection({
@@ -69,42 +33,29 @@ export default function MonthlyTrendSection({
   peakIncome,
   peakExpenses,
   peakSavings,
-  rollingAvgPointCount,
   rollingAvgMonths,
-  activeLabel,
-  onActiveLabelChange,
 }: MonthlyTrendSectionProps) {
-  const dims = useChartDimensions()
   const range = useChartRange(data.map((row) => row.month))
-  const series = [
-    {
-      id: 'trendIncome',
-      color: rawColors.app.green,
-      label: 'Income',
-      dataKey: 'income',
-      avgKey: 'incomeAvg',
-      peak: peakIncome,
-    },
-    {
-      id: 'trendExpense',
-      color: rawColors.app.red,
-      label: 'Expenses',
-      dataKey: 'expenses',
-      avgKey: 'expensesAvg',
-      peak: peakExpenses,
-    },
-    {
-      id: 'trendSavings',
-      color: rawColors.app.blue,
-      label: 'Savings',
-      dataKey: 'savings',
-      avgKey: 'savingsAvg',
-      peak: peakSavings,
-    },
-  ] as const
-  const { animate: animateCharts } = useChartPresentation(data.length * series.length * 2)
-  const maxVisibleLabels = MAX_VISIBLE_LABELS[dims.breakpoint]
-  const xAxisInterval = Math.max(0, Math.ceil((range.endIndex - range.startIndex + 1) / maxVisibleLabels) - 1)
+  const { startIndex, endIndex } = range
+  // One object per zoom, so inspecting a month re-renders the panels without rebuilding their scales.
+  const visibleRange = useMemo(() => ({ startIndex, endIndex }), [startIndex, endIndex])
+  // The panels inspect one month together: each draws the crosshair, the touched one the tooltip.
+  const [active, setActive] = useState<ActiveMonth | null>(null)
+  const onActiveChange = useCallback((panel: TrendKey, index: number | null) => {
+    setActive((current) => {
+      // A panel the pointer left, or that lost focus, clears only its own inspection.
+      if (index === null) return current?.panel === panel ? null : current
+      return current?.panel === panel && current.index === index ? current : { index, panel }
+    })
+  }, [])
+  const app = usePaletteSnapshot(rawColors.app)
+  const text = usePaletteSnapshot(rawColors.text)
+  const brushValues = useMemo(() => data.map((row) => row.savings), [data])
+  const panels: readonly TrendPanelSpec[] = [
+    { dataKey: 'income', avgKey: 'incomeAvg', label: 'Income', color: app.green, peak: peakIncome },
+    { dataKey: 'expenses', avgKey: 'expensesAvg', label: 'Expenses', color: app.red, peak: peakExpenses },
+    { dataKey: 'savings', avgKey: 'savingsAvg', label: 'Savings', color: app.blue, peak: peakSavings },
+  ]
 
   return (
     <motion.section
@@ -138,141 +89,31 @@ export default function MonthlyTrendSection({
       {isLoading && <ChartSkeleton height="h-80" />}
       {!isLoading && data.length > 6 && <ChartRangeControls range={range} label="Monthly trends chart range" />}
       {!isLoading && data.length > 0 && (
-        <div className="divide-y divide-border">
-          {series.map(({ id, color, label, dataKey, avgKey, peak }) => (
-            <div
-              key={id}
-              className="grid min-w-0 grid-cols-1 gap-4 py-6 first:border-t first:border-border last:pb-0 lg:grid-cols-[10rem_minmax(0,1fr)] lg:gap-6"
-            >
-              <div className="flex flex-wrap justify-between gap-3 lg:block">
-                <div>
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <span
-                      className="h-2 w-2 rounded-sm"
-                      style={{ backgroundColor: color }}
-                      aria-hidden="true"
-                    />
-                    {label}
-                  </h3>
-                  <dl className="mt-3">
-                    <dt className="text-xs text-muted-foreground">Peak month</dt>
-                    <dd className="mt-1 break-words font-mono text-lg font-semibold tabular-nums" style={{ color }}>
-                      {formatCurrency(peak)}
-                    </dd>
-                  </dl>
-                </div>
-                <ul className="space-y-2 text-xs text-muted-foreground lg:mt-5" aria-label={`${label} chart series`}>
-                  <li className="flex items-center gap-2">
-                    <span className="h-0.5 w-5" style={{ backgroundColor: color }} aria-hidden="true" />{' '}
-                    Monthly total
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-5 border-t-2 border-dashed border-text-secondary" aria-hidden="true" />
-                    {rollingAvgMonths}-month average
-                  </li>
-                </ul>
-              </div>
-              <div className="min-w-0">
-                <ChartContainer
-                  height={220}
-                  mobileHeight={230}
-                  ariaLabel={`Monthly ${label.toLowerCase()} with ${rollingAvgMonths}-month rolling average and peak reference line`}
-                >
-                  <ComposedChart
-                    data={data}
-                    margin={{ top: 12, right: 12, bottom: 8, left: 0 }}
-                    syncId="monthly-finance-trends"
-                    syncMethod="value"
-                    onMouseMove={(event) => {
-                      if (event?.activeLabel) onActiveLabelChange(String(event.activeLabel))
-                    }}
-                    onMouseLeave={() => onActiveLabelChange(null)}
-                  >
-                    <defs>{areaGradient(id, color, 0.24, 0.01)}</defs>
-                    <CartesianGrid {...GRID_DEFAULTS} />
-                    <XAxis
-                      {...xAxisDefaults(data.length)}
-                      dataKey="month"
-                      tickFormatter={(value: string) => formatChartPeriod(value)}
-                      interval={xAxisInterval}
-                    />
-                    <YAxis
-                      {...yAxisDefaults({ width: dims.breakpoint === 'mobile' ? 56 : 64 })}
-                      domain={dataKey === 'savings' ? ['auto', 'auto'] : [0, 'auto']}
-                    />
-                    <Tooltip
-                      {...chartTooltipProps}
-                      content={<ChartTooltipContent />}
-                      cursor={CHART_LINE_CURSOR_STYLE}
-                      labelFormatter={monthTooltipLabel}
-                      formatter={(value, name) => [
-                        typeof value === 'number' ? formatCurrency(value) : '',
-                        formatTooltipName(
-                          name === undefined ? undefined : String(name),
-                          rollingAvgMonths,
-                        ),
-                      ]}
-                    />
-                    {referenceLine({
-                      y: peak,
-                      variant: 'peak',
-                    })}
-                    {dataKey === 'savings' && referenceLine({ y: 0, variant: 'zero' })}
-                    {activeLabel && (
-                      <ReferenceLine
-                        x={activeLabel}
-                        stroke={rawColors.chart.activeStroke}
-                        strokeDasharray="3 3"
-                      />
-                    )}
-                    <Area
-                      type="monotone"
-                      dataKey={dataKey}
-                      stroke={color}
-                      fill={areaGradientUrl(id)}
-                      strokeWidth={2.5}
-                      dot={data.length === 1 ? { r: 3, fill: color } : false}
-                      activeDot={{ ...ACTIVE_DOT, fill: color }}
-                      isAnimationActive={animateCharts}
-                      animationDuration={700}
-                      animationEasing="ease-out"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey={avgKey}
-                      stroke={rawColors.text.secondary}
-                      strokeWidth={2}
-                      strokeDasharray="6 3"
-                      // Keys off the AVERAGE point count, not `data.length`: the
-                      // leading months carry no average, so three complete months
-                      // (the default FY view) leave a single point, and recharts
-                      // strokes nothing for one point (`M x,y Z`).
-                      dot={rollingAvgPointCount === 1 ? { r: 4, fill: rawColors.text.secondary } : false}
-                      activeDot={{ ...ACTIVE_DOT, fill: rawColors.text.secondary }}
-                      name={`${label} (${rollingAvgMonths}m avg)`}
-                      isAnimationActive={animateCharts}
-                      animationDuration={700}
-                      animationEasing="ease-out"
-                    />
-                    {data.length > 6 && (
-                      <Brush {...BRUSH_DEFAULTS} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} startIndex={range.startIndex} endIndex={range.endIndex} onChange={range.setRange} />
-                    )}
-                  </ComposedChart>
-                </ChartContainer>
-                {chartDataTable(
-                  data,
-                  [
-                    { header: 'Month', rowHeader: true, value: (row) => formatMonthKey(row.month, { month: 'long', year: 'numeric' }) },
-                    { header: label, value: (row) => formatCurrency(row[dataKey]) },
-                    { header: `${rollingAvgMonths}-month average`, value: (row) => row[avgKey] === undefined ? 'Not available' : formatCurrency(row[avgKey]) },
-                  ],
-                  `Monthly ${label.toLowerCase()} and rolling average`,
-                  (row) => row.month,
-                )}
+        <>
+          <div className="divide-y divide-border">
+            {panels.map((spec, order) => (
+              <MonthlyTrendPanel
+                key={spec.dataKey}
+                spec={spec}
+                order={order}
+                data={data}
+                visibleRange={visibleRange}
+                rollingAvgMonths={rollingAvgMonths}
+                averageColor={text.secondary}
+                active={active}
+                onActiveChange={onActiveChange}
+              />
+            ))}
+          </div>
+          {/* One brush zooms all three panels; it lines up with their plot column. */}
+          {data.length > 6 && (
+            <div className="grid min-w-0 lg:grid-cols-[10rem_minmax(0,1fr)] lg:gap-6">
+              <div className="min-w-0 lg:col-start-2">
+                <ChartBrush range={range} values={brushValues} ariaLabel="Monthly trends zoom" />
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
       {!isLoading && data.length > 0 && (
         <p className="mt-5 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">

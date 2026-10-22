@@ -10,8 +10,8 @@ React 19 and TypeScript 7 application for the Ledger Sync personal finance works
 - Tailwind CSS 4
 - TanStack Query 5
 - Zustand 5
-- Recharts 3
-- Motion 13 (`motion/react`)
+- Motion 14 (`motion/react`)
+- An in-house animated SVG chart kit (`src/components/charts/`), in place of a chart library
 - Vitest and Testing Library
 
 ## Run Locally
@@ -147,7 +147,7 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 
 - `themeStore` persists Light or Dark mode. New users start on the OS `prefers-color-scheme` value.
 - `index.css` contains semantic color, surface, typography, chart, and control tokens.
-- Charts resolve theme colors through `rawColors` and remount their responsive container when the resolved theme changes; route-local filters, tabs, searches, and forms remain mounted.
+- Chart chrome paints with the `--chart-*` CSS variables and series colors come from `rawColors` through `usePaletteSnapshot`, so a theme change repaints charts without a remount; route-local filters, tabs, searches, and forms remain mounted.
 - Wide shared tables can switch to mobile cards below `sm`, with sortable tables exposing a compact mobile sort control.
 - Primary phone controls target at least 44px.
 - The service worker caches the application shell but excludes `/api/*`.

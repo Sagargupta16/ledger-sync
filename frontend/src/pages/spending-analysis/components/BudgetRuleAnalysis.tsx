@@ -1,19 +1,13 @@
+import { useState } from 'react'
 import { motion } from 'motion/react'
 import { PiggyBank, ShieldCheck, Sparkles } from 'lucide-react'
-import { Pie, PieChart, Tooltip } from 'recharts'
 
+import PieChart from '@/components/charts/PieChart'
 import EmptyState from '@/components/shared/EmptyState'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import {
-  ChartContainer,
-  chartTooltipProps,
-  currencyTooltipFormatter,
-} from '@/components/ui'
-import { colors, rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
 import type { BudgetRuleMetrics } from '../spendingAnalysisUtils'
 import { BudgetRuleCard } from './BudgetRuleCard'
@@ -26,9 +20,33 @@ interface SpendingBreakdown {
 interface SpendingChartDatum {
   name: string
   value: number
-  /** Slice colour; Recharts reads it off the datum, replacing `<Cell fill>`. */
+  /** Resolved slice colour; the hook re-resolves it on a theme toggle. */
   fill: string
 }
+
+/** The ring this donut has always drawn: a 66% hole in a 90% rim, with 2 degree gaps. */
+const HOLE_RATIO = 66 / 90
+const PAD_ANGLE = (2 * Math.PI) / 180
+
+/**
+ * What the donut's shares are of. Savings leave the data once nothing is left
+ * over, and the slices then split spending rather than income, so the centre,
+ * the list and the table each have to say which.
+ */
+const BASIS = {
+  income: {
+    title: 'Actual split',
+    ariaLabel: 'Donut showing your actual Needs, Wants, and Savings split of income',
+    listLabel: 'Income allocation',
+    caption: 'Needs, wants, and savings as shares of income',
+  },
+  spending: {
+    title: 'Spending split',
+    ariaLabel: 'Donut showing how your spending splits between Needs and Wants. Nothing was left to save, so the shares are of spending, not income',
+    listLabel: 'Spending allocation',
+    caption: 'Needs and wants as shares of spending; nothing was left to save',
+  },
+} as const
 
 interface BudgetRuleAnalysisProps {
   readonly needsTarget: number
@@ -56,7 +74,21 @@ export default function BudgetRuleAnalysis({
   budgetRuleMetrics,
   savings,
 }: BudgetRuleAnalysisProps) {
-  const { animate } = useChartPresentation(spendingChartData.length)
+  // One hover state for the slices and the list rows below them.
+  const [activeName, setActiveName] = useState<string | null>(null)
+  const basis = savings > 0 ? 'income' : 'spending'
+  const copy = BASIS[basis]
+  const total = spendingChartData.reduce((sum, item) => sum + item.value, 0)
+  const shareOf = (value: number) => formatPercent(total > 0 ? (value / total) * 100 : 0)
+  const active = spendingChartData.find((item) => item.name === activeName)
+  const center = (
+    <>
+      <span className="max-w-full truncate text-sm font-semibold text-text-primary">{active?.name ?? copy.title}</span>
+      <span className="mt-1 text-xs text-text-tertiary">
+        {active ? `${shareOf(active.value)} of ${basis}` : `of ${basis}`}
+      </span>
+    </>
+  )
 
   return (
     <motion.section
@@ -88,37 +120,31 @@ export default function BudgetRuleAnalysis({
         <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)] lg:gap-10">
           <div className="flex min-w-0 flex-col items-center gap-4">
             <div className="h-60 w-full max-w-72 sm:h-72">
-              <ChartContainer ariaLabel="Donut showing your actual Needs, Wants, and Savings split of income">
-                <PieChart>
-                  <Pie
-                    data={spendingChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="66%"
-                    outerRadius="90%"
-                    dataKey="value"
-                    strokeWidth={0}
-                    paddingAngle={2}
-                    isAnimationActive={animate}
-                    animationDuration={700}
-                    animationEasing="ease-out"
-                  />
-                  <Tooltip {...chartTooltipProps} content={<ChartTooltipContent />} formatter={currencyTooltipFormatter} />
-                  <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                    <tspan x="50%" dy="-5" fill={rawColors.text.primary} fontSize="14" fontWeight="600">
-                      Actual split
-                    </tspan>
-                    <tspan x="50%" dy="20" fill={rawColors.text.tertiary} fontSize="12">
-                      of income
-                    </tspan>
-                  </text>
-                </PieChart>
-              </ChartContainer>
+              <PieChart
+                data={spendingChartData.map((item) => ({ key: item.name, label: item.name, value: item.value, color: item.fill }))}
+                innerRadius={HOLE_RATIO}
+                padAngle={PAD_ANGLE}
+                activeKey={activeName}
+                onActiveChange={setActiveName}
+                centerLabel={center}
+                height="fill"
+                ariaLabel={copy.ariaLabel}
+              />
             </div>
+            {basis === 'spending' && (
+              <p className="w-full max-w-72 text-center text-xs leading-5 text-muted-foreground">
+                Nothing was left to save in this period, so the donut splits spending, not income.
+              </p>
+            )}
 
-            <ul className="w-full max-w-72 divide-y divide-border/60" aria-label="Income allocation">
+            <ul className="w-full max-w-72 divide-y divide-border/60" aria-label={copy.listLabel}>
               {spendingChartData.map((item) => (
-                <li key={item.name} className="flex items-center justify-between gap-3 py-2.5">
+                <li
+                  key={item.name}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                  onMouseEnter={() => setActiveName(item.name)}
+                  onMouseLeave={() => setActiveName(null)}
+                >
                   <span className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span
                       className="size-2 shrink-0 rounded-sm"
@@ -136,8 +162,9 @@ export default function BudgetRuleAnalysis({
               [
                 { header: 'Allocation', rowHeader: true, value: (row) => row.name },
                 { header: 'Amount', value: (row) => formatCurrency(row.value) },
+                { header: `Share of ${basis}`, value: (row) => shareOf(row.value) },
               ],
-              'Needs, wants, and savings allocation',
+              copy.caption,
               (row) => row.name,
             )}
           </div>

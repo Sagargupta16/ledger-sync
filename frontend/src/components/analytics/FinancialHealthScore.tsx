@@ -87,9 +87,9 @@ function RadarVisualization({ metrics, chartColor }: Readonly<{ metrics: Array<{
         categoryKey="dimension"
         color={chartColor}
         name="Score"
-        labelFontSize={isMobile ? 10 : 11}
         height={isMobile ? 200 : 224}
         showRadiusTicks
+        ariaLabel={`Radar chart of the FinHealth score in each of ${metrics.length} dimensions, each out of 100`}
       />
     </div>
   )

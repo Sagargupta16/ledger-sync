@@ -18,8 +18,8 @@ export interface NetWorthTrendChartProps {
    * Upcoming milestones to draw as horizontal threshold lines so users see
    * "I'll cross 1Cr around month X". Only ``status === 'upcoming'`` rows
    * are rendered; achieved milestones are already visible as the line
-   * crossing them. Recharts auto-clips lines outside the y-axis range,
-   * so we render all milestones blindly and let the chart filter visually.
+   * crossing them. The chart skips a line outside the visible value domain,
+   * so a milestone beyond it simply does not draw.
    */
   milestoneRows?: readonly MilestoneRow[]
 }
@@ -27,7 +27,6 @@ export interface NetWorthTrendChartProps {
 export function getNetWorthChartView({
   chartData,
   filteredNetWorthData,
-  allCategories,
   showStacked,
   showProjection,
 }: Readonly<NetWorthTrendChartProps>) {
@@ -41,8 +40,6 @@ export function getNetWorthChartView({
   // Projection rows contain totals only. A category view must use the original
   // historical rows, otherwise enabling both controls erases every category.
   const plotData = effectiveStacked && showProjection ? filteredNetWorthData : chartData
-  const animatedPointCount =
-    plotData.length * (effectiveStacked ? Math.max(allCategories.length, 1) : 1)
 
-  return { hasNegativeNetWorth, stackedAllowed, effectiveStacked, plotData, animatedPointCount }
+  return { stackedAllowed, effectiveStacked, plotData }
 }

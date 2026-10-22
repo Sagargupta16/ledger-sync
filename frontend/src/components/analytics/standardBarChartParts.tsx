@@ -1,27 +1,30 @@
 /**
- * Render helpers extracted from `StandardBarChart` to keep that component near
- * the repo's file-size rule. Not a public API -- import from the chart instead.
+ * Pure helpers behind `StandardBarChart`: bar paint and grouping, the baseline
+ * statistic, reference-line mapping and the screen-reader table. Kept out of
+ * the component so each rule can be tested without painting the chart. Not a
+ * public API -- import from the chart instead.
  */
 
-import { Rectangle, ReferenceLine, type BarShapeProps, type YAxisProps } from 'recharts'
-
-import { BAR_RADIUS, referenceLine, yAxisDefaults, type ReferenceLineVariant } from '@/components/ui/chartDefaults'
+import type { ChartRow } from '@/components/charts/chartContext'
+import type { ReferenceLineProps, ReferenceLineVariant } from '@/components/charts/References'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { baselineLine, type BaselineOptions } from '@/components/ui/chartBaseline'
-import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
 import { formatChartDate } from '@/lib/chartDateLabels'
+import { medianOf } from '@/lib/distribution'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 export interface BarConfig {
   key: string
   color: string
   label?: string
-  /** Per-item colors: provide an array matching data length */
+  /** Per-item colors, indexed by the row's position in `data`. */
   cellColors?: string[]
-  /** Per-row color function (alternative to cellColors). Receives the row and index, returns hex. */
+  /** Per-row color function (alternative to cellColors). Receives the row and its index in `data`. */
   getCellColor?: (row: Record<string, unknown>, index: number) => string
   stackId?: string
   fillOpacity?: number
+  /** Corner radii; the largest rounds the corners away from zero (default 5). */
   radius?: [number, number, number, number]
+  /** Thickest the bar may grow, in px (default 36); it never outgrows its band. */
   barSize?: number
 }
 
@@ -30,9 +33,8 @@ export interface ReferenceLineConfig {
   y?: number | string
   label?: string
   /**
-   * Semantic treatment from `chartDefaults` (`peak` | `avg` | `target` | `goal`
-   * | `zero`). Preferred over `color`/`strokeDasharray` -- it keeps this chart's
-   * reference lines identical to the ones the area/line charts draw.
+   * Semantic treatment (`peak` | `avg` | `target` | `goal` | `zero`), shared
+   * with every other chart family. Preferred over `color`/`strokeDasharray`.
    */
   variant?: ReferenceLineVariant
   /** Escape hatch: explicit stroke color. Ignored when `variant` is set. */
@@ -41,178 +43,107 @@ export interface ReferenceLineConfig {
   strokeDasharray?: string
 }
 
-export type BaselineProp = boolean | (BaselineOptions & { label?: string })
-
-function resolveCellColor(
-  bar: BarConfig,
-  row: Record<string, unknown>,
-  index: number,
-): string | undefined {
-  if (bar.getCellColor) return bar.getCellColor(row, index)
-  if (bar.cellColors?.[index] !== undefined) return bar.cellColors[index]
-  return undefined
+export interface BaselineOptions {
+  /**
+   * How many points to summarize, counted from the END of the series. Only for
+   * chronological series; cyclical buckets (day of week) have no "recent" end.
+   */
+  window?: number
+  /** `'median'` (default; one bonus month cannot drag it) or `'mean'`. */
+  statistic?: 'median' | 'mean'
+  /** Prefix before the value, default `Typical`. */
+  label?: string
 }
 
-export function buildChartMargin(
-  margin: { top?: number; right?: number; bottom?: number; left?: number } | undefined,
-  xAngle: number | undefined,
-) {
-  return {
-    top: margin?.top ?? 16,
-    right: margin?.right ?? 16,
-    bottom: margin?.bottom ?? (xAngle ? 20 : 8),
-    left: margin?.left ?? 0,
-  }
+export type BaselineProp = boolean | BaselineOptions
+
+/** A bar's colour: its cell colour by row index in the full data, else the series colour. */
+export function barFill(bar: BarConfig, row: ChartRow, index: number): string {
+  return bar.getCellColor?.(row, index) ?? bar.cellColors?.[index] ?? bar.color
 }
 
-export function buildGridProps(
-  gridDefaults: Record<string, unknown>,
-  hideVerticalGrid: boolean | undefined,
-  hideHorizontalGrid: boolean | undefined,
-) {
-  return {
-    ...gridDefaults,
-    ...(hideVerticalGrid !== undefined && { vertical: !hideVerticalGrid }),
-    ...(hideHorizontalGrid !== undefined && { horizontal: !hideHorizontalGrid }),
-  }
+export interface BarSlot {
+  /** Side-by-side position in the band: one slot per unstacked series, one per stack. */
+  readonly groupIndex: number
+  readonly groupCount: number
+  readonly stackId?: string
+  /** Keys sharing this bar's stack, bottom to top. */
+  readonly stackKeys?: readonly string[]
 }
 
-export function buildBarYAxisProps(
-  isRanking: boolean,
-  isMobile: boolean,
-  labelKey: string,
-  overrides: {
-    width?: number
-    type?: 'number' | 'category'
-    tickFormatter?: (value: string | number) => string
-  },
-): YAxisProps {
-  const numericWidth = isMobile ? 48 : 56
-  const categoryWidth = isMobile ? 84 : 112
-  const defaults = yAxisDefaults({
-    width: overrides.width ?? (isRanking ? categoryWidth : numericWidth),
-    ...(isRanking && { currency: false }),
+/** Where each bar sits in its band and what it stacks with; `stacked` puts every bar in one stack. */
+export function barSlots(bars: readonly BarConfig[], stacked = false): BarSlot[] {
+  const stackOf = (bar: BarConfig) => (stacked ? 'stack' : bar.stackId)
+  const slots: string[] = []
+  const slotIndex = bars.map((bar, index) => {
+    const stackId = stackOf(bar)
+    const slot = stackId === undefined ? `series:${index}` : `stack:${stackId}`
+    if (!slots.includes(slot)) slots.push(slot)
+    return slots.indexOf(slot)
   })
-  return {
-    dataKey: isRanking ? labelKey : undefined,
-    type: overrides.type ?? (isRanking ? 'category' : 'number'),
-    ...defaults,
-    ...(isRanking && {
-      tick: { ...defaults.tick, fontFamily: 'var(--font-sans)', width: defaults.width - 12 },
-      interval: 0,
-    }),
-    ...(overrides.tickFormatter && { tickFormatter: overrides.tickFormatter }),
-  }
+  return bars.map((bar, index) => {
+    const stackId = stackOf(bar)
+    const base = { groupIndex: slotIndex[index], groupCount: slots.length }
+    if (stackId === undefined) return base
+    return { ...base, stackId, stackKeys: bars.filter((other) => stackOf(other) === stackId).map((other) => other.key) }
+  })
+}
+
+/** The first series as numbers, 0 for gaps: what the baseline summarizes and the brush overview draws. */
+export function leadSeries(data: ReadonlyArray<object>, bars: readonly BarConfig[]): number[] {
+  const key = bars[0]?.key
+  if (key === undefined) return []
+  return data.map((row) => Number((row as ChartRow)[key]) || 0)
+}
+
+export interface BaselineMark {
+  readonly value: number
+  readonly label: string
 }
 
 /**
- * Per-bar paint: (a) per-item colors and (b) dimming the non-hovered bars. For
- * single-series ranking charts this stays on even without custom colors -- so
- * hovering one bar isolates it (the same "focus one, fade the rest" affordance
- * the pie chart uses). `activeIndex` null means nothing hovered -> everything
- * full opacity.
- *
- * Returns a `shape` render prop rather than `<Cell>` children. `Cell` is
- * deprecated and removed in Recharts 4.0 (see the `@deprecated` tag on
- * `recharts/types/component/Cell`); `shape` is the documented replacement.
- * It also fixes a real mis-colouring: Cell children are matched positionally
- * against the RENDERED bar list, which drops zero-height bars, so a single
- * zero-value row slid every colour below it onto the wrong category. `shape`
- * receives the row on `payload`, so colour and datum can no longer come apart.
- *
- * Returns null when neither feature is requested, letting the caller omit the
- * prop entirely and keep Recharts' default rectangle.
+ * The "which of these bars is unusual?" line: the median (or mean) of the
+ * first series, labelled like `Typical: ₹20K`. Null when not opted in, when
+ * there is nothing to summarize, and for the ranking layout, where a value
+ * line across categories means nothing.
  */
-export function renderBarShape(
-  bar: BarConfig,
-  activeIndex: number | null,
-  isolate: boolean,
-  layout?: 'horizontal' | 'vertical',
-) {
-  const hasCustomColor = Boolean(bar.cellColors || bar.getCellColor)
-  if (!hasCustomColor && !isolate && layout === undefined) return undefined
-  return function BarShape(props: BarShapeProps) {
-    const row = (props.payload ?? {}) as Record<string, unknown>
-    // `index` is the position within the rendered slice; the pre-filter index
-    // lives on `originalDataIndex`, which is what `cellColors`/`activeIndex`
-    // are indexed by (both come from the caller's own data array).
-    const rowIndex = props.originalDataIndex ?? props.index
-    const color = resolveCellColor(bar, row, rowIndex) ?? bar.color
-    const dimmed = isolate && activeIndex !== null && activeIndex !== rowIndex
-    const negative = Number(row[bar.key]) < 0
-    const horizontalRadius: [number, number, number, number] = negative ? [0, 0, 5, 5] : BAR_RADIUS
-    const verticalRadius: [number, number, number, number] = negative ? [5, 0, 0, 5] : [0, 5, 5, 0]
-    return (
-      <Rectangle
-        {...props}
-        fill={color}
-        fillOpacity={dimmed ? 0.35 : (bar.fillOpacity ?? 1)}
-        radius={bar.radius ?? (layout === 'vertical' ? verticalRadius : horizontalRadius)}
-      />
-    )
-  }
-}
-
-/**
- * Render one configured reference line. A `variant` routes through the shared
- * `referenceLine()` primitive so bar charts match every other chart family;
- * without one we keep the legacy explicit color/dash path so existing callers
- * are byte-identical.
- */
-export function renderReferenceLine(ref: ReferenceLineConfig) {
-  if (ref.variant) {
-    return referenceLine({
-      // `referenceLine` types `y` as a number; a string y (rare, category axis)
-      // falls through as undefined rather than silently mistyping.
-      ...(typeof ref.y === 'number' && { y: ref.y }),
-      ...(ref.x !== undefined && { x: ref.x }),
-      label: ref.label,
-      variant: ref.variant,
-    })
-  }
-  return (
-    <ReferenceLine
-      key={`${ref.x ?? ''}${ref.y ?? ''}${ref.label ?? ''}`}
-      x={ref.x}
-      y={ref.y}
-      stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
-      strokeDasharray={ref.strokeDasharray ?? '3 3'}
-      label={ref.label ? {
-        value: ref.label,
-        fill: CHART_TEXT.subtle,
-        fontSize: 10,
-        fontFamily: 'var(--font-mono)',
-        position: 'insideTopRight',
-        offset: 8,
-      } : undefined}
-    />
-  )
-}
-
-/**
- * "Which of these bars are actually unusual?" line -- the median of the first
- * bar series, drawn with the shared `avg` treatment. Returns null for the
- * vertical (ranking) layout, where a y-axis baseline would be meaningless.
- */
-export function renderBaseline(
+export function baselineValue(
   baseline: BaselineProp | undefined,
   data: ReadonlyArray<object>,
-  bars: BarConfig[],
+  bars: readonly BarConfig[],
   layout: 'horizontal' | 'vertical',
-) {
-  if (!baseline || layout !== 'horizontal' || bars.length === 0) return null
-  const options = baseline === true ? undefined : baseline
-  const key = bars[0].key
-  return baselineLine(
-    data,
-    (row) => Number((row as Record<string, unknown>)[key]) || 0,
-    { ...options, label: options?.label ?? 'Typical' },
-  )
+): BaselineMark | null {
+  if (!baseline || layout !== 'horizontal') return null
+  const options: BaselineOptions = baseline === true ? {} : baseline
+  const scoped = options.window === undefined ? data : data.slice(-Math.max(1, options.window))
+  const values = leadSeries(scoped, bars).filter((value) => Number.isFinite(value))
+  if (values.length === 0) return null
+  const value = options.statistic === 'mean'
+    ? values.reduce((sum, item) => sum + item, 0) / values.length
+    : medianOf(values)
+  return { value, label: `${options.label ?? 'Typical'}: ${formatCurrencyShort(value)}` }
+}
+
+/**
+ * Kit props for one configured line. As in Recharts, `y` is the value axis of
+ * column charts and `x` the value axis of rankings; the other one names a
+ * category. Without a variant the line keeps its legacy strong, dashed look.
+ */
+export function referenceLineProps(ref: ReferenceLineConfig, layout: 'horizontal' | 'vertical'): ReferenceLineProps {
+  const [onValue, onCategory] = layout === 'vertical' ? [ref.x, ref.y] : [ref.y, ref.x]
+  return {
+    ...(typeof onValue === 'number' && { value: onValue }),
+    ...(onCategory !== undefined && { category: String(onCategory) }),
+    label: ref.label,
+    ...(ref.variant
+      ? { variant: ref.variant }
+      : { color: ref.color ?? 'var(--chart-reference-line-strong)', dash: ref.strokeDasharray ?? '3 3' }),
+  }
 }
 
 /**
  * Screen-reader equivalent of the bars: one row per data point, one column per
- * series. Gives AT users the numbers Recharts' `<path>` elements can't convey.
+ * series. Gives AT users the numbers the SVG paths can't convey.
  *
  * `rowHeaderName` names the category axis, which is NOT always time -- the
  * vertical (ranking) layout puts categories on it, where a "Period" header would
@@ -220,7 +151,7 @@ export function renderBaseline(
  */
 export function renderBarDataTable(
   data: ReadonlyArray<object>,
-  bars: BarConfig[],
+  bars: readonly BarConfig[],
   labelKey: string,
   rowHeaderName: string,
   caption: string,

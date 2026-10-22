@@ -1,7 +1,6 @@
 // UI components index
 export { Card, StatCard } from './Card'
 export { default as Button } from './Button'
-export { default as ChartContainer } from './ChartContainer'
 export { default as CollapsibleSection } from './CollapsibleSection'
 export { default as ConfirmDialog } from './ConfirmDialog'
 export { default as DataTable } from './DataTable'
@@ -12,16 +11,4 @@ export { default as PageContainer } from './PageContainer'
 export { default as PageHeader } from './PageHeader'
 export { default as Spinner } from './Spinner'
 export { default as StickyToolbar } from './StickyToolbar'
-export { chartTooltipProps } from './ChartTooltip'
-export {
-  GRID_DEFAULTS,
-  xAxisDefaults,
-  yAxisDefaults,
-  areaGradient,
-  areaGradientUrl,
-  BAR_RADIUS,
-  ACTIVE_DOT,
-  BRUSH_DEFAULTS,
-  referenceLine,
-  currencyTooltipFormatter,
-} from './chartDefaults'
+export { BAR_RADIUS, currencyTooltipFormatter } from './chartDefaults'

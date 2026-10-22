@@ -37,8 +37,8 @@ export interface MonthlyIncomeDatum {
   readonly income: number
   /**
    * `undefined` for the leading months with no full rolling window behind them.
-   * Recharts skips undefined points, which is what keeps the "3m avg" line from
-   * claiming a 1- or 2-month mean is a 3-month one.
+   * LineSeries skips non-number points, which is what keeps the "3m avg" line
+   * from claiming a 1- or 2-month mean is a 3-month one.
    */
   readonly incomeAvg: number | undefined
 }

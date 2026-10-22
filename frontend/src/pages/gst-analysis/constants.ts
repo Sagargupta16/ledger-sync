@@ -20,7 +20,7 @@ const GST_SLAB_COLOR_KEYS: Record<number, AppColor> = {
 
 const slabKey = (slab: number): AppColor => GST_SLAB_COLOR_KEYS[slab] ?? 'blue'
 
-/** Resolved color for Recharts/SVG fills. Read at render, after any theme refresh. */
+/** Resolved color for SVG chart fills. Read at render, after any theme refresh. */
 export function gstSlabColor(slab: number): string {
   return rawColors.app[slabKey(slab)]
 }

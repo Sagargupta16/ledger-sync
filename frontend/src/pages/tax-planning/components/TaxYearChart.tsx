@@ -1,52 +1,49 @@
 import { motion } from 'motion/react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import Bars from '@/components/charts/Bars'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip, { type TooltipSeries } from '@/components/charts/CartesianTooltip'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import {
-  ACTIVE_DOT,
-  BAR_RADIUS,
-  ChartContainer,
-  chartTooltipProps,
-  GRID_DEFAULTS,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
+import { BAR_RADIUS } from '@/components/ui'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
 
 import { buildYearlyTaxData } from '../taxPlanningUtils'
 import type { TaxPlanningModel } from '../useTaxPlanning'
+import { shortFyLabel, taxYearChartLayout } from './taxChartLayout'
 
 interface Props {
   planning: TaxPlanningModel
 }
 
-function getTaxChartLayout(isMobile: boolean) {
-  return {
-    height: isMobile ? 270 : 340,
-    marginRight: isMobile ? 8 : 12,
-    leftAxisWidth: isMobile ? 48 : 52,
-    rightAxisWidth: isMobile ? 0 : 52,
-  }
-}
+/** Recorded-income tax at the base of each year's stack, the remaining projection on top. */
+const TAX_STACK = ['paidTax', 'projected'] as const
+const SERIES: readonly SeriesSpec[] = [
+  { key: 'paidTax', stackId: 'tax' },
+  { key: 'projected', stackId: 'tax' },
+  { key: 'cumulative', axis: 'right' },
+]
+const TOOLTIP_SERIES: readonly TooltipSeries[] = [
+  { key: 'paidTax', label: 'Tax on recorded income', color: colors.app.red },
+  { key: 'projected', label: 'Projected Tax', color: colors.app.orange },
+  { key: 'cumulative', label: 'Cumulative', color: colors.app.blue },
+]
+const BAR_SIZE = 48
+/** Four series steps (0.48s): the cumulative line sweeps in as the yearly stacks finish rising. */
+const LINE_AFTER_BARS = 4
+const fyLabel = (fy: string) => fy
 
 export default function TaxYearChart({ planning }: Readonly<Props>) {
-  const { animate, isMobile } = useChartPresentation(planning.fyList.length)
+  const isMobile = useIsMobile()
 
   if (planning.fyList.length === 0) return null
 
-  const layout = getTaxChartLayout(isMobile)
   const yearlyTaxData = buildYearlyTaxData(
     planning.fyList,
     planning.transactionsByFY,
@@ -58,6 +55,7 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
   )
   const hasTaxData = yearlyTaxData.some((row) => row.paidTax !== 0 || row.projected !== 0)
   const cumulativeTaxMax = Math.max(0, ...yearlyTaxData.map((row) => row.cumulative))
+  const layout = taxYearChartLayout(isMobile, cumulativeTaxMax)
   const latestYear = yearlyTaxData.at(-1)
   const cumulativeScaleShort = `${formatCurrencyShort(0)}-${formatCurrencyShort(cumulativeTaxMax)}`
   const chartAriaLabel = isMobile
@@ -94,9 +92,9 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
       {hasTaxData && (
         <ChartSeriesLegend
           items={[
-            { key: 'paid', label: 'Recorded-income estimate', color: rawColors.app.red },
-            { key: 'projected', label: 'Projected', color: rawColors.app.orange },
-            { key: 'cumulative', label: 'Cumulative total', color: rawColors.app.blue },
+            { key: 'paid', label: 'Recorded-income estimate', color: colors.app.red },
+            { key: 'projected', label: 'Projected', color: colors.app.orange },
+            { key: 'cumulative', label: 'Cumulative total', color: colors.app.blue },
           ]}
           caption={`${yearlyTaxData.length} fiscal ${yearlyTaxData.length === 1 ? 'year' : 'years'}`}
         />
@@ -104,88 +102,50 @@ export default function TaxYearChart({ planning }: Readonly<Props>) {
       {!hasTaxData ? (
         <ChartEmptyState height={280} message="No tax liability found across years" />
       ) : (
-        <ChartContainer
-          height={layout.height}
+        <CartesianChart
+          data={yearlyTaxData}
+          categoryKey="fy"
+          categoryKind="band"
+          series={SERIES}
+          value2Domain={layout.value2Domain}
+          margin={layout.margin}
+          bandPadding={0.28}
+          height={340}
+          mobileHeight={270}
           ariaLabel={chartAriaLabel}
+          // A past year has no projected tax and a future one no recorded tax: zero rows stay out.
+          tooltip={<CartesianTooltip series={TOOLTIP_SERIES} formatLabel={fyLabel} hideZero />}
         >
-          <BarChart data={yearlyTaxData} margin={{ top: 16, right: layout.marginRight, bottom: 8, left: 0 }} barCategoryGap="28%">
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis
-              {...xAxisDefaults(yearlyTaxData.length)}
-              dataKey="fy"
-              tickFormatter={(fy: string) => isMobile ? fy.replace(/^FY\s+/i, '') : fy}
-            />
-            <YAxis
-              {...yAxisDefaults()}
-              yAxisId="left"
-              tickFormatter={(value: number) => formatCurrencyShort(value)}
-              width={layout.leftAxisWidth}
-            />
-            <YAxis
-              {...yAxisDefaults()}
-              yAxisId="right"
-              orientation="right"
-              tickFormatter={(value: number) => formatCurrencyShort(value)}
-              width={layout.rightAxisWidth}
-              hide={isMobile}
-              domain={isMobile ? [0, cumulativeTaxMax] : undefined}
-            />
-            <Tooltip
-              {...chartTooltipProps}
-              formatter={(value, name) => {
-                if (typeof value !== 'number' || value === 0) return ['', '']
-                const labels: Record<string, string> = {
-                  paidTax: 'Tax on recorded income',
-                  projected: 'Projected Tax',
-                  cumulative: 'Cumulative',
-                }
-                return [formatCurrency(value), labels[name ?? ''] ?? name]
-              }}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="paidTax"
-              name="paidTax"
-              stackId="tax"
-              fill={rawColors.app.red}
-              fillOpacity={0.9}
-              maxBarSize={48}
-              isAnimationActive={animate}
-              animationDuration={520}
-              animationEasing="ease-out"
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="projected"
-              name="projected"
-              stackId="tax"
-              fill={rawColors.app.orange}
-              fillOpacity={0.35}
-              stroke={rawColors.app.orange}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              radius={BAR_RADIUS}
-              maxBarSize={48}
-              isAnimationActive={animate}
-              animationDuration={520}
-              animationEasing="ease-out"
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="cumulative"
-              name="cumulative"
-              stroke={rawColors.app.blue}
-              strokeWidth={2.5}
-              strokeDasharray="4 4"
-              dot={yearlyTaxData.length === 1 ? { r: 4, fill: rawColors.app.blue, strokeWidth: 0 } : false}
-              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-              isAnimationActive={animate}
-              animationDuration={520}
-              animationEasing="ease-out"
-            />
-          </BarChart>
-        </ChartContainer>
+          <Grid />
+          <ValueAxis />
+          <ValueAxis axis="right" hide={layout.hideRightAxis} />
+          <CategoryAxis tickFormatter={isMobile ? shortFyLabel : fyLabel} />
+          <Bars
+            dataKey="paidTax"
+            color={colors.app.red}
+            fillOpacity={0.9}
+            radius={BAR_RADIUS[0]}
+            stackKeys={TAX_STACK}
+            barSize={BAR_SIZE}
+          />
+          <Bars
+            dataKey="projected"
+            color={colors.app.orange}
+            fillOpacity={0.35}
+            stroke={colors.app.orange}
+            strokeDasharray="3 3"
+            radius={BAR_RADIUS[0]}
+            stackKeys={TAX_STACK}
+            barSize={BAR_SIZE}
+          />
+          <LineSeries
+            dataKey="cumulative"
+            color={colors.app.blue}
+            strokeWidth={2.5}
+            dash="4 4"
+            seriesIndex={LINE_AFTER_BARS}
+          />
+        </CartesianChart>
       )}
       {hasTaxData && (
         <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-2 border-t border-border pt-4 text-xs text-muted-foreground">

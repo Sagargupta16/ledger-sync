@@ -129,7 +129,7 @@ describe('buildCategoryView', () => {
     expect(view.links.reduce((s, l) => s + l.value, 0)).toBe(100000)
   })
 
-  it('never emits zero or negative links (recharts NaN-layout guard)', () => {
+  it('never emits zero or negative links (Sankey layout guard)', () => {
     const weird = [txn('Expense', 'Family', 500, 'Parents'), txn('Expense', 'Family', 0, 'Zero')]
     const view = buildCategoryView(weird, crumb)
     expect(view.links.every((l) => l.value > 0)).toBe(true)

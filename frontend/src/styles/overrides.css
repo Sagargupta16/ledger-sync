@@ -59,7 +59,7 @@ html[data-motion='reduced'] .heatmap-week-appear {
   aside,
   .scrollbar-none,
   button:not([type="submit"]),
-  .recharts-tooltip-wrapper {
+  .chart-tooltip {
     display: none !important;
   }
 
@@ -102,7 +102,7 @@ html[data-motion='reduced'] .heatmap-week-appear {
   }
 
   /* Size charts for print */
-  .recharts-responsive-container {
+  .chart-frame {
     page-break-inside: avoid;
   }
 

@@ -1,37 +1,24 @@
-import {
-  Bar,
-  Brush,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ReferenceLine,
-  Tooltip,
-  XAxis,
-  YAxis,
-  type TooltipContentProps,
-} from 'recharts'
-
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import Bars from '@/components/charts/Bars'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import {
-  ACTIVE_DOT,
-  BRUSH_DEFAULTS,
-  ChartContainer,
-  GRID_DEFAULTS,
-  chartTooltipProps,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
-import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
+import ChartSection from '@/components/ui/ChartSection'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import TooltipValueList from '@/components/ui/TooltipValueList'
 import { useChartRange } from '@/components/ui/useChartRange'
-import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
-import { CHART_TOOLTIP_STYLE } from '@/components/ui/ChartTooltip'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
+import { rawColors } from '@/constants/colors'
+
+import { alignZeroAxes } from './returnsChartAxes'
 
 interface MonthlyComboDatum {
   readonly month: string
@@ -40,6 +27,15 @@ interface MonthlyComboDatum {
   readonly net: number
   readonly cumulative: number
 }
+
+/**
+ * Bars on the left axis, the running total on the right. On one shared axis a
+ * growing cumulative stretched the scale until the monthly bars flattened.
+ */
+const SERIES: readonly SeriesSpec[] = [{ key: 'net' }, { key: 'cumulative', axis: 'right' }]
+/** Room for a seven-character right label such as -₹20.0K (mono, about 0.6em a glyph). */
+const MARGIN = { right: 60 }
+const MOBILE_MARGIN = { right: 56 }
 
 function getNetColor(net: number) {
   if (net < 0) return rawColors.app.red
@@ -65,12 +61,8 @@ function NetValue({
   )
 }
 
-function ComboTooltip({
-  active,
-  payload,
-}: TooltipContentProps) {
-  if (!active || !payload.length) return null
-  const point = payload[0].payload as MonthlyComboDatum
+/** Heading, then income, expenses, the signed monthly net and the running total. */
+function ComboTooltip({ point }: Readonly<{ point: MonthlyComboDatum }>) {
   const rows = [
     { label: 'Income', value: point.income, color: rawColors.app.green },
     { label: 'Expenses', value: point.expenses, color: rawColors.app.red },
@@ -79,30 +71,27 @@ function ComboTooltip({
   ]
 
   return (
-    <div role="tooltip" style={CHART_TOOLTIP_STYLE}>
+    <>
       <p className="mb-3 border-b border-border/60 pb-2 text-xs font-medium text-foreground">{formatChartDate(point.month)}</p>
       <TooltipValueList rows={rows} />
-    </div>
+    </>
   )
 }
 
 export default function ReturnsMonthlyChart({
   data,
 }: Readonly<{ data: readonly MonthlyComboDatum[] }>) {
-  // Green for a profitable month, red for a loss. The colour rides on the data
-  // row as `fill` (Recharts merges each row over its bar rectangle props). This
-  // replaces the deprecated `<Cell>` child AND fixes a real mis-colouring: Cell
-  // children are matched positionally against the RENDERED bar list, which is
-  // the brush-sliced window, so once the user dragged the brush (or the default
-  // startIndex kicked in, which it does for any series over 6 months) every bar
-  // wore the colour of a different month's profit or loss.
-  const { animate: animateSeries, isMobile } = useChartPresentation(data.length * 2)
+  // Resolved hex for the SVG attributes; the snapshot repaints them on a theme toggle.
+  const app = usePaletteSnapshot(rawColors.app)
+  const isMobile = useIsMobile()
   const range = useChartRange(data.map((row) => row.month))
-  const bars = data.map((datum) => ({
-    ...datum,
-    fill: getNetColor(datum.net),
-    radius: datum.net < 0 ? [0, 0, 3, 3] : [3, 3, 0, 0],
-  }))
+  // Both axes fit the zoomed window, as the kit's own domains would.
+  const visible = data.slice(range.startIndex, range.endIndex + 1)
+  const [netAxis, cumulativeAxis] = alignZeroAxes(
+    visible.map((row) => row.net),
+    visible.map((row) => row.cumulative),
+    isMobile ? 3 : 4,
+  )
   const latest = data.at(-1)
   const periodNet = latest?.cumulative ?? 0
 
@@ -139,66 +128,54 @@ export default function ReturnsMonthlyChart({
               </div>
             )}
           </div>
-            <ChartSeriesLegend
+          <ChartSeriesLegend
             items={[
-              { key: 'gain', label: 'Monthly gain', color: rawColors.app.green },
-              { key: 'loss', label: 'Monthly loss', color: rawColors.app.red },
-              { key: 'cumulative', label: 'Dashed line · cumulative', color: rawColors.app.blue },
+              { key: 'gain', label: 'Monthly gain', color: app.green },
+              { key: 'loss', label: 'Monthly loss', color: app.red },
+              { key: 'cumulative', label: 'Dashed line · cumulative, right axis', color: app.blue },
             ]}
             caption={`Break-even at ${formatCurrency(0)}`}
           />
           {data.length > 6 && <ChartRangeControls range={range} label="Investment returns chart range" />}
-          <ChartReveal>
-            <ChartContainer
-              height={360}
-              mobileHeight={300}
-              ariaLabel="Combo chart of monthly investment net profit or loss with a cumulative growth line."
-            >
-              <ComposedChart data={bars} margin={{ top: 20, right: 12, bottom: 8, left: 0 }}>
-                <CartesianGrid {...GRID_DEFAULTS} />
-                <XAxis {...xAxisDefaults(data.length)} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} minTickGap={isMobile ? 36 : 56} interval="preserveStartEnd" height={44} />
-                <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
-                <Tooltip {...chartTooltipProps} content={ComboTooltip} />
-                <ReferenceLine
-                  y={0}
-                  stroke={rawColors.chart.referenceLineStrong}
-                />
-                <Bar
-                  dataKey="net"
-                  name="Monthly net"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={36}
-                  isAnimationActive={animateSeries}
-                  animationDuration={600}
-                  animationEasing="ease-out"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cumulative"
-                  name="Cumulative"
-                  stroke={rawColors.app.blue}
-                  strokeWidth={2.5}
-                  strokeDasharray="6 3"
-                  dot={data.length === 1 ? { r: 3, fill: rawColors.app.blue } : false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                  isAnimationActive={animateSeries}
-                  animationDuration={600}
-                  animationBegin={80}
-                  animationEasing="ease-out"
-                />
-                {data.length > 6 && (
-                  <Brush
-                    {...BRUSH_DEFAULTS}
-                    dataKey="month"
-                    tickFormatter={(value: string) => formatChartPeriod(value)}
-                    startIndex={range.startIndex}
-                    endIndex={range.endIndex}
-                    onChange={range.setRange}
-                  />
-                )}
-              </ComposedChart>
-            </ChartContainer>
-          </ChartReveal>
+          <CartesianChart
+            data={data}
+            categoryKey="month"
+            series={SERIES}
+            categoryKind="band"
+            valueDomain={netAxis.domain}
+            valueTicks={netAxis.ticks}
+            value2Domain={cumulativeAxis.domain}
+            value2Ticks={cumulativeAxis.ticks}
+            visibleRange={range}
+            margin={isMobile ? MOBILE_MARGIN : MARGIN}
+            height={360}
+            mobileHeight={300}
+            ariaLabel="Combo chart of monthly investment net profit or loss as bars on the left axis, with the cumulative total as a dashed line on the right axis."
+            tooltip={(
+              <CartesianTooltip
+                series={[
+                  { key: 'income', label: 'Income', color: app.green },
+                  { key: 'expenses', label: 'Expenses', color: app.red },
+                  { key: 'net', label: 'Monthly net', color: app.green },
+                  { key: 'cumulative', label: 'Cumulative', color: app.blue },
+                ]}
+                render={(_, index) => <ComboTooltip point={data[index]} />}
+              />
+            )}
+          >
+            <Grid />
+            {/* The zero line is break-even for both axes: their zeros line up. */}
+            <ValueAxis zeroLine />
+            <ValueAxis axis="right" />
+            <CategoryAxis interval="preserveStartEnd" />
+            {/* Green for a profitable month, red for a loss, picked per row of the
+            full data so a zoomed window never borrows another month's colour. */}
+            <Bars dataKey="net" color={app.green} colorFor={(_, index) => getNetColor(data[index].net)} radius={3} />
+            <LineSeries dataKey="cumulative" color={app.blue} strokeWidth={2.5} dash="6 3" seriesIndex={1} />
+          </CartesianChart>
+          {data.length > 6 && (
+            <ChartBrush range={range} values={data.map((row) => row.cumulative)} ariaLabel="Investment returns chart zoom" />
+          )}
           <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
             <p>Income and booked gains, less realised losses and broker costs.</p>
           </div>

@@ -1,17 +1,18 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 import { refreshRawColors } from '@/constants/colors'
+import { useMotionStore } from '@/store/motionStore'
 
 import StandardPieChart from '../StandardPieChart'
-import { buildPieSlices, renderPieSectorShape } from '../standardPieChartParts'
+import { buildPieSlices, holeRatio, toPieData } from '../standardPieChartParts'
 
 /**
- * Recharts needs a measured container; jsdom reports 0x0, so the SVG paths never
- * render. These tests therefore assert on the accessible layer -- the role="img"
- * name and the sr-only data table -- which is exactly the contract a screen
- * reader consumes, and which mirrors the wedges one-for-one.
+ * The first block asserts on the accessible layer -- the role="img" name and
+ * the sr-only data table -- which is the contract a screen reader consumes and
+ * which mirrors the wedges one-for-one. The kit paints its SVG at a 640px
+ * fallback width under jsdom, so the slices themselves are asserted further down.
  */
 function makeData(count: number) {
   return Array.from({ length: count }, (_, i) => ({
@@ -61,7 +62,7 @@ describe('StandardPieChart', () => {
     expect(tableRowLabels()).toHaveLength(12)
   })
 
-  it('names the chart via ChartContainer ariaLabel and captions the data table', () => {
+  it('names the chart through its ariaLabel and captions the data table', () => {
     render(<StandardPieChart data={makeData(3)} ariaLabel="Expenses by category" />)
 
     expect(screen.getByRole('img', { name: 'Expenses by category' })).toBeInTheDocument()
@@ -112,11 +113,6 @@ describe('StandardPieChart', () => {
   })
 })
 
-/**
- * Wedge colour and hover paint moved off `<Cell>` children (deprecated, removed
- * in Recharts 4.0) onto datum-carried `fill` plus a `shape` render prop. jsdom
- * never paints the SVG, so both are asserted on the pure functions directly.
- */
 describe('StandardPieChart slice colours', () => {
   it('refreshes a cached slice palette when the theme tokens change', () => {
     const rows = buildPieSlices([{ name: 'A', value: 3 }], 7)
@@ -127,6 +123,8 @@ describe('StandardPieChart slice colours', () => {
       refreshRawColors()
 
       expect(rows[0].fill).toBe('#010203')
+      // The kit data is rebuilt each render, so the wedge takes the new colour too.
+      expect(toPieData(rows)[0].color).toBe('#010203')
     } finally {
       if (previous) document.documentElement.style.setProperty('--color-app-purple', previous)
       else document.documentElement.style.removeProperty('--color-app-purple')
@@ -135,8 +133,8 @@ describe('StandardPieChart slice colours', () => {
   })
 
   it('pins the palette colour onto each row, so colour and slice travel together', () => {
-    // `<Cell>` children were matched by RENDERED position, so anything that
-    // dropped or reordered a sector slid the palette onto the wrong category.
+    // Positional colouring slid the palette onto the wrong category as soon as
+    // anything dropped or reordered a slice.
     const rows = buildPieSlices([{ name: 'A', value: 3 }, { name: 'B', value: 1 }], 7)
 
     expect(rows.map((r) => r.name)).toEqual(['A', 'B'])
@@ -161,48 +159,92 @@ describe('StandardPieChart slice colours', () => {
   })
 })
 
-describe('StandardPieChart sector shape', () => {
-  /** The props Recharts hands a sector shape, trimmed to what the renderer reads. */
-  function sectorProps(row: Record<string, unknown>) {
-    return { payload: row, index: 0 } as never
+describe('StandardPieChart kit data', () => {
+  it('keys each slice by its category name and lets real categories open', () => {
+    const [slice] = toPieData(buildPieSlices([{ name: 'Rent', value: 30 }], 7))
+
+    expect(slice).toMatchObject({ key: 'Rent', label: 'Rent', value: 30, selectable: true })
+  })
+
+  it('never lets the Other rollup open, since it deep-links nowhere', () => {
+    const rows = buildPieSlices(Array.from({ length: 9 }, (_, i) => ({ name: `C${i}`, value: 9 - i })), 7)
+
+    expect(toPieData(rows).map((slice) => slice.selectable)).toEqual([true, true, true, true, true, true, false])
+  })
+
+  it('turns the percentage radii into the hole-to-rim ratio', () => {
+    expect(holeRatio('60%', '85%')).toBeCloseTo(0.706, 3)
+    expect(holeRatio('0%', '85%')).toBe(0)
+  })
+})
+
+describe('StandardPieChart slices', () => {
+  // Reduced motion draws the final geometry at once, with no animation frame to wait on.
+  beforeEach(() => useMotionStore.getState().setMode('reduced'))
+  afterEach(() => {
+    // Unmount first, so restoring the store re-renders nothing outside act().
+    cleanup()
+    useMotionStore.getState().setMode('full')
+  })
+
+  const DATA = [
+    { name: 'Food', value: 12_000 },
+    { name: 'Rent', value: 30_000 },
+    { name: 'Travel', value: 8_000 },
+  ]
+
+  function sliceOpacities(container: HTMLElement): Record<string, number> {
+    return Object.fromEntries(
+      Array.from(container.querySelectorAll('path[data-slice]'), (path) => [
+        path.getAttribute('data-slice') ?? '',
+        Number(path.getAttribute('opacity')),
+      ]),
+    )
   }
 
-  function styleOf(
-    activeName: string | null,
-    hasClickHandler: boolean,
-    row: Record<string, unknown>,
-  ) {
-    const Shape = renderPieSectorShape(activeName, hasClickHandler)
-    const el = Shape(sectorProps(row)) as { props: { style: Record<string, unknown> } }
-    return el.props.style
-  }
+  it('lifts the slice under a hovered ledger row and swaps the centre to its share', () => {
+    const { container } = render(
+      <StandardPieChart data={DATA} centerValue="₹50,000" centerLabel="Total" ariaLabel="Spending by category" />,
+    )
+    const rent = within(screen.getByRole('list', { name: 'Chart categories' })).getAllByRole('listitem')[0]
 
-  it('keeps the hovered wedge opaque and fades the others', () => {
-    const hovered = styleOf('Rent', false, { name: 'Rent', value: 1 })
-    const other = styleOf('Rent', false, { name: 'Food', value: 1 })
+    fireEvent.mouseEnter(rent)
+    const hovered = sliceOpacities(container)
+    expect(hovered.Rent).toBe(1)
+    expect(hovered.Food).toBeLessThan(1)
+    expect(hovered.Travel).toBeLessThan(1)
+    expect(screen.getByText('60.0% of total')).toBeInTheDocument()
 
-    expect(hovered.opacity).toBe(1)
-    expect(other.opacity).toBe(0.4)
+    fireEvent.mouseLeave(rent)
+    expect(Object.values(sliceOpacities(container))).toEqual([1, 1, 1])
+    expect(screen.getByText('Total')).toBeInTheDocument()
   })
 
-  it('matches the hovered wedge by name, not by rendered position', () => {
-    // Recharts drops zero-value sectors, so a positional match could highlight
-    // a neighbour once any slice fell out of the rendered list.
-    expect(styleOf('Food', false, { name: 'Food', value: 1 }).opacity).toBe(1)
+  it('offers a pointer only on slices a click can open', () => {
+    const { container, rerender } = render(
+      <StandardPieChart data={makeData(12)} onSliceClick={vi.fn()} ariaLabel="Expenses by category" />,
+    )
+    const pointers = () =>
+      Array.from(container.querySelectorAll('path[data-slice]'), (path) => path.classList.contains('cursor-pointer'))
+
+    expect(pointers()).toEqual([true, true, true, true, true, true, false])
+
+    rerender(<StandardPieChart data={makeData(12)} ariaLabel="Expenses by category" />)
+    expect(pointers()).toEqual(Array.from({ length: 7 }, () => false))
   })
 
-  it('leaves every wedge at full opacity when nothing is hovered', () => {
-    expect(styleOf(null, false, { name: 'Rent', value: 1 }).opacity).toBe(1)
-  })
+  it('opens a real slice from the keyboard but never the Other rollup', () => {
+    const onSliceClick = vi.fn()
+    render(<StandardPieChart data={makeData(12)} onSliceClick={onSliceClick} ariaLabel="Expenses by category" />)
+    const chart = screen.getByRole('img', { name: 'Expenses by category' })
 
-  it('offers a pointer only where a click has somewhere to go', () => {
-    expect(styleOf(null, true, { name: 'Rent', value: 1 }).cursor).toBe('pointer')
-    expect(styleOf(null, false, { name: 'Rent', value: 1 }).cursor).toBe('default')
-  })
+    fireEvent.keyDown(chart, { key: 'ArrowRight' })
+    fireEvent.keyDown(chart, { key: 'Enter' })
+    expect(onSliceClick).toHaveBeenCalledExactlyOnceWith('Cat 1')
 
-  it('never offers a pointer on the Other rollup, which deep-links nowhere', () => {
-    const style = styleOf(null, true, { name: 'Other (3 categories)', value: 1, isOther: true })
-
-    expect(style.cursor).toBe('default')
+    // Back one from the first slice wraps to the last: the Other rollup.
+    fireEvent.keyDown(chart, { key: 'ArrowLeft' })
+    fireEvent.keyDown(chart, { key: 'Enter' })
+    expect(onSliceClick).toHaveBeenCalledOnce()
   })
 })

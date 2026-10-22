@@ -1,10 +1,11 @@
+import { useMemo } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import EmptyState from '@/components/shared/EmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
-import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
+import ChartSection from '@/components/ui/ChartSection'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { getTodayKey } from '@/lib/dateUtils'
@@ -14,8 +15,14 @@ import { useMotionStore } from '@/store/motionStore'
 import { CATEGORY_CONFIG } from '../netWorthUtils'
 import { NetWorthAreaPlot } from './NetWorthAreaPlot'
 import { NetWorthChartSummary } from './NetWorthChartSummary'
-import { getNetWorthChartView, type NetWorthChartRow, type NetWorthTrendChartProps } from './netWorthChartView'
+import { getNetWorthChartView, type NetWorthTrendChartProps } from './netWorthChartView'
+import { toNetWorthPlotRows, type NetWorthPlotRow } from './netWorthPlotRows'
 import { NetWorthViewToggles } from './NetWorthViewToggles'
+
+const bandRange = (row: NetWorthPlotRow) =>
+  typeof row.projectionLow === 'number' && typeof row.projectionHigh === 'number'
+    ? `${formatCurrency(row.projectionLow)} to ${formatCurrency(row.projectionHigh)}`
+    : 'Not applicable'
 
 export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
   const {
@@ -31,8 +38,10 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
     milestoneRows,
   } = props
   const motionEnabled = useMotionStore((state) => state.mode === 'full')
-  const { hasNegativeNetWorth, stackedAllowed, effectiveStacked, plotData, animatedPointCount } = getNetWorthChartView(props)
-  const range = useChartRange(plotData.map((row) => String(row.date)))
+  const { stackedAllowed, effectiveStacked, plotData } = getNetWorthChartView(props)
+  // One row per date before anything indexes it: the zoom, the plot and the table.
+  const rows = useMemo(() => toNetWorthPlotRows(plotData), [plotData])
+  const range = useChartRange(rows.map((row) => String(row.date)))
   const firstPoint = filteredNetWorthData[0]
   const lastPoint = filteredNetWorthData.at(-1)
   const showProjectionLine = showProjection && monthlyGrowth > 0 && !effectiveStacked
@@ -91,22 +100,18 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               effectiveStacked={effectiveStacked}
               showProjectionLine={showProjectionLine}
             />
-            {plotData.length > 6 && <ChartRangeControls range={range} label="Net worth chart range" />}
-            <ChartReveal>
-              <NetWorthAreaPlot
-                plotData={plotData}
-                allCategories={allCategories}
-                animatedPointCount={animatedPointCount}
-                effectiveStacked={effectiveStacked}
-                hasNegativeNetWorth={hasNegativeNetWorth}
-                showProjectionLine={showProjectionLine}
-                spansYears={spansYears}
-                anchor={anchor}
-                anchorDateIso={anchorDateIso}
-                milestoneRows={milestoneRows}
-                range={range}
-              />
-            </ChartReveal>
+            {rows.length > 6 && <ChartRangeControls range={range} label="Net worth chart range" />}
+            <NetWorthAreaPlot
+              rows={rows}
+              allCategories={allCategories}
+              effectiveStacked={effectiveStacked}
+              showProjectionLine={showProjectionLine}
+              spansYears={spansYears}
+              anchor={anchor}
+              anchorDateIso={anchorDateIso}
+              milestoneRows={milestoneRows}
+              range={range}
+            />
             <div className="mt-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
               <p className="max-w-prose">
                   {showProjectionLine
@@ -129,18 +134,18 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
                 </span>
               </motion.p>
             )}
-            {chartDataTable<NetWorthChartRow>(
-              plotData,
+            {chartDataTable<NetWorthPlotRow>(
+              rows,
               [
                 { header: 'Date', rowHeader: true, value: (row) => String(row.date ?? '') },
                 { header: 'Cumulative net cash flow', value: (row) => typeof row.netWorth === 'number' ? formatCurrency(row.netWorth) : 'Not applicable' },
                 ...allCategories.map((category) => ({
                   header: (CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.other).label,
-                  value: (row: NetWorthChartRow) => typeof row[category] === 'number' ? formatCurrency(row[category]) : 'Not available',
+                  value: (row: NetWorthPlotRow) => typeof row[category] === 'number' ? formatCurrency(row[category]) : 'Not available',
                 })),
                 ...(showProjectionLine ? [
-                  { header: 'Projected median (estimate)', value: (row: NetWorthChartRow) => typeof row.projected === 'number' ? formatCurrency(row.projected) : 'Not applicable' },
-                  { header: 'Projected range (±1σ)', value: (row: NetWorthChartRow) => Array.isArray(row.projectionBand) ? row.projectionBand.map(formatCurrency).join(' to ') : 'Not applicable' },
+                  { header: 'Projected median (estimate)', value: (row: NetWorthPlotRow) => typeof row.projected === 'number' ? formatCurrency(row.projected) : 'Not applicable' },
+                  { header: 'Projected range (±1σ)', value: bandRange },
                 ] : []),
               ],
               'Net worth transaction trend: cumulative income less expenses. Future values are estimates.',

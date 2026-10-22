@@ -2,13 +2,13 @@
  * Centralized App Color Palette
  *
  * Single source of truth: CSS variables in index.css.
- * This file reads computed values at runtime so JS/Recharts/SVG always
+ * This file reads computed values at runtime so JS/SVG always
  * match whatever is defined in CSS -- change index.css and everything updates.
  *
  * Usage in components:
  * - Tailwind classes: `text-app-blue`, `bg-app-green/20`, etc.
  * - Inline styles:   `colors.app.blue` (returns `var(--color-app-blue)`)
- * - Recharts/SVG:    `rawColors.app.blue` (returns resolved hex like `#3b9eff`)
+ * - SVG/canvas:      `rawColors.app.blue` (returns resolved hex like `#3b9eff`)
  */
 
 // Helper to reference CSS variables (for inline style props)
@@ -90,7 +90,7 @@ export const colors = {
   },
 } as const
 
-// ─── Resolved hex values (for Recharts, SVG, canvas -- reads from CSS at runtime) ─
+// ─── Resolved hex values (for SVG, canvas -- reads from CSS at runtime) ──────
 
 /** Call once after DOM is ready (e.g. in a top-level useEffect or module scope). */
 function buildRawColors() {
@@ -138,9 +138,9 @@ function buildRawColors() {
     surface: {
       background: r('--color-background', '#0b1012'),
     },
-    // Chart-only neutrals/surfaces. CSS var() can't be used in SVG presentation
-    // attributes, so these resolve the --chart-* tokens to concrete strings for
-    // Recharts. Fallbacks are the historical dark values so SSR/no-DOM is safe.
+    // Chart-only neutrals/surfaces: the --chart-* tokens as concrete strings for
+    // JS callers; the chart kit's chrome reads the vars directly. Fallbacks are
+    // the historical dark values so SSR/no-DOM is safe.
     chart: {
       textPrimary:         r('--chart-text-primary',         '#fafafa'),
       textSecondary:       r('--chart-text-secondary',       '#f5f5f7'),
@@ -202,7 +202,7 @@ export function getRawColorsVersion(): number {
  * object, preserving its identity so modules that imported `rawColors` (and the
  * derived `CHART_*` constants in chartColors.ts) keep their reference and just
  * see fresh values. Call after a theme toggle (see lib/theme.ts applyTheme) so
- * Recharts repaints with the active theme's chart colors.
+ * charts repaint with the active theme's chart colors.
  */
 export function refreshRawColors(): void {
   const next = buildRawColors()

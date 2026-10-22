@@ -1,28 +1,13 @@
+import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import {
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  LabelList,
-  Rectangle,
-  ReferenceLine,
-  type BarShapeProps,
-  type LabelProps,
-} from 'recharts'
 import ProgressBar from '@/components/shared/ProgressBar'
-import { useChartDimensions } from '@/hooks/useChartDimensions'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
-import { colors, rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer, GRID_DEFAULTS, xAxisDefaults } from '@/components/ui'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { formatCurrency } from '@/lib/formatters'
+import { colors } from '@/constants/colors'
 import { SCROLL_FADE_UP } from '@/constants/animations'
-import { getChartAxisColor } from '@/constants/chartColors'
 import type { PeriodSummary } from '../types'
+import { SpendingButterflyChart, type ButterflyRow } from './SpendingButterflyChart'
 
 interface SpendingDistributionProps {
   periodA: PeriodSummary
@@ -31,73 +16,15 @@ interface SpendingDistributionProps {
   distributionB: Array<{ name: string; value: number }>
 }
 
-/**
- * Dim the side that spent less in this row so the eye lands on the winner.
- *
- * A `shape` render prop rather than `<Cell>` children -- Cell is deprecated and
- * removed in Recharts 4.0. It cannot be a datum-carried `fillOpacity` either:
- * both bars read the same row, and each needs the opposite opacity. The renderer
- * reads `aWins` off `payload`, so the row and its paint can never come apart
- * (Cell children were matched against the RENDERED bar list, which drops
- * zero-width bars -- and a zero-spend category is exactly what this chart has).
- */
-function renderSideShape(color: string, isPeriodA: boolean) {
-  return function SideShape(props: BarShapeProps) {
-    const aWins = Boolean((props.payload as { aWins?: boolean } | undefined)?.aWins)
-    const wins = isPeriodA ? aWins : !aWins
-    return <Rectangle {...props} fill={color} fillOpacity={wins ? 0.95 : 0.45} />
-  }
-}
-
-const LABEL_GAP = 6
-
-/**
- * Value label pinned to the bar's OUTER end, away from the zero line.
- *
- * Recharts' `position="left"` measures from the bar's origin, and the A bars
- * are negative, so their origin is the zero line: every A label landed just
- * right of zero, on top of the B label for the same row. Reading the drawn
- * rectangle (`x` and a possibly negative `width`) and anchoring at whichever
- * edge is farther from zero keeps A labels left of A bars and B labels right
- * of B bars, whatever the sign convention.
- */
-function renderSideLabel(side: 'left' | 'right') {
-  return function SideLabel(props: LabelProps) {
-    const amount = Math.abs(Number(props.value ?? 0))
-    if (!amount) return null
-    const x = Number(props.x ?? 0)
-    const width = Number(props.width ?? 0)
-    const y = Number(props.y ?? 0) + Number(props.height ?? 0) / 2
-    const outerEdge = side === 'left' ? Math.min(x, x + width) - LABEL_GAP : Math.max(x, x + width) + LABEL_GAP
-    return (
-      <text
-        x={outerEdge}
-        y={y}
-        dy="0.35em"
-        textAnchor={side === 'left' ? 'end' : 'start'}
-        fill={rawColors.text.secondary}
-        fontSize={11}
-        fontFamily="var(--font-mono)"
-      >
-        {formatCurrencyShort(amount)}
-      </text>
-    )
-  }
-}
-
-export function SpendingDistribution({
-  periodA, periodB, distributionA, distributionB,
-}: Readonly<SpendingDistributionProps>) {
-  const dimensions = useChartDimensions()
-  const { animate } = useChartPresentation(distributionA.length + distributionB.length)
-  const axisColor = getChartAxisColor()
-  if (distributionA.length === 0 && distributionB.length === 0) return null
-
-  // Merge both periods into butterfly chart data
+/** Merge both periods into butterfly rows: the top 15 categories by their larger side. */
+function toButterflyRows(
+  distributionA: SpendingDistributionProps['distributionA'],
+  distributionB: SpendingDistributionProps['distributionB'],
+): ButterflyRow[] {
   const categorySet = new Set([...distributionA.map((d) => d.name), ...distributionB.map((d) => d.name)])
   const aMap = Object.fromEntries(distributionA.map((d) => [d.name, d.value]))
   const bMap = Object.fromEntries(distributionB.map((d) => [d.name, d.value]))
-  const butterflyData = Array.from(categorySet)
+  return Array.from(categorySet)
     .map((name) => {
       const a = aMap[name] || 0
       const b = bMap[name] || 0
@@ -114,6 +41,15 @@ export function SpendingDistribution({
     })
     .sort((a, b) => Math.max(Math.abs(b.periodA), b.periodB) - Math.max(Math.abs(a.periodA), a.periodB))
     .slice(0, 15) // top 15 categories
+}
+
+export function SpendingDistribution({
+  periodA, periodB, distributionA, distributionB,
+}: Readonly<SpendingDistributionProps>) {
+  const dimensions = useChartDimensions()
+  const butterflyData = useMemo(() => toButterflyRows(distributionA, distributionB), [distributionA, distributionB])
+  if (distributionA.length === 0 && distributionB.length === 0) return null
+
   const maxVal = Math.max(
     ...butterflyData.map((d) => Math.abs(d.periodA)),
     ...butterflyData.map((d) => d.periodB),
@@ -186,63 +122,13 @@ export function SpendingDistribution({
           ))}
         </ul>
       ) : (
-        <div style={{ height: Math.max(360, butterflyData.length * 44) }}>
-          <ChartContainer ariaLabel={`Spending distribution butterfly chart -- ${periodA.label} bars extend left, ${periodB.label} bars extend right, one diverging row per category`}>
-            <BarChart data={butterflyData} layout="vertical" stackOffset="sign" margin={{ top: 12, right: 16, bottom: 12, left: 0 }} barSize={14}>
-              <CartesianGrid {...GRID_DEFAULTS} horizontal={false} vertical={true} />
-              <XAxis
-                {...xAxisDefaults()}
-                type="number"
-                domain={[-maxVal * 1.25, maxVal * 1.25]}
-                ticks={[-maxVal, -maxVal / 2, 0, maxVal / 2, maxVal]}
-                tickFormatter={(v: number) => formatCurrencyShort(Math.abs(v))}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={dimensions.breakpoint === 'tablet' ? 152 : 188}
-                tick={{ fill: axisColor, fontSize: 12, width: dimensions.breakpoint === 'tablet' ? 140 : 176 }}
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                tickMargin={12}
-              />
-              <ReferenceLine x={0} stroke={rawColors.chart.referenceLineStrong} strokeWidth={1.5} />
-              <Tooltip
-                {...chartTooltipProps}
-                content={<ChartTooltipContent />}
-                formatter={(value) => typeof value === 'number' ? formatCurrency(Math.abs(value)) : ''}
-                labelFormatter={(label) => label}
-              />
-              <Bar
-                dataKey="periodA"
-                name={periodA.label}
-                fill={rawColors.app.blue}
-                stackId="stack"
-                radius={[4, 0, 0, 4]}
-                shape={renderSideShape(rawColors.app.blue, true)}
-                isAnimationActive={animate}
-                animationDuration={700}
-                animationEasing="ease-out"
-              >
-                <LabelList dataKey="periodA" content={renderSideLabel('left')} />
-              </Bar>
-              <Bar
-                dataKey="periodB"
-                name={periodB.label}
-                fill={rawColors.app.red}
-                stackId="stack"
-                radius={[0, 4, 4, 0]}
-                shape={renderSideShape(rawColors.app.red, false)}
-                isAnimationActive={animate}
-                animationDuration={700}
-                animationEasing="ease-out"
-              >
-                <LabelList dataKey="periodB" content={renderSideLabel('right')} />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        </div>
+        <SpendingButterflyChart
+          rows={butterflyData}
+          maxValue={maxVal}
+          labelA={periodA.label}
+          labelB={periodB.label}
+          compact={dimensions.breakpoint === 'tablet'}
+        />
       )}
       {chartDataTable(
         butterflyData,

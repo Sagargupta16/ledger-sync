@@ -228,9 +228,9 @@ export function useNetWorth() {
       date: p.date,
       netWorth: p.netWorth,
       projected: null as number | null,
-      // Recharts <Area> can render a [low, high] tuple as a band when given
-      // an array dataKey; null on historical points so the band only paints
-      // forward of the anchor.
+      // [low, high] band, split by toNetWorthPlotRows into projectionLow and
+      // projectionHigh for the chart; null on historical points so the band
+      // only paints forward of the anchor.
       projectionBand: null as [number, number] | null,
     }))
     const projectedPoints = [

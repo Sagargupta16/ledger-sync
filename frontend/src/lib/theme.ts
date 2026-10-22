@@ -76,7 +76,7 @@ export function applyTheme(resolved: 'dark' | 'light', skipTransition = false): 
 
   root.dataset.theme = resolved
 
-  // Re-resolve the chart color tokens (Recharts/SVG read concrete values, not
+  // Re-resolve the chart color tokens (rawColors holds concrete values, not
   // var()) so charts repaint with the active theme's palette. Runs after the
   // data-theme switch so getComputedStyle sees the new token values.
   refreshRawColors()

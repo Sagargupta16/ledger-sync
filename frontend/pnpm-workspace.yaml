@@ -18,5 +18,4 @@ onlyBuiltDependencies:
   - sharp
 
 minimumReleaseAgeExclude:
-  - recharts@3.10.0
   - fast-uri@4.1.4

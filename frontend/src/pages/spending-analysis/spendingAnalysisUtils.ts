@@ -46,10 +46,8 @@ export function splitEssentialSpend(
 /**
  * Build chart data for the 50/30/20 spending breakdown.
  *
- * The slice colour is carried on the datum as `fill` (not `color`) because
- * Recharts' `Pie` merges each data row over its sector props and reads `fill`
- * from there. That is the replacement for the deprecated `<Cell>` child, and
- * the same value still drives the hand-rolled HTML legend.
+ * The slice colour is carried on the datum as `fill`. BudgetRuleAnalysis hands it
+ * to PieChart as the slice `color`, and the same value drives the HTML legend.
  *
  * A memoized caller passes `usePaletteSnapshot` copies of both palettes so a
  * theme toggle re-runs the memo; the defaults serve one-off callers and tests.

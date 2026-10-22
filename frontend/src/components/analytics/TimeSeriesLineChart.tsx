@@ -1,20 +1,25 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Brush } from 'recharts'
-import { formatCurrency } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+/**
+ * Multi-series line chart over time on the in-house chart kit: each series
+ * draws in left to right after the one before, morphs when the data changes,
+ * and long series get range presets above and a drag brush below.
+ */
+
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import CartesianChart from '@/components/charts/CartesianChart'
+import CartesianTooltip, { type TooltipSeries } from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
+import { useCartesian } from '@/components/charts/chartContext'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { chartDateKey, formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
-import { tooltipLabelString } from '@/lib/chartUtils'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import {
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, ACTIVE_DOT, BRUSH_DEFAULTS, referenceLine,
-} from '@/components/ui/chartDefaults'
+import { formatCurrency } from '@/lib/formatters'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { chartDataTable } from '@/components/ui/chartDataTable'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
 
 interface TimeSeriesLineChartProps {
   readonly chartData: Array<Record<string, number | string>>
@@ -23,9 +28,12 @@ interface TimeSeriesLineChartProps {
   readonly legendFormatter?: (value: string) => string
   readonly emptyMessage?: string
   readonly height?: number
-  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  /** Accessible description of the chart (role=img); also captions the data table. */
   readonly ariaLabel?: string
 }
+
+/** Range presets and the brush appear past this many points. */
+const ZOOM_AFTER = 6
 
 export default function TimeSeriesLineChart({
   chartData,
@@ -36,7 +44,6 @@ export default function TimeSeriesLineChart({
   height = 400,
   ariaLabel,
 }: TimeSeriesLineChartProps) {
-  const { animate, isMobile } = useChartPresentation(chartData.length)
   const dateKey = chartData.length > 0 && chartDateKey(String(chartData[0].period ?? ''))
     ? 'period'
     : 'displayPeriod'
@@ -48,7 +55,7 @@ export default function TimeSeriesLineChart({
 
   const colorFor = (index: number) => colors[index % colors.length] ?? SEMANTIC_COLORS.investment
   const latest = chartData.at(-1)
-  const hasNegative = chartData.some((row) => seriesKeys.some((key) => Number(row[key]) < 0))
+  const zoomable = chartData.length > ZOOM_AFTER
 
   return (
     <>
@@ -61,59 +68,36 @@ export default function TimeSeriesLineChart({
         }))}
         caption={latest?.[dateKey] ? `Latest: ${formatChartDate(String(latest[dateKey]))}` : undefined}
       />
-      {chartData.length > 6 && <ChartRangeControls range={range} />}
-      <ChartContainer height={height} ariaLabel={ariaLabel}>
-        <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
-          <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis
-            dataKey={dateKey}
-            {...xAxisDefaults(chartData.length, { dateFormatter: true })}
-            tickFormatter={(value: string) => formatChartPeriod(value)}
-            interval="preserveStartEnd"
-            height={36}
-          />
-          <YAxis {...yAxisDefaults({ width: isMobile ? 48 : 56 })} />
-          <Tooltip
-            {...chartTooltipProps}
-            cursor={CHART_LINE_CURSOR_STYLE}
-            content={<ChartTooltipContent />}
-            labelFormatter={(label) => formatChartDate(tooltipLabelString(label))}
-            formatter={(value) => formatCurrency(typeof value === 'number' ? value : 0)}
-            itemSorter={(item) => -(item.value as number)}
-          />
-          {hasNegative && referenceLine({ y: 0, variant: 'zero' })}
-          {seriesKeys.map((key, index) => (
-            <Line
-              key={key}
-              type="monotone"
-              dataKey={key}
-              name={key}
-              stroke={colorFor(index)}
-              strokeWidth={2.25}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              dot={chartData.filter((row) => typeof row[key] === 'number').length === 1
-                ? { r: 3, fill: colorFor(index), strokeWidth: 0 }
-                : false}
-              activeDot={{ ...ACTIVE_DOT, fill: colorFor(index) }}
-              connectNulls
-              isAnimationActive={animate}
-              animationDuration={520}
-              animationEasing="ease-out"
-            />
-          ))}
-          {chartData.length > 6 && (
-            <Brush
-              {...BRUSH_DEFAULTS}
-              dataKey={dateKey}
-              tickFormatter={(value: string) => formatChartPeriod(value)}
-              startIndex={range.startIndex}
-              endIndex={range.endIndex}
-              onChange={range.setRange}
-            />
-          )}
-        </LineChart>
-      </ChartContainer>
+      {zoomable && <ChartRangeControls range={range} />}
+      <CartesianChart
+        data={chartData}
+        categoryKey={dateKey}
+        series={seriesKeys.map((key) => ({ key }))}
+        visibleRange={zoomable ? range : undefined}
+        height={height}
+        ariaLabel={ariaLabel}
+        tooltip={<LargestFirstTooltip series={seriesKeys.map((key, index) => ({ key, label: key, color: colorFor(index) }))} />}
+      >
+        <Grid />
+        <Crosshair />
+        {/* Draws the zero line itself once a negative value pulls the axis below 0. */}
+        <ValueAxis />
+        <CategoryAxis tickFormatter={(key) => formatChartPeriod(key)} interval="preserveStartEnd" />
+        {seriesKeys.map((key, index) => (
+          <LineSeries key={key} dataKey={key} color={colorFor(index)} seriesIndex={index} />
+        ))}
+      </CartesianChart>
+      {zoomable && (
+        <ChartBrush
+          range={range}
+          // The overview traces the total of every series, the shape of the whole chart.
+          values={chartData.map((row) => seriesKeys.reduce((sum, key) => {
+            const value = row[key]
+            return typeof value === 'number' ? sum + value : sum
+          }, 0))}
+          ariaLabel="Chart zoom"
+        />
+      )}
       {chartDataTable(
         chartData,
         [
@@ -135,4 +119,18 @@ export default function TimeSeriesLineChart({
       )}
     </>
   )
+}
+
+/**
+ * The kit tooltip with the inspected row's series ordered largest value first,
+ * as Recharts' itemSorter had it. Reordering `series` (not drawing the rows by
+ * hand) keeps the kit's look, and the spoken reading follows the same order.
+ */
+function LargestFirstTooltip({ series }: Readonly<{ series: readonly TooltipSeries[] }>) {
+  const { activeIndex, rows, numberAt } = useCartesian()
+  const row = activeIndex === null ? undefined : rows[activeIndex]
+  const ordered = row === undefined
+    ? series
+    : [...series].sort((a, b) => (numberAt(row, b.key) ?? 0) - (numberAt(row, a.key) ?? 0))
+  return <CartesianTooltip series={ordered} />
 }

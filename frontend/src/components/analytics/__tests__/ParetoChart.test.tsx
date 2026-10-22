@@ -1,71 +1,34 @@
 /**
  * ParetoChart contract tests.
  *
- * Two things here are otherwise untestable through the rendered DOM, because
- * jsdom reports a 0x0 container and Recharts never paints:
- *
- *  1. The tooltip formatter. Recharts resolves a tooltip entry's `name` to the
- *     series' `name` prop, never its `dataKey`, so the cumulative-% series must
- *     be matched on the display name. The earlier `name === 'cumulativePct'`
- *     check could never be true and percentages were formatted as rupees.
- *  2. The per-bar vital-few/long-tail colour split, which has to agree with the
- *     headline count.
- *
- * Both are asserted by capturing the props the component hands Recharts.
+ * The model and the tooltip formats are pure, so the 80/20 maths, the
+ * vital-few/long-tail colour split (which has to agree with the headline count)
+ * and the Spend / Cumulative % formats are asserted directly. The render tests
+ * cover what a reader gets from the DOM: the chart's name, the summary, the
+ * coloured bars, the keyboard tooltip and the data table. Reduced motion makes
+ * the kit paint final geometry at once.
  */
 
-import type { ReactNode } from 'react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { rawColors } from '@/constants/colors'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { rawColors } from '@/constants/colors'
+import { useMotionStore } from '@/store/motionStore'
 
-interface TooltipCapture {
-  formatter?: (value: unknown, name: unknown) => string
+import ParetoChart from '../ParetoChart'
+import { buildParetoModel, buildParetoSummary, paretoTooltipSeries, pluralize, type ParetoModel } from '../paretoModel'
+
+const VITAL = SEMANTIC_COLORS.expense
+const TAIL = rawColors.text.tertiary
+
+function model(breakdown: Record<string, number>, { maxBars = 12, threshold = 80 } = {}): ParetoModel {
+  return buildParetoModel(breakdown, { maxBars, threshold, palette: { vital: VITAL, tail: TAIL } })
 }
 
-/** The datum rows handed to the chart; each carries its own bar `fill`. */
-type CapturedRow = { category: string; amount: number; cumulativePct: number; fill?: string }
-
-const captured: {
-  tooltip?: TooltipCapture
-  line?: { name?: string; dataKey?: string }
-  rows: CapturedRow[]
-} = { rows: [] }
-
-vi.mock('recharts', async () => {
-  const actual = await vi.importActual<typeof import('recharts')>('recharts')
-  const Passthrough = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>
-  return {
-    ...actual,
-    ResponsiveContainer: Passthrough,
-    // The bar colours now ride on the chart's `data` rows rather than on `<Cell>`
-    // children, so the capture point moves to the chart itself.
-    ComposedChart: ({ data, children }: { readonly data?: CapturedRow[]; readonly children?: ReactNode }) => {
-      captured.rows = data ?? []
-      return <div>{children}</div>
-    },
-    Bar: Passthrough,
-    Tooltip: (props: TooltipCapture) => {
-      captured.tooltip = props
-      return null
-    },
-    Line: (props: { name?: string; dataKey?: string }) => {
-      captured.line = props
-      return null
-    },
-    XAxis: () => null,
-    YAxis: () => null,
-    CartesianGrid: () => null,
-    Legend: () => null,
-    ReferenceLine: () => null,
-  }
-})
-
-/** Imported after the mock is registered so the mocked recharts is used. */
-const { default: ParetoChart } = await import('../ParetoChart')
+function summary({ rows, vitalFewCount }: ParetoModel, threshold = 80, noun = 'category'): string {
+  return buildParetoSummary(rows.length, vitalFewCount, threshold, noun, pluralize(noun))
+}
 
 function equalPayees(count: number, each = 1000): Record<string, number> {
   const breakdown: Record<string, number> = {}
@@ -73,133 +36,140 @@ function equalPayees(count: number, each = 1000): Record<string, number> {
   return breakdown
 }
 
-beforeEach(() => {
-  captured.tooltip = undefined
-  captured.line = undefined
-  captured.rows = []
-})
+beforeAll(() => useMotionStore.getState().setMode('reduced'))
+afterAll(() => useMotionStore.getState().setMode('full'))
 
-describe('ParetoChart tooltip formatter', () => {
-  it('formats the cumulative series as a percentage, matched on its display name', () => {
-    render(<ParetoChart categoryBreakdown={{ Rent: 30_000, Food: 12_000 }} />)
+describe('Pareto tooltip formats', () => {
+  // Each format travels with its own series key, so a rupee value can never be
+  // read as a share (the old tooltip matched on display names and got it wrong).
+  const [spend, share] = paretoTooltipSeries(VITAL, rawColors.app.blue)
 
-    const seriesName = captured.line?.name
-    expect(seriesName).toBe('Cumulative %')
-    // Matching on the name prop is the whole fix: had the formatter kept
-    // matching the dataKey, this would come back as "₹56" instead.
-    expect(captured.tooltip?.formatter?.(55.55, seriesName)).toBe('55.5%')
+  it('formats the cumulative series as a percentage', () => {
+    expect(share).toMatchObject({ key: 'cumulativePct', label: 'Cumulative %' })
+    expect(share.format?.(55.55, {})).toBe('55.5%')
   })
 
-  it('still formats the spend series as currency', () => {
-    render(<ParetoChart categoryBreakdown={{ Rent: 30_000, Food: 12_000 }} />)
-
-    expect(captured.tooltip?.formatter?.(1000, 'Spend')).toBe('₹1,000.00')
-  })
-
-  it('does not fall back to the percentage branch for the dataKey string', () => {
-    // Guards the regression directly: 'cumulativePct' is the dataKey, and a
-    // formatter matching on it would treat rupee values as percentages.
-    render(<ParetoChart categoryBreakdown={{ Rent: 30_000 }} />)
-
-    expect(captured.tooltip?.formatter?.(1000, 'cumulativePct')).toBe('₹1,000.00')
+  it('formats the spend series as currency', () => {
+    expect(spend).toMatchObject({ key: 'amount', label: 'Spend' })
+    expect(spend.format?.(1000, {})).toBe('₹1,000.00')
   })
 })
 
-describe('ParetoChart vital-few count', () => {
+describe('buildParetoModel', () => {
   it('counts over every label, not just the capped bars', () => {
-    // 40 equal payees: 32 of them reach 80%. Counting over the 12 rendered bars
+    // 40 equal payees: 32 of them reach 80%. Counting over the 12 drawn bars
     // (11 payees + one synthetic "Other") capped the headline at 12 and
     // contradicted the same statistic computed elsewhere on the page.
-    render(<ParetoChart categoryBreakdown={equalPayees(40)} itemNoun="payee" />)
+    const pareto = model(equalPayees(40))
 
-    expect(
-      screen.getByText('32 payees make up 80% of your spend -- the rest are the long tail'),
-    ).toBeInTheDocument()
+    expect(pareto.vitalFewCount).toBe(32)
+    expect(summary(pareto, 80, 'payee')).toBe('32 payees make up 80% of your spend -- the rest are the long tail')
   })
 
   it('never colours the synthetic Other bucket as vital few', () => {
-    render(<ParetoChart categoryBreakdown={equalPayees(40)} itemNoun="payee" />)
+    const { rows } = model(equalPayees(40))
 
     // 12 bars: 11 real payees (all inside the 32-payee vital few) plus "Other",
     // which merges labels from both sides of the cutoff and so stays muted.
-    expect(captured.rows).toHaveLength(12)
-    expect(captured.rows.slice(0, 11).map((r) => r.fill)).toEqual(
-      Array.from({ length: 11 }, () => SEMANTIC_COLORS.expense),
-    )
-    expect(captured.rows.at(-1)?.fill).toBe(rawColors.text.tertiary)
+    expect(rows).toHaveLength(12)
+    expect(rows.slice(0, 11).map((r) => r.fill)).toEqual(Array.from({ length: 11 }, () => VITAL))
+    expect(rows.at(-1)?.fill).toBe(TAIL)
   })
 
   it('splits vital few from long tail when everything fits under the bar cap', () => {
-    render(<ParetoChart categoryBreakdown={{ A: 80, B: 10, C: 5, D: 5 }} />)
+    const pareto = model({ A: 80, B: 10, C: 5, D: 5 })
 
-    expect(
-      screen.getByText('1 category makes up 80% of your spend -- the rest are the long tail'),
-    ).toBeInTheDocument()
-    expect(captured.rows.map((r) => r.fill)).toEqual([
-      SEMANTIC_COLORS.expense,
-      rawColors.text.tertiary,
-      rawColors.text.tertiary,
-      rawColors.text.tertiary,
-    ])
+    expect(summary(pareto)).toBe('1 category makes up 80% of your spend -- the rest are the long tail')
+    expect(pareto.rows.map((r) => r.fill)).toEqual([VITAL, TAIL, TAIL, TAIL])
   })
 
   it('pins each colour to its own category, so a reorder cannot shift the ramp', () => {
-    // The point of carrying `fill` on the datum: colour and category travel
-    // together. `<Cell>` children were matched positionally against the RENDERED
-    // bar list, so any dropped bar slid every colour onto the wrong category.
-    render(<ParetoChart categoryBreakdown={{ A: 80, B: 10, C: 5, D: 5 }} />)
+    // Colour and category travel together on the row, whatever order they arrive in.
+    const byCategory = new Map(model({ D: 5, B: 10, A: 80, C: 5 }).rows.map((r) => [r.category, r.fill]))
 
-    const byCategory = new Map(captured.rows.map((r) => [r.category, r.fill]))
-    expect(byCategory.get('A')).toBe(SEMANTIC_COLORS.expense)
-    expect(byCategory.get('B')).toBe(rawColors.text.tertiary)
+    expect(byCategory.get('A')).toBe(VITAL)
+    expect(byCategory.get('B')).toBe(TAIL)
   })
 
-  it('renders the empty state and no series when there is nothing to chart', () => {
-    render(<ParetoChart categoryBreakdown={{}} itemNoun="payee" />)
-
-    expect(screen.getByText('Which payees make up 80% of your spend')).toBeInTheDocument()
-    expect(captured.rows).toHaveLength(0)
-  })
-
-  it('keeps an all-zero breakdown empty', () => {
-    render(<ParetoChart categoryBreakdown={{ A: 0, B: 0 }} />)
-
-    expect(screen.getByText('Which categories make up 80% of your spend')).toBeInTheDocument()
-    expect(captured.rows).toHaveLength(0)
+  it('keeps an empty or all-zero breakdown empty', () => {
+    expect(model({})).toEqual({ rows: [], vitalFewCount: 0 })
+    expect(summary(model({}), 80, 'payee')).toBe('Which payees make up 80% of your spend')
+    expect(model({ A: 0, B: 0 })).toEqual({ rows: [], vitalFewCount: 0 })
+    expect(summary(model({ A: 0, B: 0 }))).toBe('Which categories make up 80% of your spend')
   })
 
   it('preserves tied row counts, zero rows and absolute amounts at a custom cutoff', () => {
-    render(<ParetoChart categoryBreakdown={{ A: -25, B: 25, C: 25, D: 25, Zero: 0 }} threshold={75} />)
+    const pareto = model({ A: -25, B: 25, C: 25, D: 25, Zero: 0 }, { threshold: 75 })
 
-    expect(screen.getByText('3 categories make up 75% of your spend -- the rest are the long tail')).toBeInTheDocument()
-    expect(captured.rows.map((row) => row.amount)).toEqual([25, 25, 25, 25, 0])
-    expect(captured.rows.map((row) => row.cumulativePct)).toEqual([25, 50, 75, 100, 100])
-    expect(captured.rows.map((row) => row.fill)).toEqual([
-      SEMANTIC_COLORS.expense,
-      SEMANTIC_COLORS.expense,
-      SEMANTIC_COLORS.expense,
-      rawColors.text.tertiary,
-      rawColors.text.tertiary,
-    ])
+    expect(summary(pareto, 75)).toBe('3 categories make up 75% of your spend -- the rest are the long tail')
+    expect(pareto.rows.map((row) => row.amount)).toEqual([25, 25, 25, 25, 0])
+    expect(pareto.rows.map((row) => row.cumulativePct)).toEqual([25, 50, 75, 100, 100])
+    expect(pareto.rows.map((row) => row.fill)).toEqual([VITAL, VITAL, VITAL, TAIL, TAIL])
   })
 
   it('keeps a real Other label separate from the capped tail', () => {
-    render(<ParetoChart categoryBreakdown={{ Other: 40, A: 30, B: 20, C: 10 }} maxBars={3} threshold={60} />)
+    const pareto = model({ Other: 40, A: 30, B: 20, C: 10 }, { maxBars: 3, threshold: 60 })
 
-    expect(screen.getByText('2 categories make up 60% of your spend -- the rest are the long tail')).toBeInTheDocument()
-    expect(captured.rows.map((row) => row.category)).toEqual(['Other', 'A', 'Other'])
-    expect(captured.rows.map((row) => row.amount)).toEqual([40, 30, 30])
-    expect(captured.rows.map((row) => row.cumulativePct)).toEqual([40, 70, 100])
-    expect(captured.rows[0].fill).toBe(SEMANTIC_COLORS.expense)
-    expect(captured.rows[2].fill).toBe(rawColors.text.tertiary)
+    expect(summary(pareto, 60)).toBe('2 categories make up 60% of your spend -- the rest are the long tail')
+    expect(pareto.rows.map((row) => row.category)).toEqual(['Other', 'A', 'Other'])
+    // Labels repeat but keys do not: the chart's categories are the keys.
+    expect(new Set(pareto.rows.map((row) => row.key)).size).toBe(3)
+    expect(pareto.rows.map((row) => row.amount)).toEqual([40, 30, 30])
+    expect(pareto.rows.map((row) => row.cumulativePct)).toEqual([40, 70, 100])
+    expect(pareto.rows[0].fill).toBe(VITAL)
+    expect(pareto.rows[2].fill).toBe(TAIL)
   })
 
   it('counts original rows even when the cap leaves only the Other bar', () => {
-    render(<ParetoChart categoryBreakdown={equalPayees(5, 20)} maxBars={1} />)
+    const pareto = model(equalPayees(5, 20), { maxBars: 1 })
 
-    expect(screen.getByText('4 categories make up 80% of your spend -- the rest are the long tail')).toBeInTheDocument()
-    expect(captured.rows).toEqual([
-      expect.objectContaining({ category: 'Other', amount: 100, cumulativePct: 100, fill: rawColors.text.tertiary }),
+    expect(summary(pareto)).toBe('4 categories make up 80% of your spend -- the rest are the long tail')
+    expect(pareto.rows).toEqual([
+      expect.objectContaining({ category: 'Other', amount: 100, cumulativePct: 100, fill: TAIL }),
     ])
+  })
+})
+
+describe('ParetoChart', () => {
+  it('names the chart and states the vital few over every label', () => {
+    render(<ParetoChart categoryBreakdown={equalPayees(40)} itemNoun="payee" />)
+
+    expect(screen.getByRole('img', { name: /^Pareto chart of payee spending: bars show spend/ })).toBeInTheDocument()
+    expect(screen.getByText('32 payees make up 80% of your spend -- the rest are the long tail')).toBeInTheDocument()
+  })
+
+  it('draws the vital few in the expense colour and the tail bar muted', () => {
+    const { container } = render(<ParetoChart categoryBreakdown={equalPayees(40)} itemNoun="payee" />)
+
+    expect(container.querySelectorAll(`svg path[fill="${VITAL}"]`)).toHaveLength(11)
+    expect(container.querySelectorAll(`svg path[fill="${TAIL}"]`)).toHaveLength(1)
+  })
+
+  it('opens the tooltip on ArrowRight with the label, its spend and the running share', () => {
+    render(<ParetoChart categoryBreakdown={{ Rent: 30_000, Food: 12_000 }} />)
+    const chart = screen.getByRole('img', { name: /^Pareto chart of category spending/ })
+
+    chart.focus()
+    fireEvent.keyDown(chart, { key: 'ArrowRight' })
+
+    // The tooltip layer is the frame's only HTML child; the heading is the label, not the row key.
+    expect(chart.querySelector('div[aria-hidden="true"]')).toHaveTextContent(
+      /^Rent\s*Spend\s*₹30,000\.00\s*Cumulative %\s*71\.4%$/,
+    )
+  })
+
+  it('mirrors every bar in the data table, the tail bar included', () => {
+    render(<ParetoChart categoryBreakdown={{ Other: 40, A: 30, B: 20, C: 10 }} maxBars={3} threshold={60} />)
+    const table = screen.getByRole('table', { name: 'Pareto Analysis data' })
+
+    expect(within(table).getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Other', 'A', 'Other'])
+    expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent(/^Other\s*₹30\.00\s*₹100\.00\s*100\.0%$/)
+  })
+
+  it('renders the empty state and no chart when there is nothing to chart', () => {
+    render(<ParetoChart categoryBreakdown={{}} itemNoun="payee" />)
+
+    expect(screen.getByText('Which payees make up 80% of your spend')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 })

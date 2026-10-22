@@ -87,51 +87,14 @@ export function getSemanticBadgeClass(type: string): string {
   return 'bg-[var(--overlay-2)] text-text-secondary border-[var(--hairline-2)]'
 }
 
-// Read primitive chart colors on demand so theme changes never leave importers
-// holding a stale string value.
-export const getChartAxisColor = (): string => rawColors.chart.axisColor
-
 // Get color by index with wrap-around
 export const getChartColor = (index: number): string => {
   return CHART_COLORS[index % CHART_COLORS.length]
 }
 
-// ─── Chart neutral palette (theme-aware via rawColors.chart) ────────────────
-//
-// Values resolve from the --chart-* CSS tokens through rawColors.chart at
-// module load. They are NOT `as const`: refreshChartConstants() reassigns each
-// prop in place on theme toggle so every consumer (which reads e.g.
-// CHART_TEXT.subtle) sees the active theme's color without changing the object
-// identity it imported. `tooltipShadow`/`overlayBg` stay literal black washes
-// (a drop shadow / scrim works in both themes).
-
-export const CHART_TEXT = {
-  primary: rawColors.chart.textPrimary,     // primary labels, tooltips
-  secondary: rawColors.chart.textSecondary, // bar labels
-  muted: rawColors.chart.textMuted,         // tooltip labels, secondary text
-  subtle: rawColors.chart.textSubtle,       // axis ticks, grid text, peak labels
-  dim: rawColors.chart.textDim,             // secondary axis ticks
-}
-
-export const CHART_SURFACE = {
-  tooltipBg: rawColors.chart.tooltipBg,
-  tooltipBorder: rawColors.chart.tooltipBorder,
-  tooltipShadow: 'rgba(0, 0, 0, 0.4)',
-  gridLine: rawColors.chart.grid,
-  axisLine: rawColors.chart.axisLine,
-  cursor: rawColors.chart.cursor,
-  polarGrid: rawColors.chart.axisLine,
-  referenceLine: rawColors.chart.referenceLine,
-  referenceLineStrong: rawColors.chart.referenceLineStrong,
-  activeStroke: rawColors.chart.activeStroke,
-  svgStroke: rawColors.chart.svgStroke,
-  overlayBg: 'rgba(0, 0, 0, 0.5)',
-}
-
-const CHART_INPUT = {
-  bg: rawColors.chart.inputBg,
-  border: rawColors.chart.inputBorder,
-}
+// Chart chrome (grid, axis text, tooltip, reference lines) reads the --chart-*
+// CSS variables directly in the chart kit, so only the series palettes below
+// need resolved strings.
 
 /**
  * Re-sync the derived chart constants from the (already-rebuilt) `rawColors`
@@ -148,26 +111,6 @@ function refreshChartConstants(): void {
   rebuildPalette(CHART_COLORS, buildChartColors())
   rebuildPalette(CHART_COLORS_WARM, buildChartColorsWarm())
   rebuildPalette(INCOME_COLORS, buildIncomeColors())
-
-  CHART_TEXT.primary = rawColors.chart.textPrimary
-  CHART_TEXT.secondary = rawColors.chart.textSecondary
-  CHART_TEXT.muted = rawColors.chart.textMuted
-  CHART_TEXT.subtle = rawColors.chart.textSubtle
-  CHART_TEXT.dim = rawColors.chart.textDim
-
-  CHART_SURFACE.tooltipBg = rawColors.chart.tooltipBg
-  CHART_SURFACE.tooltipBorder = rawColors.chart.tooltipBorder
-  CHART_SURFACE.gridLine = rawColors.chart.grid
-  CHART_SURFACE.axisLine = rawColors.chart.axisLine
-  CHART_SURFACE.cursor = rawColors.chart.cursor
-  CHART_SURFACE.polarGrid = rawColors.chart.axisLine
-  CHART_SURFACE.referenceLine = rawColors.chart.referenceLine
-  CHART_SURFACE.referenceLineStrong = rawColors.chart.referenceLineStrong
-  CHART_SURFACE.activeStroke = rawColors.chart.activeStroke
-  CHART_SURFACE.svgStroke = rawColors.chart.svgStroke
-
-  CHART_INPUT.bg = rawColors.chart.inputBg
-  CHART_INPUT.border = rawColors.chart.inputBorder
 
   SEMANTIC_COLORS.income = rawColors.financial.income
   SEMANTIC_COLORS.expense = rawColors.financial.expense
