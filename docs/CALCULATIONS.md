@@ -4,8 +4,10 @@ Developer map and shared-finance contracts checked against source on 2026-09-16.
 Examples below are synthetic; payroll and forecast values retain their stated
 estimation limits.
 
-The [financial calculation diagram](diagrams/README.md#financial-calculations)
-shows how scoped inputs, shared calculations, and the displayed results connect.
+The [analytics boundaries diagram](diagrams/README.md#analytics-boundaries)
+shows where each number comes from (rollups, on-demand SQL, the full ledger,
+browser calculations), and the [shared finance rules diagram](diagrams/README.md#shared-finance-rules)
+shows which page hooks call which calculation modules.
 
 ## Developer Calculation Map
 

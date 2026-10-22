@@ -1,0 +1,197 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure oauth-sign-in from .claude/orrery/plan.json (decisions.md 2026-10-22 applied).
+# Happy path only. Left out on purpose: refresh rotation and logout revocation (session-lifecycle),
+# the version-1 restart bridge GET /api/auth/oauth/v2/{provider}/restart (HTTP 303, an upgrade path
+# for old PWA shells that ends in step 1), error branches (cancelled, expired, already used,
+# 409 missing verifier, 502 provider outage), the PKCE-client guard and 20/minute rate limits
+# (checks inside step 8), and prefetch after sign-in (session-lifecycle).
+# Every edge carries step: so `render -f sequence.svg` draws the lifelines in step order.
+title: OAuth sign-in with S256 PKCE and signed one-use state
+subtitle: "Happy path in 16 steps: the signed 10-minute state is recorded in audit_logs and consumed once before the provider exchange"
+direction: right
+layout: { spacing: compact }
+
+legend:
+  solid: Request
+  dashed: Response or redirect back
+
+groups:
+  tab:
+    type: zone
+    label: Browser tab
+    evidence: frontend/src/services/api/auth.ts:21-30
+  vercel:
+    type: box
+    label: FastAPI on Vercel
+    icon: logos:vercel-icon
+    evidence: backend/src/ledger_sync/api/oauth.py:57
+  neon:
+    type: box
+    label: Neon PostgreSQL
+    icon: logos:neon-icon
+    # PgBouncer pooler: repo CLAUDE.md Deployment section (brief)
+    evidence: backend/src/ledger_sync/db/session.py:39
+  idp:
+    type: internet
+    label: Identity provider
+    evidence: backend/src/ledger_sync/api/oauth_providers.py:24-31
+
+nodes:
+  spa:
+    icon: logos:react
+    label: SPA auth service
+    in: tab
+    evidence: frontend/src/services/api/auth.ts:180-267
+  storage:
+    shape: cylinder
+    label: sessionStorage attempt
+    note: "verifier, state"
+    in: tab
+    evidence:
+      - frontend/src/services/api/auth.ts:21
+      - frontend/src/services/api/auth.ts:206-216
+  authstore:
+    label: Auth store
+    note: persisted JWTs
+    in: tab
+    evidence: frontend/src/store/authStore.ts:45-77
+  api:
+    icon: logos:fastapi-icon
+    label: OAuth router
+    in: vercel
+    evidence: backend/src/ledger_sync/api/oauth.py:108-333
+  # Stand-in: one lifeline for Google and GitHub, which follow the same flow (plan standIns).
+  provider:
+    icon: tabler:circle-key
+    label: Google or GitHub
+    badge: x2
+    in: idp
+    evidence:
+      - frontend/src/services/api/auth.ts:39-42
+      - backend/src/ledger_sync/api/oauth.py:61-63
+
+  audit:
+    shape: cylinder
+    label: audit_logs
+    note: "pending attempts, refresh JTIs"
+    in: neon
+    evidence: backend/src/ledger_sync/db/_models/user.py:417-420
+  users:
+    shape: cylinder
+    label: users
+    in: neon
+    evidence: backend/src/ledger_sync/db/_models/user.py:39-47
+# All edges are inferred from call sites (plan source: inferred).
+edges:
+  - from: spa
+    to: api
+    step: 1
+    label: POST authorize + challenge
+    evidence:
+      - frontend/src/services/api/auth.ts:185-191
+      - backend/src/ledger_sync/api/oauth.py:108-128
+  - from: api
+    to: audit
+    step: 2
+    label: record pending attempt
+    evidence: backend/src/ledger_sync/api/oauth_state.py:50-75
+  - from: spa
+    to: api
+    arrow: start
+    step: 3
+    line: dashed
+    label: "signed state, 10 min"
+    evidence:
+      - backend/src/ledger_sync/api/oauth.py:123-128
+      - frontend/src/services/api/auth.ts:192-204
+  - from: spa
+    to: storage
+    step: 4
+    label: keep verifier
+    evidence: frontend/src/services/api/auth.ts:206-216
+  - from: spa
+    to: provider
+    step: 5
+    label: redirect with challenge
+    evidence: frontend/src/services/api/auth.ts:218-231
+  - from: spa
+    to: provider
+    arrow: start
+    step: 6
+    line: dashed
+    label: "callback with code, state"
+    evidence:
+      - frontend/src/App.tsx:255
+      - frontend/src/pages/OAuthCallbackPage.tsx:42-47
+  - from: spa
+    to: storage
+    step: 7
+    label: consume attempt
+    evidence: frontend/src/services/api/auth.ts:249-259
+  - from: spa
+    to: api
+    step: 8
+    label: POST callback + verifier
+    evidence:
+      - frontend/src/services/api/auth.ts:260-265
+      - backend/src/ledger_sync/api/oauth.py:209
+      - backend/src/ledger_sync/api/oauth.py:276
+  - from: api
+    to: audit
+    step: 9
+    label: check signature + S256 verifier, consume once
+    evidence:
+      - backend/src/ledger_sync/api/oauth_state.py:78-127
+      # SHA-256 of the verifier must equal the signed challenge
+      - backend/src/ledger_sync/api/oauth_state.py:91-99
+  - from: api
+    to: provider
+    step: 10
+    label: exchange code + verifier
+    evidence:
+      - backend/src/ledger_sync/api/oauth.py:227-239
+      - backend/src/ledger_sync/api/oauth.py:294-306
+  - from: api
+    to: provider
+    step: 11
+    label: fetch profile (subject) and verified email
+    evidence:
+      - backend/src/ledger_sync/api/oauth.py:242-261
+      - backend/src/ledger_sync/api/oauth.py:309-317
+      - backend/src/ledger_sync/api/oauth_providers.py:135-143
+  - from: api
+    to: users
+    step: 12
+    label: match or create user by subject
+    evidence:
+      - backend/src/ledger_sync/api/oauth.py:263-270
+      - backend/src/ledger_sync/services/auth_service.py:142-193
+  # _issue_tokens adds an AuditLog refresh record, then signs the JTI into the refresh JWT
+  - from: api
+    to: audit
+    step: 13
+    label: "record refresh JTI, sign JWTs"
+    evidence:
+      - backend/src/ledger_sync/services/auth_service.py:195
+      - backend/src/ledger_sync/services/auth_refresh.py:73-86
+  - from: spa
+    to: api
+    arrow: start
+    step: 14
+    line: dashed
+    label: access + refresh tokens
+    evidence:
+      - backend/src/ledger_sync/api/oauth.py:283#Token
+      - frontend/src/services/api/auth.ts:265-266
+  - from: spa
+    to: api
+    step: 15
+    label: GET /api/auth/me
+    evidence:
+      - frontend/src/pages/OAuthCallbackPage.tsx:74
+      - frontend/src/services/api/auth.ts:105-112
+  - from: spa
+    to: authstore
+    step: 16
+    label: install user + tokens
+    evidence: frontend/src/pages/OAuthCallbackPage.tsx:81

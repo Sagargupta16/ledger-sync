@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure analytics-boundaries from .claude/orrery/plan.json (decisions.md 2026-10-22 applied).
+# Shown in docs/architecture.md and docs/CALCULATIONS.md at 880 px.
+title: "Where the numbers come from: rollups, on-demand SQL, client calculations"
+subtitle: Rollup tables the analytics engine publishes, on-demand SQL aggregates, the full ledger and lib/finance in the browser
+direction: down
+# No layout.aspect: 4:3 turned the flow into a 1749 px strip (labels at 6.5 px at 880 wide);
+# top to bottom (browser, API, database) fits the 880 px column at full size.
+
+legend:
+  dashed: Explicit retry only
+
+layout: { spacing: loose, layering: simplex }
+groups:
+  fe:
+    type: zone
+    label: Browser (SPA)
+    icon: tabler:browser
+    evidence: frontend/src/hooks/api/useTransactions.ts:16
+  be:
+    type: box
+    label: FastAPI on Vercel
+    icon: logos:fastapi-icon
+    evidence: backend/api/index.py:3
+  store:
+    type: box
+    label: Neon PostgreSQL
+    icon: logos:neon-icon
+    # Pooler URL normalization; PgBouncer pooler per the repo CLAUDE.md Deployment section.
+    evidence: backend/src/ledger_sync/db/session.py:39
+
+nodes:
+  pages:
+    icon: tabler:layout-dashboard
+    # The 25 lazy pages include Upload, Transactions and Settings, not only analytics.
+    label: Workspace pages
+    note: 25 lazy pages
+    in: fe
+    evidence: frontend/src/App.tsx:59-83
+  hooks:
+    icon: logos:react-query-icon
+    label: TanStack Query hooks
+    in: fe
+    evidence:
+      - frontend/src/hooks/api/useAnalyticsV2.ts
+      - frontend/src/hooks/api/useCalculations.ts
+      - frontend/src/hooks/api/useTransactions.ts:16
+  finance:
+    icon: tabler:calculator
+    label: lib/finance calculators
+    note: "tax, net worth, returns"
+    in: fe
+    evidence:
+      - frontend/src/pages/tax-planning/useTaxPlanning.ts:27
+      - frontend/src/pages/net-worth/useNetWorth.ts:17
+  v2:
+    icon: tabler:api
+    label: Analytics v2 API
+    note: rollup reads
+    in: be
+    evidence: backend/src/ledger_sync/api/analytics_v2.py:30
+  calc:
+    icon: tabler:sql
+    label: Calculations API
+    note: "on-demand SQL, rollup fast path"
+    in: be
+    evidence: backend/src/ledger_sync/api/calculations.py:27-301
+  upload:
+    icon: tabler:upload
+    label: Upload service
+    in: be
+    evidence: backend/src/ledger_sync/services/upload_service.py:14
+  engine:
+    icon: tabler:refresh
+    label: Analytics engine
+    note: "versioned, dirty dates"
+    in: be
+    evidence:
+      - backend/src/ledger_sync/core/analytics/engine.py:104-287
+      - backend/src/ledger_sync/core/analytics/refresh.py:96-181
+  txapi:
+    icon: tabler:list-details
+    label: Transactions API
+    in: be
+    evidence: backend/src/ledger_sync/api/transactions.py:137-138
+  rollups:
+    shape: cylinder
+    label: Rollup tables
+    note: "daily, monthly, FY, trends"
+    in: store
+    evidence: backend/src/ledger_sync/db/_models/analytics.py:30-380
+  txns:
+    shape: cylinder
+    label: transactions
+    in: store
+    evidence: backend/src/ledger_sync/db/_models/transactions.py:52-55
+
+edges:
+  - pages -> hooks: { label: query, evidence: frontend/src/hooks/api/useTransactions.ts:16 }
+  - pages -> finance:
+      label: compute client-side
+      evidence:
+        - frontend/src/pages/tax-planning/useTaxPlanning.ts:27#computeAnnualTaxPlanning
+        - frontend/src/pages/net-worth/useNetWorth.ts:17
+  - hooks -> v2:
+      label: "GET /api/analytics/v2/*, POST refresh"
+      evidence:
+        - frontend/src/services/api/analyticsV2Summaries.ts:181-215
+        - frontend/src/services/api/upload.ts:63
+  - hooks -> calc: { label: "GET /api/calculations/*", evidence: frontend/src/services/api/calculations.ts:149-206 }
+  - hooks -> txapi: { label: "GET /api/transactions/all", evidence: frontend/src/services/api/transactions.ts:77 }
+  - hooks -> upload:
+      label: POST /api/upload
+      evidence:
+        - frontend/src/services/api/upload.ts:52
+        - backend/src/ledger_sync/api/upload.py:80
+  - v2 -> rollups: { label: read, evidence: backend/src/ledger_sync/api/analytics_v2.py:17-27 }
+  # Data health and the 50/30/20 spending rule query transactions directly.
+  - v2 -> txns:
+      label: "data health, spending rule"
+      evidence:
+        - backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py:139
+        - backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py:262-271
+  - calc -> txns:
+      label: aggregate
+      evidence:
+        - backend/src/ledger_sync/services/calculation_service.py:20
+        - backend/src/ledger_sync/services/calculation_service.py:62-105
+  # Unfiltered totals, monthly aggregation and category breakdown read monthly_summaries / category_trends.
+  - calc -> rollups:
+      label: unfiltered fast path
+      evidence:
+        - backend/src/ledger_sync/api/calculations_impl/aggregates.py:59-70
+        - backend/src/ledger_sync/api/calculations_impl/aggregates.py:106-111
+        - backend/src/ledger_sync/api/calculations_impl/categories.py:92-99
+  - txapi -> txns: { label: full ledger, evidence: backend/src/ledger_sync/api/transactions.py:137-139 }
+  - upload -> txns: { label: import rows, evidence: backend/src/ledger_sync/services/upload_service.py:24 }
+  # upload_service.py:33 calls AnalyticsEngine(...).refresh_analytics() after the import commits.
+  - upload -> engine: { label: after commit, evidence: backend/src/ledger_sync/services/upload_service.py:33 }
+  # POST /api/analytics/v2/refresh; the frontend calls it only for an explicit retry (repo CLAUDE.md, Upload pipeline).
+  - v2 -> engine:
+      label: POST refresh
+      line: dashed
+      evidence:
+        - backend/src/ledger_sync/api/analytics_v2.py:26
+        - backend/src/ledger_sync/api/analytics_v2.py:46
+  - engine -> txns: { label: read ledger, evidence: backend/src/ledger_sync/core/analytics/engine.py:104-129 }
+  - engine -> rollups: { label: publish, evidence: backend/src/ledger_sync/core/analytics/engine.py:287#publish_refresh }

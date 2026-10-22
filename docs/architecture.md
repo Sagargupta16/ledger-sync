@@ -6,40 +6,25 @@ Source walkthrough updated on 2026-09-16. The local Graphify graph is a
 navigation aid; the application entry points, routes, services, stores, models,
 and workflows define the contracts below.
 
-Start with the [Archify diagram guide](diagrams/README.md): it includes
-source-linked architecture, an import sequence, financial calculation paths,
-and the production release workflow. SVG previews work in repository docs;
-standalone HTML files add search, zoom, and themes.
+Every figure on this page is drawn with orrery from a YAML spec in
+[diagrams/](diagrams/README.md) whose nodes and edges cite the file and line
+they come from (`orrery verify` checks them). Each renders in light and dark
+themes and has an editable draw.io copy.
 
 ## System Overview
 
 Ledger Sync is a static React workspace backed by a FastAPI JSON API and a
 user-scoped relational ledger.
 
-```mermaid
-flowchart TB
-  pages["GitHub Pages<br/>/ledger-sync/ app shell"]
-  ui["Browser workspace<br/>React, Query, Zustand<br/>SheetJS file parsing"]
-  api["Vercel API origin<br/>FastAPI and domain services<br/>CORS, JWT, schemas, limits"]
-  db[("Neon PostgreSQL<br/>User ledger and derived data<br/>OAuth attempts and AI usage")]
-  direct["OpenAI / Anthropic<br/>Personal-key chat"]
-  external["External service APIs<br/>OAuth, Bedrock, stock and FX"]
-  pages --> ui
-  ui -->|"HTTPS JSON with bearer token"| api
-  api -->|"SQLAlchemy"| db
-  ui -->|"Browser-direct requests"| direct
-  api -->|"Code exchange, model and rate requests"| external
-  classDef store fill:#eef6ff,stroke:#35618f,color:#142d47
-  classDef external fill:#f5f3ff,stroke:#7563a5,color:#30204c
-  class db store
-  class direct,external external
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/system-overview-dark.svg">
+  <img alt="Ledger Sync PWA on GitHub Pages calls FastAPI on Vercel, Neon, OAuth, market data and AI APIs" src="diagrams/system-overview-light.svg" width="100%">
+</picture>
 
 Local development uses the same frontend and backend with SQLite and a Vite
 proxy. The browser and API can run on different origins: API requests use bearer
 tokens and an explicit CORS allowlist, while OAuth initiation does not depend
-on third-party cookies. The [static overview](images/system-overview.svg) is a
-companion illustration; the diagrams here describe the current boundaries.
+on third-party cookies.
 
 ## Repository Layout
 
@@ -54,9 +39,10 @@ ledger-sync/
 
 ## Backend Architecture
 
-<p align="center">
-  <img src="images/backend-layers.svg" alt="Backend layer architecture" width="100%"/>
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/backend-layers-dark.svg">
+  <img alt="FastAPI backend layers: routers, services, core, ingest and ORM down to Neon" src="diagrams/backend-layers-light.svg" width="100%">
+</picture>
 
 ### API layer
 
@@ -215,35 +201,10 @@ HTTP 503. Unexpected errors return a correlation ID without a traceback.
 
 ## Upload and Analytics Flow
 
-```mermaid
-flowchart TB
-  file["Excel or CSV"] --> browser["Parse, validate, hash raw file"]
-  browser --> review["Review accounts, dates, row counts<br/>Confirm complete ledger snapshot"]
-  review --> api["Authenticated JSON upload<br/>Validate the entire INR batch"]
-  api -->|"Invalid batch"| reject["Reject before ledger writes"]
-  api --> normalized["Normalize the complete batch"]
-  subgraph atomic["Ledger commit"]
-    lock["Serialize imports for this user<br/>Check prior file hash"]
-    lock --> normalize["Apply rules and canonical names<br/>Validate again; generate occurrence-aware IDs"]
-    normalize --> reconcile["Reconcile transactions and transfers<br/>Restore present rows; soft-delete absent rows"]
-    reconcile --> history["Write import log"]
-  end
-  normalized --> lock
-  history -->|"Commit succeeds"| compute["Compute derived analytics"]
-  history -->|"Any ledger error"| rollback["Roll back ledger and import log"]
-  subgraph derived["Analytics commit"]
-    compute --> rollups["Replace affected rollups and analytics audit"]
-  end
-  rollups -->|"Commit succeeds"| ready["Import saved; analytics ready"]
-  rollups -->|"Refresh fails"| saved["Import saved; analytics refresh failed"]
-  saved -->|"Explicit retry"| compute
-  ready --> queries["Invalidate ledger and analytics query keys"]
-  saved --> queries
-  classDef success fill:#edf8f1,stroke:#38754a,color:#183c23
-  classDef recovery fill:#fff6e6,stroke:#99702b,color:#513b17
-  class ready success
-  class reject,rollback,saved recovery
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/statement-import-dark.svg">
+  <img alt="Statement import flow: browser review, backend checks, reconcile, commit, analytics refresh" src="diagrams/statement-import-light.svg" width="100%">
+</picture>
 
 The version-2 source fingerprint uses canonical JSON encoding of user, date,
 amount, account, note, source category/subcategory, type, explicit transfer
@@ -273,30 +234,12 @@ A failed analytics refresh leaves the saved ledger intact. The frontend offers
 an analytics-only retry instead of a second import. An upload timeout can occur
 after persistence, so recovery first directs the user to import history.
 
-The [static pipeline image](images/upload-pipeline.svg) is retained as a
-companion overview.
-
 ### Analytics and calculation boundaries
 
-```mermaid
-flowchart TB
-  ledger[("Active rows<br/>for the current user")]
-  prefs[("Classifications<br/>and preferences")]
-  engine["AnalyticsEngine<br/>Shared transaction load"]
-  domains["Domain mixins<br/>Summaries, merchants, recurring<br/>Net worth, FY, anomalies, cohorts"]
-  rollups[("Persisted analytics<br/>One refresh commit")]
-  api["Read APIs<br/>Rollups and on-demand SQL"]
-  query["TanStack Query<br/>Date and preference query keys"]
-  calc["Client calculations<br/>Tax, FIRE, projections<br/>Cash-flow and book-value context"]
-  ledger --> engine
-  prefs --> engine
-  engine --> domains --> rollups --> api
-  ledger -->|"Filtered on-demand queries"| api
-  prefs --> api
-  api --> query --> calc
-  classDef store fill:#eef6ff,stroke:#35618f,color:#142d47
-  class ledger,prefs,rollups store
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/analytics-boundaries-dark.svg">
+  <img alt="Ledger Sync data sources: rollup tables, on-demand SQL, full ledger and browser lib/finance" src="diagrams/analytics-boundaries-light.svg" width="100%">
+</picture>
 
 The composed engine uses durable ledger, preference, and algorithm versions.
 An unchanged generation on the same IST day skips recomputation. Dirty dates
@@ -331,33 +274,10 @@ Share one implementation per financial rule, with small modules by domain.
 The common directory is not a single calculator that fetches data, reads every
 preference, and renders charts.
 
-```mermaid
-flowchart TB
-  api["Scoped ledger and aggregates"]
-  hooks["Feature hooks<br/>Preferences, dates, scenario inputs"]
-  flows["investmentFlows / investmentReturns<br/>sipProjection"]
-  history["goalProjection / netWorth<br/>cashFlowForecast / dashboardMetrics"]
-  spending["spending / spendingStatistics<br/>creditCardUtilization"]
-  tax["taxPlanning / taxHistory<br/>payrollPlanning / taxRateCurve"]
-  helpers["Existing shared helpers<br/>Tax engine, RSUs, salary, TDS<br/>Dates, savings, recurring, distribution<br/>Instruments, FIRE, GST, XIRR"]
-  adapter["Page utility compatibility exports<br/>Chart labels and series adaptation"]
-  ui["Pages and charts<br/>Values, units, scope, estimate flags"]
-  api --> hooks
-  hooks --> flows
-  hooks --> history
-  hooks --> spending
-  hooks --> tax
-  hooks --> helpers
-  history --> helpers
-  spending --> helpers
-  tax --> helpers
-  flows --> adapter
-  history --> adapter
-  spending --> adapter
-  tax --> adapter
-  helpers --> adapter
-  adapter --> ui
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/finance-composition-dark.svg">
+  <img alt="Page hooks calling lib/finance modules, with metricRules.ts kept in step with metric_rules.py" src="diagrams/finance-composition-light.svg" width="100%">
+</picture>
 
 | Change needed | Canonical source to edit | Composition boundary |
 | --- | --- | --- |
@@ -520,7 +440,8 @@ utilities. Repeated visual patterns belong in shared components.
 | Directory | Responsibility |
 | --- | --- |
 | `components/layout/` | Sidebar, mobile navigation, and workspace header |
-| `components/ui/` | Buttons, cards, inputs, tables, chart containers, and page primitives |
+| `components/ui/` | Buttons, cards, inputs, tables, chart helpers, and page primitives |
+| `components/charts/` | The in-house animated SVG chart kit |
 | `components/shared/` | Cross-feature states, authentication UI, command palette, and preferences |
 | `components/analytics/` | Reusable financial visualizations |
 | `components/transactions/` | Ledger filters, table, tags, pagination, and saved views |
@@ -539,38 +460,41 @@ theme, density, borders, chart colors, focus states, and responsive behavior.
 
 ### Shared chart composition
 
-Feature components pass prepared rows, series metadata, formatters, and
-drilldown callbacks to
+Every chart is drawn by the in-house SVG kit in
+[components/charts](../frontend/src/components/charts/) and animated with
+Motion; the kit replaced Recharts in 2.30.0. Feature components pass prepared
+rows, series metadata, formatters, and drilldown callbacks to
 [StandardAreaChart](../frontend/src/components/analytics/StandardAreaChart.tsx),
 [StandardBarChart](../frontend/src/components/analytics/StandardBarChart.tsx),
 [StandardPieChart](../frontend/src/components/analytics/StandardPieChart.tsx),
 [StandardRadarChart](../frontend/src/components/analytics/StandardRadarChart.tsx),
-and [TimeSeriesLineChart](../frontend/src/components/analytics/TimeSeriesLineChart.tsx).
-These adapters compose Recharts with shared presentation primitives:
+and [TimeSeriesLineChart](../frontend/src/components/analytics/TimeSeriesLineChart.tsx),
+or compose the kit directly when a chart needs its own marks:
 
-```mermaid
-flowchart TB
-  data["API hooks and feature calculations"]
-  page["Page / feature composition<br/>Rows, series, formatters, drilldown"]
-  charts["Standard area / bar / pie / radar<br/>TimeSeriesLineChart"]
-  appearance["themeStore + motionStore<br/>useChartPresentation"]
-  plot["ChartContainer + Recharts<br/>ChartTooltipContent"]
-  reading["ChartSeriesLegend / PieChartLedger"]
-  table["chartDataTable<br/>Caption and exact values"]
-  data --> page --> charts
-  appearance --> charts
-  charts --> plot
-  charts --> reading
-  charts --> table
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/chart-kit-dark.svg">
+  <img alt="Pages and analytics wrappers render CartesianChart, Pie, Radar, Sankey; all draw in ChartFrame on Motion" src="diagrams/chart-kit-light.svg" width="100%">
+</picture>
+
+| Kit source | Responsibility |
+| --- | --- |
+| [ChartFrame](../frontend/src/components/charts/ChartFrame.tsx) | Root of every chart. Measures its box, names the plot with `ariaLabel` as one `role="img"`, and starts the entrance once a fifth of it is in view. Below 640 px, `mobileHeight` wins; otherwise heights above 280 px are capped. Printing and Reduced motion draw final geometry. |
+| [CartesianChart](../frontend/src/components/charts/CartesianChart.tsx) | Category and value scales (with an optional right axis), diverging stacks, the plot-only `visibleRange` zoom, and the hovered or arrow-key row, shared with its children through context. |
+| [Bars](../frontend/src/components/charts/Bars.tsx), [LineSeries](../frontend/src/components/charts/LineSeries.tsx), [AreaSeries](../frontend/src/components/charts/AreaSeries.tsx) | Marks. Bars grow out of the zero line, lines draw in left to right, and fills wipe in behind them; new data morphs the geometry instead of replaying the entrance. |
+| [Axis](../frontend/src/components/charts/Axis.tsx), [Grid](../frontend/src/components/charts/Grid.tsx) | Axes and grid lines; their ticks glide to the new scale when a filter or range changes. |
+| [References](../frontend/src/components/charts/References.tsx) | `ReferenceLine`, `ReferenceArea`, and `ReferenceDot` for peak, average, target, goal, and zero marks. They enter after the series. |
+| [CartesianTooltip](../frontend/src/components/charts/CartesianTooltip.tsx), [Crosshair](../frontend/src/components/charts/Crosshair.tsx) | HTML tooltip and cursor that glide between rows. On phones the tooltip pins to the top of the frame; arrow-key readings go to a polite live region. |
+| [ChartBrush](../frontend/src/components/charts/ChartBrush.tsx) | Drag-to-zoom range strip under a chart. Changes go through `useChartRange`, so tables keep every row. |
+| [PieChart](../frontend/src/components/charts/PieChart.tsx), [RadarChart](../frontend/src/components/charts/RadarChart.tsx), [SankeyDiagram](../frontend/src/components/charts/SankeyDiagram.tsx) | Roots of their own on ChartFrame. Slices sweep open from 12 o'clock, radar series grow out of the centre, and Sankey ribbons sweep in, with drill-downs gliding between views. |
+| [chartMotion](../frontend/src/components/charts/chartMotion.ts) | Durations, easing, and stagger for every mark, so all charts move alike. |
+
+Presentation helpers in `components/ui/` sit around the plots:
 
 | Shared source | Responsibility |
 | --- | --- |
-| [ChartContainer](../frontend/src/components/ui/ChartContainer.tsx) | Responsive plot dimensions and the optional `ariaLabel` image wrapper. Below 640 px, `mobileHeight` wins; otherwise numeric heights above 280 px are capped. |
-| [ChartTooltipContent](../frontend/src/components/ui/ChartTooltipContent.tsx) | Period, series, and value reading order using Recharts payloads, formatters, and sorting. [ChartTooltip](../frontend/src/components/ui/ChartTooltip.tsx) supplies shared styling and motion-aware props. |
 | [ChartSeriesLegend](../frontend/src/components/ui/ChartSeriesLegend.tsx) | HTML series names outside the plot, with optional latest values and a caption. |
 | [PieChartLedger](../frontend/src/components/ui/PieChartLedger.tsx) | Ranked amount/share rows, coordinated slice hover/focus, and native buttons for category drilldown. |
-| [useChartPresentation](../frontend/src/components/ui/useChartPresentation.ts) | Live viewport, theme, and motion subscriptions; returns `isMobile`, `theme`, and `animate`. |
+| [useChartPresentation](../frontend/src/components/ui/useChartPresentation.ts) | Live viewport, theme, and motion subscriptions for the HTML beside a pie; returns `isMobile`, `theme`, and `animate`. |
 | [ChartSection](../frontend/src/components/ui/ChartSection.tsx) | Panel shell for a full-width custom chart section: scroll-in reveal, eyebrow/title/description header labeled by `titleId`, and an optional header control. |
 | [TooltipValueList](../frontend/src/components/ui/TooltipValueList.tsx) | Color-keyed label and currency rows for a custom chart tooltip. |
 
@@ -582,8 +506,9 @@ complete-month comparisons before supplying chart rows;
 [useAnalytics](../frontend/src/hooks/api/useAnalytics.ts) accesses the typed
 [calculation service](../frontend/src/services/api/calculations.ts). Shared chart
 primitives do not fetch ledger data or own financial preferences.
-[chartDefaults](../frontend/src/components/ui/chartDefaults.tsx) centralizes
-axes, grids, gradients, reference lines, and brush styling.
+[chartDefaults](../frontend/src/components/ui/chartDefaults.tsx) keeps the bar
+corner radius and the currency tooltip formatter; axis, grid, reference, and
+brush styling live in the kit's own marks.
 
 The pie adapter uses [pieSlices](../frontend/src/components/ui/pieSlices.ts) to
 drop non-positive values and cap wedges at seven by default. The tail becomes
@@ -599,10 +524,10 @@ visually hidden table with a caption, `<th scope="col">` headers, and one
 radar fallbacks retain every supplied row; the pie fallback mirrors its grouped
 slices with amount and share columns.
 
-Pass `ariaLabel` to the chart adapter so `ChartContainer` names only the visual
+Pass `ariaLabel` to the chart adapter so `ChartFrame` names only the visual
 plot with `role="img"`. The table must be a sibling of the visual chart branch,
 outside that image subtree. The pie adapter places it after the plot/ledger
-grid. Neither `ChartContainer` nor a caller-supplied `role="img"` wrapper may
+grid. Neither `ChartFrame` nor a caller-supplied `role="img"` wrapper may
 enclose the table: ARIA makes image descendants presentational. A visible
 legend or tooltip does not replace this table. jsdom does not model that ARIA
 behavior, so finding a table in a unit test alone does not prove it is exposed
@@ -611,16 +536,18 @@ to assistive technology.
 #### Live appearance and range state
 
 [themeStore](../frontend/src/store/themeStore.ts) applies the Light or Dark
-theme through [theme.ts](../frontend/src/lib/theme.ts), which refreshes concrete
-SVG colors from CSS tokens through
+theme through [theme.ts](../frontend/src/lib/theme.ts). Kit chrome (grid,
+axes, cursor, tooltip) paints with the `--chart-*` CSS variables, so a theme
+change repaints it without a remount. Series colors are resolved strings from
 [colors.ts](../frontend/src/constants/colors.ts) and
-[chartColors.ts](../frontend/src/constants/chartColors.ts).
-`useChartPresentation` subscribes to the resolved theme; `ChartContainer` keys
-its inner Recharts `ResponsiveContainer` by that theme to repaint the plot.
+[chartColors.ts](../frontend/src/constants/chartColors.ts), which theme.ts
+refreshes in place; callers read them through
+[usePaletteSnapshot](../frontend/src/hooks/usePaletteSnapshot.ts), which
+re-renders them on a toggle.
 
 The existing [motionStore](../frontend/src/store/motionStore.ts) persists Full
-or Reduced mode. `useChartPresentation` enables series animation only in Full
-mode when the supplied count is below `CHART_ANIMATION_THRESHOLD`.
+or Reduced mode. `ChartFrame` animates only in Full mode, outside print, and
+when the series is shorter than `CHART_ANIMATION_THRESHOLD`.
 [App.tsx](../frontend/src/App.tsx) applies the same preference through
 `MotionConfig`; shared tooltips and pie ledger rows honor it too. Motion
 changes do not remount page state.
@@ -674,26 +601,15 @@ new user and tokens are installed together.
 
 ### Session cleanup and startup
 
-```mermaid
-flowchart TB
-  boundary["Logout, expired refresh, reset<br/>or authenticated identity change"]
-  abort["Abort the old session signal"]
-  clear["Cancel queries and clear caches"]
-  stores["Reset user preferences, budgets<br/>and account stores"]
-  remount["Remount identity-keyed workspace<br/>Discard page-local drafts"]
-  next["New session signal<br/>and generation"]
-  reads["Fresh scoped requests<br/>Responses must match the session"]
-  startup["Small startup prefetch<br/>Preferences, commitments, data health"]
-  intent["Route intent<br/>Load the matching page chunk"]
-  boundary --> abort --> clear --> stores --> remount
-  stores --> next --> reads
-  reads --> startup
-  next --> intent
-  late["Late response or pending refresh<br/>from the old session"]
-  late --> discard["Discard obsolete results"]
-  classDef recovery fill:#fff6e6,stroke:#99702b,color:#513b17
-  class boundary,late recovery
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/session-lifecycle-dark.svg">
+  <img alt="Session startup, sign-out and identity change; every exit ends in endSession" src="diagrams/session-lifecycle-light.svg" width="100%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/token-refresh-dark.svg">
+  <img alt="Token refresh: the first 401 refreshes once with one-use rotation; failures end the session" src="diagrams/token-refresh-light.svg" width="100%">
+</picture>
 
 `lib/session.ts` centralizes cancellation, query-cache clearing, and user-store
 resets. Each boundary also advances a generation. Axios captures the signal
@@ -779,39 +695,10 @@ widget, demo banner, mobile bar, and page content do not overlap.
 
 ## Authentication Flow
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor User
-  participant Tab as Initiating browser tab
-  participant API as FastAPI OAuth API
-  participant DB as Database
-  participant Provider as Google or GitHub
-  User->>Tab: Choose provider
-  Tab->>Tab: Generate verifier and S256 challenge
-  Tab->>API: POST provider authorize with challenge
-  API->>DB: Create pending OAuth audit record
-  API-->>Tab: Provider URL and signed state, expires in 10 minutes
-  Tab->>Tab: Store provider, state, verifier and expiry in sessionStorage
-  Tab->>Provider: Redirect with state and S256 challenge
-  Provider-->>Tab: Code and state at configured frontend callback
-  Tab->>Tab: Consume matching attempt and remove query parameters
-  Tab->>API: POST callback with code, state and verifier
-  API->>API: Validate provider, redirect, expiry, signature and challenge
-  API->>DB: For valid proof, atomically consume pending state and commit
-  alt Missing, expired, mismatched or consumed attempt
-    API-->>Tab: Reject callback
-    Tab-->>User: Sign in again or return home
-  else Valid one-use attempt
-    API->>Provider: Exchange code with verifier
-    Provider-->>API: Provider identity and verified email
-    API->>DB: Resolve immutable provider identity
-    API-->>Tab: Access and refresh tokens
-    Tab->>API: Fetch profile with the new access token
-    API-->>Tab: Current user
-    Tab->>Tab: Exit demo and install user and tokens together
-  end
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/oauth-sign-in-dark.sequence.svg">
+  <img alt="OAuth PKCE sign-in in 16 steps across SPA, OAuth router, audit_logs, users and Google or GitHub" src="diagrams/oauth-sign-in-light.sequence.svg" width="100%">
+</picture>
 
 `GET /api/auth/oauth/providers?flow_version=2` reports configured providers
 with a version 2 contract. A fresh
@@ -855,9 +742,6 @@ Official protocol references:
 - [Google PKCE flow and S256 challenge](https://developers.google.com/identity/protocols/oauth2/native-app)
 - [GitHub OAuth authorization and S256 requirement](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
 
-The [static auth illustration](images/auth-flow.svg) is retained for context;
-the sequence above describes browser binding and one-use consumption.
-
 JWTs contain the user ID, email, type, expiry, and token version. Protected
 requests load the user and compare the token version. Logout and reset
 increment the stored version and revoke every outstanding token pair.
@@ -896,34 +780,10 @@ usage is reserved and settled by the proxy to avoid double counting.
 
 ### Funding, quotas, and tool access
 
-```mermaid
-flowchart TB
-  chat["Browser chat loop<br/>Bounded rounds, non-streaming"]
-  mode{"Provider and funding mode"}
-  direct["OpenAI / Anthropic<br/>Browser sends user-key request"]
-  personal["Bedrock personal bearer key<br/>User model and region"]
-  shared["App-funded Bedrock<br/>App model and region"]
-  reserve[("Lock user row and reserve usage<br/>Commit before provider request")]
-  invoke["One bounded Bedrock invocation"]
-  settle["Settle actual usage<br/>Release only known nonbillable failures"]
-  tools["Browser executes requested tool<br/>POST /api/ai/tools/execute<br/>CurrentUser and typed arguments"]
-  ledger[("User-scoped, read-only queries<br/>Bounded results")]
-  next["Tool results join provider conversation"]
-  chat --> mode
-  mode -->|"OpenAI or Anthropic BYOK"| direct
-  mode -->|"Bedrock with usable personal key"| personal
-  mode -->|"App Bedrock mode only"| shared
-  mode -->|"Incomplete Bedrock BYOK"| reject["HTTP 400<br/>Add a personal key or choose app mode"]
-  personal -->|"User token budgets"| reserve
-  shared -->|"Shared daily cap and user token budgets"| reserve
-  reserve --> invoke --> settle
-  direct -->|"Usage report"| usage[("Personal usage log")]
-  direct --> tools
-  invoke --> tools
-  tools --> ledger --> next --> chat
-  classDef store fill:#eef6ff,stroke:#35618f,color:#142d47
-  class reserve,ledger,usage store
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/ai-chat-dark.svg">
+  <img alt="AI chat turn: Bedrock via backend quota, OpenAI or Anthropic direct, tool loop capped at 6 calls" src="diagrams/ai-chat-light.svg" width="100%">
+</picture>
 
 App-funded Bedrock fixes the model and region and applies the shared daily
 limit. A usable personal Bedrock bearer key uses personal funding. Missing,
@@ -1020,20 +880,10 @@ Frontend:
 | Backend | Vercel serverless, ASGI |
 | Database | Neon PostgreSQL 17 |
 
-```mermaid
-flowchart TB
-  change["Push, pull request<br/>or manual CI run"]
-  checks["Frontend, backend, security<br/>and native PostgreSQL checks"]
-  gate{"Non-PR main run<br/>with passing checks"}
-  migration["Reusable migration workflow<br/>Production environment"]
-  pages["Reusable Pages deployment<br/>Build and publish static app"]
-  vercel["Vercel Git deployment<br/>Separate platform lifecycle"]
-  change --> checks --> gate
-  gate -->|"Yes"| migration --> pages
-  change -.->|"Vercel project integration"| vercel
-  classDef external fill:#f5f3ff,stroke:#7563a5,color:#30204c
-  class vercel external
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/release-delivery-dark.svg">
+  <img alt="Release flow: five CI checks gate the Neon migration, then Pages waits on Vercel health checks" src="diagrams/release-delivery-light.svg" width="100%">
+</picture>
 
 The CI dependency chain gates migrations on all check jobs. Pages also waits
 for a healthy backend reporting the frontend release version and a connected

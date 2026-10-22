@@ -1,0 +1,205 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure backend-layers from .claude/orrery/plan.json, with .claude/orrery/decisions.md applied
+# (the CLI node, its group and the Excel/CSV loaders are not drawn: cli/main.py:86 builds
+# SyncEngine(session) with no user_id, so that path raises today).
+# Every edge is a call site read from the code (source: inferred); evidence paths are relative
+# to the repo root and checked with `orrery verify`.
+title: "Backend layers: api, services, core, ingest, db"
+subtitle: FastAPI calls from the routers down to Neon; every financial router also takes the API deps
+direction: down
+layout: { spacing: normal }
+
+groups:
+  l-api:
+    type: zone
+    label: api/ (routers)
+    evidence: backend/src/ledger_sync/api/main.py:320-336
+  l-services:
+    type: zone
+    label: services/
+    evidence: backend/src/ledger_sync/services/upload_service.py:1
+  l-core:
+    type: zone
+    label: core/
+    evidence: backend/src/ledger_sync/core/sync_engine.py:1
+  l-ingest:
+    type: zone
+    label: ingest/
+    evidence: backend/src/ledger_sync/ingest/normalizer.py
+  l-db:
+    type: zone
+    label: db/
+    evidence: backend/src/ledger_sync/db/session.py:70
+  # Cross-cutting identity and session deps every financial router takes (loop.md reduce rung 1),
+  # nested in api/ because deps.py lives there; the deps -> c-tokens and deps -> orm edges are
+  # implied: verify_token at deps.py:50, get_session at deps.py:18.
+  l-shared:
+    type: zone
+    label: Shared services
+    in: l-api
+    evidence: backend/src/ledger_sync/api/deps.py:24-102
+
+nodes:
+  r-upload:
+    icon: tabler:upload
+    label: Upload router
+    in: l-api
+    evidence: backend/src/ledger_sync/api/upload.py:39-80
+  r-analytics:
+    icon: tabler:chart-line
+    label: Analytics v2 router
+    in: l-api
+    evidence: backend/src/ledger_sync/api/analytics_v2.py:30
+  r-calc:
+    icon: tabler:calculator
+    label: Calculations router
+    in: l-api
+    evidence: backend/src/ledger_sync/api/calculations.py:27
+  r-aichat:
+    icon: tabler:message-chatbot
+    label: AI chat router
+    in: l-api
+    evidence: backend/src/ledger_sync/api/ai_chat.py:60-77
+  r-aitools:
+    icon: tabler:tool
+    label: AI tools router
+    note: 15 read-only tools
+    in: l-api
+    evidence: backend/src/ledger_sync/api/ai_tools.py:25-31
+  r-oauth:
+    icon: tabler:login
+    label: OAuth router
+    in: l-api
+    evidence: backend/src/ledger_sync/api/oauth.py:57
+  # Stands for every router -> deps edge (plan leftOut): financial routers take CurrentUser and DatabaseSession.
+  # Drawn without edges as a shared service; the api/ -> ORM group edge covers its session reads.
+  deps:
+    icon: tabler:plug-connected
+    label: API deps
+    note: CurrentUser, DatabaseSession, verify JWT
+    in: l-shared
+    evidence: backend/src/ledger_sync/api/deps.py:24-102
+
+  s-upload:
+    icon: tabler:package-import
+    label: Upload service
+    in: l-services
+    evidence: backend/src/ledger_sync/services/upload_service.py:14
+  # Lives in services/ledger_dimensions.py:189 and is called from core's sync engine.
+  s-dims:
+    icon: tabler:dimensions
+    label: Ledger dimensions
+    in: l-services
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:24#attach_ledger_dimensions
+      - backend/src/ledger_sync/services/ledger_dimensions.py:189#attach_ledger_dimensions
+  s-calc:
+    icon: tabler:math-function
+    label: Calculation service
+    in: l-services
+    evidence: backend/src/ledger_sync/services/calculation_service.py:62-105
+  s-auth:
+    icon: tabler:user-shield
+    label: Auth service
+    in: l-services
+    evidence: backend/src/ledger_sync/services/auth_service.py:107
+
+  c-sync:
+    icon: tabler:arrows-exchange
+    label: Sync engine
+    in: l-core
+    evidence: backend/src/ledger_sync/core/sync_engine.py:32
+  c-recon:
+    icon: tabler:git-compare
+    label: Reconciler
+    in: l-core
+    evidence: backend/src/ledger_sync/core/reconciler.py
+  c-analytics:
+    icon: tabler:chart-dots
+    label: Analytics engine
+    note: versioned refresh
+    in: l-core
+    evidence: backend/src/ledger_sync/core/analytics/engine.py:104
+  c-rules:
+    icon: tabler:list-check
+    label: Metric rules
+    in: l-core
+    evidence: backend/src/ledger_sync/core/metric_rules.py:139
+  c-tokens:
+    icon: tabler:id-badge
+    label: JWT tokens
+    in: l-core
+    evidence: backend/src/ledger_sync/core/auth/tokens.py
+
+  i-norm:
+    icon: tabler:filter-check
+    label: Normalizer
+    in: l-ingest
+    # ingest/validator.py is only used by the CLI loaders, so it is not part of this node.
+    evidence:
+      - backend/src/ledger_sync/ingest/normalizer_rows.py:262#normalize_from_dict
+      - backend/src/ledger_sync/ingest/normalizer_rows.py:58#validate_normalized_row
+  i-hash:
+    icon: tabler:hash
+    label: Transaction hasher
+    in: l-ingest
+    evidence: backend/src/ledger_sync/core/reconciler.py:24#TransactionHasher
+
+  orm:
+    icon: tabler:table
+    label: ORM models, session
+    in: l-db
+    evidence:
+      - backend/src/ledger_sync/db/models.py
+      - backend/src/ledger_sync/db/session.py:70
+  # Pooler: repo CLAUDE.md Deployment section (decisions.md item 2). SQLite in development (session.py:14-39).
+  pg:
+    icon: logos:neon-icon
+    label: Neon PostgreSQL
+    note: PgBouncer pooler
+    evidence:
+      - backend/src/ledger_sync/db/session.py:14-39
+      - CLAUDE.md#PgBouncer
+
+edges:
+  # Upload path
+  - r-upload -> s-upload: { label: process_upload, evidence: "backend/src/ledger_sync/api/upload.py:80#process_upload" }
+  - s-upload -> c-sync: { label: import_rows, evidence: "backend/src/ledger_sync/services/upload_service.py:24#import_rows" }
+  - s-upload -> c-analytics: { label: refresh, evidence: "backend/src/ledger_sync/services/upload_service.py:33#refresh_analytics" }
+  - r-analytics -> c-analytics: { label: retry refresh, evidence: ["backend/src/ledger_sync/api/analytics_v2.py:26", "backend/src/ledger_sync/api/analytics_v2.py:46"] }
+  - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:206#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:118"] }
+  - c-sync -> s-dims: { label: attach dimensions, constraint: false, evidence: backend/src/ledger_sync/core/sync_engine.py:128#attach_ledger_dimensions }
+  - c-sync -> c-recon: { label: reconcile batches, evidence: ["backend/src/ledger_sync/core/sync_engine.py:130#reconcile_batch", "backend/src/ledger_sync/core/sync_engine.py:138"] }
+  - c-recon -> i-hash: { label: SHA-256 IDs, evidence: "backend/src/ledger_sync/core/reconciler.py:24#TransactionHasher" }
+  - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:149-160" }
+  # Analytics
+  - c-analytics -> c-rules: { label: classify, evidence: "backend/src/ledger_sync/core/analytics/summaries.py:17#is_essential_expense" }
+  - c-analytics -> orm: { label: publish rollups, evidence: "backend/src/ledger_sync/core/analytics/engine.py:287#publish_refresh" }
+  # Auth
+  - r-oauth -> s-auth: { label: login or register, evidence: "backend/src/ledger_sync/api/oauth.py:263-270#oauth_login_or_register" }
+  - s-auth -> c-tokens: { label: issue tokens, evidence: ["backend/src/ledger_sync/services/auth_refresh.py:19#create_tokens", "backend/src/ledger_sync/services/auth_refresh.py:84"] }
+  - s-auth -> orm: { label: users + refresh records, evidence: ["backend/src/ledger_sync/services/auth_service.py:185", "backend/src/ledger_sync/services/auth_refresh.py:81"] }
+  # Ledger dimensions upserts account and category rows on conflict-do-nothing.
+  - s-dims -> orm: { label: upsert dimensions, evidence: "backend/src/ledger_sync/services/ledger_dimensions.py:57" }
+  # Calculations
+  - r-calc -> s-calc: { label: bounded reads, evidence: "backend/src/ledger_sync/api/calculations.py:19" }
+  - s-calc -> orm: { label: aggregate SQL, evidence: "backend/src/ledger_sync/services/calculation_service.py:14-20" }
+  # Every member of api/ touches ORM models directly, so one group edge stands for them all:
+  # analytics v2 reads rollups (analytics_v2_impl/summaries.py:18), calculations runs SQL
+  # aggregates (calculations_impl/aggregates.py:22), OAuth consumes its audit_logs state row
+  # (oauth_state.py:111-130), AI chat writes usage reservations (ai_chat.py:120), AI tools read
+  # user-scoped rows (ai_tools.py:88), upload lists import_logs (upload.py:132) and the deps
+  # open the session and load the User (deps.py:18, deps.py:102).
+  - l-api -> orm:
+      label: routers read and write models
+      evidence:
+        - backend/src/ledger_sync/api/analytics_v2_impl/summaries.py:18
+        - backend/src/ledger_sync/api/calculations_impl/aggregates.py:22
+        - backend/src/ledger_sync/api/oauth_state.py:111-130
+        - "backend/src/ledger_sync/api/ai_chat.py:120#reserve_usage"
+        - "backend/src/ledger_sync/api/ai_tools.py:88#execute"
+        - backend/src/ledger_sync/api/upload.py:132
+        - backend/src/ledger_sync/api/deps.py:102
+  # Shared dependencies
+  # Driver
+  - orm -> pg: { label: psycopg 3, evidence: "backend/src/ledger_sync/db/session.py:14-39" }

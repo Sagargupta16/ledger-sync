@@ -1,0 +1,130 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure system-overview from .claude/orrery/plan.json, with .claude/orrery/decisions.md (2026-10-22).
+# Shown in README.md and docs/architecture.md at 880px (GitHub README column).
+# Hosts: CLAUDE.md Deployment table (sagargupta.online/ledger-sync/, ledger-sync-api.vercel.app).
+# Left out on purpose: Google Analytics beacon (frontend/index.html:4-18), GitHub Actions and the
+# Vercel Git deploy (release-delivery figure), local dev SQLite and Vite /api proxy, static
+# instrument-rate source URLs (no outbound call), browser navigation to the Pages host.
+title: Ledger Sync system overview
+subtitle: "Production: the SPA from sagargupta.online/ledger-sync/ calls ledger-sync-api.vercel.app; local dev swaps in SQLite and the Vite proxy"
+direction: right
+# No layout.aspect: 4:3 and 1:1 both reported DG219 (nearest 0.98:1) and the unset layout reviews higher.
+# Group and node order (OAuth, Neon, market data, then model providers with Bedrock first) keeps the
+# SPA's browser-direct edges below the API's fan-out: 7 crossings down to 2.
+
+layout: { spacing: compact }
+groups:
+  browser: { type: zone, label: "User's browser", evidence: "frontend/vite.config.ts:58-60" }
+  ghpages: { type: box, label: GitHub Pages, evidence: ".github/workflows/deploy-frontend.yml:97-110" }
+  # backend/vercel.json:2 regions ["sin1"]
+  vercel: { type: box, label: Vercel (sin1), icon: logos:vercel-icon, evidence: "backend/vercel.json:2-16" }
+  oauth: { type: internet, label: OAuth providers, evidence: "backend/src/ledger_sync/api/oauth_providers.py:24-31" }
+  neon: { type: box, label: Neon, evidence: "backend/src/ledger_sync/db/session.py:14-39" }
+  market:
+    type: internet
+    label: Market data
+    evidence: ["backend/src/ledger_sync/api/exchange_rates.py:28", "backend/src/ledger_sync/api/stock_price.py:23"]
+  llm: { type: internet, label: Model providers, evidence: "frontend/src/lib/chatAdapters.ts:249-250" }
+
+nodes:
+  # Stand-in: ibm:user, neutral person glyph. Evidence: brief (CLAUDE.md Deployment).
+  user: { icon: ibm:user, label: User, evidence: "CLAUDE.md#Deployment" }
+  spa:
+    icon: logos:react
+    label: Ledger Sync SPA
+    note: "React 19, Vite, PWA"
+    in: browser
+    evidence: "frontend/vite.config.ts:58-63"
+  # Stand-in: logos:pwa for Workbox (no Workbox icon).
+  sw:
+    icon: logos:pwa
+    label: Service worker
+    note: Workbox app shell only
+    in: browser
+    evidence: "frontend/vite.config.ts:64-103"
+  # Stand-in: logos:github-icon. si:githubpages is a wordmark that reads as tiny text at 880px.
+  pages:
+    icon: logos:github-icon
+    label: Static site
+    note: /ledger-sync/
+    in: ghpages
+    evidence: [".github/workflows/deploy-frontend.yml:92-110", "frontend/vite.config.ts:60"]
+  api:
+    icon: logos:fastapi-icon
+    label: FastAPI backend
+    note: Python serverless
+    in: vercel
+    evidence: ["backend/api/index.py:3", "backend/vercel.json:3-16"]
+  google:
+    icon: logos:google-icon
+    label: Google OAuth
+    in: oauth
+    evidence: ["backend/src/ledger_sync/api/oauth_providers.py:24", "backend/src/ledger_sync/api/oauth.py:61"]
+  github:
+    icon: logos:github-icon
+    label: GitHub OAuth
+    in: oauth
+    evidence: ["backend/src/ledger_sync/api/oauth_providers.py:27-28", "backend/src/ledger_sync/api/oauth.py:62-63"]
+  # Pooler: CLAUDE.md Deployment table (brief) plus session.py URL normalization.
+  db:
+    icon: logos:neon-icon
+    label: Neon PostgreSQL
+    note: PgBouncer pooler
+    in: neon
+    evidence: ["backend/src/ledger_sync/db/session.py:14-39", "backend/src/ledger_sync/db/session.py:60-66", "CLAUDE.md#Deployment"]
+  # Stand-in: tabler:currency (no Frankfurter logo).
+  fx:
+    icon: tabler:currency
+    label: Frankfurter API
+    note: exchange rates
+    in: market
+    evidence: "backend/src/ledger_sync/api/exchange_rates.py:28-32"
+  # Stand-in: logos:yahoo, the Yahoo brand mark.
+  yahoo:
+    icon: logos:yahoo
+    label: Yahoo Finance
+    note: stock prices
+    in: market
+    evidence: "backend/src/ledger_sync/api/stock_price.py:23"
+  bedrock:
+    icon: aws:bedrock
+    label: Amazon Bedrock
+    note: Converse
+    in: llm
+    evidence: "backend/src/ledger_sync/api/ai_chat_bedrock.py:185-229"
+  anthropic:
+    icon: logos:anthropic-icon
+    label: Anthropic API
+    note: BYOK
+    in: llm
+    evidence: "frontend/src/lib/chatAdapters.ts:250"
+  openai:
+    icon: logos:openai-icon
+    label: OpenAI API
+    note: BYOK
+    in: llm
+    evidence: "frontend/src/lib/chatAdapters.ts:249"
+
+edges:
+  # inferred
+  - { from: user, to: spa, label: uses, evidence: "CLAUDE.md#Deployment" }
+  # inferred: axios baseURL from VITE_API_BASE_URL
+  - from: spa
+    to: api
+    label: "HTTPS /api, JWT"
+    evidence: ["frontend/src/services/api/client.ts:201", ".github/workflows/deploy-frontend.yml:47-49#VITE_API_BASE_URL", "backend/src/ledger_sync/api/main.py:309-315"]
+  # declared: Workbox globPatterns
+  - { from: sw, to: pages, label: precache shell, evidence: "frontend/vite.config.ts:94-103" }
+  - { from: spa, to: google, label: authorize redirect, evidence: ["frontend/src/services/api/auth.ts:40", "frontend/src/services/api/auth.ts:231"] }
+  - { from: spa, to: github, label: authorize redirect, evidence: ["frontend/src/services/api/auth.ts:41", "frontend/src/services/api/auth.ts:231"] }
+  # token exchange, then Google userinfo (oauth.py:244)
+  - { from: api, to: google, label: "code exchange, profile", evidence: "backend/src/ledger_sync/api/oauth.py:227-248" }
+  # token exchange, then GitHub /user (oauth.py:311) and /user/emails (oauth.py:339)
+  - { from: api, to: github, label: "code exchange, profile", evidence: ["backend/src/ledger_sync/api/oauth.py:294-317", "backend/src/ledger_sync/api/oauth.py:334-340"] }
+  - { from: api, to: db, label: SQL, evidence: ["backend/src/ledger_sync/db/session.py:39", "backend/src/ledger_sync/api/deps.py:102"] }
+  - { from: api, to: fx, label: rates, evidence: "backend/src/ledger_sync/api/exchange_rates.py:100" }
+  - { from: api, to: yahoo, label: quotes, evidence: "backend/src/ledger_sync/api/stock_price.py:121" }
+  # app credentials, or the user's own bearer key (ai_chat_bedrock.py:188-201)
+  - { from: api, to: bedrock, label: "chat (app or BYOK key)", evidence: ["backend/src/ledger_sync/api/ai_chat_bedrock.py:229#converse", "backend/src/ledger_sync/api/ai_chat_bedrock.py:188-201"] }
+  - { from: spa, to: anthropic, label: browser-direct, evidence: "frontend/src/lib/chatAdapters.ts:381" }
+  - { from: spa, to: openai, label: browser-direct, evidence: "frontend/src/lib/chatAdapters.ts:289" }

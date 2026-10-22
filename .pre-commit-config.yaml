@@ -9,9 +9,8 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-        # Archify's generated SVGs are byte-pinned by a delivery receipt that
-        # records their sha256. Stripping whitespace here rewrites them and the
-        # receipt check (`node docs/diagrams/build.mjs --check`) then fails.
+        # The figures are rendered by orrery from the YAML specs next to them;
+        # re-render instead of editing, so the hooks leave the output alone.
         exclude: ^docs/diagrams/.*\.svg$
       - id: end-of-file-fixer
         exclude: ^docs/diagrams/.*\.svg$
@@ -21,9 +20,6 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
-        # These checked, standalone Archify viewers embed their runtime/fonts.
-        # Keep all other files subject to the ordinary 500 KB limit.
-        exclude: ^docs/diagrams/(system-architecture|statement-import|financial-calculations|release-delivery)\.html$
       - id: detect-private-key
 
   # --- Python: Ruff (lint + format) ---

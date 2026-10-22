@@ -1,12 +1,8 @@
-# Archify's machine-local browser profiles and inspection receipts.
-archify-validate-*/
-archify-visual-check-profile-*/
-*.visual-check.*
+# orrery review and patch scratch output. The committed files are the YAML
+# specs and the rendered SVGs; regenerate these locally with `orrery review`.
+*.review.json
 *.review.png
-
-# Generated interactive viewers. The committed SVGs are the diagrams; these are
-# build output from `node build.mjs`. Four near-identical 15,000-line viewers are
-# ~60,000 lines of generated markup that SonarCloud reads as new code, scoring
-# 93.3% duplication against a 3% gate and carrying every reliability finding in
-# the project. Regenerate locally instead.
+*.review.look.png
+*.candidates.json
+*.best.yaml
 *.html

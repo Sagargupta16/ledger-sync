@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure session-lifecycle from .claude/orrery/plan.json; every edge is inferred from call sites.
+# Round 1 applies the accuracy, flow and conventions reviews: endSession alone exits demo and
+# logs out, an identity change only clears session data, /me refreshes once on a 401, and the
+# 401 interceptor has its no branch and its no-refresh-token exit.
+# Restructure: the 401 round trip (got401, refresh, rotate, retry and their three exits to
+# endSession) moved to token-refresh.yaml; this figure keeps startup, sign-out and identity change.
+title: Session startup, sign-out and identity change in the SPA
+subtitle: A stored token is verified with /api/auth/me, an identity change clears session data, and every sign-out goes through endSession
+kind: flowchart
+direction: down
+
+groups:
+  lane-spa: { type: lane, label: SPA, evidence: "frontend/src/lib/session.ts:12-67" }
+  lane-be: { type: lane, label: Backend, evidence: "backend/src/ledger_sync/api/auth.py:24" }
+
+nodes:
+  boot:
+    shape: terminator
+    label: App loads
+    in: lane-spa
+    evidence: "frontend/src/App.tsx:192-194"   # useAuthInit
+  has-token:
+    shape: decision
+    label: Stored access token?
+    in: lane-spa
+    evidence: "frontend/src/hooks/api/useAuth.ts:64-68"
+  me:
+    shape: data
+    label: GET /api/auth/me
+    note: a 401 refreshes once first
+    in: lane-spa
+    evidence: ["frontend/src/hooks/api/useAuth.ts:72", "frontend/src/services/api/auth.ts:111", "frontend/src/services/api/client.ts:304-316"]
+  verify:
+    shape: process
+    label: Verify token, load user
+    in: lane-be
+    evidence: "backend/src/ledger_sync/api/auth.py:59-62"
+  me-ok:
+    shape: decision
+    label: Profile verified?
+    in: lane-spa
+    evidence: "frontend/src/hooks/api/useAuth.ts:71-81"
+  prefetch:
+    shape: process
+    label: Prefetch core data
+    note: "preferences, recurring, Data Health"
+    in: lane-spa
+    evidence: ["frontend/src/hooks/api/useAuth.ts:76", "frontend/src/lib/prefetch.ts:15-33"]
+  active:
+    shape: process
+    label: Serve authenticated requests
+    note: a 401 runs the token refresh figure
+    in: lane-spa
+    evidence: ["frontend/src/hooks/api/useAuth.ts:74-77", "frontend/src/services/api/client.ts:299-309"]
+  identity:
+    shape: decision
+    label: Identity changed?
+    note: auth store subscription
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:57-67"
+  clear:
+    shape: predefined
+    label: clearSessionData
+    note: "abort, new generation, clear caches, reset stores"
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:31-48"
+  logout:
+    shape: data
+    label: POST /api/auth/logout
+    in: lane-spa
+    evidence: ["frontend/src/services/api/auth.ts:118-124", "frontend/src/hooks/api/useAuth.ts:26-40"]
+  revoke:
+    shape: process
+    label: Bump token_version
+    in: lane-be
+    evidence: ["backend/src/ledger_sync/api/auth.py:65-74", "backend/src/ledger_sync/services/auth_service.py:197-206"]
+  end:
+    shape: predefined
+    label: endSession
+    note: "clearSessionData, exit demo, log out store"
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:50-54"
+  signedout:
+    shape: terminator
+    label: Signed out
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:52-53"
+
+edges:
+  - boot -> has-token: { evidence: "frontend/src/hooks/api/useAuth.ts:64" }
+  - has-token -> me: { label: "yes", evidence: "frontend/src/hooks/api/useAuth.ts:70-72" }
+  - has-token -> end: { label: "no", evidence: "frontend/src/hooks/api/useAuth.ts:65-67" }
+  - me -> verify: { evidence: "backend/src/ledger_sync/api/auth.py:59-62" }
+  - verify -> me-ok: { label: profile or 401, evidence: "frontend/src/hooks/api/useAuth.ts:73" }
+  - me-ok -> prefetch: { label: "yes", evidence: "frontend/src/hooks/api/useAuth.ts:74-76" }
+  - me-ok -> end: { label: "no", evidence: "frontend/src/hooks/api/useAuth.ts:78-79" }
+  - prefetch -> active: { evidence: "frontend/src/hooks/api/useAuth.ts:77" }
+  - active -> identity: { label: auth store changes, evidence: "frontend/src/lib/session.ts:65" }
+  - identity -> clear: { label: "yes", evidence: "frontend/src/lib/session.ts:66" }
+  - identity -> active: { label: "no", evidence: "frontend/src/lib/session.ts:66" }
+  - clear -> active: { label: new identity continues, evidence: "frontend/src/lib/session.ts:65-67" }
+  - active -> logout: { label: user signs out, evidence: "frontend/src/hooks/api/useAuth.ts:30-35" }
+  - logout -> revoke: { evidence: "backend/src/ledger_sync/api/auth.py:73" }
+  - revoke -> end: { label: on settle or error, evidence: ["frontend/src/hooks/api/useAuth.ts:37-38", "frontend/src/services/api/auth.ts:119-123"] }
+  - end -> signedout: { evidence: "frontend/src/lib/session.ts:50-54" }

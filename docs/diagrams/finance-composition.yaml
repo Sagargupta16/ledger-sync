@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure finance-composition from .claude/orrery/plan.json. Evidence paths are relative to the repo root.
+title: "Shared finance rules: lib/finance and its backend mirror"
+subtitle: Page hooks call pure lib/finance modules; metricRules.ts and metric_rules.py hold the same matchers, kept in step by hand
+direction: down
+layout: { spacing: compact }
+
+legend:
+  dotted: same rules kept in step by hand (no traffic)
+
+story: [h-health, f-rules, b-rules, b-analytics]
+
+groups:
+  consumers:
+    type: zone
+    label: Page hooks and views
+    evidence: frontend/src/pages
+  libfin:
+    type: zone
+    label: frontend/src/lib/finance
+    evidence: frontend/src/lib/finance/metricRules.ts
+  be-rules:
+    type: zone
+    label: backend core
+    evidence: backend/src/ledger_sync/core/metric_rules.py
+
+nodes:
+  # Page hooks, in the order their arrows enter lib/finance.
+  h-income: { icon: tabler:app-window, label: useIncomeAnalysis, in: consumers, evidence: "frontend/src/pages/income-analysis/useIncomeAnalysis.ts:23" }
+  h-dash: { icon: tabler:app-window, label: useDashboardMetrics, in: consumers, evidence: "frontend/src/hooks/useDashboardMetrics.ts:38" }
+  h-tax: { icon: tabler:app-window, label: useTaxPlanning, in: consumers, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:27" }
+  h-nw: { icon: tabler:app-window, label: useNetWorth, in: consumers, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:9-17" }
+  h-health: { icon: tabler:app-window, label: Health score analysis, in: consumers, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:10-11" }
+  h-goals: { icon: tabler:app-window, label: useGoalsState, in: consumers, evidence: "frontend/src/pages/goals/useGoalsState.ts:7" }
+  h-spend: { icon: tabler:app-window, label: useSpendingAnalysis, in: consumers, evidence: "frontend/src/pages/spending-analysis/useSpendingAnalysis.ts:30" }
+  # One node for two hooks that call the same module.
+  h-returns:
+    icon: tabler:app-window
+    label: Returns, investments
+    note: two hooks
+    in: consumers
+    evidence:
+      - "frontend/src/pages/returns-analysis/useReturnsAnalysis.ts:18"
+      - "frontend/src/pages/investment-analytics/useInvestmentAnalytics.ts:15"
+
+  # lib/finance modules.
+  f-dash: { icon: tabler:math-function, label: dashboardMetrics, in: libfin, evidence: frontend/src/lib/finance/dashboardMetrics.ts }
+  f-flows: { icon: tabler:math-function, label: investmentFlows, in: libfin, evidence: "frontend/src/lib/finance/investmentFlows.ts:1" }
+  f-taxhist: { icon: tabler:math-function, label: taxHistory, in: libfin, evidence: "frontend/src/lib/finance/taxHistory.ts:5" }
+  f-tax: { icon: tabler:math-function, label: taxPlanning, in: libfin, evidence: frontend/src/lib/finance/taxPlanning.ts }
+  f-nw: { icon: tabler:math-function, label: netWorth, in: libfin, evidence: frontend/src/lib/finance/netWorth.ts }
+  f-avg: { icon: tabler:math-function, label: monthlyAverage, in: libfin, evidence: "frontend/src/lib/finance/monthlyAverage.ts:41-86" }
+  f-rules: { icon: tabler:scale, label: metricRules.ts, in: libfin, evidence: "frontend/src/lib/finance/metricRules.ts:26-88" }
+  f-spend: { icon: tabler:math-function, label: spending, in: libfin, evidence: frontend/src/lib/finance/spending.ts }
+  f-income: { icon: tabler:math-function, label: incomeMetrics, in: libfin, evidence: frontend/src/lib/finance/incomeMetrics.ts }
+  f-returns: { icon: tabler:math-function, label: investmentReturns, in: libfin, evidence: frontend/src/lib/finance/investmentReturns.ts }
+
+  # Backend twin and its consumer.
+  b-rules: { icon: tabler:scale, label: metric_rules.py, in: be-rules, evidence: "backend/src/ledger_sync/core/metric_rules.py:66-284" }
+  b-analytics:
+    icon: tabler:chart-bar
+    label: Analytics engine
+    in: be-rules
+    evidence:
+      - "backend/src/ledger_sync/core/analytics/summaries.py:17"
+      - "backend/src/ledger_sync/core/analytics/fy_summaries.py:15"
+      - "backend/src/ledger_sync/core/analytics/classification.py:13"
+      - "backend/src/ledger_sync/core/analytics/base.py:23"
+
+edges:
+  # All call edges are inferred from imports and call sites.
+  - { from: h-dash, to: f-dash, label: calls, evidence: "frontend/src/hooks/useDashboardMetrics.ts:38#computeMonthlyChanges" }
+  - { from: h-dash, to: f-flows, label: calls, evidence: "frontend/src/hooks/useDashboardMetrics.ts:40#summarizeInvestmentTransfers" }
+  - { from: h-tax, to: f-taxhist, label: calls, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:23" }
+  - { from: h-tax, to: f-tax, label: calls, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:27#computeAnnualTaxPlanning" }
+  - { from: h-nw, to: f-nw, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:17" }
+  - { from: h-nw, to: f-avg, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:9#averageMonthlySavings" }
+  - { from: h-goals, to: f-avg, label: calls, evidence: "frontend/src/pages/goals/useGoalsState.ts:7#averageMonthlySavings" }
+  - { from: h-health, to: f-avg, label: month spine, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:11#completeMonthSpine" }
+  - { from: h-health, to: f-rules, label: essentials, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:10#isEssentialExpense" }
+  - { from: h-spend, to: f-spend, label: calls, evidence: "frontend/src/pages/spending-analysis/useSpendingAnalysis.ts:30#computeBudgetRuleMetrics" }
+  - { from: f-spend, to: f-avg, label: month spine, evidence: ["frontend/src/lib/finance/spending.ts:5#completeMonthSpine", "frontend/src/lib/finance/spending.ts:34#completeMonthSpine"] }
+  - { from: h-income, to: f-income, label: calls, evidence: "frontend/src/pages/income-analysis/useIncomeAnalysis.ts:23#computeIncomeMetrics" }
+  - { from: h-returns, to: f-returns, label: calls, evidence: "frontend/src/pages/returns-analysis/useReturnsAnalysis.ts:18#investmentReturnRules" }
+  - from: h-returns
+    to: f-flows
+    label: calls
+    evidence:
+      - "frontend/src/pages/returns-analysis/useReturnsAnalysis.ts:17#investmentAccountTest"
+      - "frontend/src/pages/investment-analytics/useInvestmentAnalytics.ts:14#investmentFlows"
+  # lib/finance modules that build on the shared matchers.
+  - { from: f-flows, to: f-rules, label: phrasePattern, evidence: "frontend/src/lib/finance/investmentFlows.ts:1#phrasePattern" }
+  - { from: f-taxhist, to: f-rules, label: salary vs bonus, evidence: "frontend/src/lib/finance/taxHistory.ts:5#classifyEmploymentIncome" }
+  # Hand-kept mirror: no import, no call, no arrowhead (metricRules.ts:60 isEssentialExpense, metric_rules.py:139 is_essential_expense).
+  - from: f-rules
+    to: b-rules
+    label: mirrors
+    line: dotted
+    arrow: none
+    evidence:
+      - "frontend/src/lib/finance/metricRules.ts:60#isEssentialExpense"
+      - "backend/src/ledger_sync/core/metric_rules.py:139#is_essential_expense"
+  # Written from b-rules with the arrow flipped, so Analytics engine sits after metric_rules.py along the flow.
+  - from: b-rules
+    to: b-analytics
+    arrow: start
+    label: classify
+    evidence:
+      - "backend/src/ledger_sync/core/analytics/summaries.py:17#is_essential_expense"
+      - "backend/src/ledger_sync/core/analytics/fy_summaries.py:15#is_tax_paid"
