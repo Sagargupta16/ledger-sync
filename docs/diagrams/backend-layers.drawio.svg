@@ -94,7 +94,7 @@ nodes:
     label: Ledger dimensions
     in: l-services
     evidence:
-      - backend/src/ledger_sync/core/sync_engine.py:188#attach_ledger_dimensions
+      - backend/src/ledger_sync/core/sync_engine.py:173#attach_ledger_dimensions
       - backend/src/ledger_sync/services/ledger_dimensions.py:189#attach_ledger_dimensions
   s-calc:
     icon: tabler:math-function
@@ -170,11 +170,11 @@ edges:
   - s-upload -> c-sync: { label: import_rows, evidence: "backend/src/ledger_sync/services/upload_service.py:24#import_rows" }
   - s-upload -> c-analytics: { label: refresh, evidence: "backend/src/ledger_sync/services/upload_service.py:33#refresh_analytics" }
   - r-analytics -> c-analytics: { label: retry refresh, evidence: ["backend/src/ledger_sync/api/analytics_v2.py:26", "backend/src/ledger_sync/api/analytics_v2.py:46"] }
-  - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:279#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:177"] }
-  - c-sync -> s-dims: { label: attach dimensions, constraint: false, evidence: backend/src/ledger_sync/core/sync_engine.py:188#attach_ledger_dimensions }
-  - c-sync -> c-recon: { label: reconcile batches, evidence: ["backend/src/ledger_sync/core/sync_engine.py:190#reconcile_batch", "backend/src/ledger_sync/core/sync_engine.py:198"] }
+  - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:297#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:228"] }
+  - c-sync -> s-dims: { label: attach dimensions, constraint: false, evidence: backend/src/ledger_sync/core/sync_engine.py:173#attach_ledger_dimensions }
+  - c-sync -> c-recon: { label: reconcile batches, evidence: ["backend/src/ledger_sync/core/sync_engine.py:175#reconcile_batch", "backend/src/ledger_sync/core/sync_engine.py:183"] }
   - c-recon -> i-hash: { label: SHA-256 IDs, evidence: "backend/src/ledger_sync/core/reconciler.py:52#TransactionHasher" }
-  - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:217-228" }
+  - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:200-205" }
   # Analytics
   - c-analytics -> c-rules: { label: classify, evidence: "backend/src/ledger_sync/core/analytics/summaries.py:17#is_essential_expense" }
   - c-analytics -> orm: { label: publish rollups, evidence: "backend/src/ledger_sync/core/analytics/engine.py:287#publish_refresh" }

@@ -79,12 +79,12 @@ nodes:
     shape: process
     label: Normalize every row
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:271-287
+    evidence: backend/src/ledger_sync/core/sync_engine.py:289-305
   rows-ok:
     shape: decision
     label: All rows valid?
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:280-285
+    evidence: backend/src/ledger_sync/core/sync_engine.py:298-303
   rej-rows:
     shape: terminator
     label: "400, ledger unchanged"
@@ -100,30 +100,30 @@ nodes:
     shape: process
     label: Capture source fingerprints
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:162-168#capture_source_identities
+    evidence: backend/src/ledger_sync/core/sync_engine.py:215-221#capture_source_identities
   rules:
     shape: process
     label: Apply rules, validate
     note: re-validated
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:169-177
+    evidence: backend/src/ledger_sync/core/sync_engine.py:222-228
   reconcile:
     shape: process
     label: Reconcile transactions, transfers
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:186-203
+    evidence: backend/src/ledger_sync/core/sync_engine.py:171-188
   rej-reconcile:
     shape: terminator
     label: "400, rolled back"
     in: lane-api
     # validation after rules (sync_engine.py:175-177) or ambiguous identities (import_identity.py), rolled back at sync_engine.py:229-231
-    evidence: [backend/src/ledger_sync/core/sync_engine.py:229-231, backend/src/ledger_sync/api/upload.py:86-91]
+    evidence: [backend/src/ledger_sync/core/sync_engine.py:206-208, backend/src/ledger_sync/api/upload.py:86-91]
   commit:
     shape: database
     label: Commit ledger + import log
     note: one unit
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:213-228
+    evidence: backend/src/ledger_sync/core/sync_engine.py:198-205
   refresh:
     shape: predefined
     label: Refresh analytics
@@ -203,7 +203,7 @@ edges:
     evidence: backend/src/ledger_sync/services/upload_service.py:23-29
   - from: normalize
     to: rows-ok
-    evidence: backend/src/ledger_sync/core/sync_engine.py:277-287
+    evidence: backend/src/ledger_sync/core/sync_engine.py:295-305
   - from: rows-ok
     to: rej-rows
     label: "no"
@@ -211,7 +211,7 @@ edges:
   - from: rows-ok
     to: dup
     label: "yes"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:289
+    evidence: backend/src/ledger_sync/core/sync_engine.py:307
   - from: dup
     to: sync-choice
     label: "yes, not forced (409)"
@@ -219,27 +219,27 @@ edges:
   - from: dup
     to: fingerprint
     label: "no, or force"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:289-299
+    evidence: backend/src/ledger_sync/core/sync_engine.py:307-317
   - from: sync-choice
     to: review
     label: force
     evidence: frontend/src/pages/upload-sync/useUploadSync.ts:178-184#handleForceReupload
   - from: fingerprint
     to: rules
-    evidence: backend/src/ledger_sync/core/sync_engine.py:168-173
+    evidence: backend/src/ledger_sync/core/sync_engine.py:221-225
   - from: rules
     to: reconcile
-    evidence: backend/src/ledger_sync/core/sync_engine.py:179-190
+    evidence: backend/src/ledger_sync/core/sync_engine.py:164-175
   - from: reconcile
     to: commit
     # rows absent from this upload are soft-deleted user-wide (sync_engine.py:213-228)
     label: soft-delete missing
-    evidence: backend/src/ledger_sync/core/sync_engine.py:213-228
+    evidence: backend/src/ledger_sync/core/sync_engine.py:198-205
   - from: reconcile
     to: rej-reconcile
     # validation after rules (sync_engine.py:175-177) or ambiguous identities (import_identity.py), 400 at api/upload.py:86-91
     label: invalid or ambiguous
-    evidence: [backend/src/ledger_sync/core/sync_engine.py:229-231, backend/src/ledger_sync/api/upload.py:86-91]
+    evidence: [backend/src/ledger_sync/core/sync_engine.py:206-208, backend/src/ledger_sync/api/upload.py:86-91]
   - from: commit
     to: refresh
     evidence: backend/src/ledger_sync/services/upload_service.py:33

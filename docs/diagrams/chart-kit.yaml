@@ -116,7 +116,7 @@ nodes:
     evidence:
       - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:78#CartesianChart"
       - "frontend/src/pages/returns-analysis/components/ReturnsMonthlyChart.tsx:140#CartesianChart"
-      - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:118#CartesianChart"
+      - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:121#CartesianChart"
       - "frontend/src/pages/trends-forecasts/components/MonthlyTrendPanel.tsx:118#CartesianChart"
       - "frontend/src/pages/trends-forecasts/components/SavingsRateSection.tsx:114#CartesianChart"
       - "frontend/src/pages/income-analysis/components/IncomeTrendSection.tsx:113#CartesianChart"
@@ -173,7 +173,7 @@ nodes:
     in: kit
     evidence:
       - "frontend/src/components/charts/Treemap.tsx:39#Treemap"
-      - "frontend/src/components/charts/Treemap.tsx:189#ChartFrame"
+      - "frontend/src/components/charts/Treemap.tsx:187#ChartFrame"
   sankey:
     icon: tabler:chart-sankey
     label: SankeyDiagram
@@ -260,7 +260,7 @@ edges:
     evidence:
       - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:151#ChartBrush"
       - "frontend/src/pages/returns-analysis/components/ReturnsMonthlyChart.tsx:177#ChartBrush"
-      - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:152#ChartBrush"
+      - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:155#ChartBrush"
       - "frontend/src/pages/income-analysis/components/IncomeTrendSection.tsx:138#ChartBrush"
       - "frontend/src/pages/spending-analysis/components/ExpenseTrendSection.tsx:147#ChartBrush"
       - "frontend/src/pages/trends-forecasts/components/MonthlyTrendSection.tsx:112#ChartBrush"
@@ -277,7 +277,7 @@ edges:
     label: scales via context
     evidence: "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
   - { from: pie, to: frame, evidence: "frontend/src/components/charts/PieChart.tsx:95#ChartFrame" }
-  - { from: treemap, to: frame, evidence: "frontend/src/components/charts/Treemap.tsx:189#ChartFrame" }
+  - { from: treemap, to: frame, evidence: "frontend/src/components/charts/Treemap.tsx:187#ChartFrame" }
   - { from: sankey, to: frame, evidence: "frontend/src/components/charts/SankeyDiagram.tsx:91#ChartFrame" }
   - { from: slope, to: frame, evidence: "frontend/src/components/charts/SlopeChart.tsx:81#ChartFrame" }
 
@@ -286,9 +286,9 @@ edges:
     to: motion
     label: animates with
     evidence:
-      - "frontend/src/components/charts/Bars.tsx:79#chartTransition"
-      - "frontend/src/components/charts/Bars.tsx:88#motion"
-      - "frontend/src/components/charts/PieChart.tsx:174#chartTransition"
+      - "frontend/src/components/charts/Bars.tsx:80#chartTransition"
+      - "frontend/src/components/charts/Bars.tsx:89#motion"
+      - "frontend/src/components/charts/PieChart.tsx:175#chartTransition"
       - "frontend/src/components/charts/SankeyDiagram.tsx:27#CHART_MOTION"
       - "frontend/src/components/charts/ChartBrush.tsx:198#chartTransition"
       - "frontend/src/components/charts/TreemapMarks.tsx:110#chartTransition"

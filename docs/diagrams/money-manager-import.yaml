@@ -133,7 +133,7 @@ nodes:
     in: lane-api
     evidence:
       - backend/src/ledger_sync/core/source_identity.py:43#match_source_uids
-      - backend/src/ledger_sync/core/source_identity.py:84#adopt_edited_source_rows
+      - backend/src/ledger_sync/core/source_identity.py:89#adopt_edited_source_rows
       - backend/src/ledger_sync/core/import_identity.py:171-205#load_identity_matches
       - backend/src/ledger_sync/core/reconciler.py:114#load_identity_matches
   unchanged:
@@ -148,20 +148,20 @@ nodes:
     in: lane-api
     evidence:
       - backend/src/ledger_sync/core/sync_engine.py:67-68#_deletion_allowance
-      - backend/src/ledger_sync/core/sync_engine.py:205-206#LargeDeletionError
+      - backend/src/ledger_sync/core/sync_engine.py:190-191#LargeDeletionError
       - backend/src/ledger_sync/services/money_manager_import.py:64#guard_deletions
   dry:
     shape: decision
     label: Dry run?
     note: preview rolls back
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:207-209#dry_run
+    evidence: backend/src/ledger_sync/core/sync_engine.py:192-194#dry_run
   rej-large:
     shape: terminator
     label: "409, rolled back"
     in: lane-api
     evidence:
-      - backend/src/ledger_sync/core/sync_engine.py:229-231#rollback
+      - backend/src/ledger_sync/core/sync_engine.py:206-208#rollback
       - backend/src/ledger_sync/api/money_manager_upload.py:78-80#LargeDeletionError
   commit:
     shape: database
@@ -169,7 +169,7 @@ nodes:
     note: "+ account settings, one unit"
     in: lane-api
     evidence:
-      - backend/src/ledger_sync/core/sync_engine.py:210-228#commit
+      - backend/src/ledger_sync/core/sync_engine.py:195-205#commit
       - backend/src/ledger_sync/services/money_manager_import.py:65#apply_account_settings
       - backend/src/ledger_sync/services/money_manager_import.py:89#apply_account_settings
   refresh:
@@ -236,26 +236,26 @@ edges:
     evidence: backend/src/ledger_sync/services/money_manager_import.py:69-71#import_rows
   - from: reconcile
     to: large
-    evidence: backend/src/ledger_sync/core/sync_engine.py:189-206
+    evidence: backend/src/ledger_sync/core/sync_engine.py:174-191
   - from: large
     to: rej-large
     label: "yes"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:205-206#LargeDeletionError
+    evidence: backend/src/ledger_sync/core/sync_engine.py:190-191#LargeDeletionError
   - from: large
     to: dry
     label: "no"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:207
+    evidence: backend/src/ledger_sync/core/sync_engine.py:192
   - from: dry
     to: review
     label: "yes: 200 preview"
     evidence:
-      - backend/src/ledger_sync/core/sync_engine.py:207-209#rollback
+      - backend/src/ledger_sync/core/sync_engine.py:192-194#rollback
       - backend/src/ledger_sync/services/money_manager_import.py:75-76#preview
       - frontend/src/pages/upload-sync/useMoneyManagerImport.ts:75-78#preview
   - from: dry
     to: commit
     label: "no"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:210-228
+    evidence: backend/src/ledger_sync/core/sync_engine.py:195-205
   - from: commit
     to: refresh
     evidence: backend/src/ledger_sync/services/money_manager_import.py:77-79#refresh_analytics
