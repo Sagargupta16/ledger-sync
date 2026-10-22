@@ -18,6 +18,7 @@ import IncomeClassificationSection from './sections/IncomeClassificationSection'
 import CategorizationRulesSection from './sections/CategorizationRulesSection'
 import InvestmentMappingsSection from './sections/InvestmentMappingsSection'
 import AdvancedSection from './sections/AdvancedSection'
+import UploadTokensSection from './sections/UploadTokensSection'
 
 export default function SettingsPage() {
   const s = useSettingsState()
@@ -277,7 +278,7 @@ export default function SettingsPage() {
 
         {s.localPrefs && (
           <AdvancedSection
-            index={sectionIndex}
+            index={sectionIndex++}
             localPrefs={s.localPrefs}
             accounts={s.accounts}
             creditCardAccounts={s.creditCardAccounts}
@@ -286,6 +287,8 @@ export default function SettingsPage() {
             updateLocalPref={s.updateLocalPref}
           />
         )}
+
+        <UploadTokensSection index={sectionIndex} />
         </fieldset>
 
         <ConfirmDialog

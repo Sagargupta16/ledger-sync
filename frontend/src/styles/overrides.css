@@ -44,8 +44,7 @@ html[data-motion='reduced'] *::after {
   transition: none !important;
 }
 
-html[data-motion='reduced'] .animate-fade-up,
-html[data-motion='reduced'] .heatmap-week-appear {
+html[data-motion='reduced'] .animate-fade-up {
   opacity: 1 !important;
   transform: none !important;
 }

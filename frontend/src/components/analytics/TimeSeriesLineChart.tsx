@@ -1,7 +1,8 @@
 /**
  * Multi-series line chart over time on the in-house chart kit: each series
  * draws in left to right after the one before, morphs when the data changes,
- * and long series get range presets above and a drag brush below.
+ * and long series get range presets above and a drag brush below. With two or
+ * more series the legend toggles each one and the rest morph to the new axis.
  */
 
 import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
@@ -20,6 +21,8 @@ import { useChartRange } from '@/components/ui/useChartRange'
 import { chartDateKey, formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
+
+import { useHiddenSeries } from './standardBarChartParts'
 
 interface TimeSeriesLineChartProps {
   readonly chartData: Array<Record<string, number | string>>
@@ -48,6 +51,8 @@ export default function TimeSeriesLineChart({
     ? 'period'
     : 'displayPeriod'
   const range = useChartRange(chartData.map((row) => String(row[dateKey] ?? '')))
+  const toggles = seriesKeys.length > 1
+  const [hidden, toggleSeries] = useHiddenSeries(seriesKeys, toggles)
 
   if (chartData.length === 0 || seriesKeys.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -56,6 +61,9 @@ export default function TimeSeriesLineChart({
   const colorFor = (index: number) => colors[index % colors.length] ?? SEMANTIC_COLORS.investment
   const latest = chartData.at(-1)
   const zoomable = chartData.length > ZOOM_AFTER
+  // Hidden series leave the scales and the tooltip; the legend, brush and table keep them all. Each
+  // series keeps its index, so its colour and entrance timing never shift with what is hidden.
+  const plotted = seriesKeys.flatMap((key, index) => (hidden.has(key) ? [] : [{ key, index }]))
 
   return (
     <>
@@ -67,23 +75,25 @@ export default function TimeSeriesLineChart({
           value: typeof latest?.[key] === 'number' ? formatCurrency(latest[key]) : undefined,
         }))}
         caption={latest?.[dateKey] ? `Latest: ${formatChartDate(String(latest[dateKey]))}` : undefined}
+        hidden={hidden}
+        onToggle={toggles ? toggleSeries : undefined}
       />
       {zoomable && <ChartRangeControls range={range} />}
       <CartesianChart
         data={chartData}
         categoryKey={dateKey}
-        series={seriesKeys.map((key) => ({ key }))}
+        series={plotted.map(({ key }) => ({ key }))}
         visibleRange={zoomable ? range : undefined}
         height={height}
         ariaLabel={ariaLabel}
-        tooltip={<LargestFirstTooltip series={seriesKeys.map((key, index) => ({ key, label: key, color: colorFor(index) }))} />}
+        tooltip={<LargestFirstTooltip series={plotted.map(({ key, index }) => ({ key, label: key, color: colorFor(index) }))} />}
       >
         <Grid />
         <Crosshair />
         {/* Draws the zero line itself once a negative value pulls the axis below 0. */}
         <ValueAxis />
         <CategoryAxis tickFormatter={(key) => formatChartPeriod(key)} interval="preserveStartEnd" />
-        {seriesKeys.map((key, index) => (
+        {plotted.map(({ key, index }) => (
           <LineSeries key={key} dataKey={key} color={colorFor(index)} seriesIndex={index} />
         ))}
       </CartesianChart>

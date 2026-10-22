@@ -11,7 +11,10 @@ import { getApiErrorMessage } from '@/lib/errorUtils'
 import { assertCurrentSession, getSessionSignal, isCurrentSession } from '@/lib/session'
 import { uploadService } from '@/services/api/upload'
 
-export type UploadPhase = 'parsing' | 'review' | 'processing' | 'analytics' | null
+import { isMoneyManagerBackup } from './moneyManagerUtils'
+import { useMoneyManagerImport } from './useMoneyManagerImport'
+
+export type UploadPhase = 'parsing' | 'previewing' | 'review' | 'processing' | 'analytics' | null
 
 export interface UploadReview {
   readonly parsed: ParseResult
@@ -67,6 +70,7 @@ export function useUploadSync() {
   const queryClient = useQueryClient()
   const busy = useRef(false)
   const { guardDemoAction } = useDemoGuard()
+  const backup = useMoneyManagerImport({ busyRef: busy, setPhase, setSelectedFileName, setSuccess })
 
   const uploadParsedFile = async (parsed: ParseResult, force: boolean) => {
     if (busy.current) return
@@ -133,6 +137,15 @@ export function useUploadSync() {
 
   const handleFileSelect = async (file: File) => {
     if (busy.current || guardDemoAction('File upload')) return
+    backup.clear()
+    if (isMoneyManagerBackup(file)) {
+      setReview(null)
+      setConflict(null)
+      setFailure(null)
+      setSuccess(null)
+      await backup.selectBackup(file)
+      return
+    }
 
     busy.current = true
     setReview(null)
@@ -150,7 +163,7 @@ export function useUploadSync() {
       setSelectedFileName(null)
       const message = error instanceof FileParseError
         ? error.message
-        : 'Could not read file. Ensure it is a valid .xlsx, .xls, or .csv file.'
+        : 'Could not read file. Ensure it is a valid .xlsx, .xls, or .csv file, or a Money Manager .mmbak backup.'
       toast.error('Parse Error', { description: message, duration: 6000 })
       setFailure({ parsed: null, fileName: file.name, message, force: false })
       return
@@ -225,6 +238,7 @@ export function useUploadSync() {
     selectedFileName,
     phase,
     isBusy: phase !== null && phase !== 'review',
+    backup,
     handleFileSelect,
     handleForceReupload,
     handleRetryUpload,

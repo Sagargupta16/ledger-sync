@@ -1,7 +1,8 @@
 /**
  * Reusable area chart: gradient-filled series that draw in left to right and
  * morph with the data, on the in-house chart kit. Optional stacking, reference
- * lines and plot-only range zoom (presets above, a drag brush below).
+ * lines and plot-only range zoom (presets above, a drag brush below). With two
+ * or more series the legend toggles each one and the rest morph to the new axis.
  *
  * Usage:
  *   <StandardAreaChart
@@ -29,6 +30,8 @@ import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
+
+import { useHiddenSeries } from './standardBarChartParts'
 
 interface AreaConfig {
   key: string
@@ -96,6 +99,8 @@ export default function StandardAreaChart({
 }: StandardAreaChartProps) {
   const rows = data as readonly Record<string, unknown>[]
   const range = useChartRange(rows.map((row) => chartCellText(row[dataKey])))
+  const toggles = showLegend && areas.length > 1
+  const [hidden, toggleSeries] = useHiddenSeries(areas.map((area) => area.key), toggles)
   const formatLabel = tooltipLabelFormatter ?? formatChartDate
   const formatTick = xTickFormatter ?? ((value: string) => formatChartPeriod(value))
 
@@ -108,6 +113,8 @@ export default function StandardAreaChart({
   const latestLabel = chartCellText(latest?.[dataKey])
   const zoomable = showBrush && data.length > 4
   const labelOf = (area: AreaConfig) => area.label ?? area.key
+  // Hidden series leave the scales, the stack and the tooltip; the legend, brush and table keep them all.
+  const shown = areas.filter((area) => !hidden.has(area.key))
 
   return (
     <>
@@ -123,13 +130,15 @@ export default function StandardAreaChart({
             }
           })}
           caption={latestLabel ? `Latest: ${formatLabel(latestLabel)}` : undefined}
+          hidden={hidden}
+          onToggle={toggles ? toggleSeries : undefined}
         />
       )}
       {zoomable && <ChartRangeControls range={range} />}
       <CartesianChart
         data={data}
         categoryKey={dataKey}
-        series={areas.map((area) => ({ key: area.key, stackId: stacked ? 'stack' : area.stackId }))}
+        series={shown.map((area) => ({ key: area.key, stackId: stacked ? 'stack' : area.stackId }))}
         // Reference values widen the axis so their lines stay on the plot.
         extraValues={referenceLines?.flatMap((ref) => (ref.y === undefined ? [] : [ref.y]))}
         visibleRange={zoomable ? range : undefined}
@@ -138,7 +147,7 @@ export default function StandardAreaChart({
         ariaLabel={ariaLabel}
         tooltip={(
           <CartesianTooltip
-            series={areas.map((area) => ({ key: area.key, label: labelOf(area), color: area.color }))}
+            series={shown.map((area) => ({ key: area.key, label: labelOf(area), color: area.color }))}
             formatLabel={formatLabel}
             formatValue={formatValue}
           />
@@ -149,7 +158,8 @@ export default function StandardAreaChart({
         {/* A caller's own y=0 line replaces the axis' automatic zero line. */}
         <ValueAxis zeroLine={!referenceLines?.some((ref) => ref.y === 0)} />
         <CategoryAxis tickFormatter={formatTick} angle={xAngle} interval="preserveStartEnd" />
-        {areas.map((area, index) => (
+        {/* Each series keeps its index, so its entrance timing never shifts with what is hidden. */}
+        {areas.map((area, index) => (hidden.has(area.key) ? null : (
           <AreaSeries
             key={area.key}
             dataKey={area.key}
@@ -161,7 +171,7 @@ export default function StandardAreaChart({
             showFill={area.showFill}
             seriesIndex={index}
           />
-        ))}
+        )))}
         {referenceLines?.map((ref) => (
           <ReferenceLine
             key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}

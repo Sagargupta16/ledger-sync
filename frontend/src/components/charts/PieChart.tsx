@@ -1,7 +1,7 @@
 /**
  * Animated SVG pie and donut, replacing Recharts' <Pie>. Once in view the slices sweep open clockwise
  * from 12 o'clock in sequence; on a data change they tween their angles (never their path strings).
- * The active slice (hover, tap, arrow keys, or a legend via `activeKey`) springs out while the rest dim.
+ * The active slice (hover, tap, arrow keys, Home and End, or a legend via `activeKey`) springs out while the rest dim.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -73,11 +73,9 @@ export default function PieChart({
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') setActive(null)
     if (event.key === 'Enter' && current && current.selectable !== false) onSelect?.(current.key)
-    const step = STEPS[event.key]
-    if (step === undefined || slices.length === 0) return
+    const next = sliceForKey(event.key, current ? slices.indexOf(current) : -1, slices.length)
+    if (next === undefined) return
     event.preventDefault()
-    const from = current ? slices.indexOf(current) : -1
-    const next = from === -1 && step < 0 ? slices.length - 1 : (from + step + slices.length) % slices.length
     setActive(slices[next].key)
   }
   // The label box is sized in CSS from the overlay's own size (cqmin), so it needs no measuring.
@@ -214,4 +212,18 @@ function wedge(geo: Geometry, padAngle: number, start: number, end: number, lift
     cx: geo.cx + pop * Math.sin(mid), cy: geo.cy - pop * Math.cos(mid), innerRadius: geo.inner,
     outerRadius: geo.outer + GROW * lift, startAngle: start, endAngle: end, padAngle,
   })
+}
+
+/**
+ * The slice a key moves to from `from` (-1 when none is active), or undefined for keys left to the
+ * page. Arrows wrap around the ring, a first Right landing on the first slice and a first Left on
+ * the last; Home and End jump to the first and last slice.
+ */
+function sliceForKey(key: string, from: number, count: number): number | undefined {
+  const step = STEPS[key]
+  if (count === 0) return undefined
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  if (step === undefined) return undefined
+  return from === -1 && step < 0 ? count - 1 : (from + step + count) % count
 }

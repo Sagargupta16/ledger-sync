@@ -14,6 +14,7 @@ import { KpiCard } from './components/KpiCard'
 import { OverviewMetricRow } from './components/OverviewMetricRow'
 import { QuickStat } from './components/QuickStat'
 import { SpendingDistribution } from './components/SpendingDistribution'
+import { CategorySlopeChart } from './components/CategorySlopeChart'
 import { CategorySection } from './components/CategorySection'
 
 const COMPARISON_MODES = [
@@ -210,6 +211,9 @@ export default function ComparisonPage() {
 
       {/* Spending Distribution (Butterfly Chart) */}
       <SpendingDistribution periodA={periodA} periodB={periodB} distributionA={distributionA} distributionB={distributionB} />
+
+      {/* Category Ranks (Slope Chart) */}
+      <CategorySlopeChart deltas={expenseDeltas} periodA={periodA} periodB={periodB} />
 
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 gap-6">

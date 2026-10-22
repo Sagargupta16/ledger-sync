@@ -2,8 +2,12 @@
  * Pure helpers behind `StandardBarChart`: bar paint and grouping, the baseline
  * statistic, reference-line mapping and the screen-reader table. Kept out of
  * the component so each rule can be tested without painting the chart. Not a
- * public API -- import from the chart instead.
+ * public API -- import from the chart instead. Also holds `useHiddenSeries`,
+ * the legend-toggle state StandardAreaChart and TimeSeriesLineChart share; a
+ * component file may not export a hook (react-refresh/only-export-components).
  */
+
+import { useState } from 'react'
 
 import type { ChartRow } from '@/components/charts/chartContext'
 import type { ReferenceLineProps, ReferenceLineVariant } from '@/components/charts/References'
@@ -192,4 +196,26 @@ function axisLabel(value: unknown): string {
   }
   if (typeof value === 'symbol') return value.toString()
   return JSON.stringify(value) ?? ''
+}
+
+const NO_KEYS: ReadonlySet<string> = new Set()
+
+/**
+ * The series a toggling legend has switched off, and the toggle to pass it.
+ * Nothing resets with new data: a hidden key that leaves `keys` is dropped, so
+ * it comes back shown, and if no listed series would be left they all show
+ * again. Hides nothing unless `toggles` (the legend is on screen and toggles).
+ */
+export function useHiddenSeries(keys: readonly string[], toggles: boolean) {
+  const [hidden, setHidden] = useState(NO_KEYS)
+  const kept = [...hidden].filter((key) => keys.includes(key))
+  const next = kept.length < keys.length ? kept : []
+  // Adjusted during render, React's pattern for state that follows props.
+  if (next.length < hidden.size) setHidden(new Set(next))
+  const toggle = (key: string) => setHidden((current) => {
+    const flipped = new Set(current)
+    if (!flipped.delete(key)) flipped.add(key)
+    return flipped
+  })
+  return [toggles ? hidden : NO_KEYS, toggle] as const
 }

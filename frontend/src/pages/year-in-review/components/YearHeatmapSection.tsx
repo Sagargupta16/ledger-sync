@@ -1,9 +1,7 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 
 import { motion } from 'motion/react'
 import { Flame } from 'lucide-react'
-
-import { addDaysToKey } from '@/lib/dateUtils'
 
 import { DAYS, MONTHS_SHORT, modeAccent } from '../types'
 import type { useYearInReview } from '../useYearInReview'
@@ -12,6 +10,8 @@ import HeatmapDayDetail from './HeatmapDayDetail'
 import HeatmapLegend from './HeatmapLegend'
 import HeatmapWeeks from './HeatmapWeeks'
 import MobileMonthlySummary from './MobileMonthlySummary'
+import { useHeatmapControls } from './useHeatmapControls'
+import { useHeatmapMotion } from './useHeatmapMotion'
 
 type YearReviewState = ReturnType<typeof useYearInReview>
 
@@ -25,50 +25,30 @@ const MODE_LABELS = {
   net: 'Savings',
 } as const
 
-function moveHeatmapFocus(
-  event: KeyboardEvent<HTMLButtonElement>,
-  onMove: (date: string) => void,
-) {
-  const currentCell = event.currentTarget
-  const heatmap = currentCell.closest<HTMLElement>('[data-heatmap-grid]')
-  if (!heatmap) return
-
-  const enabledCells = Array.from(
-    heatmap.querySelectorAll<HTMLButtonElement>(
-      'button[data-cell-date]:not(:disabled)',
-    ),
-  )
-  let nextCell: HTMLButtonElement | undefined
-  let dayDelta = 0
-
-  if (event.key === 'ArrowRight') dayDelta = 7
-  else if (event.key === 'ArrowLeft') dayDelta = -7
-  else if (event.key === 'ArrowDown') dayDelta = 1
-  else if (event.key === 'ArrowUp') dayDelta = -1
-  else if (event.key === 'Home') nextCell = enabledCells[0]
-  else if (event.key === 'End') nextCell = enabledCells.at(-1)
-  else return
-
-  if (dayDelta !== 0 && currentCell.dataset.cellDate) {
-    const targetDate = addDaysToKey(currentCell.dataset.cellDate, dayDelta)
-    nextCell = enabledCells.find((cell) => cell.dataset.cellDate === targetDate)
-  }
-  if (!nextCell) return
-
-  event.preventDefault()
-  const nextDate = nextCell.dataset.cellDate
-  if (!nextDate) return
-
-  onMove(nextDate)
-  nextCell.focus()
+/**
+ * Scrolls a grid wider than its box so the newest day that has happened sits
+ * at the right edge: this week in the current year, December in a past one.
+ */
+function scrollToNewestWeek(scroller: HTMLElement | null) {
+  if (!scroller) return
+  const days = scroller.querySelectorAll('button[data-cell-date]:not(:disabled)')
+  // The week column, not the cell: a cell waiting to wave in is scaled down.
+  const column = days[days.length - 1]?.parentElement
+  if (!column) return
+  scroller.scrollLeft += column.getBoundingClientRect().right - scroller.getBoundingClientRect().right
 }
 
 export default function YearHeatmapSection({
   review,
 }: YearHeatmapSectionProps) {
   const modeLabel = MODE_LABELS[review.mode]
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-  const [keyboardDate, setKeyboardDate] = useState<string | null>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const timing = useHeatmapMotion(scrollerRef)
+  const controls = useHeatmapControls(review)
+  const { selectedMonth } = controls
+  // Every period opens on its newest week, the way a phone shows the grid.
+  const periodStart = review.grid[0]?.date
+  useLayoutEffect(() => scrollToNewestWeek(scrollerRef.current), [periodStart])
   const monthlyDetail =
     selectedMonth == null
       ? null
@@ -95,17 +75,28 @@ export default function YearHeatmapSection({
             {modeLabel} Heatmap -- {review.periodLabel}
           </span>
         </h2>
-        <HeatmapLegend mode={review.mode} />
+        {/* Phones get month tiles, not the grid (its cells are far below a 44px target), so the legend stays a key there. */}
+        <div className="lg:hidden">
+          <HeatmapLegend mode={review.mode} />
+        </div>
+        <div className="hidden lg:block">
+          <HeatmapLegend
+            mode={review.mode}
+            highlightKey={controls.highlightKey}
+            onToggle={controls.toggleHighlight}
+          />
+        </div>
       </div>
       <p className="mb-6 hidden text-sm text-muted-foreground lg:block">
-        Each square is one day. Focus a day and use the arrow keys to explore its figures.
+        Each square is one day. Focus a day and use the arrow keys to explore its figures, or press
+        a legend swatch to highlight one level.
       </p>
       <p className="mb-5 text-sm text-muted-foreground lg:hidden">
         Select a month to see its spending, income, and net cash flow.
       </p>
 
       <div className="hidden lg:block">
-        <div className="overflow-x-auto">
+        <div ref={scrollerRef} className="overflow-x-auto pr-1 pb-1">
           <div className="min-w-[820px]">
             <div className="mb-1 ml-10 flex">
               {review.monthLabels.map((label) => (
@@ -139,44 +130,41 @@ export default function YearHeatmapSection({
               <section
                 className="flex gap-0.5"
                 data-heatmap-grid
-                aria-label={`${modeLabel} heatmap grid. Use arrow keys to move between days.`}
+                aria-label={`${modeLabel} heatmap grid. Use arrow keys to move between days, Enter to select one and Escape to clear.`}
               >
                 <HeatmapWeeks
                   grid={review.grid}
                   mode={review.mode}
                   modeMax={review.modeMax}
-                  keyboardDate={keyboardDate}
-                  onCellKeyDown={(event) => moveHeatmapFocus(event, setKeyboardDate)}
-                  onCellMouseEnter={(cell) => {
-                    setSelectedMonth(null)
-                    setKeyboardDate(cell.date)
-                    review.setHoveredDay(cell)
-                  }}
-                  onCellMouseLeave={() => review.setHoveredDay(null)}
-                  onCellFocus={(cell) => {
-                    setSelectedMonth(null)
-                    review.setHoveredDay(cell)
-                  }}
-                  onCellBlur={() => review.setHoveredDay(null)}
+                  keyboardDate={controls.keyboardDate}
+                  selectedDate={controls.selectedDay?.date}
+                  highlightKey={controls.highlightKey}
+                  timing={timing}
+                  handlers={controls.handlers}
                 />
               </section>
             </div>
           </div>
         </div>
       </div>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {controls.announcement}
+      </p>
 
       <MobileMonthlySummary
         mode={review.mode}
         monthlyExpense={review.stats.monthlyExpense}
         monthlyIncome={review.stats.monthlyIncome}
         selectedMonth={selectedMonth}
-        onSelectMonth={(monthIndex) =>
-          setSelectedMonth(selectedMonth === monthIndex ? null : monthIndex)
-        }
+        onSelectMonth={controls.selectMonth}
       />
 
       <div className="mt-5 flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4 text-sm tabular-nums sm:gap-x-6">
-        <HeatmapDayDetail hoveredDay={review.hoveredDay} monthlyDetail={monthlyDetail} />
+        <HeatmapDayDetail
+          hoveredDay={review.hoveredDay}
+          selectedDay={controls.selectedDay}
+          monthlyDetail={monthlyDetail}
+        />
       </div>
     </motion.section>
   )

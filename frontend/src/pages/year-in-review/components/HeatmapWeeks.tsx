@@ -1,21 +1,21 @@
-import type { KeyboardEventHandler } from 'react'
-
 import { getTodayKey } from '@/lib/dateUtils'
 
 import type { DayCell } from './DayOfWeekChart'
 import type { HeatmapMode } from '../types'
 import HeatmapCell from './HeatmapCell'
+import type { HeatmapLevelKey } from './heatmapLevels'
+import type { HeatmapCellHandlers } from './useHeatmapControls'
+import type { HeatmapMotion } from './useHeatmapMotion'
 
 interface Props {
   grid: DayCell[]
   mode: HeatmapMode
   modeMax: number
   keyboardDate?: string | null
-  onCellKeyDown?: KeyboardEventHandler<HTMLButtonElement>
-  onCellMouseEnter?: (cell: DayCell) => void
-  onCellMouseLeave?: () => void
-  onCellFocus?: (cell: DayCell) => void
-  onCellBlur?: () => void
+  selectedDate?: string | null
+  highlightKey?: HeatmapLevelKey | null
+  timing?: HeatmapMotion
+  handlers?: HeatmapCellHandlers
 }
 
 export default function HeatmapWeeks({
@@ -23,11 +23,10 @@ export default function HeatmapWeeks({
   mode,
   modeMax,
   keyboardDate,
-  onCellKeyDown,
-  onCellMouseEnter,
-  onCellMouseLeave,
-  onCellFocus,
-  onCellBlur,
+  selectedDate,
+  highlightKey,
+  timing,
+  handlers,
 }: Readonly<Props>) {
   const totalWeeks = grid.length > 0 ? (grid.at(-1)?.weekIndex ?? 52) + 1 : 53
   const todayKey = getTodayKey()
@@ -40,26 +39,24 @@ export default function HeatmapWeeks({
   for (let w = 0; w < totalWeeks; w++) {
     const weekCells = grid.filter((c) => c.weekIndex === w)
     weeks.push(
-      <div
-        key={w}
-        className="heatmap-week-appear flex flex-col gap-0.5"
-        style={{ animationDelay: `${w * 12}ms` }}
-      >
+      <div key={w} className="flex flex-col gap-0.5">
         {Array.from({ length: 7 }, (_, dow) => {
           const cell = weekCells.find((c) => c.dayOfWeek === dow)
           if (!cell) return <div key={dow} className="w-[13px] h-[13px]" />
+          // Keyed by grid position, not date: a new period reuses the element,
+          // so its colour sweeps to the new value instead of remounting.
           return (
             <HeatmapCell
-              key={cell.date}
+              key={dow}
               cell={cell}
               mode={mode}
               modeMax={modeMax}
               isKeyboardAnchor={cell.date === keyboardAnchor?.date}
-              onKeyDown={onCellKeyDown}
-              onMouseEnter={() => onCellMouseEnter?.(cell)}
-              onMouseLeave={onCellMouseLeave}
-              onFocus={() => onCellFocus?.(cell)}
-              onBlur={onCellBlur}
+              isSelected={cell.date === selectedDate}
+              highlightKey={highlightKey}
+              timing={timing}
+              totalWeeks={totalWeeks}
+              {...handlers}
             />
           )
         })}

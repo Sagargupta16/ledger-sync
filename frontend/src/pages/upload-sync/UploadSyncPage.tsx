@@ -1,6 +1,8 @@
 import { PageContainer, PageHeader } from '@/components/ui'
 
 import ImportHistory from './components/ImportHistory'
+import MoneyManagerNotice from './components/MoneyManagerNotice'
+import MoneyManagerReview from './components/MoneyManagerReview'
 import UploadDropzone from './components/UploadDropzone'
 import UploadFeedback from './components/UploadFeedback'
 import UploadFormatPreview from './components/UploadFormatPreview'
@@ -16,6 +18,7 @@ export default function UploadSyncPage() {
     selectedFileName,
     phase,
     isBusy,
+    backup,
     handleFileSelect,
     handleForceReupload,
     handleRetryUpload,
@@ -47,6 +50,12 @@ export default function UploadSyncPage() {
           onRetryUpload={handleRetryUpload}
           onRetryAnalytics={handleRetryAnalytics}
         />
+        <MoneyManagerNotice
+          notice={backup.notice}
+          isBusy={isBusy}
+          onForceReimport={backup.forceReimport}
+          onRetry={backup.retry}
+        />
         {review && (
           <UploadReview
             key={`${review.parsed.fileHash}-${review.force}`}
@@ -54,6 +63,15 @@ export default function UploadSyncPage() {
             isBusy={isBusy}
             onConfirm={handleConfirmUpload}
             onCancel={handleCancelReview}
+          />
+        )}
+        {backup.review && (
+          <MoneyManagerReview
+            key={`${backup.review.fileName}-${backup.review.force}`}
+            review={backup.review}
+            isBusy={isBusy}
+            onConfirm={backup.confirm}
+            onCancel={backup.cancel}
           />
         )}
         <ImportHistory />

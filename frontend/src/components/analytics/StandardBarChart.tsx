@@ -2,8 +2,8 @@
  * Reusable bar chart on the in-house chart kit: columns over time, or a ranking
  * (`layout="vertical"`), with one or more series side by side or stacked. Once
  * the chart scrolls into view the bars grow out of the zero line in a stagger,
- * each later side-by-side series a beat behind the first; a data or zoom change
- * then morphs them, and negative values grow downward.
+ * each later side-by-side series a beat behind the first; new data, a zoom or a
+ * legend toggle then morphs them, and negative values grow downward.
  *
  * Usage:
  *   <StandardBarChart
@@ -36,7 +36,7 @@ import { formatChartDate } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
 
 import {
-  barFill, barSlots, baselineValue, leadSeries, referenceLineProps, renderBarDataTable,
+  barFill, barSlots, baselineValue, leadSeries, referenceLineProps, renderBarDataTable, useHiddenSeries,
   type BarConfig, type BaselineProp, type ReferenceLineConfig,
 } from './standardBarChartParts'
 
@@ -133,6 +133,8 @@ export default function StandardBarChart({
   rowHeaderLabel,
 }: StandardBarChartProps) {
   const isMobile = useIsMobile()
+  const toggles = showLegend && bars.length > 1
+  const [hidden, toggleSeries] = useHiddenSeries(bars.map((bar) => bar.key), toggles)
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -142,7 +144,9 @@ export default function StandardBarChart({
   // Row label comes from the category axis, which swaps sides with the layout.
   const labelKey = isRanking ? (yCategoryKey ?? dataKey) : dataKey
   const [categoryFormat, valueFormat] = isRanking ? [yTickFormatter, xTickFormatter] : [xTickFormatter, yTickFormatter]
-  const slots = barSlots(bars, stacked)
+  // Hidden series leave the scales, the stacks and the tooltip; the legend, baseline, brush and table keep them all.
+  const shown = bars.filter((bar) => !hidden.has(bar.key))
+  const slots = barSlots(shown, stacked)
   const typical = baselineValue(baseline, data, bars, layout)
   const lines = (referenceLines ?? []).map((ref) => referenceLineProps(ref, layout))
   // A reference outside the data's span would otherwise fall off the value axis.
@@ -157,11 +161,11 @@ export default function StandardBarChart({
 
   return (
     <>
-      {showLegend && bars.length > 1 && <ChartSeriesLegend items={series} />}
+      {toggles && <ChartSeriesLegend items={series} hidden={hidden} onToggle={toggleSeries} />}
       <CartesianChart
         data={data}
         categoryKey={labelKey}
-        series={bars.map((bar, index) => ({ key: bar.key, stackId: slots[index].stackId }))}
+        series={shown.map((bar, index) => ({ key: bar.key, stackId: slots[index].stackId }))}
         layout={layout}
         categoryKind="band"
         extraValues={extraValues}
@@ -171,7 +175,7 @@ export default function StandardBarChart({
         ariaLabel={ariaLabel}
         tooltip={
           <CartesianTooltip
-            series={series}
+            series={series.filter((item) => !hidden.has(item.key))}
             formatLabel={tooltipLabelFormatter ?? formatChartDate}
             formatValue={formatValue}
           />
@@ -182,7 +186,7 @@ export default function StandardBarChart({
         {/* The axis draws the zero line itself unless a configured line already sits at 0. */}
         <ValueAxis tickFormatter={valueFormat} zeroLine={!lines.some((line) => line.value === 0)} />
         <CategoryAxis tickFormatter={categoryFormat} interval={isRanking ? 0 : 'preserveStartEnd'} />
-        {bars.map((bar, index) => (
+        {shown.map((bar, index) => (
           <SeriesEntrance key={bar.key} delay={slots[index].groupIndex * GROUP_OFFSET}>
             <Bars
               dataKey={bar.key}

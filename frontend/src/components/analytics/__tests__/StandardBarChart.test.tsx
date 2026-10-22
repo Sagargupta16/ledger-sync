@@ -1,11 +1,11 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { formatCurrencyShort } from '@/lib/formatters'
 import { useMotionStore } from '@/store/motionStore'
 
 import StandardBarChart from '../StandardBarChart'
-import { barFill, barSlots, baselineValue, referenceLineProps } from '../standardBarChartParts'
+import { barFill, barSlots, baselineValue, referenceLineProps, useHiddenSeries } from '../standardBarChartParts'
 
 /**
  * jsdom has no ResizeObserver, so the chart kit paints at its 640px fallback
@@ -140,6 +140,98 @@ describe('StandardBarChart', () => {
     )
 
     expect(screen.getByRole('columnheader', { name: 'Day' })).toBeInTheDocument()
+  })
+})
+
+describe('StandardBarChart legend toggles', () => {
+  // Expense dwarfs income, so hiding it shrinks the value axis a hundredfold.
+  const ROWS = [
+    { displayPeriod: 'Jan', income: 1000, expense: 100000 },
+    { displayPeriod: 'Feb', income: 800, expense: 90000 },
+  ]
+  const TWO_BARS = [
+    { key: 'income', color: '#000000', label: 'Income' },
+    { key: 'expense', color: '#111111', label: 'Expense' },
+  ]
+  const barsIn = (color: string) =>
+    screen.getByRole('img', { name: 'Cash flow' }).querySelectorAll(`path[fill="${color}"]`).length
+
+  it('drops a hidden series from the plot and the axis, but not from the table', () => {
+    render(<StandardBarChart data={ROWS} bars={TWO_BARS} ariaLabel="Cash flow" tooltipFormatter={(v) => String(v)} />)
+    expect(barsIn('#111111')).toBe(2)
+    expect(screen.queryByText(formatCurrencyShort(1000))).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+
+    expect(screen.getByRole('button', { name: 'Expense' })).toHaveAttribute('aria-pressed', 'false')
+    expect(barsIn('#111111')).toBe(0)
+    expect(barsIn('#000000')).toBe(2)
+    // The value axis now spans income alone: 0 to 1,000 in steps of 200.
+    expect(screen.getByText(formatCurrencyShort(1000))).toBeInTheDocument()
+    expect(bodyRows()).toEqual([
+      ['Jan', '1000', '100000'],
+      ['Feb', '800', '90000'],
+    ])
+  })
+
+  it('locks the last visible series on and brings a hidden one back', () => {
+    render(<StandardBarChart data={ROWS} bars={TWO_BARS} ariaLabel="Cash flow" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+
+    const income = screen.getByRole('button', { name: 'Income' })
+    expect(income).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(income)
+    expect(barsIn('#000000')).toBe(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+    expect(barsIn('#111111')).toBe(2)
+    expect(income).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('offers no toggles for a single series', () => {
+    render(<StandardBarChart data={MONTHS} bars={BARS} ariaLabel="Monthly expenses" />)
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+})
+
+describe('useHiddenSeries', () => {
+  it('flips a key on each toggle and hides nothing while the legend does not toggle', () => {
+    const { result, rerender } = renderHook(({ toggles }) => useHiddenSeries(['a', 'b'], toggles), {
+      initialProps: { toggles: true },
+    })
+    act(() => result.current[1]('a'))
+    expect([...result.current[0]]).toEqual(['a'])
+    act(() => result.current[1]('a'))
+    expect(result.current[0].size).toBe(0)
+
+    act(() => result.current[1]('b'))
+    rerender({ toggles: false })
+    expect(result.current[0].size).toBe(0)
+  })
+
+  it('keeps a hidden key through new data, and drops it once it leaves the series list', () => {
+    const { result, rerender } = renderHook(({ keys }) => useHiddenSeries(keys, true), {
+      initialProps: { keys: ['a', 'b', 'c'] },
+    })
+    act(() => result.current[1]('a'))
+    rerender({ keys: ['a', 'b', 'c'] })
+    expect(result.current[0].has('a')).toBe(true)
+
+    rerender({ keys: ['b', 'c'] })
+    rerender({ keys: ['a', 'b', 'c'] })
+    expect(result.current[0].has('a')).toBe(false)
+  })
+
+  it('shows every series again when none of the listed ones would be left', () => {
+    const { result, rerender } = renderHook(({ keys }) => useHiddenSeries(keys, true), {
+      initialProps: { keys: ['a', 'b', 'c'] },
+    })
+    act(() => result.current[1]('a'))
+    act(() => result.current[1]('b'))
+    rerender({ keys: ['a', 'b'] })
+
+    expect(result.current[0].size).toBe(0)
   })
 })
 

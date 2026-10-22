@@ -1,8 +1,8 @@
 /**
  * Animated SVG radar for fixed 0-100 profiles (the data-viz rule keeps radar for bounded scores).
  * Rings, spokes and wrapped axis labels are static; each series grows out of the centre once the
- * chart scrolls into view and morphs its vertices when a score changes. Hover, a tap or the arrow
- * keys pick an axis, which then shows its scores beside the label.
+ * chart scrolls into view and morphs its vertices when a score changes. Hover, a tap, the arrow
+ * keys or Home and End pick an axis, which then shows its scores beside the label.
  */
 
 import { useState } from 'react'
@@ -56,7 +56,7 @@ type MarksProps = Required<Omit<RadarChartProps, 'height' | 'ariaLabel'>> & Read
   setActive: (index: number | null) => void
 }>
 
-/** Radar in its own measured frame; focus it and use the arrow keys to step through the axes. */
+/** Radar in its own measured frame; focus it and step through the axes with the arrow keys, Home and End. */
 export default function RadarChart({
   axes, series, max = 100, rings = 4, ringLabels = false, dotRadius = 3, height = 224, ariaLabel,
 }: RadarChartProps) {
@@ -64,11 +64,10 @@ export default function RadarChart({
   const count = axes.length
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') setActive(null)
-    const step = STEPS[event.key]
-    if (step === undefined || count === 0) return
+    const next = axisForKey(event.key, active, count)
+    if (next === undefined) return
     event.preventDefault()
-    // Wraps at both ends; from nothing picked, Right starts at the first axis and Left at the last.
-    setActive((index) => (index === null && step < 0 ? count - 1 : ((index ?? -1) + step + count) % count))
+    setActive(next)
   }
 
   return (
@@ -211,4 +210,18 @@ function wrapLabel(label: string): readonly string[] {
 
 function formatScore(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+/**
+ * The axis a key picks, or undefined for keys left to the page. Arrows wrap at both ends; from
+ * nothing picked, Right starts at the first axis and Left at the last. Home and End jump to the
+ * first and last axis.
+ */
+function axisForKey(key: string, index: number | null, count: number): number | undefined {
+  const step = STEPS[key]
+  if (count === 0) return undefined
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  if (step === undefined) return undefined
+  return index === null && step < 0 ? count - 1 : ((index ?? -1) + step + count) % count
 }

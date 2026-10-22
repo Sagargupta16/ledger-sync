@@ -1,8 +1,8 @@
 /**
  * Builds the category and value scales for x/y charts and hands them to the
  * marks (bars, lines, areas, axes, references) through CartesianContext.
- * Pointer and arrow-key inspection set one active row that the tooltip,
- * crosshair and mark emphasis all read.
+ * Pointer and keyboard inspection (arrows, Page Up/Down, Home/End) set one
+ * active row that the tooltip, crosshair and mark emphasis all read.
  */
 
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
@@ -64,19 +64,18 @@ export default function CartesianChart(props: CartesianChartProps) {
   const [ownIndex, setOwnIndex] = useState<number | null>(null)
   const controlled = props.activeIndex !== undefined
   const activeIndex = controlled ? (props.activeIndex ?? null) : ownIndex
-  const setActiveIndex = useCallback((next: number | null | ((index: number | null) => number | null)) => {
-    const value = typeof next === 'function' ? next(activeIndex) : next
+  const setActiveIndex = useCallback((value: number | null) => {
     if (!controlled) setOwnIndex(value)
     onActiveIndexChange?.(value)
-  }, [activeIndex, controlled, onActiveIndexChange])
+  }, [controlled, onActiveIndexChange])
   const count = visibleCount(data.length, props.visibleRange)
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
     if (event.key === 'Escape') setActiveIndex(null)
-    if (step === undefined || count === 0) return
+    const next = rowForKey(event.key, activeIndex, count)
+    if (next === undefined) return
     event.preventDefault()
-    setActiveIndex((index) => Math.max(0, Math.min(count - 1, index === null ? 0 : index + step)))
-  }, [count, setActiveIndex])
+    setActiveIndex(next)
+  }, [activeIndex, count, setActiveIndex])
 
   return (
     <ChartFrame
@@ -96,6 +95,24 @@ export default function CartesianChart(props: CartesianChartProps) {
 function visibleCount(length: number, range?: CartesianChartProps['visibleRange']): number {
   if (!range) return length
   return Math.max(0, Math.min(length - 1, range.endIndex) - Math.max(0, range.startIndex) + 1)
+}
+
+/**
+ * The visible row a key moves to, or undefined for keys left to the page. Arrows step one row and
+ * Page Up/Down a tenth of the rows (at least one), clamped, starting at the first row when none is
+ * active; Home and End jump to the first and last row.
+ */
+function rowForKey(key: string, index: number | null, count: number): number | undefined {
+  if (count === 0) return undefined
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  const page = Math.max(1, Math.round(count / 10))
+  const steps: Partial<Record<string, number>> = {
+    ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, PageDown: page, PageUp: -page,
+  }
+  const step = steps[key]
+  if (step === undefined) return undefined
+  return Math.max(0, Math.min(count - 1, index === null ? 0 : index + step))
 }
 
 interface ScopeProps extends CartesianChartProps {

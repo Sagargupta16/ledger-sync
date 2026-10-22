@@ -3,6 +3,8 @@ import type { DayCell } from './DayOfWeekChart'
 
 interface Props {
   hoveredDay: DayCell | null
+  /** Day picked with a click, tap, Enter or Space; shown while nothing is hovered. */
+  selectedDay?: DayCell | null
   monthlyDetail: MonthlyHeatmapDetail | null
 }
 
@@ -13,23 +15,28 @@ interface MonthlyHeatmapDetail {
   net: number
 }
 
-export default function HeatmapDayDetail({ hoveredDay, monthlyDetail }: Readonly<Props>) {
-  if (hoveredDay) {
+export default function HeatmapDayDetail({
+  hoveredDay,
+  selectedDay = null,
+  monthlyDetail,
+}: Readonly<Props>) {
+  const day = hoveredDay ?? selectedDay
+  if (day) {
     return (
       <>
         <span className="text-foreground font-medium">
-          {formatDate(hoveredDay.date, {
+          {formatDate(day.date, {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
             year: 'numeric',
           })}
         </span>
-        <span className="text-app-red">Spending: {formatCurrency(hoveredDay.expense)}</span>
-        <span className="text-app-green">Earning: {formatCurrency(hoveredDay.income)}</span>
-        <span className={hoveredDay.net >= 0 ? 'text-app-blue' : 'text-app-orange'}>
-          Savings: {hoveredDay.net >= 0 ? '+' : ''}
-          {formatCurrency(hoveredDay.net)}
+        <span className="text-app-red">Spending: {formatCurrency(day.expense)}</span>
+        <span className="text-app-green">Earning: {formatCurrency(day.income)}</span>
+        <span className={day.net >= 0 ? 'text-app-blue' : 'text-app-orange'}>
+          Savings: {day.net >= 0 ? '+' : ''}
+          {formatCurrency(day.net)}
         </span>
       </>
     )
@@ -58,7 +65,7 @@ export default function HeatmapDayDetail({ hoveredDay, monthlyDetail }: Readonly
       <span className="hidden text-text-tertiary lg:inline">
         Hover over a day to see details
       </span>
-      <span className="text-text-tertiary lg:hidden">Tap a month to see details</span>
+      <span className="text-text-tertiary lg:hidden">Tap a day or month to see details</span>
     </>
   )
 }

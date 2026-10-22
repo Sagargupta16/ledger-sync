@@ -14,11 +14,13 @@ import { Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { MAX_UPLOAD_SIZE_BYTES } from '@/lib/fileParser'
 
+import { MONEY_MANAGER_EXTENSION } from '../moneyManagerUtils'
 import type { UploadPhase } from '../useUploadSync'
 
 const PHASE_LABELS: Record<NonNullable<UploadPhase>, string> = {
   parsing: 'Parsing file...',
-  review: 'Ready for review. Nothing has been uploaded.',
+  previewing: 'Compressing and checking your backup...',
+  review: 'Ready for review. Nothing has been saved.',
   processing: 'Saving your ledger and refreshing insights...',
   analytics: 'Retrying insights refresh...',
 }
@@ -32,8 +34,15 @@ const PROGRESS_STEPS: { phase: NonNullable<UploadPhase>; label: string }[] = [
 const UPLOAD_FEATURES = [
   { icon: CheckCircle2, text: 'Auto-detect duplicates' },
   { icon: RefreshCw, text: 'Full snapshot' },
-  { icon: FileSpreadsheet, text: '.xlsx, .xls & .csv' },
+  { icon: FileSpreadsheet, text: '.xlsx, .xls, .csv & .mmbak' },
 ]
+
+/** The progress step a phase belongs to: a backup check reads, a refresh retry saves. */
+function stepPhase(phase: UploadPhase): UploadPhase {
+  if (phase === 'previewing') return 'parsing'
+  if (phase === 'analytics') return 'processing'
+  return phase
+}
 
 interface UploadDropzoneProps {
   readonly phase: UploadPhase
@@ -59,7 +68,7 @@ export default function UploadDropzone({
         const tooManyFiles = fileRejections.some((rejection) =>
           rejection.errors.some((error) => error.code === 'too-many-files'),
         )
-        let message = 'Choose an .xlsx, .xls, or .csv transaction file.'
+        let message = 'Choose an .xlsx, .xls, or .csv transaction file, or a Money Manager .mmbak backup.'
         if (tooLarge) {
           message = 'File exceeds the 50 MB limit.'
         } else if (tooManyFiles) {
@@ -78,6 +87,9 @@ export default function UploadDropzone({
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
       'text/csv': ['.csv'],
+      // A Money Manager backup is a SQLite file that browsers rarely give a
+      // type, so its extension is what matches.
+      'application/vnd.sqlite3': [MONEY_MANAGER_EXTENSION],
     },
     maxFiles: 1,
     maxSize: MAX_UPLOAD_SIZE_BYTES,
@@ -102,8 +114,9 @@ export default function UploadDropzone({
               Import a complete ledger
             </h2>
             <p className="max-w-lg text-pretty text-sm leading-6 text-muted-foreground">
-              Choose your complete Excel or CSV export in INR. You will review the dates,
-              accounts, and row counts before any existing entries are replaced.
+              Choose your complete Excel or CSV export in INR, or a Money Manager backup
+              (.mmbak). You will review the dates, accounts, and row counts before any
+              existing entries are replaced.
             </p>
 
             <div className="grid gap-2 text-sm sm:grid-cols-3">
@@ -120,7 +133,7 @@ export default function UploadDropzone({
             <div
               {...getRootProps({
                 role: 'button',
-                'aria-label': 'Upload an Excel or CSV transaction file',
+                'aria-label': 'Upload an Excel or CSV file, or a Money Manager backup',
                 'aria-busy': isBusy,
               })}
               className={cn(
@@ -155,14 +168,14 @@ export default function UploadDropzone({
                     <Upload className="size-6 text-primary" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-foreground">
-                      {isDragActive ? 'Drop your file here' : 'Drop Excel or CSV file here'}
+                    <p className="text-balance text-base font-semibold text-foreground">
+                      {isDragActive ? 'Drop your file here' : 'Drop Excel, CSV, or .mmbak file here'}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">or click to browse</p>
                   </div>
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-[var(--overlay-2)] px-3 py-1.5">
                     <FileSpreadsheet className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv up to 50 MB</span>
+                    <span className="text-xs text-muted-foreground">.xlsx, .xls, .csv, .mmbak up to 50 MB</span>
                   </div>
                 </div>
               )}
@@ -185,8 +198,7 @@ export default function UploadDropzone({
         </div>
         <ol className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4" aria-label="Import stages">
           {PROGRESS_STEPS.map((step, index) => {
-            const activePhase = phase === 'analytics' ? 'processing' : phase
-            const isCurrent = step.phase === activePhase
+            const isCurrent = step.phase === stepPhase(phase)
             return (
               <li
                 key={step.phase}
