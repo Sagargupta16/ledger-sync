@@ -257,6 +257,10 @@ class DataNormalizer(NormalizeRowsMixin):
 
         return account
 
+    def account_label(self, value: Any) -> str:
+        """The spelling every import path stores for a raw account name."""
+        return self._standardize_account(self.normalize_string_preserve_case(value))
+
     def normalize_date(self, value: Any) -> datetime:
         """Normalize date value to datetime.
 

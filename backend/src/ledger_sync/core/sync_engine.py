@@ -1,10 +1,12 @@
 """Main synchronization engine."""
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core import rules
@@ -13,7 +15,8 @@ from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.import_identity import capture_source_identities
 from ledger_sync.core.import_labels import canonicalize_accounts, canonicalize_categories
 from ledger_sync.core.reconciler import Reconciler, ReconciliationStats
-from ledger_sync.db.models import ImportLog
+from ledger_sync.core.source_identity import SOURCE_FIELDS
+from ledger_sync.db.models import ImportLog, Transaction
 from ledger_sync.ingest.csv_loader import CsvLoader
 from ledger_sync.ingest.excel_loader import ExcelLoader
 from ledger_sync.ingest.normalizer import (
@@ -27,6 +30,49 @@ from ledger_sync.utils.logging import logger
 
 class AlreadyImportedError(ValueError):
     """Raised when the same file requires an explicit forced re-import."""
+
+
+class LargeDeletionError(ValueError):
+    """Raised, before anything commits, when a snapshot would remove too much."""
+
+    def __init__(self, deleted: int, live: int) -> None:
+        super().__init__(
+            f"This backup would remove {deleted:,} of your {live:,} transactions. Nothing was "
+            "changed. Upload it from the Upload page to review the removals first."
+        )
+        self.deleted = deleted
+        self.live = live
+
+
+# A guarded snapshot may soft-delete at most this many rows, or 5% of the live
+# ledger when that is larger, without an explicit confirmation.
+_GUARD_MIN_DELETIONS = 25
+_GUARD_SHARE = 0.05
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotOptions:
+    """How a snapshot import commits.
+
+    ``dry_run`` reconciles and reports, then rolls back. ``guard_deletions``
+    refuses a snapshot that would remove more than the allowance below.
+    ``before_commit`` adds writes (such as account settings) to the same unit.
+    """
+
+    dry_run: bool = False
+    guard_deletions: bool = False
+    before_commit: Callable[[], None] | None = None
+
+
+def _deletion_allowance(live: int) -> int:
+    return max(_GUARD_MIN_DELETIONS, int(live * _GUARD_SHARE))
+
+
+def _describe_row(index: int, row: dict[str, Any]) -> str:
+    """Spreadsheet rows are named by line; backup rows by their date and account."""
+    if row.get("_source_uid"):
+        return f"The {row.get('date')} transaction on {row.get('account')}"
+    return f"Row {index + 2}"
 
 
 class SyncEngine:
@@ -86,6 +132,16 @@ class SyncEngine:
         if self.user_id is not None:
             canonicalize_categories(self.session, self.user_id, normalized_rows)
 
+    def _live_count(self) -> int:
+        return (
+            self.session.scalar(
+                select(func.count())
+                .select_from(Transaction)
+                .where(Transaction.user_id == self.user_id, Transaction.is_deleted.is_(False))
+            )
+            or 0
+        )
+
     def _reconcile_and_log(
         self,
         normalized_rows: list[dict[str, Any]],
@@ -94,12 +150,15 @@ class SyncEngine:
         file_hash: str,
         import_time: datetime,
         existing_import: ImportLog | None,
+        options: SnapshotOptions | None = None,
     ) -> ReconciliationStats:
         """Reconcile normalized rows (transactions + transfers) and record the import log.
 
         Shared tail of both import paths: splits rows by transfer flag,
         reconciles each batch, accumulates stats, and writes the ImportLog.
+        A dry run or a guarded snapshot that removes too much rolls back instead.
         """
+        options = options or SnapshotOptions()
         # Source identity precedes mutable user categorization. Existing public
         # IDs remain stable when rules or classifications change.
         self._canonicalize_account_casing(normalized_rows)
@@ -125,6 +184,7 @@ class SyncEngine:
         self.reconciler.affected_dates.clear()
 
         try:
+            live_before = self._live_count() if options.guard_deletions else 0
             attach_ledger_dimensions(self.session, self.user_id, normalized_rows)
             stats.merge(
                 self.reconciler.reconcile_batch(
@@ -141,6 +201,14 @@ class SyncEngine:
                     import_time=import_time,
                 )
             )
+
+            if options.guard_deletions and stats.deleted > _deletion_allowance(live_before):
+                raise LargeDeletionError(stats.deleted, live_before)
+            if options.dry_run:
+                self.session.rollback()
+                return stats
+            if options.before_commit is not None:
+                options.before_commit()
 
             # The prior log, both ledger groups, and the replacement log are
             # committed as one unit, including empty-group soft deletions.
@@ -171,6 +239,7 @@ class SyncEngine:
         file_name: str,
         file_hash: str,
         force: bool = False,
+        options: SnapshotOptions | None = None,
     ) -> ReconciliationStats:
         """Import pre-parsed transaction rows from the JSON upload endpoint.
 
@@ -186,6 +255,10 @@ class SyncEngine:
             file_name: Original file name (for import log).
             file_hash: SHA-256 hex hash of the original file (for dedup).
             force: Force re-import even if file was previously imported.
+            options: Dry run, deletion guard and extra writes; see SnapshotOptions.
+
+        Rows from a source with stable IDs may also carry the ``SOURCE_FIELDS``
+        keys; they survive normalization and identify the stored row.
 
         Returns:
             Reconciliation statistics.
@@ -204,10 +277,14 @@ class SyncEngine:
         for idx, row in enumerate(rows):
             try:
                 normalized = self.normalizer.normalize_from_dict(row)
-                normalized_rows.append(normalized)
             except NormalizationError as e:
-                msg = f"Row {idx + 2}: {e}. Snapshot rejected; no ledger entries were changed."
+                msg = (
+                    f"{_describe_row(idx, row)}: {e}. Snapshot rejected; "
+                    "no ledger entries were changed."
+                )
                 raise NormalizationError(msg) from e
+            normalized.update({key: row[key] for key in SOURCE_FIELDS if key in row})
+            normalized_rows.append(normalized)
 
         existing_import = self._raise_if_already_imported(file_hash, force=force)
         import_time = datetime.now(UTC)
@@ -218,6 +295,7 @@ class SyncEngine:
             file_hash=file_hash,
             import_time=import_time,
             existing_import=existing_import,
+            options=options,
         )
 
     def run_post_import_analytics(self, source_file: str) -> None:

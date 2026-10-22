@@ -20,6 +20,12 @@ from ledger_sync.core.reconciler_helpers import (
     update_stats_for_action,
 )
 from ledger_sync.core.reconciler_transfers import TransferReconcilerMixin
+from ledger_sync.core.source_identity import (
+    apply_source_fields,
+    has_source_uid,
+    release_reassigned_fingerprints,
+    unused_transaction_ids,
+)
 from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.ingest.normalizer import NormalizationError
@@ -51,6 +57,21 @@ class Reconciler(TransferReconcilerMixin):
             raise ValueError(USER_ID_REQUIRED_MSG)
         return self.user_id
 
+    def _apply_source_edit(self, existing: Transaction, row: dict[str, Any]) -> bool:
+        """A source UID proves ownership, so date, amount and account follow the source too."""
+        changed = False
+        if existing.date.replace(tzinfo=None) != row["date"].replace(tzinfo=None):
+            self.affected_dates.add(existing.date.date())
+            existing.date = row["date"]
+            changed = True
+        if existing.amount != row["amount"]:
+            existing.amount = row["amount"]
+            changed = True
+        if not are_string_values_equal(row["account"], existing.account):
+            existing.account = row["account"]
+            changed = True
+        return changed
+
     def _apply_existing_update(
         self,
         existing: Transaction,
@@ -59,6 +80,8 @@ class Reconciler(TransferReconcilerMixin):
         import_time: datetime,
     ) -> str:
         changed = bool(existing.is_deleted)
+        if has_source_uid(row):
+            changed = self._apply_source_edit(existing, row) or changed
         for field in (*_VALUE_FIELDS, "from_account", "to_account"):
             if field not in row:
                 continue
@@ -68,6 +91,7 @@ class Reconciler(TransferReconcilerMixin):
                 changed = True
         for field in _DIMENSION_FIELDS:
             setattr(existing, field, row.get(field))
+        apply_source_fields(existing, row)
         existing.source_fingerprint = identity.fingerprint
         existing.fingerprint_version = 2
         existing.last_seen_at = import_time
@@ -88,6 +112,12 @@ class Reconciler(TransferReconcilerMixin):
         if rows and any("account_id" not in row for row in rows):
             attach_ledger_dimensions(self.session, user_id, rows)
         matches = load_identity_matches(self.session, user_id, rows, identities)
+        fingerprints = [identity.fingerprint for identity in identities]
+        if any(has_source_uid(row) for row in rows):
+            release_reassigned_fingerprints(self.session, user_id, fingerprints, matches)
+        new_ids = unused_transaction_ids(
+            self.session, user_id, [value for value in fingerprints if value not in matches]
+        )
         results: list[tuple[Transaction, str]] = []
         for row, identity in zip(rows, identities, strict=True):
             existing = matches.get(identity.fingerprint)
@@ -96,7 +126,7 @@ class Reconciler(TransferReconcilerMixin):
                 results.append((existing, action))
                 continue
             transaction = Transaction(
-                transaction_id=identity.fingerprint,
+                transaction_id=new_ids[identity.fingerprint],
                 source_fingerprint=identity.fingerprint,
                 fingerprint_version=2,
                 user_id=user_id,
@@ -115,6 +145,7 @@ class Reconciler(TransferReconcilerMixin):
                 is_deleted=False,
                 **{field: row.get(field) for field in _DIMENSION_FIELDS},
             )
+            apply_source_fields(transaction, row)
             self.session.add(transaction)
             self.affected_dates.add(transaction.date.date())
             results.append((transaction, "inserted"))

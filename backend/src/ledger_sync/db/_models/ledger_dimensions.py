@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     UniqueConstraint,
     false,
@@ -43,6 +44,14 @@ class LedgerAccount(Base):
     )
     closed_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
+    # Settings a Money Manager backup carries and an Excel export does not. NULL
+    # for accounts only ever seen in spreadsheets. Days are 1-31; the paying
+    # account is another of this user's accounts.
+    source_uid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    account_group: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    statement_day: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    payment_day: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    paid_from_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Legacy classification timestamps survive consolidation; imported identities
     # without classification history may have no timestamps.
     created_at: Mapped[datetime | None] = mapped_column(

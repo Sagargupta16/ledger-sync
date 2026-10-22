@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.source_identity import adopt_edited_source_rows, match_source_uids
 from ledger_sync.db.models import Anomaly, Transaction, TransactionTag, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.ingest.normalizer import NormalizationError
@@ -173,10 +174,12 @@ def load_identity_matches(
     rows: list[dict[str, Any]],
     identities: list[ImportIdentity],
 ) -> dict[str, Transaction]:
-    """Resolve source fingerprints and verified v1 IDs with bounded batch queries."""
-    by_source, by_id = _load_candidates(session, user_id, identities)
+    """Resolve source UIDs, fingerprints and verified v1 IDs with bounded batch queries."""
     matches: dict[str, Transaction] = {}
     claimed: set[str] = set()
+    fingerprints = [identity.fingerprint for identity in identities]
+    match_source_uids(session, user_id, rows, fingerprints, matches, claimed)
+    by_source, by_id = _load_candidates(session, user_id, identities)
     # Old writers counted occurrences AFTER rules. When rules collapse distinct
     # source classifications, those old occurrence IDs cannot prove which source
     # owns an annotation. Exact raw-field matches can still establish ownership.
@@ -186,6 +189,8 @@ def load_identity_matches(
     ]
     source_labels = _source_label_sets(rows, post_rule_keys) if has_legacy_candidates else {}
     for row, identity, key in zip(rows, identities, post_rule_keys, strict=True):
+        if identity.fingerprint in matches:
+            continue
         match = _match_row(
             row,
             identity,
@@ -197,6 +202,7 @@ def load_identity_matches(
             matches[identity.fingerprint] = match
             claimed.add(match.transaction_id)
     _adopt_unambiguous_legacy_rows(session, user_id, rows, identities, matches, claimed)
+    adopt_edited_source_rows(session, user_id, rows, fingerprints, matches, claimed)
     return matches
 
 

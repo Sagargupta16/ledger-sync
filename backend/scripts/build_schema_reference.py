@@ -93,6 +93,7 @@ GROUPS = {
         "users",
         "user_preferences",
         "user_ai_settings",
+        "upload_tokens",
         "audit_logs",
         "ai_usage_log",
         "column_mapping_logs",
@@ -150,6 +151,16 @@ INFO = {
             "lists/objects are JSON encoded in TEXT. Account limits, AI configuration, salary "
             "plans and RSU grants are stored in their own domain records and aggregated into the "
             "existing preferences API."
+        ),
+    ),
+    "upload_tokens": (
+        "Hashed, upload-only credentials for automations such as an iOS Shortcut.",
+        "Any number of revoked tokens per user; at most five active ones.",
+        USER_CONFIGURATION,
+        (
+            "Only the SHA-256 of a token is stored; the plaintext is returned once, at "
+            "creation. A token authenticates POST /api/upload/money-manager and nothing else, "
+            "expires after 365 days and stops working when revoked_at is set."
         ),
     ),
     "user_ai_settings": (
@@ -653,6 +664,13 @@ MEANINGS = {
             "category rules."
         ),
         "fingerprint_version": "1 for legacy identity; 2 for current fingerprint format.",
+        "source_system": "Source with its own IDs (money_manager); NULL for spreadsheet rows.",
+        "source_uid": (
+            "That source's ID for the row; unique per user and source. A row matched by it is "
+            "updated in place when the source edits it."
+        ),
+        "source_updated_at": "Source modification time, naive UTC; NULL for spreadsheet rows.",
+        "occurred_at": "Naive IST time the source recorded; date stays the ledger day.",
         "date": "Transaction timestamp/calendar date; SQL type has no timezone.",
         "currency": "Accounting currency; database CHECK allows INR only.",
         "from_account_id": "Source transfer account dimension ID, qualified by owner.",
@@ -684,6 +702,23 @@ MEANINGS = {
             "Creation timestamp; legacy identities without classification history may be NULL."
         ),
         "updated_at": "Last configuration update; may be NULL until an update is recorded.",
+        "source_uid": "Money Manager account ID; NULL for accounts only seen in spreadsheets.",
+        "account_group": "Money Manager account group name, such as Credit Cards.",
+        "statement_day": "Card statement day of month (1-31) from the backup.",
+        "payment_day": "Card payment due day of month (1-31) from the backup.",
+        "paid_from_account_id": (
+            "This user's account that pays the card; an ID in ledger_accounts, not enforced as an "
+            "FK."
+        ),
+    },
+    "upload_tokens": {
+        "name": "User-chosen label, such as iPhone Shortcut.",
+        "token_prefix": "First 12 plaintext characters, shown so tokens can be told apart.",
+        "token_hash": "SHA-256 hex of the plaintext; unique, the only stored form.",
+        "scope": "mmbak:upload; the only permission a token has.",
+        "expires_at": "Naive UTC expiry, 365 days after creation.",
+        "last_used_at": "Naive UTC time of the last authenticated upload; NULL when unused.",
+        "revoked_at": "Naive UTC revocation time; NULL while active.",
     },
     "ledger_categories": {"name": "First observed category spelling."},
     "ledger_subcategories": {"name": "First observed subcategory spelling."},

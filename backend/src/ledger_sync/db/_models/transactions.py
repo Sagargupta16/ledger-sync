@@ -60,6 +60,13 @@ class Transaction(Base):
     # NULL identifies legacy rows awaiting an exact, verified import match.
     source_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     fingerprint_version: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    # Stable identity from a source that has one (a Money Manager backup's UID).
+    # A row matched by it keeps its public ID when the source edits any field.
+    source_system: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source_uid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Naive IST time the source recorded; ``date`` stays the ledger day.
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # User foreign key - links transaction to owner
     user_id: Mapped[int] = mapped_column(
@@ -137,6 +144,7 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "transaction_id", name="uq_transactions_user_id"),
         Index("uq_transactions_source", "user_id", "source_fingerprint", unique=True),
+        Index("uq_transactions_source_uid", "user_id", "source_system", "source_uid", unique=True),
         ForeignKeyConstraint(
             ["user_id", "account_id"],
             _LEDGER_ACCOUNT_KEY,

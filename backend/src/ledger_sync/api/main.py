@@ -35,6 +35,7 @@ from ledger_sync.api.error_handlers import (
     validation_error_handler,
 )
 from ledger_sync.api.exchange_rates import router as exchange_rates_router
+from ledger_sync.api.money_manager_upload import router as money_manager_upload_router
 from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
 from ledger_sync.api.rate_limit import limiter
@@ -43,6 +44,7 @@ from ledger_sync.api.saved_views import router as saved_views_router
 from ledger_sync.api.stock_price import router as stock_price_router
 from ledger_sync.api.transactions import router as transactions_router
 from ledger_sync.api.upload import router as upload_router
+from ledger_sync.api.upload_tokens import router as upload_tokens_router
 from ledger_sync.config.settings import settings
 from ledger_sync.db.session import get_engine, init_db
 from ledger_sync.schemas.transactions import HealthResponse
@@ -73,8 +75,11 @@ async def _buffer_upload_body(receive: Receive, limit: int) -> tuple[list[Messag
     return messages, size
 
 
+_BOUNDED_UPLOAD_PATHS = frozenset({"/api/upload", "/api/upload/money-manager"})
+
+
 class UploadSizeLimitMiddleware:
-    """Bound upload bodies, including chunked requests, before JSON parsing."""
+    """Bound upload bodies, including chunked requests, before JSON or backup parsing."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -83,7 +88,7 @@ class UploadSizeLimitMiddleware:
         if (
             scope["type"] != "http"
             or scope["method"] != "POST"
-            or scope["path"].rstrip("/") != "/api/upload"
+            or scope["path"].rstrip("/") not in _BOUNDED_UPLOAD_PATHS
         ):
             await self.app(scope, receive, send)
             return
@@ -328,6 +333,8 @@ app.include_router(preferences_router)
 app.include_router(saved_views_router)
 app.include_router(transactions_router)
 app.include_router(upload_router)
+app.include_router(money_manager_upload_router)
+app.include_router(upload_tokens_router)
 app.include_router(exchange_rates_router)
 app.include_router(rates_router)
 app.include_router(stock_price_router)

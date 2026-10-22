@@ -6,6 +6,7 @@ preserves the account-keyed decorator API used by uploads and chat while
 registering its limits on ``limiter``, which is attached to app.state.
 """
 
+import hashlib
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -33,6 +34,15 @@ def _user_key_func(request: Request) -> str:
         return get_remote_address(request)
 
     return f"user:{payload.sub}"
+
+
+def _upload_key_func(request: Request) -> str:
+    """Key an upload token by a digest of it; anything else by account or address."""
+    auth = request.headers.get("authorization", "")
+    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    if token.startswith("lsu_"):
+        return "upload-token:" + hashlib.sha256(token.encode()).hexdigest()[:16]
+    return _user_key_func(request)
 
 
 limiter = Limiter(key_func=get_remote_address)

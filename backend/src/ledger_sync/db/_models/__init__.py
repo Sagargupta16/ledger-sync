@@ -57,6 +57,7 @@ from ledger_sync.db._models.transactions import (
     ImportLog,
     Transaction,
 )
+from ledger_sync.db._models.upload_tokens import UploadToken
 from ledger_sync.db._models.user import AuditLog, User, UserPreferences
 
 __all__ = [
@@ -98,6 +99,7 @@ __all__ = [
     "TransactionTag",
     "TransactionType",
     "TransferFlow",
+    "UploadToken",
     "User",
     "UserAISettings",
     "UserPreferences",
