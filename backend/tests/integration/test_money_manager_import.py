@@ -1,13 +1,21 @@
 """Money Manager backups as ledger snapshots: stable UIDs, previews, the deletion guard."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.sync_engine import LargeDeletionError, SyncEngine
-from ledger_sync.db.models import AccountType, ImportLog, LedgerAccount, Transaction, User
+from ledger_sync.db.models import (
+    LEDGER_ACCOUNTS,
+    TRANSACTIONS,
+    AccountType,
+    ImportLog,
+    LedgerAccount,
+    Transaction,
+    User,
+)
 from ledger_sync.services.money_manager_import import BackupUpload, import_money_manager_backup
 from tests.fixtures.money_manager import household
 
@@ -17,8 +25,18 @@ def _import(session: Session, user: User, body: bytes, **options: bool) -> objec
 
 
 def _rows(session: Session, user: User) -> dict[str | None, Transaction]:
-    stmt = select(Transaction).where(Transaction.user_id == user.id)
-    return {row.source_uid: row for row in session.scalars(stmt)}
+    """Stored rows by source UID; the column is table-only, so it is selected beside the row."""
+    stmt = select(Transaction, TRANSACTIONS.c.source_uid).where(Transaction.user_id == user.id)
+    return {uid: row for row, uid in session.execute(stmt).tuples()}
+
+
+def _source(session: Session, transaction_id: str) -> dict[str, object]:
+    """A row's table-only source columns."""
+    columns = TRANSACTIONS.c
+    stmt = select(columns.source_system, columns.source_uid, columns.occurred_at).where(
+        columns.transaction_id == transaction_id
+    )
+    return dict(session.execute(stmt).one()._mapping)
 
 
 def test_first_import_stores_every_row_with_its_uid(
@@ -37,9 +55,11 @@ def test_first_import_stores_every_row_with_its_uid(
     }
     rows = _rows(test_db_session, test_user)
     assert set(rows) == {"tx-salary", "tx-veg", "tx-pay"}
-    assert {row.source_system for row in rows.values()} == {"money_manager"}
-    assert rows["tx-veg"].occurred_at is not None
-    assert rows["tx-veg"].occurred_at.hour == 18
+    sources = {uid: _source(test_db_session, row.transaction_id) for uid, row in rows.items()}
+    assert {source["source_system"] for source in sources.values()} == {"money_manager"}
+    occurred = sources["tx-veg"]["occurred_at"]
+    assert isinstance(occurred, datetime)
+    assert occurred.hour == 18
     assert rows["tx-pay"].category == "Transfer: Savings Bank → Travel Card"
 
 
@@ -216,6 +236,14 @@ def test_account_settings_are_stored_and_a_chosen_type_is_kept(
     bank, card = accounts["Savings Bank"], accounts["Travel Card"]
     assert bank.account_type == AccountType.INVESTMENTS
     assert card.account_type == AccountType.CREDIT_CARDS
-    assert (card.account_group, card.statement_day, card.payment_day) == ("Credit Cards", 16, 5)
-    assert card.paid_from_account_id == bank.id
-    assert card.source_uid == "acc-card"
+    columns = LEDGER_ACCOUNTS.c
+    settings = test_db_session.execute(
+        select(
+            columns.account_group,
+            columns.statement_day,
+            columns.payment_day,
+            columns.paid_from_account_id,
+            columns.source_uid,
+        ).where(columns.id == card.id)
+    ).one()
+    assert tuple(settings) == ("Credit Cards", 16, 5, bank.id, "acc-card")

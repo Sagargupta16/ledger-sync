@@ -5,26 +5,26 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Column,
     DateTime,
     Enum,
-    FetchedValue,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
     String,
+    Table,
     Text,
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, MappedColumn, mapped_column, relationship
-from sqlalchemy.types import TypeEngine
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db._models.enums import TransactionType
@@ -34,11 +34,8 @@ if TYPE_CHECKING:
     from ledger_sync.db._models.user import User
 
 _LEDGER_ACCOUNT_KEY = ("ledger_accounts.user_id", "ledger_accounts.id")
-
-
-def _source_column(column_type: TypeEngine[Any]) -> MappedColumn[Any]:
-    """A nullable column the current mapping never names unless code sets it."""
-    return mapped_column(column_type, nullable=True, deferred=True, server_default=FetchedValue())
+# Source identity columns of money_manager_source_2026, kept off the mapper.
+SOURCE_COLUMNS = ("source_system", "source_uid", "source_updated_at", "occurred_at")
 
 
 def _live_index(name: str, *columns: str) -> Index:
@@ -68,17 +65,7 @@ class Transaction(Base):
     # NULL identifies legacy rows awaiting an exact, verified import match.
     source_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     fingerprint_version: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
-    # Stable identity from a source that has one (a Money Manager backup's UID).
-    # A row matched by it keeps its public ID when the source edits any field.
-    # Expand phase of money_manager_source_2026: Vercel can serve this mapping
-    # before the migration runs, so these columns are deferred (out of SELECT)
-    # and ``FetchedValue`` with ``eager_defaults=False`` keeps an unset one out
-    # of INSERT and RETURNING. Only the backup import writes or reads them.
-    source_system: Mapped[str | None] = _source_column(String(32))
-    source_uid: Mapped[str | None] = _source_column(String(64))
-    source_updated_at: Mapped[datetime | None] = _source_column(DateTime())
-    # Naive IST time the source recorded; ``date`` stays the ledger day.
-    occurred_at: Mapped[datetime | None] = _source_column(DateTime())
+    # The source UID columns are table-only; see TRANSACTIONS below.
 
     # User foreign key - links transaction to owner
     user_id: Mapped[int] = mapped_column(
@@ -156,7 +143,6 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "transaction_id", name="uq_transactions_user_id"),
         Index("uq_transactions_source", "user_id", "source_fingerprint", unique=True),
-        Index("uq_transactions_source_uid", "user_id", "source_system", "source_uid", unique=True),
         ForeignKeyConstraint(
             ["user_id", "account_id"],
             _LEDGER_ACCOUNT_KEY,
@@ -219,9 +205,7 @@ class Transaction(Base):
         _live_index("ix_transactions_user_from_account", "user_id", "from_account"),
         _live_index("ix_transactions_user_to_account", "user_id", "to_account"),
     )
-    # Only the deferred source columns carry a server default (FetchedValue), so
-    # this keeps them out of INSERT ... RETURNING and nothing else.
-    __mapper_args__ = MappingProxyType({"eager_defaults": False})
+    __mapper_args__ = MappingProxyType({"exclude_properties": SOURCE_COLUMNS})
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -231,6 +215,31 @@ class Transaction(Base):
             f"amount={self.amount}, "
             f"type={self.type.value})>"
         )
+
+
+# Stable identity from a source that has its own IDs (a Money Manager backup's
+# UID): a row matched by it keeps its public ID whatever the source edits.
+# Expand phase of money_manager_source_2026: Vercel can serve this code before
+# the migration runs, so the columns live in the table (migrations and
+# ``alembic check`` see them) but on no mapper. Every ORM select, subquery and
+# count therefore works on the previous schema too. Only the backup import
+# reads and writes them, through these Core columns.
+TRANSACTIONS = cast(Table, Transaction.__table__)
+for _column in (
+    Column("source_system", String(32), nullable=True),
+    Column("source_uid", String(64), nullable=True),
+    Column("source_updated_at", DateTime, nullable=True),
+    # Naive IST time the source recorded; ``date`` stays the ledger day.
+    Column("occurred_at", DateTime, nullable=True),
+):
+    TRANSACTIONS.append_column(_column)
+Index(
+    "uq_transactions_source_uid",
+    TRANSACTIONS.c.user_id,
+    TRANSACTIONS.c.source_system,
+    TRANSACTIONS.c.source_uid,
+    unique=True,
+)
 
 
 class ImportLog(Base):

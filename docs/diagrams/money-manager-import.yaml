@@ -133,7 +133,7 @@ nodes:
     in: lane-api
     evidence:
       - backend/src/ledger_sync/core/source_identity.py:43#match_source_uids
-      - backend/src/ledger_sync/core/source_identity.py:89#adopt_edited_source_rows
+      - backend/src/ledger_sync/core/source_identity.py:84#adopt_edited_source_rows
       - backend/src/ledger_sync/core/import_identity.py:171-205#load_identity_matches
       - backend/src/ledger_sync/core/reconciler.py:114#load_identity_matches
   unchanged:

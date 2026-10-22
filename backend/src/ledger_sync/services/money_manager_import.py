@@ -11,14 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import bindparam, select, update
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.analytics.refresh import mark_preferences_changed
 from ledger_sync.core.reconciler_helpers import ReconciliationStats
 from ledger_sync.core.sync_engine import SnapshotOptions, SyncEngine
-from ledger_sync.db.models import AccountType, LedgerAccount
+from ledger_sync.db.models import LEDGER_ACCOUNTS, AccountType, LedgerAccount
 from ledger_sync.ingest.money_manager import BackupAccount, MoneyManagerBackup, read_backup
 from ledger_sync.ingest.normalizer import DataNormalizer
 from ledger_sync.schemas.money_manager import BackupSummary, MoneyManagerUploadResponse
@@ -103,23 +103,49 @@ def apply_account_settings(db: Session, user_id: int, accounts: list[BackupAccou
         )
     }
     typed = False
+    settings: list[dict[str, object]] = []
     for account in accounts:
         label = labels.get(account.uid)
         if label is None:
             continue
         record = records[ids[label]]
         paid_from = labels.get(account.paid_from_uid or "")
-        record.source_uid = account.uid
-        record.account_group = account.group
-        record.statement_day = account.statement_day
-        record.payment_day = account.payment_day
-        record.paid_from_account_id = ids[paid_from] if paid_from else None
+        settings.append(
+            {
+                "s_id": record.id,
+                "s_source_uid": account.uid,
+                "s_account_group": account.group,
+                "s_statement_day": account.statement_day,
+                "s_payment_day": account.payment_day,
+                "s_paid_from_account_id": ids[paid_from] if paid_from else None,
+            }
+        )
         implied = _GROUP_TYPES.get((account.group or "").lower())
         if record.account_type is None and implied is not None:
             record.account_type = implied
             typed = True
+    _write_settings(db, user_id, settings)
     if typed:
         mark_preferences_changed(db, user_id)
+
+
+def _write_settings(db: Session, user_id: int, settings: list[dict[str, object]]) -> None:
+    """One Core UPDATE for every account; these columns are table-only for the expand phase."""
+    if not settings:
+        return
+    columns = (
+        "source_uid",
+        "account_group",
+        "statement_day",
+        "payment_day",
+        "paid_from_account_id",
+    )
+    stmt = (
+        update(LEDGER_ACCOUNTS)
+        .where(LEDGER_ACCOUNTS.c.user_id == user_id, LEDGER_ACCOUNTS.c.id == bindparam("s_id"))
+        .values({column: bindparam(f"s_{column}") for column in columns})
+    )
+    db.execute(stmt.execution_options(synchronize_session=False), settings)
 
 
 def _summary(backup: MoneyManagerBackup) -> BackupSummary:

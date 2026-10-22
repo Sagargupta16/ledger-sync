@@ -1072,11 +1072,24 @@ for group, names in GROUPS.items():
             for n in ast.parse(path.read_text(encoding="utf-8")).body
             if isinstance(n, ast.ClassDef) and n.name == cls.__name__
         )
-        column_nodes = {
+        column_nodes: dict[str, ast.AST] = {
             n.target.id: n
             for n in ast_class.body
             if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
         }
+        # Table-only columns (kept off the mapper for an expand phase) are
+        # ``Column("name", ...)`` calls appended to the table after the class.
+        module_ast = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(module_ast):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "Column"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                column_nodes.setdefault(node.args[0].value, node)
         columns = []
         for column in table.columns:
             meaning = MEANINGS.get(name, {}).get(column.name, COMMON.get(column.name))
@@ -1098,9 +1111,14 @@ for group, names in GROUPS.items():
                     ),
                 }
             declaration = column_nodes[column.name]
+            call = (
+                declaration
+                if isinstance(declaration, ast.Call)
+                else getattr(declaration, "value", None)
+            )
             expressions = (
-                {keyword.arg: ast.unparse(keyword.value) for keyword in declaration.value.keywords}
-                if isinstance(declaration.value, ast.Call)
+                {keyword.arg: ast.unparse(keyword.value) for keyword in call.keywords}
+                if isinstance(call, ast.Call)
                 else {}
             )
             columns.append(

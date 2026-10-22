@@ -17,10 +17,10 @@ import hashlib
 from collections import defaultdict
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session, undefer
+from sqlalchemy import bindparam, select, update
+from sqlalchemy.orm import Session
 
-from ledger_sync.db.models import Transaction
+from ledger_sync.db.models import TRANSACTIONS, Transaction
 from ledger_sync.ingest.hash_id import TransactionHasher
 
 # Keys a source with stable IDs adds to its upload rows, and the columns they fill.
@@ -59,18 +59,13 @@ def match_source_uids(
         by_system[system].append(uid)
     for system, uids in by_system.items():
         for start in range(0, len(uids), _CHUNK_SIZE):
-            stmt = (
-                select(Transaction)
-                .where(
-                    Transaction.user_id == user_id,
-                    Transaction.source_system == system,
-                    Transaction.source_uid.in_(uids[start : start + _CHUNK_SIZE]),
-                )
-                # The column is deferred for the expand phase; read it in this query.
-                .options(undefer(Transaction.source_uid))
+            stmt = select(Transaction, TRANSACTIONS.c.source_uid).where(
+                Transaction.user_id == user_id,
+                TRANSACTIONS.c.source_system == system,
+                TRANSACTIONS.c.source_uid.in_(uids[start : start + _CHUNK_SIZE]),
             )
-            for transaction in session.scalars(stmt):
-                fingerprint = keyed[(system, transaction.source_uid or "")]
+            for transaction, uid in session.execute(stmt).tuples():
+                fingerprint = keyed[(system, uid or "")]
                 matches[fingerprint] = transaction
                 claimed.add(transaction.transaction_id)
 
@@ -110,7 +105,7 @@ def adopt_edited_source_rows(
     for transaction in session.scalars(
         select(Transaction).where(
             Transaction.user_id == user_id,
-            Transaction.source_uid.is_(None),
+            TRANSACTIONS.c.source_uid.is_(None),
             Transaction.is_deleted.is_(False),
         )
     ):
@@ -128,11 +123,33 @@ def adopt_edited_source_rows(
             claimed.add(candidates[0].transaction_id)
 
 
-def apply_source_fields(transaction: Transaction, row: dict[str, Any]) -> None:
-    """Copy the source identity and timestamps a row carries onto its stored row."""
-    for key, column in SOURCE_FIELDS.items():
-        if key in row:
-            setattr(transaction, column, row[key])
+def source_values(row: dict[str, Any]) -> dict[str, Any] | None:
+    """The source identity and timestamps a row carries, by column, if it has any."""
+    values = {column: row[key] for key, column in SOURCE_FIELDS.items() if key in row}
+    return values or None
+
+
+def write_source_values(
+    session: Session, user_id: int, pending: list[tuple[str, dict[str, Any]]]
+) -> None:
+    """Store source values on flushed rows in one Core UPDATE per column set.
+
+    The columns are table-only for the expand phase, so the ORM cannot write them.
+    """
+    by_columns: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
+    for transaction_id, values in pending:
+        binds = {f"v_{column}": value for column, value in values.items()}
+        by_columns[tuple(sorted(values))].append({"v_id": transaction_id, **binds})
+    for columns, params in by_columns.items():
+        stmt = (
+            update(TRANSACTIONS)
+            .where(
+                TRANSACTIONS.c.user_id == user_id,
+                TRANSACTIONS.c.transaction_id == bindparam("v_id"),
+            )
+            .values({column: bindparam(f"v_{column}") for column in columns})
+        )
+        session.execute(stmt.execution_options(synchronize_session=False), params)
 
 
 def release_reassigned_fingerprints(

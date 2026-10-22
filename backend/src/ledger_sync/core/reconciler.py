@@ -21,10 +21,11 @@ from ledger_sync.core.reconciler_helpers import (
 )
 from ledger_sync.core.reconciler_transfers import TransferReconcilerMixin
 from ledger_sync.core.source_identity import (
-    apply_source_fields,
     has_source_uid,
     release_reassigned_fingerprints,
+    source_values,
     unused_transaction_ids,
+    write_source_values,
 )
 from ledger_sync.db.models import Transaction, TransactionType
 from ledger_sync.ingest.hash_id import TransactionHasher
@@ -91,7 +92,6 @@ class Reconciler(TransferReconcilerMixin):
                 changed = True
         for field in _DIMENSION_FIELDS:
             setattr(existing, field, row.get(field))
-        apply_source_fields(existing, row)
         existing.source_fingerprint = identity.fingerprint
         existing.fingerprint_version = 2
         existing.last_seen_at = import_time
@@ -119,11 +119,15 @@ class Reconciler(TransferReconcilerMixin):
             self.session, user_id, [value for value in fingerprints if value not in matches]
         )
         results: list[tuple[Transaction, str]] = []
+        source_writes: list[tuple[str, dict[str, Any]]] = []
         for row, identity in zip(rows, identities, strict=True):
             existing = matches.get(identity.fingerprint)
+            values = source_values(row)
             if existing is not None:
                 action = self._apply_existing_update(existing, row, identity, import_time)
                 results.append((existing, action))
+                if values:
+                    source_writes.append((existing.transaction_id, values))
                 continue
             transaction = Transaction(
                 transaction_id=new_ids[identity.fingerprint],
@@ -145,11 +149,14 @@ class Reconciler(TransferReconcilerMixin):
                 is_deleted=False,
                 **{field: row.get(field) for field in _DIMENSION_FIELDS},
             )
-            apply_source_fields(transaction, row)
             self.session.add(transaction)
             self.affected_dates.add(transaction.date.date())
             results.append((transaction, "inserted"))
+            if values:
+                source_writes.append((transaction.transaction_id, values))
         self.session.flush()
+        if source_writes:
+            write_source_values(self.session, user_id, source_writes)
         return results
 
     def reconcile_transaction(

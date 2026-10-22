@@ -26,10 +26,14 @@ Current for Ledger Sync 2.30.0.
   `occurred_at` with the unique index `uq_transactions_source_uid` on
   `(user_id, source_system, source_uid)`, nullable `ledger_accounts.source_uid`,
   `account_group`, `statement_day`, `payment_day` and `paid_from_account_id`,
-  and the `upload_tokens` table. Everything is additive with no backfill, so
-  the backend and the migration can deploy in either order. Each step skips an
-  object that already has the expected shape and stops on any other shape. It
-  is irreversible.
+  and the `upload_tokens` table. Everything is additive with no backfill. The
+  new columns are table-only in the code (`TRANSACTIONS` and `LEDGER_ACCOUNTS`
+  append them after the mappers, which exclude them), so no ORM select,
+  subquery, count or insert names them and the backend can deploy before the
+  migration. A deferred mapping is not enough: subqueries and legacy `count()`
+  still list deferred columns. Only the backup import reads and writes them,
+  through Core. Each step skips an object that already has the expected shape
+  and stops on any other shape. It is irreversible.
 
 Alembic imports `ledger_sync.db.models`, which registers every model exported
 from `ledger_sync.db._models`. `create_all()` only creates missing tables. It

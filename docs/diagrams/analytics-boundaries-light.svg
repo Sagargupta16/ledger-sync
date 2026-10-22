@@ -94,7 +94,7 @@ nodes:
     shape: cylinder
     label: transactions
     in: store
-    evidence: backend/src/ledger_sync/db/_models/transactions.py:60-63
+    evidence: backend/src/ledger_sync/db/_models/transactions.py:57-60
 
 edges:
   - pages -> hooks: { label: query, evidence: frontend/src/hooks/api/useTransactions.ts:16 }

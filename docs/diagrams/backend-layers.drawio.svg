@@ -146,7 +146,7 @@ nodes:
     icon: tabler:hash
     label: Transaction hasher
     in: l-ingest
-    evidence: backend/src/ledger_sync/core/reconciler.py:52#TransactionHasher
+    evidence: backend/src/ledger_sync/core/reconciler.py:53#TransactionHasher
 
   orm:
     icon: tabler:table
@@ -173,7 +173,7 @@ edges:
   - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:297#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:228"] }
   - c-sync -> s-dims: { label: attach dimensions, constraint: false, evidence: backend/src/ledger_sync/core/sync_engine.py:173#attach_ledger_dimensions }
   - c-sync -> c-recon: { label: reconcile batches, evidence: ["backend/src/ledger_sync/core/sync_engine.py:175#reconcile_batch", "backend/src/ledger_sync/core/sync_engine.py:183"] }
-  - c-recon -> i-hash: { label: SHA-256 IDs, evidence: "backend/src/ledger_sync/core/reconciler.py:52#TransactionHasher" }
+  - c-recon -> i-hash: { label: SHA-256 IDs, evidence: "backend/src/ledger_sync/core/reconciler.py:53#TransactionHasher" }
   - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:200-205" }
   # Analytics
   - c-analytics -> c-rules: { label: classify, evidence: "backend/src/ledger_sync/core/analytics/summaries.py:17#is_essential_expense" }

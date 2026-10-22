@@ -1,5 +1,5 @@
 -- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-22
--- Base checkout: 0225ad09bea0fbde5490e85b59573bb053b76d1f; includes uncommitted changes.
+-- Base checkout: 114fdbd999201173b58e5be0b373471aa7f5e0f3; includes uncommitted changes.
 -- Source migration head: money_manager_source_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
 -- Includes 35 model tables and 483 columns. Excludes Alembic and the reported manual archive.
@@ -355,13 +355,13 @@ CREATE TABLE ledger_accounts (
 	is_closed BOOLEAN DEFAULT false NOT NULL,
 	closed_date TIMESTAMP WITHOUT TIME ZONE,
 	credit_limit NUMERIC(15, 2),
+	created_at TIMESTAMP WITHOUT TIME ZONE,
+	updated_at TIMESTAMP WITHOUT TIME ZONE,
 	source_uid VARCHAR(64),
 	account_group VARCHAR(64),
 	statement_day SMALLINT,
 	payment_day SMALLINT,
 	paid_from_account_id INTEGER,
-	created_at TIMESTAMP WITHOUT TIME ZONE,
-	updated_at TIMESTAMP WITHOUT TIME ZONE,
 	PRIMARY KEY (id),
 	CONSTRAINT uq_ledger_accounts_user_id UNIQUE (user_id, id),
 	CONSTRAINT uq_ledger_accounts_user_key UNIQUE (user_id, key),
@@ -643,10 +643,6 @@ CREATE TABLE transactions (
 	transaction_id VARCHAR(64) NOT NULL,
 	source_fingerprint VARCHAR(64),
 	fingerprint_version INTEGER NOT NULL,
-	source_system VARCHAR(32),
-	source_uid VARCHAR(64),
-	source_updated_at TIMESTAMP WITHOUT TIME ZONE,
-	occurred_at TIMESTAMP WITHOUT TIME ZONE,
 	user_id INTEGER NOT NULL,
 	date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 	amount NUMERIC(15, 2) NOT NULL,
@@ -668,6 +664,10 @@ CREATE TABLE transactions (
 	is_deleted BOOLEAN NOT NULL,
 	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	source_system VARCHAR(32),
+	source_uid VARCHAR(64),
+	source_updated_at TIMESTAMP WITHOUT TIME ZONE,
+	occurred_at TIMESTAMP WITHOUT TIME ZONE,
 	PRIMARY KEY (transaction_id),
 	CONSTRAINT uq_transactions_user_id UNIQUE (user_id, transaction_id),
 	CONSTRAINT fk_transactions_account_dimension FOREIGN KEY(user_id, account_id) REFERENCES ledger_accounts (user_id, id),
