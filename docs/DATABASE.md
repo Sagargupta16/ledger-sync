@@ -1,6 +1,6 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.30.0.
+Database reference for Ledger Sync 2.30.1.
 
 Updated for the 2026-09-18 domain storage implementation. The current model
 contains 35 application tables; Alembic also maintains its own version table.

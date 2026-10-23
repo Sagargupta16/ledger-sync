@@ -3,7 +3,7 @@
 title: "Shared finance rules: lib/finance and its backend mirror"
 subtitle: Page hooks call pure lib/finance modules; metricRules.ts and metric_rules.py hold the same matchers, kept in step by hand
 direction: down
-layout: { spacing: compact }
+layout: { spacing: 0.6 }
 
 legend:
   dotted: same rules kept in step by hand (no traffic)

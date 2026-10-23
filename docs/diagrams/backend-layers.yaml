@@ -7,7 +7,7 @@
 title: "Backend layers: api, services, core, ingest, db"
 subtitle: FastAPI calls from the routers down to Neon; every financial router also takes the API deps
 direction: down
-layout: { spacing: normal }
+layout: { spacing: compact }
 
 groups:
   l-api:

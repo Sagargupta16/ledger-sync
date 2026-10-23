@@ -38,7 +38,7 @@
 title: "Chart kit: components/charts and who renders it"
 subtitle: In-house animated SVG charts that replaced Recharts; every chart root draws inside ChartFrame and animates with Motion 14
 direction: right
-layout: { spacing: compact }
+layout: { spacing: 0.5 }
 
 groups:
   wrappers:
@@ -56,6 +56,14 @@ groups:
 
 nodes:
   # Wrappers in components/analytics, in the order their arrows enter the kit.
+  cat-treemap:
+    icon: tabler:chart-treemap
+    label: CategoryTreemap
+    note: used by ExpenseTreemap
+    in: wrappers
+    evidence:
+      - "frontend/src/components/analytics/CategoryTreemap.tsx:43#CategoryTreemap"
+      - "frontend/src/components/analytics/ExpenseTreemap.tsx:21#CategoryTreemap"
   std-radar:
     icon: tabler:chart-radar
     label: StandardRadarChart
@@ -88,25 +96,7 @@ nodes:
     in: wrappers
     evidence: "frontend/src/components/analytics/StandardPieChart.tsx:70#StandardPieChart"
 
-  cat-treemap:
-    icon: tabler:chart-treemap
-    label: CategoryTreemap
-    note: used by ExpenseTreemap
-    in: wrappers
-    evidence:
-      - "frontend/src/components/analytics/CategoryTreemap.tsx:43#CategoryTreemap"
-      - "frontend/src/components/analytics/ExpenseTreemap.tsx:21#CategoryTreemap"
-
   # Pages that compose the kit directly.
-  page-pie:
-    icon: tabler:app-window
-    label: Page pies
-    badge: x2
-    note: GST rate mix, budget rule
-    in: pages
-    evidence:
-      - "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart"
-      - "frontend/src/pages/spending-analysis/components/BudgetRuleAnalysis.tsx:123#PieChart"
   page-xy:
     icon: tabler:app-window
     label: Page x/y charts
@@ -127,6 +117,15 @@ nodes:
       - "frontend/src/pages/comparison/components/SpendingButterflyChart.tsx:69#CartesianChart"
       - "frontend/src/pages/year-in-review/components/MonthlyBreakdownChart.tsx:68#CartesianChart"
       - "frontend/src/pages/mutual-fund-projection/components/GrowthPlot.tsx:91#CartesianChart"
+  page-pie:
+    icon: tabler:app-window
+    label: Page pies
+    badge: x2
+    note: GST rate mix, budget rule
+    in: pages
+    evidence:
+      - "frontend/src/pages/gst-analysis/components/GSTRateMix.tsx:61#PieChart"
+      - "frontend/src/pages/spending-analysis/components/BudgetRuleAnalysis.tsx:123#PieChart"
   page-sankey:
     icon: tabler:app-window
     label: Cash Flow page
@@ -143,7 +142,17 @@ nodes:
       - "frontend/src/pages/comparison/components/CategorySlopeChart.tsx:51#SlopeChart"
       - "frontend/src/pages/comparison/ComparisonPage.tsx:216#CategorySlopeChart"
 
-  # The kit: chart roots first, then what they compose.
+  # The kit: chart roots, in the order the wrappers and pages above enter them, then ChartFrame.
+  # CartesianChart children share the roots' column (align) right under CartesianChart, so their
+  # one arrow stays out of the arrows into ChartFrame.
+  treemap:
+    icon: tabler:chart-treemap
+    label: Treemap
+    note: zoomable tiles
+    in: kit
+    evidence:
+      - "frontend/src/components/charts/Treemap.tsx:39#Treemap"
+      - "frontend/src/components/charts/Treemap.tsx:187#ChartFrame"
   radar:
     icon: tabler:radar-2
     label: RadarChart
@@ -155,6 +164,25 @@ nodes:
     note: scales, context, active row, pointer
     in: kit
     evidence: "frontend/src/components/charts/CartesianChart.tsx:62#CartesianChart"
+  children:
+    icon: tabler:chart-area-line
+    label: CartesianChart children
+    note: marks, axes, references, tooltip
+    in: kit
+    align: cartesian
+    evidence:
+      - "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
+      - "frontend/src/components/charts/Bars.tsx:71#Bars"
+      - "frontend/src/components/charts/LineSeries.tsx:46#LineSeries"
+      - "frontend/src/components/charts/AreaSeries.tsx:25#AreaSeries"
+      - "frontend/src/components/charts/Axis.tsx:68#CategoryAxis"
+      - "frontend/src/components/charts/Axis.tsx:100#ValueAxis"
+      - "frontend/src/components/charts/Grid.tsx:33#Grid"
+      - "frontend/src/components/charts/References.tsx:63#ReferenceLine"
+      - "frontend/src/components/charts/References.tsx:113#ReferenceArea"
+      - "frontend/src/components/charts/References.tsx:143#ReferenceDot"
+      - "frontend/src/components/charts/CartesianTooltip.tsx:65#CartesianTooltip"
+      - "frontend/src/components/charts/Crosshair.tsx:24#Crosshair"
   brush:
     icon: tabler:adjustments-horizontal
     label: ChartBrush
@@ -166,14 +194,6 @@ nodes:
     label: PieChart
     in: kit
     evidence: "frontend/src/components/charts/PieChart.tsx:61#PieChart"
-  treemap:
-    icon: tabler:chart-treemap
-    label: Treemap
-    note: zoomable tiles
-    in: kit
-    evidence:
-      - "frontend/src/components/charts/Treemap.tsx:39#Treemap"
-      - "frontend/src/components/charts/Treemap.tsx:187#ChartFrame"
   sankey:
     icon: tabler:chart-sankey
     label: SankeyDiagram
@@ -193,24 +213,6 @@ nodes:
     note: size, in-view entrance, print, a11y
     in: kit
     evidence: "frontend/src/components/charts/ChartFrame.tsx:43#ChartFrame"
-  children:
-    icon: tabler:chart-area-line
-    label: CartesianChart children
-    note: marks, axes, references, tooltip
-    in: kit
-    evidence:
-      - "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
-      - "frontend/src/components/charts/Bars.tsx:71#Bars"
-      - "frontend/src/components/charts/LineSeries.tsx:46#LineSeries"
-      - "frontend/src/components/charts/AreaSeries.tsx:25#AreaSeries"
-      - "frontend/src/components/charts/Axis.tsx:68#CategoryAxis"
-      - "frontend/src/components/charts/Axis.tsx:100#ValueAxis"
-      - "frontend/src/components/charts/Grid.tsx:33#Grid"
-      - "frontend/src/components/charts/References.tsx:63#ReferenceLine"
-      - "frontend/src/components/charts/References.tsx:113#ReferenceArea"
-      - "frontend/src/components/charts/References.tsx:143#ReferenceDot"
-      - "frontend/src/components/charts/CartesianTooltip.tsx:65#CartesianTooltip"
-      - "frontend/src/components/charts/Crosshair.tsx:24#Crosshair"
 
   # Animation engine, outside the kit (npm package).
   motion:
