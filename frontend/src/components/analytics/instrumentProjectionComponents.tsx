@@ -54,6 +54,9 @@ export function SliderInput({
   )
 }
 
+/** Rows key years as Y15 for compact axis ticks; the tooltip, caption and table spell out Year 15. */
+const formatProjectionYear = (label: string) => label.replace(/^Y/, 'Year ')
+
 export function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) {
   const chartData = toChartData(data)
 
@@ -65,6 +68,7 @@ export function ProjectionChart({ data }: Readonly<{ data: ProjectionResult }>) 
       stacked
       ariaLabel="Projected account value by year, split between contributions and returns"
       tooltipFormatter={formatCurrency}
+      tooltipLabelFormatter={formatProjectionYear}
       areas={[
         { key: 'Contributed', color: rawColors.app.blue, fillOpacity: 0.7 },
         { key: 'Returns', color: rawColors.app.green, fillOpacity: 0.7 },

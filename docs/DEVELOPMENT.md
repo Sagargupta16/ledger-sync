@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.29.0.
+Current for Ledger Sync 2.30.0.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -317,11 +317,15 @@ classification, date filtering, and calculations in feature hooks and utilities.
 Pass the resulting rows, labels, colors, formatters, and drilldown callbacks to
 the Standard chart adapters.
 
-For a custom plot, reuse `ChartContainer`, `ChartTooltipContent`,
-`ChartSeriesLegend` or `PieChartLedger`, and `chartDefaults` as appropriate.
-Subscribe through `useChartPresentation` so Recharts paint and animation follow
-live settings. Import the new tooltip, legend, pie ledger, and presentation
-hook from their own `components/ui/` files.
+For a custom plot, compose the kit in `components/charts/`: `CartesianChart`
+with `Bars`, `LineSeries`, `AreaSeries`, `Axis`, `Grid`, `References`,
+`Crosshair`, and `CartesianTooltip`, or `PieChart`, `RadarChart`, and
+`SankeyDiagram`. Each root draws inside `ChartFrame`, which already follows
+the live theme, motion, viewport, and print settings, so a plot needs no
+subscription of its own. Read series colors through `usePaletteSnapshot` so
+they repaint on a theme toggle, and time any new animation with the
+`chartMotion` tokens. `ChartSeriesLegend` and `PieChartLedger` in
+`components/ui/` cover HTML beside the plot.
 
 Standard adapters already render accessible data tables. For custom plots,
 follow [chartDataTable](../frontend/src/components/ui/chartDataTable.tsx): keep
@@ -330,9 +334,9 @@ row-header column. The required shape is:
 
 ```tsx
 <>
-  <ChartContainer height={280} ariaLabel={description}>
-    <YourRechartsPlot data={rows} />
-  </ChartContainer>
+  <CartesianChart data={rows} categoryKey="month" series={series} height={280} ariaLabel={description}>
+    <Bars dataKey="amount" color={palette.expense} />
+  </CartesianChart>
   {chartDataTable(rows, columns, description, rowKey)}
 </>
 ```
@@ -353,8 +357,8 @@ When changing chart presentation, verify the affected behavior:
   paint, tooltip motion, ledger interactions, and retention of page state.
   Keep colors derived from tokens and animations tied to the existing stores.
 - Preserve all selected-period rows when adding a brush or mobile window.
-  Keep controlled range state above `ChartContainer`, whose inner plot remounts
-  on theme changes. Check both history endpoints, earlier/later controls,
+  Keep controlled range state in `useChartRange` above the chart and pass it as
+  `visibleRange`, so only the plot zooms. Check both history endpoints, earlier/later controls,
   period changes, and the full table and summary totals. See the
   [monthly range regression checks](../frontend/src/components/analytics/__tests__/MonthlyFlowChartRange.test.tsx).
 - Exercise empty and single-point series, negative values, long labels, and

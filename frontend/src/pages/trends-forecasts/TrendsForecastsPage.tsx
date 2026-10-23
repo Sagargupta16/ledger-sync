@@ -65,10 +65,7 @@ export default function TrendsForecastsPage() {
         peakIncome={trends.peakIncome}
         peakExpenses={trends.peakExpenses}
         peakSavings={trends.peakSavings}
-        rollingAvgPointCount={trends.rollingAvgPointCount}
         rollingAvgMonths={trends.rollingAvgMonths}
-        activeLabel={trends.activeLabel}
-        onActiveLabelChange={trends.setActiveLabel}
       />
       <SavingsRateSection
         isLoading={trends.isLoading}

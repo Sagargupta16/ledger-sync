@@ -8,7 +8,13 @@ import pytest
 from sqlalchemy import event, select
 
 from ledger_sync.api.rate_limit import limiter
-from ledger_sync.db.models import CategorizationRule, ImportLog, Transaction, TransactionType
+from ledger_sync.db.models import (
+    CategorizationRule,
+    ImportLog,
+    Transaction,
+    TransactionTag,
+    TransactionType,
+)
 
 
 def test_unchanged_forced_upload_keeps_published_summaries(two_user_client, monkeypatch):
@@ -85,6 +91,11 @@ def test_rejected_snapshot_releases_transaction_in_worker(two_user_client, monke
                 category="",
             )
         )
+    elif rejection == "ambiguous_legacy":
+        # A tag on the stored copy makes ownership matter: either source row
+        # could be the one it was attached to, so the snapshot must be rejected.
+        session.flush()
+        session.add(TransactionTag(user_id=user_id, transaction_id=legacy_id, tag="keep"))
     session.commit()
     row = {
         "date": "2026-01-15",

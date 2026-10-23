@@ -22,7 +22,7 @@ import {
 export const INVESTMENT_CATEGORIES = ['FD/Bonds', 'Mutual Funds', 'PPF/EPF', 'Stocks'] as const
 export type InvestmentCategory = (typeof INVESTMENT_CATEGORIES)[number]
 
-/** Resolved hex for Recharts, rebuilt in place on a theme toggle. */
+/** Resolved hex for charts, rebuilt in place on a theme toggle. */
 function buildCategoryColors(): Record<InvestmentCategory, string> {
   return {
     'FD/Bonds': rawColors.app.pink,

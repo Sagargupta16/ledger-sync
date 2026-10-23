@@ -1,13 +1,17 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { formatCurrencyShort } from '@/lib/formatters'
+import { useMotionStore } from '@/store/motionStore'
 
 import StandardBarChart from '../StandardBarChart'
-import { renderBaseline, renderBarShape } from '../standardBarChartParts'
+import { barFill, barSlots, baselineValue, referenceLineProps, useHiddenSeries } from '../standardBarChartParts'
 
 /**
- * jsdom reports a 0x0 container, so Recharts never paints the SVG. These tests
- * assert on the accessible layer (role="img" name + sr-only data table), which
- * is the contract screen readers consume and mirrors the bars one-for-one.
+ * jsdom has no ResizeObserver, so the chart kit paints at its 640px fallback
+ * width; reduced motion makes it draw final geometry at once. Most cases assert
+ * the accessible layer (role="img" name + sr-only data table), the contract
+ * screen readers consume; the rest assert the helpers each rule lives in.
  */
 const MONTHS = [
   { displayPeriod: 'Jan', expense: 1000 },
@@ -16,6 +20,10 @@ const MONTHS = [
 ]
 
 const BARS = [{ key: 'expense', color: '#000000', label: 'Expense' }]
+
+beforeEach(() => {
+  useMotionStore.getState().setMode('reduced')
+})
 
 function bodyRows(): string[][] {
   const body = screen.getByRole('table').querySelector('tbody') as HTMLElement
@@ -135,146 +143,205 @@ describe('StandardBarChart', () => {
   })
 })
 
-/**
- * The baseline is a Recharts `<ReferenceLine>`. jsdom never paints it, and
- * Recharts strips unknown children from the DOM, so rendering the chart cannot
- * prove the line exists -- an earlier version of this suite "tested" the feature
- * by asserting the data table was unchanged, which passed identically with the
- * baseline deleted. These assert the returned element directly instead.
- */
+describe('StandardBarChart legend toggles', () => {
+  // Expense dwarfs income, so hiding it shrinks the value axis a hundredfold.
+  const ROWS = [
+    { displayPeriod: 'Jan', income: 1000, expense: 100000 },
+    { displayPeriod: 'Feb', income: 800, expense: 90000 },
+  ]
+  const TWO_BARS = [
+    { key: 'income', color: '#000000', label: 'Income' },
+    { key: 'expense', color: '#111111', label: 'Expense' },
+  ]
+  const barsIn = (color: string) =>
+    screen.getByRole('img', { name: 'Cash flow' }).querySelectorAll(`path[fill="${color}"]`).length
+
+  it('drops a hidden series from the plot and the axis, but not from the table', () => {
+    render(<StandardBarChart data={ROWS} bars={TWO_BARS} ariaLabel="Cash flow" tooltipFormatter={(v) => String(v)} />)
+    expect(barsIn('#111111')).toBe(2)
+    expect(screen.queryByText(formatCurrencyShort(1000))).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+
+    expect(screen.getByRole('button', { name: 'Expense' })).toHaveAttribute('aria-pressed', 'false')
+    expect(barsIn('#111111')).toBe(0)
+    expect(barsIn('#000000')).toBe(2)
+    // The value axis now spans income alone: 0 to 1,000 in steps of 200.
+    expect(screen.getByText(formatCurrencyShort(1000))).toBeInTheDocument()
+    expect(bodyRows()).toEqual([
+      ['Jan', '1000', '100000'],
+      ['Feb', '800', '90000'],
+    ])
+  })
+
+  it('locks the last visible series on and brings a hidden one back', () => {
+    render(<StandardBarChart data={ROWS} bars={TWO_BARS} ariaLabel="Cash flow" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+
+    const income = screen.getByRole('button', { name: 'Income' })
+    expect(income).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(income)
+    expect(barsIn('#000000')).toBe(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expense' }))
+    expect(barsIn('#111111')).toBe(2)
+    expect(income).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('offers no toggles for a single series', () => {
+    render(<StandardBarChart data={MONTHS} bars={BARS} ariaLabel="Monthly expenses" />)
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+})
+
+describe('useHiddenSeries', () => {
+  it('flips a key on each toggle and hides nothing while the legend does not toggle', () => {
+    const { result, rerender } = renderHook(({ toggles }) => useHiddenSeries(['a', 'b'], toggles), {
+      initialProps: { toggles: true },
+    })
+    act(() => result.current[1]('a'))
+    expect([...result.current[0]]).toEqual(['a'])
+    act(() => result.current[1]('a'))
+    expect(result.current[0].size).toBe(0)
+
+    act(() => result.current[1]('b'))
+    rerender({ toggles: false })
+    expect(result.current[0].size).toBe(0)
+  })
+
+  it('keeps a hidden key through new data, and drops it once it leaves the series list', () => {
+    const { result, rerender } = renderHook(({ keys }) => useHiddenSeries(keys, true), {
+      initialProps: { keys: ['a', 'b', 'c'] },
+    })
+    act(() => result.current[1]('a'))
+    rerender({ keys: ['a', 'b', 'c'] })
+    expect(result.current[0].has('a')).toBe(true)
+
+    rerender({ keys: ['b', 'c'] })
+    rerender({ keys: ['a', 'b', 'c'] })
+    expect(result.current[0].has('a')).toBe(false)
+  })
+
+  it('shows every series again when none of the listed ones would be left', () => {
+    const { result, rerender } = renderHook(({ keys }) => useHiddenSeries(keys, true), {
+      initialProps: { keys: ['a', 'b', 'c'] },
+    })
+    act(() => result.current[1]('a'))
+    act(() => result.current[1]('b'))
+    rerender({ keys: ['a', 'b'] })
+
+    expect(result.current[0].size).toBe(0)
+  })
+})
+
 describe('StandardBarChart baseline', () => {
   const SPIKY = [{ v: 10 }, { v: 20 }, { v: 90 }]
   const ONE_BAR = [{ key: 'v', color: '#000000' }]
 
-  function baselineProps(el: ReturnType<typeof renderBaseline>) {
-    return (el as { props: { y: number; label: { value: string } } }).props
-  }
-
   it('draws the line at the median of the first series, not the mean', () => {
-    const el = renderBaseline(true, SPIKY, ONE_BAR, 'horizontal')
-
     // mean would be 40; median resists the 90 spike.
-    expect(baselineProps(el).y).toBe(20)
+    expect(baselineValue(true, SPIKY, ONE_BAR, 'horizontal')?.value).toBe(20)
   })
 
   it('labels the line with the statistic value', () => {
-    const el = renderBaseline(true, SPIKY, ONE_BAR, 'horizontal')
+    const label = baselineValue(true, SPIKY, ONE_BAR, 'horizontal')?.label
 
-    expect(baselineProps(el).label.value).toContain('Typical')
-    expect(baselineProps(el).label.value).toContain('20')
+    expect(label).toContain('Typical')
+    expect(label).toContain('20')
   })
 
   it('honours an explicit label and the mean statistic', () => {
-    const el = renderBaseline(
-      { label: 'Typical month', statistic: 'mean' },
-      SPIKY,
-      ONE_BAR,
-      'horizontal',
-    )
+    const mark = baselineValue({ label: 'Typical month', statistic: 'mean' }, SPIKY, ONE_BAR, 'horizontal')
 
-    expect(baselineProps(el).y).toBe(40)
-    expect(baselineProps(el).label.value).toContain('Typical month')
+    expect(mark?.value).toBe(40)
+    expect(mark?.label).toContain('Typical month')
   })
 
   it('scopes the statistic to a trailing window when one is given', () => {
-    const el = renderBaseline({ window: 2 }, SPIKY, ONE_BAR, 'horizontal')
-
     // Last two points are 20 and 90 -> median 55.
-    expect(baselineProps(el).y).toBe(55)
+    expect(baselineValue({ window: 2 }, SPIKY, ONE_BAR, 'horizontal')?.value).toBe(55)
   })
 
   it('renders nothing when not opted in', () => {
-    expect(renderBaseline(undefined, SPIKY, ONE_BAR, 'horizontal')).toBeNull()
-    expect(renderBaseline(false, SPIKY, ONE_BAR, 'horizontal')).toBeNull()
+    expect(baselineValue(undefined, SPIKY, ONE_BAR, 'horizontal')).toBeNull()
+    expect(baselineValue(false, SPIKY, ONE_BAR, 'horizontal')).toBeNull()
   })
 
-  it('renders nothing for the vertical ranking layout, where a y-line is meaningless', () => {
-    expect(renderBaseline(true, SPIKY, ONE_BAR, 'vertical')).toBeNull()
+  it('renders nothing for the vertical ranking layout, where a value line is meaningless', () => {
+    expect(baselineValue(true, SPIKY, ONE_BAR, 'vertical')).toBeNull()
   })
 
   it('renders nothing when there is no data to summarize', () => {
-    expect(renderBaseline(true, [], ONE_BAR, 'horizontal')).toBeNull()
+    expect(baselineValue(true, [], ONE_BAR, 'horizontal')).toBeNull()
+  })
+
+  it('draws the labelled line on the chart', () => {
+    render(<StandardBarChart data={MONTHS} bars={BARS} baseline ariaLabel="Monthly expenses" />)
+
+    expect(screen.getByText(`Typical: ${formatCurrencyShort(2000)}`)).toBeInTheDocument()
   })
 })
 
-/**
- * Per-bar colour moved from deprecated `<Cell>` children to Recharts' `shape`
- * render prop (Cell is removed in Recharts 4.0). The renderer is a pure function
- * of the props Recharts hands it, so it is asserted directly -- jsdom never
- * paints the SVG, so rendering the chart could not prove any of this.
- */
-describe('StandardBarChart per-bar shape', () => {
+describe('StandardBarChart bar paint and grouping', () => {
   const BASE = { key: 'v', color: '#000000' }
 
-  /** The props Recharts passes a bar shape, trimmed to what the renderer reads. */
-  function shapeProps(index: number, row: Record<string, unknown>, originalDataIndex = index) {
-    return {
-      x: 0, y: 0, width: 10, height: 20,
-      index, originalDataIndex, payload: row, value: 1,
-    } as never
-  }
-
-  function fillOf(
-    bar: Parameters<typeof renderBarShape>[0],
-    activeIndex: number | null,
-    isolate: boolean,
-    props: ReturnType<typeof shapeProps>,
-  ) {
-    const Shape = renderBarShape(bar, activeIndex, isolate)
-    if (!Shape) throw new Error('expected a shape renderer')
-    const el = Shape(props) as { props: { fill?: string; fillOpacity?: number } }
-    return el.props
-  }
-
-  it('is omitted entirely when neither per-item colour nor isolation is asked for', () => {
-    // Returning undefined lets `<Bar shape={...}>` fall back to Recharts'
-    // default rectangle rather than paying for a custom renderer per bar.
-    expect(renderBarShape(BASE, null, false)).toBeUndefined()
-  })
-
-  it('resolves the colour from getCellColor using the row, not the render position', () => {
+  it('resolves the colour from getCellColor using the row, not the drawn position', () => {
     const bar = {
       ...BASE,
       getCellColor: (row: Record<string, unknown>) => (row.over ? '#ff0000' : '#00ff00'),
     }
 
-    // Rendered at slot 0 but is really row 3 -- the regression `<Cell>` could not
-    // express, because Cell children are matched by rendered position.
-    expect(fillOf(bar, null, false, shapeProps(0, { over: true }, 3)).fill).toBe('#ff0000')
+    expect(barFill(bar, { over: true }, 3)).toBe('#ff0000')
   })
 
-  it('indexes cellColors by the pre-filter row index, so a dropped bar cannot shift the ramp', () => {
+  it('indexes cellColors by the row index in the full data, so a skipped bar cannot shift the ramp', () => {
     const bar = { ...BASE, cellColors: ['#aaaaaa', '#bbbbbb', '#cccccc', '#dddddd'] }
 
-    // Recharts filters zero-dimension bars out of the rendered list, so slot 1
-    // can be row 3. Positional Cell children would have painted '#bbbbbb' here.
-    expect(fillOf(bar, null, false, shapeProps(1, {}, 3)).fill).toBe('#dddddd')
+    expect(barFill(bar, {}, 3)).toBe('#dddddd')
   })
 
   it('falls back to the series colour when no per-item colour resolves', () => {
-    const bar = { ...BASE, cellColors: ['#aaaaaa'] }
-
-    expect(fillOf(bar, null, false, shapeProps(5, {}, 5)).fill).toBe('#000000')
+    expect(barFill({ ...BASE, cellColors: ['#aaaaaa'] }, {}, 5)).toBe('#000000')
+    expect(barFill(BASE, {}, 0)).toBe('#000000')
   })
 
-  it('dims every bar except the hovered one when isolating', () => {
-    expect(fillOf(BASE, 2, true, shapeProps(0, {}, 0)).fillOpacity).toBe(0.35)
-    expect(fillOf(BASE, 2, true, shapeProps(2, {}, 2)).fillOpacity).toBe(1)
+  it('paints each drawn bar in its cell colour and configured opacity, skipping zero rows', () => {
+    const tiers = [
+      { tier: 'Lean', corpus: 10, color: '#00ff00' },
+      { tier: 'Empty', corpus: 0, color: '#ffff00' },
+      { tier: 'Fat', corpus: 30, color: '#ff00ff' },
+    ]
+    const cellColor = (row: Record<string, unknown>) => (row as { color: string }).color
+    const bars = [{ key: 'corpus', color: '#0000ff', fillOpacity: 0.7, getCellColor: cellColor }]
+    render(<StandardBarChart data={tiers} bars={bars} layout="vertical" yCategoryKey="tier" dataKey="tier" ariaLabel="FIRE variants" />)
+
+    const paths = screen.getByRole('img', { name: 'FIRE variants' }).querySelectorAll('path[fill]')
+    expect(Array.from(paths, (path) => [path.getAttribute('fill'), path.getAttribute('fill-opacity')])).toEqual([
+      ['#00ff00', '0.7'],
+      ['#ff00ff', '0.7'],
+    ])
   })
 
-  it('leaves every bar at full opacity when nothing is hovered', () => {
-    expect(fillOf(BASE, null, true, shapeProps(0, {}, 0)).fillOpacity).toBe(1)
+  it('gives each unstacked series its own slot and each stack, or a stacked chart, one shared slot', () => {
+    const [a, b, c] = barSlots([
+      { key: 'a', color: '#000000', stackId: 's' },
+      { key: 'b', color: '#111111' },
+      { key: 'c', color: '#222222', stackId: 's' },
+    ])
+
+    expect([a, b, c].map((slot) => [slot.groupIndex, slot.groupCount])).toEqual([[0, 2], [1, 2], [0, 2]])
+    expect(c).toMatchObject({ stackId: 's', stackKeys: ['a', 'c'] })
+    expect(b.stackKeys).toBeUndefined()
+    expect(barSlots([BASE, { key: 'w', color: '#111111' }], true)[1])
+      .toEqual({ groupIndex: 0, groupCount: 1, stackId: 'stack', stackKeys: ['v', 'w'] })
   })
 
-  it('keeps the configured fillOpacity for the bar it does not dim', () => {
-    const bar = { ...BASE, fillOpacity: 0.8 }
-
-    expect(fillOf(bar, 1, true, shapeProps(1, {}, 1)).fillOpacity).toBe(0.8)
-  })
-
-  it('never dims when isolation is off, even with an active index', () => {
-    const bar = { ...BASE, cellColors: ['#aaaaaa', '#bbbbbb'] }
-
-    expect(fillOf(bar, 0, false, shapeProps(1, {}, 1)).fillOpacity).toBe(1)
+  it('reads reference y as the value in columns and x in rankings, keeping a dashed default stroke', () => {
+    expect(referenceLineProps({ y: 500, label: 'Cap', variant: 'target' }, 'horizontal'))
+      .toEqual({ value: 500, label: 'Cap', variant: 'target' })
+    expect(referenceLineProps({ x: 500, y: 'Rent' }, 'vertical')).toMatchObject({ value: 500, category: 'Rent' })
+    expect(referenceLineProps({ y: 0, color: '#123456' }, 'horizontal'))
+      .toMatchObject({ value: 0, color: '#123456', dash: '3 3' })
   })
 })

@@ -1,50 +1,6 @@
 /**
- * Shared chart utilities for consistent visualization behavior.
- *
- * - Currency-aware label formatters for Recharts LabelList
+ * Shared rolling-average helpers for the monthly trend charts.
  */
-
-import { CHART_TEXT } from '@/constants/chartColors'
-import { formatCurrencyShort } from './formatters'
-
-/**
- * Narrow a Recharts tooltip `label` down to the text it actually carries.
- *
- * Recharts declares `labelFormatter`'s first argument as `ReactNode`, but at
- * runtime the value is the active tooltip-axis tick value -- `string | number`
- * (`selectActiveLabel` -> `combineActiveLabel` -> `tooltipTicks[n].value`), and
- * the formatter is only called at all when that value is non-nullish. Typing a
- * call-site parameter as the declared `ReactNode` and then interpolating it
- * would let an element/object reach a template literal and render the literal
- * text `[object Object]` inside a tooltip, so scalars are passed through and
- * anything else collapses to an empty string.
- *
- * @param label - Raw first argument handed to `labelFormatter`
- */
-export function tooltipLabelString(label: unknown): string {
-  if (typeof label === 'string') return label
-  if (typeof label === 'number') return String(label)
-  return ''
-}
-
-/**
- * Recharts LabelList formatter for currency values on bar charts.
- * Shows abbreviated currency (e.g. "₹1.2L") for readability.
- */
-export function barLabelFormatter(value: number): string {
-  if (value === 0) return ''
-  return formatCurrencyShort(value)
-}
-
-/**
- * Recharts LabelList render props for dark-theme bar labels.
- * Returns style object suitable for <LabelList> content prop.
- */
-export const barLabelStyle = {
-  fill: CHART_TEXT.secondary,
-  fontSize: 10,
-  fontWeight: 500,
-} as const
 
 /** Rolling-average window shared by every monthly trend chart, in months. */
 export const ROLLING_AVG_MONTHS = 3
@@ -53,11 +9,10 @@ export const ROLLING_AVG_MONTHS = 3
  * Count the rolling-average points that actually exist on a series.
  *
  * A trailing average is `undefined`/`null` until a full window is behind it, so
- * there are always fewer average points than data points. That count has to
- * travel to the chart for two reasons: recharts strokes a polyline through
- * DEFINED points only, so one point emits `M x,y Z` and paints nothing (probed
- * against recharts 3.10), and the caption must not promise a line that cannot
- * be drawn.
+ * there are always fewer average points than data points. The caption needs
+ * that count: a line needs two defined points, so a single average is drawn
+ * as a dot (LineSeries' `showDots: 'auto'`), and the caption must not promise
+ * a line that is not there.
  */
 export function countRollingAvgPoints<T>(
   series: readonly T[],

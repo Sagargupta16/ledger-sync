@@ -1,6 +1,6 @@
 /**
- * Text legend for a donut that renders its own wedges without a Recharts
- * `<Legend>` (dashboard-style: chart on top, clickable amount rows below).
+ * Text legend for a donut drawn without its own ledger (`showLegend={false}`),
+ * dashboard-style: chart on top, clickable amount rows below.
  *
  * The rows are driven by the SAME `capPieSlices` output the chart renders, not a
  * hand-mirrored `slice(0, N)` -- that drifted the moment the chart's default cap

@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure token-refresh, split out of session-lifecycle.yaml: the 401 round trip of the axios
+# response interceptor with its three exits to endSession. Every edge is inferred from call sites.
+title: Token refresh on a 401 in the SPA
+subtitle: The first 401 triggers one refresh with one-use rotation and a retry; any failure goes through endSession
+kind: flowchart
+direction: down
+
+layout: { spacing: 2 }
+groups:
+  lane-spa: { type: lane, label: SPA, evidence: "frontend/src/services/api/client.ts:255-316" }
+  lane-be: { type: lane, label: Backend, evidence: "backend/src/ledger_sync/api/auth.py:24" }
+
+nodes:
+  signedin:
+    shape: terminator
+    label: Signed in
+    in: lane-spa
+    evidence: "frontend/src/hooks/api/useAuth.ts:74-77"   # user and tokens installed
+  active:
+    shape: process
+    label: Serve authenticated requests
+    in: lane-spa
+    evidence: "frontend/src/hooks/api/useAuth.ts:74-77"
+  got401:
+    shape: decision
+    label: Response is a 401?
+    in: lane-spa
+    evidence: "frontend/src/services/api/client.ts:299-309"
+  refresh:
+    shape: data
+    label: POST /api/auth/refresh
+    note: one-use rotation
+    in: lane-spa
+    evidence: ["frontend/src/services/api/client.ts:261-279", "backend/src/ledger_sync/api/auth.py:48-56"]
+  rotate:
+    shape: process
+    label: Consume refresh, issue pair
+    note: reuse after 60 s grace revokes all sessions
+    in: lane-be
+    evidence: ["backend/src/ledger_sync/services/auth_refresh.py:84-108", "backend/src/ledger_sync/services/auth_refresh.py:31"]
+  retry:
+    shape: process
+    label: Store tokens, retry request
+    in: lane-spa
+    evidence: ["frontend/src/services/api/client.ts:278", "frontend/src/services/api/client.ts:311-316"]
+    note: keeps the same session generation
+  end:
+    shape: predefined
+    label: endSession
+    note: "clearSessionData, exit demo, log out store"
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:50-54"
+  signedout:
+    shape: terminator
+    label: Signed out
+    in: lane-spa
+    evidence: "frontend/src/lib/session.ts:52-53"
+
+edges:
+  - signedin -> active: { evidence: "frontend/src/hooks/api/useAuth.ts:74-77" }
+  - active -> got401: { label: API error, evidence: "frontend/src/services/api/client.ts:293" }
+  - got401 -> active: { label: "no", evidence: "frontend/src/services/api/client.ts:304" }
+  - got401 -> refresh: { label: "yes, first time", evidence: "frontend/src/services/api/client.ts:311-313" }
+  - got401 -> end: { label: "yes, after retry", evidence: "frontend/src/services/api/client.ts:306-309" }
+  - refresh -> rotate: { evidence: "backend/src/ledger_sync/api/auth.py:56#refresh_tokens" }
+  - refresh -> end: { label: no refresh token, evidence: "frontend/src/services/api/client.ts:264-266" }
+  - rotate -> retry: { label: new pair, evidence: "frontend/src/services/api/client.ts:273-279" }
+  - rotate -> end: { label: invalid or reused, evidence: ["frontend/src/services/api/client.ts:280-283", "backend/src/ledger_sync/services/auth_refresh.py:96-108"] }
+  - retry -> active: { evidence: ["frontend/src/services/api/client.ts:314-316", "frontend/src/lib/session.ts:15"] }
+  - end -> signedout: { evidence: "frontend/src/lib/session.ts:50-54" }

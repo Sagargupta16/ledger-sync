@@ -1,8 +1,8 @@
--- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-21
--- Base checkout: 52afce19d960690ac806362ae850b4d4a067d479; includes uncommitted changes.
--- Source migration head: recurring_user_amount_2026
+-- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-22
+-- Base checkout: 114fdbd999201173b58e5be0b373471aa7f5e0f3; includes uncommitted changes.
+-- Source migration head: money_manager_source_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
--- Includes 34 model tables and 464 columns. Excludes Alembic and the reported manual archive.
+-- Includes 35 model tables and 483 columns. Excludes Alembic and the reported manual archive.
 -- Models do not capture every server default/name retained by historical migrations.
 -- Unqualified object names use the database search_path; public is the application convention.
 
@@ -357,6 +357,11 @@ CREATE TABLE ledger_accounts (
 	credit_limit NUMERIC(15, 2),
 	created_at TIMESTAMP WITHOUT TIME ZONE,
 	updated_at TIMESTAMP WITHOUT TIME ZONE,
+	source_uid VARCHAR(64),
+	account_group VARCHAR(64),
+	statement_day SMALLINT,
+	payment_day SMALLINT,
+	paid_from_account_id INTEGER,
 	PRIMARY KEY (id),
 	CONSTRAINT uq_ledger_accounts_user_id UNIQUE (user_id, id),
 	CONSTRAINT uq_ledger_accounts_user_key UNIQUE (user_id, key),
@@ -482,6 +487,22 @@ CREATE TABLE import_logs (
 	rows_skipped INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	CONSTRAINT uq_import_logs_user_file_hash UNIQUE (user_id, file_hash),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE upload_tokens (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	name VARCHAR(100) NOT NULL,
+	token_prefix VARCHAR(16) NOT NULL,
+	token_hash VARCHAR(64) NOT NULL,
+	scope VARCHAR(32) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	last_used_at TIMESTAMP WITHOUT TIME ZONE,
+	revoked_at TIMESTAMP WITHOUT TIME ZONE,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_upload_tokens_token_hash UNIQUE (token_hash),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -643,6 +664,10 @@ CREATE TABLE transactions (
 	is_deleted BOOLEAN NOT NULL,
 	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	source_system VARCHAR(32),
+	source_uid VARCHAR(64),
+	source_updated_at TIMESTAMP WITHOUT TIME ZONE,
+	occurred_at TIMESTAMP WITHOUT TIME ZONE,
 	PRIMARY KEY (transaction_id),
 	CONSTRAINT uq_transactions_user_id UNIQUE (user_id, transaction_id),
 	CONSTRAINT fk_transactions_account_dimension FOREIGN KEY(user_id, account_id) REFERENCES ledger_accounts (user_id, id),
@@ -809,6 +834,8 @@ CREATE INDEX ix_transfer_flows_to_account ON transfer_flows (to_account);
 
 CREATE INDEX ix_transfer_flows_user_id ON transfer_flows (user_id);
 
+CREATE INDEX ix_upload_tokens_user_id ON upload_tokens (user_id);
+
 CREATE INDEX ix_users_auth_provider ON users (auth_provider);
 
 CREATE UNIQUE INDEX ix_cohort_spending_user_dim ON cohort_spending (user_id, dimension, bucket);
@@ -842,3 +869,5 @@ CREATE UNIQUE INDEX uq_merchant_intelligence_user_label ON merchant_intelligence
 CREATE UNIQUE INDEX uq_recurring_transactions_user_id ON recurring_transactions (user_id, id);
 
 CREATE UNIQUE INDEX uq_transactions_source ON transactions (user_id, source_fingerprint);
+
+CREATE UNIQUE INDEX uq_transactions_source_uid ON transactions (user_id, source_system, source_uid);

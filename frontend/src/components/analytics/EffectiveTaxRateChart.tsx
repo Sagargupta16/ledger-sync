@@ -1,30 +1,28 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { TrendingUp } from 'lucide-react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ReferenceDot,
-} from 'recharts'
-import type { TaxSlab } from '@/lib/taxCalculator'
-import { buildTaxRateCurve, effectiveTaxRate, type TaxRateCurvePoint } from '@/lib/finance/taxRateCurve'
-import { shareOfIncomePercent } from '@/lib/savingsRate'
-import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { formatFYLabel } from '@/lib/dateUtils'
-import { rawColors } from '@/constants/colors'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
+
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
+import { ReferenceDot, ReferenceLine } from '@/components/charts/References'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, ACTIVE_DOT } from '@/components/ui/chartDefaults'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { formatFYLabel } from '@/lib/dateUtils'
+import { buildTaxRateCurve, effectiveTaxRate, type TaxRateCurvePoint } from '@/lib/finance/taxRateCurve'
+import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { shareOfIncomePercent } from '@/lib/savingsRate'
+import type { TaxSlab } from '@/lib/taxCalculator'
 import { fadeUpItem } from '@/constants/animations'
+import { rawColors } from '@/constants/colors'
+
+import EffectiveTaxRateFooter from './EffectiveTaxRateFooter'
+import { findCrossoverIncome, nearestCurveIncome, taxRateTooltipSeries } from './effectiveTaxRateModel'
 
 interface EffectiveTaxRateChartProps {
   taxSlabs?: TaxSlab[]
@@ -37,13 +35,21 @@ interface EffectiveTaxRateChartProps {
   fiscalYearStartMonth?: number
 }
 
-const RANGE_OPTIONS = [
-  { label: '50L', value: 5000000 },
-  { label: '1Cr', value: 10000000 },
-  { label: '2Cr', value: 20000000 },
-  { label: '5Cr', value: 50000000 },
-  { label: '10Cr', value: 100000000 },
-]
+const BOTH_REGIMES: readonly SeriesSpec[] = [{ key: 'oldRegimeRate' }, { key: 'newRegimeRate' }]
+const OLD_REGIME: readonly SeriesSpec[] = [{ key: 'oldRegimeRate' }]
+const RATE_DOMAIN = [0, 'auto'] as const
+/** Headroom above the plot for the "You" label over its line. */
+const MARGIN = { top: 24 }
+/**
+ * The curve is 101 evenly spaced rows, so labelling every 20th row (every 25th
+ * on phones) puts each tick on a round income: 0, 10L, 20L... of the 50L range.
+ */
+const TICK_INTERVAL = { desktop: 19, mobile: 24 } as const
+const NO_VALUES: readonly number[] = []
+
+const percentTick = (value: number) => `${value}%`
+const incomeTick = (key: string) => formatCurrencyShort(Number(key))
+const incomeHeading = (key: string) => `Income: ${formatCurrencyShort(Number(key))}`
 
 export default function EffectiveTaxRateChart({
   fyYear,
@@ -54,7 +60,9 @@ export default function EffectiveTaxRateChart({
   fiscalYearStartMonth = 4,
 }: Readonly<EffectiveTaxRateChartProps>) {
   const [maxIncome, setMaxIncome] = useState(5000000)
-  const { animate, isMobile } = useChartPresentation(101)
+  const isMobile = useIsMobile()
+  // A theme-scoped copy of the in-place palette: a toggle re-renders and re-colours the curves.
+  const palette = usePaletteSnapshot(rawColors.app)
 
   // Regime availability follows the same tax plan as the page's selector.
   const { points: chartData, newRegimeAvailable } = useMemo(
@@ -64,14 +72,7 @@ export default function EffectiveTaxRateChart({
   const selectedNewRegime = isNewRegime && newRegimeAvailable
 
   // Find crossover point where old regime becomes better
-  const crossoverIncome = useMemo(() => {
-    for (const point of chartData) {
-      if (point.newRegimeRate !== undefined && point.income > 0 && point.oldRegimeRate < point.newRegimeRate) {
-        return point.income
-      }
-    }
-    return null
-  }, [chartData])
+  const crossoverIncome = useMemo(() => findCrossoverIncome(chartData), [chartData])
 
   const currentPoint = useMemo(() => {
     if (currentIncome <= 0) return null
@@ -84,6 +85,15 @@ export default function EffectiveTaxRateChart({
       effectiveRate: Number(rate.toFixed(2)),
     }
   }, [currentIncome, currentTax, fyYear, selectedNewRegime, hasEmploymentIncome])
+
+  // Reference marks sit on curve rows, so the "You" marker uses the row nearest the income.
+  const marker = useMemo(() => {
+    if (!currentPoint || currentPoint.income > maxIncome) return null
+    const income = nearestCurveIncome(chartData, currentPoint.income)
+    return income === null ? null : { key: String(income), rate: currentPoint.effectiveRate }
+  }, [chartData, currentPoint, maxIncome])
+  // The left axis must reach the marker even when a supplied estimate sits above both curves.
+  const markerValues = useMemo(() => (marker ? [marker.rate] : NO_VALUES), [marker])
 
   return (
     <motion.div
@@ -121,171 +131,70 @@ export default function EffectiveTaxRateChart({
         )}
       </div>
 
-        {fyYear === 0 ? (
-          <ChartEmptyState height={320} message="Select a financial year to view effective tax rates" />
-        ) : (
-        <ChartContainer
+      {fyYear === 0 ? (
+        <ChartEmptyState height={320} message="Select a financial year to view effective tax rates" />
+      ) : (
+        <CartesianChart
+          data={chartData}
+          categoryKey="income"
+          series={newRegimeAvailable ? BOTH_REGIMES : OLD_REGIME}
+          categoryKind="point"
+          valueDomain={RATE_DOMAIN}
+          extraValues={markerValues}
+          margin={MARGIN}
           height={320}
           mobileHeight={260}
           ariaLabel={newRegimeAvailable
             ? 'Effective tax rate by income for the new and old regimes, with regime-crossover and your-income markers'
             : 'Effective tax rate by income for the old regime, with your-income marker'}
+          tooltip={(
+            <CartesianTooltip
+              series={taxRateTooltipSeries({ old: palette.blue, new: palette.orange }, newRegimeAvailable)}
+              formatLabel={incomeHeading}
+            />
+          )}
         >
-          <LineChart data={chartData} margin={{ top: 24, right: isMobile ? 8 : 16, bottom: 8, left: 0 }}>
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis
-              {...xAxisDefaults(chartData.length)}
-              dataKey="income"
-              // Continuous (numeric) scale so the "You" ReferenceLine/Dot at an
-              // arbitrary income (currentIncome) interpolates between the 101
-              // evenly-spaced points instead of vanishing -- a category scale
-              // only positions reference marks at exact data values.
-              type="number"
-              domain={[0, maxIncome]}
-              interval="preserveStartEnd"
-              tickFormatter={(v: number) => formatCurrencyShort(v)}
-            />
-            <YAxis
-              {...yAxisDefaults({ currency: false, width: isMobile ? 36 : 44 })}
-              tickFormatter={(v: number) => `${v}%`}
-              domain={[0, 'auto']}
-            />
-            <Tooltip
-              {...chartTooltipProps}
-              cursor={CHART_LINE_CURSOR_STYLE}
-              content={<ChartTooltipContent />}
-              formatter={(value, name) => {
-                if (name === 'newRegimeRate' && !newRegimeAvailable) return null
-                return [
-                  typeof value === 'number' ? formatPercent(value, false, 2) : '',
-                  name === 'newRegimeRate' ? 'New Regime' : 'Old Regime',
-                ]
-              }}
-              labelFormatter={(label: unknown) => `Income: ${formatCurrencyShort(Number(label))}`}
-            />
-            {/* Old Regime -- blue dashed line (no fill, so the crossover with
-                the New Regime curve stays crisp instead of blurring under two
-                translucent area gradients) */}
-            <Line
-              type="monotone"
-              dataKey="oldRegimeRate"
-              stroke={rawColors.app.blue}
-              strokeWidth={2.25}
-              strokeDasharray="6 3"
-              dot={false}
-              activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-              name="oldRegimeRate"
-              animationDuration={520}
-              animationEasing="ease-out"
-              isAnimationActive={animate}
-            />
-            {/* New Regime -- orange solid line */}
-            {newRegimeAvailable && (
-              <Line
-                type="monotone"
-                dataKey="newRegimeRate"
-                stroke={rawColors.app.orange}
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.orange }}
-                name="newRegimeRate"
-                animationDuration={520}
-                animationEasing="ease-out"
-                isAnimationActive={animate}
-              />
-            )}
-            {/* Crossover marker */}
-            {crossoverIncome && crossoverIncome <= maxIncome && (
-              <ReferenceLine
-                x={crossoverIncome}
-                stroke={rawColors.app.purple}
-                strokeDasharray="4 4"
-                label={{
-                  value: `Old lower near ${formatCurrencyShort(crossoverIncome)}`,
-                  fill: rawColors.app.purple,
-                  fontSize: 10,
-                  position: 'insideTopRight',
-                }}
-              />
-            )}
-            {/* User's current income marker */}
-            {currentPoint && currentPoint.income <= maxIncome && (
-              <>
-                <ReferenceLine
-                  x={currentPoint.income}
-                  stroke={rawColors.app.green}
-                  strokeDasharray="3 3"
-                  label={{
-                    value: 'You',
-                    fill: rawColors.app.green,
-                    fontSize: 11,
-                    position: 'top',
-                  }}
-                />
-                <ReferenceDot
-                  x={currentPoint.income}
-                  y={currentPoint.effectiveRate}
-                  r={5}
-                  fill={rawColors.app.green}
-                  stroke={rawColors.chart.activeStroke}
-                  strokeWidth={2}
-                />
-              </>
-            )}
-          </LineChart>
-        </ChartContainer>
-        )}
-
-      {/* Legend + Range selector */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:w-auto">
+          <Grid />
+          <Crosshair />
+          <ValueAxis tickFormatter={percentTick} />
+          <CategoryAxis tickFormatter={incomeTick} interval={isMobile ? TICK_INTERVAL.mobile : TICK_INTERVAL.desktop} />
+          {/* Linear segments keep the slab kinks and the rebate cliff sharp; smoothing would blur them.
+              The old regime is dashed with no fill, so its crossover with the new curve stays crisp. */}
+          <g data-series="oldRegimeRate">
+            <LineSeries dataKey="oldRegimeRate" color={palette.blue} dash="6 3" curve="linear" />
+          </g>
           {newRegimeAvailable && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-4 h-0.5 rounded bg-app-orange" />
-              <span>New Regime</span>
-            </div>
+            <g data-series="newRegimeRate">
+              <LineSeries dataKey="newRegimeRate" color={palette.orange} strokeWidth={2.5} curve="linear" seriesIndex={1} />
+            </g>
           )}
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-0.5 rounded border-dashed border-t-2 border-app-blue" />
-            <span>Old Regime</span>
-          </div>
-          {crossoverIncome && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-app-purple" />
-              <span>Crossover</span>
-            </div>
+          {crossoverIncome !== null && (
+            <ReferenceLine
+              category={String(crossoverIncome)}
+              color={palette.purple}
+              dash="4 4"
+              label={`Old lower near ${formatCurrencyShort(crossoverIncome)}`}
+              labelColor={palette.purple}
+            />
           )}
-          {currentPoint && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-app-green" />
-              <span>You, {selectedNewRegime ? 'new' : 'old'} ({currentPoint.effectiveRate}%)</span>
-            </div>
+          {marker && (
+            <>
+              <ReferenceLine category={marker.key} color={palette.green} dash="3 3" label="You" labelColor={palette.green} labelPosition="end" />
+              <g data-marker="you">
+                <ReferenceDot category={marker.key} value={marker.rate} r={5} color={palette.green} />
+              </g>
+            </>
           )}
-        </div>
-        <fieldset className="min-w-0">
-          <legend className="mb-1.5 text-xs text-muted-foreground">Income range</legend>
-          <div className="ledger-control flex flex-wrap rounded-md border p-1">
-            {RANGE_OPTIONS.map(({ label, value }) => (
-              <motion.button
-                key={value}
-                type="button"
-                onClick={() => setMaxIncome(value)}
-                aria-pressed={maxIncome === value}
-                aria-label={`Income up to ${formatCurrencyShort(value)}`}
-                whileTap={animate ? { scale: 0.94 } : undefined}
-                transition={{ duration: 0.15 }}
-                className={`min-h-11 min-w-11 rounded px-2.5 py-1 font-mono text-xs font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:pointer-fine:min-h-8 lg:pointer-fine:min-w-0 ${
-                  maxIncome === value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {label}
-              </motion.button>
-            ))}
-          </div>
-        </fieldset>
-      </div>
+        </CartesianChart>
+      )}
+
+      <EffectiveTaxRateFooter
+        newRegimeAvailable={newRegimeAvailable}
+        showCrossover={crossoverIncome !== null}
+        youLabel={currentPoint && `You, ${selectedNewRegime ? 'new' : 'old'} (${currentPoint.effectiveRate}%)`}
+        maxIncome={maxIncome}
+        onMaxIncomeChange={setMaxIncome}
+      />
       {fyYear !== 0 && chartDataTable(
         chartData,
         [

@@ -1,5 +1,6 @@
 """Re-imports must preserve identities and annotations through source migration."""
 
+import re
 from decimal import Decimal
 
 import pytest
@@ -27,7 +28,9 @@ def _source(**changes) -> dict:
     }
 
 
-def _legacy(session, user_id: int, source: dict, *, occurrence: int = 0) -> Transaction:
+def _legacy(
+    session, user_id: int, source: dict, *, occurrence: int = 0, tagged: bool = True
+) -> Transaction:
     normalized = DataNormalizer().normalize_from_dict(source)
     transaction = Transaction(
         transaction_id=row_fingerprint(normalized, user_id, occurrence, version=1),
@@ -45,9 +48,10 @@ def _legacy(session, user_id: int, source: dict, *, occurrence: int = 0) -> Tran
     )
     session.add(transaction)
     session.flush()
-    session.add(
-        TransactionTag(user_id=user_id, transaction_id=transaction.transaction_id, tag="keep")
-    )
+    if tagged:
+        session.add(
+            TransactionTag(user_id=user_id, transaction_id=transaction.transaction_id, tag="keep")
+        )
     session.commit()
     return transaction
 
@@ -153,6 +157,55 @@ def test_ambiguous_legacy_adoption_rejects_without_moving_annotations(test_db_se
     assert set(test_db_session.scalars(select(Transaction.transaction_id))) == before
     assert set(test_db_session.scalars(select(TransactionTag.transaction_id))) == before
     assert all(not row.is_deleted for row in test_db_session.scalars(select(Transaction)))
+
+
+def test_identical_untagged_legacy_copies_are_adopted_pairwise(test_db_session, test_user):
+    # Two identical purchases on one day, stored before source fingerprints
+    # existed, whose category has since moved away from the file's raw label,
+    # so neither v1 digest proves which copy is which.
+    for occurrence in (0, 1):
+        _legacy(
+            test_db_session,
+            test_user.id,
+            _source(category="Food"),
+            occurrence=occurrence,
+            tagged=False,
+        )
+    before = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    engine = SyncEngine(test_db_session, test_user.id)
+
+    result = engine.import_rows([_source(), _source()], "same.csv", "same")
+
+    assert (result.inserted, result.deleted) == (0, 0)
+    stored = list(test_db_session.scalars(select(Transaction)))
+    assert {row.transaction_id for row in stored} == before
+    assert all(row.source_fingerprint and not row.is_deleted for row in stored)
+
+
+def test_extra_identical_source_row_is_inserted_beside_adopted_copies(test_db_session, test_user):
+    _legacy(test_db_session, test_user.id, _source(category="Food"), tagged=False)
+    before = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    engine = SyncEngine(test_db_session, test_user.id)
+
+    result = engine.import_rows([_source(), _source()], "same.csv", "same")
+
+    assert (result.inserted, result.deleted) == (1, 0)
+    stored = {row.transaction_id for row in test_db_session.scalars(select(Transaction))}
+    assert before < stored
+
+
+def test_identical_copies_with_different_categories_still_reject(test_db_session, test_user):
+    _legacy(test_db_session, test_user.id, _source(category="Food"), tagged=False)
+    _legacy(test_db_session, test_user.id, _source(category="Travel"), tagged=False)
+    before = set(test_db_session.scalars(select(Transaction.transaction_id)))
+    engine = SyncEngine(test_db_session, test_user.id)
+    rows = [_source(), _source()]
+
+    with pytest.raises(NormalizationError, match=re.escape("2026-01-15, 100.00 on Cash")) as error:
+        engine.import_rows(rows, "new.csv", "new")
+
+    assert "ambiguous source identities" in str(error.value)
+    assert set(test_db_session.scalars(select(Transaction.transaction_id))) == before
 
 
 def test_rule_failure_rolls_back_entire_batch(test_db_session, test_user, monkeypatch):

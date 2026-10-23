@@ -6,10 +6,10 @@
  * are always fewer average points than data points. Three pages used to divide a
  * short leading window by its own length and plot the result under a "3m avg"
  * legend -- the first point was one month's value verbatim. Abstaining fixes the
- * number but creates a second problem: recharts strokes a polyline through
- * DEFINED points only, so a single point emits `M x,y Z` and paints nothing. The
- * count therefore has to reach the chart, and the caption has to describe what is
- * actually on screen rather than what the window label implies.
+ * number but creates a second problem: a line is stroked through DEFINED points
+ * only, so a lone point's path is just `M x,y` and paints nothing (LineSeries
+ * marks it with a dot). The count therefore has to reach the caption, which must
+ * describe what is actually on screen rather than what the window label implies.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -40,8 +40,8 @@ describe('countRollingAvgPoints', () => {
   })
 
   it('treats null the same as undefined', () => {
-    // The backend sends `null` over the wire; hooks map it to `undefined` for
-    // recharts. Both shapes reach this helper depending on the call site.
+    // The backend sends `null` over the wire; the hooks emit `undefined`. Both
+    // shapes reach this helper depending on the call site.
     const series = [{ avg: null }, { avg: 0 }, { avg: 200 }]
     expect(countRollingAvgPoints(series, (row) => row.avg)).toBe(2)
   })

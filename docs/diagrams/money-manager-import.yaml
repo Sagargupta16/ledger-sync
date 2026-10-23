@@ -1,0 +1,264 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure money-manager-import (2026-10-22). Evidence paths are relative to the repo root.
+# Left out on purpose:
+#   - the 401 for an invalid, expired or revoked upload token (api/deps.py:110-116)
+#   - rate limits on the route (api/money_manager_upload.py:42-43)
+#   - Cancel on the review card and the force re-import of an up-to-date backup (useMoneyManagerImport.ts:151-163)
+#   - the browser's own 4.5 MB body check before posting (services/api/moneyManagerBackup.ts:64-66)
+#   - the 500 for OSError, RuntimeError and SQLAlchemyError (api/money_manager_upload.py:81-85)
+#   - a failed analytics refresh: the ledger stays saved and analytics_status is failed (services/money_manager_import.py:80-85)
+#   - normalization, transfer pairing and soft deletes inside the snapshot path (statement-import.yaml draws them)
+title: Money Manager backup import
+subtitle: The server reads the .mmbak itself; a dry run fills the review, and only a confirmed or token upload commits
+kind: flowchart
+direction: down
+
+layout: { spacing: compact }
+groups:
+  lane-iphone:
+    type: lane
+    label: iPhone (outside the repo)
+    evidence: docs/HANDBOOK.md:159-189
+  lane-browser:
+    type: lane
+    label: Browser (Upload page)
+    evidence: frontend/src/pages/upload-sync/useMoneyManagerImport.ts:49-59#useMoneyManagerImport
+  lane-api:
+    type: lane
+    label: Backend (FastAPI)
+    evidence: backend/src/ledger_sync/api/money_manager_upload.py:31-52#upload_money_manager_backup
+
+nodes:
+  mm-backup:
+    shape: document
+    label: Money Manager backup
+    note: .mmbak in iCloud Drive
+    in: lane-iphone
+    evidence: docs/HANDBOOK.md:161-162
+  shortcut:
+    shape: data
+    label: iOS Shortcut
+    note: "gzip, POST, upload token"
+    in: lane-iphone
+    # Make Archive gzip (HANDBOOK.md:174), POST with Authorization: Bearer <token> (HANDBOOK.md:175-177)
+    evidence: docs/HANDBOOK.md:169-177
+  choose:
+    shape: terminator
+    label: Choose a .mmbak
+    in: lane-browser
+    # .mmbak goes to the backup flow, not the spreadsheet parser
+    evidence:
+      - frontend/src/pages/upload-sync/useUploadSync.ts:141-147#isMoneyManagerBackup
+      - frontend/src/pages/upload-sync/moneyManagerUtils.ts:15-16#isMoneyManagerBackup
+  gzip:
+    shape: process
+    label: Gzip in the browser
+    note: CompressionStream
+    in: lane-browser
+    evidence: frontend/src/services/api/moneyManagerBackup.ts:49-54#gzipBackup
+  dry-post:
+    shape: data
+    label: POST dry_run=true
+    in: lane-browser
+    evidence:
+      - frontend/src/pages/upload-sync/useMoneyManagerImport.ts:121-127#mutateAsync
+      - frontend/src/services/api/moneyManagerBackup.ts:67-73
+  review:
+    shape: manual
+    label: Review card
+    note: "added, updated, removed"
+    in: lane-browser
+    evidence:
+      - frontend/src/pages/upload-sync/components/MoneyManagerReview.tsx:18-37#MoneyManagerReview
+      - frontend/src/pages/upload-sync/useMoneyManagerImport.ts:75-78#setReview
+  confirm-post:
+    shape: data
+    label: POST import
+    note: allow_large_delete=true
+    in: lane-browser
+    # confirm reposts the same gzip bytes with dryRun false (useMoneyManagerImport.ts:144-156)
+    evidence:
+      - frontend/src/pages/upload-sync/useMoneyManagerImport.ts:144-156#confirm
+      - frontend/src/hooks/api/useMoneyManagerUpload.ts:16-19#mutationFn
+  size:
+    shape: decision
+    label: Body within limit?
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/api/main.py:78#_BOUNDED_UPLOAD_PATHS
+      - backend/src/ledger_sync/api/main.py:81#UploadSizeLimitMiddleware
+  principal:
+    shape: process
+    label: Identify uploader
+    note: JWT, or lsu_ token
+    in: lane-api
+    # a token forces dry_run and allow_large_delete off (money_manager_upload.py:62-67)
+    evidence:
+      - backend/src/ledger_sync/api/deps.py:102-121#get_upload_principal
+      - backend/src/ledger_sync/services/upload_tokens.py:88#authenticate_upload_token
+      - backend/src/ledger_sync/api/money_manager_upload.py:62-67#token_id
+  rej-size:
+    shape: terminator
+    label: "413, ledger unchanged"
+    in: lane-api
+    evidence: backend/src/ledger_sync/api/main.py:114-120
+  read:
+    shape: predefined
+    label: Read backup
+    note: gzip or zip, SQLite checks
+    in: lane-api
+    # gzip or zip (unpack_backup), in-memory defensive query-only SQLite with quick_check (_connect), tables (_check_schema), rows with UIDs (_read_rows)
+    evidence:
+      - backend/src/ledger_sync/ingest/money_manager.py:115-135#read_backup
+      - backend/src/ledger_sync/ingest/money_manager.py:138#unpack_backup
+      - backend/src/ledger_sync/ingest/money_manager.py:197-214#_connect
+      - backend/src/ledger_sync/ingest/money_manager.py:223#_check_schema
+      - backend/src/ledger_sync/ingest/money_manager.py:241#_read_rows
+  dup:
+    shape: decision
+    label: Already imported?
+    note: SQLite store hash
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/services/money_manager_import.py:60-61#check_already_imported
+      - backend/src/ledger_sync/core/sync_engine.py:96#check_already_imported
+  rej-read:
+    shape: terminator
+    label: "400, ledger unchanged"
+    in: lane-api
+    evidence: backend/src/ledger_sync/api/money_manager_upload.py:72-77#MoneyManagerBackupError
+  reconcile:
+    shape: process
+    label: Reconcile, source UID first
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/core/source_identity.py:43#match_source_uids
+      - backend/src/ledger_sync/core/source_identity.py:84#adopt_edited_source_rows
+      - backend/src/ledger_sync/core/import_identity.py:171-205#load_identity_matches
+      - backend/src/ledger_sync/core/reconciler.py:114#load_identity_matches
+  unchanged:
+    shape: terminator
+    label: 200 unchanged
+    in: lane-api
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:61#unchanged
+  large:
+    shape: decision
+    label: "Removes > max(25, 5%)?"
+    note: guarded unless confirmed
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:67-68#_deletion_allowance
+      - backend/src/ledger_sync/core/sync_engine.py:190-191#LargeDeletionError
+      - backend/src/ledger_sync/services/money_manager_import.py:64#guard_deletions
+  dry:
+    shape: decision
+    label: Dry run?
+    note: preview rolls back
+    in: lane-api
+    evidence: backend/src/ledger_sync/core/sync_engine.py:192-194#dry_run
+  rej-large:
+    shape: terminator
+    label: "409, rolled back"
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:206-208#rollback
+      - backend/src/ledger_sync/api/money_manager_upload.py:78-80#LargeDeletionError
+  commit:
+    shape: database
+    label: Commit ledger + import log
+    note: "+ account settings, one unit"
+    in: lane-api
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:195-205#commit
+      - backend/src/ledger_sync/services/money_manager_import.py:65#apply_account_settings
+      - backend/src/ledger_sync/services/money_manager_import.py:89#apply_account_settings
+  refresh:
+    shape: predefined
+    label: Refresh analytics
+    note: a failure keeps the ledger
+    in: lane-api
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:77-85#refresh_analytics
+  imported:
+    shape: terminator
+    label: 200 imported
+    in: lane-api
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:86#imported
+
+edges:
+  - from: mm-backup
+    to: shortcut
+    label: on app close
+    evidence: docs/HANDBOOK.md:181
+  - from: shortcut
+    to: size
+    evidence: docs/HANDBOOK.md:175-177
+  - from: choose
+    to: gzip
+    evidence: frontend/src/pages/upload-sync/useMoneyManagerImport.ts:150#gzipBackup
+  - from: gzip
+    to: dry-post
+    evidence: frontend/src/pages/upload-sync/useMoneyManagerImport.ts:118-127#readBackup
+  - from: dry-post
+    to: size
+    evidence: frontend/src/services/api/moneyManagerBackup.ts:67#money-manager
+  - from: review
+    to: confirm-post
+    label: confirm
+    evidence: frontend/src/pages/upload-sync/components/MoneyManagerReview.tsx:122-123#onConfirm
+  - from: confirm-post
+    to: size
+    evidence: frontend/src/services/api/moneyManagerBackup.ts:67#money-manager
+  - from: size
+    to: rej-size
+    label: "no"
+    evidence: backend/src/ledger_sync/api/main.py:114-120
+  - from: size
+    to: principal
+    label: "yes"
+    evidence: backend/src/ledger_sync/api/money_manager_upload.py:44-47#principal
+  - from: principal
+    to: read
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:57#read_backup
+  - from: read
+    to: rej-read
+    label: unreadable
+    evidence: backend/src/ledger_sync/api/money_manager_upload.py:72-74#MoneyManagerBackupError
+  - from: read
+    to: dup
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:57-60
+  - from: dup
+    to: unchanged
+    label: "yes, not forced"
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:60-61#force
+  - from: dup
+    to: reconcile
+    label: "no"
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:69-71#import_rows
+  - from: reconcile
+    to: large
+    evidence: backend/src/ledger_sync/core/sync_engine.py:174-191
+  - from: large
+    to: rej-large
+    label: "yes"
+    evidence: backend/src/ledger_sync/core/sync_engine.py:190-191#LargeDeletionError
+  - from: large
+    to: dry
+    label: "no"
+    evidence: backend/src/ledger_sync/core/sync_engine.py:192
+  - from: dry
+    to: review
+    label: "yes: 200 preview"
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:192-194#rollback
+      - backend/src/ledger_sync/services/money_manager_import.py:75-76#preview
+      - frontend/src/pages/upload-sync/useMoneyManagerImport.ts:75-78#preview
+  - from: dry
+    to: commit
+    label: "no"
+    evidence: backend/src/ledger_sync/core/sync_engine.py:195-205
+  - from: commit
+    to: refresh
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:77-79#refresh_analytics
+  - from: refresh
+    to: imported
+    evidence: backend/src/ledger_sync/services/money_manager_import.py:86

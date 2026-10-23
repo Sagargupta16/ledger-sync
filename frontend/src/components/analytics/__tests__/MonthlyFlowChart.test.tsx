@@ -5,11 +5,10 @@
  * where" and cannot answer "is it getting worse" at all. This panel adds the
  * per-month comparison.
  *
- * The browser pane cannot verify it here -- its viewport measures 0px, so
- * recharts' ResponsiveContainer gets zero width and draws no bars (the
- * pre-existing pies measure 0 too). What IS verifiable is the accessible data
- * table recharts renders alongside the SVG, plus the partial-month disclosure,
- * which is the part that would silently mislead if it regressed.
+ * These assert the accessible data table the chart renders beside its SVG,
+ * plus the partial-month disclosure, which is the part that would silently
+ * mislead if it regressed. Zooming and the plotted window are covered in
+ * MonthlyFlowChartRange.test.tsx.
  */
 
 import { render, screen } from '@testing-library/react'

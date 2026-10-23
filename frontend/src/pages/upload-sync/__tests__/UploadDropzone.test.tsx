@@ -32,6 +32,25 @@ describe('UploadDropzone', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('accepts an untyped Money Manager backup by its extension', async () => {
+    const onFileSelect = vi.fn<(_: File) => Promise<void>>().mockResolvedValue()
+    const file = new File(['SQLite format 3'], '20261020_062652.MMBAK')
+
+    render(
+      <UploadDropzone
+        phase={null}
+        selectedFileName={null}
+        isBusy={false}
+        onFileSelect={onFileSelect}
+      />,
+    )
+    expect(fileInput().accept).toContain('.mmbak')
+    fireEvent.change(fileInput(), { target: { files: [file] } })
+
+    await waitFor(() => expect(onFileSelect).toHaveBeenCalledWith(file))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('rejects unsupported files without invoking the upload handler', async () => {
     const onFileSelect = vi.fn<(_: File) => Promise<void>>().mockResolvedValue()
     const file = new File(['plain text'], 'notes.txt', { type: 'text/plain' })
@@ -47,7 +66,7 @@ describe('UploadDropzone', () => {
     fireEvent.change(fileInput(), { target: { files: [file] } })
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Choose an .xlsx, .xls, or .csv transaction file.',
+      'Choose an .xlsx, .xls, or .csv transaction file, or a Money Manager .mmbak backup.',
     )
     expect(onFileSelect).not.toHaveBeenCalled()
   })
@@ -63,10 +82,24 @@ describe('UploadDropzone', () => {
     )
 
     expect(
-      screen.getByRole('button', { name: 'Upload an Excel or CSV transaction file' }),
+      screen.getByRole('button', { name: 'Upload an Excel or CSV file, or a Money Manager backup' }),
     ).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByText('Saving your ledger and refreshing insights...')).toBeInTheDocument()
     expect(screen.getByText('statement.csv')).toBeInTheDocument()
     expect(screen.getByText('Save & refresh').closest('li')).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('shows a backup check as the read step', () => {
+    render(
+      <UploadDropzone
+        phase="previewing"
+        selectedFileName="backup.mmbak"
+        isBusy
+        onFileSelect={vi.fn<(_: File) => Promise<void>>().mockResolvedValue()}
+      />,
+    )
+
+    expect(screen.getByText('Compressing and checking your backup...')).toBeInTheDocument()
+    expect(screen.getByText('Read file').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 })

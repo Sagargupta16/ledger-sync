@@ -31,8 +31,8 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 
 // Dashboard is an eager route, so anything it imports statically is
 // modulepreloaded on every entry, including the anonymous Home page. The chart
-// components are what pull recharts in; loading them on demand keeps it off the
-// first-load path. Each fallback matches its component's footprint.
+// components are what pull the chart kit in; loading them on demand keeps it
+// off the first-load path. Each fallback matches its component's footprint.
 const StandardPieChart = lazy(() => import('@/components/analytics/StandardPieChart'))
 const MonthlyFlowChart = lazy(() => import('@/components/analytics/MonthlyFlowChart'))
 const FinancialHealthScore = lazy(() => import('@/components/analytics/FinancialHealthScore'))

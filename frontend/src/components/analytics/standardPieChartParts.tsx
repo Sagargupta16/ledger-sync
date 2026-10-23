@@ -1,33 +1,27 @@
 /**
- * Render helpers extracted from `StandardPieChart` to keep that component near
- * the repo's file-size rule. Not a public API -- import from the chart instead.
+ * Pure helpers behind `StandardPieChart`, kept here so that component stays
+ * near the repo's file-size rule: slice capping with theme-following colours,
+ * the mapping onto the chart kit's PieChart data, the radius conversion, and
+ * the screen-reader table. Not a public API -- import the chart instead.
  */
 
-import { Sector, type PieSectorShapeProps } from 'recharts'
-
+import type { PieDatum } from '@/components/charts/PieChart'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { capPieSlices, sliceClickTarget, type PieSliceDatum } from '@/components/ui/pieSlices'
-import { CHART_SURFACE, SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
+import { SEMANTIC_COLORS, getChartColor } from '@/constants/chartColors'
 import { formatPercent } from '@/lib/formatters'
-import { isMotionReduced } from '@/store/motionStore'
 
-/**
- * A capped slice with its colour resolved onto the datum.
- *
- * Recharts merges each data row over the sector's props and reads `fill` from
- * there, so carrying the colour on the row is the supported replacement for a
- * `<Cell>` child -- which is deprecated and removed in Recharts 4.0 (see the
- * `@deprecated` tag on `recharts/types/component/Cell`). The same `fill` also
- * feeds the legend swatch and the tooltip marker, both of which read the datum
- * when no Cell is present.
- */
-type PieSliceRow = PieSliceDatum & { fill: string }
+/** A capped slice whose `fill` resolves the live theme's colour on every read. */
+type PieSliceRow = PieSliceDatum & { readonly fill: string }
+
+/** A radius as a share of the frame, the form callers have always passed it in. */
+export type PieRadius = `${number}%`
 
 /**
  * Cap the series to a legible wedge count, then pin each wedge's colour to its
- * own row. Palette colours stay index-based, exactly as the `<Cell>` version
- * assigned them, but the index is resolved once here rather than at paint time,
- * so colour and slice can no longer come apart.
+ * own row. Palette colours stay index-based, but the index is resolved once
+ * here, so colour and slice can never come apart; the ledger swatch, the
+ * wedge and the Other rollup all read the same `fill`.
  */
 export function buildPieSlices(
   data: readonly PieSliceDatum[],
@@ -41,57 +35,29 @@ export function buildPieSlices(
 }
 
 /**
- * The datum behind a sector. Recharts hands the original row back on `payload`,
- * which is how both the hover handlers and the shape renderer recover the slice
- * without indexing into the caller's array.
+ * The slices as the kit's PieChart draws them. Call it on every render rather
+ * than memoising it: reading `fill` here is what repaints the wedges after a
+ * theme toggle. The Other rollup is not selectable, so the kit gives it no
+ * pointer and never opens it -- it deep-links to no category.
  */
-export function slicePayload(entry: { readonly payload?: unknown }): PieSliceDatum {
-  return (entry.payload ?? {}) as PieSliceDatum
+export function toPieData(slices: readonly PieSliceRow[]): PieDatum[] {
+  return slices.map((slice) => ({
+    key: slice.name,
+    label: slice.name,
+    value: slice.value,
+    color: slice.fill,
+    selectable: sliceClickTarget(slice) !== null,
+  }))
 }
 
 /**
- * Per-sector paint: keep the hovered wedge opaque, fade the rest, and show a
- * pointer only where a click actually goes somewhere.
- *
- * Returned as a `shape` render prop rather than as `<Cell>` children. Beyond
- * replacing a component Recharts removes in 4.0, this drops the positional
- * coupling: Cell children were matched by rendered index, so the hover state
- * had to be tracked by index too. The renderer reads the slice off `payload`
- * and matches on its name instead.
+ * The kit's hole-to-rim ratio from the '%' radii callers pass. The kit draws
+ * the rim as large as the frame allows, so only the ratio still shapes the
+ * ring; an inner radius of '0%' draws a full pie.
  */
-export function renderPieSectorShape(activeName: string | null, hasClickHandler: boolean) {
-  return function PieSectorShape(props: PieSectorShapeProps) {
-    const slice = slicePayload(props)
-    const isActive = activeName !== null && slice.name === activeName
-    const isDimmed = activeName !== null && !isActive
-    // null for the "Other" rollup -- it isn't a category, so it can't be
-    // filtered by name, and offering a pointer would promise a dead link.
-    const clickable = hasClickHandler && sliceClickTarget(slice) !== null
-    return (
-      <Sector
-        {...props}
-        stroke={CHART_SURFACE.activeStroke}
-        strokeWidth={1}
-        style={{
-          cursor: clickable ? 'pointer' : 'default',
-          transition: isMotionReduced() ? 'none' : 'opacity 160ms ease-out',
-          opacity: isDimmed ? 0.4 : 1,
-        }}
-      />
-    )
-  }
-}
-
-/**
- * Shrink the donut center value font as the string grows so it doesn't
- * overflow past the inner radius. Tuned against typical donut sizes
- * (160-300 px) and currency strings up to ~12 chars.
- */
-export function pickCenterValueFontSize(length: number): number {
-  if (length <= 6) return 22
-  if (length <= 8) return 18
-  if (length <= 10) return 15
-  return 13
+export function holeRatio(inner: PieRadius, outer: PieRadius): number {
+  const ratio = Number.parseFloat(inner) / Number.parseFloat(outer)
+  return Number.isFinite(ratio) ? Math.min(0.9, Math.max(0, ratio)) : 0
 }
 
 /**

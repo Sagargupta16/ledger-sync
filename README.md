@@ -27,6 +27,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Reviews the date range, accounts, and row counts before replacing the complete ledger snapshot.
 - Uses deterministic SHA-256 transaction IDs plus occurrence counters so repeated imports remain idempotent without collapsing legitimate duplicate rows.
 - Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again.
+- Imports Money Manager `.mmbak` backups directly. Each transaction keeps its Money Manager ID, so later edits update it in place. Card statement and payment days and times of day come along, and an upload-only token lets an iOS Shortcut sync the newest backup automatically ([Handbook](docs/HANDBOOK.md#money-manager-backups)).
 
 ### Financial workspace
 
@@ -60,8 +61,9 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 
 ## Application Map
 
-Explore the [architecture and flow diagrams](docs/diagrams/README.md) for the
-system boundaries, import pipeline, financial calculations, and deployment.
+Explore the [architecture and flow diagrams](docs/diagrams/README.md), drawn with
+orrery from the code, for the system boundaries, import pipeline, sign-in,
+sessions, calculations, the chart kit, AI chat and deployment.
 
 The router contains 3 public routes and 26 protected workspace pages.
 
@@ -165,7 +167,7 @@ Run migrations only against the intended local development database.
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4, Recharts 3, Motion 13 |
+| Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4, Motion 14, an in-house SVG chart kit |
 | Backend | Python 3.14, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | Database | SQLite for development, Neon PostgreSQL 17 for production |
 | State | TanStack Query 5, Zustand 5 |
@@ -195,27 +197,10 @@ signs, gross versus received shares, cash take-home, completed-month policies,
 prepaid-card balances, and [trust limits](docs/CALCULATIONS.md#trust-and-compatibility),
 including the unresolved legacy RSU display-currency price convention.
 
-```mermaid
-flowchart LR
-  pages["GitHub Pages<br/>Static app and PWA"]
-  browser["Browser<br/>React, Query, Zustand"]
-  api["Vercel ASGI<br/>FastAPI"]
-  db[("Neon PostgreSQL<br/>Ledger and derived data")]
-  oauth["Google / GitHub<br/>OAuth with S256 PKCE"]
-  direct["OpenAI / Anthropic<br/>User-key chat"]
-  bedrock["AWS Bedrock<br/>App or personal funding"]
-  pages --> browser
-  browser -->|"Bearer JSON requests<br/>Explicit CORS allowlist"| api
-  api --> db
-  browser -->|"Authorization redirect"| oauth
-  api -->|"Code and verifier exchange"| oauth
-  browser --->|"Direct BYOK requests"| direct
-  api -->|"Bounded chat proxy"| bedrock
-  classDef store fill:#eef6ff,stroke:#35618f,color:#142d47
-  classDef external fill:#f5f3ff,stroke:#7563a5,color:#30204c
-  class db store
-  class oauth,direct,bedrock external
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/system-overview-dark.svg">
+  <img alt="Ledger Sync PWA on GitHub Pages calls FastAPI on Vercel, Neon, OAuth, market data and AI APIs" src="docs/diagrams/system-overview-light.svg" width="100%">
+</picture>
 
 OAuth uses a secret held in the initiating browser tab and a one-use database
 record. It works across the GitHub Pages frontend and Vercel API without
@@ -228,25 +213,16 @@ explicit refresh/sign-in message; its old state is not accepted.
 
 The web import path makes the two persistence boundaries explicit:
 
-```mermaid
-flowchart TB
-  file["Excel or CSV"] --> review["Browser validation and snapshot review"]
-  review -->|"Confirm complete INR ledger"| validate["API validates every row"]
-  validate --> ledger["Commit 1<br/>Ledger reconciliation and import log"]
-  ledger --> analytics["Commit 2<br/>Analytics rollups"]
-  analytics -->|"Ready"| cache["Invalidate affected workspace queries"]
-  analytics -->|"Refresh failed; ledger is saved"| retry["Retry analytics only"]
-  retry --> analytics
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/statement-import-dark.svg">
+  <img alt="Statement import flow: browser review, backend checks, reconcile, commit, analytics refresh" src="docs/diagrams/statement-import-light.svg" width="100%">
+</picture>
 
 The snapshot covers the user's entire ledger: rows missing from the confirmed
 snapshot are soft-deleted, including rows from other dates or accounts. Invalid
 rows reject the batch before reconciliation. Local development uses SQLite
 and Vite's API proxy; PostgreSQL migration verification uses a native PostgreSQL
 instance.
-
-The [static overview image](docs/images/system-overview.svg) remains available
-as a companion illustration.
 
 See [architecture](docs/architecture.md) for system boundaries and the
 [shared chart system](docs/architecture.md#shared-chart-composition) for frontend

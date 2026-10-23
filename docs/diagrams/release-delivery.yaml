@@ -1,0 +1,181 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sagargupta16/orrery/main/skills/orrery/references/diagram.schema.json
+# Figure release-delivery from .claude/orrery/plan.json, with .claude/orrery/decisions.md applied.
+# Evidence paths are relative to the repo root. The brief is the repo CLAUDE.md Deployment section (CLAUDE.md:114-129).
+title: "Release delivery: checks, migration gate, Pages and Vercel"
+subtitle: Five parallel CI checks gate the production migration; Pages publishes only once the matching backend and its database answer
+kind: process
+direction: right
+layout: { spacing: 0.5, layering: simplex }
+
+legend:
+  dashed: Message flow between pools
+
+groups:
+  pool-gha:
+    type: pool
+    label: GitHub Actions
+    evidence: .github/workflows/ci.yml:1-209
+  lane-ci:
+    type: lane
+    label: ci.yml checks
+    in: pool-gha
+    evidence: .github/workflows/ci.yml:16-191
+  lane-deploy:
+    type: lane
+    label: migrate.yml, deploy-frontend.yml
+    in: pool-gha
+    evidence: .github/workflows/ci.yml:193-209
+  pool-vercel:
+    type: pool
+    label: Vercel
+    evidence: backend/vercel.json:1-18
+  pool-neon:
+    type: pool
+    # decisions.md 2: Neon is labelled "Neon PostgreSQL", no region
+    label: Neon PostgreSQL
+    evidence: .github/workflows/migrate.yml:33-43
+
+nodes:
+  push:
+    label: Push or PR
+    bpmn: start
+    in: lane-ci
+    # on: push to main, pull_request, workflow_dispatch
+    evidence: .github/workflows/ci.yml:2-6
+  split:
+    bpmn: parallel
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:16-191
+  j-fe:
+    label: frontend
+    note: lint, build, test
+    bpmn: service-task
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:18-25
+  j-pages:
+    label: frontend-pages-build
+    bpmn: service-task
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:30-60
+  j-be:
+    label: backend
+    note: ruff, mypy, pytest, alembic check
+    bpmn: service-task
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:65-117
+  j-pg:
+    label: postgres-migrations
+    bpmn: service-task
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:119-185
+  j-sec:
+    label: security
+    bpmn: service-task
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:187-191
+  join:
+    bpmn: parallel
+    in: lane-ci
+    # migrate needs all five check jobs
+    evidence: .github/workflows/ci.yml:195#needs
+  is-main:
+    label: Push to main?
+    bpmn: exclusive
+    in: lane-ci
+    evidence: [.github/workflows/ci.yml:194, .github/workflows/ci.yml:203]
+  checks-only:
+    label: Checks only
+    bpmn: end
+    in: lane-ci
+    evidence: .github/workflows/ci.yml:194
+  migrate:
+    label: alembic upgrade head
+    note: production environment
+    bpmn: service-task
+    in: lane-deploy
+    evidence: .github/workflows/migrate.yml:17-43
+    align: split
+  build:
+    # the artifact is uploaded only after the wait (deploy-frontend.yml:92-95)
+    label: Build for GitHub Pages
+    bpmn: service-task
+    in: lane-deploy
+    evidence: .github/workflows/deploy-frontend.yml:43-55
+  wait:
+    label: Backend version and DB ready within 10 min?
+    bpmn: exclusive
+    in: lane-deploy
+    # polls /health and /health/db every 10 s until a 10-minute deadline
+    evidence: .github/workflows/deploy-frontend.yml:57-90
+  deploy:
+    label: Deploy GitHub Pages
+    note: upload artifact, then deploy-pages
+    bpmn: service-task
+    in: lane-deploy
+    evidence: .github/workflows/deploy-frontend.yml:92-110
+  live:
+    label: New frontend live
+    bpmn: end
+    in: lane-deploy
+    evidence: .github/workflows/deploy-frontend.yml:101-103
+    align: deploy
+  kept:
+    label: Old Pages stays live
+    bpmn: end-error
+    in: lane-deploy
+    # throw "The existing Pages deployment remains active."
+    evidence: .github/workflows/deploy-frontend.yml:88
+  vercel-deploy:
+    # the name docs/architecture.md uses
+    label: Vercel Git deployment
+    note: outside Actions
+    bpmn: service-task
+    in: pool-vercel
+    # decisions.md 3: project ledger-sync-api linked to GitHub, productionBranch main
+    evidence: [CLAUDE.md:121, backend/vercel.json:3-16]
+  neon-db:
+    label: Production database
+    # decisions.md 2: PgBouncer pooler
+    note: PgBouncer pooler
+    bpmn: data-store
+    in: pool-neon
+    evidence: [.github/workflows/migrate.yml:36#LEDGER_SYNC_DATABASE_URL, CLAUDE.md:118, backend/src/ledger_sync/db/session.py]
+    align: migrate
+
+edges:
+  - { from: push, to: split, evidence: .github/workflows/ci.yml:2-6 }
+  - { from: split, to: j-fe, evidence: .github/workflows/ci.yml:18 }
+  - { from: split, to: j-pages, evidence: .github/workflows/ci.yml:30 }
+  - { from: split, to: j-be, evidence: .github/workflows/ci.yml:65 }
+  - { from: split, to: j-pg, evidence: .github/workflows/ci.yml:119 }
+  - { from: split, to: j-sec, evidence: .github/workflows/ci.yml:187 }
+  - { from: j-fe, to: join, evidence: .github/workflows/ci.yml:195 }
+  - { from: j-pages, to: join, evidence: .github/workflows/ci.yml:195 }
+  - { from: j-be, to: join, evidence: .github/workflows/ci.yml:195 }
+  - { from: j-pg, to: join, evidence: .github/workflows/ci.yml:195 }
+  - { from: j-sec, to: join, evidence: .github/workflows/ci.yml:195 }
+  - { from: join, to: is-main, evidence: .github/workflows/ci.yml:194 }
+  - { from: is-main, to: checks-only, label: no (PR or branch), evidence: .github/workflows/ci.yml:194 }
+  - { from: is-main, to: migrate, label: "yes", evidence: .github/workflows/ci.yml:193-200 }
+  - { from: migrate, to: neon-db, label: upgrade head, flow: message, evidence: .github/workflows/migrate.yml:33-43 }
+  - { from: migrate, to: build, evidence: ".github/workflows/ci.yml:202-205#needs: migrate" }
+  - { from: build, to: wait, evidence: .github/workflows/deploy-frontend.yml:57 }
+  - from: wait
+    to: vercel-deploy
+    label: polls /health, /health/db
+    flow: message
+    evidence: [.github/workflows/deploy-frontend.yml:72-77, backend/src/ledger_sync/api/main.py:349-374]
+  - from: wait
+    to: deploy
+    label: "yes"
+    evidence: [.github/workflows/deploy-frontend.yml:76-79, .github/workflows/deploy-frontend.yml:106]
+  - { from: wait, to: kept, label: timeout, evidence: .github/workflows/deploy-frontend.yml:88 }
+  # /health/db opens a connection and runs SELECT 1; the wait needs database === 'connected'
+  - from: vercel-deploy
+    to: neon-db
+    label: SELECT 1 (/health/db)
+    flow: message
+    evidence: [backend/src/ledger_sync/api/main.py:355-364, .github/workflows/deploy-frontend.yml:77]
+  - { from: deploy, to: live, evidence: .github/workflows/deploy-frontend.yml:108-110 }
+  # decisions.md 3: Vercel deploys main through its Git integration, outside Actions
+  - { from: push, to: vercel-deploy, label: "Git integration, main only", flow: message, evidence: CLAUDE.md:121 }

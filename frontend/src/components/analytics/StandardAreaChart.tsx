@@ -1,5 +1,8 @@
 /**
- * Reusable area chart wrapper with premium gradient fills.
+ * Reusable area chart: gradient-filled series that draw in left to right and
+ * morph with the data, on the in-house chart kit. Optional stacking, reference
+ * lines and plot-only range zoom (presets above, a drag brush below). With two
+ * or more series the legend toggles each one and the rest morph to the new axis.
  *
  * Usage:
  *   <StandardAreaChart
@@ -11,30 +14,31 @@
  *   />
  */
 
-import { useId } from 'react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Brush } from 'recharts'
-import { formatCurrency } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import AreaSeries from '@/components/charts/AreaSeries'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import CartesianChart from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
+import type { Curve } from '@/components/charts/paths'
+import { ReferenceLine } from '@/components/charts/References'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartRange } from '@/components/ui/useChartRange'
 import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import {
-  GRID_DEFAULTS, xAxisDefaults, yAxisDefaults,
-  areaGradient, areaGradientUrl, ACTIVE_DOT, BRUSH_DEFAULTS, referenceLine,
-} from '@/components/ui/chartDefaults'
-import { CHART_TEXT, CHART_SURFACE } from '@/constants/chartColors'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
+import { formatCurrency } from '@/lib/formatters'
+
+import { useHiddenSeries } from './standardBarChartParts'
 
 interface AreaConfig {
   key: string
   color: string
   label?: string
-  type?: 'monotone' | 'natural' | 'linear' | 'step'
+  /** Default 'monotone'. */
+  type?: Curve
   strokeWidth?: number
   strokeDasharray?: string
   fillOpacity?: number
@@ -65,14 +69,17 @@ interface StandardAreaChartProps {
   readonly referenceLines?: ReferenceLineConfig[]
   readonly stacked?: boolean
   /**
-   * Show a Recharts ``<Brush>`` below the chart for drag-to-zoom on the
-   * x-axis. Useful for long time-series (>~12 points) where the user wants
-   * to inspect a sub-range without changing the global filter. Default off.
+   * Range presets above the chart and a drag-to-zoom brush below it, for long
+   * series (5+ points). The zoom is plot-only: the legend and the data table
+   * keep every row. Default off.
    */
   readonly showBrush?: boolean
-  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  /** Accessible description of the chart (role=img); also captions the data table. */
   readonly ariaLabel?: string
 }
+
+/** Room under the plot for rotated period labels. */
+const ANGLED_MARGIN = { bottom: 70 }
 
 export default function StandardAreaChart({
   data,
@@ -90,10 +97,10 @@ export default function StandardAreaChart({
   showBrush = false,
   ariaLabel,
 }: StandardAreaChartProps) {
-  const chartId = useId().replaceAll(':', '')
-  const { animate, isMobile } = useChartPresentation(data.length)
   const rows = data as readonly Record<string, unknown>[]
   const range = useChartRange(rows.map((row) => chartCellText(row[dataKey])))
+  const toggles = showLegend && areas.length > 1
+  const [hidden, toggleSeries] = useHiddenSeries(areas.map((area) => area.key), toggles)
   const formatLabel = tooltipLabelFormatter ?? formatChartDate
   const formatTick = xTickFormatter ?? ((value: string) => formatChartPeriod(value))
 
@@ -101,12 +108,13 @@ export default function StandardAreaChart({
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  const xDefaults = xAxisDefaults(data.length, xAngle === undefined ? undefined : { angle: xAngle })
-  const yDefaults = yAxisDefaults({ width: isMobile ? 48 : 56 })
   const formatValue = tooltipFormatter ?? formatCurrency
   const latest = rows.at(-1)
   const latestLabel = chartCellText(latest?.[dataKey])
-  const hasNegative = rows.some((row) => areas.some((area) => Number(row[area.key]) < 0))
+  const zoomable = showBrush && data.length > 4
+  const labelOf = (area: AreaConfig) => area.label ?? area.key
+  // Hidden series leave the scales, the stack and the tooltip; the legend, brush and table keep them all.
+  const shown = areas.filter((area) => !hidden.has(area.key))
 
   return (
     <>
@@ -116,107 +124,84 @@ export default function StandardAreaChart({
             const value = latest?.[area.key]
             return {
               key: area.key,
-              label: area.label ?? area.key,
+              label: labelOf(area),
               color: area.color,
               value: typeof value === 'number' ? formatValue(value) : undefined,
             }
           })}
           caption={latestLabel ? `Latest: ${formatLabel(latestLabel)}` : undefined}
+          hidden={hidden}
+          onToggle={toggles ? toggleSeries : undefined}
         />
       )}
-      {showBrush && data.length > 4 && <ChartRangeControls range={range} />}
-      <ChartContainer height={height} ariaLabel={ariaLabel}>
-        <AreaChart
-          data={data}
-          margin={{ top: 16, right: isMobile ? 8 : 16, bottom: xAngle ? 20 : 8, left: 0 }}
-        >
-          <defs>
-            {areas.map((area, index) =>
-              (area.showFill ?? true) && areaGradient(`${chartId}-${index}`, area.color, area.fillOpacity ?? 0.22),
-            )}
-          </defs>
-          <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis
-            dataKey={dataKey}
-            {...xDefaults}
-            interval={isMobile ? 'preserveStartEnd' : xDefaults.interval}
-            tickFormatter={formatTick}
+      {zoomable && <ChartRangeControls range={range} />}
+      <CartesianChart
+        data={data}
+        categoryKey={dataKey}
+        series={shown.map((area) => ({ key: area.key, stackId: stacked ? 'stack' : area.stackId }))}
+        // Reference values widen the axis so their lines stay on the plot.
+        extraValues={referenceLines?.flatMap((ref) => (ref.y === undefined ? [] : [ref.y]))}
+        visibleRange={zoomable ? range : undefined}
+        margin={xAngle ? ANGLED_MARGIN : undefined}
+        height={height}
+        ariaLabel={ariaLabel}
+        tooltip={(
+          <CartesianTooltip
+            series={shown.map((area) => ({ key: area.key, label: labelOf(area), color: area.color }))}
+            formatLabel={formatLabel}
+            formatValue={formatValue}
           />
-          <YAxis {...yDefaults} />
-          <Tooltip
-            {...chartTooltipProps}
-            cursor={CHART_LINE_CURSOR_STYLE}
-            content={<ChartTooltipContent />}
-            formatter={(value) => formatValue(typeof value === 'number' ? value : 0)}
-            labelFormatter={(label) => formatLabel(chartCellText(label))}
+        )}
+      >
+        <Grid />
+        <Crosshair />
+        {/* A caller's own y=0 line replaces the axis' automatic zero line. */}
+        <ValueAxis zeroLine={!referenceLines?.some((ref) => ref.y === 0)} />
+        <CategoryAxis tickFormatter={formatTick} angle={xAngle} interval="preserveStartEnd" />
+        {/* Each series keeps its index, so its entrance timing never shifts with what is hidden. */}
+        {areas.map((area, index) => (hidden.has(area.key) ? null : (
+          <AreaSeries
+            key={area.key}
+            dataKey={area.key}
+            color={area.color}
+            curve={area.type}
+            strokeWidth={area.strokeWidth}
+            dash={area.strokeDasharray}
+            fillOpacity={area.fillOpacity}
+            showFill={area.showFill}
+            seriesIndex={index}
           />
-          {hasNegative && !referenceLines?.some((ref) => ref.y === 0) && referenceLine({ y: 0, variant: 'zero' })}
-          {referenceLines?.map((ref) => (
-            <ReferenceLine
-              key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
-              y={ref.y}
-              x={ref.x}
-              stroke={ref.color ?? CHART_SURFACE.referenceLineStrong}
-              strokeDasharray={ref.strokeDasharray ?? '6 4'}
-              label={ref.label ? {
-                value: ref.label,
-                fill: CHART_TEXT.subtle,
-                fontSize: 10,
-                fontFamily: 'var(--font-mono)',
-                offset: 8,
-                position: 'insideTopRight',
-              } : undefined}
-            />
-          ))}
-          {areas.map((area, index) => (
-            <Area
-              key={area.key}
-              type={area.type ?? 'monotone'}
-              dataKey={area.key}
-              name={area.label ?? area.key}
-              stroke={area.color}
-              strokeWidth={area.strokeWidth ?? 2.25}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={area.strokeDasharray}
-              fill={(area.showFill ?? true) ? areaGradientUrl(`${chartId}-${index}`) : 'transparent'}
-              fillOpacity={1}
-              dot={rows.filter((row) => typeof row[area.key] === 'number').length === 1
-                ? { r: 3, fill: area.color, strokeWidth: 0 }
-                : false}
-              activeDot={{ ...ACTIVE_DOT, fill: area.color }}
-              connectNulls
-              isAnimationActive={animate}
-              animationDuration={520}
-              animationEasing="ease-out"
-              stackId={stacked ? 'stack' : area.stackId}
-            />
-          ))}
-          {showBrush && data.length > 4 && (
-            <Brush
-              {...BRUSH_DEFAULTS}
-              dataKey={dataKey}
-              tickFormatter={formatTick}
-              startIndex={range.startIndex}
-              endIndex={range.endIndex}
-              onChange={range.setRange}
-            />
-          )}
-        </AreaChart>
-      </ChartContainer>
+        )))}
+        {referenceLines?.map((ref) => (
+          <ReferenceLine
+            key={`${ref.y ?? ''}${ref.x ?? ''}${ref.label ?? ''}`}
+            value={ref.y}
+            category={ref.x}
+            color={ref.color ?? 'var(--chart-reference-line-strong)'}
+            dash={ref.strokeDasharray ?? '6 4'}
+            label={ref.label}
+          />
+        ))}
+      </CartesianChart>
+      {zoomable && (
+        <ChartBrush
+          range={range}
+          values={overviewValues(rows, stacked ? areas : areas.slice(0, 1))}
+          color={areas[0]?.color}
+          formatLabel={tooltipLabelFormatter ?? xTickFormatter}
+          ariaLabel="Chart zoom"
+        />
+      )}
       {chartDataTable(
         rows,
         [
           {
             header: 'Period',
             rowHeader: true,
-            value: (row) => {
-              const label = chartCellText(row[dataKey])
-              return formatLabel(label)
-            },
+            value: (row) => formatLabel(chartCellText(row[dataKey])),
           },
           ...areas.map((area) => ({
-            header: area.label ?? area.key,
+            header: labelOf(area),
             value: (row: Record<string, unknown>) => {
               const value = row[area.key]
               return typeof value === 'number' ? formatValue(value) : chartCellText(value)
@@ -228,4 +213,12 @@ export default function StandardAreaChart({
       )}
     </>
   )
+}
+
+/** Brush overview per row: the total of `areas` (the stack, or the lead series); NaN where none has a number. */
+function overviewValues(rows: readonly Record<string, unknown>[], areas: readonly AreaConfig[]): number[] {
+  return rows.map((row) => {
+    const values = areas.map((area) => row[area.key]).filter((value): value is number => typeof value === 'number')
+    return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : Number.NaN
+  })
 }

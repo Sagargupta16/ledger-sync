@@ -1,28 +1,20 @@
-import { useId } from 'react'
-import { Area, AreaChart, Brush, CartesianGrid, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
-
+import AreaSeries from '@/components/charts/AreaSeries'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import type { ChartRow } from '@/components/charts/chartContext'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { ChartSkeleton } from '@/components/shared/LoadingSkeleton'
-import {
-  ACTIVE_DOT,
-  BRUSH_DEFAULTS,
-  ChartContainer,
-  GRID_DEFAULTS,
-  chartTooltipProps,
-  currencyTooltipFormatter,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
-import ChartSection, { ChartReveal } from '@/components/ui/ChartSection'
+import ChartSection from '@/components/ui/ChartSection'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import { useChartRange } from '@/components/ui/useChartRange'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
-import { tooltipLabelString } from '@/lib/chartUtils'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 
 import { CATEGORY_COLORS, INVESTMENT_CATEGORIES } from '../investmentUtils'
@@ -31,6 +23,32 @@ interface GrowthOverTimeChartProps {
   isLoading: boolean
   filteredGrowthData: Array<Record<string, string | number>>
 }
+
+/**
+ * One diverging stack, as Recharts' stackOffset="sign" drew it: positive
+ * balances build up from zero, a drawn-down (negative) class builds down.
+ */
+const SERIES: readonly SeriesSpec[] = INVESTMENT_CATEGORIES.map((key) => ({ key, stackId: 'balance' }))
+/** The tooltip reads the stack from its top layer down. */
+const TOP_DOWN = [...INVESTMENT_CATEGORIES].reverse()
+
+const monthLabel = (key: string) => formatChartPeriod(key, true)
+
+/** Sum of the four asset classes on one row: the stack's total. */
+function rowTotal(row: Readonly<Record<string, unknown>>): number {
+  return INVESTMENT_CATEGORIES.reduce((sum, category) => sum + Number(row[category] ?? 0), 0)
+}
+
+function TooltipTotal({ value }: Readonly<{ value: number }>) {
+  return (
+    <div className="flex items-baseline justify-between gap-x-5">
+      <span>Total</span>
+      <span className="font-mono font-semibold tabular-nums text-foreground">{formatCurrency(value)}</span>
+    </div>
+  )
+}
+
+const tooltipTotal = (row: ChartRow) => <TooltipTotal value={rowTotal(row)} />
 
 function InvestmentBalanceSummary({
   latestBalance,
@@ -65,15 +83,16 @@ export function GrowthOverTimeChart({
   isLoading,
   filteredGrowthData,
 }: Readonly<GrowthOverTimeChartProps>) {
-  const gradientId = useId().replaceAll(':', '')
-  const { animate: animateSeries, isMobile } = useChartPresentation(filteredGrowthData.length * INVESTMENT_CATEGORIES.length)
+  // Resolved hex for the SVG attributes; the snapshot repaints them on a theme toggle.
+  const colors = usePaletteSnapshot(CATEGORY_COLORS)
   const range = useChartRange(filteredGrowthData.map((row) => String(row.date)))
   const firstPoint = filteredGrowthData[0]
   const lastPoint = filteredGrowthData.at(-1)
-  const latestBalance = INVESTMENT_CATEGORIES.reduce((sum, category) => sum + Number(lastPoint?.[category] ?? 0), 0)
-  const openingBalance = INVESTMENT_CATEGORIES.reduce((sum, category) => sum + Number(firstPoint?.[category] ?? 0), 0)
+  const latestBalance = lastPoint ? rowTotal(lastPoint) : 0
+  const openingBalance = firstPoint ? rowTotal(firstPoint) : 0
   const balanceChange = latestBalance - openingBalance
   const spansYears = String(firstPoint?.date).slice(0, 4) !== String(lastPoint?.date).slice(0, 4)
+  const zoomable = filteredGrowthData.length > 6
 
   return (
     <ChartSection
@@ -93,95 +112,48 @@ export function GrowthOverTimeChart({
               items={INVESTMENT_CATEGORIES.map((category) => ({
                 key: category,
                 label: category,
-                color: CATEGORY_COLORS[category],
+                color: colors[category],
                 value: formatCurrency(Number(lastPoint?.[category] ?? 0)),
               }))}
               caption={`As of ${formatDate(String(lastPoint?.date ?? ''), { day: 'numeric', month: 'short', year: 'numeric' })}`}
             />
-            {filteredGrowthData.length > 6 && <ChartRangeControls range={range} label="Investment growth chart range" />}
-            <ChartReveal>
-              <ChartContainer
-                height={360}
-                mobileHeight={300}
-                ariaLabel="Stacked area chart of investment book value over time, split by asset class. These are ledger balances, not market returns."
-              >
-                <AreaChart data={filteredGrowthData} stackOffset="sign" margin={{ top: 16, right: 12, bottom: 8, left: 0 }}>
-                  <defs>
-                    {INVESTMENT_CATEGORIES.map((category) => (
-                      <linearGradient
-                        key={`gradient-${category}`}
-                        id={`${gradientId}-${category.replaceAll(/[\s/]/g, '-')}`}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.5} />
-                        <stop offset="100%" stopColor={CATEGORY_COLORS[category]} stopOpacity={0.12} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid {...GRID_DEFAULTS} />
-                  <XAxis
-                    {...xAxisDefaults(filteredGrowthData.length, { dateFormatter: true })}
-                    interval="preserveStartEnd"
-                    minTickGap={isMobile ? 40 : 64}
-                    height={44}
-                    dataKey="date"
-                    {...(spansYears && {
-                      tickFormatter: (value: string) => formatChartPeriod(value, true),
-                    })}
-                  />
-                  <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 68 })} />
-                  <Tooltip
-                    {...chartTooltipProps}
-                    content={<ChartTooltipContent />}
-                    formatter={(value, name) => [currencyTooltipFormatter(value), name || '']}
-                    // recharts 3.10 widened labelFormatter's label to ReactNode; at
-                    // runtime it is the `date` axis tick value. formatDate returns
-                    // its input unchanged for anything that is not YYYY-MM-DD.
-                    labelFormatter={(label) =>
-                      formatDate(tooltipLabelString(label), {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    }
-                  />
-                  <ReferenceLine y={0} stroke={rawColors.chart.referenceLine} />
-                  {INVESTMENT_CATEGORIES.map((category, index) => (
-                    <Area
-                      key={category}
-                      type="monotone"
-                      dataKey={category}
-                      stackId="1"
-                      stroke={CATEGORY_COLORS[category]}
-                      strokeWidth={2}
-                      dot={filteredGrowthData.length === 1 ? { r: 3, fill: CATEGORY_COLORS[category] } : false}
-                      activeDot={{ ...ACTIVE_DOT, fill: CATEGORY_COLORS[category] }}
-                      fillOpacity={1}
-                      fill={`url(#${gradientId}-${category.replaceAll(/[\s/]/g, '-')})`}
-                      isAnimationActive={animateSeries}
-                      animationBegin={index * 40}
-                      animationDuration={680}
-                      animationEasing="ease-out"
-                    />
-                  ))}
-                  {filteredGrowthData.length > 6 && (
-                    <Brush
-                      {...BRUSH_DEFAULTS}
-                      dataKey="date"
-                      tickFormatter={(value: string) =>
-                        formatChartPeriod(value, true)
-                      }
-                      startIndex={range.startIndex}
-                      endIndex={range.endIndex}
-                      onChange={range.setRange}
-                    />
-                  )}
-                </AreaChart>
-              </ChartContainer>
-            </ChartReveal>
+            {zoomable && <ChartRangeControls range={range} label="Investment growth chart range" />}
+            <CartesianChart
+              data={filteredGrowthData}
+              categoryKey="date"
+              series={SERIES}
+              categoryKind="point"
+              visibleRange={range}
+              height={360}
+              mobileHeight={300}
+              ariaLabel="Stacked area chart of investment book value over time, split by asset class. These are ledger balances, not market returns."
+              tooltip={(
+                <CartesianTooltip
+                  series={TOP_DOWN.map((category) => ({ key: category, label: category, color: colors[category] }))}
+                  footer={tooltipTotal}
+                />
+              )}
+            >
+              <Grid />
+              <Crosshair />
+              {/* Its zero line marks where a drawn-down class turns the stack negative. */}
+              <ValueAxis zeroLine />
+              <CategoryAxis interval="preserveStartEnd" tickFormatter={spansYears ? monthLabel : undefined} />
+              {/* Each layer wipes in under its drawing stroke, 0.12s after the one beneath it. */}
+              {INVESTMENT_CATEGORIES.map((category, index) => (
+                <AreaSeries
+                  key={category}
+                  dataKey={category}
+                  color={colors[category]}
+                  strokeWidth={2}
+                  fillOpacity={0.5}
+                  seriesIndex={index}
+                />
+              ))}
+            </CartesianChart>
+            {zoomable && (
+              <ChartBrush range={range} values={filteredGrowthData.map(rowTotal)} ariaLabel="Investment growth chart zoom" />
+            )}
             <div className="mt-4 flex flex-wrap justify-between gap-x-6 gap-y-2 border-t border-border/70 pt-3 text-[11px] leading-5 text-muted-foreground">
               <p>Contributions and withdrawals change these balances; this is not an investment return.</p>
             </div>

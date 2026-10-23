@@ -316,10 +316,10 @@ describe('useSpendingAnalysis -- which savings target', () => {
  * two-month window, and only 2026-06's 89,947.25 was a real three-month mean.
  *
  * Emitting `undefined` for a short window leaves FEWER average points than data
- * points, and recharts strokes `M x,y Z` for a single defined point -- a moveto
- * plus closepath that paints nothing. Three complete months is precisely that
- * case, so `rollingAvgPointCount` travels with the series and the section renders
- * a dot plus a caption that says what is on screen.
+ * points, and a line through a single defined point is just `M x,y` -- a lone
+ * moveto that paints nothing. Three complete months is precisely that case, so
+ * `rollingAvgPointCount` travels with the series and the section renders a dot
+ * plus a caption that says what is on screen.
  */
 const FY_REAL: Transaction[] = [
   tx('2026-04-05', 200000, 'Income', 'Employment Income'),

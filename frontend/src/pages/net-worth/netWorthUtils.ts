@@ -53,7 +53,7 @@ function asAccountTypeValue(value: string): AccountTypeValue | null {
     : null
 }
 
-/** Category display configuration. Resolved hex for Recharts, rebuilt in place on a theme toggle. */
+/** Category display configuration. Resolved hex for charts, rebuilt in place on a theme toggle. */
 function buildCategoryConfig(): Record<string, { label: string; color: string }> {
   return {
     'Cash & Wallets': { label: 'Cash & Wallets', color: rawColors.app.green },

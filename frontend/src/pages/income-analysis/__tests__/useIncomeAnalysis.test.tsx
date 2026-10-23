@@ -162,7 +162,7 @@ describe('useIncomeAnalysis -- in-progress month', () => {
     const { result } = renderHook(() => useIncomeAnalysis(), { wrapper })
     await waitFor(() => expect(result.current.monthlyTrendData).toHaveLength(3))
     // Apr/May carry no average and July's is dropped with the month, so exactly
-    // one average point remains -- which recharts cannot stroke. The chart marks
+    // one average point remains -- which a stroke cannot show. The chart marks
     // it as a dot and the caption says so instead of promising a line.
     expect(result.current.rollingAvgPointCount).toBe(1)
     expect(result.current.rollingAvgMonths).toBe(3)

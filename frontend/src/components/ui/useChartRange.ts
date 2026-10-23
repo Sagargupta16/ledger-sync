@@ -38,8 +38,8 @@ function rangePresets(labels: readonly string[]): ChartRangePreset[] {
 }
 
 /**
- * Plot-only zoom. Keep the complete source data in Recharts and its data table;
- * never use the selected indices to recompute a financial result.
+ * Plot-only zoom. Pass the chart every row plus `visibleRange` and its data table
+ * every row; never use the selected indices to recompute a financial result.
  */
 export function useChartRange(labels: readonly string[]) {
   // A new array with the same dates (FX, motion, or value refresh) keeps zoom.

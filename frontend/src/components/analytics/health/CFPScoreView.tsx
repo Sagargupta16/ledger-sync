@@ -60,9 +60,9 @@ const CFPScoreView = memo(function CFPScoreView({ analysisData }: Readonly<CFPSc
           color={app.teal}
           name="CFP Score"
           height={isMobile ? 200 : 224}
-          labelFontSize={isMobile ? 10 : 11}
           showRadiusTicks
           dotRadius={3}
+          ariaLabel={`Radar chart of the CFP score for each of ${radarData.length} financial ratios, each out of 100`}
         />
       </div>
 

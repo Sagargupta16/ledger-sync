@@ -1,6 +1,6 @@
 # Ledger Sync complete database schema reference
 
-Prepared 2026-10-21. This reference covers **all 34 application tables, all 464 columns, all 43 declared foreign keys, all 76 explicit indexes, and every model unique/check constraint and enum**. It also documents Alembic's version table and the reported import-log archive separately.
+Prepared 2026-10-22. This reference covers **all 35 application tables, all 483 columns, all 44 declared foreign keys, all 78 explicit indexes, and every model unique/check constraint and enum**. It also documents Alembic's version table and the reported import-log archive separately.
 
 ## Navigation
 
@@ -38,8 +38,8 @@ record without tripping the rule.
 | Application namespace | `public` |
 | Engine | PostgreSQL model target; SQLite storage differences documented below. Prior reference reported PostgreSQL 17.11. |
 | Source snapshot | Current working tree, including uncommitted changes; links resolve relative to this checkout. |
-| Base checkout commit | `52afce19d960690ac806362ae850b4d4a067d479`; does not identify the uncommitted model definitions. |
-| Matching source migration head | `recurring_user_amount_2026` |
+| Base checkout commit | `114fdbd999201173b58e5be0b373471aa7f5e0f3`; does not identify the uncommitted model definitions. |
+| Matching source migration head | `money_manager_source_2026` |
 | Infrastructure context | Project/branch/role identifiers above are retained from the prior reference and were not refreshed. |
 
 **Evidence boundary:** this refresh uses only current local model metadata, API schemas and migration source. No live database, remote service, financial rows, credentials or connection strings were read. The prior 2026-09-17 reference reported a successful Neon export, but full processing was blocked by automatic approval review with “encrypted summary was created for a different account or model.” That historical note is retained as provenance, not fresh verification. This is an **application-model dictionary**; live objects/defaults are not confirmed. The JSON companion records source-file SHA-256 hashes so the working-tree evidence can be checked independently.
@@ -55,6 +55,7 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 | [`users`](#users) | Login identity, profile and token revocation. | One application user. | 12 |
 | [`user_preferences`](#user_preferences) | Display, category classification, budget, tax and growth preferences. | At most one preferences row per user. | 45 |
 | [`user_ai_settings`](#user_ai_settings) | AI funding mode, provider/model selection, encrypted credentials and token limits. | At most one AI settings row per user. | 9 |
+| [`upload_tokens`](#upload_tokens) | Hashed, upload-only credentials for automations such as an iOS Shortcut. | Any number of revoked tokens per user; at most five active ones. | 10 |
 | [`audit_logs`](#audit_logs) | Operation and change records. | One recorded operation/change. | 12 |
 | [`ai_usage_log`](#ai_usage_log) | Provider/model usage, token reservations and estimated cost. | One recorded provider call or reservation. | 12 |
 | [`column_mapping_logs`](#column_mapping_logs) | Original spreadsheet headers, mapped headers and validation diagnostics. | One intended parser-mapping diagnostic event. | 10 |
@@ -63,9 +64,9 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 
 | Table | What it stores | One row represents | Columns |
 | --- | --- | --- | ---: |
-| [`transactions`](#transactions) | Income, expense and transfer ledger, including soft-deleted history. | One logical financial transaction. | 24 |
+| [`transactions`](#transactions) | Income, expense and transfer ledger, including soft-deleted history. | One logical financial transaction. | 28 |
 | [`import_logs`](#import_logs) | Import idempotency and reconciliation results. | One current record per user and file hash. | 10 |
-| [`ledger_accounts`](#ledger_accounts) | Stable account identities, classifications, closure state and credit limits. | One lowercased account key per user. | 10 |
+| [`ledger_accounts`](#ledger_accounts) | Stable account identities, classifications, closure state and credit limits. | One lowercased account key per user. | 15 |
 | [`ledger_account_aliases`](#ledger_account_aliases) | Source account labels mapped to stable account identities. | One lowercased source label per user. | 5 |
 | [`ledger_categories`](#ledger_categories) | Stable category identities. | One lowercased category key per user. | 4 |
 | [`ledger_subcategories`](#ledger_subcategories) | Stable subcategory identities within a category. | One lowercased subcategory key per user and parent category. | 5 |
@@ -109,9 +110,9 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 
 ## How the tables connect
 
-`users.id` is the ownership root. There are 32 declared owner FKs from application child tables. `column_mapping_logs` has no owner column; `audit_logs.user_id` is optional. `user_preferences.user_id` is unique; `analytics_state.user_id` and `user_ai_settings.user_id` are primary keys, giving at most one row of each per user. Salary plans are unique per user/fiscal year, RSU grants per user/public ID, and vestings have independent event IDs.
+`users.id` is the ownership root. There are 33 declared owner FKs from application child tables. `column_mapping_logs` has no owner column; `audit_logs.user_id` is optional. `user_preferences.user_id` is unique; `analytics_state.user_id` and `user_ai_settings.user_id` are primary keys, giving at most one row of each per user. Salary plans are unique per user/fiscal year, RSU grants per user/public ID, and vestings have independent event IDs.
 
-The diagrams summarize selected actual foreign keys. The complete 43-link register follows the dictionary.
+The diagrams summarize selected actual foreign keys. The complete 44-link register follows the dictionary.
 
 ```mermaid
 flowchart LR
@@ -168,7 +169,7 @@ Relevant implementation: [upload contract](../backend/src/ledger_sync/schemas/up
 - **Vesting IDs:** `rsu_vestings.id` is TEXT with an application `lambda: str(uuid4())` default. It is neither an auto-incrementing integer nor a datetime default. Callable defaults below are extracted from their source expressions without executing them.
 - **JSON:** flexible objects/arrays use TEXT here, not native JSONB. JSON shape and meaning are enforced by application readers/validators, not PostgreSQL JSON types or GIN indexes.
 - **Enums:** SQLAlchemy Enum stores Python member **names** by default. The model and transaction CHECK use uppercase database labels, while API serialization uses the mapped values below. The introductory comment in enums.py saying values are stored directly should not override the actual column definition.
-- **Indexes:** the 76 count includes explicit model indexes, including unique indexes. It excludes indexes automatically backing PK and UNIQUE constraints. Default index method is B-tree. More indexes add write cost; their presence is not a measured guarantee of production latency.
+- **Indexes:** the 78 count includes explicit model indexes, including unique indexes. It excludes indexes automatically backing PK and UNIQUE constraints. Default index method is B-tree. More indexes add write cost; their presence is not a measured guarantee of production latency.
 
 | PostgreSQL enum type | Python enum | Database label → API value |
 | --- | --- | --- |
@@ -208,7 +209,7 @@ Email is unique. OAuth provider plus provider ID is unique when populated. No se
 
 None declared.
 
-**Referenced by:** [`user_preferences`](#user_preferences) `(user_id)`; [`user_ai_settings`](#user_ai_settings) `(user_id)`; [`audit_logs`](#audit_logs) `(user_id)`; [`ai_usage_log`](#ai_usage_log) `(user_id)`; [`transactions`](#transactions) `(user_id)`; [`import_logs`](#import_logs) `(user_id)`; [`ledger_accounts`](#ledger_accounts) `(user_id)`; [`ledger_account_aliases`](#ledger_account_aliases) `(user_id)`; [`ledger_categories`](#ledger_categories) `(user_id)`; [`ledger_subcategories`](#ledger_subcategories) `(user_id)`; [`categorization_rules`](#categorization_rules) `(user_id)`; [`transaction_tags`](#transaction_tags) `(user_id)`; [`saved_filter_views`](#saved_filter_views) `(user_id)`; [`salary_plans`](#salary_plans) `(user_id)`; [`rsu_grants`](#rsu_grants) `(user_id)`; [`rsu_vestings`](#rsu_vestings) `(user_id)`; [`recurring_transactions`](#recurring_transactions) `(user_id)`; [`scheduled_transactions`](#scheduled_transactions) `(user_id)`; [`anomalies`](#anomalies) `(user_id)`; [`budgets`](#budgets) `(user_id)`; [`financial_goals`](#financial_goals) `(user_id)`; [`tax_records`](#tax_records) `(user_id)`; [`analytics_state`](#analytics_state) `(user_id)`; [`daily_summaries`](#daily_summaries) `(user_id)`; [`monthly_summaries`](#monthly_summaries) `(user_id)`; [`category_trends`](#category_trends) `(user_id)`; [`cohort_spending`](#cohort_spending) `(user_id)`; [`transfer_flows`](#transfer_flows) `(user_id)`; [`merchant_intelligence`](#merchant_intelligence) `(user_id)`; [`fy_summaries`](#fy_summaries) `(user_id)`; [`net_worth_snapshots`](#net_worth_snapshots) `(user_id)`; [`investment_holdings`](#investment_holdings) `(user_id)`.
+**Referenced by:** [`user_preferences`](#user_preferences) `(user_id)`; [`user_ai_settings`](#user_ai_settings) `(user_id)`; [`upload_tokens`](#upload_tokens) `(user_id)`; [`audit_logs`](#audit_logs) `(user_id)`; [`ai_usage_log`](#ai_usage_log) `(user_id)`; [`transactions`](#transactions) `(user_id)`; [`import_logs`](#import_logs) `(user_id)`; [`ledger_accounts`](#ledger_accounts) `(user_id)`; [`ledger_account_aliases`](#ledger_account_aliases) `(user_id)`; [`ledger_categories`](#ledger_categories) `(user_id)`; [`ledger_subcategories`](#ledger_subcategories) `(user_id)`; [`categorization_rules`](#categorization_rules) `(user_id)`; [`transaction_tags`](#transaction_tags) `(user_id)`; [`saved_filter_views`](#saved_filter_views) `(user_id)`; [`salary_plans`](#salary_plans) `(user_id)`; [`rsu_grants`](#rsu_grants) `(user_id)`; [`rsu_vestings`](#rsu_vestings) `(user_id)`; [`recurring_transactions`](#recurring_transactions) `(user_id)`; [`scheduled_transactions`](#scheduled_transactions) `(user_id)`; [`anomalies`](#anomalies) `(user_id)`; [`budgets`](#budgets) `(user_id)`; [`financial_goals`](#financial_goals) `(user_id)`; [`tax_records`](#tax_records) `(user_id)`; [`analytics_state`](#analytics_state) `(user_id)`; [`daily_summaries`](#daily_summaries) `(user_id)`; [`monthly_summaries`](#monthly_summaries) `(user_id)`; [`category_trends`](#category_trends) `(user_id)`; [`cohort_spending`](#cohort_spending) `(user_id)`; [`transfer_flows`](#transfer_flows) `(user_id)`; [`merchant_intelligence`](#merchant_intelligence) `(user_id)`; [`fy_summaries`](#fy_summaries) `(user_id)`; [`net_worth_snapshots`](#net_worth_snapshots) `(user_id)`; [`investment_holdings`](#investment_holdings) `(user_id)`.
 
 **Additional UNIQUE constraints**
 
@@ -236,7 +237,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/analytics_v2.py`](../backend/src/ledger_sync/api/analytics_v2.py#L62)
 - [`backend/src/ledger_sync/api/calculations_impl/aggregates.py`](../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L57)
 - [`backend/src/ledger_sync/api/calculations_impl/categories.py`](../backend/src/ledger_sync/api/calculations_impl/categories.py#L26)
-- [`backend/src/ledger_sync/api/deps.py`](../backend/src/ledger_sync/api/deps.py#L27)
+- [`backend/src/ledger_sync/api/deps.py`](../backend/src/ledger_sync/api/deps.py#L28)
 - [`backend/src/ledger_sync/api/preferences_helpers.py`](../backend/src/ledger_sync/api/preferences_helpers.py#L139)
 - [`backend/src/ledger_sync/api/transactions_impl/facets.py`](../backend/src/ledger_sync/api/transactions_impl/facets.py#L17)
 - [`backend/src/ledger_sync/api/transactions_impl/filters.py`](../backend/src/ledger_sync/api/transactions_impl/filters.py#L81)
@@ -247,6 +248,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/services/auth_refresh.py`](../backend/src/ledger_sync/services/auth_refresh.py#L60)
 - [`backend/src/ledger_sync/services/auth_service.py`](../backend/src/ledger_sync/services/auth_service.py#L154)
 - [`backend/src/ledger_sync/services/calculation_service.py`](../backend/src/ledger_sync/services/calculation_service.py#L63)
+- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L103)
 
 [Back to table directory](#table-directory)
 
@@ -385,6 +387,53 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 [Back to table directory](#table-directory)
 
+<a id="upload_tokens"></a>
+### `upload_tokens`
+
+**Purpose:** Hashed, upload-only credentials for automations such as an iOS Shortcut. **Grain:** Any number of revoked tokens per user; at most five active ones. **Kind:** User configuration.
+
+**Model:** [`UploadToken`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L20). **Primary key:** `id`.
+
+Only the SHA-256 of a token is stored; the plaintext is returned once, at creation. A token authenticates POST /api/upload/money-manager and nothing else, expires after 365 days and stops working when revoked_at is set.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L25) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L26) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`name`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L27) | `VARCHAR(100)` | `VARCHAR(100)` | No | - | - | User-chosen label, such as iPhone Shortcut. |
+| [`token_prefix`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L29) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | First 12 plaintext characters, shown so tokens can be told apart. |
+| [`token_hash`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L30) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 hex of the plaintext; unique, the only stored form. |
+| [`scope`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L31) | `VARCHAR(32)` | `VARCHAR(32)` | No | 'mmbak:upload' | - | mmbak:upload; the only permission a token has. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L32) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`expires_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L35) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Naive UTC expiry, 365 days after creation. |
+| [`last_used_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L36) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC time of the last authenticated upload; NULL when unused. |
+| [`revoked_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L37) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC revocation time; NULL while active. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_upload_tokens_token_hash`: `(token_hash)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_upload_tokens_user_id` | `user_id` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/upload_tokens.py`](../backend/src/ledger_sync/api/upload_tokens.py#L31)
+- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L43)
+
+[Back to table directory](#table-directory)
+
 <a id="audit_logs"></a>
 ### `audit_logs`
 
@@ -495,22 +544,22 @@ None beyond the primary key. Unique indexes are listed below.
 
 **Purpose:** Original spreadsheet headers, mapped headers and validation diagnostics. **Grain:** One intended parser-mapping diagnostic event. **Kind:** Diagnostic model.
 
-**Model:** [`ColumnMappingLog`](../backend/src/ledger_sync/db/_models/transactions.py#L250). **Primary key:** `id`.
+**Model:** [`ColumnMappingLog`](../backend/src/ledger_sync/db/_models/transactions.py#L282). **Primary key:** `id`.
 
 No user_id or foreign key. A search of backend/src found no ColumnMappingLog construction outside the model. Treat this as a defined diagnostic table, not proof that current web uploads populate it.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/transactions.py#L255) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`file_name`](../backend/src/ledger_sync/db/_models/transactions.py#L258) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Original/import filename metadata. |
-| [`file_hash`](../backend/src/ledger_sync/db/_models/transactions.py#L259) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 file hash used to recognize imports. |
-| [`original_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L262) | `TEXT` | `TEXT` | No | - | - | JSON array of original spreadsheet header names. |
-| [`mapped_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L263) | `TEXT` | `TEXT` | No | - | - | JSON object mapping original headers to normalized field names. |
-| [`unmapped_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L267) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of ignored/unmapped headers. |
-| [`is_valid`](../backend/src/ledger_sync/db/_models/transactions.py#L273) | `BOOLEAN` | `BOOLEAN` | No | - | - | Whether mapping validation succeeded. |
-| [`validation_errors`](../backend/src/ledger_sync/db/_models/transactions.py#L274) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of validation errors. |
-| [`validation_warnings`](../backend/src/ledger_sync/db/_models/transactions.py#L278) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of validation warnings. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/transactions.py#L284) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`id`](../backend/src/ledger_sync/db/_models/transactions.py#L287) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`file_name`](../backend/src/ledger_sync/db/_models/transactions.py#L290) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Original/import filename metadata. |
+| [`file_hash`](../backend/src/ledger_sync/db/_models/transactions.py#L291) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 file hash used to recognize imports. |
+| [`original_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L294) | `TEXT` | `TEXT` | No | - | - | JSON array of original spreadsheet header names. |
+| [`mapped_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L295) | `TEXT` | `TEXT` | No | - | - | JSON object mapping original headers to normalized field names. |
+| [`unmapped_columns`](../backend/src/ledger_sync/db/_models/transactions.py#L299) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of ignored/unmapped headers. |
+| [`is_valid`](../backend/src/ledger_sync/db/_models/transactions.py#L305) | `BOOLEAN` | `BOOLEAN` | No | - | - | Whether mapping validation succeeded. |
+| [`validation_errors`](../backend/src/ledger_sync/db/_models/transactions.py#L306) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of validation errors. |
+| [`validation_warnings`](../backend/src/ledger_sync/db/_models/transactions.py#L310) | `TEXT` | `TEXT` | Yes | - | - | Optional JSON array of validation warnings. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/transactions.py#L316) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
 
 **Foreign keys**
 
@@ -537,36 +586,40 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Purpose:** Income, expense and transfer ledger, including soft-deleted history. **Grain:** One logical financial transaction. **Kind:** Ledger source of truth.
 
-**Model:** [`Transaction`](../backend/src/ledger_sync/db/_models/transactions.py#L52). **Primary key:** `transaction_id`.
+**Model:** [`Transaction`](../backend/src/ledger_sync/db/_models/transactions.py#L57). **Primary key:** `transaction_id`.
 
 Public transaction_id remains stable. source_fingerprint is a separate versioned import identity. Account/category text remains a historical display snapshot alongside nullable dimension IDs. Six user-leading indexes cover active rows only.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`transaction_id`](../backend/src/ledger_sync/db/_models/transactions.py#L58) PK | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | Stable public SHA-256-shaped primary key; legacy IDs are retained. |
-| [`source_fingerprint`](../backend/src/ledger_sync/db/_models/transactions.py#L61) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Nullable v2 canonical-source hash including occurrence; independent of mutable category rules. |
-| [`fingerprint_version`](../backend/src/ledger_sync/db/_models/transactions.py#L62) | `INTEGER` | `INTEGER` | No | 2 | - | 1 for legacy identity; 2 for current fingerprint format. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/transactions.py#L65) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`date`](../backend/src/ledger_sync/db/_models/transactions.py#L70) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Transaction timestamp/calendar date; SQL type has no timezone. |
-| [`amount`](../backend/src/ledger_sync/db/_models/transactions.py#L71) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Transaction/planned amount in INR. |
-| [`currency`](../backend/src/ledger_sync/db/_models/transactions.py#L72) | `VARCHAR(10)` | `VARCHAR(10)` | No | 'INR' | - | Accounting currency; database CHECK allows INR only. |
-| [`type`](../backend/src/ledger_sync/db/_models/transactions.py#L73) | `transactiontype` | `VARCHAR(8)` | No | - | - | Transaction kind; database enum names and API values are listed below. |
-| [`account`](../backend/src/ledger_sync/db/_models/transactions.py#L76) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Account label; see dimension IDs on transactions. |
-| [`category`](../backend/src/ledger_sync/db/_models/transactions.py#L77) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
-| [`subcategory`](../backend/src/ledger_sync/db/_models/transactions.py#L78) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
-| [`account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L79) | `INTEGER` | `INTEGER` | Yes | - | - | Stable ledger account ID; qualified by user_id in its FK. |
-| [`from_account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L80) | `INTEGER` | `INTEGER` | Yes | - | - | Source transfer account dimension ID, qualified by owner. |
-| [`to_account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L81) | `INTEGER` | `INTEGER` | Yes | - | - | Destination transfer account dimension ID, qualified by owner. |
-| [`category_id`](../backend/src/ledger_sync/db/_models/transactions.py#L82) | `INTEGER` | `INTEGER` | Yes | - | - | Stable ledger category ID; qualified by user_id in its FK. |
-| [`subcategory_id`](../backend/src/ledger_sync/db/_models/transactions.py#L83) | `INTEGER` | `INTEGER` | Yes | - | - | Stable subcategory ID; qualified by user_id and category_id. |
-| [`from_account`](../backend/src/ledger_sync/db/_models/transactions.py#L86) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Source account label for a transfer. |
-| [`to_account`](../backend/src/ledger_sync/db/_models/transactions.py#L87) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Destination account label for a transfer. |
-| [`note`](../backend/src/ledger_sync/db/_models/transactions.py#L90) | `TEXT` | `TEXT` | Yes | - | - | Optional free-text description. |
-| [`source_file`](../backend/src/ledger_sync/db/_models/transactions.py#L93) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Source filename/entry marker, not the file contents. |
-| [`last_seen_at`](../backend/src/ledger_sync/db/_models/transactions.py#L94) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Most recent reconciliation sighting. |
-| [`is_deleted`](../backend/src/ledger_sync/db/_models/transactions.py#L104) | `BOOLEAN` | `BOOLEAN` | No | False | - | Soft-delete flag; active ledger reads exclude true rows. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/transactions.py#L107) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
-| [`updated_at`](../backend/src/ledger_sync/db/_models/transactions.py#L112) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+| [`transaction_id`](../backend/src/ledger_sync/db/_models/transactions.py#L63) PK | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | Stable public SHA-256-shaped primary key; legacy IDs are retained. |
+| [`source_fingerprint`](../backend/src/ledger_sync/db/_models/transactions.py#L66) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Nullable v2 canonical-source hash including occurrence; independent of mutable category rules. |
+| [`fingerprint_version`](../backend/src/ledger_sync/db/_models/transactions.py#L67) | `INTEGER` | `INTEGER` | No | 2 | - | 1 for legacy identity; 2 for current fingerprint format. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/transactions.py#L71) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`date`](../backend/src/ledger_sync/db/_models/transactions.py#L76) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Transaction timestamp/calendar date; SQL type has no timezone. |
+| [`amount`](../backend/src/ledger_sync/db/_models/transactions.py#L77) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Transaction/planned amount in INR. |
+| [`currency`](../backend/src/ledger_sync/db/_models/transactions.py#L78) | `VARCHAR(10)` | `VARCHAR(10)` | No | 'INR' | - | Accounting currency; database CHECK allows INR only. |
+| [`type`](../backend/src/ledger_sync/db/_models/transactions.py#L79) | `transactiontype` | `VARCHAR(8)` | No | - | - | Transaction kind; database enum names and API values are listed below. |
+| [`account`](../backend/src/ledger_sync/db/_models/transactions.py#L82) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Account label; see dimension IDs on transactions. |
+| [`category`](../backend/src/ledger_sync/db/_models/transactions.py#L83) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
+| [`subcategory`](../backend/src/ledger_sync/db/_models/transactions.py#L84) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
+| [`account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L85) | `INTEGER` | `INTEGER` | Yes | - | - | Stable ledger account ID; qualified by user_id in its FK. |
+| [`from_account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L86) | `INTEGER` | `INTEGER` | Yes | - | - | Source transfer account dimension ID, qualified by owner. |
+| [`to_account_id`](../backend/src/ledger_sync/db/_models/transactions.py#L87) | `INTEGER` | `INTEGER` | Yes | - | - | Destination transfer account dimension ID, qualified by owner. |
+| [`category_id`](../backend/src/ledger_sync/db/_models/transactions.py#L88) | `INTEGER` | `INTEGER` | Yes | - | - | Stable ledger category ID; qualified by user_id in its FK. |
+| [`subcategory_id`](../backend/src/ledger_sync/db/_models/transactions.py#L89) | `INTEGER` | `INTEGER` | Yes | - | - | Stable subcategory ID; qualified by user_id and category_id. |
+| [`from_account`](../backend/src/ledger_sync/db/_models/transactions.py#L92) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Source account label for a transfer. |
+| [`to_account`](../backend/src/ledger_sync/db/_models/transactions.py#L93) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Destination account label for a transfer. |
+| [`note`](../backend/src/ledger_sync/db/_models/transactions.py#L96) | `TEXT` | `TEXT` | Yes | - | - | Optional free-text description. |
+| [`source_file`](../backend/src/ledger_sync/db/_models/transactions.py#L99) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Source filename/entry marker, not the file contents. |
+| [`last_seen_at`](../backend/src/ledger_sync/db/_models/transactions.py#L100) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Most recent reconciliation sighting. |
+| [`is_deleted`](../backend/src/ledger_sync/db/_models/transactions.py#L110) | `BOOLEAN` | `BOOLEAN` | No | False | - | Soft-delete flag; active ledger reads exclude true rows. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/transactions.py#L113) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/transactions.py#L118) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+| [`source_system`](../backend/src/ledger_sync/db/_models/transactions.py#L229) | `VARCHAR(32)` | `VARCHAR(32)` | Yes | - | - | Source with its own IDs (money_manager); NULL for spreadsheet rows. |
+| [`source_uid`](../backend/src/ledger_sync/db/_models/transactions.py#L230) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | That source's ID for the row; unique per user and source. A row matched by it is updated in place when the source edits it. |
+| [`source_updated_at`](../backend/src/ledger_sync/db/_models/transactions.py#L231) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Source modification time, naive UTC; NULL for spreadsheet rows. |
+| [`occurred_at`](../backend/src/ledger_sync/db/_models/transactions.py#L233) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive IST time the source recorded; date stays the ledger day. |
 
 **Foreign keys**
 
@@ -605,6 +658,7 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 | `ix_transactions_user_to_account` | `user_id, to_account` | No | `is_deleted IS false` |
 | `ix_transactions_user_type_date` | `user_id, type, date` | No | `is_deleted IS false` |
 | `uq_transactions_source` | `user_id, source_fingerprint` | Yes | All rows |
+| `uq_transactions_source_uid` | `user_id, source_system, source_uid` | Yes | All rows |
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
@@ -636,13 +690,15 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 - [`backend/src/ledger_sync/core/analytics/trends.py`](../backend/src/ledger_sync/core/analytics/trends.py#L78)
 - [`backend/src/ledger_sync/core/calculator.py`](../backend/src/ledger_sync/core/calculator.py#L289)
 - [`backend/src/ledger_sync/core/expense_class.py`](../backend/src/ledger_sync/core/expense_class.py#L139)
-- [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L75)
+- [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L76)
 - [`backend/src/ledger_sync/core/import_labels.py`](../backend/src/ledger_sync/core/import_labels.py#L15)
 - [`backend/src/ledger_sync/core/ledger_math.py`](../backend/src/ledger_sync/core/ledger_math.py#L24)
 - [`backend/src/ledger_sync/core/query_helpers.py`](../backend/src/ledger_sync/core/query_helpers.py#L288)
-- [`backend/src/ledger_sync/core/reconciler.py`](../backend/src/ledger_sync/core/reconciler.py#L56)
+- [`backend/src/ledger_sync/core/reconciler.py`](../backend/src/ledger_sync/core/reconciler.py#L61)
 - [`backend/src/ledger_sync/core/reconciler_transfers.py`](../backend/src/ledger_sync/core/reconciler_transfers.py#L25)
 - [`backend/src/ledger_sync/core/rules.py`](../backend/src/ledger_sync/core/rules.py#L72)
+- [`backend/src/ledger_sync/core/source_identity.py`](../backend/src/ledger_sync/core/source_identity.py#L48)
+- [`backend/src/ledger_sync/core/sync_engine.py`](../backend/src/ledger_sync/core/sync_engine.py#L139)
 - [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L115)
 - [`backend/src/ledger_sync/services/calculation_service.py`](../backend/src/ledger_sync/services/calculation_service.py#L27)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L222)
@@ -654,22 +710,22 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 
 **Purpose:** Import idempotency and reconciliation results. **Grain:** One current record per user and file hash. **Kind:** Import metadata.
 
-**Model:** [`ImportLog`](../backend/src/ledger_sync/db/_models/transactions.py#L213). **Primary key:** `id`.
+**Model:** [`ImportLog`](../backend/src/ledger_sync/db/_models/transactions.py#L245). **Primary key:** `id`.
 
 A forced re-import updates the existing record and counts. This is not an append-only attempt log. file_name/source_file are metadata, not stored spreadsheet binaries or a foreign key to transactions.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/transactions.py#L218) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/transactions.py#L221) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`file_hash`](../backend/src/ledger_sync/db/_models/transactions.py#L225) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 file hash used to recognize imports. |
-| [`file_name`](../backend/src/ledger_sync/db/_models/transactions.py#L226) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Original/import filename metadata. |
-| [`imported_at`](../backend/src/ledger_sync/db/_models/transactions.py#L227) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Latest import time for this user/file-hash record. |
-| [`rows_processed`](../backend/src/ledger_sync/db/_models/transactions.py#L232) | `INTEGER` | `INTEGER` | No | 0 | - | Count processed in the recorded import. |
-| [`rows_inserted`](../backend/src/ledger_sync/db/_models/transactions.py#L233) | `INTEGER` | `INTEGER` | No | 0 | - | Count inserted as new ledger rows. |
-| [`rows_updated`](../backend/src/ledger_sync/db/_models/transactions.py#L234) | `INTEGER` | `INTEGER` | No | 0 | - | Count updated during reconciliation. |
-| [`rows_deleted`](../backend/src/ledger_sync/db/_models/transactions.py#L235) | `INTEGER` | `INTEGER` | No | 0 | - | Count marked deleted by snapshot reconciliation. |
-| [`rows_skipped`](../backend/src/ledger_sync/db/_models/transactions.py#L236) | `INTEGER` | `INTEGER` | No | 0 | - | Count skipped by import processing. |
+| [`id`](../backend/src/ledger_sync/db/_models/transactions.py#L250) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/transactions.py#L253) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`file_hash`](../backend/src/ledger_sync/db/_models/transactions.py#L257) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 file hash used to recognize imports. |
+| [`file_name`](../backend/src/ledger_sync/db/_models/transactions.py#L258) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Original/import filename metadata. |
+| [`imported_at`](../backend/src/ledger_sync/db/_models/transactions.py#L259) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Latest import time for this user/file-hash record. |
+| [`rows_processed`](../backend/src/ledger_sync/db/_models/transactions.py#L264) | `INTEGER` | `INTEGER` | No | 0 | - | Count processed in the recorded import. |
+| [`rows_inserted`](../backend/src/ledger_sync/db/_models/transactions.py#L265) | `INTEGER` | `INTEGER` | No | 0 | - | Count inserted as new ledger rows. |
+| [`rows_updated`](../backend/src/ledger_sync/db/_models/transactions.py#L266) | `INTEGER` | `INTEGER` | No | 0 | - | Count updated during reconciliation. |
+| [`rows_deleted`](../backend/src/ledger_sync/db/_models/transactions.py#L267) | `INTEGER` | `INTEGER` | No | 0 | - | Count marked deleted by snapshot reconciliation. |
+| [`rows_skipped`](../backend/src/ledger_sync/db/_models/transactions.py#L268) | `INTEGER` | `INTEGER` | No | 0 | - | Count skipped by import processing. |
 
 **Foreign keys**
 
@@ -694,7 +750,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L48)
 - [`backend/src/ledger_sync/api/upload.py`](../backend/src/ledger_sync/api/upload.py#L122)
-- [`backend/src/ledger_sync/core/sync_engine.py`](../backend/src/ledger_sync/core/sync_engine.py#L50)
+- [`backend/src/ledger_sync/core/sync_engine.py`](../backend/src/ledger_sync/core/sync_engine.py#L96)
 - [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L116)
 
 [Back to table directory](#table-directory)
@@ -704,22 +760,27 @@ None declared in the model.
 
 **Purpose:** Stable account identities, classifications, closure state and credit limits. **Grain:** One lowercased account key per user. **Kind:** Identity catalog plus user configuration.
 
-**Model:** [`LedgerAccount`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L30). **Primary key:** `id`.
+**Model:** [`LedgerAccount`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L44). **Primary key:** `id`.
 
 Keys use Python str.lower(), without fuzzy merging, whitespace normalization or Unicode casefolding. name keeps the first observed spelling. Account aliases resolve historical labels in bulk. A NULL classification/credit limit is unconfigured, distinct from an explicit value or zero. Closing preserves transaction history. The former account_classifications table is removed.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L35) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L36) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L37) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
-| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L38) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed account spelling. |
-| [`account_type`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L40) | `accounttype` | `VARCHAR(13)` | Yes | - | - | Optional AccountType selection; NULL is unconfigured, not an inferred Other Wallets value. |
-| [`is_closed`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L41) | `BOOLEAN` | `BOOLEAN` | No | False | false | Closed flag; historical ledger rows remain. |
-| [`closed_date`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L44) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional informational closure timestamp. |
-| [`credit_limit`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L45) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Optional nonnegative exact NUMERIC(15,2) limit; NULL is unconfigured and zero is explicit. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L48) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | application callable: lambda: datetime.now(UTC) | - | Creation timestamp; legacy identities without classification history may be NULL. |
-| [`updated_at`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L51) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Last configuration update; may be NULL until an update is recorded. |
+| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L49) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L50) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L51) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
+| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L52) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed account spelling. |
+| [`account_type`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L54) | `accounttype` | `VARCHAR(13)` | Yes | - | - | Optional AccountType selection; NULL is unconfigured, not an inferred Other Wallets value. |
+| [`is_closed`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L55) | `BOOLEAN` | `BOOLEAN` | No | False | false | Closed flag; historical ledger rows remain. |
+| [`closed_date`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L58) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional informational closure timestamp. |
+| [`credit_limit`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L59) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Optional nonnegative exact NUMERIC(15,2) limit; NULL is unconfigured and zero is explicit. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L63) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | application callable: lambda: datetime.now(UTC) | - | Creation timestamp; legacy identities without classification history may be NULL. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L66) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Last configuration update; may be NULL until an update is recorded. |
+| [`source_uid`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L85) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Money Manager account ID; NULL for accounts only seen in spreadsheets. |
+| [`account_group`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L86) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Money Manager account group name, such as Credit Cards. |
+| [`statement_day`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L87) | `SMALLINT` | `SMALLINT` | Yes | - | - | Card statement day of month (1-31) from the backup. |
+| [`payment_day`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L88) | `SMALLINT` | `SMALLINT` | Yes | - | - | Card payment due day of month (1-31) from the backup. |
+| [`paid_from_account_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L89) | `INTEGER` | `INTEGER` | Yes | - | - | This user's account that pays the card; an ID in ledger_accounts, not enforced as an FK. |
 
 **Foreign keys**
 
@@ -746,6 +807,7 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 - [`backend/src/ledger_sync/services/account_settings.py`](../backend/src/ledger_sync/services/account_settings.py#L54)
 - [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L80)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L36)
+- [`backend/src/ledger_sync/services/money_manager_import.py`](../backend/src/ledger_sync/services/money_manager_import.py#L100)
 
 [Back to table directory](#table-directory)
 
@@ -754,17 +816,17 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Purpose:** Source account labels mapped to stable account identities. **Grain:** One lowercased source label per user. **Kind:** Derived identity catalog.
 
-**Model:** [`LedgerAccountAlias`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L62). **Primary key:** `id`.
+**Model:** [`LedgerAccountAlias`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L94). **Primary key:** `id`.
 
 Multiple aliases can reference one account. The FK includes user_id. No alias-management or account-merging API is defined by this model.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L72) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L73) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`account_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L74) | `INTEGER` | `INTEGER` | No | - | - | Stable ledger account ID; qualified by user_id in its FK. |
-| [`source_key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L75) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Exact Python-lowercased source account label. |
-| [`label`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L76) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed spelling of that source label. |
+| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L104) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L105) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`account_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L106) | `INTEGER` | `INTEGER` | No | - | - | Stable ledger account ID; qualified by user_id in its FK. |
+| [`source_key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L107) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Exact Python-lowercased source account label. |
+| [`label`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L108) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed spelling of that source label. |
 
 **Foreign keys**
 
@@ -797,16 +859,16 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Purpose:** Stable category identities. **Grain:** One lowercased category key per user. **Kind:** Derived identity catalog.
 
-**Model:** [`LedgerCategory`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L89). **Primary key:** `id`.
+**Model:** [`LedgerCategory`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L121). **Primary key:** `id`.
 
 Transaction label snapshots remain intact. Budgets, rules and existing summaries still use text category labels rather than category foreign keys.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L94) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L95) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L96) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
-| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L97) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed category spelling. |
+| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L126) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L127) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L128) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
+| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L129) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed category spelling. |
 
 **Foreign keys**
 
@@ -840,17 +902,17 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Purpose:** Stable subcategory identities within a category. **Grain:** One lowercased subcategory key per user and parent category. **Kind:** Derived identity catalog.
 
-**Model:** [`LedgerSubcategory`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L106). **Primary key:** `id`.
+**Model:** [`LedgerSubcategory`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L138). **Primary key:** `id`.
 
 The parent FK includes owner and category. Transaction references include owner, parent category and subcategory, preventing mismatched parentage.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L111) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L112) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`category_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L113) | `INTEGER` | `INTEGER` | No | - | - | Stable ledger category ID; qualified by user_id in its FK. |
-| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L114) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
-| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L115) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed subcategory spelling. |
+| [`id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L143) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L144) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`category_id`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L145) | `INTEGER` | `INTEGER` | No | - | - | Stable ledger category ID; qualified by user_id in its FK. |
+| [`key`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L146) | `VARCHAR(765)` | `VARCHAR(765)` | No | - | - | Python-lowercased identity key, scoped by the table's unique key. |
+| [`name`](../backend/src/ledger_sync/db/_models/ledger_dimensions.py#L147) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | First observed subcategory spelling. |
 
 **Foreign keys**
 
@@ -970,6 +1032,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/transactions_impl/filters.py`](../backend/src/ledger_sync/api/transactions_impl/filters.py#L197)
 - [`backend/src/ledger_sync/api/transactions_impl/serialize.py`](../backend/src/ledger_sync/api/transactions_impl/serialize.py#L56)
 - [`backend/src/ledger_sync/api/transactions_impl/writes.py`](../backend/src/ledger_sync/api/transactions_impl/writes.py#L190)
+- [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L253)
 
 [Back to table directory](#table-directory)
 
@@ -1339,6 +1402,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L339)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L77)
 - [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L108)
+- [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L254)
 - [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L112)
 
 [Back to table directory](#table-directory)
@@ -2082,6 +2146,7 @@ All model FKs use MATCH SIMPLE and are not declared DEFERRABLE. With an optional
 | --- | --- | --- |
 | [`user_preferences`](#user_preferences) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`user_ai_settings`](#user_ai_settings) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`upload_tokens`](#upload_tokens) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`audit_logs`](#audit_logs) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`ai_usage_log`](#ai_usage_log) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`transactions`](#transactions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
@@ -2193,7 +2258,7 @@ Additional RSU validation: `net_quantity` cannot exceed gross `quantity`. The sa
 
 ### `alembic_version`
 
-Alembic maintains `version_num VARCHAR(32) NOT NULL PRIMARY KEY`. It records the applied migration revision; there is no user FK or application CRUD API. This repository has a linear migration chain, so one current head row is expected. Source head is `recurring_user_amount_2026`; this document did not query a live version row.
+Alembic maintains `version_num VARCHAR(32) NOT NULL PRIMARY KEY`. It records the applied migration revision; there is no user FK or application CRUD API. This repository has a linear migration chain, so one current head row is expected. Source head is `money_manager_source_2026`; this document did not query a live version row.
 
 ### `import_logs_duplicate_archive_20260917`
 
@@ -2216,7 +2281,7 @@ Expected structure from `CREATE TABLE ... AS SELECT * FROM import_logs WITH NO D
 
 CREATE TABLE AS does not copy the original indexes, sequences/defaults, PK/UNIQUE/FK constraints or NOT NULL constraints. Therefore the archive's `id` is historical data, not an auto-generated PK, and `user_id` is only a stored identifier. It is outside the ORM and regular import history. User deletion does **not** automatically cascade to it under the described repair. Archive retention/cleanup requires an explicit operational decision.
 
-The expected total is **36 tables only if** this archive exists and there are no other out-of-model tables: 34 application tables + Alembic + the archive. This is not a live-verified database-wide count.
+The expected total is **37 tables only if** this archive exists and there are no other out-of-model tables: 35 application tables + Alembic + the archive. This is not a live-verified database-wide count.
 
 ## Migration and model differences
 
@@ -2256,7 +2321,7 @@ September migration chain:
 
 ## Scope and verification
 
-- Metadata extraction covered exactly 34 tables and 464 columns, 43 FKs, 76 explicit indexes, 14 additional UNIQUE constraints, 18 CHECK constraints and 5 enum types.
+- Metadata extraction covered exactly 35 tables and 483 columns, 44 FKs, 78 explicit indexes, 15 additional UNIQUE constraints, 18 CHECK constraints and 5 enum types.
 - CHECK applicability: PostgreSQL 18; SQLite 15. SQLite uses enum-compatible strings, not native enum types.
 - Every model column has a description, nullability, PostgreSQL and SQLite types, default declaration and source link. Every FK, check, unique constraint and explicit index is listed; incoming references are listed on parent tables.
 - The generated SQL is an offline model representation. It was not executed and is not a substitute for Alembic migrations or a production schema dump.

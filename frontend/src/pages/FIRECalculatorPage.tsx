@@ -296,6 +296,7 @@ export default function FIRECalculatorPage() {
                   dataKey="year"
                   height={320}
                   xTickFormatter={(v) => `Yr ${v}`}
+                  tooltipLabelFormatter={(v) => `Year ${v}`}
                   tooltipFormatter={currencyTooltipFormatter}
                   ariaLabel={`Projected retirement corpus growth over ${retirementYears} years, comparing total corpus against amount contributed`}
                   areas={[

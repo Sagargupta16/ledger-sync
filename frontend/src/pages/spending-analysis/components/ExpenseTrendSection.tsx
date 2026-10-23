@@ -1,43 +1,35 @@
 import { motion } from 'motion/react'
 import { TrendingDown } from 'lucide-react'
-import {
-  Area,
-  Brush,
-  ComposedChart,
-  CartesianGrid,
-  Line,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
+import AreaSeries from '@/components/charts/AreaSeries'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import CartesianChart from '@/components/charts/CartesianChart'
+import type { TooltipSeries } from '@/components/charts/CartesianTooltip'
+import ChartBrush from '@/components/charts/ChartBrush'
+import Crosshair from '@/components/charts/Crosshair'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
+import { ReferenceLine } from '@/components/charts/References'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
 import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import { useChartRange } from '@/components/ui/useChartRange'
-import { BRUSH_DEFAULTS, monthTooltipLabel } from '@/components/ui/chartDefaults'
-import { formatChartPeriod } from '@/lib/chartDateLabels'
-import {
-  ACTIVE_DOT,
-  areaGradient,
-  areaGradientUrl,
-  ChartContainer,
-  chartTooltipProps,
-  currencyTooltipFormatter,
-  GRID_DEFAULTS,
-  referenceLine,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
-import { SCROLL_FADE_UP } from '@/constants/animations'
-import { rawColors } from '@/constants/colors'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
+import { formatChartPeriod } from '@/lib/chartDateLabels'
 import { rollingAvgCaption } from '@/lib/chartUtils'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency } from '@/lib/formatters'
+import { SCROLL_FADE_UP } from '@/constants/animations'
+import { colors } from '@/constants/colors'
+import ValueSortedTooltip from '@/pages/income-analysis/components/ValueSortedTooltip'
+
+/** Every plotted key, so the value axis spans the total and its average. */
+const SERIES = [{ key: 'expense' }, { key: 'expenseAvg' }] as const
+/** The monthly total keeps the expense colour; the average is neutral, as on /forecasts. */
+const TOTAL_COLOR = colors.app.red
+const AVERAGE_COLOR = colors.text.secondary
+
+const monthHeading = (month: string) => formatMonthKey(month, { month: 'long', year: 'numeric' })
 
 interface MonthlyTrendDatum {
   month: string
@@ -72,8 +64,11 @@ export default function ExpenseTrendSection({
   rollingAvgMonths,
 }: ExpenseTrendSectionProps) {
   const dimensions = useChartDimensions()
-  const { animate } = useChartPresentation(monthlyTrendData.length)
   const range = useChartRange(monthlyTrendData.map((row) => row.month))
+  const tooltipSeries: TooltipSeries[] = [
+    { key: 'expense', label: 'Spending', color: TOTAL_COLOR },
+    { key: 'expenseAvg', label: `Spending (${rollingAvgMonths}m avg)`, color: AVERAGE_COLOR },
+  ]
 
   return (
     <motion.section
@@ -115,7 +110,7 @@ export default function ExpenseTrendSection({
                   Monthly spending
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 border-t-2 border-dashed border-app-blue" aria-hidden="true" />
+                  <span className="w-5 border-t-2 border-dashed border-text-secondary" aria-hidden="true" />
                   {rollingAvgMonths}-month average
                 </li>
               </ul>
@@ -124,76 +119,33 @@ export default function ExpenseTrendSection({
               </p>
             </div>
             {monthlyTrendData.length > 6 && <ChartRangeControls range={range} label="Spending chart range" />}
-            <ChartContainer
+            <CartesianChart
+              data={monthlyTrendData}
+              categoryKey="month"
+              series={SERIES}
+              categoryKind="point"
+              // Both references join the value domain, so a zoom never pushes their lines off the plot.
+              extraValues={[peakExpense, monthlyAvgSpending]}
+              visibleRange={range}
               height={360}
               mobileHeight={260}
               ariaLabel={`Monthly spending over time with a ${rollingAvgMonths}-month rolling average, plus peak and average reference lines`}
+              tooltip={<ValueSortedTooltip series={tooltipSeries} formatLabel={monthHeading} />}
             >
-              <ComposedChart
-                data={monthlyTrendData}
-                margin={{ top: 16, right: 12, bottom: 8, left: 0 }}
-              >
-                <defs>{areaGradient('expenseTrend', rawColors.app.red, 0.24, 0.01)}</defs>
-                <CartesianGrid {...GRID_DEFAULTS} />
-                <XAxis
-                  {...xAxisDefaults(monthlyTrendData.length)}
-                  dataKey="month"
-                  tickFormatter={(value: string) => formatChartPeriod(value)}
-                  interval={dimensions.breakpoint === 'mobile' ? 'preserveStartEnd' : xAxisDefaults(monthlyTrendData.length).interval}
-                />
-                <YAxis {...yAxisDefaults({ width: dimensions.breakpoint === 'mobile' ? 56 : 64 })} />
-                <Tooltip
-                  {...chartTooltipProps}
-                  content={<ChartTooltipContent />}
-                  cursor={CHART_LINE_CURSOR_STYLE}
-                  labelFormatter={monthTooltipLabel}
-                  formatter={(value, name) => [
-                    currencyTooltipFormatter(value),
-                    name === `Spending (${rollingAvgMonths}m avg)` ? `Spending (${rollingAvgMonths}m avg)` : 'Spending',
-                  ]}
-                  itemSorter={(item) => -(item.value as number)}
-                />
-                {referenceLine({
-                  y: peakExpense,
-                  variant: 'peak',
-                })}
-                {referenceLine({
-                  y: monthlyAvgSpending,
-                  variant: 'avg',
-                })}
-                <Area
-                  type="monotone"
-                  dataKey="expense"
-                  name="Spending"
-                  stroke={rawColors.app.red}
-                  fill={areaGradientUrl('expenseTrend')}
-                  strokeWidth={2.5}
-                  dot={monthlyTrendData.length === 1 ? { r: 4, fill: rawColors.app.red } : false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.red }}
-                  isAnimationActive={animate}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="expenseAvg"
-                  stroke={rawColors.app.blue}
-                  strokeWidth={2}
-                  strokeDasharray="6 3"
-                  // One defined point cannot be stroked (recharts emits `M x,y Z`),
-                  // so mark it instead of drawing nothing at all.
-                  dot={rollingAvgPointCount === 1 ? { r: 4, fill: rawColors.app.blue } : false}
-                  activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                  name={`Spending (${rollingAvgMonths}m avg)`}
-                  isAnimationActive={animate}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                />
-                {monthlyTrendData.length > 6 && (
-                  <Brush {...BRUSH_DEFAULTS} dataKey="month" tickFormatter={(value: string) => formatChartPeriod(value)} startIndex={range.startIndex} endIndex={range.endIndex} onChange={range.setRange} />
-                )}
-              </ComposedChart>
-            </ChartContainer>
+              <Grid />
+              <Crosshair />
+              <ValueAxis />
+              <CategoryAxis interval="preserveStartEnd" />
+              {/* The total draws in as its fill wipes behind it; the average wipes in just after. */}
+              <AreaSeries dataKey="expense" color={TOTAL_COLOR} strokeWidth={2.5} fillOpacity={0.24} />
+              {/* showDots 'auto' marks a lone average point, which a stroke cannot show. */}
+              <LineSeries dataKey="expenseAvg" color={AVERAGE_COLOR} strokeWidth={2} dash="6 3" seriesIndex={1} />
+              <ReferenceLine value={peakExpense} variant="peak" />
+              <ReferenceLine value={monthlyAvgSpending} variant="avg" />
+            </CartesianChart>
+            {monthlyTrendData.length > 6 && (
+              <ChartBrush range={range} values={monthlyTrendData.map((row) => row.expense)} ariaLabel="Spending chart zoom" />
+            )}
             <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
               <span className="mt-2 w-5 shrink-0 border-t border-dotted border-text-secondary" aria-hidden="true" />
               Reference lines: peak monthly spending and {monthlyAvgLineLabel}
@@ -201,7 +153,7 @@ export default function ExpenseTrendSection({
             {chartDataTable(
               monthlyTrendData,
               [
-                { header: 'Month', rowHeader: true, value: (row) => formatMonthKey(row.month, { month: 'long', year: 'numeric' }) },
+                { header: 'Month', rowHeader: true, value: (row) => monthHeading(row.month) },
                 { header: 'Spending', value: (row) => formatCurrency(row.expense) },
                 { header: `${rollingAvgMonths}-month average`, value: (row) => row.expenseAvg === undefined ? 'Not available' : formatCurrency(row.expenseAvg) },
               ],

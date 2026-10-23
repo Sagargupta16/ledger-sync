@@ -6,13 +6,13 @@
  * SIBLING of the chart: an outer `role="img"` makes every descendant
  * PRESENTATIONAL, so the table a screen reader is supposed to read got hidden
  * again. The fix passes `ariaLabel` to the chart instead
- * (`ChartContainer` puts `role="img"` + the label on the chart's own wrapper).
+ * (`ChartFrame` puts `role="img"` + the label on the chart's own wrapper).
  *
  * That substitution is only safe if the accessible name actually survives, so
  * these tests pin BOTH halves: the named image and the reachable table.
  *
- * Recharts needs a measured container and jsdom reports 0x0, so the wedges never
- * paint -- the accessible layer is the testable contract here.
+ * jsdom has no ResizeObserver, so the frame renders at its 640px fallback width,
+ * but its SVG is `aria-hidden` -- the accessible layer is the testable contract.
  */
 
 import { render, screen, within } from '@testing-library/react'

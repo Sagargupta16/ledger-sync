@@ -6,6 +6,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.30.0 - 2026-10-22
+
+Money Manager backups import directly with stable transaction IDs, charts are drawn by an in-house animated SVG kit instead of Recharts, every architecture and flow diagram is redrawn from the code, and re-importing an older ledger with repeated identical rows no longer fails.
+
+### Added
+
+- Money Manager (Realbyte) `.mmbak` backups import from the Upload page. The browser gzips the backup and the server reads it, through an in-memory, query-only SQLite copy with size and time caps. A review shows what the import would add, update and remove before anything is saved.
+  - Each transaction keeps its Money Manager ID (`transactions.source_uid`). Editing an amount, date, account, note or category in Money Manager updates the stored row in place under the same public ID, so tags and anomaly reviews stay attached. Rows imported earlier from a spreadsheet are adopted on the first backup, including rows whose note was edited since, when the match is unique.
+  - The time of day of each transaction, each account's Money Manager group, card statement and payment days, and paying account are stored. An unclassified account takes the type its group implies; a type you chose is kept.
+  - The same backup again reports "already up to date" instead of a conflict. A backup that would remove more than 5% of the ledger (at least 25 transactions) waits for a confirmed review.
+  - Measured on a real backup (8,780 records, 4.96 MB, 1.32 MB gzipped): 7,427 transactions and transfers read in 0.12 s and imported in 4.5 s against an existing 7,161-row ledger. 7,154 existing IDs were kept.
+- Upload tokens (Settings > Upload tokens) for automations such as an iOS Shortcut that uploads the newest backup whenever Money Manager closes. A token is shown once and stored only as a SHA-256 hash. It can upload backups and nothing else, cannot preview or lift the deletion guard, expires after a year and can be revoked at once. At most five are active. The Handbook has the Shortcut steps.
+- Migration `money_manager_source_2026` adds nullable `transactions.source_system`, `source_uid`, `source_updated_at` and `occurred_at` with a unique per-user UID index, the account settings columns on `ledger_accounts`, and the `upload_tokens` table. It is additive with no backfill, so the backend and the migration can deploy in either order.
+- An in-house SVG chart kit in `frontend/src/components/charts/`, built on React 19 and Motion 14, draws every chart in the app:
+  - Charts animate once they scroll into view. Bars grow out of the zero line in a stagger, lines draw in left to right with their fills wiping in behind them, pie slices sweep open from 12 o'clock, radar series grow out of the centre, and Sankey ribbons sweep in with beads drifting along them.
+  - Changing a filter or range moves the marks, axes and grid to the new data instead of replaying the entrance (a line whose point count changes wipes in again). Sankey drill-downs glide the nodes and ribbons both views share.
+  - Tooltips glide between rows with the cursor and, on phones, pin to the top of the chart so a finger never covers them. x/y charts, pies, radars and the Sankey can be stepped through with the arrow keys. Home and End jump to the first or last point, and Page Up and Page Down move a tenth of an x/y chart at a time.
+  - On bar, area and line charts with two or more series, the legend items are buttons that show or hide a series. The axis rescales and the remaining marks morph, the last visible series cannot be hidden, and the accessible table keeps every series.
+- Expense Analysis has a squarified treemap of spending by category above the category list. Choosing a category zooms into its subcategories in one motion, and the breadcrumb, Escape or Backspace zooms back out. Arrow keys, Home and End move between tiles, and each tile's label shows as much as fits. A deep link to a category opens the map on it.
+- Comparison has a slope chart of the top 10 expense categories: each line runs from period A to period B, with rank moves, and its color shows a rise or a fall. Overlapping labels spread apart with a hairline to their point. The focused category comes forward and is read out with both values, the change and the rank move.
+- Year in Review's heatmap waves in week by week when it scrolls into view and retints in a left-to-right sweep when the year changes. On desktop its legend swatches highlight the days at one level, Enter or Space selects a day, Escape clears the selection, and the focused day is read out. Phones keep the month tiles.
+  - The Reduced motion setting and printing draw the finished chart at once, and very long series skip the entrance.
+- Architecture and flow diagrams drawn with Orrery from YAML specs in `docs/diagrams/`: system overview, backend layers, statement import, Money Manager import, analytics boundaries, shared finance rules, chart kit, session lifecycle, token refresh, OAuth sign-in (a sequence), AI chat and release delivery. Every node and edge cites the file and line it comes from, so `orrery verify` fails when the code moves on. Each figure has light and dark SVGs and an editable `.drawio.svg`.
+
+### Changed
+
+- The frontend ships 398 kB less JavaScript than 2.29.0 (95 kB, 11%, gzipped): the 469 kB Recharts chunk (128 kB gzipped) is gone, and the kit's shared chunks come to 40 kB (19 kB gzipped).
+- Motion moves from 13.4 to 14.4, React and React DOM to 19.3.1, React Router to 8.5.0, TanStack Query to 5.104.5, TanStack Table to 9.3.1, lucide-react to 1.60.0 and react-dropzone to 20.1.4. Tooling: ESLint 10.13.0, typescript-eslint 8.72.0, Vitest 5.0.5, jsdom 30.1.3, PostCSS 8.5.31, @vitejs/plugin-react 6.1.2, globals 17.13.0 and @types/node 26.6.5.
+
+### Removed
+
+- Recharts, its `vendor-recharts` chunk and the adapters around it: `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `chartBaseline`, and the axis, grid, reference-line and brush presets in `chartDefaults`.
+- The Archify and Mermaid diagrams the Orrery figures replace (`docs/diagrams/*.json`, `docs/diagrams/build.mjs` and `docs/images/`).
+
+### Fixed
+
+- Re-importing a ledger whose rows predate source fingerprints no longer fails with "Legacy transactions have ambiguous source identities" just because it holds identical transactions (two same-day payments with the same amount, account and note). When every stored copy of a repeated row has the same category, subcategory and currency and none carries a tag or anomaly, the copies are paired with the file's rows in a fixed order, and any extra copy on either side is inserted or removed as usual. Copies that do differ still reject the whole file, and the message now names up to three of the conflicting groups (date, amount, account, how many in the file and how many stored).
+
+### Security
+
+- Transitive `follow-redirects` moves from 1.16.0 to 1.16.1 through the frontend override, fixing two high-severity header disclosures on redirects (CVE-2026-111755 and CVE-2026-111756, flagged by Trivy).
+
 ## 2.29.0 - 2026-10-21
 
 A consistency and cleanup sweep. The backend and frontend now apply the same spending and averaging rules, 14 API routes that no client called are gone, CI tests the Python version production runs, and about 6,600 lines of dead or duplicated code are removed (net).

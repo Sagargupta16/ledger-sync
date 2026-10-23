@@ -1,7 +1,7 @@
 /**
- * Screen-reader data table for Recharts visualizations.
+ * Screen-reader data table for SVG chart visualizations.
  *
- * Recharts paints `<path>` elements assistive tech cannot interpret, and a
+ * The chart kit paints `<path>` elements assistive tech cannot interpret, and a
  * `role="img"` label only conveys the gist -- a reader still can't get the
  * numbers. This renders the same data as a visually-hidden `<table>`.
  *
@@ -33,7 +33,7 @@ export function chartCellText(value: unknown): string {
  * table is hidden from AT again and the reader is back to the one-sentence gist.
  * In practice that means:
  *
- * 1. The chart component renders this as a SIBLING of `ChartContainer` (whose
+ * 1. The chart component renders this as a SIBLING of its `ChartFrame` (whose
  *    `ariaLabel` is what emits the `role="img"` wrapper).
  * 2. Call sites must NOT add their own `role="img"` wrapper around the chart --
  *    pass `ariaLabel` to the chart component instead. A hand-rolled wrapper sits
@@ -44,8 +44,7 @@ export function chartCellText(value: unknown): string {
  * by every chart component exposing an `ariaLabel` prop so no call site needs a
  * wrapper.
  *
- * Kept as a camelCase render function so the caller reads as a helper call --
- * mirrors `referenceLine` in `chartDefaults`.
+ * Kept as a camelCase render function so the caller reads as a helper call.
  */
 export function chartDataTable<T>(
   rows: readonly T[],

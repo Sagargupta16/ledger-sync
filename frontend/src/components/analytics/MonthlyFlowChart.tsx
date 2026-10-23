@@ -83,13 +83,10 @@ export default function MonthlyFlowChart({ data, partialMonthLabel }: Props) {
             dataKey="month"
             xTickFormatter={(value) => formatChartPeriod(String(value))}
             tooltipLabelFormatter={formatChartDate}
-            height={showBrush ? 280 : 240}
+            // The brush draws under the frame, so the plot keeps one height with or without it.
+            height={240}
             showLegend={false}
-            brush={showBrush ? {
-              startIndex: range.startIndex,
-              endIndex: range.endIndex,
-              onChange: range.setRange,
-            } : undefined}
+            range={showBrush ? range : undefined}
             bars={[
               { key: 'income', color: SEMANTIC_COLORS.income, label: 'Income' },
               { key: 'expense', color: SEMANTIC_COLORS.expense, label: 'Spending' },

@@ -16,7 +16,7 @@ const isGitHubPages = process.env.GITHUB_PAGES === 'true'
  *
  * connect-src allows https: for the hosted API, Google Analytics, and the
  * browser-direct OpenAI/Anthropic chat providers. style-src needs
- * 'unsafe-inline' for the style attributes React, Recharts, and Motion write.
+ * 'unsafe-inline' for the style attributes React and Motion write.
  */
 function contentSecurityPolicy(): Plugin {
   let apiOrigin = ''
@@ -118,7 +118,7 @@ export default defineConfig({
     rollupOptions: {
       // The eager shell imports Button/Spinner/PageHeader through the ui barrel.
       // Its modules are pure, so marking them side-effect free lets the build
-      // leave unused chart modules (and recharts) out of the anonymous `/` load.
+      // leave unused chart modules out of the anonymous `/` load.
       treeshake: {
         moduleSideEffects: (id) => !/src[\\/]components[\\/]ui[\\/][^\\/]+\.tsx?$/.test(id),
       },
@@ -127,10 +127,6 @@ export default defineConfig({
         // function form splits heavy vendor libs into their own cached chunks.
         manualChunks(id) {
           if (/node_modules\/(react|react-dom|react-router)\//.test(id)) return 'vendor-react'
-          // clsx is shared by cn() and recharts; pin it so the eager shell does
-          // not import it from (and modulepreload) vendor-recharts.
-          if (/node_modules\/clsx\//.test(id)) return 'vendor-react'
-          if (/node_modules\/recharts\//.test(id)) return 'vendor-recharts'
           if (/node_modules\/(motion|framer-motion)\//.test(id)) return 'vendor-motion'
           if (/node_modules\/@tanstack\/react-query\//.test(id)) return 'vendor-tanstack'
         },

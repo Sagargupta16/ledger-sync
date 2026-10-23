@@ -35,6 +35,7 @@ from ledger_sync.db._models.investments import (
     TaxRecord,
 )
 from ledger_sync.db._models.ledger_dimensions import (
+    LEDGER_ACCOUNTS,
     LedgerAccount,
     LedgerAccountAlias,
     LedgerCategory,
@@ -53,14 +54,18 @@ from ledger_sync.db._models.planning import (
     ScheduledTransaction,
 )
 from ledger_sync.db._models.transactions import (
+    TRANSACTIONS,
     ColumnMappingLog,
     ImportLog,
     Transaction,
 )
+from ledger_sync.db._models.upload_tokens import UploadToken
 from ledger_sync.db._models.user import AuditLog, User, UserPreferences
 
 __all__ = [
     "CASCADE_ALL_DELETE_ORPHAN",
+    "LEDGER_ACCOUNTS",
+    "TRANSACTIONS",
     "USER_FK",
     "AIUsageLog",
     "AccountType",
@@ -98,6 +103,7 @@ __all__ = [
     "TransactionTag",
     "TransactionType",
     "TransferFlow",
+    "UploadToken",
     "User",
     "UserAISettings",
     "UserPreferences",

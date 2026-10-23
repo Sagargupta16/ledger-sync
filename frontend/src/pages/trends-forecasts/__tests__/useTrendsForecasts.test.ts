@@ -243,7 +243,7 @@ describe('useTrendsForecasts -- monthly average divisors', () => {
    * The regression that slipped through the first attempt at this fix: honest
    * `undefined` leading points mean a 3-completed-month window -- what the
    * default FY view shows on the real ledger -- yields exactly ONE average
-   * point, and Recharts strokes nothing through one point (`M x,y Z`). Counting
+   * point, and a line through one point strokes nothing (`M x,y`). Counting
    * the points is what lets the page stop advertising an invisible line.
    */
   it('counts the rolling-average points so a lone one is not called a line', () => {
@@ -270,7 +270,7 @@ describe('useTrendsForecasts -- monthly average divisors', () => {
       month('2026-06', 246191, 108508),
     ])
     const four = renderHook(() => useTrendsForecasts())
-    // Two points is the first width Recharts can actually stroke.
+    // Two points is the first width a line can actually stroke.
     expect(four.result.current.rollingAvgPointCount).toBe(2)
   })
 

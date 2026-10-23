@@ -115,7 +115,7 @@ export default function UploadFormatPreview() {
           <p className="text-pretty text-xs text-muted-foreground">
             Column names are flexible -- <span className="text-foreground">"Period"</span> or{' '}
             <span className="text-foreground">"Date"</span> both work. Export from Money Manager
-            Pro for best results.
+            Pro for best results, or upload its .mmbak backup directly.
             {' '}Dates must be real calendar days. Use plain numbers for amounts;
             signed values are imported as magnitudes and the transaction type supplies direction.
             {' '}Non-INR source amounts are rejected. Display conversion remains available in Settings.

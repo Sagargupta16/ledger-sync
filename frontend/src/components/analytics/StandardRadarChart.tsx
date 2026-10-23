@@ -1,5 +1,7 @@
 /**
- * Reusable radar chart wrapper with standardized premium styling.
+ * Radar wrapper for fixed 0-100 score profiles on the in-house chart kit. The
+ * shape grows out of the centre as it scrolls into view and morphs when a score
+ * changes; hover, a tap or the arrow keys read one axis' score beside its label.
  *
  * Usage:
  *   <StandardRadarChart
@@ -10,59 +12,24 @@
  *   />
  */
 
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, Text,
-  type BaseTickContentProps,
-} from 'recharts'
-
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
+import RadarChart from '@/components/charts/RadarChart'
 import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
-import { ACTIVE_DOT, AXIS_TICK } from '@/components/ui/chartDefaults'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
 
 interface StandardRadarChartProps<T> {
   readonly data: readonly T[]
-  /** Key on each row that holds the score value. */
+  /** Key on each row that holds the score value (0 to 100). */
   readonly dataKey: string
   /** Key on each row that holds the axis label. */
   readonly categoryKey: string
   readonly color: string
   readonly name?: string
   readonly height?: number
-  /** Domain for the radius axis. Default [0, 100]. */
-  readonly radiusDomain?: [number, number]
-  /** Font size for angle-axis labels. Default 10. */
-  readonly labelFontSize?: number
-  /** Show tick labels on the radius axis. Default false. */
+  /** Print each ring's score (25 to 100) on the chart. Default false, which captions the scale instead. */
   readonly showRadiusTicks?: boolean
-  /** Dot radius on the radar line. Default 2. */
+  /** Dot radius on the radar outline, in px. Default 2. */
   readonly dotRadius?: number
-  readonly fillOpacity?: number
-  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  /** Accessible description of the chart (role=img); also captions the data table. */
   readonly ariaLabel?: string
-}
-
-interface RadarAngleTickProps extends Partial<Pick<BaseTickContentProps, 'x' | 'y' | 'textAnchor' | 'payload'>> {
-  readonly isMobile: boolean
-  readonly labelFontSize: number
-}
-
-function RadarAngleTick({ x, y, textAnchor, payload, isMobile, labelFontSize }: Readonly<RadarAngleTickProps>) {
-  return (
-    <Text
-      x={x}
-      y={y}
-      textAnchor={textAnchor}
-      verticalAnchor="middle"
-      width={isMobile ? 68 : 88}
-      fill={rawColors.chart.textSubtle}
-      fontSize={labelFontSize}
-    >
-      {chartCellText(payload?.value)}
-    </Text>
-  )
 }
 
 export default function StandardRadarChart<T>({
@@ -72,64 +39,33 @@ export default function StandardRadarChart<T>({
   color,
   name,
   height = 200,
-  radiusDomain = [0, 100],
-  labelFontSize = 10,
   showRadiusTicks = false,
   dotRadius = 2,
-  fillOpacity = 0.15,
   ariaLabel,
 }: StandardRadarChartProps<T>) {
-  const { animate, isMobile } = useChartPresentation(data.length)
   const rows = data as readonly Record<string, unknown>[]
+  // Axes keyed by position, so a score change on the same dimensions morphs the shape in place.
+  const axes = rows.map((row, index) => ({ key: String(index), label: chartCellText(row[categoryKey]) }))
+  const series = [{
+    key: dataKey,
+    label: name ?? dataKey,
+    color,
+    values: Object.fromEntries(rows.map((row, index) => [String(index), Number(row[dataKey])])),
+  }]
 
   return (
     <>
-      <ChartContainer height={height} ariaLabel={ariaLabel}>
-        <RadarChart
-          data={data as unknown as Array<Record<string, unknown>>}
-          outerRadius="68%"
-          margin={{ top: 16, right: 16, bottom: 16, left: 16 }}
-        >
-          <PolarGrid stroke={rawColors.chart.axisLine} strokeDasharray="2 5" />
-          <PolarAngleAxis
-            dataKey={categoryKey}
-            axisLine={false}
-            tickLine={false}
-            tick={<RadarAngleTick isMobile={isMobile} labelFontSize={labelFontSize} />}
-          />
-          <PolarRadiusAxis
-            angle={30}
-            domain={radiusDomain}
-            tick={showRadiusTicks ? { ...AXIS_TICK, fontSize: 10 } : false}
-            axisLine={false}
-          />
-          <Radar
-            name={name ?? dataKey}
-            dataKey={dataKey}
-            stroke={color}
-            fill={color}
-            fillOpacity={fillOpacity}
-            strokeWidth={2.25}
-            strokeLinejoin="round"
-            dot={{ r: dotRadius, fill: color, stroke: rawColors.chart.activeStroke, strokeWidth: 1.5 }}
-            activeDot={{ ...ACTIVE_DOT, fill: color }}
-            isAnimationActive={animate}
-            animationDuration={520}
-            animationEasing="ease-out"
-          />
-          <Tooltip
-            {...chartTooltipProps}
-            content={<ChartTooltipContent />}
-            labelFormatter={(_label, payload) => {
-              const row = payload[0]?.payload as Record<string, unknown> | undefined
-              return chartCellText(row?.[categoryKey])
-            }}
-          />
-        </RadarChart>
-      </ChartContainer>
+      <RadarChart
+        axes={axes}
+        series={series}
+        ringLabels={showRadiusTicks}
+        dotRadius={dotRadius}
+        height={height}
+        ariaLabel={ariaLabel}
+      />
       {!showRadiusTicks && data.length > 0 && (
         <p className="mb-2 text-center font-mono text-[10px] tabular-nums text-muted-foreground">
-          Scale {radiusDomain[0]} to {radiusDomain[1]}
+          Scale 0 to 100
         </p>
       )}
       {chartDataTable(

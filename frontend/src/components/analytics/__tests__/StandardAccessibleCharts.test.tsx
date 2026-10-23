@@ -1,7 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
 
 import StandardAreaChart from '../StandardAreaChart'
 import StandardRadarChart from '../StandardRadarChart'
@@ -11,6 +10,11 @@ function tableRows(): string[][] {
   return Array.from(screen.getByRole('table').querySelectorAll('tbody tr')).map((row) =>
     Array.from(row.querySelectorAll('th, td')).map((cell) => cell.textContent ?? ''),
   )
+}
+
+/** Stroked series paths of one colour inside the named chart. */
+function strokesIn(chart: string, color: string): number {
+  return screen.getByRole('img', { name: chart }).querySelectorAll(`path[stroke="${color}"]`).length
 }
 
 describe('accessible chart data', () => {
@@ -82,98 +86,58 @@ describe('accessible chart data', () => {
   })
 })
 
-describe('chart tooltip readings', () => {
-  it('announces keyboard readings when chart accessibility is enabled', () => {
-    const { rerender } = render(
-      <ChartTooltipContent
-        active
-        accessibilityLayer
-        label="Jan 26"
-        payload={[{ graphicalItemId: 'income', name: 'Income', value: 10 }]}
-      />,
-    )
-
-    expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'assertive')
-    expect(screen.getByRole('status')).toHaveTextContent('January 2026')
-    rerender(
-      <ChartTooltipContent
-        active
-        accessibilityLayer
-        label="Feb 26"
-        payload={[{ graphicalItemId: 'income', name: 'Income', value: 20 }]}
-      />,
-    )
-    expect(screen.getByRole('status')).toHaveTextContent('February 2026')
-    expect(screen.getByRole('status')).not.toHaveTextContent('January 2026')
-  })
-
-  it.each([null, undefined])('omits readings suppressed by a formatter returning %s', (suppressed) => {
+describe('legend series toggles', () => {
+  it('hides an area series from the plot, keeping its legend reading and table column', () => {
     render(
-      <ChartTooltipContent
-        active
-        payload={[
-          { graphicalItemId: 'hidden', name: 'Hidden series', value: 25, formatter: () => suppressed },
-          { graphicalItemId: 'visible', name: 'Visible series', value: 42 },
+      <StandardAreaChart
+        data={[
+          { month: 'Jan', income: 5000, expense: 3000 },
+          { month: 'Feb', income: 6000, expense: 3500 },
         ]}
-        formatter={(value) => `${String(value)} INR`}
-      />,
-    )
-
-    expect(screen.queryByText('Hidden series')).not.toBeInTheDocument()
-    expect(screen.queryByText('25')).not.toBeInTheDocument()
-    expect(screen.getByText('Visible series')).toBeInTheDocument()
-    expect(screen.getByText('42 INR')).toBeInTheDocument()
-  })
-
-  it('preserves signed and zero values through the supplied formatter', () => {
-    render(
-      <ChartTooltipContent
-        active
-        label="Jan 26"
-        payload={[
-          { graphicalItemId: 'income', name: 'Income', value: 0 },
-          { graphicalItemId: 'expense', name: 'Expense', value: -42 },
+        dataKey="month"
+        areas={[
+          { key: 'income', color: '#000000', label: 'Income' },
+          { key: 'expense', color: '#111111', label: 'Expense' },
         ]}
-        formatter={(value) => `${typeof value === 'number' ? value : 0} INR`}
+        ariaLabel="Monthly cash flow"
+        tooltipFormatter={(value) => `${value} INR`}
       />,
     )
+    expect(strokesIn('Monthly cash flow', '#111111')).toBe(1)
 
-    const tooltip = screen.getByRole('tooltip')
-    expect(within(tooltip).getByText('January 2026')).toBeInTheDocument()
-    expect(within(tooltip).getByText('0 INR')).toBeInTheDocument()
-    expect(within(tooltip).getByText('-42 INR')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Expense 3500 INR' }))
+
+    expect(screen.getByRole('button', { name: 'Expense 3500 INR' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Income 6000 INR' })).toHaveAttribute('aria-disabled', 'true')
+    expect(strokesIn('Monthly cash flow', '#111111')).toBe(0)
+    expect(strokesIn('Monthly cash flow', '#000000')).toBe(1)
+    expect(tableRows()).toEqual([
+      ['Jan', '5000 INR', '3000 INR'],
+      ['Feb', '6000 INR', '3500 INR'],
+    ])
   })
 
-  it('keeps the row payload and tuple label returned by an advanced formatter', () => {
+  it('keeps each line in its own colour when an earlier series is hidden', () => {
     render(
-      <ChartTooltipContent
-        active
-        payload={[
-          { graphicalItemId: 'score', name: 'Raw score', value: 7, payload: { average: 12 } },
+      <TimeSeriesLineChart
+        chartData={[
+          { displayPeriod: 'Jan 26', salary: 1000, bonus: 250 },
+          { displayPeriod: 'Feb 26', salary: 1100, bonus: 300 },
         ]}
-        formatter={(value, _name, entry) => {
-          const row = entry.payload as { average: number }
-          return [`${String(value)} / average ${row.average}`, 'Household score']
-        }}
+        seriesKeys={['salary', 'bonus']}
+        colors={['#000000', '#111111']}
+        ariaLabel="Income sources"
       />,
     )
 
-    expect(screen.getByText('7 / average 12')).toBeInTheDocument()
-    expect(screen.getByText('Household score')).toBeInTheDocument()
-    expect(screen.queryByText('Raw score')).not.toBeInTheDocument()
-  })
+    fireEvent.click(screen.getByRole('button', { name: /^salary/ }))
 
-  it('computes shares independently of formatted amounts', () => {
-    render(
-      <ChartTooltipContent
-        active
-        shareTotal={100}
-        payload={[{ graphicalItemId: 'pie', name: 'Rent', value: 25 }]}
-        formatter={() => '25 units'}
-      />,
-    )
-
-    expect(screen.getByText('25 units')).toBeInTheDocument()
-    expect(screen.getByText('25.0% of total')).toBeInTheDocument()
+    expect(strokesIn('Income sources', '#000000')).toBe(0)
+    expect(strokesIn('Income sources', '#111111')).toBe(1)
+    expect(screen.getByRole('columnheader', { name: 'salary' })).toBeInTheDocument()
+    expect(tableRows()).toEqual([
+      ['January 2026', '₹1,000.00', '₹250.00'],
+      ['February 2026', '₹1,100.00', '₹300.00'],
+    ])
   })
 })

@@ -1,36 +1,32 @@
 import { useMemo } from 'react'
-
 import { motion } from 'motion/react'
 import { TrendingDown } from 'lucide-react'
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  ReferenceLine,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
-import { rawColors } from '@/constants/colors'
-import { SEMANTIC_COLORS } from '@/constants/chartColors'
-import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
-import { cumulativeShareCutoff } from '@/lib/distribution'
-import {
-  ChartContainer,
-  GRID_DEFAULTS,
-  chartTooltipProps,
-  currencyTooltipFormatter,
-  xAxisDefaults,
-  yAxisDefaults,
-} from '@/components/ui'
-import { ACTIVE_DOT, BAR_RADIUS } from '@/components/ui/chartDefaults'
-import { chartDataTable } from '@/components/ui/chartDataTable'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import Bars from '@/components/charts/Bars'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip from '@/components/charts/CartesianTooltip'
+import Grid from '@/components/charts/Grid'
+import LineSeries from '@/components/charts/LineSeries'
+import { ReferenceLine } from '@/components/charts/References'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import { chartDataTable } from '@/components/ui/chartDataTable'
+import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { SEMANTIC_COLORS } from '@/constants/chartColors'
+import { rawColors } from '@/constants/colors'
+import { useMotionStore } from '@/store/motionStore'
+
+import {
+  CUMULATIVE_SERIES_NAME,
+  buildParetoModel,
+  buildParetoSummary,
+  paretoTooltipSeries,
+  pluralize,
+  truncateLabel,
+} from './paretoModel'
 
 interface ParetoChartProps {
   /**
@@ -52,59 +48,20 @@ interface ParetoChartProps {
   readonly itemNounPlural?: string
 }
 
+const SERIES: readonly SeriesSpec[] = [{ key: 'amount' }, { key: 'cumulativePct', axis: 'right' }]
+const SHARE_DOMAIN = [0, 100] as const
+const SHARE_TICKS = [0, 25, 50, 75, 100]
+/** Room under the plot for 14-character labels angled -30 degrees. */
+const MARGIN = { bottom: 72 }
+const LABEL_ANGLE = -30
 /**
- * The cumulative-% series' display name.
- *
- * Recharts resolves a tooltip entry's `name` to the series' `name` prop when one
- * is set (`getTooltipNameProp` in recharts' ChartUtils), never the `dataKey`.
- * The formatter below therefore has to match on THIS string -- the previous
- * `name === 'cumulativePct'` check could never be true, so the percentage was
- * being formatted through the currency formatter.
+ * Entrance order: the bars cascade up from 0s, the cumulative line starts drawing
+ * 0.24s in (two 0.12s series steps) with its dots popping behind it, and the
+ * threshold rule draws at the kit's 0.35s reference delay, its label fading in last.
  */
-const CUMULATIVE_SERIES_NAME = 'Cumulative %'
+const LINE_SERIES_INDEX = 2
 
-/** Enough English for the nouns this chart labels ('category' -> 'categories'). */
-function pluralize(noun: string): string {
-  return noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s`
-}
-
-interface ParetoRow {
-  category: string
-  amount: number
-  cumulative: number
-  cumulativePct: number
-  /**
-   * Bar colour, carried on the datum because Recharts merges each data row over
-   * the bar's rectangle props and reads `fill` from there. That is the supported
-   * replacement for the `<Cell>` child, which is deprecated and removed in
-   * Recharts 4.0 (see the `@deprecated` tag on `recharts/types/component/Cell`).
-   */
-  fill: string
-}
-
-interface ParetoModel {
-  rows: ParetoRow[]
-  /**
-   * How many labels it takes to cross the threshold, counted over EVERY label,
-   * not the capped bar list. Counting over the capped list made the headline max
-   * out at `maxBars` and could count the synthetic "Other" bucket as one label,
-   * which contradicted the same statistic computed elsewhere on the page.
-   */
-  vitalFewCount: number
-}
-
-function buildParetoSummary(
-  rowCount: number,
-  vitalFewCount: number,
-  threshold: number,
-  itemNoun: string,
-  plural: string,
-) {
-  if (rowCount === 0) return `Which ${plural} make up ${threshold}% of your spend`
-  const countedNoun = vitalFewCount === 1 ? itemNoun : plural
-  const verb = vitalFewCount === 1 ? 'makes' : 'make'
-  return `${vitalFewCount} ${countedNoun} ${verb} up ${threshold}% of your spend -- the rest are the long tail`
-}
+const shareTick = (value: number) => `${value}%`
 
 /**
  * Pareto chart for spending concentration.
@@ -130,58 +87,22 @@ export default function ParetoChart({
   itemNoun = 'category',
   itemNounPlural,
 }: ParetoChartProps) {
-  const vitalColor = SEMANTIC_COLORS.expense
-  const tailColor = rawColors.text.tertiary
-  const { rows: data, vitalFewCount } = useMemo<ParetoModel>(() => {
-    const empty: ParetoModel = { rows: [], vitalFewCount: 0 }
-    const sorted = Object.entries(categoryBreakdown)
-      .map(([category, amount]) => ({ category, amount: Math.abs(amount) }))
-      .sort((a, b) => b.amount - a.amount)
-
-    const total = sorted.reduce((sum, r) => sum + r.amount, 0)
-    if (sorted.length === 0 || total === 0) return empty
-
-    // Roll the long tail into "Other" so the x-axis doesn't get crowded. The
-    // total is taken BEFORE capping, so bucketing never changes the maths --
-    // only how many bars are drawn.
-    const hasOther = sorted.length > maxBars
-    let head = sorted
-    if (hasOther) {
-      const visible = sorted.slice(0, maxBars - 1)
-      const otherTotal = sorted
-        .slice(maxBars - 1)
-        .reduce((sum, r) => sum + r.amount, 0)
-      head = [...visible, { category: 'Other', amount: otherTotal }]
-    }
-
-    const { count: vitalFewCount } = cumulativeShareCutoff(
-      sorted.map((row) => row.amount),
-      total,
-      threshold,
-    )
-
-    let running = 0
-    const rows = head.map((r, i) => {
-      running += r.amount
-      // The synthetic "Other" bucket straddles the cutoff (it merges labels from
-      // both sides), so it is never claimed as vital few.
-      const isOther = hasOther && i === head.length - 1
-      const isVital = !isOther && i < vitalFewCount
-      return {
-        category: r.category,
-        amount: r.amount,
-        cumulative: running,
-        cumulativePct: (running / total) * 100,
-        fill: isVital ? vitalColor : tailColor,
-      }
-    })
-
-    return { rows, vitalFewCount }
-  }, [categoryBreakdown, maxBars, threshold, vitalColor, tailColor])
-
-  const { animate, isMobile } = useChartPresentation(data.length)
+  const isMobile = useIsMobile()
+  const animate = useMotionStore((state) => state.mode !== 'reduced')
+  // Theme-scoped copies of the in-place palettes: a theme toggle re-renders and re-colours every mark.
+  const { expense: vitalColor } = usePaletteSnapshot(SEMANTIC_COLORS)
+  const { tertiary: tailColor, secondary: thresholdLabelColor } = usePaletteSnapshot(rawColors.text)
+  const { blue: lineColor } = usePaletteSnapshot(rawColors.app)
+  const { rows, vitalFewCount } = useMemo(
+    () => buildParetoModel(categoryBreakdown, { maxBars, threshold, palette: { vital: vitalColor, tail: tailColor } }),
+    [categoryBreakdown, maxBars, threshold, vitalColor, tailColor],
+  )
+  // Rows are keyed uniquely (a real "Other" and the tail bar share a label); the axis and tooltip show the label.
+  const labels = useMemo(() => new Map(rows.map((row) => [row.key, row.category])), [rows])
+  const labelOf = (key: string) => labels.get(key) ?? key
+  const labelCount = Object.keys(categoryBreakdown).length
   const plural = itemNounPlural ?? pluralize(itemNoun)
-  const summary = buildParetoSummary(data.length, vitalFewCount, threshold, itemNoun, plural)
+  const summary = buildParetoSummary(rows.length, vitalFewCount, threshold, itemNoun, plural)
 
   return (
     <motion.div
@@ -198,118 +119,66 @@ export default function ParetoChart({
           </h3>
           <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">{summary}</p>
         </div>
-        {data.length > 0 && (
+        {rows.length > 0 && (
           <div className="shrink-0 text-right">
             <p className="font-mono text-xl font-medium tabular-nums text-foreground">
-              {vitalFewCount}<span className="text-sm text-muted-foreground"> / {Object.keys(categoryBreakdown).length}</span>
+              {vitalFewCount}<span className="text-sm text-muted-foreground"> / {labelCount}</span>
             </p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">{plural} at {threshold}%</p>
           </div>
         )}
       </div>
-      {data.length === 0 ? (
+      {rows.length === 0 ? (
         <ChartEmptyState height={height} message="No spending in this range. Try a wider date range or upload more statements." />
       ) : (
         <>
           <ChartSeriesLegend items={[
             { key: 'amount', label: 'Spend', color: vitalColor },
-            { key: 'cumulativePct', label: CUMULATIVE_SERIES_NAME, color: rawColors.app.blue },
-          ]} caption={Object.keys(categoryBreakdown).length > maxBars ? 'Ranked spend; tail grouped' : 'Largest to smallest'} />
-          <ChartContainer height={height} ariaLabel={`Pareto chart of ${itemNoun} spending: bars show spend per ${itemNoun} with a cumulative percentage line and an ${threshold} percent reference line`}>
-            <ComposedChart
-              data={data}
-              margin={{ top: 16, right: 4, bottom: 8, left: 0 }}
-              barCategoryGap="24%"
-            >
-              <CartesianGrid {...GRID_DEFAULTS} />
-              <XAxis
-                dataKey="category"
-                {...xAxisDefaults(data.length, { angle: -30, height: 70 })}
-                interval={isMobile ? 'preserveStartEnd' : 0}
-                tickFormatter={(value: string) =>
-                  value.length > 14 ? `${value.slice(0, 12)}...` : value
-                }
-              />
-              <YAxis
-                yAxisId="left"
-                {...yAxisDefaults({ width: isMobile ? 48 : 56 })}
-                tickFormatter={formatCurrencyShort}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                {...yAxisDefaults({ currency: false, width: isMobile ? 36 : 44 })}
-                domain={[0, 100]}
-                ticks={[0, 25, 50, 75, 100]}
-                tickFormatter={(v: number) => `${v}%`}
-              />
-              <Tooltip
-                {...chartTooltipProps}
-                content={<ChartTooltipContent />}
-                formatter={((value: number | undefined, name: string | undefined) =>
-                  name === CUMULATIVE_SERIES_NAME
-                    ? formatPercent(value ?? 0)
-                    : currencyTooltipFormatter(value)) as never}
-              />
-              {/* Vital-few bars (expense red) vs trivial-many (muted). The per-bar colour
-                  rides on each datum's `fill` -- see `ParetoRow.fill`. Beyond
-                  replacing the deprecated `<Cell>`, this fixes a latent
-                  mis-colouring: Cell children are matched positionally against the
-                  RENDERED bar list, so any filtering (zero-height bars are dropped)
-                  would shift every colour onto the wrong category. */}
-              <Bar
-                yAxisId="left"
-                dataKey="amount"
-                name="Spend"
-                fill={vitalColor}
-                radius={BAR_RADIUS}
-                maxBarSize={36}
-                isAnimationActive={animate}
-                animationDuration={480}
-                animationEasing="ease-out"
-              />
-              <Line
-                yAxisId="right"
-                type="linear"
-                dataKey="cumulativePct"
-                name={CUMULATIVE_SERIES_NAME}
-                stroke={rawColors.app.blue}
-                strokeWidth={2.25}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                dot={{ r: 2.5, fill: rawColors.app.blue, strokeWidth: 0 }}
-                activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }}
-                isAnimationActive={animate}
-                animationBegin={animate ? 80 : 0}
-                animationDuration={520}
-                animationEasing="ease-out"
-              />
-              <ReferenceLine
-                yAxisId="right"
-                y={threshold}
-                stroke={rawColors.text.tertiary}
-                strokeDasharray="3 5"
-                label={{
-                  value: `${threshold}% threshold`,
-                  fill: rawColors.text.secondary,
-                  fontSize: 10,
-                  fontFamily: 'var(--font-mono)',
-                  position: 'insideTopRight',
-                  offset: 8,
-                }}
-              />
-            </ComposedChart>
-          </ChartContainer>
+            { key: 'cumulativePct', label: CUMULATIVE_SERIES_NAME, color: lineColor },
+          ]} caption={labelCount > maxBars ? 'Ranked spend; tail grouped' : 'Largest to smallest'} />
+          <CartesianChart
+            data={rows}
+            categoryKey="key"
+            series={SERIES}
+            categoryKind="band"
+            value2Domain={SHARE_DOMAIN}
+            value2Ticks={SHARE_TICKS}
+            margin={MARGIN}
+            height={height}
+            ariaLabel={`Pareto chart of ${itemNoun} spending: bars show spend per ${itemNoun} with a cumulative percentage line and an ${threshold} percent reference line`}
+            tooltip={<CartesianTooltip series={paretoTooltipSeries(vitalColor, lineColor)} formatLabel={labelOf} />}
+          >
+            <Grid />
+            <ValueAxis />
+            <ValueAxis axis="right" tickFormatter={shareTick} />
+            {/* Every bar is labelled on desktop; phones keep the first and the last. */}
+            <CategoryAxis
+              angle={LABEL_ANGLE}
+              interval={isMobile ? Math.max(0, rows.length - 2) : 0}
+              tickFormatter={(key) => truncateLabel(labelOf(key))}
+            />
+            {/* Vital few in the expense red, the long tail muted; each colour rides on its own row. */}
+            <Bars dataKey="amount" color={vitalColor} colorFor={(_row, index) => rows[index].fill} />
+            <LineSeries dataKey="cumulativePct" color={lineColor} curve="linear" showDots seriesIndex={LINE_SERIES_INDEX} />
+            <ReferenceLine
+              value={threshold}
+              axis="right"
+              color={tailColor}
+              dash="3 5"
+              label={`${threshold}% threshold`}
+              labelColor={thresholdLabelColor}
+            />
+          </CartesianChart>
           {chartDataTable(
-            data,
+            rows,
             [
               { header: itemNoun, rowHeader: true, value: (row) => row.category },
-              { header: 'Spend', value: (row) => currencyTooltipFormatter(row.amount) },
-              { header: 'Cumulative spend', value: (row) => currencyTooltipFormatter(row.cumulative) },
+              { header: 'Spend', value: (row) => formatCurrency(row.amount) },
+              { header: 'Cumulative spend', value: (row) => formatCurrency(row.cumulative) },
               { header: 'Cumulative share', value: (row) => formatPercent(row.cumulativePct) },
             ],
             `${title} data`,
-            (row, index) => `${row.category}-${index}`,
+            (row) => row.key,
           )}
         </>
       )}

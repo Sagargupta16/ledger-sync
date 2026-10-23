@@ -7,16 +7,21 @@ rename transaction labels. Account settings live on the stable account identity.
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from types import MappingProxyType
+from typing import cast
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
     Numeric,
+    SmallInteger,
     String,
+    Table,
     UniqueConstraint,
     false,
 )
@@ -25,6 +30,15 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db._models.enums import AccountType
 from ledger_sync.db.base import Base
+
+# Money Manager account settings of money_manager_source_2026, kept off the mapper.
+SETTINGS_COLUMNS = (
+    "source_uid",
+    "account_group",
+    "statement_day",
+    "payment_day",
+    "paid_from_account_id",
+)
 
 
 class LedgerAccount(Base):
@@ -43,6 +57,7 @@ class LedgerAccount(Base):
     )
     closed_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)
+    # The Money Manager settings columns are table-only; see LEDGER_ACCOUNTS below.
     # Legacy classification timestamps survive consolidation; imported identities
     # without classification history may have no timestamps.
     created_at: Mapped[datetime | None] = mapped_column(
@@ -57,6 +72,23 @@ class LedgerAccount(Base):
         UniqueConstraint("user_id", "key", name="uq_ledger_accounts_user_key"),
         {"sqlite_autoincrement": True},
     )
+    __mapper_args__ = MappingProxyType({"exclude_properties": SETTINGS_COLUMNS})
+
+
+# Settings a Money Manager backup carries and an Excel export does not: NULL
+# for accounts only ever seen in spreadsheets. Days are 1-31; the paying
+# account is another of this user's accounts. Table-only for the expand phase
+# of money_manager_source_2026, like TRANSACTIONS' source columns, so ORM reads
+# of accounts work before the migration runs. Only the backup import writes them.
+LEDGER_ACCOUNTS = cast(Table, LedgerAccount.__table__)
+for _column in (
+    Column("source_uid", String(64), nullable=True),
+    Column("account_group", String(64), nullable=True),
+    Column("statement_day", SmallInteger, nullable=True),
+    Column("payment_day", SmallInteger, nullable=True),
+    Column("paid_from_account_id", Integer, nullable=True),
+):
+    LEDGER_ACCOUNTS.append_column(_column)
 
 
 class LedgerAccountAlias(Base):

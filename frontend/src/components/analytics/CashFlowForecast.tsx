@@ -1,32 +1,23 @@
-import { useId, useMemo } from 'react'
+import { useMemo } from 'react'
 
 import { motion } from 'motion/react'
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 
 import { useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { formatChartPeriod } from '@/lib/chartDateLabels'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import { CHART_LINE_CURSOR_STYLE } from '@/components/ui/ChartTooltip'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
-import { GRID_DEFAULTS, xAxisDefaults, yAxisDefaults, areaGradient, areaGradientUrl, ACTIVE_DOT, currencyTooltipFormatter, referenceLine } from '@/components/ui/chartDefaults'
+import { SCROLL_FADE_UP } from '@/constants/animations'
 import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import ErrorState from '@/components/shared/ErrorState'
 import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 
-import { buildForecast, formatMonth } from './cashFlowUtils'
+import CashFlowForecastChart from './CashFlowForecastChart'
+import { buildForecast } from './cashFlowUtils'
 
 export default function CashFlowForecast() {
-  const chartId = useId().replaceAll(':', '')
   const { data: monthlyData, isLoading, isError, refetch } = useMonthlyAggregation()
 
   const forecastData = useMemo(() => buildForecast(monthlyData), [monthlyData])
-  const { animate, isMobile } = useChartPresentation(forecastData?.combined.length ?? 0)
 
   if (isLoading) {
     return <PanelSkeleton blockClassName="h-64" />
@@ -55,12 +46,7 @@ export default function CashFlowForecast() {
   const { insights } = forecastData
 
   return (
-    <motion.section
-      initial={animate ? { opacity: 0, y: 16 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: animate ? 0.3 : 0 }}
-      className="ledger-panel overflow-hidden"
-    >
+    <motion.section {...SCROLL_FADE_UP} className="ledger-panel overflow-hidden">
       <div className="p-4 sm:p-5">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -82,79 +68,7 @@ export default function CashFlowForecast() {
           )}
         </div>
 
-        <ChartSeriesLegend
-          items={[
-            { key: 'income', label: 'Income', color: rawColors.app.green },
-            { key: 'expense', label: 'Living expenses', color: rawColors.app.red },
-            { key: 'capitalLosses', label: 'Recorded capital losses', color: rawColors.app.orange },
-            { key: 'net', label: 'Recorded net savings', color: rawColors.app.blue },
-            { key: 'forecast', label: 'Projected consumption surplus', color: rawColors.app.purple },
-          ]}
-          caption={forecastData.forecastStartMonth
-            ? `Projection starts ${formatMonth(forecastData.forecastStartMonth)}`
-            : undefined}
-        />
-        <ChartContainer
-          height={320}
-          mobileHeight={260}
-          ariaLabel="Recorded income, living expenses, capital losses and net savings, with projected consumption surplus before future capital losses"
-        >
-          <AreaChart data={forecastData.combined} margin={{ top: 16, right: isMobile ? 8 : 16, bottom: 8, left: 0 }}>
-            <defs>
-              {areaGradient(`${chartId}-net`, rawColors.app.blue, 0.2, 0.02)}
-              <linearGradient id={`${chartId}-cone`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={rawColors.app.blue} stopOpacity={0.12} />
-                <stop offset="100%" stopColor={rawColors.app.blue} stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid {...GRID_DEFAULTS} />
-            <XAxis {...xAxisDefaults(forecastData.combined.length)} dataKey="label" tickFormatter={(value: string) => formatChartPeriod(value)} />
-            <YAxis {...yAxisDefaults({ width: isMobile ? 48 : 56 })} />
-            <Tooltip
-              {...chartTooltipProps}
-              cursor={CHART_LINE_CURSOR_STYLE}
-              content={<ChartTooltipContent />}
-              formatter={(value, name) => {
-                if (typeof value !== 'number') return ['', '']
-                const labels: Record<string, string> = {
-                  income: 'Recorded income', expense: 'Living expenses', net: 'Recorded net savings',
-                  capitalLosses: 'Recorded capital losses',
-                  forecastIncome: 'Projected income', forecastExpense: 'Projected living expenses',
-                  forecastNet: 'Consumption surplus before losses',
-                  upper: 'Upper surplus estimate', lower: 'Lower surplus estimate',
-                }
-                return [currencyTooltipFormatter(value), labels[name ?? ''] ?? name]
-              }}
-            />
-            {referenceLine({ y: 0, variant: 'zero' })}
-            {forecastData.forecastStartMonth && (
-              <ReferenceLine
-                x={formatMonth(forecastData.forecastStartMonth)}
-                stroke={rawColors.chart.referenceLineStrong}
-                strokeDasharray="4 4"
-              />
-            )}
-            {/* Variability range as two STACKED areas: a transparent baseline at
-                `lower`, then the band height (`upper - lower`) stacked on top.
-                Stacking sits the visible band on the baseline regardless of sign,
-                so the cone renders correctly above, below, or across zero -- the
-                old approach faked it with a black mask Area that painted a solid
-                black wedge below zero whenever the forecast dipped negative. */}
-            <Area type="monotone" dataKey="lowerBase" stackId="cone" stroke="none" fill="none" fillOpacity={0} connectNulls isAnimationActive={false} legendType="none" tooltipType="none" />
-            <Area type="monotone" dataKey="bandRange" stackId="cone" stroke="none" fill={`url(#${chartId}-cone)`} fillOpacity={1} connectNulls isAnimationActive={false} legendType="none" tooltipType="none" />
-            {/* Historical income/expense lines */}
-            <Area type="monotone" dataKey="income" stroke={rawColors.app.green} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" strokeOpacity={0.8} legendType="none" />
-            <Area type="monotone" dataKey="expense" stroke={rawColors.app.red} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" strokeOpacity={0.8} legendType="none" />
-            <Area type="monotone" dataKey="capitalLosses" stroke={rawColors.app.orange} strokeWidth={1.5} fill="none" dot={false} connectNulls isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" strokeOpacity={0.8} legendType="none" />
-            {/* Forecast income/expense (dashed, faded) */}
-            <Area type="monotone" dataKey="forecastIncome" stroke={rawColors.app.green} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.65} legendType="none" />
-            <Area type="monotone" dataKey="forecastExpense" stroke={rawColors.app.red} strokeWidth={1.5} strokeDasharray="6 4" fill="none" dot={false} connectNulls isAnimationActive={false} strokeOpacity={0.65} legendType="none" />
-            {/* Historical net savings (main line) */}
-            <Area type="monotone" dataKey="net" stroke={rawColors.app.blue} strokeWidth={2.5} fill={areaGradientUrl(`${chartId}-net`)} fillOpacity={1} dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.blue }} connectNulls isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" legendType="none" />
-            {/* Forecast consumption surplus, before future capital losses (dashed) */}
-            <Area type="monotone" dataKey="forecastNet" stroke={rawColors.app.purple} strokeWidth={2.5} strokeDasharray="8 4" fill="none" dot={false} activeDot={{ ...ACTIVE_DOT, fill: rawColors.app.purple }} connectNulls isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" legendType="none" />
-          </AreaChart>
-        </ChartContainer>
+        <CashFlowForecastChart rows={forecastData.combined} forecastStartMonth={forecastData.forecastStartMonth} />
 
         <p className="mt-3 text-xs leading-relaxed text-text-tertiary">
           Recorded net savings include booked capital losses. The projection shows consumption
@@ -183,24 +97,24 @@ export default function CashFlowForecast() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 border-t border-[var(--hairline-1)] sm:grid-cols-2 xl:grid-cols-4">
-        <div className="p-4 sm:border-r sm:border-[var(--hairline-1)]">
+      <div className="grid grid-cols-2 border-t border-[var(--hairline-1)] xl:grid-cols-4">
+        <div className="border-r border-[var(--hairline-1)] p-3 sm:p-4">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg monthly income</p>
-          <p className="ledger-figure break-words text-xl font-semibold text-app-green">{formatCurrency(insights.avgIncome)}</p>
+          <p className="ledger-figure break-words text-lg font-semibold text-app-green sm:text-xl">{formatCurrency(insights.avgIncome)}</p>
           <p className="mt-1 text-xs text-text-tertiary">
             {insights.incomeGrowth >= 0 ? '↑' : '↓'} {formatPercent(Math.abs(insights.incomeGrowth))} monthly trend
           </p>
         </div>
-        <div className="border-t border-[var(--hairline-1)] p-4 sm:border-t-0 xl:border-r">
+        <div className="border-[var(--hairline-1)] p-3 sm:p-4 xl:border-r">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg living expenses</p>
-          <p className="ledger-figure break-words text-xl font-semibold text-app-red">{formatCurrency(insights.avgExpense)}</p>
+          <p className="ledger-figure break-words text-lg font-semibold text-app-red sm:text-xl">{formatCurrency(insights.avgExpense)}</p>
           <p className="mt-1 text-xs text-text-tertiary">
             {insights.expenseGrowth >= 0 ? '↑' : '↓'} {formatPercent(Math.abs(insights.expenseGrowth))} monthly trend
           </p>
         </div>
-        <div className="border-t border-[var(--hairline-1)] p-4 sm:border-r xl:border-t-0">
+        <div className="border-r border-t border-[var(--hairline-1)] p-3 sm:p-4 xl:border-t-0">
           <p className="ledger-meta mb-1 text-text-quaternary">Avg recorded net savings</p>
-          <p className={`ledger-figure break-words text-xl font-semibold ${insights.avgNetSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
+          <p className={`ledger-figure break-words text-lg font-semibold sm:text-xl ${insights.avgNetSavings >= 0 ? 'text-app-blue' : 'text-app-red'}`}>
             {formatCurrency(insights.avgNetSavings)}
           </p>
           <p className="mt-1 text-xs leading-5 text-text-tertiary">
@@ -208,9 +122,9 @@ export default function CashFlowForecast() {
             less {formatCurrency(insights.avgCapitalLosses)} recorded capital losses per month
           </p>
         </div>
-        <div className="border-t border-[var(--hairline-1)] p-4 xl:border-t-0">
+        <div className="border-t border-[var(--hairline-1)] p-3 sm:p-4 xl:border-t-0">
           <p className="ledger-meta mb-1 text-text-quaternary">12-month consumption surplus</p>
-          <p className={`ledger-figure break-words text-xl font-semibold ${insights.projectedConsumptionSurplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
+          <p className={`ledger-figure break-words text-lg font-semibold sm:text-xl ${insights.projectedConsumptionSurplus >= 0 ? 'text-app-purple' : 'text-app-red'}`}>
             {insights.projectedConsumptionSurplus >= 0 ? '+' : ''}{formatCurrency(insights.projectedConsumptionSurplus)}
           </p>
           <p className="mt-1 text-xs text-text-tertiary">Projected before future capital losses</p>

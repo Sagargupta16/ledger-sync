@@ -4,12 +4,11 @@
  * Pattern: replace-view (the whole diagram swaps to a scoped one) with a
  * breadcrumb back -- the shape every library that documents Sankey drill-down
  * uses (amCharts drill-down tutorial, Google Charts / ECharts click+redraw).
- * Expand-in-place reflows the entire layout on every toggle and Recharts
- * cannot animate a data swap, so it would snap-jump; replace-view keeps each
- * view stable and gives subcategories the full canvas.
+ * Expand-in-place reflows the entire layout on every toggle; replace-view keeps
+ * each view stable and gives subcategories the full canvas.
  *
- * Every level builds a FRESH { nodes, links } object because Recharts links
- * reference nodes by numeric array index -- indexes must be rebuilt per view.
+ * Every level builds a FRESH { nodes, links } object because its links reference
+ * nodes by array index -- rebuilt per view, then keyed by id in `toFlowDiagram`.
  * A parallel `meta` array (value, pct, color, drill target) replaces the old
  * role-by-index-range logic, which is wrong for any topology but level 0.
  */

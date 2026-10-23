@@ -1,20 +1,17 @@
 import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
+import Bars from '@/components/charts/Bars'
+import CartesianChart, { type SeriesSpec } from '@/components/charts/CartesianChart'
+import CartesianTooltip, { type TooltipSeries } from '@/components/charts/CartesianTooltip'
+import type { ChartRow } from '@/components/charts/chartContext'
+import Grid from '@/components/charts/Grid'
+import { formatCurrency } from '@/lib/formatters'
 import { formatMonthKey } from '@/lib/dateUtils'
 import { summarizePayrollSchedule } from '@/lib/finance/payrollPlanning'
-import {
-  ChartContainer,
-  chartTooltipProps,
-  GRID_DEFAULTS,
-  xAxisDefaults,
-  yAxisDefaults,
-  BAR_RADIUS,
-} from '@/components/ui'
+import { BAR_RADIUS } from '@/components/ui'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartDataTable } from '@/components/ui/chartDataTable'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { rawColors } from '@/constants/colors'
+import { colors } from '@/constants/colors'
 import type { TaxPaidTillDate, TdsMonthRow } from '@/lib/tdsScheduleCalculator'
 
 interface Props {
@@ -23,26 +20,54 @@ interface Props {
   paidEstimate: TaxPaidTillDate | null
 }
 
+/** Cash payroll TDS at the base of each month's stack, shares withheld for tax on top. */
+const CASH_SERIES: readonly SeriesSpec[] = [{ key: 'cashTds', stackId: 'withholding' }]
+const SHARE_SERIES: readonly SeriesSpec[] = [...CASH_SERIES, { key: 'rsuWithholding', stackId: 'withholding' }]
+const CASH_STACK = ['cashTds'] as const
+const SHARE_STACK = ['cashTds', 'rsuWithholding'] as const
+const CASH_TIP: TooltipSeries = { key: 'cashTds', label: 'Projected cash payroll TDS', color: colors.app.blue }
+const CASH_TIPS: readonly TooltipSeries[] = [CASH_TIP]
+const SHARE_TIPS: readonly TooltipSeries[] = [
+  CASH_TIP,
+  { key: 'rsuWithholding', label: 'Share tax withholding', color: colors.app.purple },
+]
+const BAR_SIZE = 40
+
+/** The tooltip's closing line: everything withheld that month, cash and shares together. */
+function MonthTotal({ row }: Readonly<{ row: ChartRow }>) {
+  const total = typeof row.withheld === 'number' ? row.withheld : 0
+  return (
+    <div className="flex items-baseline justify-between gap-x-5">
+      <span>Month total</span>
+      <span className="font-mono font-semibold tabular-nums text-foreground">{formatCurrency(total)}</span>
+    </div>
+  )
+}
+
+const monthTotal = (row: ChartRow) => <MonthTotal row={row} />
+
 /** Projections and estimates from recorded receipts retain separate labels. */
 export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstimate }: Readonly<Props>) {
-  const { animate, isMobile } = useChartPresentation(schedule.length)
   const bars = useMemo(() => {
     const salaryMonths = new Set(paidMonthIndices)
     return schedule.map((row) => ({
       ...row,
+      // Raw `YYYY-MM` period (the short month when a row has none); the axis and tooltip format it.
+      periodKey: row.period ?? row.month,
       displayMonth: row.period ? formatMonthKey(row.period, { month: 'short', year: '2-digit' }) : row.month,
       fillOpacity: salaryMonths.has(row.monthIndex) ? 1 : 0.45,
       status: salaryMonths.has(row.monthIndex) ? 'Salary recorded; values projected' : 'Projection',
+      withheld: row.cashTds + row.rsuWithholding,
     }))
   }, [schedule, paidMonthIndices])
   if (schedule.length === 0) return null
 
   const summary = summarizePayrollSchedule(schedule)
   const extraShareCredit = schedule.at(-1)?.excessShareWithholding ?? 0
-  const labels: Record<string, string> = {
-    cashTds: 'Projected cash payroll TDS',
-    rsuWithholding: 'Share tax withholding',
-  }
+  const hasShares = summary.shareWithholding > 0
+  const stack = hasShares ? SHARE_STACK : CASH_STACK
+  // Months with salary recorded stay solid; the rest of the year fades.
+  const opacityAt = (_row: ChartRow, index: number) => bars[index].fillOpacity
 
   return (
     <section aria-label="Payroll and share withholding" className="ledger-panel relative min-w-0 p-4 sm:p-6">
@@ -68,34 +93,45 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
 
       <ChartSeriesLegend
         items={[
-          { key: 'cash', label: 'Cash payroll TDS', color: rawColors.app.blue, value: formatCurrency(summary.cashTds) },
-          ...(summary.shareWithholding > 0
-            ? [{ key: 'shares', label: 'Share withholding', color: rawColors.app.purple, value: formatCurrency(summary.shareWithholding) }]
+          { key: 'cash', label: 'Cash payroll TDS', color: colors.app.blue, value: formatCurrency(summary.cashTds) },
+          ...(hasShares
+            ? [{ key: 'shares', label: 'Share withholding', color: colors.app.purple, value: formatCurrency(summary.shareWithholding) }]
             : []),
         ]}
         caption={`${bars[0].displayMonth} to ${bars.at(-1)?.displayMonth}`}
       />
-      <ChartContainer
-        height={isMobile ? 260 : 320}
+      <CartesianChart
+        data={bars}
+        categoryKey="periodKey"
+        categoryKind="band"
+        series={hasShares ? SHARE_SERIES : CASH_SERIES}
+        height={320}
+        mobileHeight={260}
         ariaLabel="Projected monthly cash payroll TDS and tax withheld in RSU shares"
+        tooltip={<CartesianTooltip series={hasShares ? SHARE_TIPS : CASH_TIPS} hideZero footer={monthTotal} />}
       >
-        <BarChart data={bars} margin={{ top: 16, right: isMobile ? 4 : 12, bottom: 8, left: 0 }} barCategoryGap="24%">
-          <CartesianGrid {...GRID_DEFAULTS} />
-          <XAxis dataKey="displayMonth" {...xAxisDefaults(schedule.length)} />
-          <YAxis {...yAxisDefaults({ width: isMobile ? 52 : 56 })} tickFormatter={(value: number) => formatCurrencyShort(value)} />
-          <Tooltip
-            {...chartTooltipProps}
-            formatter={(value, name) => [
-              typeof value === 'number' ? formatCurrency(value) : '',
-              labels[name ?? ''] ?? name,
-            ]}
+        <Grid />
+        <ValueAxis />
+        <CategoryAxis />
+        <Bars
+          dataKey="cashTds"
+          color={colors.app.blue}
+          fillOpacity={opacityAt}
+          radius={BAR_RADIUS[0]}
+          stackKeys={stack}
+          barSize={BAR_SIZE}
+        />
+        {hasShares && (
+          <Bars
+            dataKey="rsuWithholding"
+            color={colors.app.purple}
+            fillOpacity={opacityAt}
+            radius={BAR_RADIUS[0]}
+            stackKeys={stack}
+            barSize={BAR_SIZE}
           />
-          <Bar dataKey="cashTds" fill={rawColors.app.blue} stackId="withholding" maxBarSize={40} isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" />
-          {summary.shareWithholding > 0 && (
-            <Bar dataKey="rsuWithholding" fill={rawColors.app.purple} stackId="withholding" radius={BAR_RADIUS} maxBarSize={40} isAnimationActive={animate} animationDuration={520} animationEasing="ease-out" />
-          )}
-        </BarChart>
-      </ChartContainer>
+        )}
+      </CartesianChart>
 
       <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
         <div className="min-w-0">

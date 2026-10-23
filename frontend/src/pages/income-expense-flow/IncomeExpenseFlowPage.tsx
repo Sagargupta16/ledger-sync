@@ -72,7 +72,6 @@ const IncomeExpenseFlowPage = () => {
         drillTo={m.drillTo}
         drillInto={m.drillInto}
         drillBack={m.drillBack}
-        sankeyNodeComponent={m.sankeyNodeComponent}
         topIncome={m.topIncome}
         topExpense={m.topExpense}
         totalIncome={m.totalIncome}

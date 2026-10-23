@@ -1,5 +1,8 @@
 /**
- * Reusable pie/donut chart wrapper with premium styling.
+ * Donut (or pie) with a ranked ledger, drawn by the chart kit's PieChart. The
+ * slices sweep open clockwise from 12 o'clock once the chart scrolls into view
+ * while the centre amount counts up. Hovering a slice or a ledger row lifts
+ * that slice, dims the rest and swaps the centre to its amount and share.
  *
  * Usage:
  *   <StandardPieChart
@@ -11,42 +14,40 @@
  */
 
 import { useMemo, useState } from 'react'
-import { PieChart, Pie, Tooltip, type PieSectorDataItem } from 'recharts'
-import { formatCurrency, formatPercent } from '@/lib/formatters'
-import { chartTooltipProps, ChartContainer } from '@/components/ui'
-import ChartTooltipContent from '@/components/ui/ChartTooltipContent'
-import PieChartLedger from '@/components/ui/PieChartLedger'
-import { useChartPresentation } from '@/components/ui/useChartPresentation'
-import { MAX_PIE_SLICES, sliceClickTarget, type PieSliceDatum } from '@/components/ui/pieSlices'
-import ChartEmptyState from '@/components/shared/ChartEmptyState'
-import { useAnimatedValue } from '@/hooks/useAnimatedValue'
-import { CHART_TEXT } from '@/constants/chartColors'
 
+import PieChart from '@/components/charts/PieChart'
+import ChartEmptyState from '@/components/shared/ChartEmptyState'
+import PieChartLedger from '@/components/ui/PieChartLedger'
+import { MAX_PIE_SLICES, type PieSliceDatum } from '@/components/ui/pieSlices'
+import { useChartPresentation } from '@/components/ui/useChartPresentation'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
+
+import PieCenterReadout from './PieCenterReadout'
 import {
   buildPieSlices,
-  pickCenterValueFontSize,
+  holeRatio,
   pickTableCaption,
   renderPieDataTable,
-  renderPieSectorShape,
-  slicePayload,
+  toPieData,
+  type PieRadius,
 } from './standardPieChartParts'
 
-type PieDataItem = PieSliceDatum
+/** The 3 degree gaps this donut has always drawn between wedges, in radians. */
+const PAD_ANGLE = (3 * Math.PI) / 180
 
 interface StandardPieChartProps {
-  readonly data: PieDataItem[]
+  readonly data: PieSliceDatum[]
   readonly height?: number
-  /** Inner radius for donut effect (0 = full pie) */
-  readonly innerRadius?: number | string
-  readonly outerRadius?: number | string
+  /** Hole radius as a share of the frame ('0%' draws a full pie); only its ratio to `outerRadius` matters. */
+  readonly innerRadius?: PieRadius
+  readonly outerRadius?: PieRadius
   readonly showLegend?: boolean
-  readonly showLabels?: boolean
   readonly emptyMessage?: string
+  /** Amount format for the centre, the ledger and the screen-reader table. */
   readonly tooltipFormatter?: (value: number) => string
-  /** Center label text (shown inside donut) */
+  /** Line under the centre amount, such as "Total". */
   readonly centerLabel?: string
   readonly centerValue?: string
-  readonly paddingAngle?: number
   /**
    * Click handler for pie slices. Receives the clicked category's name and adds
    * a pointer cursor. NOT fired for the synthetic "Other (N categories)" wedge:
@@ -62,7 +63,7 @@ interface StandardPieChartProps {
    * number to opt out explicitly, or 0 to disable capping entirely.
    */
   readonly maxSlices?: number
-  /** Accessible description of the chart, forwarded to ChartContainer (role=img). */
+  /** Accessible description of the chart; the chart frame carries role="img". */
   readonly ariaLabel?: string
 }
 
@@ -72,112 +73,61 @@ export default function StandardPieChart({
   innerRadius = '60%',
   outerRadius = '85%',
   showLegend = true,
-  showLabels = false,
   emptyMessage,
   tooltipFormatter,
   centerLabel,
   centerValue,
-  paddingAngle = 3,
   onSliceClick,
   maxSlices = MAX_PIE_SLICES,
   ariaLabel,
 }: StandardPieChartProps) {
   // Memoized so the sort + reduce only re-run when the data or cap changes,
   // not on every hover (hovering re-renders this component constantly).
-  const filteredData = useMemo(() => buildPieSlices(data, maxSlices), [data, maxSlices])
-  const { animate } = useChartPresentation(filteredData.length)
-  // Hover tracked by slice NAME, not index: the sector renderer recovers its row
-  // from Recharts' `payload`, so nothing has to agree about rendered position.
+  const slices = useMemo(() => buildPieSlices(data, maxSlices), [data, maxSlices])
+  // Also subscribes to the theme: a toggle re-renders here, so `toPieData`
+  // and the ledger read every slice's live colour.
+  const { animate } = useChartPresentation(slices.length)
+  // One hover state for the wedges and the ledger rows, keyed by slice name.
   const [activeName, setActiveName] = useState<string | null>(null)
-  const total = filteredData.reduce((sum, slice) => sum + slice.value, 0)
-  const activeSlice = filteredData.find((slice) => slice.name === activeName)
   const formatValue = tooltipFormatter ?? formatCurrency
-  const displayedValue = activeSlice && centerValue ? formatValue(activeSlice.value) : (centerValue ?? '')
-  const displayedLabel = activeSlice && centerValue && total > 0
-    ? `${formatPercent((activeSlice.value / total) * 100)} of total`
-    : centerLabel
-  const animatedCenterValue = useAnimatedValue(displayedValue)
 
-  if (filteredData.length === 0) {
+  if (slices.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  const centerValueLength = displayedValue.length
-  const centerValueFontSize = pickCenterValueFontSize(centerValueLength)
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0)
+  const active = slices.find((slice) => slice.name === activeName)
+  // No tooltip any more: the hole names the active slice, with its amount and share.
+  const center = active ? (
+    <PieCenterReadout
+      eyebrow={active.name}
+      value={formatValue(active.value)}
+      caption={`${formatPercent((active.value / total) * 100)} of total`}
+    />
+  ) : (
+    <PieCenterReadout value={centerValue} caption={centerLabel} />
+  )
 
   return (
     <div className="@container min-w-0">
       <div className={showLegend ? 'grid min-w-0 items-center gap-x-6 gap-y-4 @[30rem]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]' : 'min-w-0'}>
         <div className="min-w-0">
-          <ChartContainer height={height} ariaLabel={ariaLabel}>
-            <PieChart>
-              <Pie
-                data={filteredData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={innerRadius}
-                outerRadius={outerRadius}
-                paddingAngle={paddingAngle}
-                cornerRadius={4}
-                strokeWidth={0}
-                isAnimationActive={animate}
-                animationDuration={520}
-                animationEasing="ease-out"
-                label={showLabels ? (({ name, percent }: { name?: string; percent?: number }) => (
-                  `${name ?? ''} ${formatPercent((percent ?? 0) * 100, false, 0)}`
-                )) as never : undefined}
-                labelLine={showLabels ? { stroke: CHART_TEXT.subtle, strokeWidth: 1 } : undefined}
-                // Wedge colour rides on each datum's `fill`, and the hover/click paint
-                // comes from this `shape` renderer. Together they replace the `<Cell>`
-                // children, which Recharts deprecates and removes in 4.0. The hover
-                // and click handlers move onto the `<Pie>`, which already dispatches
-                // them per sector with the row on `payload`.
-                shape={renderPieSectorShape(activeName, Boolean(onSliceClick))}
-                onMouseEnter={(entry: PieSectorDataItem) =>
-                  setActiveName(slicePayload(entry).name ?? null)
-                }
-                onMouseLeave={() => setActiveName(null)}
-                onClick={(entry: PieSectorDataItem) => {
-                  const target = sliceClickTarget(slicePayload(entry))
-                  if (onSliceClick && target !== null) onSliceClick(target)
-                }}
-              />
-              <Tooltip
-                {...chartTooltipProps}
-                content={<ChartTooltipContent shareTotal={total} />}
-                formatter={(value) => formatValue(typeof value === 'number' ? value : 0)}
-              />
-              {/* Center label for donut charts.
-                  Font size auto-shrinks based on centerValue length so long
-                  currency strings (e.g. "₹57,27,353") don't overflow the donut
-                  inner ring on smaller chart heights. */}
-              {centerLabel && (
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" pointerEvents="none">
-                  {centerValue && (
-                    <tspan
-                      x="50%"
-                      dy="-8"
-                      fill={CHART_TEXT.primary}
-                      fontSize={centerValueFontSize}
-                      fontFamily="var(--font-mono)"
-                      fontWeight="600"
-                    >
-                      {animatedCenterValue}
-                    </tspan>
-                  )}
-                  <tspan x="50%" dy={centerValue ? '20' : '0'} fill={CHART_TEXT.subtle} fontSize="11">
-                    {displayedLabel}
-                  </tspan>
-                </text>
-              )}
-            </PieChart>
-          </ChartContainer>
+          <PieChart
+            data={toPieData(slices)}
+            innerRadius={holeRatio(innerRadius, outerRadius)}
+            padAngle={PAD_ANGLE}
+            activeKey={activeName}
+            onActiveChange={setActiveName}
+            onSelect={onSliceClick}
+            centerLabel={center}
+            formatValue={formatValue}
+            height={height}
+            ariaLabel={ariaLabel}
+          />
         </div>
         {showLegend && (
           <PieChartLedger
-            data={filteredData}
+            data={slices}
             total={total}
             formatValue={formatValue}
             activeName={activeName}
@@ -187,15 +137,11 @@ export default function StandardPieChart({
           />
         )}
       </div>
-      {/* Screen-reader fallback, rendered as a SIBLING of ChartContainer --
-          inside it, the role="img" wrapper would make it presentational.
+      {/* Screen-reader fallback, rendered as a SIBLING of the chart frame --
+          inside it, the role="img" frame would make it presentational.
           Call sites must pass `ariaLabel` rather than wrapping this component in
           their own role="img" div, which would swallow the table too. */}
-      {renderPieDataTable(
-        filteredData,
-        pickTableCaption(ariaLabel, filteredData.length),
-        formatValue,
-      )}
+      {renderPieDataTable(slices, pickTableCaption(ariaLabel, slices.length), formatValue)}
     </div>
   )
 }

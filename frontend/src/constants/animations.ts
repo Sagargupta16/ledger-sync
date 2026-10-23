@@ -93,12 +93,11 @@ export const sectionReveal: Variants = {
   },
 }
 
-// Scroll-in reveal of a chart section (`panel`) and of the plot inside it
-// (`plot`). With motion off, both render in place.
+// Scroll-in reveal of a chart section (`panel`); the plot inside it animates
+// through the chart kit's own in-view entrance. With motion off, it renders in place.
 const REVEAL_EASE = [0.22, 1, 0.36, 1] as const
 const IN_VIEW_REVEAL = {
   panel: { y: 16, amount: 0.1, duration: 0.45 },
-  plot: { y: 12, amount: 0.2, duration: 0.5 },
 } as const
 
 export function inViewReveal(kind: keyof typeof IN_VIEW_REVEAL, motionEnabled: boolean) {

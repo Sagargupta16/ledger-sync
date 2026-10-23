@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ledger_sync.core.auth.tokens import verify_token
 from ledger_sync.db.models import User
 from ledger_sync.db.session import SessionLocal, get_session
+from ledger_sync.services.upload_tokens import PLAINTEXT_PREFIX, authenticate_upload_token
 
 # Security scheme
 security = HTTPBearer()
@@ -90,6 +91,35 @@ def get_provider_identity(
         return ProviderIdentity(id=user.id)
 
 
+@dataclass(frozen=True, slots=True)
+class UploadPrincipal:
+    """Who is uploading a backup: a signed-in user, or an upload token acting for one."""
+
+    user_id: int
+    token_id: int | None = None
+
+
+def get_upload_principal(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    session: Annotated[Session, Depends(get_session)],
+) -> UploadPrincipal:
+    """Accept an access token, or an upload token on the backup upload route only."""
+    token = credentials.credentials
+    if not token.startswith(PLAINTEXT_PREFIX):
+        return UploadPrincipal(user_id=get_current_user(credentials, session).id)
+    record = authenticate_upload_token(session, token)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This upload token is invalid, expired or revoked. Create one in Settings.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    principal = UploadPrincipal(user_id=record.user_id, token_id=record.id)
+    # Record the use and end the authentication transaction before the upload.
+    session.commit()
+    return principal
+
+
 def get_http_client(request: Request) -> httpx.AsyncClient:
     """Get the shared httpx client from app state (created in lifespan)."""
     client: httpx.AsyncClient = request.app.state.http_client
@@ -99,5 +129,6 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 # Type aliases for dependency injection
 CurrentUser = Annotated[User, Depends(get_current_user)]
 ProviderUser = Annotated[ProviderIdentity, Depends(get_provider_identity)]
+UploadUser = Annotated[UploadPrincipal, Depends(get_upload_principal)]
 DatabaseSession = Annotated[Session, Depends(get_session)]
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]

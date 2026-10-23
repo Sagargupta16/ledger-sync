@@ -55,6 +55,9 @@ coverage.xml
 ledger_sync.db
 # Local pre-migration snapshots of the dev database (real financial data)
 *.db.bak*
+# Money Manager backups and other personal source files (real financial data)
+*.mmbak
+backend/local-data/
 
 # Alembic
 alembic/versions/__pycache__/

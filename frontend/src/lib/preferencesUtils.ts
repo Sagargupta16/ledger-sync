@@ -113,7 +113,7 @@ export const calculateSpendingBreakdown = (
  * plural "Refunds & Cashbacks" -- so both are listed. Without the plural key a
  * genuine income source falls through to the muted default colour.
  *
- * Resolved hex for Recharts, rebuilt in place on a theme toggle like
+ * Resolved hex for charts, rebuilt in place on a theme toggle like
  * `SPENDING_TYPE_COLORS` below. Memoized readers go through `usePaletteSnapshot`.
  */
 function buildIncomeCategoryColors(): Record<string, string> {
@@ -135,8 +135,7 @@ onRawColorsRefresh(() => Object.assign(INCOME_CATEGORY_COLORS, buildIncomeCatego
 /**
  * Spending type colors for charts.
  *
- * Recharts bakes colours into SVG presentation attributes, which cannot hold a
- * `var()`, so these are resolved hex strings -- frozen at module load unless
+ * Resolved hex strings from `rawColors` -- frozen at module load unless
  * something rebuilds them. Rebuilt IN PLACE on theme toggle (never reassigned)
  * so the exported object identity stays stable for importers while the hues
  * follow the active theme.

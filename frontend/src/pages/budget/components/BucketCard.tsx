@@ -128,25 +128,18 @@ export function BucketCard({
             </dd>
           </div>
         </dl>
-        <div className="relative">
-          <ProgressBar
-            value={progressPct}
-            max={progressMax}
-            color={PROGRESS_TINTS[bucket]}
-            height={8}
-            target={target}
-            bands={kind === 'floor' && pctOfIncome > target ? [
-              { upTo: targetPosition, color: 'transparent' },
-              { upTo: 100, color: 'color-mix(in srgb, var(--color-app-green) 20%, transparent)' },
-            ] : undefined}
-            ariaLabel={`${title} at ${pctOfIncome.toFixed(1)} percent of income`}
-          />
-          <span
-            className="pointer-events-none absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
-            style={{ left: `${targetPosition}%` }}
-            aria-hidden="true"
-          />
-        </div>
+        <ProgressBar
+          value={progressPct}
+          max={progressMax}
+          color={PROGRESS_TINTS[bucket]}
+          height={8}
+          target={target}
+          bands={kind === 'floor' && pctOfIncome > target ? [
+            { upTo: targetPosition, color: 'transparent' },
+            { upTo: 100, color: 'color-mix(in srgb, var(--color-app-green) 20%, transparent)' },
+          ] : undefined}
+          ariaLabel={`${title} at ${pctOfIncome.toFixed(1)} percent of income`}
+        />
         <div className="mt-2 flex justify-between font-mono text-[10px] text-text-tertiary tabular-nums" aria-hidden="true">
           <span>0%</span>
           <span>{Number(progressMax.toFixed(1))}% of income</span>
