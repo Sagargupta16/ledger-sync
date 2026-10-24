@@ -6,6 +6,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.30.2 - 2026-10-24
+
+Every outdated dependency, CI action and package-manager pin moves to its newest release, which also clears 8 Dependabot alerts and 9 `pnpm audit` advisories. No app, API or schema change.
+
+### Security
+
+- virtualenv 21.13.0 -> 21.14.13 through a new `constraint-dependencies` floor of 21.14.9, closing Dependabot alerts #125 to #132 (5 high, 3 medium). It arrives only through pre-commit, a dev dependency.
+- Frontend build and test tooling: zod 4.6.5 -> 4.6.7 (through eslint-plugin-react-hooks), undici 8.11.2 -> 8.12.3 (through jsdom), and fast-uri 4.2.1 -> 4.2.3 and serialize-javascript 7.1.2 -> 7.1.3 (both through workbox-build). `pnpm audit` goes from 9 advisories (2 high, 4 moderate, 3 low) to 0. None of these packages reach the shipped app; `pnpm audit --prod` was already clean.
+  - The `fast-uri` override pinned the now-vulnerable 4.2.1 and pins 4.2.3 instead. The `undici` and `serialize-javascript` overrides take the fixed versions as their floors, and the stale `minimumReleaseAgeExclude` entry for fast-uri 4.1.4 is removed.
+
+### Changed
+
+- The backend lock is refreshed, 37 packages in all (36 updated, 1 added): FastAPI 0.141.1 -> 0.162.0 with Starlette 1.9.0, Pydantic 2.14.1, pydantic-settings 2.16.1, pandas 3.1.0, SQLAlchemy 2.0.55, Alembic 1.20.1, cryptography 50.0.2, boto3 1.43.118, Ruff 0.17.2, mypy 2.4.0 and pre-commit 4.7.0.
+  - FastAPI now depends on `opentelemetry-api`; nothing in the app configures telemetry. The FastAPI releases in between change form-field defaults, drop deprecated `**extra` arguments and tell an explicit JSON `null` body from an omitted one. The API takes JSON and raw bodies, not forms, and passes none of the removed arguments.
+  - `uv.lock` is written by uv 0.13.5, the version CI already runs. Its lockfile revision moves from 3 to 5, which older uv versions still read.
+- SQLAlchemy stays on 2.0.x. 2.1.6 still fails mypy with 27 errors, 21 of them `order_by`/`Select` arg-type, and 2.1 also makes autoflush unconditional, so it moves in a release of its own.
+- Frontend: Motion 14.6.0, lucide-react 1.61.0, Vite 8.3.5, zustand 5.0.16 and vite-plugin-pwa 2.0.0, whose only breaking change is a Node 20.19 minimum. The production build still precaches 126 entries and writes an identical web manifest and `registerSW.js`. In all, 83 of the lock's 669 packages change version; besides these five, every one moves within its existing range. At the root, concurrently is 10.0.6 and the shell-quote override 1.12.0.
+- pnpm 11.28.6 (from 11.28.3) in both `packageManager` fields.
+- CI actions by commit SHA: setup-node 7.1.0, setup-uv 10.3.2 and pnpm/action-setup 6.1.0. The shared workflows move to their latest `main`, where only `python-ci.yml`, which this repo does not call, changed.
+
 ## 2.30.1 - 2026-10-24
 
 The architecture and flow diagrams are redrawn with Orrery 0.12, which draws icon tiles at 64 px instead of 48 px. No app, API or schema change.
