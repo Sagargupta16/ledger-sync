@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.30.1.
+Current for Ledger Sync 2.30.2.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:

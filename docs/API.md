@@ -1,6 +1,6 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.30.1.
+Human-readable reference for Ledger Sync API version 2.30.2.
 
 The generated OpenAPI document is the contract source of truth. This guide was
 verified against that document on 2026-09-09.
