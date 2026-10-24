@@ -8,12 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## 2.30.2 - 2026-10-24
 
-Every outdated dependency, CI action and package-manager pin moves to its newest release, which also clears 8 Dependabot alerts and 9 `pnpm audit` advisories. No app, API or schema change.
+Every outdated dependency, CI action and package-manager pin moves to its newest release, which also fixes all 24 open Dependabot alerts and all 9 `pnpm audit` advisories. No app, API or schema change.
 
 ### Security
 
-- virtualenv 21.13.0 -> 21.14.13 through a new `constraint-dependencies` floor of 21.14.9, closing Dependabot alerts #125 to #132 (5 high, 3 medium). It arrives only through pre-commit, a dev dependency.
-- Frontend build and test tooling: zod 4.6.5 -> 4.6.7 (through eslint-plugin-react-hooks), undici 8.11.2 -> 8.12.3 (through jsdom), and fast-uri 4.2.1 -> 4.2.3 and serialize-javascript 7.1.2 -> 7.1.3 (both through workbox-build). `pnpm audit` goes from 9 advisories (2 high, 4 moderate, 3 low) to 0. None of these packages reach the shipped app; `pnpm audit --prod` was already clean.
+- virtualenv 21.13.0 -> 21.14.13 through a new `constraint-dependencies` floor of 21.14.9 (15 alerts, #125 to #132 and #134 to #140), and filelock 4.0.6 -> 4.2.4 (#133, #141 and #142). Both arrive only through pre-commit, a dev dependency.
+- Frontend build and test tooling: zod 4.6.5 -> 4.6.7 (through eslint-plugin-react-hooks), undici 8.11.2 -> 8.12.3 (through jsdom), and fast-uri 4.2.1 -> 4.2.3 and serialize-javascript 7.1.2 -> 7.1.3 (both through workbox-build). This covers Dependabot #144 to #148 and #151, plus #143, #149 and #150, which GitHub auto-dismissed as dev-only. `pnpm audit` goes from 9 advisories (2 high, 4 moderate, 3 low) to 0. None of these packages reach the shipped app; `pnpm audit --prod` was already clean.
   - The `fast-uri` override pinned the now-vulnerable 4.2.1 and pins 4.2.3 instead. The `undici` and `serialize-javascript` overrides take the fixed versions as their floors, and the stale `minimumReleaseAgeExclude` entry for fast-uri 4.1.4 is removed.
 
 ### Changed
