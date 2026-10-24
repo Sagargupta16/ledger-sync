@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.30.1 - 2026-10-24
+
+The architecture and flow diagrams are redrawn with Orrery 0.12, which draws icon tiles at 64 px instead of 48 px. No app, API or schema change.
+
+### Changed
+
+- Nine figures in `docs/diagrams/` are re-rendered from their specs: light and dark SVGs, the OAuth sign-in sequence and each editable `.drawio.svg`. Money Manager import, statement import and release delivery draw no icon tiles and render byte for byte as before.
+- Four specs take layout settings so the bigger tiles still read at the 880 px README width. Every node, edge and evidence entry stays as it was, and `orrery verify` finds all of them. Scores are `orrery review --width 880`, against the unchanged spec drawn with 64 px tiles:
+  - Chart kit: CategoryTreemap, Page x/y charts and Treemap move up in their groups so the wrappers and pages meet the chart roots in order, CartesianChart children sit in the roots' column under CartesianChart (`align: cartesian`), and spacing is 0.5. Edge crossings drop from 9 to 4, the review passes (88.9 to 93.5) and the canvas is 1208 px wide instead of 1325 px.
+  - Backend layers: compact spacing, 1092 px wide instead of 1148 px, node labels at 10.5 px; 93.9 to 94.4.
+  - Shared finance rules: spacing 0.6, 1171 px wide instead of 1215 px; 93.8 to 95.3.
+  - System overview: spacing 0.5, 1090 px wide instead of 1199 px, node labels at 10.5 px; 97.4 to 97.9.
+
 ## 2.30.0 - 2026-10-22
 
 Money Manager backups import directly with stable transaction IDs, charts are drawn by an in-house animated SVG kit instead of Recharts, every architecture and flow diagram is redrawn from the code, and re-importing an older ledger with repeated identical rows no longer fails.

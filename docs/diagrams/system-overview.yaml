@@ -12,7 +12,7 @@ direction: right
 # Group and node order (OAuth, Neon, market data, then model providers with Bedrock first) keeps the
 # SPA's browser-direct edges below the API's fan-out: 7 crossings down to 2.
 
-layout: { spacing: compact }
+layout: { spacing: 0.5 }
 groups:
   browser: { type: zone, label: "User's browser", evidence: "frontend/vite.config.ts:58-60" }
   ghpages: { type: box, label: GitHub Pages, evidence: ".github/workflows/deploy-frontend.yml:97-110" }
