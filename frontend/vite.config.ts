@@ -95,6 +95,18 @@ export default defineConfig({
         // App shell only: precache JS/CSS/HTML/SVG/PNG emitted by Vite.
         // API responses are intentionally NOT cached -- financial data must be fresh.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // SheetJS (~490 KB) only runs when the upload page parses an Excel or CSV
+        // file, so it stays out of the precache every device downloads after
+        // first load, and is cached the first time an upload uses it.
+        globIgnores: ['**/xlsx-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/xlsx-[\w-]+\.js$/,
+            handler: 'CacheFirst',
+            // The file name carries a content hash, so keep only the current copy.
+            options: { cacheName: 'sheetjs', expiration: { maxEntries: 1 } },
+          },
+        ],
         navigateFallback: 'index.html',
         // Don't let the SW intercept /api/* -- always hit the network.
         navigateFallbackDenylist: [/^\/api\//],

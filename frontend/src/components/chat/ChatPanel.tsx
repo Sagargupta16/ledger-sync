@@ -226,8 +226,10 @@ export default function ChatPanel({
 }
 
 /**
- * Compact usage chip in the chat header. Polls every 30s while the panel is
- * open so the count updates after each message round.
+ * Compact usage chip in the chat header. It does not poll: useChat refreshes
+ * ['ai-usage'] when a send settles, so the count updates after each message,
+ * and returning to the tab refetches a stale count (the daily cap resets at
+ * midnight UTC).
  *
  * Mode-aware:
  *   app_bedrock -> "· 3 / 10 left" (messages remaining today, the cap the
@@ -241,8 +243,8 @@ function UsageBadge() {
   const { data } = useQuery<UsageResponse>({
     queryKey: ['ai-usage'],
     queryFn: () => aiUsageService.get(),
-    refetchInterval: 30_000,
     staleTime: 15_000,
+    refetchOnWindowFocus: true,
   })
   if (!data) return null
 

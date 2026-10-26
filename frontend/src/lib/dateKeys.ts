@@ -36,14 +36,21 @@ export const getCurrentYear = (): number => new Date().getFullYear()
 const LEDGER_TIME_ZONE = 'Asia/Kolkata'
 
 /**
+ * Built once: a fresh one per call measured 30-40x the cost (Node 26,
+ * 2026-10-26), and month and row loops call `getLedgerTodayKey` per key. The
+ * explicit time zone makes the shared instance format what a fresh one would.
+ */
+const LEDGER_DAY_FORMAT = new Intl.DateTimeFormat('en-US', {
+  timeZone: LEDGER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
+/**
  * Today's `YYYY-MM-DD` on the LEDGER calendar (IST), the backend
  * `ledger_clock.ledger_today()` twin. Use it for a server-side `end_date` that
  * must mean "no future-dated rows" whatever the viewer's own timezone is.
  */
 export const getLedgerTodayKey = (now: Date = new Date()): string => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: LEDGER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(now)
+  const parts = LEDGER_DAY_FORMAT.formatToParts(now)
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
   return `${part('year')}-${part('month')}-${part('day')}`
 }

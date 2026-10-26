@@ -3,7 +3,9 @@ import type { ReactNode } from 'react'
 /**
  * Single pulsing bar. Decorative -- the surrounding skeleton container owns the
  * loading announcement, so individual bars are `aria-hidden` to avoid a
- * screen reader reading "Loading" once per bar.
+ * screen reader reading "Loading" once per bar. Inside a `skeleton-group`
+ * wrapper the bar holds still and the wrapper pulses the whole group as one
+ * layer; the composites below put that wrapper inside each panel, never on it.
  */
 export default function LoadingSkeleton({ className = '' }: Readonly<{ className?: string }>) {
   return (
@@ -28,7 +30,7 @@ export function SkeletonStatus({
 /** Title bar over a chart-like bar row; the body of `ChartSkeleton`. */
 function ChartSkeletonBody() {
   return (
-    <div className="space-y-4 h-full">
+    <div className="skeleton-group space-y-4 h-full">
       <div className="flex items-center gap-3">
         <LoadingSkeleton className="w-5 h-5 rounded" />
         <LoadingSkeleton className="h-5 w-48" />
@@ -50,13 +52,15 @@ function ChartSkeletonBody() {
 /** Metric tiles; the cells of `CardGridSkeleton`. */
 function CardGridSkeletonCells({ count }: Readonly<{ count: number }>) {
   return Array.from({ length: count }, (_, i) => `card-${i + 1}`).map((cardKey) => (
-    <div key={cardKey} className="ledger-panel space-y-3 p-4">
-      <div className="flex items-center gap-2">
-        <LoadingSkeleton className="w-8 h-8 rounded-lg" />
-        <LoadingSkeleton className="h-3 w-20" />
+    <div key={cardKey} className="ledger-panel p-4">
+      <div className="skeleton-group space-y-3">
+        <div className="flex items-center gap-2">
+          <LoadingSkeleton className="w-8 h-8 rounded-lg" />
+          <LoadingSkeleton className="h-3 w-20" />
+        </div>
+        <LoadingSkeleton className="h-5 w-24" />
+        <LoadingSkeleton className="h-2 w-16" />
       </div>
-      <LoadingSkeleton className="h-5 w-24" />
-      <LoadingSkeleton className="h-2 w-16" />
     </div>
   ))
 }
@@ -76,11 +80,13 @@ export function ChartSkeleton({ height = 'h-80' }: Readonly<{ height?: string }>
 export function PanelSkeleton({ blockClassName = 'h-32', blocks = 1 }: Readonly<{ blockClassName?: string; blocks?: number }>) {
   return (
     <SkeletonStatus className="ledger-panel p-4 sm:p-5">
-      <LoadingSkeleton className="mb-4 h-8 w-1/3" />
-      <div className="space-y-3">
-        {Array.from({ length: blocks }, (_, i) => `panel-block-${i + 1}`).map((blockKey) => (
-          <LoadingSkeleton key={blockKey} className={blockClassName} />
-        ))}
+      <div className="skeleton-group">
+        <LoadingSkeleton className="mb-4 h-8 w-1/3" />
+        <div className="space-y-3">
+          {Array.from({ length: blocks }, (_, i) => `panel-block-${i + 1}`).map((blockKey) => (
+            <LoadingSkeleton key={blockKey} className={blockClassName} />
+          ))}
+        </div>
       </div>
     </SkeletonStatus>
   )
@@ -98,7 +104,7 @@ export function CardGridSkeleton({ count = 4, cols = 'grid-cols-2 lg:grid-cols-4
 export function PageSkeleton() {
   return (
     <SkeletonStatus className="p-4 md:p-6 lg:p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="skeleton-group flex items-center justify-between">
         <div className="space-y-2">
           <LoadingSkeleton className="h-7 w-48" />
           <LoadingSkeleton className="h-4 w-72" />
@@ -118,24 +124,28 @@ export function PageSkeleton() {
   )
 }
 
+/** One header or body row's bars, inside the padded row so its divider holds still. */
+function TableSkeletonCells() {
+  return (
+    <div className="skeleton-group flex gap-4">
+      <LoadingSkeleton className="h-4 w-24" />
+      <LoadingSkeleton className="h-4 w-32" />
+      <LoadingSkeleton className="h-4 w-20" />
+      <LoadingSkeleton className="h-4 flex-1" />
+    </div>
+  )
+}
+
 export function TableSkeleton({ rows = 5 }: Readonly<{ rows?: number }>) {
   return (
     <SkeletonStatus className="ledger-panel overflow-hidden">
       <div className="bg-[var(--overlay-2)] p-4 border-b border-border">
-        <div className="flex gap-4">
-          <LoadingSkeleton className="h-4 w-24" />
-          <LoadingSkeleton className="h-4 w-32" />
-          <LoadingSkeleton className="h-4 w-20" />
-          <LoadingSkeleton className="h-4 flex-1" />
-        </div>
+        <TableSkeletonCells />
       </div>
       <div className="divide-y divide-[var(--hairline-1)]">
         {Array.from({ length: rows }, (_, i) => `table-row-${i + 1}`).map((rowKey) => (
-          <div key={rowKey} className="p-4 flex gap-4">
-            <LoadingSkeleton className="h-4 w-24" />
-            <LoadingSkeleton className="h-4 w-32" />
-            <LoadingSkeleton className="h-4 w-20" />
-            <LoadingSkeleton className="h-4 flex-1" />
+          <div key={rowKey} className="p-4">
+            <TableSkeletonCells />
           </div>
         ))}
       </div>

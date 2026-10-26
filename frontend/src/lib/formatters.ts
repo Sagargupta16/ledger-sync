@@ -14,6 +14,7 @@
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { getCurrencyMeta, BASE_CURRENCY, effectiveCurrencyCode } from '@/constants/currencies'
 import { formatChartPeriod } from './chartDateLabels'
+import { dateFormat, numberFormat } from './intlCache'
 
 // Get current preferences (for non-React contexts)
 const getDisplayCurrency = () => usePreferencesStore.getState().displayCurrency
@@ -64,15 +65,12 @@ const getActiveCurrencyMeta = () => getCurrencyMeta(getRenderCurrency())
 export const getActiveLocale = (): string => getActiveCurrencyMeta().locale
 
 /**
- * Format a number with the appropriate locale
+ * Format a number with the appropriate locale, on a reused formatter (see intlCache).
  */
 const formatWithLocale = (
   value: number,
   options: Intl.NumberFormatOptions = {}
-): string => {
-  const meta = getActiveCurrencyMeta()
-  return value.toLocaleString(meta.locale, options)
-}
+): string => numberFormat(getActiveCurrencyMeta().locale, options).format(value)
 
 /**
  * Add currency symbol based on current display currency metadata
@@ -219,14 +217,21 @@ const DEFAULT_DATE_OPTS: Intl.DateTimeFormatOptions = {
   day: '2-digit',
 }
 
+/** `date.toLocaleDateString(DATE_LOCALE, opts)` on a reused formatter (see intlCache). */
+const formatDateValue = (date: Date, opts: Intl.DateTimeFormatOptions): string => {
+  // toLocaleDateString's own text; format() throws on an invalid Date instead.
+  if (Number.isNaN(date.getTime())) return 'Invalid Date'
+  return dateFormat(DATE_LOCALE, opts).format(date)
+}
+
 export const formatDate = (
   value: string | Date,
   opts: Intl.DateTimeFormatOptions = DEFAULT_DATE_OPTS,
 ): string => {
-  if (value instanceof Date) return value.toLocaleDateString(DATE_LOCALE, opts)
+  if (value instanceof Date) return formatDateValue(value, opts)
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
   if (!m) return value
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(DATE_LOCALE, opts)
+  return formatDateValue(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])), opts)
 }
 
 /** Return the English ordinal suffix for a day number (1→'st', 2→'nd', 3→'rd', etc.) */

@@ -62,8 +62,9 @@ export default function MetricCard({
   const colors = metricColorConfig[color]
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   // Count-up on the KPI figure (format-preserving; settles on the exact
-  // original string). Hook order is stable: isLoading renders a skeleton with
-  // no value, and this hook runs unconditionally before that branch.
+  // original string), written into the `motion.output` below without
+  // re-rendering the card. Hook order is stable: isLoading renders a skeleton
+  // with no value, and this hook runs unconditionally before that branch.
   const animatedValue = useAnimatedValue(value)
 
   if (isLoading) {
@@ -73,8 +74,11 @@ export default function MetricCard({
         aria-busy="true"
         className={cn('ledger-panel block h-full min-h-32 min-w-0 space-y-4 p-4', hero && 'sm:p-5')}
       >
-        <span aria-hidden="true" className="skeleton-surface block h-3 w-1/2 rounded" />
-        <span aria-hidden="true" className="skeleton-surface block h-7 w-3/4 rounded" />
+        {/* One pulsing layer for both bars; the panel itself paints, so it stays outside the group. */}
+        <span aria-hidden="true" className="skeleton-group block space-y-4">
+          <span className="skeleton-surface block h-3 w-1/2 rounded" />
+          <span className="skeleton-surface block h-7 w-3/4 rounded" />
+        </span>
       </output>
     )
   }
@@ -118,7 +122,7 @@ export default function MetricCard({
         </div>
 
         <div className="min-w-0">
-          <output
+          <motion.output
             className={cn(
               'metric-value ledger-figure block max-w-full whitespace-normal font-semibold leading-tight tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere]',
               hero && 'metric-value-hero',
@@ -127,7 +131,7 @@ export default function MetricCard({
             aria-live="polite"
           >
             {animatedValue}
-          </output>
+          </motion.output>
           {subtitle && (
             <p className="mt-1.5 text-pretty text-xs leading-5 text-text-tertiary [overflow-wrap:anywhere]" title={subtitle}>
               {subtitle}

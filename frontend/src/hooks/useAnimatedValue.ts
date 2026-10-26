@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
+
+import { useMotionValue, type MotionValue } from 'motion/react'
 
 import { useMotionStore } from '@/store/motionStore'
 
@@ -92,54 +94,97 @@ export function formatLikeSample(n: number, parsed: ParsedValue): string {
 }
 
 /**
- * Count-up for ALREADY-FORMATTED value strings (currency, percentages).
+ * The engine behind both count-ups below. Shows `text`; when `target` is a
+ * number it first eases from the amount on screen to `target` over `duration`
+ * ms (ease-out cubic), showing `frameText(amount)` on each frame, and the FINAL
+ * frame always shows exactly `text`. Counting from the amount on screen lets an
+ * interrupted count carry on from where it is, and a count with nothing to do
+ * schedules no frame at all.
  *
- * Animates the numeric part 0 -> value over `duration` ms (ease-out cubic)
- * while re-rendering every frame in the same format (symbol, decimals,
- * indian/western digit grouping) detected from the input. The FINAL frame
- * always renders the exact original string, so the settled display is
- * guaranteed byte-identical to what the caller formatted -- the animation can
- * never corrupt a number. Non-numeric strings render as-is, no animation.
- *
- * Re-runs when `value` changes (animating from the previous amount), so KPI
- * cards roll to their new figure when the filter changes.
+ * Frames go into a MotionValue, never React state. Render it as the only child
+ * of a `motion.*` element: Motion writes each frame straight into the text node
+ * and skips a string that did not change, so the caller renders once per value
+ * instead of once per frame.
  */
-export function useAnimatedValue(value: string | number, duration = 240): string {
-  const stringValue = String(value)
+function useCountedText(
+  text: string,
+  target: number | null,
+  frameText: (amount: number) => string,
+  duration: number,
+): MotionValue<string> {
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
-  // null = not animating; render the exact input. Set only from rAF frames.
-  const [frameValue, setFrameValue] = useState<string | null>(null)
-  const fromRef = useRef(0)
-  const frame = useRef(0)
+  const display = useMotionValue(text)
+  const shown = useRef(0)
 
-  useEffect(() => {
-    const parsed = parseFormattedValue(stringValue)
-    if (!parsed || parsed.amount === 0 || reduceMotion) {
-      fromRef.current = parsed?.amount ?? 0
+  // A layout effect: a value that does not count is on screen by the next
+  // paint, as a render would put it. When a count starts, its first frame
+  // replaces `text` before that paint, so the final figure never flashes first.
+  useLayoutEffect(() => {
+    display.set(text)
+    if (target === null || target === shown.current || reduceMotion) {
+      shown.current = target ?? 0
       return
     }
-    const from = fromRef.current
+    const from = shown.current
+    const to = target
     const start = performance.now()
+    let frame = 0
 
     const tick = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1)
+      // A frame timestamp can fall just before `start`; never ease backwards.
+      const progress = Math.min(Math.max(now - start, 0) / duration, 1)
       if (progress >= 1) {
         // Settle on the exact original string -- correctness guarantee.
-        setFrameValue(null)
-        fromRef.current = parsed.amount
+        shown.current = to
+        display.set(text)
         return
       }
       const eased = 1 - Math.pow(1 - progress, 3)
-      setFrameValue(formatLikeSample(from + (parsed.amount - from) * eased, parsed))
-      frame.current = requestAnimationFrame(tick)
+      shown.current = from + (to - from) * eased
+      display.set(frameText(shown.current))
+      frame = requestAnimationFrame(tick)
     }
 
-    frame.current = requestAnimationFrame(tick)
-    return () => {
-      cancelAnimationFrame(frame.current)
-      setFrameValue(null)
-    }
-  }, [stringValue, duration, reduceMotion])
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [text, target, frameText, duration, reduceMotion, display])
 
-  return reduceMotion ? stringValue : (frameValue ?? stringValue)
+  return display
+}
+
+/**
+ * Count-up for ALREADY-FORMATTED value strings (currency, percentages).
+ *
+ * Animates the numeric part from the figure on screen (0 on mount) to the new
+ * value over `duration` ms (ease-out cubic), formatting every frame like the
+ * input (symbol, decimals, indian/western digit grouping). The FINAL frame
+ * always renders the exact original string, so the settled display is
+ * guaranteed byte-identical to what the caller formatted -- the animation can
+ * never corrupt a number. Zero and non-numeric strings render as-is, no
+ * animation.
+ *
+ * Re-runs when `value` changes, so KPI cards roll to their new figure when the
+ * filter changes. Render the result as the only child of a `motion.*` element.
+ */
+export function useAnimatedValue(value: string | number, duration = 240): MotionValue<string> {
+  const text = String(value)
+  const parsed = useMemo(() => parseFormattedValue(text), [text])
+  const frameText = useCallback(
+    (amount: number) => (parsed ? formatLikeSample(amount, parsed) : text),
+    [parsed, text],
+  )
+  const target = parsed && parsed.amount !== 0 ? parsed.amount : null
+  return useCountedText(text, target, frameText, duration)
+}
+
+const roundedText = (amount: number) => String(Math.round(amount))
+
+/**
+ * The same count-up for a raw number shown rounded, such as a 0-100 score. It
+ * eases the unrounded value, so every frame is `Math.round` of the eased
+ * figure, and settles on `Math.round(value)`. Defaults to 900 ms, like
+ * useCountUp. Render the result as the only child of a `motion.*` element.
+ */
+export function useAnimatedInteger(value: number, duration = 900): MotionValue<string> {
+  return useCountedText(roundedText(value), value, roundedText, duration)
 }

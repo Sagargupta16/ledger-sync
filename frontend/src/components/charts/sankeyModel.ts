@@ -13,7 +13,7 @@ import { computeSankeyLayout, type SankeyLayout, type SankeyLinkInput, type Sank
 /** Layout inset in px, so strokes on the outermost marks are not shaved. */
 export const PAD = 4
 export const FALLBACK = 'var(--color-app-purple)'
-/** Bead spacing in px; the diagram loops `strokeDashoffset` through one spacing every BEAD_SECONDS (~29 px/s). */
+/** Bead spacing in px; sankeyBeads.css loops the beads' dash offset through one spacing every BEAD_SECONDS (~29 px/s). */
 export const BEAD_GAP = 20
 export const BEAD_SECONDS = 0.7
 

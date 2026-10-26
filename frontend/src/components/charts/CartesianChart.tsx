@@ -69,13 +69,14 @@ export default function CartesianChart(props: CartesianChartProps) {
     onActiveIndexChange?.(value)
   }, [controlled, onActiveIndexChange])
   const count = visibleCount(data.length, props.visibleRange)
+  const layout = props.layout ?? 'horizontal'
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') setActiveIndex(null)
-    const next = rowForKey(event.key, activeIndex, count)
+    const next = rowForKey(event.key, activeIndex, count, layout)
     if (next === undefined) return
     event.preventDefault()
     setActiveIndex(next)
-  }, [activeIndex, count, setActiveIndex])
+  }, [activeIndex, count, layout, setActiveIndex])
 
   return (
     <ChartFrame
@@ -100,15 +101,21 @@ function visibleCount(length: number, range?: CartesianChartProps['visibleRange'
 /**
  * The visible row a key moves to, or undefined for keys left to the page. Arrows step one row and
  * Page Up/Down a tenth of the rows (at least one), clamped, starting at the first row when none is
- * active; Home and End jump to the first and last row.
+ * active; Home and End jump to the first and last row. Up, Right and Page Up go forward, Down, Left
+ * and Page Down back, the slider model ChartBrush uses, so the chart and its brush agree.
  */
-function rowForKey(key: string, index: number | null, count: number): number | undefined {
+function rowForKey(
+  key: string, index: number | null, count: number, layout: 'horizontal' | 'vertical',
+): number | undefined {
   if (count === 0) return undefined
   if (key === 'Home') return 0
   if (key === 'End') return count - 1
   const page = Math.max(1, Math.round(count / 10))
+  // A time series reads like the brush slider (Up, Right and Page Up move forward); a vertical
+  // ranking runs down the screen, so Down and Page Down move to the next row there.
+  const down = layout === 'vertical' ? 1 : -1
   const steps: Partial<Record<string, number>> = {
-    ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, PageDown: page, PageUp: -page,
+    ArrowRight: 1, ArrowLeft: -1, ArrowUp: -down, ArrowDown: down, PageUp: -down * page, PageDown: down * page,
   }
   const step = steps[key]
   if (step === undefined) return undefined

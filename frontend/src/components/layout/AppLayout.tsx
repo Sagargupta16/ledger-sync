@@ -55,7 +55,8 @@ export default function AppLayout({ pendingTitle }: Readonly<{ pendingTitle?: st
     <div className="ledger-canvas h-dvh overflow-hidden p-0 lg:p-3">
       <div className="ledger-workspace relative flex h-full overflow-hidden bg-background lg:rounded-lg lg:border lg:border-[var(--hairline-2)]">
         {isDemoMode && <DemoBanner />}
-        <div className="workspace-motion-field" aria-hidden="true">
+        <div className="workspace-motion-field" aria-hidden="true" />
+        <div className="workspace-motion-beams" aria-hidden="true">
           <span className="workspace-motion-beam workspace-motion-beam-x" />
           <span className="workspace-motion-beam workspace-motion-beam-y" />
         </div>

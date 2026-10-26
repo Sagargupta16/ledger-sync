@@ -65,7 +65,8 @@ function InsightCard({
   emphasis = false,
   index = 0,
 }: Readonly<{ item: InsightDescriptor; emphasis?: boolean; index?: number }>) {
-  // Format-preserving count-up; settles on the exact formatted string.
+  // Format-preserving count-up; settles on the exact formatted string. Its
+  // frames go into the motion.dd text, so the card renders once per value.
   const animatedValue = useAnimatedValue(item.value)
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
   const reveal = {
@@ -88,12 +89,12 @@ function InsightCard({
             </span>
             <item.icon className={`mt-0.5 size-4 shrink-0 ${item.color}`} aria-hidden="true" />
           </dt>
-          <dd
+          <motion.dd
             className="ledger-figure mt-4 break-words font-mono text-xl font-semibold leading-tight text-foreground tabular-nums @min-[14rem]:text-2xl"
             title={item.value}
           >
             {animatedValue}
-          </dd>
+          </motion.dd>
           {item.subtitle && (
             <dd className="mt-2 break-words text-xs leading-5 text-text-tertiary tabular-nums" title={item.subtitle}>
               {item.subtitle}
@@ -114,9 +115,9 @@ function InsightCard({
       </div>
       <dl className="min-w-0 flex-1">
         <dt className="text-xs leading-5 text-muted-foreground">{item.title}</dt>
-        <dd className="ledger-figure mt-1 break-words text-base font-semibold leading-6 text-foreground tabular-nums" title={item.value}>
+        <motion.dd className="ledger-figure mt-1 break-words text-base font-semibold leading-6 text-foreground tabular-nums" title={item.value}>
           {animatedValue}
-        </dd>
+        </motion.dd>
         {item.subtitle && (
           <dd className="mt-1 break-words text-xs leading-5 text-text-tertiary tabular-nums" title={item.subtitle}>
             {item.subtitle}

@@ -73,6 +73,8 @@ export function Section({
             role="region"
             aria-labelledby={`${panelId}-trigger`}
             {...DISCLOSURE_TRANSITION}
+            // Renders only while expanded, so this measures when a section opens, not on every render.
+            layoutDependency={expanded}
             className="overflow-hidden"
           >
             <div className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">{children}</div>

@@ -38,12 +38,6 @@ export default function CurrencySwitcher() {
   // which is what the amounts genuinely are until a rate lands.
   const isUnpriced = renderCurrency !== displayCurrency && !ratesLoading
 
-  // Update current time every minute for "time ago" display
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(Date.now()), 60_000)
-    return () => clearInterval(interval)
-  }, [])
-
   // Close on outside click
   useEffect(() => {
     if (!open) return
@@ -130,6 +124,9 @@ export default function CurrencySwitcher() {
       {isConverted && exchangeRate && (
         <div
           className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-app-blue/10 text-[10px] text-app-blue whitespace-nowrap"
+          // The age shows only in this tooltip, so read the clock when the
+          // pointer arrives instead of re-rendering the switcher every minute.
+          onPointerEnter={() => setCurrentTime(Date.now())}
           title={timeAgo ? `Rate updated ${timeAgo}` : 'Exchange rate'}
         >
           1 {displayCurrency} = {BASE_CURRENCY} {inverseRate}

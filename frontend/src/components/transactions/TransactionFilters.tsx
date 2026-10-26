@@ -169,6 +169,11 @@ export default function TransactionFilters({
           <motion.div
             id="advanced-filters"
             {...DISCLOSURE_TRANSITION}
+            // On a phone the Clear button can wrap the search row, which moves this
+            // panel and resizes the `layout` wrapper around it. Anything else that can
+            // resize this row or the panel while it is open must also change this value,
+            // or a #main-content scroll leaves the measured box stale and the wrapper misdraws it.
+            layoutDependency={hasActiveFilters}
             // Capped and scrollable: the filter bar is a sticky toolbar, so an
             // uncapped panel would pin over the whole table on a phone.
             className="ledger-panel max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5"

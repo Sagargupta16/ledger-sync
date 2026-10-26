@@ -151,7 +151,11 @@ export default function AnomalyCard({
 
           <AnimatePresence mode="popLayout">
             {isExpanded && (
-              <motion.div {...DISCLOSURE_TRANSITION}>
+              <motion.div
+                {...DISCLOSURE_TRANSITION}
+                // Only a change to the anomaly can resize the card content above this note.
+                layoutDependency={anomaly}
+              >
                 <Input
                   type="text"
                   value={noteText}

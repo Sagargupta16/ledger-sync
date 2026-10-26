@@ -4,8 +4,12 @@
  * The amount sizes itself to the hole box in container query units, so a long
  * currency string shrinks instead of spilling over the ring. Render it only
  * inside a kit chart: it waits for the chart to scroll into view, so the
- * count-up plays together with the slices' sweep.
+ * count-up plays together with the slices' sweep. Each frame goes straight
+ * into the amount's text node, so a hover renders the readout once rather
+ * than on every frame.
  */
+
+import { motion } from 'motion/react'
 
 import { useChartFrame } from '@/components/charts/chartContext'
 import { useAnimatedValue } from '@/hooks/useAnimatedValue'
@@ -23,25 +27,32 @@ interface PieCenterReadoutProps {
   readonly caption?: string
 }
 
-export default function PieCenterReadout({ eyebrow, value = '', caption }: PieCenterReadoutProps) {
+/**
+ * The counting amount. Its own component, so the MotionValue the span subscribes to is dropped
+ * together with the span when the amount goes away, instead of outliving it.
+ */
+function CountedAmount({ value }: { readonly value: string }) {
   const { entered } = useChartFrame()
   const counted = useAnimatedValue(entered ? value : '')
   const fontSize = `min(${MAX_VALUE_PX}px, ${(100 / (Math.max(1, value.length) * EM_PER_CHAR)).toFixed(2)}cqi)`
+  return (
+    // Held invisible, at its final width, until the chart enters and the count starts.
+    <motion.span
+      style={{ fontSize }}
+      className={`whitespace-nowrap font-mono font-semibold leading-tight text-(--chart-text-primary) ${entered ? '' : 'invisible'}`}
+    >
+      {entered ? counted : value}
+    </motion.span>
+  )
+}
 
+export default function PieCenterReadout({ eyebrow, value = '', caption }: PieCenterReadoutProps) {
   return (
     <>
       {eyebrow && (
         <span className="max-w-full truncate text-[10px] leading-4 text-(--chart-text-muted)">{eyebrow}</span>
       )}
-      {value && (
-        // Held invisible, at its final width, until the chart enters and the count starts.
-        <span
-          style={{ fontSize }}
-          className={`whitespace-nowrap font-mono font-semibold leading-tight text-(--chart-text-primary) ${entered ? '' : 'invisible'}`}
-        >
-          {entered ? counted : value}
-        </span>
-      )}
+      {value && <CountedAmount value={value} />}
       {caption && (
         <span className="mt-0.5 max-w-full truncate text-[11px] leading-4 text-(--chart-text-subtle)">{caption}</span>
       )}

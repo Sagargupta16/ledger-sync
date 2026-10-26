@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { AlertCircle, CheckCircle, Sparkles, Trash2 } from 'lucide-react'
 
@@ -21,7 +21,7 @@ import {
   type AIConfigUpdate,
   type AIMode,
 } from '@/services/api/aiConfig'
-import { aiUsageService, type LimitsUpdateRequest, type UsageResponse } from '@/services/api/aiUsage'
+import { aiUsageService, type LimitsUpdateRequest } from '@/services/api/aiUsage'
 
 import { Section } from '../sectionPrimitives'
 import { ByokConfigForm } from './ai/ByokConfigForm'
@@ -32,6 +32,13 @@ import { isBedrock } from './ai/aiConstants'
 interface Props {
   index: number
 }
+
+/** Shared by the section and UsagePoller; the chat badge reads the same key. */
+const usageQuery = queryOptions({
+  queryKey: ['ai-usage'],
+  queryFn: () => aiUsageService.get(),
+  staleTime: 30_000,
+})
 
 export default function AIAssistantSection({ index }: Readonly<Props>) {
   const queryClient = useQueryClient()
@@ -82,12 +89,9 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
     }
   }
 
-  const { data: usage } = useQuery<UsageResponse>({
-    queryKey: ['ai-usage'],
-    queryFn: () => aiUsageService.get(),
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  })
+  // Fetched with the page so the panel opens filled in; UsagePoller keeps it
+  // fresh only while the section is expanded.
+  const { data: usage } = useQuery(usageQuery)
 
   const publishConfig = async (data: AIConfig, signal: AbortSignal) => {
     await queryClient.cancelQueries({ queryKey: ['ai-config'] })
@@ -345,6 +349,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
     >
       <fieldset disabled={isBusy} aria-busy={isBusy} className="space-y-4 border-0 p-0 m-0 min-w-0">
         <legend className="sr-only">AI assistant settings</legend>
+        <UsagePoller />
         <ModeToggle
           mode={mode}
           onChange={(next) => { if (next !== mode && !isBusy) modeMutation.mutate(next) }}
@@ -472,4 +477,13 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       </fieldset>
     </Section>
   )
+}
+
+/**
+ * Refetches usage every minute. It renders inside the Section body, which
+ * unmounts when the section collapses, so a collapsed section stops polling.
+ */
+function UsagePoller() {
+  useQuery({ ...usageQuery, refetchInterval: 60_000 })
+  return null
 }

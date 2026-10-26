@@ -49,7 +49,7 @@ afterEach(() => {
 })
 
 describe('SankeyChart', () => {
-  it('draws the flow with Motion-driven beads: no SMIL <animate> and no native <title>', () => {
+  it('draws the flow with CSS-driven beads: no SMIL <animate> and no native <title>', () => {
     const { frame } = setup()
     expect(frame.querySelector('svg')).not.toBeNull()
     expect(frame.querySelectorAll('animate, animateMotion, animateTransform, set')).toHaveLength(0)

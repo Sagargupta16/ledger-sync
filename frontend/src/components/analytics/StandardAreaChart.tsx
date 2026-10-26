@@ -14,6 +14,8 @@
  *   />
  */
 
+import { useMemo } from 'react'
+
 import AreaSeries from '@/components/charts/AreaSeries'
 import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
 import CartesianChart from '@/components/charts/CartesianChart'
@@ -28,6 +30,7 @@ import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartCellText, chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartRange } from '@/components/ui/useChartRange'
+import { useCurrencyKey } from '@/hooks/useCurrencyKey'
 import { formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -81,6 +84,8 @@ interface StandardAreaChartProps {
 /** Room under the plot for rotated period labels. */
 const ANGLED_MARGIN = { bottom: 70 }
 
+const labelOf = (area: AreaConfig) => area.label ?? area.key
+
 export default function StandardAreaChart({
   data,
   dataKey = 'displayPeriod',
@@ -98,21 +103,50 @@ export default function StandardAreaChart({
   ariaLabel,
 }: StandardAreaChartProps) {
   const rows = data as readonly Record<string, unknown>[]
-  const range = useChartRange(rows.map((row) => chartCellText(row[dataKey])))
+  const labels = useMemo(() => rows.map((row) => chartCellText(row[dataKey])), [rows, dataKey])
+  const range = useChartRange(labels)
   const toggles = showLegend && areas.length > 1
   const [hidden, toggleSeries] = useHiddenSeries(areas.map((area) => area.key), toggles)
   const formatLabel = tooltipLabelFormatter ?? formatChartDate
   const formatTick = xTickFormatter ?? ((value: string) => formatChartPeriod(value))
+  const formatValue = tooltipFormatter ?? formatCurrency
+  // The brush overview and the screen-reader table come from the data alone, so brush steps and
+  // legend toggles reuse them.
+  const overview = useMemo(
+    () => (showBrush ? overviewValues(rows, stacked ? areas : areas.slice(0, 1)) : undefined),
+    [showBrush, rows, areas, stacked],
+  )
+  const currencyKey = useCurrencyKey()
+  const table = useMemo(() => {
+    void currencyKey // formatValue reads the display currency at call time, so a switch rebuilds the cells
+    return chartDataTable(
+      rows,
+      [
+        {
+          header: 'Period',
+          rowHeader: true,
+          value: (row) => formatLabel(chartCellText(row[dataKey])),
+        },
+        ...areas.map((area) => ({
+          header: labelOf(area),
+          value: (row: Record<string, unknown>) => {
+            const value = row[area.key]
+            return typeof value === 'number' ? formatValue(value) : chartCellText(value)
+          },
+        })),
+      ],
+      ariaLabel ?? 'Area chart data',
+      (row, index) => `${chartCellText(row[dataKey]) || 'row'}-${index}`,
+    )
+  }, [rows, areas, dataKey, formatLabel, formatValue, ariaLabel, currencyKey])
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  const formatValue = tooltipFormatter ?? formatCurrency
   const latest = rows.at(-1)
   const latestLabel = chartCellText(latest?.[dataKey])
   const zoomable = showBrush && data.length > 4
-  const labelOf = (area: AreaConfig) => area.label ?? area.key
   // Hidden series leave the scales, the stack and the tooltip; the legend, brush and table keep them all.
   const shown = areas.filter((area) => !hidden.has(area.key))
 
@@ -186,31 +220,13 @@ export default function StandardAreaChart({
       {zoomable && (
         <ChartBrush
           range={range}
-          values={overviewValues(rows, stacked ? areas : areas.slice(0, 1))}
+          values={overview}
           color={areas[0]?.color}
           formatLabel={tooltipLabelFormatter ?? xTickFormatter}
           ariaLabel="Chart zoom"
         />
       )}
-      {chartDataTable(
-        rows,
-        [
-          {
-            header: 'Period',
-            rowHeader: true,
-            value: (row) => formatLabel(chartCellText(row[dataKey])),
-          },
-          ...areas.map((area) => ({
-            header: labelOf(area),
-            value: (row: Record<string, unknown>) => {
-              const value = row[area.key]
-              return typeof value === 'number' ? formatValue(value) : chartCellText(value)
-            },
-          })),
-        ],
-        ariaLabel ?? 'Area chart data',
-        (row, index) => `${chartCellText(row[dataKey]) || 'row'}-${index}`,
-      )}
+      {table}
     </>
   )
 }

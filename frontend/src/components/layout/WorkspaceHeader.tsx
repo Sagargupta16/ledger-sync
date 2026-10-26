@@ -99,9 +99,13 @@ export default function WorkspaceHeader({
         <span className="sr-only">{pendingTitle ? `Opening ${pendingTitle}` : ''}</span>
         {pendingTitle && (
           <span aria-hidden="true" className="absolute inset-0 bg-primary/10">
+            {/* A whole transform string, not `x`: Motion hands it straight to
+                WAAPI, so the loop never falls back to its per-frame JS. */}
             <motion.span
-              initial={reduceMotion ? false : { x: '-100%' }}
-              animate={reduceMotion ? { x: '100%' } : { x: ['-100%', '300%'] }}
+              initial={reduceMotion ? false : { transform: 'translateX(-100%)' }}
+              animate={reduceMotion
+                ? { transform: 'translateX(100%)' }
+                : { transform: ['translateX(-100%)', 'translateX(300%)'] }}
               transition={reduceMotion
                 ? { duration: 0 }
                 : { duration: 1.4, ease: 'linear', repeat: Infinity }}

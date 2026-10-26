@@ -4,12 +4,13 @@
  */
 
 import type { SVGProps } from 'react'
-import { motion, type MotionProps, type MotionValue } from 'motion/react'
+import { motion, type MotionProps } from 'motion/react'
 
 import type { FrameState } from './chartContext'
 import { CHART_EASE, CHART_MOTION, chartTransition } from './chartMotion'
 import { linkPath, type SankeyLink, type SankeyNode } from './sankeyLayout'
 import { BEAD_GAP, FALLBACK, textSize, type SankeyDiagramNode, type SankeyLabel } from './sankeyModel'
+import './sankeyBeads.css'
 
 /** Final positions (motion off); the entrance; glide and fade on data changes. */
 export type Phase = 'still' | 'intro' | 'live'
@@ -31,10 +32,10 @@ const PRESENCE: Record<Phase, Pick<MotionProps, 'initial' | 'animate' | 'exit'>>
   live: { initial: { opacity: 0 }, animate: { opacity: 1, transition: ENTER }, exit: { opacity: 0, transition: LEAVE } },
 }
 
-type RibbonProps = Handlers & Readonly<{ link: SankeyLink; phase: Phase; color: string; level: Emphasis; offset: MotionValue<number> }>
+type RibbonProps = Handlers & Readonly<{ link: SankeyLink; phase: Phase; color: string; level: Emphasis }>
 
 /** A filled ribbon that morphs its `d` (a transparent stroke widens thin ones for the pointer), with beads. */
-export function Ribbon({ link, phase, color, level, offset, ...handlers }: RibbonProps) {
+export function Ribbon({ link, phase, color, level, ...handlers }: RibbonProps) {
   const morph = chartTransition('update', phase !== 'still')
   const fade = chartTransition('hover', phase !== 'still')
   return (
@@ -42,9 +43,10 @@ export function Ribbon({ link, phase, color, level, offset, ...handlers }: Ribbo
       <motion.path {...handlers} className="cursor-pointer" style={{ fill: color }} stroke="transparent" strokeWidth={6}
         initial={false} animate={{ d: linkPath(link), fillOpacity: RIBBON[level] }} transition={{ d: morph, fillOpacity: fade }} />
       {phase !== 'still' && (
-        // Every bead rides the diagram's one looping offset; a dash period of exactly BEAD_GAP keeps the loop seamless.
-        <motion.path fill="none" pointerEvents="none" strokeLinecap="round" strokeDasharray={`0.1 ${BEAD_GAP - 0.1}`}
-          strokeWidth={Math.min(3.5, Math.max(1.5, link.width * 0.2))} style={{ stroke: color, strokeDashoffset: offset }}
+        // Every bead reads the ribbon group's one looping offset (sankeyBeads.css); a dash period of exactly BEAD_GAP
+        // keeps the loop seamless. Motion only morphs `d` and fades the bead, so it idles between data changes and hovers.
+        <motion.path className="sankey-bead" fill="none" pointerEvents="none" strokeLinecap="round" strokeDasharray={`0.1 ${BEAD_GAP - 0.1}`}
+          strokeWidth={Math.min(3.5, Math.max(1.5, link.width * 0.2))} style={{ stroke: color }}
           initial={false} animate={{ d: linkPath(link, 'center'), opacity: BEAD[level] }} transition={{ d: morph, opacity: fade }} />
       )}
     </motion.g>

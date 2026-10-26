@@ -18,6 +18,8 @@ export function useCountUp(value: number, duration = 900): number {
   })
   const frame = useRef(0)
   const fromRef = useRef(0)
+  // The number on screen, so frames that would not change it cost no render.
+  const shownRef = useRef(0)
 
   if (
     display.reduceMotion !== reduceMotion ||
@@ -32,8 +34,12 @@ export function useCountUp(value: number, duration = 900): number {
   useEffect(() => {
     if (reduceMotion) {
       fromRef.current = value
+      shownRef.current = value
       return
     }
+    // Already settled on the target, as in the 0 -> 0 hold before a panel
+    // enters view: a run would only repaint the same number.
+    if (fromRef.current === value && shownRef.current === value) return
 
     const from = fromRef.current
     const start = performance.now()
@@ -42,7 +48,10 @@ export function useCountUp(value: number, duration = 900): number {
       const progress = Math.min((now - start) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
       const current = from + (value - from) * eased
-      setDisplay({ value: current, reduceMotion: false })
+      if (current !== shownRef.current) {
+        shownRef.current = current
+        setDisplay({ value: current, reduceMotion: false })
+      }
       if (progress < 1) {
         frame.current = requestAnimationFrame(tick)
       } else {

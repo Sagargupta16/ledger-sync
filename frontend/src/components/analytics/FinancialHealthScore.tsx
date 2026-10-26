@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react'
 
+import { motion } from 'motion/react'
 import { ChevronDown, Shield } from 'lucide-react'
 
 import { useTransactions } from '@/hooks/api/useTransactions'
@@ -8,7 +9,7 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { colors, rawColors } from '@/constants/colors'
-import { useCountUp } from '@/hooks/useCountUp'
+import { useAnimatedInteger } from '@/hooks/useAnimatedValue'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Transaction } from '@/types'
 import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
@@ -61,7 +62,8 @@ function ScoreHeader({ title, score, subtitle, status, color }: Readonly<{
   status: string
   color: string
 }>) {
-  const animatedScore = useCountUp(score)
+  // Frames go into the motion.span text, so the header renders once per score.
+  const animatedScore = useAnimatedInteger(score)
   return (
     <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -70,7 +72,7 @@ function ScoreHeader({ title, score, subtitle, status, color }: Readonly<{
         <p className={`mt-1 text-xs font-medium ${color}`}>{status}</p>
       </div>
       <p className={`ledger-figure font-mono text-3xl font-semibold leading-none tabular-nums ${color}`}>
-        {Math.round(animatedScore)}
+        <motion.span>{animatedScore}</motion.span>
         <span className="ml-1 text-xs font-normal text-text-tertiary">/100</span>
       </p>
     </div>
