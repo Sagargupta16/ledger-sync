@@ -1,6 +1,6 @@
 # Ledger Sync complete database schema reference
 
-Prepared 2026-10-22. This reference covers **all 35 application tables, all 483 columns, all 44 declared foreign keys, all 78 explicit indexes, and every model unique/check constraint and enum**. It also documents Alembic's version table and the reported import-log archive separately.
+Prepared 2026-10-27. This reference covers **all 49 application tables, all 616 columns, all 63 declared foreign keys, all 85 explicit indexes, and every model unique/check constraint and enum**. It also documents Alembic's version table and the reported import-log archive separately.
 
 ## Navigation
 
@@ -38,8 +38,8 @@ record without tripping the rule.
 | Application namespace | `public` |
 | Engine | PostgreSQL model target; SQLite storage differences documented below. Prior reference reported PostgreSQL 17.11. |
 | Source snapshot | Current working tree, including uncommitted changes; links resolve relative to this checkout. |
-| Base checkout commit | `114fdbd999201173b58e5be0b373471aa7f5e0f3`; does not identify the uncommitted model definitions. |
-| Matching source migration head | `money_manager_source_2026` |
+| Base checkout commit | `daa6d560bd8587a0e445430407662dbe4092933f`; does not identify the uncommitted model definitions. |
+| Matching source migration head | `feature_domains_2026` |
 | Infrastructure context | Project/branch/role identifiers above are retained from the prior reference and were not refreshed. |
 
 **Evidence boundary:** this refresh uses only current local model metadata, API schemas and migration source. No live database, remote service, financial rows, credentials or connection strings were read. The prior 2026-09-17 reference reported a successful Neon export, but full processing was blocked by automatic approval review with “encrypted summary was created for a different account or model.” That historical note is retained as provenance, not fresh verification. This is an **application-model dictionary**; live objects/defaults are not confirmed. The JSON companion records source-file SHA-256 hashes so the working-tree evidence can be checked independently.
@@ -55,7 +55,8 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 | [`users`](#users) | Login identity, profile and token revocation. | One application user. | 12 |
 | [`user_preferences`](#user_preferences) | Display, category classification, budget, tax and growth preferences. | At most one preferences row per user. | 45 |
 | [`user_ai_settings`](#user_ai_settings) | AI funding mode, provider/model selection, encrypted credentials and token limits. | At most one AI settings row per user. | 9 |
-| [`upload_tokens`](#upload_tokens) | Hashed, upload-only credentials for automations such as an iOS Shortcut. | Any number of revoked tokens per user; at most five active ones. | 10 |
+| [`upload_tokens`](#upload_tokens) | Hashed, single-scope access tokens for automations: Money Manager upload, MCP read access and the bank-alert inbox. | Any number of revoked tokens per user; at most five active ones per scope. | 10 |
+| [`push_subscriptions`](#push_subscriptions) | Web Push devices that receive a user's alerts. | One browser or Home Screen app with alerts on; the endpoint is unique. | 9 |
 | [`audit_logs`](#audit_logs) | Operation and change records. | One recorded operation/change. | 12 |
 | [`ai_usage_log`](#ai_usage_log) | Provider/model usage, token reservations and estimated cost. | One recorded provider call or reservation. | 12 |
 | [`column_mapping_logs`](#column_mapping_logs) | Original spreadsheet headers, mapped headers and validation diagnostics. | One intended parser-mapping diagnostic event. | 10 |
@@ -73,6 +74,10 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 | [`categorization_rules`](#categorization_rules) | Ordered rules that assign category and subcategory. | One rule per user; multiple rules are allowed. | 10 |
 | [`transaction_tags`](#transaction_tags) | Free-string annotations attached to transactions. | One exact tag per user and transaction. | 5 |
 | [`saved_filter_views`](#saved_filter_views) | Saved Transactions-page filter configurations. | One named view per user. | 6 |
+| [`saved_view_pins`](#saved_view_pins) | Saved views pinned to the Dashboard watchlist, in tile order. | One pinned saved view per user and view. | 5 |
+| [`balance_checks`](#balance_checks) | Bank or card balances the user read off a statement, per account and day. | One account and IST day per user. | 7 |
+| [`bank_alerts`](#bank_alerts) | Parsed bank SMS and email alerts that check whether the ledger has every spend. | One parsed debit or credit alert per user. | 12 |
+| [`transaction_embeddings`](#transaction_embeddings) | Semantic-search vectors of transaction text, built only after the user opts in. | One embedded transaction per user. | 7 |
 
 ### Compensation
 
@@ -81,6 +86,8 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 | [`salary_plans`](#salary_plans) | Exact salary components for each fiscal year. | One user and fiscal year. | 11 |
 | [`rsu_grants`](#rsu_grants) | Stable public grant identities, stock-price assumptions and grant metadata. | One public grant ID per user. | 8 |
 | [`rsu_vestings`](#rsu_vestings) | Individually identified RSU vesting events and received-share actuals. | One vesting event, including legitimate identical repeats. | 8 |
+| [`rsu_vest_fx`](#rsu_vest_fx) | How each RSU vest's perquisite becomes rupees. | One conversion record per vest. | 11 |
+| [`foreign_asset_events`](#foreign_asset_events) | User-entered sales and dividends of RSU shares, for the Schedule FA worksheet. | One sale or dividend. | 13 |
 
 ### Planning and review
 
@@ -89,9 +96,21 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 | [`recurring_transactions`](#recurring_transactions) | Detected or manually maintained recurring patterns. | One recurring pattern, not one occurrence. | 22 |
 | [`scheduled_transactions`](#scheduled_transactions) | Expected future cash flows. | One planned schedule. | 17 |
 | [`anomalies`](#anomalies) | Detected outliers, metrics and review state. | One detected anomaly; a transaction link is optional. | 15 |
+| [`category_overrides`](#category_overrides) | Review Queue decisions per transaction: kept, or moved to the user's category. | One review decision per user and transaction. | 9 |
 | [`budgets`](#budgets) | Category/subcategory limits and computed progress. | One budget scope per user, category and optional subcategory. | 15 |
 | [`financial_goals`](#financial_goals) | Savings, investment, debt-payoff or custom goals. | One user-defined goal. | 15 |
+| [`external_refs`](#external_refs) | Links from rows an import created to the IDs the source system gave them. | One imported source item per user, source system, kind and source UID. | 9 |
 | [`tax_records`](#tax_records) | Fiscal-year income, tax payments and deduction records. | One stored tax record; multiple rows per user/year are allowed by this schema. | 23 |
+| [`tax_deductions`](#tax_deductions) | Old-regime deduction amounts saved per tax year. | One owner, tax year and section. | 7 |
+| [`tax_ais_summaries`](#tax_ais_summaries) | Per-tax-year totals imported from the Annual Information Statement (AIS). | One owner and tax year. | 9 |
+
+### Investments from statements
+
+| Table | What it stores | One row represents | Columns |
+| --- | --- | --- | ---: |
+| [`mf_holdings`](#mf_holdings) | Mutual fund holdings imported from a CAS PDF. | One scheme in one folio or demat account, from the latest import of its issuer kind. | 18 |
+| [`mf_transactions`](#mf_transactions) | Dated CAMS or KFintech statement rows of a holding. | One statement row per holding and printed position. | 10 |
+| [`mf_nav_prices`](#mf_nav_prices) | The latest AMFI NAV for each scheme lookup key a held scheme uses. | One lookup key (isin: or code:). | 7 |
 
 ### Calculated analytics
 
@@ -110,9 +129,9 @@ A PostgreSQL **database** contains **schemas** (namespaces), which contain **tab
 
 ## How the tables connect
 
-`users.id` is the ownership root. There are 33 declared owner FKs from application child tables. `column_mapping_logs` has no owner column; `audit_logs.user_id` is optional. `user_preferences.user_id` is unique; `analytics_state.user_id` and `user_ai_settings.user_id` are primary keys, giving at most one row of each per user. Salary plans are unique per user/fiscal year, RSU grants per user/public ID, and vestings have independent event IDs.
+`users.id` is the ownership root. There are 46 declared owner FKs from application child tables. `column_mapping_logs` has no owner column; `audit_logs.user_id` is optional. `user_preferences.user_id` is unique; `analytics_state.user_id` and `user_ai_settings.user_id` are primary keys, giving at most one row of each per user. Salary plans are unique per user/fiscal year, RSU grants per user/public ID, and vestings have independent event IDs.
 
-The diagrams summarize selected actual foreign keys. The complete 44-link register follows the dictionary.
+The diagrams summarize selected actual foreign keys. The complete 63-link register follows the dictionary.
 
 ```mermaid
 flowchart LR
@@ -127,6 +146,8 @@ flowchart LR
   SC -->|user_id + category_id + subcategory_id| T
   T -->|user_id + transaction_id; hard-delete CASCADE| TT["transaction_tags"]
   T -->|optional transaction link; hard-delete CASCADE| AN["anomalies"]
+  T -->|user_id + transaction_id; hard-delete CASCADE| CO["category_overrides"]
+  T -->|user_id + transaction_id; hard-delete CASCADE| TE["transaction_embeddings"]
 ```
 
 ```mermaid
@@ -142,15 +163,25 @@ flowchart LR
   U -->|owner; unique public grant ID| G["rsu_grants"]
   U -->|owner| V["rsu_vestings"]
   G -->|user_id + grant_id; CASCADE| V
+  V -->|vesting_id; CASCADE| FX["rsu_vest_fx"]
+  V -->|vesting_id; SET NULL| FE["foreign_asset_events"]
 ```
 
-**Logical links are different from foreign keys.** Account and category labels in budgets, rules, recurring plans and summaries are plain strings; account classification/closure/limit settings now belong to the stable ledger account record. Analytics rows are derived from transactions through application calculations, but generally have no transaction-level FK. `source_file` does not link to `import_logs.id`; audit `entity_id` has no generic FK. There is no separate merchant master table, transaction-to-goal allocation table, uploaded-file binary table, or AI conversation table in these models.
+```mermaid
+flowchart LR
+  U["users"] -->|owner| SV["saved_filter_views"]
+  SV -->|view_id; CASCADE| SP["saved_view_pins"]
+  U -->|owner| H["mf_holdings"]
+  H -->|holding_id; CASCADE| MT["mf_transactions"]
+```
+
+**Logical links are different from foreign keys.** Account and category labels in budgets, rules, recurring plans and summaries are plain strings; account classification/closure/limit settings now belong to the stable ledger account record. Analytics rows are derived from transactions through application calculations, but generally have no transaction-level FK. `source_file` does not link to `import_logs.id`; audit `entity_id` has no generic FK. `external_refs.local_id` names a row in the table its `kind` selects, and `balance_checks.account` is the exact transaction account label; neither is a foreign key. There is no separate merchant master table, transaction-to-goal allocation table, uploaded-file binary table, or AI conversation table in these models.
 
 ## Upload, fetch, edit and delete flow
 
 1. **Upload:** the browser parses a spreadsheet and sends validated JSON rows to the authenticated upload API. The request is a complete user ledger snapshot, not an append-only batch: entries absent from the snapshot can be soft-deleted. The API allows at most 100,000 rows and INR accounting amounts.
 2. **Identify:** the import records the file hash, locks the user, fingerprints source rows before categorization, and accounts for repeated identical source rows. Legacy public IDs are preserved when an exact, unambiguous match can adopt a v2 fingerprint.
-3. **Store:** rules assign categories, dimension identities are resolved in batches, and transactions are inserted/updated/restored or marked deleted. The import log and analytics invalidation versions are committed with the ledger changes.
+3. **Store:** rules assign categories, review-queue category fixes (`category_overrides`) are applied after the rules, dimension identities are resolved in batches, and transactions are inserted/updated/restored or marked deleted. A fix that reconciliation left off a row paired by shape is put back before the commit. The import log and analytics invalidation versions are committed with the ledger changes.
 4. **Calculate:** application analytics refresh daily/monthly cells for affected dates where supported, and rebuild other affected domains. `analytics_state` records which versions were published. These are ordinary tables maintained by Python, not PostgreSQL materialized views or generated columns.
 5. **Fetch:** transaction reads filter by authenticated user and `is_deleted IS false`. Date/ID cursor pagination is used for sequential pages; offset remains available for arbitrary jumps. Summary APIs read aggregates where appropriate; some reports still calculate directly from the ledger.
 6. **Edit/delete:** writes must locate rows using owner plus identifier and invalidate affected analytics. Soft deletion keeps transaction identity and annotations. Hard deletion invokes transaction-child cascades. Deleting a recurring source requires unlinking dependent schedules first; deleting the user invokes owner cascades.
@@ -169,12 +200,12 @@ Relevant implementation: [upload contract](../backend/src/ledger_sync/schemas/up
 - **Vesting IDs:** `rsu_vestings.id` is TEXT with an application `lambda: str(uuid4())` default. It is neither an auto-incrementing integer nor a datetime default. Callable defaults below are extracted from their source expressions without executing them.
 - **JSON:** flexible objects/arrays use TEXT here, not native JSONB. JSON shape and meaning are enforced by application readers/validators, not PostgreSQL JSON types or GIN indexes.
 - **Enums:** SQLAlchemy Enum stores Python member **names** by default. The model and transaction CHECK use uppercase database labels, while API serialization uses the mapped values below. The introductory comment in enums.py saying values are stored directly should not override the actual column definition.
-- **Indexes:** the 78 count includes explicit model indexes, including unique indexes. It excludes indexes automatically backing PK and UNIQUE constraints. Default index method is B-tree. More indexes add write cost; their presence is not a measured guarantee of production latency.
+- **Indexes:** the 85 count includes explicit model indexes, including unique indexes. It excludes indexes automatically backing PK and UNIQUE constraints. Default index method is B-tree. More indexes add write cost; their presence is not a measured guarantee of production latency.
 
 | PostgreSQL enum type | Python enum | Database label → API value |
 | --- | --- | --- |
 | `accounttype` | `AccountType` | `CASH` → `Cash`; `BANK_ACCOUNTS` → `Bank Accounts`; `CREDIT_CARDS` → `Credit Cards`; `INVESTMENTS` → `Investments`; `LOANS` → `Loans/Lended`; `OTHER_WALLETS` → `Other Wallets` |
-| `anomalytype` | `AnomalyType` | `HIGH_EXPENSE` → `high_expense`; `UNUSUAL_CATEGORY` → `unusual_category`; `LARGE_TRANSFER` → `large_transfer`; `DUPLICATE_SUSPECTED` → `duplicate_suspected`; `MISSING_RECURRING` → `missing_recurring`; `BUDGET_EXCEEDED` → `budget_exceeded`; `CLOSED_ACCOUNT_ACTIVITY` → `closed_account_activity` |
+| `anomalytype` | `AnomalyType` | `HIGH_EXPENSE` → `high_expense`; `UNUSUAL_CATEGORY` → `unusual_category`; `LARGE_TRANSFER` → `large_transfer`; `DUPLICATE_SUSPECTED` → `duplicate_suspected`; `MISSING_RECURRING` → `missing_recurring`; `BUDGET_EXCEEDED` → `budget_exceeded`; `CLOSED_ACCOUNT_ACTIVITY` → `closed_account_activity`; `FEE_CHARGE` → `fee_charge` |
 | `goalstatus` | `GoalStatus` | `ACTIVE` → `active`; `COMPLETED` → `completed`; `PAUSED` → `paused`; `CANCELLED` → `cancelled` |
 | `recurrencefrequency` | `RecurrenceFrequency` | `DAILY` → `daily`; `WEEKLY` → `weekly`; `BIWEEKLY` → `biweekly`; `MONTHLY` → `monthly`; `BIMONTHLY` → `bimonthly`; `QUARTERLY` → `quarterly`; `SEMIANNUAL` → `semiannual`; `YEARLY` → `yearly` |
 | `transactiontype` | `TransactionType` | `EXPENSE` → `Expense`; `INCOME` → `Income`; `TRANSFER` → `Transfer` |
@@ -209,7 +240,7 @@ Email is unique. OAuth provider plus provider ID is unique when populated. No se
 
 None declared.
 
-**Referenced by:** [`user_preferences`](#user_preferences) `(user_id)`; [`user_ai_settings`](#user_ai_settings) `(user_id)`; [`upload_tokens`](#upload_tokens) `(user_id)`; [`audit_logs`](#audit_logs) `(user_id)`; [`ai_usage_log`](#ai_usage_log) `(user_id)`; [`transactions`](#transactions) `(user_id)`; [`import_logs`](#import_logs) `(user_id)`; [`ledger_accounts`](#ledger_accounts) `(user_id)`; [`ledger_account_aliases`](#ledger_account_aliases) `(user_id)`; [`ledger_categories`](#ledger_categories) `(user_id)`; [`ledger_subcategories`](#ledger_subcategories) `(user_id)`; [`categorization_rules`](#categorization_rules) `(user_id)`; [`transaction_tags`](#transaction_tags) `(user_id)`; [`saved_filter_views`](#saved_filter_views) `(user_id)`; [`salary_plans`](#salary_plans) `(user_id)`; [`rsu_grants`](#rsu_grants) `(user_id)`; [`rsu_vestings`](#rsu_vestings) `(user_id)`; [`recurring_transactions`](#recurring_transactions) `(user_id)`; [`scheduled_transactions`](#scheduled_transactions) `(user_id)`; [`anomalies`](#anomalies) `(user_id)`; [`budgets`](#budgets) `(user_id)`; [`financial_goals`](#financial_goals) `(user_id)`; [`tax_records`](#tax_records) `(user_id)`; [`analytics_state`](#analytics_state) `(user_id)`; [`daily_summaries`](#daily_summaries) `(user_id)`; [`monthly_summaries`](#monthly_summaries) `(user_id)`; [`category_trends`](#category_trends) `(user_id)`; [`cohort_spending`](#cohort_spending) `(user_id)`; [`transfer_flows`](#transfer_flows) `(user_id)`; [`merchant_intelligence`](#merchant_intelligence) `(user_id)`; [`fy_summaries`](#fy_summaries) `(user_id)`; [`net_worth_snapshots`](#net_worth_snapshots) `(user_id)`; [`investment_holdings`](#investment_holdings) `(user_id)`.
+**Referenced by:** [`user_preferences`](#user_preferences) `(user_id)`; [`user_ai_settings`](#user_ai_settings) `(user_id)`; [`upload_tokens`](#upload_tokens) `(user_id)`; [`push_subscriptions`](#push_subscriptions) `(user_id)`; [`audit_logs`](#audit_logs) `(user_id)`; [`ai_usage_log`](#ai_usage_log) `(user_id)`; [`transactions`](#transactions) `(user_id)`; [`import_logs`](#import_logs) `(user_id)`; [`ledger_accounts`](#ledger_accounts) `(user_id)`; [`ledger_account_aliases`](#ledger_account_aliases) `(user_id)`; [`ledger_categories`](#ledger_categories) `(user_id)`; [`ledger_subcategories`](#ledger_subcategories) `(user_id)`; [`categorization_rules`](#categorization_rules) `(user_id)`; [`transaction_tags`](#transaction_tags) `(user_id)`; [`saved_filter_views`](#saved_filter_views) `(user_id)`; [`saved_view_pins`](#saved_view_pins) `(user_id)`; [`balance_checks`](#balance_checks) `(user_id)`; [`bank_alerts`](#bank_alerts) `(user_id)`; [`transaction_embeddings`](#transaction_embeddings) `(user_id)`; [`salary_plans`](#salary_plans) `(user_id)`; [`rsu_grants`](#rsu_grants) `(user_id)`; [`rsu_vestings`](#rsu_vestings) `(user_id)`; [`rsu_vest_fx`](#rsu_vest_fx) `(user_id)`; [`foreign_asset_events`](#foreign_asset_events) `(user_id)`; [`recurring_transactions`](#recurring_transactions) `(user_id)`; [`scheduled_transactions`](#scheduled_transactions) `(user_id)`; [`anomalies`](#anomalies) `(user_id)`; [`category_overrides`](#category_overrides) `(user_id)`; [`budgets`](#budgets) `(user_id)`; [`financial_goals`](#financial_goals) `(user_id)`; [`external_refs`](#external_refs) `(user_id)`; [`tax_records`](#tax_records) `(user_id)`; [`tax_deductions`](#tax_deductions) `(user_id)`; [`tax_ais_summaries`](#tax_ais_summaries) `(user_id)`; [`mf_holdings`](#mf_holdings) `(user_id)`; [`mf_transactions`](#mf_transactions) `(user_id)`; [`analytics_state`](#analytics_state) `(user_id)`; [`daily_summaries`](#daily_summaries) `(user_id)`; [`monthly_summaries`](#monthly_summaries) `(user_id)`; [`category_trends`](#category_trends) `(user_id)`; [`cohort_spending`](#cohort_spending) `(user_id)`; [`transfer_flows`](#transfer_flows) `(user_id)`; [`merchant_intelligence`](#merchant_intelligence) `(user_id)`; [`fy_summaries`](#fy_summaries) `(user_id)`; [`net_worth_snapshots`](#net_worth_snapshots) `(user_id)`; [`investment_holdings`](#investment_holdings) `(user_id)`.
 
 **Additional UNIQUE constraints**
 
@@ -229,26 +260,45 @@ None declared in the model.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L55)
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L48)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L53)
 - [`backend/src/ledger_sync/api/ai_tools_impl/registry.py`](../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L46)
 - [`backend/src/ledger_sync/api/ai_tools_impl/transactions.py`](../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L36)
 - [`backend/src/ledger_sync/api/ai_usage.py`](../backend/src/ledger_sync/api/ai_usage.py#L94)
 - [`backend/src/ledger_sync/api/analytics_helpers.py`](../backend/src/ledger_sync/api/analytics_helpers.py#L43)
 - [`backend/src/ledger_sync/api/analytics_v2.py`](../backend/src/ledger_sync/api/analytics_v2.py#L62)
+- [`backend/src/ledger_sync/api/bank_alerts.py`](../backend/src/ledger_sync/api/bank_alerts.py#L44)
 - [`backend/src/ledger_sync/api/calculations_impl/aggregates.py`](../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L57)
 - [`backend/src/ledger_sync/api/calculations_impl/categories.py`](../backend/src/ledger_sync/api/calculations_impl/categories.py#L26)
-- [`backend/src/ledger_sync/api/deps.py`](../backend/src/ledger_sync/api/deps.py#L28)
+- [`backend/src/ledger_sync/api/deps.py`](../backend/src/ledger_sync/api/deps.py#L33)
+- [`backend/src/ledger_sync/api/mcp.py`](../backend/src/ledger_sync/api/mcp.py#L44)
+- [`backend/src/ledger_sync/api/mcp_protocol.py`](../backend/src/ledger_sync/api/mcp_protocol.py#L117)
+- [`backend/src/ledger_sync/api/mcp_tools.py`](../backend/src/ledger_sync/api/mcp_tools.py#L42)
 - [`backend/src/ledger_sync/api/preferences_helpers.py`](../backend/src/ledger_sync/api/preferences_helpers.py#L139)
+- [`backend/src/ledger_sync/api/saved_views_tiles.py`](../backend/src/ledger_sync/api/saved_views_tiles.py#L61)
 - [`backend/src/ledger_sync/api/transactions_impl/facets.py`](../backend/src/ledger_sync/api/transactions_impl/facets.py#L17)
 - [`backend/src/ledger_sync/api/transactions_impl/filters.py`](../backend/src/ledger_sync/api/transactions_impl/filters.py#L81)
 - [`backend/src/ledger_sync/api/transactions_impl/writes.py`](../backend/src/ledger_sync/api/transactions_impl/writes.py#L76)
+- [`backend/src/ledger_sync/core/analytics/budget_tracking.py`](../backend/src/ledger_sync/core/analytics/budget_tracking.py#L78)
 - [`backend/src/ledger_sync/core/analytics/refresh.py`](../backend/src/ledger_sync/core/analytics/refresh.py#L57)
+- [`backend/src/ledger_sync/core/balance_checks.py`](../backend/src/ledger_sync/core/balance_checks.py#L194)
+- [`backend/src/ledger_sync/core/card_cycles_report.py`](../backend/src/ledger_sync/core/card_cycles_report.py#L40)
+- [`backend/src/ledger_sync/core/dashboard_metrics.py`](../backend/src/ledger_sync/core/dashboard_metrics.py#L75)
+- [`backend/src/ledger_sync/core/mf_store.py`](../backend/src/ledger_sync/core/mf_store.py#L49)
+- [`backend/src/ledger_sync/core/push_alerts.py`](../backend/src/ledger_sync/core/push_alerts.py#L143)
+- [`backend/src/ledger_sync/core/push_delivery.py`](../backend/src/ledger_sync/core/push_delivery.py#L177)
 - [`backend/src/ledger_sync/core/query_helpers.py`](../backend/src/ledger_sync/core/query_helpers.py#L68)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L91)
+- [`backend/src/ledger_sync/core/review_queue.py`](../backend/src/ledger_sync/core/review_queue.py#L154)
+- [`backend/src/ledger_sync/core/safe_to_spend.py`](../backend/src/ledger_sync/core/safe_to_spend.py#L103)
+- [`backend/src/ledger_sync/core/safe_to_spend_ledger.py`](../backend/src/ledger_sync/core/safe_to_spend_ledger.py#L105)
+- [`backend/src/ledger_sync/core/watch_tile_suggestions.py`](../backend/src/ledger_sync/core/watch_tile_suggestions.py#L28)
+- [`backend/src/ledger_sync/core/weekly_recap.py`](../backend/src/ledger_sync/core/weekly_recap.py#L56)
+- [`backend/src/ledger_sync/core/weekly_recap_flows.py`](../backend/src/ledger_sync/core/weekly_recap_flows.py#L82)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L124)
 - [`backend/src/ledger_sync/services/auth_refresh.py`](../backend/src/ledger_sync/services/auth_refresh.py#L60)
 - [`backend/src/ledger_sync/services/auth_service.py`](../backend/src/ledger_sync/services/auth_service.py#L154)
+- [`backend/src/ledger_sync/services/budget_service.py`](../backend/src/ledger_sync/services/budget_service.py#L37)
 - [`backend/src/ledger_sync/services/calculation_service.py`](../backend/src/ledger_sync/services/calculation_service.py#L63)
-- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L103)
+- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L114)
 
 [Back to table directory](#table-directory)
 
@@ -282,8 +332,8 @@ A unique user_id enforces one-to-one ownership. The remaining flexible lists/obj
 | [`default_time_range`](../backend/src/ledger_sync/db/_models/user.py#L304) | `VARCHAR(20)` | `VARCHAR(20)` | No | 'all_time' | - | Preferred initial reporting range. |
 | [`display_currency`](../backend/src/ledger_sync/db/_models/user.py#L309) | `VARCHAR(3)` | `VARCHAR(3)` | No | 'INR' | - | Display conversion currency; stored transactions remain INR. |
 | [`anomaly_expense_threshold`](../backend/src/ledger_sync/db/_models/user.py#L316) | `FLOAT` | `FLOAT` | No | 2.0 | - | Expense-to-baseline multiplier used by anomaly settings. |
-| [`anomaly_types_enabled`](../backend/src/ledger_sync/db/_models/user.py#L321) | `TEXT` | `TEXT` | No | '["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]' | - | JSON array of enabled anomaly API values. |
-| [`auto_dismiss_recurring_anomalies`](../backend/src/ledger_sync/db/_models/user.py#L326) | `BOOLEAN` | `BOOLEAN` | No | True | - | Preference for suppressing recognized recurring anomalies. |
+| [`anomaly_types_enabled`](../backend/src/ledger_sync/db/_models/user.py#L321) | `TEXT` | `TEXT` | No | '["high_expense", "unusual_category", "large_transfer", "budget_exceeded"]' | - | JSON array of enabled anomaly API values that the analytics refresh follows. Unset, or exactly the default four, runs every check; a list naming none of the newer types keeps the newer ones on; any other list is the complete set. |
+| [`auto_dismiss_recurring_anomalies`](../backend/src/ledger_sync/db/_models/user.py#L326) | `BOOLEAN` | `BOOLEAN` | No | True | - | When true (the default), the analytics refresh files recognized recurring matches as dismissed, with an 'Auto-dismissed: ' note. |
 | [`recurring_min_confidence`](../backend/src/ledger_sync/db/_models/user.py#L333) | `FLOAT` | `FLOAT` | No | 50.0 | - | Minimum displayed recurring-pattern confidence, percent. |
 | [`recurring_auto_confirm_occurrences`](../backend/src/ledger_sync/db/_models/user.py#L338) | `INTEGER` | `INTEGER` | No | 6 | - | Configured occurrence threshold for recurring confirmation. |
 | [`needs_target_percent`](../backend/src/ledger_sync/db/_models/user.py#L345) | `FLOAT` | `FLOAT` | No | 50.0 | - | Target needs share, percent. |
@@ -332,9 +382,12 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L48)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py`](../backend/src/ledger_sync/api/analytics_v2_impl/spending_rule.py#L228)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L214)
+- [`backend/src/ledger_sync/api/mcp_tools.py`](../backend/src/ledger_sync/api/mcp_tools.py#L45)
 - [`backend/src/ledger_sync/api/preferences_helpers.py`](../backend/src/ledger_sync/api/preferences_helpers.py#L74)
 - [`backend/src/ledger_sync/core/analytics/base.py`](../backend/src/ledger_sync/core/analytics/base.py#L107)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L89)
+- [`backend/src/ledger_sync/core/foreign_assets_records.py`](../backend/src/ledger_sync/core/foreign_assets_records.py#L163)
+- [`backend/src/ledger_sync/core/push_alerts.py`](../backend/src/ledger_sync/core/push_alerts.py#L70)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L122)
 - [`backend/src/ledger_sync/services/auth_service.py`](../backend/src/ledger_sync/services/auth_service.py#L189)
 
 [Back to table directory](#table-directory)
@@ -378,11 +431,11 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_chat_bedrock.py`](../backend/src/ledger_sync/api/ai_chat_bedrock.py#L30)
+- [`backend/src/ledger_sync/api/ai_chat_bedrock.py`](../backend/src/ledger_sync/api/ai_chat_bedrock.py#L31)
 - [`backend/src/ledger_sync/api/ai_usage.py`](../backend/src/ledger_sync/api/ai_usage.py#L183)
 - [`backend/src/ledger_sync/api/preferences_ai.py`](../backend/src/ledger_sync/api/preferences_ai.py#L96)
 - [`backend/src/ledger_sync/services/ai_settings.py`](../backend/src/ledger_sync/services/ai_settings.py#L15)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L86)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L111)
 - [`backend/src/ledger_sync/services/auth_service.py`](../backend/src/ledger_sync/services/auth_service.py#L191)
 
 [Back to table directory](#table-directory)
@@ -390,24 +443,24 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 <a id="upload_tokens"></a>
 ### `upload_tokens`
 
-**Purpose:** Hashed, upload-only credentials for automations such as an iOS Shortcut. **Grain:** Any number of revoked tokens per user; at most five active ones. **Kind:** User configuration.
+**Purpose:** Hashed, single-scope access tokens for automations: Money Manager upload, MCP read access and the bank-alert inbox. **Grain:** Any number of revoked tokens per user; at most five active ones per scope. **Kind:** User configuration.
 
-**Model:** [`UploadToken`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L20). **Primary key:** `id`.
+**Model:** [`UploadToken`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L29). **Primary key:** `id`.
 
-Only the SHA-256 of a token is stored; the plaintext is returned once, at creation. A token authenticates POST /api/upload/money-manager and nothing else, expires after 365 days and stops working when revoked_at is set.
+Only the SHA-256 of a token is stored; the plaintext is returned once, at creation. A token holds exactly one scope (mmbak:upload, ledger:read or alerts:ingest) and authenticates only the route that requires it: POST /api/upload/money-manager (which also accepts a signed-in access token), POST /mcp or POST /api/ingest/text (api/deps.require_token_scope). It cannot sign in or call anything else. The API validates the scope; the table has no CHECK on it. A token expires after 365 days, stops working when revoked_at is set, and last_used_at is written at most once a minute.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L25) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L26) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`name`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L27) | `VARCHAR(100)` | `VARCHAR(100)` | No | - | - | User-chosen label, such as iPhone Shortcut. |
-| [`token_prefix`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L29) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | First 12 plaintext characters, shown so tokens can be told apart. |
-| [`token_hash`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L30) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 hex of the plaintext; unique, the only stored form. |
-| [`scope`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L31) | `VARCHAR(32)` | `VARCHAR(32)` | No | 'mmbak:upload' | - | mmbak:upload; the only permission a token has. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L32) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
-| [`expires_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L35) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Naive UTC expiry, 365 days after creation. |
-| [`last_used_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L36) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC time of the last authenticated upload; NULL when unused. |
-| [`revoked_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L37) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC revocation time; NULL while active. |
+| [`id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L34) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L35) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`name`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L36) | `VARCHAR(100)` | `VARCHAR(100)` | No | - | - | User-chosen label, such as iPhone Shortcut. |
+| [`token_prefix`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L38) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | First 12 plaintext characters, shown so tokens can be told apart. |
+| [`token_hash`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L39) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 hex of the plaintext; unique, the only stored form. |
+| [`scope`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L40) | `VARCHAR(32)` | `VARCHAR(32)` | No | 'mmbak:upload' | - | mmbak:upload (the default), ledger:read or alerts:ingest; the only permission the token has. Validated by the API, not by a CHECK. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L41) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`expires_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L44) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Naive UTC expiry, 365 days after creation. |
+| [`last_used_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L45) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC time of the last authenticated request, written at most once a minute; NULL when unused. |
+| [`revoked_at`](../backend/src/ledger_sync/db/_models/upload_tokens.py#L46) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC revocation time; NULL while active. |
 
 **Foreign keys**
 
@@ -429,8 +482,55 @@ None declared in the model.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/upload_tokens.py`](../backend/src/ledger_sync/api/upload_tokens.py#L31)
-- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L43)
+- [`backend/src/ledger_sync/api/upload_tokens.py`](../backend/src/ledger_sync/api/upload_tokens.py#L51)
+- [`backend/src/ledger_sync/services/upload_tokens.py`](../backend/src/ledger_sync/services/upload_tokens.py#L58)
+
+[Back to table directory](#table-directory)
+
+<a id="push_subscriptions"></a>
+### `push_subscriptions`
+
+**Purpose:** Web Push devices that receive a user's alerts. **Grain:** One browser or Home Screen app with alerts on; the endpoint is unique. **Kind:** User configuration.
+
+**Model:** [`PushSubscription`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L30). **Primary key:** `id`.
+
+A device belongs to one user at a time: turning alerts on after someone else signed in on it moves the row to them and clears alert_keys. The endpoint is a push-service URL (https hosts of FCM, Mozilla, Apple or Windows only) and is never returned by the API, only its SHA-256. p256dh_key and auth_key are the subscription's encryption keys. At most ten devices per user. alert_keys is a JSON list in TEXT of what the daily run last told this device about, never amounts or names. Rows are deleted when a push service answers 404 or 410, on removal and on sign-out. Neither reset clears them; deleting the account does, through the foreign key.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L35) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L36) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`endpoint`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L37) | `VARCHAR(2048)` | `VARCHAR(2048)` | No | - | - | Push-service URL of this browser; unique, so a device belongs to one user at a time. Never returned by the API. |
+| [`p256dh_key`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L39) | `VARCHAR(128)` | `VARCHAR(128)` | No | - | - | The subscription's public P-256 key (base64url); encrypts each message. |
+| [`auth_key`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L40) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | The subscription's auth secret (base64url); with p256dh_key it encrypts each message. |
+| [`label`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L42) | `VARCHAR(80)` | `VARCHAR(80)` | No | - | - | What the device said it is, such as iPhone app or Chrome on Android. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L43) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: utc_now | - | Row creation timestamp supplied by the application. |
+| [`last_success_at`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L44) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC time a push last reached this device; NULL until one has. |
+| [`alert_keys`](../backend/src/ledger_sync/db/_models/push_subscriptions.py#L45) | `TEXT` | `TEXT` | No | '[]' | - | JSON list (TEXT) of the item keys the daily run already told this device about, never amounts or names; reset to [] when the row moves to another user. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_push_subscriptions_endpoint`: `(endpoint)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_push_subscriptions_user_id` | `user_id` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/push.py`](../backend/src/ledger_sync/api/push.py#L65)
+- [`backend/src/ledger_sync/core/push_delivery.py`](../backend/src/ledger_sync/core/push_delivery.py#L79)
+- [`backend/src/ledger_sync/core/push_devices.py`](../backend/src/ledger_sync/core/push_devices.py#L35)
 
 [Back to table directory](#table-directory)
 
@@ -494,14 +594,14 @@ None declared in the model.
 
 **Model:** [`AIUsageLog`](../backend/src/ledger_sync/db/_models/ai_usage.py#L24). **Primary key:** `id`.
 
-Contains token and cost metadata, not a conversation transcript. App-funded Bedrock calls are recorded on the server; browser-direct provider usage is self-reported. Cost is approximate FLOAT USD.
+Contains token and cost metadata, not a conversation transcript. App-funded Bedrock calls are recorded on the server; browser-direct provider usage is self-reported. Semantic-search embedding calls are reserved and settled here under the provider bedrock-embed: they count toward the token budgets and usage rollups but not the app-mode message cap. Cost is approximate FLOAT USD.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
 | [`id`](../backend/src/ledger_sync/db/_models/ai_usage.py#L29) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
 | [`user_id`](../backend/src/ledger_sync/db/_models/ai_usage.py#L30) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
 | [`timestamp`](../backend/src/ledger_sync/db/_models/ai_usage.py#L35) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | UTC usage/reservation budget-window timestamp, stored without timezone. |
-| [`provider`](../backend/src/ledger_sync/db/_models/ai_usage.py#L44) | `VARCHAR(20)` | `VARCHAR(20)` | No | - | - | Provider name associated with this call. |
+| [`provider`](../backend/src/ledger_sync/db/_models/ai_usage.py#L44) | `VARCHAR(20)` | `VARCHAR(20)` | No | - | - | Provider name associated with this call; bedrock-embed for semantic-search embedding calls. |
 | [`model`](../backend/src/ledger_sync/db/_models/ai_usage.py#L45) | `VARCHAR(100)` | `VARCHAR(100)` | No | - | - | Provider model identifier. |
 | [`funding_source`](../backend/src/ledger_sync/db/_models/ai_usage.py#L48) | `VARCHAR(16)` | `VARCHAR(16)` | No | 'personal' | 'legacy' | app, personal or legacy credential-funding attribution. |
 | [`status`](../backend/src/ledger_sync/db/_models/ai_usage.py#L51) | `VARCHAR(16)` | `VARCHAR(16)` | No | 'completed' | 'completed' | reserved, completed or failed. |
@@ -536,6 +636,7 @@ None beyond the primary key. Unique indexes are listed below.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/ai_usage.py`](../backend/src/ledger_sync/api/ai_usage.py#L58)
+- [`backend/src/ledger_sync/services/semantic_search_access.py`](../backend/src/ledger_sync/services/semantic_search_access.py#L129)
 
 [Back to table directory](#table-directory)
 
@@ -630,7 +731,7 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 - `(user_id, category_id, subcategory_id)` → [`ledger_subcategories`](#ledger_subcategories) `(user_id, category_id, id)`; ON DELETE NO ACTION, ON UPDATE NO ACTION; name: `fk_transactions_subcategory_dimension`.
 - `(user_id, to_account_id)` → [`ledger_accounts`](#ledger_accounts) `(user_id, id)`; ON DELETE NO ACTION, ON UPDATE NO ACTION; name: `fk_transactions_to_account_dimension`.
 
-**Referenced by:** [`transaction_tags`](#transaction_tags) `(user_id, transaction_id)`; [`anomalies`](#anomalies) `(user_id, transaction_id)`.
+**Referenced by:** [`transaction_tags`](#transaction_tags) `(user_id, transaction_id)`; [`transaction_embeddings`](#transaction_embeddings) `(user_id, transaction_id)`; [`anomalies`](#anomalies) `(user_id, transaction_id)`; [`category_overrides`](#category_overrides) `(user_id, transaction_id)`.
 
 **Additional UNIQUE constraints**
 
@@ -662,7 +763,7 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L99)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L104)
 - [`backend/src/ledger_sync/api/ai_tools_impl/registry.py`](../backend/src/ledger_sync/api/ai_tools_impl/registry.py#L94)
 - [`backend/src/ledger_sync/api/ai_tools_impl/transactions.py`](../backend/src/ledger_sync/api/ai_tools_impl/transactions.py#L59)
 - [`backend/src/ledger_sync/api/analytics_helpers.py`](../backend/src/ledger_sync/api/analytics_helpers.py#L70)
@@ -671,24 +772,41 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L138)
 - [`backend/src/ledger_sync/api/calculations_impl/aggregates.py`](../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L249)
 - [`backend/src/ledger_sync/api/calculations_impl/categories.py`](../backend/src/ledger_sync/api/calculations_impl/categories.py#L26)
+- [`backend/src/ledger_sync/api/semantic_search.py`](../backend/src/ledger_sync/api/semantic_search.py#L65)
 - [`backend/src/ledger_sync/api/transaction_pagination.py`](../backend/src/ledger_sync/api/transaction_pagination.py#L85)
 - [`backend/src/ledger_sync/api/transactions_impl/facets.py`](../backend/src/ledger_sync/api/transactions_impl/facets.py#L30)
 - [`backend/src/ledger_sync/api/transactions_impl/filters.py`](../backend/src/ledger_sync/api/transactions_impl/filters.py#L22)
 - [`backend/src/ledger_sync/api/transactions_impl/serialize.py`](../backend/src/ledger_sync/api/transactions_impl/serialize.py#L72)
 - [`backend/src/ledger_sync/api/transactions_impl/writes.py`](../backend/src/ledger_sync/api/transactions_impl/writes.py#L36)
 - [`backend/src/ledger_sync/core/_analytics_helpers.py`](../backend/src/ledger_sync/core/_analytics_helpers.py#L39)
-- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L175)
+- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L154)
+- [`backend/src/ledger_sync/core/analytics/anomaly_baselines.py`](../backend/src/ledger_sync/core/analytics/anomaly_baselines.py#L81)
 - [`backend/src/ledger_sync/core/analytics/anomaly_detectors.py`](../backend/src/ledger_sync/core/analytics/anomaly_detectors.py#L103)
+- [`backend/src/ledger_sync/core/analytics/anomaly_ledger_checks.py`](../backend/src/ledger_sync/core/analytics/anomaly_ledger_checks.py#L57)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring.py#L58)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring_index.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring_index.py#L40)
+- [`backend/src/ledger_sync/core/analytics/anomaly_rules.py`](../backend/src/ledger_sync/core/analytics/anomaly_rules.py#L146)
 - [`backend/src/ledger_sync/core/analytics/base.py`](../backend/src/ledger_sync/core/analytics/base.py#L382)
+- [`backend/src/ledger_sync/core/analytics/budget_tracking.py`](../backend/src/ledger_sync/core/analytics/budget_tracking.py#L61)
 - [`backend/src/ledger_sync/core/analytics/classification.py`](../backend/src/ledger_sync/core/analytics/classification.py#L31)
 - [`backend/src/ledger_sync/core/analytics/cohort.py`](../backend/src/ledger_sync/core/analytics/cohort.py#L31)
 - [`backend/src/ledger_sync/core/analytics/fy_summaries.py`](../backend/src/ledger_sync/core/analytics/fy_summaries.py#L24)
 - [`backend/src/ledger_sync/core/analytics/merchants.py`](../backend/src/ledger_sync/core/analytics/merchants.py#L28)
 - [`backend/src/ledger_sync/core/analytics/net_worth.py`](../backend/src/ledger_sync/core/analytics/net_worth.py#L46)
-- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L180)
+- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L196)
 - [`backend/src/ledger_sync/core/analytics/summaries.py`](../backend/src/ledger_sync/core/analytics/summaries.py#L45)
 - [`backend/src/ledger_sync/core/analytics/trends.py`](../backend/src/ledger_sync/core/analytics/trends.py#L78)
+- [`backend/src/ledger_sync/core/balance_check_writes.py`](../backend/src/ledger_sync/core/balance_check_writes.py#L38)
+- [`backend/src/ledger_sync/core/balance_checks.py`](../backend/src/ledger_sync/core/balance_checks.py#L48)
+- [`backend/src/ledger_sync/core/bank_alert_inbox.py`](../backend/src/ledger_sync/core/bank_alert_inbox.py#L56)
 - [`backend/src/ledger_sync/core/calculator.py`](../backend/src/ledger_sync/core/calculator.py#L289)
+- [`backend/src/ledger_sync/core/card_cycles_ledger.py`](../backend/src/ledger_sync/core/card_cycles_ledger.py#L27)
+- [`backend/src/ledger_sync/core/category_override_matching.py`](../backend/src/ledger_sync/core/category_override_matching.py#L51)
+- [`backend/src/ledger_sync/core/category_override_reviews.py`](../backend/src/ledger_sync/core/category_override_reviews.py#L32)
+- [`backend/src/ledger_sync/core/category_overrides.py`](../backend/src/ledger_sync/core/category_overrides.py#L69)
+- [`backend/src/ledger_sync/core/category_suggester.py`](../backend/src/ledger_sync/core/category_suggester.py#L95)
+- [`backend/src/ledger_sync/core/category_suggester_store.py`](../backend/src/ledger_sync/core/category_suggester_store.py#L60)
+- [`backend/src/ledger_sync/core/dashboard_metrics.py`](../backend/src/ledger_sync/core/dashboard_metrics.py#L55)
 - [`backend/src/ledger_sync/core/expense_class.py`](../backend/src/ledger_sync/core/expense_class.py#L139)
 - [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L76)
 - [`backend/src/ledger_sync/core/import_labels.py`](../backend/src/ledger_sync/core/import_labels.py#L15)
@@ -696,10 +814,17 @@ Public transaction_id remains stable. source_fingerprint is a separate versioned
 - [`backend/src/ledger_sync/core/query_helpers.py`](../backend/src/ledger_sync/core/query_helpers.py#L288)
 - [`backend/src/ledger_sync/core/reconciler.py`](../backend/src/ledger_sync/core/reconciler.py#L61)
 - [`backend/src/ledger_sync/core/reconciler_transfers.py`](../backend/src/ledger_sync/core/reconciler_transfers.py#L25)
-- [`backend/src/ledger_sync/core/rules.py`](../backend/src/ledger_sync/core/rules.py#L72)
+- [`backend/src/ledger_sync/core/review_queue.py`](../backend/src/ledger_sync/core/review_queue.py#L42)
+- [`backend/src/ledger_sync/core/rules.py`](../backend/src/ledger_sync/core/rules.py#L74)
+- [`backend/src/ledger_sync/core/safe_to_spend_ledger.py`](../backend/src/ledger_sync/core/safe_to_spend_ledger.py#L115)
+- [`backend/src/ledger_sync/core/semantic_search.py`](../backend/src/ledger_sync/core/semantic_search.py#L38)
 - [`backend/src/ledger_sync/core/source_identity.py`](../backend/src/ledger_sync/core/source_identity.py#L48)
 - [`backend/src/ledger_sync/core/sync_engine.py`](../backend/src/ledger_sync/core/sync_engine.py#L139)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L115)
+- [`backend/src/ledger_sync/core/watch_tile_suggestions.py`](../backend/src/ledger_sync/core/watch_tile_suggestions.py#L37)
+- [`backend/src/ledger_sync/core/watch_tiles.py`](../backend/src/ledger_sync/core/watch_tiles.py#L116)
+- [`backend/src/ledger_sync/core/weekly_recap.py`](../backend/src/ledger_sync/core/weekly_recap.py#L87)
+- [`backend/src/ledger_sync/core/weekly_recap_flows.py`](../backend/src/ledger_sync/core/weekly_recap_flows.py#L87)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L148)
 - [`backend/src/ledger_sync/services/calculation_service.py`](../backend/src/ledger_sync/services/calculation_service.py#L27)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L222)
 
@@ -750,8 +875,9 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L48)
 - [`backend/src/ledger_sync/api/upload.py`](../backend/src/ledger_sync/api/upload.py#L122)
+- [`backend/src/ledger_sync/core/bank_alert_inbox.py`](../backend/src/ledger_sync/core/bank_alert_inbox.py#L75)
 - [`backend/src/ledger_sync/core/sync_engine.py`](../backend/src/ledger_sync/core/sync_engine.py#L96)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L116)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L149)
 
 [Back to table directory](#table-directory)
 
@@ -805,9 +931,9 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 - [`backend/src/ledger_sync/core/import_labels.py`](../backend/src/ledger_sync/core/import_labels.py#L36)
 - [`backend/src/ledger_sync/services/account_settings.py`](../backend/src/ledger_sync/services/account_settings.py#L54)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L80)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L102)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L36)
-- [`backend/src/ledger_sync/services/money_manager_import.py`](../backend/src/ledger_sync/services/money_manager_import.py#L100)
+- [`backend/src/ledger_sync/services/money_manager_import.py`](../backend/src/ledger_sync/services/money_manager_import.py#L146)
 
 [Back to table directory](#table-directory)
 
@@ -849,7 +975,7 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 - [`backend/src/ledger_sync/core/import_labels.py`](../backend/src/ledger_sync/core/import_labels.py#L36)
 - [`backend/src/ledger_sync/services/account_settings.py`](../backend/src/ledger_sync/services/account_settings.py#L74)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L77)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L99)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L37)
 
 [Back to table directory](#table-directory)
@@ -892,7 +1018,7 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/core/import_labels.py`](../backend/src/ledger_sync/core/import_labels.py#L66)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L127)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L164)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L38)
 
 [Back to table directory](#table-directory)
@@ -936,7 +1062,7 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L126)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L163)
 - [`backend/src/ledger_sync/services/ledger_dimensions.py`](../backend/src/ledger_sync/services/ledger_dimensions.py#L39)
 
 [Back to table directory](#table-directory)
@@ -984,8 +1110,8 @@ None declared in the model.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/categorization_rules.py`](../backend/src/ledger_sync/api/categorization_rules.py#L29)
-- [`backend/src/ledger_sync/core/rules.py`](../backend/src/ledger_sync/core/rules.py#L21)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L71)
+- [`backend/src/ledger_sync/core/rules.py`](../backend/src/ledger_sync/core/rules.py#L22)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L93)
 
 [Back to table directory](#table-directory)
 
@@ -1043,7 +1169,7 @@ None declared in the model.
 
 **Model:** [`SavedFilterView`](../backend/src/ledger_sync/db/_models/organization.py#L134). **Primary key:** `id`.
 
-filters is opaque JSON text. The frontend owns its FilterValues keys; POST upserts by name. A saved view does not copy transaction rows.
+filters is opaque JSON text. The frontend owns its FilterValues keys; POST upserts by name. A saved view does not copy transaction rows. Only the Dashboard watch tiles read filters on the server, validating them with the search endpoint's own model; saved_view_pins marks the views pinned there.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1057,6 +1183,8 @@ filters is opaque JSON text. The frontend owns its FilterValues keys; POST upser
 **Foreign keys**
 
 - `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Referenced by:** [`saved_view_pins`](#saved_view_pins) `(view_id)`.
 
 **Additional UNIQUE constraints**
 
@@ -1074,8 +1202,191 @@ None declared in the model.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/saved_views.py`](../backend/src/ledger_sync/api/saved_views.py#L22)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L74)
+- [`backend/src/ledger_sync/api/saved_views.py`](../backend/src/ledger_sync/api/saved_views.py#L51)
+- [`backend/src/ledger_sync/api/saved_views_tiles.py`](../backend/src/ledger_sync/api/saved_views_tiles.py#L82)
+- [`backend/src/ledger_sync/core/watch_tile_pins.py`](../backend/src/ledger_sync/core/watch_tile_pins.py#L50)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L96)
+
+[Back to table directory](#table-directory)
+
+<a id="saved_view_pins"></a>
+### `saved_view_pins`
+
+**Purpose:** Saved views pinned to the Dashboard watchlist, in tile order. **Grain:** One pinned saved view per user and view. **Kind:** User configuration.
+
+**Model:** [`SavedViewPin`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L21). **Primary key:** `id`.
+
+(user_id, view_id) is unique. position orders the tiles and is deliberately not unique, so a reorder can rewrite every row in one pass; ties fall back to the row id. The API allows at most eight pins per user. view_id references saved_filter_views with ON DELETE CASCADE, so deleting a view or the user removes its pin and the saved-view delete path needs no change. A full reset clears the pins with the views; a transactions-only reset keeps both.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L26) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L27) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`view_id`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L30) | `INTEGER` | `INTEGER` | No | - | - | The pinned saved view; ON DELETE CASCADE from saved_filter_views. |
+| [`position`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L33) | `INTEGER` | `INTEGER` | No | 0 | - | Zero-based tile order. Deliberately not unique, so a reorder can rewrite every row in one pass; ties fall back to the row id. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/saved_view_pins.py#L34) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(view_id)` → [`saved_filter_views`](#saved_filter_views) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_saved_view_pins_user_view`: `(user_id, view_id)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/saved_views_tiles.py`](../backend/src/ledger_sync/api/saved_views_tiles.py#L82)
+- [`backend/src/ledger_sync/core/watch_tile_pins.py`](../backend/src/ledger_sync/core/watch_tile_pins.py#L50)
+
+[Back to table directory](#table-directory)
+
+<a id="balance_checks"></a>
+### `balance_checks`
+
+**Purpose:** Bank or card balances the user read off a statement, per account and day. **Grain:** One account and IST day per user. **Kind:** User-entered reference reading.
+
+**Model:** [`BalanceCheck`](../backend/src/ledger_sync/db/_models/balance_checks.py#L20). **Primary key:** `id`.
+
+Nothing from the ledger is stored: every read recomputes the running balance for that account at the end of the same day (that day's rows included), so an import that fills in missing rows can turn a mismatch into a match. account is the exact label transactions carry in account, from_account or to_account, not a foreign key. balance is signed INR, with card dues and overdrafts negative. A second check on the same account and day replaces the amount. A full reset clears the table; a transactions-only reset keeps it.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/balance_checks.py#L25) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/balance_checks.py#L26) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`account`](../backend/src/ledger_sync/db/_models/balance_checks.py#L28) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Exact account label the transactions carry in account, from_account or to_account; a text value, not a foreign key. |
+| [`check_date`](../backend/src/ledger_sync/db/_models/balance_checks.py#L30) | `DATE` | `DATE` | No | - | - | IST calendar day of the bank's balance. The ledger is compared at the end of this day, that day's rows included. The API accepts 2000-01-01 through today. |
+| [`balance`](../backend/src/ledger_sync/db/_models/balance_checks.py#L32) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Signed INR balance the bank or card app showed; card dues and overdrafts are negative. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/balance_checks.py#L33) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/balance_checks.py#L36) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_balance_checks_user_account_date`: `(user_id, account, check_date)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/balance_checks.py`](../backend/src/ledger_sync/api/balance_checks.py#L32)
+- [`backend/src/ledger_sync/core/balance_check_writes.py`](../backend/src/ledger_sync/core/balance_check_writes.py#L50)
+- [`backend/src/ledger_sync/core/balance_checks.py`](../backend/src/ledger_sync/core/balance_checks.py#L130)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L113)
+
+[Back to table directory](#table-directory)
+
+<a id="bank_alerts"></a>
+### `bank_alerts`
+
+**Purpose:** Parsed bank SMS and email alerts that check whether the ledger has every spend. **Grain:** One parsed debit or credit alert per user. **Kind:** Parsed inbound alert.
+
+**Model:** [`BankAlert`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L41). **Primary key:** `id`.
+
+The message text is never stored. text_hash is the SHA-256 of the alert's day and its whitespace- and case-normalised text, so a retried delivery is a no-op. ref_hash is the SHA-256 of the bank reference and the amount (NULL for a reference under nine characters, all zeros or masked); it folds the SMS and email copies of one payment, and direction is part of that unique key so a refund quoting the original reference stays a separate credit. account_tail keeps at most four digits and merchant masks digit runs of six or more. received_at and ignored_at are naive UTC; occurred_on is the IST day. An alert is never a ledger row and never an analytics input: it is matched against live transactions on every read (same amount to the paisa, a date within two days, a fitting side and account), so nothing invalidates it. At most 500 new alerts per user in any 24 hours, counted in the database. Nothing prunes old rows. A full reset clears the table; a transactions-only reset keeps it.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L46) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L47) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`text_hash`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L48) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 of the alert's day and its whitespace- and case-normalised text; unique per user, so a retried delivery is a no-op. The text itself is never stored. |
+| [`ref_hash`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L49) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | SHA-256 of the bank reference and the amount; NULL for a reference under nine characters, all zeros or masked. Unique per user and direction when set, so the SMS and email copies of one payment fold into one alert. |
+| [`direction`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L50) | `VARCHAR(6)` | `VARCHAR(6)` | No | - | - | debit or credit; enforced by a CHECK. |
+| [`amount`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L51) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Alert amount in INR, above zero and at most 9999999999999.99 (CHECK). |
+| [`account_tail`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L52) | `VARCHAR(4)` | `VARCHAR(4)` | Yes | - | - | At most the last four digits of the account or card; NULL when none. |
+| [`merchant`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L54) | `VARCHAR(60)` | `VARCHAR(60)` | Yes | - | - | Display label for the payee, at most 60 characters; digit runs of six or more are masked. |
+| [`bank`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L56) | `VARCHAR(16)` | `VARCHAR(16)` | Yes | - | - | bank_alert_profiles key such as hdfc; NULL when the bank was not recognised. |
+| [`occurred_on`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L58) | `DATE` | `DATE` | No | - | - | IST day the alert says the money moved, else the day it arrived. |
+| [`received_at`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L59) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: _utc_now | - | Naive UTC time the alert was stored. |
+| [`ignored_at`](../backend/src/ledger_sync/db/_models/bank_alerts.py#L60) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Naive UTC time the user ignored the alert; NULL while it counts. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_bank_alerts_user_ref`: `(user_id, direction, ref_hash)`.
+- `uq_bank_alerts_user_text_hash`: `(user_id, text_hash)`.
+
+**CHECK constraints**
+
+- `ck_bank_alerts_amount_bounds`: `amount > 0 AND amount <= 9999999999999.99`. Dialects: postgresql, sqlite.
+- `ck_bank_alerts_direction`: `direction IN ('debit', 'credit')`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_bank_alerts_user_occurred_on` | `user_id, occurred_on` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/bank_alerts.py`](../backend/src/ledger_sync/api/bank_alerts.py#L61)
+- [`backend/src/ledger_sync/core/bank_alert_inbox.py`](../backend/src/ledger_sync/core/bank_alert_inbox.py#L34)
+- [`backend/src/ledger_sync/core/bank_alert_matching.py`](../backend/src/ledger_sync/core/bank_alert_matching.py#L75)
+- [`backend/src/ledger_sync/core/bank_alert_store.py`](../backend/src/ledger_sync/core/bank_alert_store.py#L47)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L112)
+
+[Back to table directory](#table-directory)
+
+<a id="transaction_embeddings"></a>
+### `transaction_embeddings`
+
+**Purpose:** Semantic-search vectors of transaction text, built only after the user opts in. **Grain:** One embedded transaction per user. **Kind:** Opt-in rebuildable index.
+
+**Model:** [`TransactionEmbedding`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L89). **Primary key:** `id`.
+
+embedding is the Titan Text Embeddings V2 vector (512 dimensions) of 'note | category | subcategory | account', never amounts or dates. text_hash is the SHA-256 of the model, the dimensions and that text, so a changed row is embedded again and an unchanged one never is. EmbeddingVector stores a pgvector vector(512) on PostgreSQL (the migration and a before_create hook run CREATE EXTENSION IF NOT EXISTS vector there) and little-endian float32 bytes on SQLite. Search is an exact scan filtered by user_id (<=> on PostgreSQL, numpy cosine on SQLite) with no approximate index, so no tenant shares an index with another. The composite foreign key to transactions(user_id, transaction_id) cascades, so a hard delete, a ledger reset and account deletion clear it. A soft-deleted transaction keeps its vector but is never searched or counted.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L94) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L95) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`transaction_id`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L98) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | Public ID of the embedded transaction; the composite FK with user_id cascades on hard delete. |
+| [`model`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L100) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | Bedrock model ID that produced the vector (amazon.titan-embed-text-v2:0); a search compares only like with like. |
+| [`text_hash`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L102) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 of the model, the dimensions and the embedded text; a different hash means the row is embedded again. |
+| [`embedding`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L103) | `VECTOR(512)` | `BLOB` | No | - | - | 512-dimension vector: pgvector vector(512) on PostgreSQL, little-endian float32 bytes on SQLite. |
+| [`embedded_at`](../backend/src/ledger_sync/db/_models/transaction_embeddings.py#L106) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | UTC time the vector was stored, without timezone. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(user_id, transaction_id)` → [`transactions`](#transactions) `(user_id, transaction_id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `fk_transaction_embeddings_user_transaction`.
+
+**Additional UNIQUE constraints**
+
+- `uq_transaction_embeddings_user_transaction`: `(user_id, transaction_id)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/semantic_search.py`](../backend/src/ledger_sync/core/semantic_search.py#L38)
 
 [Back to table directory](#table-directory)
 
@@ -1120,7 +1431,7 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L85)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L110)
 - [`backend/src/ledger_sync/services/compensation.py`](../backend/src/ledger_sync/services/compensation.py#L34)
 
 [Back to table directory](#table-directory)
@@ -1167,7 +1478,9 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L84)
+- [`backend/src/ledger_sync/core/foreign_assets_records.py`](../backend/src/ledger_sync/core/foreign_assets_records.py#L106)
+- [`backend/src/ledger_sync/core/foreign_assets_store.py`](../backend/src/ledger_sync/core/foreign_assets_store.py#L108)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L109)
 - [`backend/src/ledger_sync/services/compensation.py`](../backend/src/ledger_sync/services/compensation.py#L34)
 
 [Back to table directory](#table-directory)
@@ -1197,6 +1510,8 @@ The TEXT primary key receives an application-generated UUID; it is not a sequenc
 - `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
 - `(user_id, grant_id)` → [`rsu_grants`](#rsu_grants) `(user_id, id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `fk_rsu_vestings_owner_grant`.
 
+**Referenced by:** [`rsu_vest_fx`](#rsu_vest_fx) `(vesting_id)`; [`foreign_asset_events`](#foreign_asset_events) `(vesting_id)`.
+
 **Additional UNIQUE constraints**
 
 None beyond the primary key. Unique indexes are listed below.
@@ -1216,8 +1531,118 @@ None beyond the primary key. Unique indexes are listed below.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L83)
+- [`backend/src/ledger_sync/core/foreign_assets_records.py`](../backend/src/ledger_sync/core/foreign_assets_records.py#L103)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L108)
 - [`backend/src/ledger_sync/services/compensation.py`](../backend/src/ledger_sync/services/compensation.py#L34)
+
+[Back to table directory](#table-directory)
+
+<a id="rsu_vest_fx"></a>
+### `rsu_vest_fx`
+
+**Purpose:** How each RSU vest's perquisite becomes rupees. **Grain:** One conversion record per vest. **Kind:** User compensation configuration.
+
+**Model:** [`RsuVestFx`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L54). **Primary key:** `id`.
+
+vesting_id is unique and references rsu_vestings with ON DELETE CASCADE, so removing a vest drops its record. fx_source is derived on every write: employer when employer_perquisite_inr is set (the Form 16 or 12BA figure governs), else sbi_ttbr when fx_rate is set (which also needs fx_date and quote_price), else ecb, the approximation the app showed before. fx_rate is INR per unit of quote_currency and quote_price is the vest-date price per share. Exact decimals use CompensationDecimal; the positive-value CHECK is PostgreSQL-only. The table references rsu_vestings(id) alone, because that table has no UNIQUE (user_id, id) for a composite key, so every writer checks that the vest belongs to the same user. Not an analytics input. A full reset clears it; a transactions-only reset keeps it, like RSU grants.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L80) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L81) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`vesting_id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L82) | `TEXT` | `TEXT` | No | - | - | The vest this record converts; unique, and ON DELETE CASCADE from rsu_vestings. Writers check the vest belongs to the same user. |
+| [`fx_source`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L83) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | ecb, sbi_ttbr or employer, derived on every write; enforced by CHECKs. |
+| [`fx_rate`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L85) | `NUMERIC` | `TEXT` | Yes | - | - | SBI TT buying rate the user looked up: INR per one unit of quote_currency. Exact decimal; NULL when the user entered no rate. |
+| [`fx_date`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L87) | `DATE` | `DATE` | Yes | - | - | Date of that rate card: the last day of the month before the vest month, or a published day shortly before it. |
+| [`quote_price`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L89) | `NUMERIC` | `TEXT` | Yes | - | - | Vest-date price per share in quote_currency. Exact decimal. |
+| [`quote_currency`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L90) | `VARCHAR(3)` | `VARCHAR(3)` | No | 'USD' | - | Three-letter currency of quote_price and of the stock; USD by default. |
+| [`employer_perquisite_inr`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L92) | `NUMERIC` | `TEXT` | Yes | - | - | The perquisite for the whole gross vest in INR, from Form 16, 12BA or the payslip. When set it governs. Exact decimal. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L93) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: _utc_now | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L94) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: _utc_now | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(vesting_id)` → [`rsu_vestings`](#rsu_vestings) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_rsu_vest_fx_vesting`: `(vesting_id)`.
+
+**CHECK constraints**
+
+- `ck_rsu_vest_fx_employer`: `fx_source <> 'employer' OR employer_perquisite_inr IS NOT NULL`. Dialects: postgresql, sqlite.
+- `ck_rsu_vest_fx_positive`: `(fx_rate IS NULL OR fx_rate > 0) AND (quote_price IS NULL OR quote_price > 0) AND (employer_perquisite_inr IS NULL OR employer_perquisite_inr > 0)`. Dialects: postgresql.
+- `ck_rsu_vest_fx_source`: `fx_source IN ('ecb', 'sbi_ttbr', 'employer')`. Dialects: postgresql, sqlite.
+- `ck_rsu_vest_fx_ttbr`: `fx_source <> 'sbi_ttbr' OR (fx_rate IS NOT NULL AND fx_date IS NOT NULL AND quote_price IS NOT NULL)`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_rsu_vest_fx_user` | `user_id` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/foreign_assets_records.py`](../backend/src/ledger_sync/core/foreign_assets_records.py#L152)
+- [`backend/src/ledger_sync/core/foreign_assets_responses.py`](../backend/src/ledger_sync/core/foreign_assets_responses.py#L48)
+- [`backend/src/ledger_sync/core/foreign_assets_store.py`](../backend/src/ledger_sync/core/foreign_assets_store.py#L38)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L107)
+
+[Back to table directory](#table-directory)
+
+<a id="foreign_asset_events"></a>
+### `foreign_asset_events`
+
+**Purpose:** User-entered sales and dividends of RSU shares, for the Schedule FA worksheet. **Grain:** One sale or dividend. **Kind:** User-entered records.
+
+**Model:** [`ForeignAssetEvent`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L97). **Primary key:** `id`.
+
+kind is sale or dividend (CHECK) and a sale needs a quantity. A sale names the vest it came from in vesting_id, which is ON DELETE SET NULL: a deleted vest leaves its sales unlinked instead of losing them. A dividend names the stock in symbol. Amounts are in the stock's trading currency, so the table has no currency column; fx_rate and fx_date are an optional user-entered SBI TT buying rate (without one the reports use the ECB rate and say so). Exact decimals use CompensationDecimal; the positive-value CHECK is PostgreSQL-only. The same vesting_id tenancy rule as rsu_vest_fx applies. Not an analytics input. A full reset clears it; a transactions-only reset keeps it.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L116) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L117) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`kind`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L118) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | sale or dividend; enforced by a CHECK. |
+| [`vesting_id`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L120) | `TEXT` | `TEXT` | Yes | - | - | The vest (lot) a sale came from, ON DELETE SET NULL; NULL for a dividend and for a sale whose vest was deleted. |
+| [`symbol`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L123) | `TEXT` | `TEXT` | No | - | - | The stock: the grant's stock name as a ticker. |
+| [`event_date`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L124) | `DATE` | `DATE` | No | - | - | Calendar date of the sale or dividend; the API refuses a future date. |
+| [`quantity`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L125) | `NUMERIC` | `TEXT` | Yes | - | - | Shares sold, as the broker shows them on the sale date's share count; required for a sale, NULL for a dividend. Exact decimal. |
+| [`gross_amount`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L127) | `NUMERIC` | `TEXT` | No | - | - | Sale proceeds or gross dividend before any tax, in the stock's trading currency. Exact decimal. |
+| [`tax_withheld`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L128) | `NUMERIC` | `TEXT` | Yes | - | - | US tax withheld on a dividend, in the same currency; NULL for a sale. Exact decimal. |
+| [`fx_rate`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L130) | `NUMERIC` | `TEXT` | Yes | - | - | Optional SBI TT buying rate the user entered for this event; without one the reports use the ECB rate and label it an approximation. |
+| [`fx_date`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L131) | `DATE` | `DATE` | Yes | - | - | Date of that rate card; defaults to the last day of the month before the event. |
+| [`notes`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L132) | `TEXT` | `TEXT` | Yes | - | - | Optional free-text notes. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/rsu_tax.py#L133) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: _utc_now | - | Row creation timestamp supplied by the application. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(vesting_id)` → [`rsu_vestings`](#rsu_vestings) `(id)`; ON DELETE SET NULL, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+None beyond the primary key. Unique indexes are listed below.
+
+**CHECK constraints**
+
+- `ck_foreign_asset_events_kind`: `kind IN ('sale', 'dividend')`. Dialects: postgresql, sqlite.
+- `ck_foreign_asset_events_positive`: `gross_amount > 0 AND (quantity IS NULL OR quantity > 0) AND (tax_withheld IS NULL OR tax_withheld >= 0) AND (fx_rate IS NULL OR fx_rate > 0)`. Dialects: postgresql.
+- `ck_foreign_asset_events_sale_quantity`: `kind <> 'sale' OR quantity IS NOT NULL`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_foreign_asset_events_user_date` | `user_id, event_date` | No | All rows |
+| `ix_foreign_asset_events_vesting` | `vesting_id` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/foreign_assets_records.py`](../backend/src/ledger_sync/core/foreign_assets_records.py#L52)
+- [`backend/src/ledger_sync/core/foreign_assets_store.py`](../backend/src/ledger_sync/core/foreign_assets_store.py#L128)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L106)
 
 [Back to table directory](#table-directory)
 
@@ -1243,17 +1668,17 @@ pattern_kind distinguishes commitment from habit. Only appropriate commitments s
 | [`expected_amount`](../backend/src/ledger_sync/db/_models/planning.py#L65) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Expected amount per occurrence. |
 | [`amount_variance`](../backend/src/ledger_sync/db/_models/planning.py#L66) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Allowed amount variation around the expected value. |
 | [`expected_day`](../backend/src/ledger_sync/db/_models/planning.py#L70) | `INTEGER` | `INTEGER` | Yes | - | - | Expected calendar day, interpreted with the recurrence frequency. |
-| [`user_expected_amount`](../backend/src/ledger_sync/db/_models/planning.py#L78) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | database-supplied (FetchedValue) | User-set amount per occurrence; NULL means none. Added in phase 1 (recurring_user_amount_2026); the app does not read or write it yet. |
-| [`confidence_score`](../backend/src/ledger_sync/db/_models/planning.py#L86) | `FLOAT` | `FLOAT` | No | 0 | - | Detection confidence, conventionally 0..100. |
-| [`occurrences_detected`](../backend/src/ledger_sync/db/_models/planning.py#L87) | `INTEGER` | `INTEGER` | No | 0 | - | Number of observed occurrences. |
-| [`pattern_kind`](../backend/src/ledger_sync/db/_models/planning.py#L95) | `VARCHAR(16)` | `VARCHAR(16)` | No | 'commitment' | - | commitment or habit. |
-| [`last_occurrence`](../backend/src/ledger_sync/db/_models/planning.py#L98) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Last observed occurrence. |
-| [`next_expected`](../backend/src/ledger_sync/db/_models/planning.py#L99) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Next predicted occurrence. |
-| [`times_missed`](../backend/src/ledger_sync/db/_models/planning.py#L100) | `INTEGER` | `INTEGER` | No | 0 | - | Stored missed-occurrence count. |
-| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L103) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
-| [`is_user_confirmed`](../backend/src/ledger_sync/db/_models/planning.py#L104) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the pattern has user confirmation. |
-| [`first_detected`](../backend/src/ledger_sync/db/_models/planning.py#L107) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Timestamp when pattern was first detected. |
-| [`last_updated`](../backend/src/ledger_sync/db/_models/planning.py#L108) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last application update/calculation timestamp. |
+| [`user_expected_amount`](../backend/src/ledger_sync/db/_models/planning.py#L80) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | database-supplied (FetchedValue) | User-set amount per occurrence; NULL means none. Added in phase 1 (recurring_user_amount_2026); phase 2 reads and writes it through core/analytics/recurring_amounts, which serves it as the effective amount, and refresh never overwrites it. Un-confirming an item clears it. |
+| [`confidence_score`](../backend/src/ledger_sync/db/_models/planning.py#L88) | `FLOAT` | `FLOAT` | No | 0 | - | Detection confidence, conventionally 0..100. |
+| [`occurrences_detected`](../backend/src/ledger_sync/db/_models/planning.py#L89) | `INTEGER` | `INTEGER` | No | 0 | - | Number of observed occurrences. |
+| [`pattern_kind`](../backend/src/ledger_sync/db/_models/planning.py#L97) | `VARCHAR(16)` | `VARCHAR(16)` | No | 'commitment' | - | commitment or habit. |
+| [`last_occurrence`](../backend/src/ledger_sync/db/_models/planning.py#L100) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Last observed occurrence. |
+| [`next_expected`](../backend/src/ledger_sync/db/_models/planning.py#L101) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Next predicted occurrence. |
+| [`times_missed`](../backend/src/ledger_sync/db/_models/planning.py#L102) | `INTEGER` | `INTEGER` | No | 0 | - | Stored missed-occurrence count. |
+| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L105) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
+| [`is_user_confirmed`](../backend/src/ledger_sync/db/_models/planning.py#L106) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the pattern has user confirmation. |
+| [`first_detected`](../backend/src/ledger_sync/db/_models/planning.py#L109) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Timestamp when pattern was first detected. |
+| [`last_updated`](../backend/src/ledger_sync/db/_models/planning.py#L110) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last application update/calculation timestamp. |
 
 **Foreign keys**
 
@@ -1280,11 +1705,19 @@ None declared in the model.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/account_classifications.py`](../backend/src/ledger_sync/api/account_classifications.py#L83)
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L247)
-- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L83)
-- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py#L54)
-- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L74)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L120)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L252)
+- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L63)
+- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring_rules.py#L55)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring.py#L66)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring_index.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring_index.py#L49)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring_schedule.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring_schedule.py#L83)
+- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L90)
+- [`backend/src/ledger_sync/core/analytics/recurring_amounts.py`](../backend/src/ledger_sync/core/analytics/recurring_amounts.py#L36)
+- [`backend/src/ledger_sync/core/push_alerts.py`](../backend/src/ledger_sync/core/push_alerts.py#L98)
+- [`backend/src/ledger_sync/core/safe_to_spend_flows.py`](../backend/src/ledger_sync/core/safe_to_spend_flows.py#L64)
+- [`backend/src/ledger_sync/core/safe_to_spend_labels.py`](../backend/src/ledger_sync/core/safe_to_spend_labels.py#L63)
+- [`backend/src/ledger_sync/core/weekly_recap_upcoming.py`](../backend/src/ledger_sync/core/weekly_recap_upcoming.py#L74)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L157)
 
 [Back to table directory](#table-directory)
 
@@ -1293,29 +1726,29 @@ None declared in the model.
 
 **Purpose:** Expected future cash flows. **Grain:** One planned schedule. **Kind:** Planning data.
 
-**Model:** [`ScheduledTransaction`](../backend/src/ledger_sync/db/_models/planning.py#L119). **Primary key:** `id`.
+**Model:** [`ScheduledTransaction`](../backend/src/ledger_sync/db/_models/planning.py#L121). **Primary key:** `id`.
 
-Excluded from historical transaction totals. Optional source FK includes user_id and uses NO ACTION, not cascading deletion. Application code explicitly unlinks schedules before replacing detected sources.
+Excluded from historical transaction totals. Optional source FK includes user_id and uses NO ACTION, not cascading deletion. Application code explicitly unlinks schedules before replacing detected sources. Today the only writer is the Money Manager import, which turns repeat rules into schedules linked through external_refs; safe-to-spend reads the active ones.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L128) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L129) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`name`](../backend/src/ledger_sync/db/_models/planning.py#L134) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | User-facing name. |
-| [`amount`](../backend/src/ledger_sync/db/_models/planning.py#L135) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Transaction/planned amount in INR. |
-| [`type`](../backend/src/ledger_sync/db/_models/planning.py#L136) | `transactiontype` | `VARCHAR(8)` | No | - | - | Transaction kind; database enum names and API values are listed below. |
-| [`category`](../backend/src/ledger_sync/db/_models/planning.py#L137) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
-| [`subcategory`](../backend/src/ledger_sync/db/_models/planning.py#L138) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
-| [`account`](../backend/src/ledger_sync/db/_models/planning.py#L139) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Account label; see dimension IDs on transactions. |
-| [`frequency`](../backend/src/ledger_sync/db/_models/planning.py#L142) | `recurrencefrequency` | `VARCHAR(10)` | No | - | - | Recurrence frequency enum. |
-| [`expected_day`](../backend/src/ledger_sync/db/_models/planning.py#L146) | `INTEGER` | `INTEGER` | Yes | - | - | Expected calendar day, interpreted with the recurrence frequency. |
-| [`next_due_date`](../backend/src/ledger_sync/db/_models/planning.py#L147) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Next planned payment/receipt timestamp. |
-| [`end_date`](../backend/src/ledger_sync/db/_models/planning.py#L148) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional schedule end; NULL means no configured end. |
-| [`recurring_transaction_id`](../backend/src/ledger_sync/db/_models/planning.py#L151) | `INTEGER` | `INTEGER` | Yes | - | - | Optional owner-qualified source pattern ID. |
-| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L157) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
-| [`note`](../backend/src/ledger_sync/db/_models/planning.py#L158) | `TEXT` | `TEXT` | Yes | - | - | Optional free-text description. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L161) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
-| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L162) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L130) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L131) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`name`](../backend/src/ledger_sync/db/_models/planning.py#L136) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | User-facing name. |
+| [`amount`](../backend/src/ledger_sync/db/_models/planning.py#L137) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Transaction/planned amount in INR. |
+| [`type`](../backend/src/ledger_sync/db/_models/planning.py#L138) | `transactiontype` | `VARCHAR(8)` | No | - | - | Transaction kind; database enum names and API values are listed below. |
+| [`category`](../backend/src/ledger_sync/db/_models/planning.py#L139) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
+| [`subcategory`](../backend/src/ledger_sync/db/_models/planning.py#L140) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
+| [`account`](../backend/src/ledger_sync/db/_models/planning.py#L141) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Account label; see dimension IDs on transactions. |
+| [`frequency`](../backend/src/ledger_sync/db/_models/planning.py#L144) | `recurrencefrequency` | `VARCHAR(10)` | No | - | - | Recurrence frequency enum. |
+| [`expected_day`](../backend/src/ledger_sync/db/_models/planning.py#L148) | `INTEGER` | `INTEGER` | Yes | - | - | Expected calendar day, interpreted with the recurrence frequency. |
+| [`next_due_date`](../backend/src/ledger_sync/db/_models/planning.py#L149) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | Next planned payment/receipt timestamp. |
+| [`end_date`](../backend/src/ledger_sync/db/_models/planning.py#L150) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional schedule end; NULL means no configured end. |
+| [`recurring_transaction_id`](../backend/src/ledger_sync/db/_models/planning.py#L153) | `INTEGER` | `INTEGER` | Yes | - | - | Optional owner-qualified source pattern ID. |
+| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L159) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
+| [`note`](../backend/src/ledger_sync/db/_models/planning.py#L160) | `TEXT` | `TEXT` | Yes | - | - | Optional free-text description. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L163) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L164) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
 
 **Foreign keys**
 
@@ -1342,9 +1775,12 @@ None declared in the model.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L297)
-- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L206)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L117)
+- [`backend/src/ledger_sync/api/analytics_v2_impl/recurring.py`](../backend/src/ledger_sync/api/analytics_v2_impl/recurring.py#L311)
+- [`backend/src/ledger_sync/core/analytics/recurring.py`](../backend/src/ledger_sync/core/analytics/recurring.py#L222)
+- [`backend/src/ledger_sync/core/safe_to_spend_flows.py`](../backend/src/ledger_sync/core/safe_to_spend_flows.py#L128)
+- [`backend/src/ledger_sync/core/safe_to_spend_labels.py`](../backend/src/ledger_sync/core/safe_to_spend_labels.py#L34)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L150)
+- [`backend/src/ledger_sync/services/money_manager_planning.py`](../backend/src/ledger_sync/services/money_manager_planning.py#L77)
 
 [Back to table directory](#table-directory)
 
@@ -1353,27 +1789,27 @@ None declared in the model.
 
 **Purpose:** Detected outliers, metrics and review state. **Grain:** One detected anomaly; a transaction link is optional. **Kind:** Derived findings plus user review.
 
-**Model:** [`Anomaly`](../backend/src/ledger_sync/db/_models/planning.py#L179). **Primary key:** `id`.
+**Model:** [`Anomaly`](../backend/src/ledger_sync/db/_models/planning.py#L181). **Primary key:** `id`.
 
-A linked transaction must belong to the same user. Hard-deleting that transaction cascades to the anomaly. A period-only anomaly may have NULL transaction_id.
+A linked transaction must belong to the same user. Hard-deleting that transaction cascades to the anomaly. A period-only anomaly may have NULL transaction_id. Rows the engine dismisses itself (auto-dismiss) have is_reviewed and is_dismissed true, reviewed_at NULL and review_notes starting 'Auto-dismissed: '; every refresh replaces them with the open rows, while rows a user reviewed are kept and suppress the same finding later.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L184) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L187) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`anomaly_type`](../backend/src/ledger_sync/db/_models/planning.py#L192) | `anomalytype` | `VARCHAR(23)` | No | - | - | AnomalyType enum. |
-| [`severity`](../backend/src/ledger_sync/db/_models/planning.py#L193) | `VARCHAR(20)` | `VARCHAR(20)` | No | - | - | Severity label: low, medium, high or critical by convention. |
-| [`description`](../backend/src/ledger_sync/db/_models/planning.py#L194) | `TEXT` | `TEXT` | No | - | - | Descriptive text. |
-| [`transaction_id`](../backend/src/ledger_sync/db/_models/planning.py#L198) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Optional owner-qualified link to a ledger transaction. |
-| [`period_key`](../backend/src/ledger_sync/db/_models/planning.py#L204) | `VARCHAR(7)` | `VARCHAR(7)` | Yes | - | - | Calendar month key, YYYY-MM. |
-| [`expected_value`](../backend/src/ledger_sync/db/_models/planning.py#L207) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Baseline/expected amount used by the detector. |
-| [`actual_value`](../backend/src/ledger_sync/db/_models/planning.py#L211) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Observed amount used by the detector. |
-| [`deviation_pct`](../backend/src/ledger_sync/db/_models/planning.py#L215) | `FLOAT` | `FLOAT` | Yes | - | - | Deviation from expected value, percent. |
-| [`is_reviewed`](../backend/src/ledger_sync/db/_models/planning.py#L218) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the finding has been reviewed. |
-| [`is_dismissed`](../backend/src/ledger_sync/db/_models/planning.py#L219) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the finding has been dismissed. |
-| [`review_notes`](../backend/src/ledger_sync/db/_models/planning.py#L220) | `TEXT` | `TEXT` | Yes | - | - | User's review annotation. |
-| [`detected_at`](../backend/src/ledger_sync/db/_models/planning.py#L226) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Detection timestamp. |
-| [`reviewed_at`](../backend/src/ledger_sync/db/_models/planning.py#L227) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional review timestamp. |
+| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L186) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L189) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`anomaly_type`](../backend/src/ledger_sync/db/_models/planning.py#L194) | `anomalytype` | `VARCHAR(23)` | No | - | - | AnomalyType enum. |
+| [`severity`](../backend/src/ledger_sync/db/_models/planning.py#L195) | `VARCHAR(20)` | `VARCHAR(20)` | No | - | - | Severity label: low, medium, high or critical by convention. |
+| [`description`](../backend/src/ledger_sync/db/_models/planning.py#L196) | `TEXT` | `TEXT` | No | - | - | Descriptive text. |
+| [`transaction_id`](../backend/src/ledger_sync/db/_models/planning.py#L200) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Optional owner-qualified link to a ledger transaction. |
+| [`period_key`](../backend/src/ledger_sync/db/_models/planning.py#L206) | `VARCHAR(7)` | `VARCHAR(7)` | Yes | - | - | Calendar month key, YYYY-MM. |
+| [`expected_value`](../backend/src/ledger_sync/db/_models/planning.py#L209) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Baseline/expected amount used by the detector. |
+| [`actual_value`](../backend/src/ledger_sync/db/_models/planning.py#L213) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Observed amount used by the detector. |
+| [`deviation_pct`](../backend/src/ledger_sync/db/_models/planning.py#L217) | `FLOAT` | `FLOAT` | Yes | - | - | Deviation from expected value, percent. |
+| [`is_reviewed`](../backend/src/ledger_sync/db/_models/planning.py#L220) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the finding has been reviewed. |
+| [`is_dismissed`](../backend/src/ledger_sync/db/_models/planning.py#L221) | `BOOLEAN` | `BOOLEAN` | No | False | - | Whether the finding has been dismissed. |
+| [`review_notes`](../backend/src/ledger_sync/db/_models/planning.py#L222) | `TEXT` | `TEXT` | Yes | - | - | User's review annotation; starts with 'Auto-dismissed: ' on a row the engine dismissed itself. |
+| [`detected_at`](../backend/src/ledger_sync/db/_models/planning.py#L228) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Detection timestamp. |
+| [`reviewed_at`](../backend/src/ledger_sync/db/_models/planning.py#L229) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional review timestamp; NULL on a row the engine dismissed itself. |
 
 **Foreign keys**
 
@@ -1399,11 +1835,63 @@ None declared in the model.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L339)
+- [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L330)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L77)
-- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L108)
+- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L222)
+- [`backend/src/ledger_sync/core/analytics/anomaly_recurring.py`](../backend/src/ledger_sync/core/analytics/anomaly_recurring.py#L106)
+- [`backend/src/ledger_sync/core/analytics/anomaly_store.py`](../backend/src/ledger_sync/core/analytics/anomaly_store.py#L42)
+- [`backend/src/ledger_sync/core/analytics/budget_tracking.py`](../backend/src/ledger_sync/core/analytics/budget_tracking.py#L134)
 - [`backend/src/ledger_sync/core/import_identity.py`](../backend/src/ledger_sync/core/import_identity.py#L254)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L112)
+- [`backend/src/ledger_sync/core/push_alerts.py`](../backend/src/ledger_sync/core/push_alerts.py#L180)
+- [`backend/src/ledger_sync/core/weekly_recap.py`](../backend/src/ledger_sync/core/weekly_recap.py#L77)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L145)
+
+[Back to table directory](#table-directory)
+
+<a id="category_overrides"></a>
+### `category_overrides`
+
+**Purpose:** Review Queue decisions per transaction: kept, or moved to the user's category. **Grain:** One review decision per user and transaction. **Kind:** User review decision.
+
+**Model:** [`CategoryOverride`](../backend/src/ledger_sync/db/_models/category_overrides.py#L30). **Primary key:** `id`.
+
+decision is keep or change (CHECK). A change is an override: every import applies it again after the categorization rules, matching the stored row by source UID, then fingerprint, then verified legacy ID, and puts it back by public ID on any live row reconciliation left with another label. The label the import brought is kept in imported_category and imported_subcategory, which Undo restores. A keep only records the review, so the source can still recategorize that row. If the source turns the row into another type or a transfer, the override is deleted. Applying rules to existing transactions skips rows with a change override. The composite foreign key to transactions(user_id, transaction_id) cascades on hard delete, as transaction_tags does, so a ledger reset and account deletion remove it. Imports skip the table while it does not exist yet.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/category_overrides.py#L35) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/category_overrides.py#L36) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`transaction_id`](../backend/src/ledger_sync/db/_models/category_overrides.py#L39) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | Public ID of the reviewed transaction; the composite FK with user_id cascades on hard delete. |
+| [`decision`](../backend/src/ledger_sync/db/_models/category_overrides.py#L40) | `VARCHAR(10)` | `VARCHAR(10)` | No | - | - | keep records the review; change stores the user's category. Enforced by a CHECK. |
+| [`category`](../backend/src/ledger_sync/db/_models/category_overrides.py#L42) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | The category the user kept or chose; a text value, not a foreign key. |
+| [`subcategory`](../backend/src/ledger_sync/db/_models/category_overrides.py#L43) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | The subcategory the user kept or chose; NULL for none. |
+| [`imported_category`](../backend/src/ledger_sync/db/_models/category_overrides.py#L47) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | The category the latest import gave the row after the rules; Undo restores it. |
+| [`imported_subcategory`](../backend/src/ledger_sync/db/_models/category_overrides.py#L48) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | The subcategory the latest import gave the row; NULL for none. |
+| [`reviewed_at`](../backend/src/ledger_sync/db/_models/category_overrides.py#L49) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | When the decision was recorded. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(user_id, transaction_id)` → [`transactions`](#transactions) `(user_id, transaction_id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `fk_category_overrides_user_transaction`.
+
+**Additional UNIQUE constraints**
+
+- `uq_category_overrides_user_transaction`: `(user_id, transaction_id)`.
+
+**CHECK constraints**
+
+- `ck_category_overrides_decision`: `decision IN ('keep', 'change')`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/category_override_matching.py`](../backend/src/ledger_sync/core/category_override_matching.py#L32)
+- [`backend/src/ledger_sync/core/category_override_reviews.py`](../backend/src/ledger_sync/core/category_override_reviews.py#L53)
+- [`backend/src/ledger_sync/core/category_overrides.py`](../backend/src/ledger_sync/core/category_overrides.py#L38)
+- [`backend/src/ledger_sync/core/review_queue.py`](../backend/src/ledger_sync/core/review_queue.py#L42)
 
 [Back to table directory](#table-directory)
 
@@ -1412,27 +1900,27 @@ None declared in the model.
 
 **Purpose:** Category/subcategory limits and computed progress. **Grain:** One budget scope per user, category and optional subcategory. **Kind:** User limits plus calculated tracking.
 
-**Model:** [`Budget`](../backend/src/ledger_sync/db/_models/planning.py#L241). **Primary key:** `id`.
+**Model:** [`Budget`](../backend/src/ledger_sync/db/_models/planning.py#L243). **Primary key:** `id`.
 
 Separate partial unique indexes enforce category-only and subcategory scopes, including inactive budgets. monthly_limit must be positive. Category names are text links.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L246) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L249) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`category`](../backend/src/ledger_sync/db/_models/planning.py#L254) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
-| [`subcategory`](../backend/src/ledger_sync/db/_models/planning.py#L255) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
-| [`monthly_limit`](../backend/src/ledger_sync/db/_models/planning.py#L258) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Positive monthly limit for the category scope. |
-| [`alert_threshold_pct`](../backend/src/ledger_sync/db/_models/planning.py#L259) | `FLOAT` | `FLOAT` | No | 80 | - | Usage percentage at which to alert. |
-| [`current_month_spent`](../backend/src/ledger_sync/db/_models/planning.py#L262) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Calculated current-month spending. |
-| [`current_month_remaining`](../backend/src/ledger_sync/db/_models/planning.py#L263) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Calculated remaining amount. |
-| [`current_month_pct`](../backend/src/ledger_sync/db/_models/planning.py#L267) | `FLOAT` | `FLOAT` | No | 0 | - | Calculated budget usage percentage. |
-| [`avg_monthly_actual`](../backend/src/ledger_sync/db/_models/planning.py#L270) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Historical mean monthly spending. |
-| [`months_over_budget`](../backend/src/ledger_sync/db/_models/planning.py#L271) | `INTEGER` | `INTEGER` | No | 0 | - | Stored count of months exceeding the limit. |
-| [`months_under_budget`](../backend/src/ledger_sync/db/_models/planning.py#L272) | `INTEGER` | `INTEGER` | No | 0 | - | Stored count of months below the limit. |
-| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L275) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L281) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
-| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L282) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L248) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L251) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`category`](../backend/src/ledger_sync/db/_models/planning.py#L256) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | Category label; a text value, not itself a foreign key. |
+| [`subcategory`](../backend/src/ledger_sync/db/_models/planning.py#L257) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Optional subcategory label; a text value, not itself a foreign key. |
+| [`monthly_limit`](../backend/src/ledger_sync/db/_models/planning.py#L260) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Positive monthly limit for the category scope. |
+| [`alert_threshold_pct`](../backend/src/ledger_sync/db/_models/planning.py#L261) | `FLOAT` | `FLOAT` | No | 80 | - | Usage percentage at which to alert. |
+| [`current_month_spent`](../backend/src/ledger_sync/db/_models/planning.py#L264) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Calculated current-month spending. |
+| [`current_month_remaining`](../backend/src/ledger_sync/db/_models/planning.py#L265) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Calculated remaining amount. |
+| [`current_month_pct`](../backend/src/ledger_sync/db/_models/planning.py#L269) | `FLOAT` | `FLOAT` | No | 0 | - | Calculated budget usage percentage. |
+| [`avg_monthly_actual`](../backend/src/ledger_sync/db/_models/planning.py#L272) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Historical mean monthly spending. |
+| [`months_over_budget`](../backend/src/ledger_sync/db/_models/planning.py#L273) | `INTEGER` | `INTEGER` | No | 0 | - | Stored count of months exceeding the limit. |
+| [`months_under_budget`](../backend/src/ledger_sync/db/_models/planning.py#L274) | `INTEGER` | `INTEGER` | No | 0 | - | Stored count of months below the limit. |
+| [`is_active`](../backend/src/ledger_sync/db/_models/planning.py#L277) | `BOOLEAN` | `BOOLEAN` | No | True | - | Whether this record is currently active. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L283) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L284) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
 
 **Foreign keys**
 
@@ -1458,10 +1946,13 @@ None beyond the primary key. Unique indexes are listed below.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L296)
-- [`backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L172)
-- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L210)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L67)
+- [`backend/src/ledger_sync/api/analytics_v2_impl/budgets.py`](../backend/src/ledger_sync/api/analytics_v2_impl/budgets.py#L31)
+- [`backend/src/ledger_sync/core/analytics/anomalies.py`](../backend/src/ledger_sync/core/analytics/anomalies.py#L192)
+- [`backend/src/ledger_sync/core/analytics/budget_tracking.py`](../backend/src/ledger_sync/core/analytics/budget_tracking.py#L96)
+- [`backend/src/ledger_sync/core/push_alerts.py`](../backend/src/ledger_sync/core/push_alerts.py#L145)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L89)
+- [`backend/src/ledger_sync/services/budget_service.py`](../backend/src/ledger_sync/services/budget_service.py#L41)
+- [`backend/src/ledger_sync/services/money_manager_planning.py`](../backend/src/ledger_sync/services/money_manager_planning.py#L93)
 
 [Back to table directory](#table-directory)
 
@@ -1470,27 +1961,27 @@ None beyond the primary key. Unique indexes are listed below.
 
 **Purpose:** Savings, investment, debt-payoff or custom goals. **Grain:** One user-defined goal. **Kind:** Planning data.
 
-**Model:** [`FinancialGoal`](../backend/src/ledger_sync/db/_models/planning.py#L312). **Primary key:** `id`.
+**Model:** [`FinancialGoal`](../backend/src/ledger_sync/db/_models/planning.py#L314). **Primary key:** `id`.
 
 target_amount must be positive. Progress fields are stored values, not database-generated columns. No account or transaction FK allocates contributions to a goal.
 
 | Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
 | --- | --- | --- | --- | --- | --- | --- |
-| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L317) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
-| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L320) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
-| [`name`](../backend/src/ledger_sync/db/_models/planning.py#L325) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | User-facing name. |
-| [`description`](../backend/src/ledger_sync/db/_models/planning.py#L326) | `TEXT` | `TEXT` | Yes | - | - | Descriptive text. |
-| [`goal_type`](../backend/src/ledger_sync/db/_models/planning.py#L327) | `VARCHAR(50)` | `VARCHAR(50)` | No | - | - | savings, investment, debt_payoff or custom by API convention. |
-| [`target_amount`](../backend/src/ledger_sync/db/_models/planning.py#L333) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Positive goal target amount. |
-| [`current_amount`](../backend/src/ledger_sync/db/_models/planning.py#L334) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Stored accumulated progress amount. |
-| [`target_date`](../backend/src/ledger_sync/db/_models/planning.py#L335) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional target completion date. |
-| [`progress_pct`](../backend/src/ledger_sync/db/_models/planning.py#L338) | `FLOAT` | `FLOAT` | No | 0 | - | Stored completion percentage. |
-| [`monthly_target`](../backend/src/ledger_sync/db/_models/planning.py#L339) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Stored monthly contribution target. |
-| [`on_track`](../backend/src/ledger_sync/db/_models/planning.py#L340) | `BOOLEAN` | `BOOLEAN` | No | True | - | Stored progress assessment. |
-| [`status`](../backend/src/ledger_sync/db/_models/planning.py#L343) | `goalstatus` | `VARCHAR(9)` | No | GoalStatus.ACTIVE (DB: ACTIVE) | - | GoalStatus enum. |
-| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L349) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
-| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L350) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | '2026-01-01' | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
-| [`completed_at`](../backend/src/ledger_sync/db/_models/planning.py#L356) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional completion timestamp. |
+| [`id`](../backend/src/ledger_sync/db/_models/planning.py#L319) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/planning.py#L322) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`name`](../backend/src/ledger_sync/db/_models/planning.py#L327) | `VARCHAR(255)` | `VARCHAR(255)` | No | - | - | User-facing name. |
+| [`description`](../backend/src/ledger_sync/db/_models/planning.py#L328) | `TEXT` | `TEXT` | Yes | - | - | Descriptive text. |
+| [`goal_type`](../backend/src/ledger_sync/db/_models/planning.py#L329) | `VARCHAR(50)` | `VARCHAR(50)` | No | - | - | savings, investment, debt_payoff or custom by API convention. |
+| [`target_amount`](../backend/src/ledger_sync/db/_models/planning.py#L335) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Positive goal target amount. |
+| [`current_amount`](../backend/src/ledger_sync/db/_models/planning.py#L336) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Stored accumulated progress amount. |
+| [`target_date`](../backend/src/ledger_sync/db/_models/planning.py#L337) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional target completion date. |
+| [`progress_pct`](../backend/src/ledger_sync/db/_models/planning.py#L340) | `FLOAT` | `FLOAT` | No | 0 | - | Stored completion percentage. |
+| [`monthly_target`](../backend/src/ledger_sync/db/_models/planning.py#L341) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | 0 | - | Stored monthly contribution target. |
+| [`on_track`](../backend/src/ledger_sync/db/_models/planning.py#L342) | `BOOLEAN` | `BOOLEAN` | No | True | - | Stored progress assessment. |
+| [`status`](../backend/src/ledger_sync/db/_models/planning.py#L345) | `goalstatus` | `VARCHAR(9)` | No | GoalStatus.ACTIVE (DB: ACTIVE) | - | GoalStatus enum. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/planning.py#L351) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/planning.py#L352) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | '2026-01-01' | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+| [`completed_at`](../backend/src/ledger_sync/db/_models/planning.py#L358) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | Yes | - | - | Optional completion timestamp. |
 
 **Foreign keys**
 
@@ -1512,10 +2003,55 @@ None beyond the primary key. Unique indexes are listed below.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L324)
-- [`backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L237)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L68)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L333)
+- [`backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_misc.py#L177)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L90)
 - [`backend/src/ledger_sync/services/goal_service.py`](../backend/src/ledger_sync/services/goal_service.py#L13)
+
+[Back to table directory](#table-directory)
+
+<a id="external_refs"></a>
+### `external_refs`
+
+**Purpose:** Links from rows an import created to the IDs the source system gave them. **Grain:** One imported source item per user, source system, kind and source UID. **Kind:** Import identity link.
+
+**Model:** [`ExternalRef`](../backend/src/ledger_sync/db/_models/external_refs.py#L22). **Primary key:** `id`.
+
+Money Manager repeat rules (kind repeat_rule, imported as scheduled_transactions) and monthly budgets (kind budget, imported as budgets). local_id is the primary key of the row in the table kind names and is deliberately not a foreign key, because the kinds live in different tables; a link whose row was deleted is re-pointed when the item is imported again and removed when the item is gone too. fingerprint is the SHA-256 of the columns the import owns, as it last wrote them: an import updates a linked row only while its values still match, so an edit made in Ledger Sync is kept. A row with no link was made by hand and an import never changes it. A transactions-only reset removes the repeat_rule links with their schedules; a full reset removes all of them. The import skips repeat rules and budgets until this table exists.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/external_refs.py#L27) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/external_refs.py#L28) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`source_system`](../backend/src/ledger_sync/db/_models/external_refs.py#L30) | `VARCHAR(32)` | `VARCHAR(32)` | No | - | - | Source of the item; money_manager today. |
+| [`kind`](../backend/src/ledger_sync/db/_models/external_refs.py#L32) | `VARCHAR(32)` | `VARCHAR(32)` | No | - | - | repeat_rule (a scheduled_transactions row) or budget (a budgets row). |
+| [`source_uid`](../backend/src/ledger_sync/db/_models/external_refs.py#L33) | `VARCHAR(128)` | `VARCHAR(128)` | No | - | - | The source system's ID for the item; unique per user, system and kind. |
+| [`local_id`](../backend/src/ledger_sync/db/_models/external_refs.py#L34) | `INTEGER` | `INTEGER` | No | - | - | Primary key of the linked row in the table kind names; deliberately not a foreign key. |
+| [`fingerprint`](../backend/src/ledger_sync/db/_models/external_refs.py#L36) | `VARCHAR(64)` | `VARCHAR(64)` | No | - | - | SHA-256 hex of the columns the import owns, as it last wrote them; a mismatch means the row was edited in Ledger Sync. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/external_refs.py#L37) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/external_refs.py#L40) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_external_refs_user_source_kind_uid`: `(user_id, source_system, kind, source_uid)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L88)
+- [`backend/src/ledger_sync/services/external_ref_sync.py`](../backend/src/ledger_sync/services/external_ref_sync.py#L90)
+- [`backend/src/ledger_sync/services/money_manager_planning.py`](../backend/src/ledger_sync/services/money_manager_planning.py#L58)
 
 [Back to table directory](#table-directory)
 
@@ -1576,7 +2112,239 @@ None declared in the model.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L108)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L140)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L177)
+
+[Back to table directory](#table-directory)
+
+<a id="tax_deductions"></a>
+### `tax_deductions`
+
+**Purpose:** Old-regime deduction amounts saved per tax year. **Grain:** One owner, tax year and section. **Kind:** User tax inputs.
+
+**Model:** [`TaxDeduction`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L23). **Primary key:** `id`.
+
+(user_id, tax_year, section_key) is unique. section_key keeps the 1961 Act names (80C, 80CCD(1B), 80D, HRA, 24(b)) and only positive amounts are stored (CHECK), so saving zero for a section deletes its row. These are inputs to the browser's regime comparison, not analytics inputs, so writes do not mark analytics dirty. A full reset clears them; a transactions-only reset keeps them.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L40) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L41) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`tax_year`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L42) | `VARCHAR(7)` | `VARCHAR(7)` | No | - | - | Tax year as YYYY-YY for consecutive years, such as 2026-27 (April to March). |
+| [`section_key`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L43) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | 1961 Act section name: 80C, 80CCD(1B), 80D, HRA or 24(b); checked by the API. |
+| [`amount`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L44) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Deduction amount in INR, above zero (CHECK) and at most 10,000,000 in the API. Saving zero deletes the row. |
+| [`created_at`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L45) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/tax_deductions.py#L48) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Last ORM update timestamp; onupdate is application behavior, not a database trigger. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_tax_deductions_user_year_section`: `(user_id, tax_year, section_key)`.
+
+**CHECK constraints**
+
+- `ck_tax_deductions_amount_positive`: `amount > 0`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/tax_deductions.py`](../backend/src/ledger_sync/api/tax_deductions.py#L34)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L114)
+
+[Back to table directory](#table-directory)
+
+<a id="tax_ais_summaries"></a>
+### `tax_ais_summaries`
+
+**Purpose:** Per-tax-year totals imported from the Annual Information Statement (AIS). **Grain:** One owner and tax year. **Kind:** User-imported tax totals.
+
+**Model:** [`TaxAisSummary`](../backend/src/ledger_sync/db/_models/tax_ais.py#L30). **Primary key:** `id`.
+
+The AIS is decrypted and parsed in the browser. Only four totals reach this table (tds_salary, tds_other, interest, dividends); no PAN, date of birth, AIS row or payer name is stored. (user_id, tax_year) is unique, importing a year again replaces its row, and the amounts are non-negative (CHECK). Not an analytics input. A full reset clears it; a transactions-only reset keeps it.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/tax_ais.py#L48) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/tax_ais.py#L49) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`tax_year`](../backend/src/ledger_sync/db/_models/tax_ais.py#L50) | `VARCHAR(7)` | `VARCHAR(7)` | No | - | - | Tax year as YYYY-YY for consecutive years, such as 2025-26 (April to March). |
+| [`tds_salary`](../backend/src/ledger_sync/db/_models/tax_ais.py#L51) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | TDS under section 192 on salary, in INR. |
+| [`tds_other`](../backend/src/ledger_sync/db/_models/tax_ais.py#L52) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Every other TDS row in INR; TCS is left out. |
+| [`interest`](../backend/src/ledger_sync/db/_models/tax_ais.py#L53) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Gross interest in INR, after the browser drops lines one payer reported twice (SFT and TDS). |
+| [`dividends`](../backend/src/ledger_sync/db/_models/tax_ais.py#L54) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | No | - | - | Gross dividends in INR, after the browser drops lines one payer reported twice (SFT and TDS). |
+| [`created_at`](../backend/src/ledger_sync/db/_models/tax_ais.py#L55) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Row creation timestamp supplied by the application. |
+| [`updated_at`](../backend/src/ledger_sync/db/_models/tax_ais.py#L58) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Time of the last import of this year, set explicitly on every save, so importing identical totals again still moves it. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_tax_ais_summaries_user_year`: `(user_id, tax_year)`.
+
+**CHECK constraints**
+
+- `ck_tax_ais_summaries_amounts_non_negative`: `tds_salary >= 0 AND tds_other >= 0 AND interest >= 0 AND dividends >= 0`. Dialects: postgresql, sqlite.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/api/tax_ais.py`](../backend/src/ledger_sync/api/tax_ais.py#L34)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L115)
+
+[Back to table directory](#table-directory)
+
+<a id="mf_holdings"></a>
+### `mf_holdings`
+
+**Purpose:** Mutual fund holdings imported from a CAS PDF. **Grain:** One scheme in one folio or demat account, from the latest import of its issuer kind. **Kind:** Imported statement holdings.
+
+**Model:** [`MfHolding`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L31). **Primary key:** `id`.
+
+source is the statement's issuer (CAMS, KFINTECH, NSDL or CDSL). A new import replaces the user's holdings of the same kind (CAMS and KFintech, or NSDL and CDSL) in one locked transaction, so the two kinds sit side by side. cost is the statement's figure, else first-in-first-out over the transactions when they start from zero units; open_units above zero means the transactions do not reach back to the first purchase, so there is no XIRR. The PDF, its password, the PAN and the investor's name, email, address and phone are never stored. Valuation at AMFI's NAV is computed on read, not stored here. A full reset clears the table; a transactions-only reset keeps it.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L36) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L37) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`source`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L39) | `VARCHAR(16)` | `VARCHAR(16)` | No | - | - | Issuer of the statement: CAMS, KFINTECH, NSDL or CDSL. |
+| [`cas_type`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L41) | `VARCHAR(16)` | `VARCHAR(16)` | Yes | - | - | DETAILED or SUMMARY for a CAMS or KFintech statement; NULL for a depository one. |
+| [`folio`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L43) | `VARCHAR(64)` | `VARCHAR(64)` | Yes | - | - | Folio number; NULL for units held in a demat account. |
+| [`amc`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L44) | `VARCHAR(255)` | `VARCHAR(255)` | Yes | - | - | Fund house name as printed. |
+| [`scheme_name`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L45) | `VARCHAR(500)` | `VARCHAR(500)` | No | - | - | Scheme name as printed. |
+| [`isin`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L46) | `VARCHAR(12)` | `VARCHAR(12)` | Yes | - | - | Scheme ISIN; the first NAV lookup key. |
+| [`amfi_code`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L48) | `VARCHAR(16)` | `VARCHAR(16)` | Yes | - | - | AMFI scheme code (first column of NAVAll.txt); the second NAV lookup key. |
+| [`scheme_type`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L50) | `VARCHAR(32)` | `VARCHAR(32)` | Yes | - | - | EQUITY, DEBT and so on, from casparser's ISIN database. |
+| [`open_units`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L54) | `NUMERIC(20, 6)` | `NUMERIC(20, 6)` | Yes | - | - | Units on the statement's first day. Above zero, the transactions do not reach back to the first purchase, so there is no XIRR. NULL when the statement prints none. |
+| [`units`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L55) | `NUMERIC(20, 6)` | `NUMERIC(20, 6)` | No | - | - | Units held at the statement date. |
+| [`cost`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L58) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Cost of the units still held: the statement's figure, else first-in-first-out over the transactions when they start from zero units; NULL when neither applies. |
+| [`statement_nav`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L59) | `NUMERIC(18, 6)` | `NUMERIC(18, 6)` | Yes | - | - | NAV printed on the statement; used when AMFI's is unavailable or older. |
+| [`statement_nav_date`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L60) | `DATE` | `DATE` | Yes | - | - | Date of the statement NAV. |
+| [`statement_from`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L61) | `DATE` | `DATE` | Yes | - | - | First day of the statement period. |
+| [`statement_to`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L62) | `DATE` | `DATE` | Yes | - | - | Last day of the statement period. |
+| [`imported_at`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L63) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | application callable: lambda: datetime.now(UTC) | - | Time of the import that stored the row, UTC without timezone. |
+
+**Foreign keys**
+
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Referenced by:** [`mf_transactions`](#mf_transactions) `(holding_id)`.
+
+**Additional UNIQUE constraints**
+
+None beyond the primary key. Unique indexes are listed below.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_mf_holdings_user_source` | `user_id, source` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/mf_store.py`](../backend/src/ledger_sync/core/mf_store.py#L29)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L119)
+
+[Back to table directory](#table-directory)
+
+<a id="mf_transactions"></a>
+### `mf_transactions`
+
+**Purpose:** Dated CAMS or KFintech statement rows of a holding. **Grain:** One statement row per holding and printed position. **Kind:** Imported statement history.
+
+**Model:** [`MfTransaction`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L70). **Primary key:** `id`.
+
+(holding_id, sequence) is unique, so same-day rows keep their printed order. Amounts are signed as printed, and the rows feed XIRR and the first-in-first-out cost. A depository CAS brings no transactions. holding_id cascades from mf_holdings and user_id from users, so a re-import and a reset remove them with their holding.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L75) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`holding_id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L76) | `INTEGER` | `INTEGER` | No | - | - | The holding this statement row belongs to; ON DELETE CASCADE. |
+| [`user_id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L79) | `INTEGER` | `INTEGER` | No | - | - | Owning application user; see the foreign-key section. |
+| [`sequence`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L81) | `INTEGER` | `INTEGER` | No | - | - | Printed order within the holding, so same-day rows keep their order. |
+| [`txn_date`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L82) | `DATE` | `DATE` | No | - | - | Date of the statement row. |
+| [`txn_type`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L84) | `VARCHAR(32)` | `VARCHAR(32)` | No | - | - | casparser's TransactionType name, such as PURCHASE_SIP, REDEMPTION or STAMP_DUTY_TAX. |
+| [`amount`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L87) | `NUMERIC(15, 2)` | `NUMERIC(15, 2)` | Yes | - | - | Signed as printed: purchases positive, redemptions negative; NULL on a row that moves no money. |
+| [`units`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L88) | `NUMERIC(20, 6)` | `NUMERIC(20, 6)` | Yes | - | - | Units on the row, signed as printed. |
+| [`nav`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L89) | `NUMERIC(18, 6)` | `NUMERIC(18, 6)` | Yes | - | - | NAV on the row. |
+| [`balance`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L91) | `NUMERIC(20, 6)` | `NUMERIC(20, 6)` | Yes | - | - | Running unit balance after the row. |
+
+**Foreign keys**
+
+- `(holding_id)` → [`mf_holdings`](#mf_holdings) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+- `(user_id)` → [`users`](#users) `(id)`; ON DELETE CASCADE, ON UPDATE NO ACTION; name: `(database assigned)`.
+
+**Additional UNIQUE constraints**
+
+- `uq_mf_transactions_holding_sequence`: `(holding_id, sequence)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+| Name | Keys in order | Unique | PostgreSQL predicate |
+| --- | --- | --- | --- |
+| `ix_mf_transactions_user` | `user_id` | No | All rows |
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/mf_store.py`](../backend/src/ledger_sync/core/mf_store.py#L70)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L118)
+
+[Back to table directory](#table-directory)
+
+<a id="mf_nav_prices"></a>
+### `mf_nav_prices`
+
+**Purpose:** The latest AMFI NAV for each scheme lookup key a held scheme uses. **Grain:** One lookup key (isin: or code:). **Kind:** Shared public-data cache.
+
+**Model:** [`MfNavPrice`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L99). **Primary key:** `id`.
+
+Public AMFI data, not user data: there is no user_id, every user shares the rows, and neither a reset nor account deletion touches them. lookup_key is unique. nav and nav_date are NULL when the key was looked for and the AMFI file did not list it. checked_at drives the once-a-day refresh: a cached NAV is fresh when it was checked after the most recent 10:30 IST, and GET /api/mf-holdings downloads NAVAll.txt on demand when a held scheme's NAV is older.
+
+| Column | PostgreSQL type | SQLite type | NULL allowed | App default | DB default (model) | Meaning |
+| --- | --- | --- | --- | --- | --- | --- |
+| [`id`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L108) PK | `INTEGER` | `INTEGER` | No | Auto integer PK | - | Internal integer row identifier. |
+| [`lookup_key`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L110) | `VARCHAR(40)` | `VARCHAR(40)` | No | - | - | isin:<ISIN> or code:<AMFI code>; unique. A holding tries its ISIN, then its code. |
+| [`scheme_code`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L111) | `VARCHAR(16)` | `VARCHAR(16)` | Yes | - | - | AMFI scheme code from NAVAll.txt. |
+| [`scheme_name`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L112) | `VARCHAR(500)` | `VARCHAR(500)` | Yes | - | - | Scheme name from NAVAll.txt. |
+| [`nav`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L114) | `NUMERIC(18, 6)` | `NUMERIC(18, 6)` | Yes | - | - | Latest NAV in INR; NULL when the key was looked for and the file did not list it. |
+| [`nav_date`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L115) | `DATE` | `DATE` | Yes | - | - | Date of that NAV. |
+| [`checked_at`](../backend/src/ledger_sync/db/_models/mf_holdings.py#L117) | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` | No | - | - | When a downloaded file was last searched for this key (naive UTC); drives the once-a-day refresh. |
+
+**Foreign keys**
+
+None declared.
+
+**Additional UNIQUE constraints**
+
+- `uq_mf_nav_prices_lookup_key`: `(lookup_key)`.
+
+**CHECK constraints**
+
+None declared in the model.
+
+**Explicit indexes**
+
+None declared; PK/UNIQUE constraints still create supporting indexes.
+
+**Code using this model** (references, not a promise of complete CRUD coverage):
+
+- [`backend/src/ledger_sync/core/mf_nav_store.py`](../backend/src/ledger_sync/core/mf_nav_store.py#L24)
 
 [Back to table directory](#table-directory)
 
@@ -1622,7 +2390,8 @@ None declared; PK/UNIQUE constraints still create supporting indexes.
 
 - [`backend/src/ledger_sync/core/analytics/engine.py`](../backend/src/ledger_sync/core/analytics/engine.py#L45)
 - [`backend/src/ledger_sync/core/analytics/refresh.py`](../backend/src/ledger_sync/core/analytics/refresh.py#L48)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L98)
+- [`backend/src/ledger_sync/core/category_suggester_store.py`](../backend/src/ledger_sync/core/category_suggester_store.py#L57)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L131)
 
 [Back to table directory](#table-directory)
 
@@ -1673,7 +2442,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L124)
 - [`backend/src/ledger_sync/core/analytics/summaries.py`](../backend/src/ledger_sync/core/analytics/summaries.py#L408)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L130)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L167)
 
 [Back to table directory](#table-directory)
 
@@ -1739,12 +2508,12 @@ None declared in the model.
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L227)
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L51)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L56)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L48)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_health.py#L102)
 - [`backend/src/ledger_sync/api/calculations_impl/aggregates.py`](../backend/src/ledger_sync/api/calculations_impl/aggregates.py#L64)
 - [`backend/src/ledger_sync/core/analytics/summaries.py`](../backend/src/ledger_sync/core/analytics/summaries.py#L60)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L132)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L169)
 
 [Back to table directory](#table-directory)
 
@@ -1805,7 +2574,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/calculations_helpers.py`](../backend/src/ledger_sync/api/calculations_helpers.py#L38)
 - [`backend/src/ledger_sync/api/calculations_impl/categories.py`](../backend/src/ledger_sync/api/calculations_impl/categories.py#L96)
 - [`backend/src/ledger_sync/core/analytics/trends.py`](../backend/src/ledger_sync/core/analytics/trends.py#L46)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L133)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L170)
 
 [Back to table directory](#table-directory)
 
@@ -1852,7 +2621,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries.py#L176)
 - [`backend/src/ledger_sync/core/analytics/cohort.py`](../backend/src/ledger_sync/core/analytics/cohort.py#L53)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L131)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L168)
 
 [Back to table directory](#table-directory)
 
@@ -1905,7 +2674,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py#L157)
 - [`backend/src/ledger_sync/core/analytics/trends.py`](../backend/src/ledger_sync/core/analytics/trends.py#L247)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L134)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L171)
 
 [Back to table directory](#table-directory)
 
@@ -1961,7 +2730,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py`](../backend/src/ledger_sync/api/analytics_v2_impl/merchant_intelligence.py#L45)
 - [`backend/src/ledger_sync/core/analytics/merchants.py`](../backend/src/ledger_sync/core/analytics/merchants.py#L65)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L136)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L173)
 
 [Back to table directory](#table-directory)
 
@@ -2023,7 +2792,7 @@ None declared in the model.
 - [`backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py`](../backend/src/ledger_sync/api/ai_tools_impl/analytics_tools.py#L117)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py#L96)
 - [`backend/src/ledger_sync/core/analytics/fy_summaries.py`](../backend/src/ledger_sync/core/analytics/fy_summaries.py#L56)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L139)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L176)
 
 [Back to table directory](#table-directory)
 
@@ -2080,10 +2849,10 @@ None declared in the model.
 
 **Code using this model** (references, not a promise of complete CRUD coverage):
 
-- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L193)
+- [`backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py`](../backend/src/ledger_sync/api/ai_tools_impl/categories_summary.py#L198)
 - [`backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py`](../backend/src/ledger_sync/api/analytics_v2_impl/networth_fy.py#L35)
 - [`backend/src/ledger_sync/core/analytics/net_worth.py`](../backend/src/ledger_sync/core/analytics/net_worth.py#L110)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L135)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L172)
 
 [Back to table directory](#table-directory)
 
@@ -2134,7 +2903,7 @@ None declared in the model.
 
 - [`backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py`](../backend/src/ledger_sync/api/analytics_v2_impl/summaries_flows.py#L36)
 - [`backend/src/ledger_sync/core/analytics/net_worth.py`](../backend/src/ledger_sync/core/analytics/net_worth.py#L236)
-- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L141)
+- [`backend/src/ledger_sync/services/auth_account_data.py`](../backend/src/ledger_sync/services/auth_account_data.py#L178)
 
 [Back to table directory](#table-directory)
 
@@ -2147,6 +2916,7 @@ All model FKs use MATCH SIMPLE and are not declared DEFERRABLE. With an optional
 | [`user_preferences`](#user_preferences) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`user_ai_settings`](#user_ai_settings) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`upload_tokens`](#upload_tokens) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`push_subscriptions`](#push_subscriptions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`audit_logs`](#audit_logs) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`ai_usage_log`](#ai_usage_log) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`transactions`](#transactions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
@@ -2166,18 +2936,36 @@ All model FKs use MATCH SIMPLE and are not declared DEFERRABLE. With an optional
 | [`transaction_tags`](#transaction_tags) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`transaction_tags`](#transaction_tags) `(user_id, transaction_id)` | [`transactions`](#transactions) `(user_id, transaction_id)` | CASCADE |
 | [`saved_filter_views`](#saved_filter_views) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`saved_view_pins`](#saved_view_pins) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`saved_view_pins`](#saved_view_pins) `(view_id)` | [`saved_filter_views`](#saved_filter_views) `(id)` | CASCADE |
+| [`balance_checks`](#balance_checks) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`bank_alerts`](#bank_alerts) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`transaction_embeddings`](#transaction_embeddings) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`transaction_embeddings`](#transaction_embeddings) `(user_id, transaction_id)` | [`transactions`](#transactions) `(user_id, transaction_id)` | CASCADE |
 | [`salary_plans`](#salary_plans) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`rsu_grants`](#rsu_grants) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`rsu_vestings`](#rsu_vestings) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`rsu_vestings`](#rsu_vestings) `(user_id, grant_id)` | [`rsu_grants`](#rsu_grants) `(user_id, id)` | CASCADE |
+| [`rsu_vest_fx`](#rsu_vest_fx) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`rsu_vest_fx`](#rsu_vest_fx) `(vesting_id)` | [`rsu_vestings`](#rsu_vestings) `(id)` | CASCADE |
+| [`foreign_asset_events`](#foreign_asset_events) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`foreign_asset_events`](#foreign_asset_events) `(vesting_id)` | [`rsu_vestings`](#rsu_vestings) `(id)` | SET NULL |
 | [`recurring_transactions`](#recurring_transactions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`scheduled_transactions`](#scheduled_transactions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`scheduled_transactions`](#scheduled_transactions) `(user_id, recurring_transaction_id)` | [`recurring_transactions`](#recurring_transactions) `(user_id, id)` | NO ACTION |
 | [`anomalies`](#anomalies) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`anomalies`](#anomalies) `(user_id, transaction_id)` | [`transactions`](#transactions) `(user_id, transaction_id)` | CASCADE |
+| [`category_overrides`](#category_overrides) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`category_overrides`](#category_overrides) `(user_id, transaction_id)` | [`transactions`](#transactions) `(user_id, transaction_id)` | CASCADE |
 | [`budgets`](#budgets) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`financial_goals`](#financial_goals) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`external_refs`](#external_refs) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`tax_records`](#tax_records) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`tax_deductions`](#tax_deductions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`tax_ais_summaries`](#tax_ais_summaries) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`mf_holdings`](#mf_holdings) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
+| [`mf_transactions`](#mf_transactions) `(holding_id)` | [`mf_holdings`](#mf_holdings) `(id)` | CASCADE |
+| [`mf_transactions`](#mf_transactions) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`analytics_state`](#analytics_state) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`daily_summaries`](#daily_summaries) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
 | [`monthly_summaries`](#monthly_summaries) `(user_id)` | [`users`](#users) `(id)` | CASCADE |
@@ -2202,7 +2990,8 @@ API shape is separate from storage. The compensation and credit-limit shapes bel
 | rsu_grants | Array of RsuGrant objects, each with ordered vestings. | rsu_grants and rsu_vestings rows |
 | growth_assumptions | GrowthAssumptions object. | user_preferences TEXT column |
 | analytics_state.dirty_dates | Array of YYYY-MM-DD strings. | TEXT |
-| saved_filter_views.filters | Opaque frontend filter object; backend does not normalize its keys. | TEXT |
+| saved_filter_views.filters | Opaque frontend filter object; backend does not normalize its keys (only the Dashboard watch tiles read them, with the search endpoint's model). | TEXT |
+| push_subscriptions.alert_keys | Array of strings: the item keys the daily run already told this device about; never amounts or names. | TEXT |
 | merchant_aliases | Array of alternate labels, when populated. | TEXT |
 | audit_logs.old_value / new_value | Operation-specific prior/new object. | TEXT |
 | column mapping diagnostics | Header arrays, header mapping object, error/warning arrays. | TEXT |
@@ -2211,13 +3000,13 @@ API shape is separate from storage. The compensation and credit-limit shapes bel
 
 | Key | Contract | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `base_salary_annual` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"0"` |  |
-| `hra_annual` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}, {"type": "null"}]}` | No | `null` |  |
-| `bonus_annual` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"0"` |  |
-| `epf_monthly` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"3600"` | Employee EPF cash deduction; not a new-regime taxable-income deduction. |
-| `nps_monthly` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"0"` |  |
-| `special_allowance_annual` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"0"` |  |
-| `other_taxable_annual` | `{"anyOf": [{"type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | No | `"0"` |  |
+| `base_salary_annual` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"0"` |  |
+| `hra_annual` | `{"anyOf": [{"type": "number"}, {"type": "string"}, {"type": "null"}]}` | No | `null` |  |
+| `bonus_annual` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"0"` |  |
+| `epf_monthly` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"3600"` | Employee EPF cash deduction; not a new-regime taxable-income deduction. |
+| `nps_monthly` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"0"` |  |
+| `special_allowance_annual` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"0"` |  |
+| `other_taxable_annual` | `{"anyOf": [{"type": "number"}, {"type": "string"}]}` | No | `"0"` |  |
 
 ### `RsuGrant` JSON object
 
@@ -2225,7 +3014,7 @@ API shape is separate from storage. The compensation and credit-limit shapes bel
 | --- | --- | --- | --- | --- |
 | `id` | `{"minLength": 1, "type": "string"}` | Yes | `-` |  |
 | `stock_name` | `{"minLength": 1, "type": "string"}` | Yes | `-` |  |
-| `stock_price` | `{"anyOf": [{"exclusiveMinimum": 0.0, "type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}]}` | Yes | `-` |  |
+| `stock_price` | `{"anyOf": [{"exclusiveMinimum": 0.0, "type": "number"}, {"type": "string"}]}` | Yes | `-` |  |
 | `grant_date` | `{"anyOf": [{"format": "date", "type": "string"}, {"type": "null"}]}` | No | `null` |  |
 | `notes` | `{"anyOf": [{"type": "string"}, {"type": "null"}]}` | No | `null` |  |
 | `vestings` | `{"items": {"$ref": "#/$defs/RsuVesting"}, "minItems": 1, "type": "array"}` | Yes | `-` |  |
@@ -2237,8 +3026,8 @@ API shape is separate from storage. The compensation and credit-limit shapes bel
 | `id` | `{"anyOf": [{"minLength": 1, "type": "string"}, {"type": "null"}]}` | No | `null` | Stable event ID returned by storage; omit for a new vesting. |
 | `date` | `{"format": "date", "type": "string"}` | Yes | `-` |  |
 | `quantity` | `{"exclusiveMinimum": 0, "maximum": 2147483647, "type": "integer"}` | Yes | `-` | Shares that vested, BEFORE any tax withholding. |
-| `price_at_vest` | `{"anyOf": [{"exclusiveMinimum": 0.0, "type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}, {"type": "null"}]}` | No | `null` | Stock price on the vest date, locked in once the vesting has passed. |
-| `net_quantity` | `{"anyOf": [{"minimum": 0.0, "type": "number"}, {"pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$", "type": "string"}, {"type": "null"}]}` | No | `null` | Shares actually received after sell-to-cover withholding, when the employer withheld some of the vest to pay tax. Reporting only: perquisite value is taxed on the FULL vest, so `quantity` remains the basis for every tax projection. Fractional because brokers credit fractional residuals. Zero records full withholding; null leaves the actual quantity unknown so the UI can show an estimate. |
+| `price_at_vest` | `{"anyOf": [{"exclusiveMinimum": 0.0, "type": "number"}, {"type": "string"}, {"type": "null"}]}` | No | `null` | Stock price on the vest date, locked in once the vesting has passed. |
+| `net_quantity` | `{"anyOf": [{"minimum": 0.0, "type": "number"}, {"type": "string"}, {"type": "null"}]}` | No | `null` | Shares actually received after sell-to-cover withholding, when the employer withheld some of the vest to pay tax. Reporting only: perquisite value is taxed on the FULL vest, so `quantity` remains the basis for every tax projection. Fractional because brokers credit fractional residuals. Zero records full withholding; null leaves the actual quantity unknown so the UI can show an estimate. |
 
 ### `GrowthAssumptions` JSON object
 
@@ -2258,7 +3047,7 @@ Additional RSU validation: `net_quantity` cannot exceed gross `quantity`. The sa
 
 ### `alembic_version`
 
-Alembic maintains `version_num VARCHAR(32) NOT NULL PRIMARY KEY`. It records the applied migration revision; there is no user FK or application CRUD API. This repository has a linear migration chain, so one current head row is expected. Source head is `money_manager_source_2026`; this document did not query a live version row.
+Alembic maintains `version_num VARCHAR(32) NOT NULL PRIMARY KEY`. It records the applied migration revision; there is no user FK or application CRUD API. This repository has a linear migration chain, so one current head row is expected. Source head is `feature_domains_2026`; this document did not query a live version row.
 
 ### `import_logs_duplicate_archive_20260917`
 
@@ -2281,7 +3070,7 @@ Expected structure from `CREATE TABLE ... AS SELECT * FROM import_logs WITH NO D
 
 CREATE TABLE AS does not copy the original indexes, sequences/defaults, PK/UNIQUE/FK constraints or NOT NULL constraints. Therefore the archive's `id` is historical data, not an auto-generated PK, and `user_id` is only a stored identifier. It is outside the ORM and regular import history. User deletion does **not** automatically cascade to it under the described repair. Archive retention/cleanup requires an explicit operational decision.
 
-The expected total is **37 tables only if** this archive exists and there are no other out-of-model tables: 35 application tables + Alembic + the archive. This is not a live-verified database-wide count.
+The expected total is **51 tables only if** this archive exists and there are no other out-of-model tables: 49 application tables + Alembic + the archive. This is not a live-verified database-wide count.
 
 ## Migration and model differences
 
@@ -2292,6 +3081,7 @@ The expected total is **37 tables only if** this archive exists and there are no
 | Compensation records | Frozen migration validation precedes copying salary_plans, rsu_grants and ordered rsu_vestings. Invalid/ambiguous data fails without rounding, inferred ownership or deduplication. Only the ownerless literal empty compensation defaults are skipped. |
 | Final domain cutover | `domain_storage_cutover_2026` verifies normalized business values before removing legacy source columns/tables. Current user_preferences has 45 mapped columns. The API still aggregates the prior response shapes. |
 | ORM schema alignment | `orm_schema_alignment_2026` counts NULLs first and stops before any change if one exists, then sets NOT NULL on the 118 columns migrations left nullable, adds 10 ORM indexes and drops duplicate indexes. Nothing is backfilled; the revision is irreversible. `user_preferences.user_id` stays nullable for the preserved ownerless defaults row. |
+| Feature domains | `feature_domains_2026` follows `money_manager_source_2026` and adds 14 tables: balance checks, bank alerts, review-queue category overrides, Money Manager links, RSU conversion rates and foreign-asset events, CAS holdings with the shared AMFI NAV cache, push devices, watchlist pins, AIS totals, saved deductions and semantic-search vectors. It only creates tables: each is skipped when it already has the expected columns, any other shape stops the revision before a change, and it is irreversible. On PostgreSQL it first runs `CREATE EXTENSION IF NOT EXISTS vector` for `transaction_embeddings.embedding`; SQLite stores float32 bytes. |
 | transactions.fingerprint_version | Current ORM insert default is 2; the migration adds a DB default of 1 for legacy/raw writers. A model-only schema creation and migrated database can therefore have different defaults. |
 | uq_import_logs_user_file_hash | ORM declares a UNIQUE constraint; the schema-integrity migration creates a unique index. Both enforce the user/hash business key, but catalog object kinds differ. |
 | uq_transactions_user_id | ORM declares a UNIQUE constraint; the schema-integrity migration creates a unique index supporting owner-qualified child FKs. |
@@ -2321,8 +3111,8 @@ September migration chain:
 
 ## Scope and verification
 
-- Metadata extraction covered exactly 35 tables and 483 columns, 44 FKs, 78 explicit indexes, 15 additional UNIQUE constraints, 18 CHECK constraints and 5 enum types.
-- CHECK applicability: PostgreSQL 18; SQLite 15. SQLite uses enum-compatible strings, not native enum types.
+- Metadata extraction covered exactly 49 tables and 616 columns, 63 FKs, 85 explicit indexes, 28 additional UNIQUE constraints, 30 CHECK constraints and 5 enum types.
+- CHECK applicability: PostgreSQL 30; SQLite 25. SQLite uses enum-compatible strings, not native enum types.
 - Every model column has a description, nullability, PostgreSQL and SQLite types, default declaration and source link. Every FK, check, unique constraint and explicit index is listed; incoming references are listed on parent tables.
 - The generated SQL is an offline model representation. It was not executed and is not a substitute for Alembic migrations or a production schema dump.
 - This dictionary was generated offline. The current checkout includes unapplied domain migration source; generating this reference did not execute DDL or change production.

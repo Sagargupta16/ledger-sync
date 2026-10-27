@@ -94,6 +94,7 @@ GROUPS = {
         "user_preferences",
         "user_ai_settings",
         "upload_tokens",
+        "push_subscriptions",
         "audit_logs",
         "ai_usage_log",
         "column_mapping_logs",
@@ -108,16 +109,31 @@ GROUPS = {
         "categorization_rules",
         "transaction_tags",
         "saved_filter_views",
+        "saved_view_pins",
+        "balance_checks",
+        "bank_alerts",
+        "transaction_embeddings",
     ],
-    "Compensation": ["salary_plans", "rsu_grants", "rsu_vestings"],
+    "Compensation": [
+        "salary_plans",
+        "rsu_grants",
+        "rsu_vestings",
+        "rsu_vest_fx",
+        "foreign_asset_events",
+    ],
     "Planning and review": [
         "recurring_transactions",
         "scheduled_transactions",
         "anomalies",
+        "category_overrides",
         "budgets",
         "financial_goals",
+        "external_refs",
         "tax_records",
+        "tax_deductions",
+        "tax_ais_summaries",
     ],
+    "Investments from statements": ["mf_holdings", "mf_transactions", "mf_nav_prices"],
     "Calculated analytics": [
         "analytics_state",
         "daily_summaries",
@@ -154,13 +170,37 @@ INFO = {
         ),
     ),
     "upload_tokens": (
-        "Hashed, upload-only credentials for automations such as an iOS Shortcut.",
-        "Any number of revoked tokens per user; at most five active ones.",
+        (
+            "Hashed, single-scope access tokens for automations: Money Manager upload, MCP "
+            "read access and the bank-alert inbox."
+        ),
+        "Any number of revoked tokens per user; at most five active ones per scope.",
         USER_CONFIGURATION,
         (
             "Only the SHA-256 of a token is stored; the plaintext is returned once, at "
-            "creation. A token authenticates POST /api/upload/money-manager and nothing else, "
-            "expires after 365 days and stops working when revoked_at is set."
+            "creation. A token holds exactly one scope (mmbak:upload, ledger:read or "
+            "alerts:ingest) and authenticates only the route that requires it: POST "
+            "/api/upload/money-manager (which also accepts a signed-in access token), POST /mcp "
+            "or POST /api/ingest/text (api/deps.require_token_scope). It cannot sign in or "
+            "call anything else. The API validates the scope; the table has no CHECK on it. A "
+            "token expires after 365 days, stops working when revoked_at is set, and "
+            "last_used_at is written at most once a minute."
+        ),
+    ),
+    "push_subscriptions": (
+        "Web Push devices that receive a user's alerts.",
+        "One browser or Home Screen app with alerts on; the endpoint is unique.",
+        USER_CONFIGURATION,
+        (
+            "A device belongs to one user at a time: turning alerts on after someone else "
+            "signed in on it moves the row to them and clears alert_keys. The endpoint is a "
+            "push-service URL (https hosts of FCM, Mozilla, Apple or Windows only) and is "
+            "never returned by the API, only its SHA-256. p256dh_key and auth_key are the "
+            "subscription's encryption keys. At most ten devices per user. alert_keys is a "
+            "JSON list in TEXT of what the daily run last told this device about, never "
+            "amounts or names. Rows are deleted when a push service answers 404 or 410, on "
+            "removal and on sign-out. Neither reset clears them; deleting the account does, "
+            "through the foreign key."
         ),
     ),
     "user_ai_settings": (
@@ -191,7 +231,9 @@ INFO = {
         (
             "Contains token and cost metadata, not a conversation transcript. App-funded Bedrock "
             "calls are recorded on the server; browser-direct provider usage is self-reported. "
-            "Cost is approximate FLOAT USD."
+            "Semantic-search embedding calls are reserved and settled here under the provider "
+            "bedrock-embed: they count toward the token budgets and usage rollups but not the "
+            "app-mode message cap. Cost is approximate FLOAT USD."
         ),
     ),
     "column_mapping_logs": (
@@ -299,6 +341,40 @@ INFO = {
             "deduplication."
         ),
     ),
+    "rsu_vest_fx": (
+        "How each RSU vest's perquisite becomes rupees.",
+        "One conversion record per vest.",
+        USER_COMPENSATION_CONFIGURATION,
+        (
+            "vesting_id is unique and references rsu_vestings with ON DELETE CASCADE, so "
+            "removing a vest drops its record. fx_source is derived on every write: employer "
+            "when employer_perquisite_inr is set (the Form 16 or 12BA figure governs), else "
+            "sbi_ttbr when fx_rate is set (which also needs fx_date and quote_price), else ecb, "
+            "the approximation the app showed before. fx_rate is INR per unit of "
+            "quote_currency and quote_price is the vest-date price per share. Exact decimals "
+            "use CompensationDecimal; the positive-value CHECK is PostgreSQL-only. The table "
+            "references rsu_vestings(id) alone, because that table has no UNIQUE (user_id, id) "
+            "for a composite key, so every writer checks that the vest belongs to the same "
+            "user. Not an analytics input. A full reset clears it; a transactions-only reset "
+            "keeps it, like RSU grants."
+        ),
+    ),
+    "foreign_asset_events": (
+        "User-entered sales and dividends of RSU shares, for the Schedule FA worksheet.",
+        "One sale or dividend.",
+        "User-entered records",
+        (
+            "kind is sale or dividend (CHECK) and a sale needs a quantity. A sale names the vest "
+            "it came from in vesting_id, which is ON DELETE SET NULL: a deleted vest leaves its "
+            "sales unlinked instead of losing them. A dividend names the stock in symbol. "
+            "Amounts are in the stock's trading currency, so the table has no currency column; "
+            "fx_rate and fx_date are an optional user-entered SBI TT buying rate (without one "
+            "the reports use the ECB rate and say so). Exact decimals use CompensationDecimal; "
+            "the positive-value CHECK is PostgreSQL-only. The same vesting_id tenancy rule as "
+            "rsu_vest_fx applies. Not an analytics input. A full reset clears it; a "
+            "transactions-only reset keeps it."
+        ),
+    ),
     "categorization_rules": (
         "Ordered rules that assign category and subcategory.",
         "One rule per user; multiple rules are allowed.",
@@ -325,7 +401,74 @@ INFO = {
         USER_CONFIGURATION,
         (
             "filters is opaque JSON text. The frontend owns its FilterValues keys; POST upserts "
-            "by name. A saved view does not copy transaction rows."
+            "by name. A saved view does not copy transaction rows. Only the Dashboard watch "
+            "tiles read filters on the server, validating them with the search endpoint's own "
+            "model; saved_view_pins marks the views pinned there."
+        ),
+    ),
+    "saved_view_pins": (
+        "Saved views pinned to the Dashboard watchlist, in tile order.",
+        "One pinned saved view per user and view.",
+        USER_CONFIGURATION,
+        (
+            "(user_id, view_id) is unique. position orders the tiles and is deliberately not "
+            "unique, so a reorder can rewrite every row in one pass; ties fall back to the row "
+            "id. The API allows at most eight pins per user. view_id references "
+            "saved_filter_views with ON DELETE CASCADE, so deleting a view or the user removes "
+            "its pin and the saved-view delete path needs no change. A full reset clears the "
+            "pins with the views; a transactions-only reset keeps both."
+        ),
+    ),
+    "balance_checks": (
+        "Bank or card balances the user read off a statement, per account and day.",
+        "One account and IST day per user.",
+        "User-entered reference reading",
+        (
+            "Nothing from the ledger is stored: every read recomputes the running balance for "
+            "that account at the end of the same day (that day's rows included), so an import "
+            "that fills in missing rows can turn a mismatch into a match. account is the exact "
+            "label transactions carry in account, from_account or to_account, not a foreign "
+            "key. balance is signed INR, with card dues and overdrafts negative. A second "
+            "check on the same account and day replaces the amount. A full reset clears the "
+            "table; a transactions-only reset keeps it."
+        ),
+    ),
+    "bank_alerts": (
+        "Parsed bank SMS and email alerts that check whether the ledger has every spend.",
+        "One parsed debit or credit alert per user.",
+        "Parsed inbound alert",
+        (
+            "The message text is never stored. text_hash is the SHA-256 of the alert's day and "
+            "its whitespace- and case-normalised text, so a retried delivery is a no-op. "
+            "ref_hash is the SHA-256 of the bank reference and the amount (NULL for a "
+            "reference under nine characters, all zeros or masked); it folds the SMS and email "
+            "copies of one payment, and direction is part of that unique key so a refund "
+            "quoting the original reference stays a separate credit. account_tail keeps at "
+            "most four digits and merchant masks digit runs of six or more. received_at and "
+            "ignored_at are naive UTC; occurred_on is the IST day. An alert is never a ledger "
+            "row and never an analytics input: it is matched against live transactions on "
+            "every read (same amount to the paisa, a date within two days, a fitting side and "
+            "account), so nothing invalidates it. At most 500 new alerts per user in any 24 "
+            "hours, counted in the database. Nothing prunes old rows. A full reset clears the "
+            "table; a transactions-only reset keeps it."
+        ),
+    ),
+    "transaction_embeddings": (
+        "Semantic-search vectors of transaction text, built only after the user opts in.",
+        "One embedded transaction per user.",
+        "Opt-in rebuildable index",
+        (
+            "embedding is the Titan Text Embeddings V2 vector (512 dimensions) of "
+            "'note | category | subcategory | account', never amounts or dates. text_hash is "
+            "the SHA-256 of the model, the dimensions and that text, so a changed row is "
+            "embedded again and an unchanged one never is. EmbeddingVector stores a pgvector "
+            "vector(512) on PostgreSQL (the migration and a before_create hook run CREATE "
+            "EXTENSION IF NOT EXISTS vector there) and little-endian float32 bytes on SQLite. "
+            "Search is an exact scan filtered by user_id (<=> on PostgreSQL, numpy cosine on "
+            "SQLite) with no approximate index, so no tenant shares an index with another. The "
+            "composite foreign key to transactions(user_id, transaction_id) cascades, so a "
+            "hard delete, a ledger reset and account deletion clear it. A soft-deleted "
+            "transaction keeps its vector but is never searched or counted."
         ),
     ),
     "recurring_transactions": (
@@ -345,7 +488,9 @@ INFO = {
         (
             "Excluded from historical transaction totals. Optional source FK includes user_id "
             "and uses NO ACTION, not cascading deletion. Application code explicitly unlinks "
-            "schedules before replacing detected sources."
+            "schedules before replacing detected sources. Today the only writer is the Money "
+            "Manager import, which turns repeat rules into schedules linked through "
+            "external_refs; safe-to-spend reads the active ones."
         ),
     ),
     "anomalies": (
@@ -354,7 +499,29 @@ INFO = {
         "Derived findings plus user review",
         (
             "A linked transaction must belong to the same user. Hard-deleting that transaction "
-            "cascades to the anomaly. A period-only anomaly may have NULL transaction_id."
+            "cascades to the anomaly. A period-only anomaly may have NULL transaction_id. Rows "
+            "the engine dismisses itself (auto-dismiss) have is_reviewed and is_dismissed true, "
+            "reviewed_at NULL and review_notes starting 'Auto-dismissed: '; every refresh "
+            "replaces them with the open rows, while rows a user reviewed are kept and "
+            "suppress the same finding later."
+        ),
+    ),
+    "category_overrides": (
+        "Review Queue decisions per transaction: kept, or moved to the user's category.",
+        "One review decision per user and transaction.",
+        "User review decision",
+        (
+            "decision is keep or change (CHECK). A change is an override: every import applies "
+            "it again after the categorization rules, matching the stored row by source UID, "
+            "then fingerprint, then verified legacy ID, and puts it back by public ID on any "
+            "live row reconciliation left with another label. The label the import brought is "
+            "kept in imported_category and imported_subcategory, which Undo restores. A keep "
+            "only records the review, so the source can still recategorize that row. If the "
+            "source turns the row into another type or a transfer, the override is deleted. "
+            "Applying rules to existing transactions skips rows with a change override. The "
+            "composite foreign key to transactions(user_id, transaction_id) cascades on hard "
+            "delete, as transaction_tags does, so a ledger reset and account deletion remove "
+            "it. Imports skip the table while it does not exist yet."
         ),
     ),
     "budgets": (
@@ -377,6 +544,24 @@ INFO = {
             "a goal."
         ),
     ),
+    "external_refs": (
+        "Links from rows an import created to the IDs the source system gave them.",
+        "One imported source item per user, source system, kind and source UID.",
+        "Import identity link",
+        (
+            "Money Manager repeat rules (kind repeat_rule, imported as scheduled_transactions) "
+            "and monthly budgets (kind budget, imported as budgets). local_id is the primary "
+            "key of the row in the table kind names and is deliberately not a foreign key, "
+            "because the kinds live in different tables; a link whose row was deleted is "
+            "re-pointed when the item is imported again and removed when the item is gone "
+            "too. fingerprint is the SHA-256 of the columns the import owns, as it last wrote "
+            "them: an import updates a linked row only while its values still match, so an "
+            "edit made in Ledger Sync is kept. A row with no link was made by hand and an "
+            "import never changes it. A transactions-only reset removes the repeat_rule links "
+            "with their schedules; a full reset removes all of them. The import skips repeat "
+            "rules and budgets until this table exists."
+        ),
+    ),
     "tax_records": (
         "Fiscal-year income, tax payments and deduction records.",
         "One stored tax record; multiple rows per user/year are allowed by this schema.",
@@ -385,6 +570,71 @@ INFO = {
             "The user/year index is not unique. AI tax-reporting code reads this table. No "
             "TaxRecord construction was found outside the model in backend/src, so a current "
             "upload writer is not established by this review."
+        ),
+    ),
+    "tax_deductions": (
+        "Old-regime deduction amounts saved per tax year.",
+        "One owner, tax year and section.",
+        "User tax inputs",
+        (
+            "(user_id, tax_year, section_key) is unique. section_key keeps the 1961 Act names "
+            "(80C, 80CCD(1B), 80D, HRA, 24(b)) and only positive amounts are stored (CHECK), "
+            "so saving zero for a section deletes its row. These are inputs to the browser's "
+            "regime comparison, not analytics inputs, so writes do not mark analytics dirty. A "
+            "full reset clears them; a transactions-only reset keeps them."
+        ),
+    ),
+    "tax_ais_summaries": (
+        "Per-tax-year totals imported from the Annual Information Statement (AIS).",
+        "One owner and tax year.",
+        "User-imported tax totals",
+        (
+            "The AIS is decrypted and parsed in the browser. Only four totals reach this table "
+            "(tds_salary, tds_other, interest, dividends); no PAN, date of birth, AIS row or "
+            "payer name is stored. (user_id, tax_year) is unique, importing a year again "
+            "replaces its row, and the amounts are non-negative (CHECK). Not an analytics "
+            "input. A full reset clears it; a transactions-only reset keeps it."
+        ),
+    ),
+    "mf_holdings": (
+        "Mutual fund holdings imported from a CAS PDF.",
+        "One scheme in one folio or demat account, from the latest import of its issuer kind.",
+        "Imported statement holdings",
+        (
+            "source is the statement's issuer (CAMS, KFINTECH, NSDL or CDSL). A new import "
+            "replaces the user's holdings of the same kind (CAMS and KFintech, or NSDL and "
+            "CDSL) in one locked transaction, so the two kinds sit side by side. cost is the "
+            "statement's figure, else first-in-first-out over the transactions when they start "
+            "from zero units; open_units above zero means the transactions do not reach back "
+            "to the first purchase, so there is no XIRR. The PDF, its password, the PAN and "
+            "the investor's name, email, address and phone are never stored. Valuation at "
+            "AMFI's NAV is computed on read, not stored here. A full reset clears the table; "
+            "a transactions-only reset keeps it."
+        ),
+    ),
+    "mf_transactions": (
+        "Dated CAMS or KFintech statement rows of a holding.",
+        "One statement row per holding and printed position.",
+        "Imported statement history",
+        (
+            "(holding_id, sequence) is unique, so same-day rows keep their printed order. "
+            "Amounts are signed as printed, and the rows feed XIRR and the first-in-first-out "
+            "cost. A depository CAS brings no transactions. holding_id cascades from "
+            "mf_holdings and user_id from users, so a re-import and a reset remove them with "
+            "their holding."
+        ),
+    ),
+    "mf_nav_prices": (
+        "The latest AMFI NAV for each scheme lookup key a held scheme uses.",
+        "One lookup key (isin: or code:).",
+        "Shared public-data cache",
+        (
+            "Public AMFI data, not user data: there is no user_id, every user shares the rows, "
+            "and neither a reset nor account deletion touches them. lookup_key is unique. nav "
+            "and nav_date are NULL when the key was looked for and the AMFI file did not list "
+            "it. checked_at drives the once-a-day refresh: a cached NAV is fresh when it was "
+            "checked after the most recent 10:30 IST, and GET /api/mf-holdings downloads "
+            "NAVAll.txt on demand when a held scheme's NAV is older."
         ),
     ),
     "analytics_state": (
@@ -568,9 +818,14 @@ MEANINGS = {
         "default_time_range": "Preferred initial reporting range.",
         "display_currency": "Display conversion currency; stored transactions remain INR.",
         "anomaly_expense_threshold": "Expense-to-baseline multiplier used by anomaly settings.",
-        "anomaly_types_enabled": "JSON array of enabled anomaly API values.",
+        "anomaly_types_enabled": (
+            "JSON array of enabled anomaly API values that the analytics refresh follows. Unset, "
+            "or exactly the default four, runs every check; a list naming none of the newer "
+            "types keeps the newer ones on; any other list is the complete set."
+        ),
         "auto_dismiss_recurring_anomalies": (
-            "Preference for suppressing recognized recurring anomalies."
+            "When true (the default), the analytics refresh files recognized recurring matches "
+            "as dismissed, with an 'Auto-dismissed: ' note."
         ),
         "recurring_min_confidence": "Minimum displayed recurring-pattern confidence, percent.",
         "recurring_auto_confirm_occurrences": (
@@ -657,6 +912,54 @@ MEANINGS = {
             "unknown and zero is full withholding."
         ),
     },
+    "rsu_vest_fx": {
+        "vesting_id": (
+            "The vest this record converts; unique, and ON DELETE CASCADE from rsu_vestings. "
+            "Writers check the vest belongs to the same user."
+        ),
+        "fx_source": "ecb, sbi_ttbr or employer, derived on every write; enforced by CHECKs.",
+        "fx_rate": (
+            "SBI TT buying rate the user looked up: INR per one unit of quote_currency. Exact "
+            "decimal; NULL when the user entered no rate."
+        ),
+        "fx_date": (
+            "Date of that rate card: the last day of the month before the vest month, or a "
+            "published day shortly before it."
+        ),
+        "quote_price": "Vest-date price per share in quote_currency. Exact decimal.",
+        "quote_currency": "Three-letter currency of quote_price and of the stock; USD by default.",
+        "employer_perquisite_inr": (
+            "The perquisite for the whole gross vest in INR, from Form 16, 12BA or the "
+            "payslip. When set it governs. Exact decimal."
+        ),
+    },
+    "foreign_asset_events": {
+        "kind": "sale or dividend; enforced by a CHECK.",
+        "vesting_id": (
+            "The vest (lot) a sale came from, ON DELETE SET NULL; NULL for a dividend and for "
+            "a sale whose vest was deleted."
+        ),
+        "symbol": "The stock: the grant's stock name as a ticker.",
+        "event_date": "Calendar date of the sale or dividend; the API refuses a future date.",
+        "quantity": (
+            "Shares sold, as the broker shows them on the sale date's share count; required "
+            "for a sale, NULL for a dividend. Exact decimal."
+        ),
+        "gross_amount": (
+            "Sale proceeds or gross dividend before any tax, in the stock's trading "
+            "currency. Exact decimal."
+        ),
+        "tax_withheld": (
+            "US tax withheld on a dividend, in the same currency; NULL for a sale. Exact decimal."
+        ),
+        "fx_rate": (
+            "Optional SBI TT buying rate the user entered for this event; without one the "
+            "reports use the ECB rate and label it an approximation."
+        ),
+        "fx_date": (
+            "Date of that rate card; defaults to the last day of the month before the event."
+        ),
+    },
     "transactions": {
         "transaction_id": "Stable public SHA-256-shaped primary key; legacy IDs are retained.",
         "source_fingerprint": (
@@ -715,10 +1018,32 @@ MEANINGS = {
         "name": "User-chosen label, such as iPhone Shortcut.",
         "token_prefix": "First 12 plaintext characters, shown so tokens can be told apart.",
         "token_hash": "SHA-256 hex of the plaintext; unique, the only stored form.",
-        "scope": "mmbak:upload; the only permission a token has.",
+        "scope": (
+            "mmbak:upload (the default), ledger:read or alerts:ingest; the only permission the "
+            "token has. Validated by the API, not by a CHECK."
+        ),
         "expires_at": "Naive UTC expiry, 365 days after creation.",
-        "last_used_at": "Naive UTC time of the last authenticated upload; NULL when unused.",
+        "last_used_at": (
+            "Naive UTC time of the last authenticated request, written at most once a minute; "
+            "NULL when unused."
+        ),
         "revoked_at": "Naive UTC revocation time; NULL while active.",
+    },
+    "push_subscriptions": {
+        "endpoint": (
+            "Push-service URL of this browser; unique, so a device belongs to one user at a "
+            "time. Never returned by the API."
+        ),
+        "p256dh_key": "The subscription's public P-256 key (base64url); encrypts each message.",
+        "auth_key": (
+            "The subscription's auth secret (base64url); with p256dh_key it encrypts each message."
+        ),
+        "label": "What the device said it is, such as iPhone app or Chrome on Android.",
+        "last_success_at": "Naive UTC time a push last reached this device; NULL until one has.",
+        "alert_keys": (
+            "JSON list (TEXT) of the item keys the daily run already told this device about, "
+            "never amounts or names; reset to [] when the row moves to another user."
+        ),
     },
     "ledger_categories": {"name": "First observed category spelling."},
     "ledger_subcategories": {"name": "First observed subcategory spelling."},
@@ -747,7 +1072,10 @@ MEANINGS = {
     },
     "ai_usage_log": {
         "timestamp": "UTC usage/reservation budget-window timestamp, stored without timezone.",
-        "provider": "Provider name associated with this call.",
+        "provider": (
+            "Provider name associated with this call; bedrock-embed for semantic-search "
+            "embedding calls."
+        ),
         "model": "Provider model identifier.",
         "funding_source": "app, personal or legacy credential-funding attribution.",
         "status": "reserved, completed or failed.",
@@ -767,6 +1095,67 @@ MEANINGS = {
         "tag": "Trimmed, case-sensitive tag string.",
     },
     "saved_filter_views": {"filters": "Opaque JSON-encoded frontend filter object."},
+    "saved_view_pins": {
+        "view_id": "The pinned saved view; ON DELETE CASCADE from saved_filter_views.",
+        "position": (
+            "Zero-based tile order. Deliberately not unique, so a reorder can rewrite every row "
+            "in one pass; ties fall back to the row id."
+        ),
+    },
+    "balance_checks": {
+        "account": (
+            "Exact account label the transactions carry in account, from_account or "
+            "to_account; a text value, not a foreign key."
+        ),
+        "check_date": (
+            "IST calendar day of the bank's balance. The ledger is compared at the end of this "
+            "day, that day's rows included. The API accepts 2000-01-01 through today."
+        ),
+        "balance": (
+            "Signed INR balance the bank or card app showed; card dues and overdrafts are negative."
+        ),
+    },
+    "bank_alerts": {
+        "text_hash": (
+            "SHA-256 of the alert's day and its whitespace- and case-normalised text; unique "
+            "per user, so a retried delivery is a no-op. The text itself is never stored."
+        ),
+        "ref_hash": (
+            "SHA-256 of the bank reference and the amount; NULL for a reference under nine "
+            "characters, all zeros or masked. Unique per user and direction when set, so the "
+            "SMS and email copies of one payment fold into one alert."
+        ),
+        "direction": "debit or credit; enforced by a CHECK.",
+        "amount": "Alert amount in INR, above zero and at most 9999999999999.99 (CHECK).",
+        "account_tail": "At most the last four digits of the account or card; NULL when none.",
+        "merchant": (
+            "Display label for the payee, at most 60 characters; digit runs of six or more are "
+            "masked."
+        ),
+        "bank": "bank_alert_profiles key such as hdfc; NULL when the bank was not recognised.",
+        "occurred_on": "IST day the alert says the money moved, else the day it arrived.",
+        "received_at": "Naive UTC time the alert was stored.",
+        "ignored_at": "Naive UTC time the user ignored the alert; NULL while it counts.",
+    },
+    "transaction_embeddings": {
+        "transaction_id": (
+            "Public ID of the embedded transaction; the composite FK with user_id cascades on "
+            "hard delete."
+        ),
+        "model": (
+            "Bedrock model ID that produced the vector (amazon.titan-embed-text-v2:0); a search "
+            "compares only like with like."
+        ),
+        "text_hash": (
+            "SHA-256 of the model, the dimensions and the embedded text; a different hash means "
+            "the row is embedded again."
+        ),
+        "embedding": (
+            "512-dimension vector: pgvector vector(512) on PostgreSQL, little-endian float32 "
+            "bytes on SQLite."
+        ),
+        "embedded_at": "UTC time the vector was stored, without timezone.",
+    },
     "analytics_state": {
         "user_id": "Owner, primary key and users FK; at most one state row per user.",
         "ledger_version": "Current ledger input generation.",
@@ -875,7 +1264,9 @@ MEANINGS = {
         "expected_amount": "Expected amount per occurrence.",
         "user_expected_amount": (
             "User-set amount per occurrence; NULL means none. Added in phase 1"
-            " (recurring_user_amount_2026); the app does not read or write it yet."
+            " (recurring_user_amount_2026); phase 2 reads and writes it through"
+            " core/analytics/recurring_amounts, which serves it as the effective amount, and"
+            " refresh never overwrites it. Un-confirming an item clears it."
         ),
         "amount_variance": "Allowed amount variation around the expected value.",
         "confidence_score": "Detection confidence, conventionally 0..100.",
@@ -901,9 +1292,28 @@ MEANINGS = {
         "deviation_pct": "Deviation from expected value, percent.",
         "is_reviewed": "Whether the finding has been reviewed.",
         "is_dismissed": "Whether the finding has been dismissed.",
-        "review_notes": "User's review annotation.",
+        "review_notes": (
+            "User's review annotation; starts with 'Auto-dismissed: ' on a row the engine "
+            "dismissed itself."
+        ),
         "detected_at": "Detection timestamp.",
-        "reviewed_at": "Optional review timestamp.",
+        "reviewed_at": "Optional review timestamp; NULL on a row the engine dismissed itself.",
+    },
+    "category_overrides": {
+        "transaction_id": (
+            "Public ID of the reviewed transaction; the composite FK with user_id cascades on "
+            "hard delete."
+        ),
+        "decision": (
+            "keep records the review; change stores the user's category. Enforced by a CHECK."
+        ),
+        "category": "The category the user kept or chose; a text value, not a foreign key.",
+        "subcategory": "The subcategory the user kept or chose; NULL for none.",
+        "imported_category": (
+            "The category the latest import gave the row after the rules; Undo restores it."
+        ),
+        "imported_subcategory": "The subcategory the latest import gave the row; NULL for none.",
+        "reviewed_at": "When the decision was recorded.",
     },
     "budgets": {
         "monthly_limit": "Positive monthly limit for the category scope.",
@@ -944,6 +1354,99 @@ MEANINGS = {
         "total_deductions": "Total recorded deductions.",
         "taxable_income": "Net taxable income.",
         "uploaded_at": "Recorded upload/entry timestamp.",
+    },
+    "external_refs": {
+        "source_system": "Source of the item; money_manager today.",
+        "kind": "repeat_rule (a scheduled_transactions row) or budget (a budgets row).",
+        "source_uid": "The source system's ID for the item; unique per user, system and kind.",
+        "local_id": (
+            "Primary key of the linked row in the table kind names; deliberately not a foreign key."
+        ),
+        "fingerprint": (
+            "SHA-256 hex of the columns the import owns, as it last wrote them; a mismatch "
+            "means the row was edited in Ledger Sync."
+        ),
+    },
+    "tax_deductions": {
+        "tax_year": "Tax year as YYYY-YY for consecutive years, such as 2026-27 (April to March).",
+        "section_key": (
+            "1961 Act section name: 80C, 80CCD(1B), 80D, HRA or 24(b); checked by the API."
+        ),
+        "amount": (
+            "Deduction amount in INR, above zero (CHECK) and at most 10,000,000 in the API. "
+            "Saving zero deletes the row."
+        ),
+    },
+    "tax_ais_summaries": {
+        "tax_year": "Tax year as YYYY-YY for consecutive years, such as 2025-26 (April to March).",
+        "tds_salary": "TDS under section 192 on salary, in INR.",
+        "tds_other": "Every other TDS row in INR; TCS is left out.",
+        "interest": (
+            "Gross interest in INR, after the browser drops lines one payer reported twice "
+            "(SFT and TDS)."
+        ),
+        "dividends": (
+            "Gross dividends in INR, after the browser drops lines one payer reported twice "
+            "(SFT and TDS)."
+        ),
+        "updated_at": (
+            "Time of the last import of this year, set explicitly on every save, so importing "
+            "identical totals again still moves it."
+        ),
+    },
+    "mf_holdings": {
+        "source": "Issuer of the statement: CAMS, KFINTECH, NSDL or CDSL.",
+        "cas_type": (
+            "DETAILED or SUMMARY for a CAMS or KFintech statement; NULL for a depository one."
+        ),
+        "folio": "Folio number; NULL for units held in a demat account.",
+        "amc": "Fund house name as printed.",
+        "scheme_name": "Scheme name as printed.",
+        "isin": "Scheme ISIN; the first NAV lookup key.",
+        "amfi_code": "AMFI scheme code (first column of NAVAll.txt); the second NAV lookup key.",
+        "scheme_type": "EQUITY, DEBT and so on, from casparser's ISIN database.",
+        "open_units": (
+            "Units on the statement's first day. Above zero, the transactions do not reach back "
+            "to the first purchase, so there is no XIRR. NULL when the statement prints none."
+        ),
+        "units": "Units held at the statement date.",
+        "cost": (
+            "Cost of the units still held: the statement's figure, else first-in-first-out over "
+            "the transactions when they start from zero units; NULL when neither applies."
+        ),
+        "statement_nav": "NAV printed on the statement; used when AMFI's is unavailable or older.",
+        "statement_nav_date": "Date of the statement NAV.",
+        "statement_from": "First day of the statement period.",
+        "statement_to": "Last day of the statement period.",
+        "imported_at": "Time of the import that stored the row, UTC without timezone.",
+    },
+    "mf_transactions": {
+        "holding_id": "The holding this statement row belongs to; ON DELETE CASCADE.",
+        "sequence": "Printed order within the holding, so same-day rows keep their order.",
+        "txn_date": "Date of the statement row.",
+        "txn_type": (
+            "casparser's TransactionType name, such as PURCHASE_SIP, REDEMPTION or STAMP_DUTY_TAX."
+        ),
+        "amount": (
+            "Signed as printed: purchases positive, redemptions negative; NULL on a row that "
+            "moves no money."
+        ),
+        "units": "Units on the row, signed as printed.",
+        "nav": "NAV on the row.",
+        "balance": "Running unit balance after the row.",
+    },
+    "mf_nav_prices": {
+        "lookup_key": (
+            "isin:<ISIN> or code:<AMFI code>; unique. A holding tries its ISIN, then its code."
+        ),
+        "scheme_code": "AMFI scheme code from NAVAll.txt.",
+        "scheme_name": "Scheme name from NAVAll.txt.",
+        "nav": "Latest NAV in INR; NULL when the key was looked for and the file did not list it.",
+        "nav_date": "Date of that NAV.",
+        "checked_at": (
+            "When a downloaded file was last searched for this key (naive UTC); drives the "
+            "once-a-day refresh."
+        ),
     },
 }
 
@@ -1335,6 +1838,7 @@ data["counts_by_dialect"] = {
 }
 
 ddl = []
+extension_ddl = []
 engine = None
 
 
@@ -1342,13 +1846,35 @@ def dump(statement, *args, **kwargs):
     ddl.append(str(statement.compile(dialect=engine.dialect)).strip() + ";")
 
 
+class DryResult:
+    """What driver-level SQL returns on the mock engine, where nothing runs."""
+
+    def scalar(self):
+        return "vector"
+
+
+def dump_driver_sql(statement, *args, **kwargs):
+    """Record the CREATE EXTENSION a before_create hook issues for transaction_embeddings.
+
+    A mock connection has no driver-level SQL, and the hook then checks that the
+    pgvector type exists, so this reports it present. Nothing is executed.
+    """
+    if statement.lstrip().upper().startswith("CREATE EXTENSION"):
+        extension_ddl.append(statement.strip().rstrip(";") + ";")
+    return DryResult()
+
+
 engine = create_mock_engine("postgresql+psycopg://", dump)
+engine.exec_driver_sql = dump_driver_sql
 Base.metadata.create_all(engine, checkfirst=False)
 # SQLAlchemy visits each table's index set in process-dependent order. All
 # indexes can follow the dependency-ordered table DDL, sorted for stable output.
+# Extensions the tables need come first.
 index_prefixes = ("CREATE INDEX ", "CREATE UNIQUE INDEX ")
-ddl = [statement for statement in ddl if not statement.startswith(index_prefixes)] + sorted(
-    statement for statement in ddl if statement.startswith(index_prefixes)
+ddl = (
+    sorted(set(extension_ddl))
+    + [statement for statement in ddl if not statement.startswith(index_prefixes)]
+    + sorted(statement for statement in ddl if statement.startswith(index_prefixes))
 )
 write_doc(
     OUT / "DATABASE_MODEL_SCHEMA.sql",
@@ -1507,6 +2033,8 @@ md += [
     "  SC -->|user_id + category_id + subcategory_id| T",
     '  T -->|user_id + transaction_id; hard-delete CASCADE| TT["transaction_tags"]',
     '  T -->|optional transaction link; hard-delete CASCADE| AN["anomalies"]',
+    '  T -->|user_id + transaction_id; hard-delete CASCADE| CO["category_overrides"]',
+    '  T -->|user_id + transaction_id; hard-delete CASCADE| TE["transaction_embeddings"]',
     "```",
     "",
     MERMAID_FENCE,
@@ -1522,6 +2050,16 @@ md += [
     '  U -->|owner; unique public grant ID| G["rsu_grants"]',
     '  U -->|owner| V["rsu_vestings"]',
     "  G -->|user_id + grant_id; CASCADE| V",
+    '  V -->|vesting_id; CASCADE| FX["rsu_vest_fx"]',
+    '  V -->|vesting_id; SET NULL| FE["foreign_asset_events"]',
+    "```",
+    "",
+    MERMAID_FENCE,
+    FLOWCHART_LR,
+    '  U["users"] -->|owner| SV["saved_filter_views"]',
+    '  SV -->|view_id; CASCADE| SP["saved_view_pins"]',
+    '  U -->|owner| H["mf_holdings"]',
+    '  H -->|holding_id; CASCADE| MT["mf_transactions"]',
     "```",
     "",
     (
@@ -1532,7 +2070,10 @@ md += [
         "belong to the stable ledger account record. Analytics rows are derived from transactions "
         "through application calculations, but generally have no transaction-level FK. "
         "`source_file` does not "
-        "link to `import_logs.id`; audit `entity_id` has no generic FK. There is no separate "
+        "link to `import_logs.id`; audit `entity_id` has no generic FK. "
+        "`external_refs.local_id` names a row in the table its `kind` selects, and "
+        "`balance_checks.account` is the exact transaction account label; neither is a "
+        "foreign key. There is no separate "
         "merchant master table, "
         "transaction-to-goal allocation table, uploaded-file binary table, or AI "
         "conversation table in these models."
@@ -1555,10 +2096,12 @@ md += [
         "an exact, unambiguous match can adopt a v2 fingerprint."
     ),
     (
-        "3. **Store:** rules assign categories, dimension identities are resolved in "
-        "batches, and transactions "
-        "are inserted/updated/restored or marked deleted. The import log and analytics "
-        "invalidation versions "
+        "3. **Store:** rules assign categories, review-queue category fixes "
+        "(`category_overrides`) are applied after the rules, dimension identities are "
+        "resolved in batches, and transactions "
+        "are inserted/updated/restored or marked deleted. A fix that reconciliation left "
+        "off a row paired by shape is put back before the commit. The import log and "
+        "analytics invalidation versions "
         "are committed with the ledger changes."
     ),
     (
@@ -1867,7 +2410,12 @@ md += [
     "| analytics_state.dirty_dates | Array of YYYY-MM-DD strings. | TEXT |",
     (
         "| saved_filter_views.filters | Opaque frontend filter object; backend does not "
-        "normalize its keys. | TEXT |"
+        "normalize its keys (only the Dashboard watch tiles read them, with the search "
+        "endpoint's model). | TEXT |"
+    ),
+    (
+        "| push_subscriptions.alert_keys | Array of strings: the item keys the daily run "
+        "already told this device about; never amounts or names. | TEXT |"
     ),
     "| merchant_aliases | Array of alternate labels, when populated. | TEXT |",
     "| audit_logs.old_value / new_value | Operation-specific prior/new object. | TEXT |",
@@ -1993,6 +2541,16 @@ md += [
         "nullable, adds 10 ORM indexes and drops duplicate indexes. Nothing is backfilled; the "
         "revision is irreversible. `user_preferences.user_id` stays nullable for the preserved "
         "ownerless defaults row. |"
+    ),
+    (
+        "| Feature domains | `feature_domains_2026` follows `money_manager_source_2026` and adds "
+        "14 tables: balance checks, bank alerts, review-queue category overrides, Money Manager "
+        "links, RSU conversion rates and foreign-asset events, CAS holdings with the shared "
+        "AMFI NAV cache, push devices, watchlist pins, AIS totals, saved deductions and "
+        "semantic-search vectors. It only creates tables: each is skipped when it already has "
+        "the expected columns, any other shape stops the revision before a change, and it is "
+        "irreversible. On PostgreSQL it first runs `CREATE EXTENSION IF NOT EXISTS vector` for "
+        "`transaction_embeddings.embedding`; SQLite stores float32 bytes. |"
     ),
     (
         "| transactions.fingerprint_version | Current ORM insert default is 2; the migration "

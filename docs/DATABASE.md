@@ -1,10 +1,11 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.30.2.
+Database reference for Ledger Sync 2.31.0.
 
-Updated for the 2026-09-18 domain storage implementation. The current model
-contains 35 application tables; Alembic also maintains its own version table.
-This describes the source checkout, not a confirmation of production deployment.
+Updated for the 2026-09-18 domain storage implementation and the 2026-10-27
+feature domains revision. The current model contains 49 application tables;
+Alembic also maintains its own version table. This describes the source
+checkout, not a confirmation of production deployment.
 
 For every column, default, key, relationship, index and source-code link, see
 the [complete schema dictionary](DATABASE_SCHEMA_REFERENCE.md). Its
@@ -24,6 +25,13 @@ are generated; regenerate them after a model change with
 
 SQLAlchemy 2 is the shared ORM. Alembic owns schema migrations. Production is
 already PostgreSQL; it is not a future migration target.
+
+Semantic search stores its embeddings with pgvector on PostgreSQL, so the
+`vector` extension must exist before `transaction_embeddings` is created.
+`feature_domains_2026` runs `CREATE EXTENSION IF NOT EXISTS vector` (Neon ships
+pgvector on every plan), and a `before_create` hook does the same for
+`metadata.create_all`. SQLite keeps the same vectors as little-endian float32
+bytes and ranks them with numpy.
 
 Primary files:
 
@@ -45,6 +53,18 @@ backend/src/ledger_sync/db/
     ledger_dimensions.py
     ai_settings.py
     compensation.py
+    upload_tokens.py
+    push_subscriptions.py
+    balance_checks.py
+    bank_alerts.py
+    category_overrides.py
+    external_refs.py
+    saved_view_pins.py
+    tax_deductions.py
+    tax_ais.py
+    rsu_tax.py
+    mf_holdings.py
+    transaction_embeddings.py
   migrations/
     env.py
     versions/
@@ -63,7 +83,8 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `users` | OAuth identity, profile, active state, and token revocation version |
 | `user_preferences` | Fiscal year, income/category rules, display, planning, and notification settings |
 | `user_ai_settings` | AI mode, provider, model, encrypted personal key, and token limits |
-| `upload_tokens` | Hashed, revocable, upload-only credentials for automations such as an iOS Shortcut |
+| `upload_tokens` | Hashed, revocable, single-scope access tokens for automations: Money Manager upload, MCP read access and the bank-alert inbox |
+| `push_subscriptions` | Web Push devices that receive a user's alerts, one browser or Home Screen app per row |
 | `audit_logs` | User-scoped import and analytics audit records |
 | `ai_usage_log` | Provider, model, token, round, and cost usage |
 
@@ -81,6 +102,10 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `column_mapping_logs` | Parser column-mapping diagnostics |
 | `categorization_rules` | Ordered pattern-based category rules |
 | `saved_filter_views` | Named transaction filter objects |
+| `saved_view_pins` | Saved views pinned to the Dashboard watchlist (user, view, position); unique per user and view; removed with the view or the user through `ON DELETE CASCADE` |
+| `balance_checks` | User-entered bank or card balances per account and day, compared with the ledger on every read |
+| `bank_alerts` | Parsed bank SMS and email alerts (hashes and parsed fields, never the text), matched against ledger rows on every read |
+| `transaction_embeddings` | Opt-in semantic-search vectors of transaction text: pgvector on PostgreSQL, float32 bytes on SQLite |
 
 ### Persisted analytics
 
@@ -101,15 +126,29 @@ re-exported through `_models/__init__.py` and `models.py`.
 
 | Table | Purpose |
 | --- | --- |
-| `recurring_transactions` | Detected or manually created recurring patterns |
-| `scheduled_transactions` | Expected future transactions |
+| `recurring_transactions` | Detected or manually created recurring patterns, with the detected amount and an optional user-set amount |
+| `scheduled_transactions` | Expected future transactions; today written only by the Money Manager import (repeat rules) |
 | `anomalies` | Detected outliers and review state |
+| `category_overrides` | Review-queue decisions per transaction: kept, or moved to the user's category, which every import puts back |
 | `budgets` | Category budget limits and current tracking |
 | `financial_goals` | Goal target, progress, status, and dates |
+| `external_refs` | Links a row an import created (a scheduled transaction or a budget) to its source UID, with a fingerprint of the values last written |
 | `tax_records` | Imported or calculated fiscal-year tax records |
+| `tax_deductions` | Old-regime deduction amounts saved per owner, tax year and section |
+| `tax_ais_summaries` | Per-tax-year totals imported from the AIS (TDS on salary, other TDS, interest, dividends), one row per owner and tax year, replaced on re-import |
 | `salary_plans` | One typed compensation plan per owner and fiscal year |
 | `rsu_grants` | User-owned grants with preserved public grant IDs |
 | `rsu_vestings` | Individually identified vesting events belonging to an owner's grant |
+| `rsu_vest_fx` | How each vest's perquisite becomes rupees: the employer's figure, an SBI TT buying rate, or the ECB approximation; one record per vest |
+| `foreign_asset_events` | User-entered sales (from a vest) and dividends of RSU shares, in the stock's currency, for Schedule FA |
+
+### Investments from statements
+
+| Table | Purpose |
+| --- | --- |
+| `mf_holdings` | One scheme per folio or demat account from the latest CAS of each issuer kind: units, cost, statement NAV and period; no PDF, password, PAN or investor details |
+| `mf_transactions` | Dated CAMS or KFintech statement rows per holding (type, signed amount, units, NAV, unit balance), used for XIRR and first-in-first-out cost |
+| `mf_nav_prices` | Public AMFI NAV cache keyed by `isin:` or `code:` lookup key, for held schemes only; not user data, and `checked_at` drives the once-a-day refresh |
 
 ## Transaction Model
 
@@ -181,18 +220,32 @@ import and manual-create paths populate them in batches.
 For each authenticated user:
 
 1. Normalize incoming rows.
-2. Lock the owning user, capture source fingerprints, then apply rules.
+2. Lock the owning user, capture source fingerprints, apply rules, then
+   re-apply review-queue category changes (`category_overrides`) to the rows
+   the reconciler will pair them with: a source UID first, then the
+   fingerprint, then a verified legacy ID. The import's own label is kept on
+   the override for Undo, and a row whose source type changed loses its
+   override.
 3. Resolve dimension IDs and source identities (source UIDs first, then
    fingerprints and verified legacy IDs) with bounded batch queries.
 4. Insert unknown sources or update existing rows without changing public IDs.
 5. Refresh `last_seen_at` and restore a matching soft-deleted row.
 6. Mark active rows not seen in the current import as deleted.
-7. Record changed dates and commit the ledger, import log, and analytics version
+7. Put each review-queue change back on any live row that reconciliation gave
+   another label (a row paired by shape, which step 2 cannot predict), keeping
+   the import's label for Undo.
+8. Record changed dates and commit the ledger, import log, and analytics version
    together. A forced re-import updates the existing unique file log.
 
 The unseen-row sweep is user-wide, not limited to one `source_file`. Transfer
 pairs use separate reconciliation logic so incoming and outgoing source rows
-become one `Transfer` record.
+become one `Transfer` record. Steps 2 and 7 do nothing while
+`category_overrides` does not exist yet, so a backend served before the
+migration still imports. A `keep` decision never changes a label, and applying
+categorization rules to existing transactions skips rows with a change
+override. A Money Manager backup also writes its repeat rules and monthly
+budgets before the commit, in a savepoint so a failure there leaves the ledger
+import intact, linked through `external_refs` (see Feature Domain Tables).
 
 ### Transaction indexes
 
@@ -239,6 +292,13 @@ dirty-day set request a full rebuild. `run_full_analytics()` remains an explicit
 recovery operation. `/api/analytics/v2/data-health` reports
 `rollups_calculated_at` and `rollups_stale` (rollups older than the latest
 import).
+
+The refresh also rebuilds anomaly findings. It replaces the open rows in
+`anomalies` and the rows the engine dismissed itself (auto-dismiss: reviewed
+and dismissed, `reviewed_at` NULL, `review_notes` starting `Auto-dismissed: `),
+and keeps the rows a user reviewed, which also suppress the same finding later.
+`user_preferences.anomaly_types_enabled` picks the checks: unset, or exactly the
+four-type default, runs every check.
 
 ## User Preferences Storage
 
@@ -315,17 +375,121 @@ the final schema. There is no automatic downgrade after new domain writes.
 Implementation and verification status:
 [domain storage plan](plans/2026-09-18-domain-storage.md).
 
+## Feature Domain Tables
+
+Revision `feature_domains_2026` adds 14 tables in one expand-only step. Each
+is user-scoped except `mf_nav_prices`.
+
+- **Ledger checks.** `balance_checks` holds what a bank or card app showed for
+  one account on one IST day (signed `NUMERIC(15, 2)`, unique per user,
+  account and day). The ledger side is never stored: every read recomputes the
+  account's running balance at the end of that day, so an import that fills in
+  missing rows can turn a mismatch into a match. `bank_alerts` holds a parsed
+  bank SMS or email alert without its text. `text_hash` makes a redelivery a
+  no-op, `ref_hash` folds the SMS and email copies of one payment (direction
+  is part of that unique key, so a refund quoting the original reference stays
+  a separate credit), and the account survives only as its last four digits.
+  Alerts are matched against live transactions on every read, never become
+  ledger rows or analytics inputs, and are capped at 500 new alerts per user in
+  any 24 hours, counted in the database.
+- **Review decisions.** `category_overrides` keeps one decision per user and
+  transaction, keyed by the public transaction ID as `transaction_tags` is. A
+  `change` is applied again by every import (see Reconciliation); a `keep`
+  only records the review.
+- **Import links.** `external_refs` links a Money Manager repeat rule (kind
+  `repeat_rule`, a `scheduled_transactions` row) or monthly budget (kind
+  `budget`, a `budgets` row) to its source UID. `local_id` is not a foreign key
+  because the kinds live in different tables, and `fingerprint` hashes the
+  columns the import last wrote. An import updates a linked row only while it
+  still matches, so an edit made in Ledger Sync is kept; a linked row deleted
+  in Ledger Sync comes back while the backup still has the item; a row with no
+  link was made by hand and is never changed. The import skips repeat rules
+  and budgets while the table does not exist yet.
+- **Watchlist.** `saved_view_pins` orders the saved views pinned to the
+  Dashboard. `position` is deliberately not unique, so a reorder rewrites every
+  row in one pass, and the API allows eight pins per user. Only the watch tiles
+  read a view's `filters` on the server.
+- **Tax and RSU records.** `tax_deductions` keeps positive old-regime amounts
+  per tax year and 1961 Act section key; saving zero deletes the row.
+  `tax_ais_summaries` keeps four totals per tax year from an AIS decrypted in
+  the browser, so no PAN, date of birth or statement row reaches the server.
+  `rsu_vest_fx` records how one vest becomes rupees (`fx_source` is derived on
+  every write: the employer's figure, else an SBI TT buying rate, else the ECB
+  approximation) and `foreign_asset_events` holds the user's sales and
+  dividends in the stock's own currency. Their decimals use
+  `CompensationDecimal`. None of these four is an analytics input.
+- **Statements.** `mf_holdings` and `mf_transactions` hold the latest CAS
+  import of each issuer kind (CAMS and KFintech, or NSDL and CDSL); a new
+  import replaces its kind inside one transaction that locks the user.
+  `mf_nav_prices` caches AMFI's NAVs for the schemes held. It has no `user_id`,
+  and `GET /api/mf-holdings` downloads the NAV file on demand only when a held
+  scheme's NAV was checked before the latest 10:30 IST.
+- **Devices.** `push_subscriptions` holds one row per browser or Home Screen
+  app. The endpoint is unique, so a device belongs to one user at a time, and
+  `alert_keys` (a JSON list in `TEXT`) records what the daily run already told
+  the device, so a repeated run sends nothing new.
+- **Semantic search.** `transaction_embeddings` holds one 512-dimension Titan
+  Text Embeddings V2 vector per opted-in transaction, built from the text
+  `note | category | subcategory | account` (never amounts or dates).
+  `text_hash` covers the model, the dimensions and the text, so only new or
+  changed rows are embedded again. Search is an exact scan filtered by
+  `user_id` (pgvector `<=>` on PostgreSQL, numpy cosine on SQLite) with no
+  approximate index, so no tenant shares an index with another; the unique
+  `(user_id, transaction_id)` index is the B-tree behind the scan. Every
+  embedding call is reserved and settled in `ai_usage_log` under the provider
+  `bedrock-embed`. A soft-deleted transaction keeps its vector but is never
+  searched or counted.
+
+Other 2.31.0 features add no table or column. The Dashboard reads
+(`/api/dashboard-metrics`, `/api/weekly-recap`, `/api/safe-to-spend`,
+`/api/card-cycles`) only read existing ledger, account, preference, recurring,
+schedule and anomaly rows; card cycles use the Money Manager account columns
+that `money_manager_source_2026` added to `ledger_accounts`. Budget edits use
+the existing `budgets` columns, and the partial unique indexes still count
+paused rows, so creating a budget for a paused category resumes that row.
+Category suggestions train in process memory from `transactions` and are
+rebuilt when the ledger version changes. The Fee or Interest anomaly check
+needed no migration (see Production Migration Automation).
+
+What each reset clears:
+
+| Table | Transactions-only reset | Full reset |
+| --- | --- | --- |
+| `balance_checks`, `bank_alerts`, `tax_deductions`, `tax_ais_summaries`, `rsu_vest_fx`, `foreign_asset_events`, `mf_holdings`, `mf_transactions` | Kept | Cleared |
+| `saved_view_pins` | Kept | Cleared with its views |
+| `external_refs` | `repeat_rule` links cleared with their schedules; `budget` links kept | Cleared |
+| `category_overrides`, `transaction_embeddings` | Cleared with the transactions (cascade) | Cleared |
+| `push_subscriptions` | Kept | Kept |
+| `mf_nav_prices` | Not user data | Not user data |
+
+Deleting the account runs the full reset path and then removes the user, so
+the user foreign keys cascade through the rest, `push_subscriptions` included.
+Reset and delete skip a table whose migration has not run yet, so they keep
+working on a database that predates `feature_domains_2026`.
+
 ## User Scoping and Cascades
 
 All user-owned operational and analytics tables include `user_id`.
-`column_mapping_logs` is parser diagnostic data and is the notable
-non-user-scoped table.
+`column_mapping_logs` (parser diagnostics) and `mf_nav_prices` (public AMFI
+NAVs) are the non-user-scoped tables.
 
 User foreign keys use `ON DELETE CASCADE` in the current model. Important
 secondary relationships include:
 
-- Tags and anomalies reference `(user_id, transaction_id)` together, so they
-  cannot point at another user's transaction; hard deletion cascades.
+- Tags, anomalies, category overrides and semantic-search embeddings reference
+  `(user_id, transaction_id)` together, so they cannot point at another user's
+  transaction; hard deletion cascades, so a ledger reset or account deletion
+  removes them. Soft deletion does not invoke foreign-key cascades.
+- `rsu_vest_fx` and `foreign_asset_events` reference `rsu_vestings(id)` alone,
+  because that table has no unique `(user_id, id)`; every writer checks that
+  the vest belongs to the same user. Deleting a vest cascades to its
+  `rsu_vest_fx` record and sets `foreign_asset_events.vesting_id` to NULL, so
+  its sales stay.
+- `saved_view_pins` cascades from `saved_filter_views`, and `mf_transactions`
+  from `mf_holdings`.
+- `external_refs.local_id` names a row in the table its `kind` selects and is
+  not a foreign key. An import re-points a link whose row was deleted and
+  removes it once the source item is gone too.
 - Dimension references include the owner, and subcategory references also
   include their parent category.
 - Scheduled items reference `(user_id, recurring_id)` together. Detection
@@ -572,6 +736,36 @@ safe. PostgreSQL holds ACCESS EXCLUSIVE locks on the affected tables with a 10s
 lock timeout; SQLite rebuilds `users`, `transactions` and
 `recurring_transactions` under the dedicated-connection rule above. The
 revision is irreversible: recover with a verified backup or a forward repair.
+
+Revision `feature_domains_2026` follows `money_manager_source_2026` and creates
+the 14 tables in Feature Domain Tables. It only creates tables, so the running
+backend and the next one both work before and after it. Each table is skipped
+when it already exists with the expected columns (a `create_all` bootstrap made
+it), and any other shape stops the revision before a change. On PostgreSQL it
+sets a 10 second lock timeout, since creating a table locks nothing but the
+brief foreign-key reference, and runs `CREATE EXTENSION IF NOT EXISTS vector`
+first when `transaction_embeddings` is missing. It is irreversible: dropping
+the tables would discard the checks, decisions, deductions, RSU records, pins,
+devices and imported holdings users entered, so recover with a verified backup
+or a forward repair.
+
+Vercel deploys the backend outside this job chain, so the backend can be live
+before the migration. Imports, the Money Manager repeat-rule and budget step,
+rule application, resets and account deletion skip a table that does not exist
+yet. The routes behind the other new tables (balance checks, bank alerts, push,
+saved deductions and AIS totals, RSU tax records, CAS holdings, semantic search
+and the Dashboard watchlist) fail with a server error on PostgreSQL until it
+runs, so apply the migration before or with the backend, as the `migrate` job
+does ahead of the Pages deployment. The native PostgreSQL CI job installs
+`postgresql-<major>-pgvector` from apt.postgresql.org for its cluster's own
+major and checks that `vector.control` exists before the migration suite runs.
+
+Rolling back the backend to 2.30.x needs one cleanup first.
+`anomalies.anomaly_type` holds the `AnomalyType` member name in `VARCHAR(50)`,
+so the new `FEE_CHARGE` check needed no migration, but a build without that
+member fails to load such a row. Run
+`DELETE FROM anomalies WHERE anomaly_type = 'FEE_CHARGE'` before running an
+older build.
 
 After an upgrade, `uv run alembic check` reports no differences between the
 migrated schema and the ORM. `migrations/env.py` filters only the documented

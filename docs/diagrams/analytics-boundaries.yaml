@@ -32,11 +32,11 @@ groups:
 nodes:
   pages:
     icon: tabler:layout-dashboard
-    # The 25 lazy pages include Upload, Transactions and Settings, not only analytics.
+    # The 28 lazy pages include Upload, Transactions and Settings, not only analytics.
     label: Workspace pages
-    note: 25 lazy pages
+    note: 28 lazy pages
     in: fe
-    evidence: frontend/src/App.tsx:59-83
+    evidence: frontend/src/App.tsx:62-89
   hooks:
     icon: logos:react-query-icon
     label: TanStack Query hooks
@@ -52,7 +52,19 @@ nodes:
     in: fe
     evidence:
       - frontend/src/pages/tax-planning/useTaxPlanning.ts:27
-      - frontend/src/pages/net-worth/useNetWorth.ts:17
+      - frontend/src/pages/net-worth/useNetWorth.ts:12
+  # The Dashboard no longer downloads the full ledger: Age of Money, Days of Buffering, the investment-transfer
+  # split and the health inputs are computed here, per user, from the ledger rows and account balances.
+  dash:
+    icon: tabler:gauge
+    label: Dashboard metrics API
+    note: "on-demand, row level"
+    in: be
+    align: calc
+    evidence:
+      - backend/src/ledger_sync/api/dashboard_metrics.py:24#router
+      - backend/src/ledger_sync/core/dashboard_metrics.py:150#dashboard_pulse
+      - backend/src/ledger_sync/core/dashboard_metrics.py:171#dashboard_health
   v2:
     icon: tabler:api
     label: Analytics v2 API
@@ -101,7 +113,12 @@ edges:
       label: compute client-side
       evidence:
         - frontend/src/pages/tax-planning/useTaxPlanning.ts:27#computeAnnualTaxPlanning
-        - frontend/src/pages/net-worth/useNetWorth.ts:17
+        - frontend/src/pages/net-worth/useNetWorth.ts:12
+  - hooks -> dash:
+      label: "GET /api/dashboard-metrics/*"
+      evidence:
+        - frontend/src/services/api/dashboardMetrics.ts:163#getPulse
+        - frontend/src/services/api/dashboardMetrics.ts:168#getHealth
   - hooks -> v2:
       label: "GET /api/analytics/v2/*, POST refresh"
       evidence:
@@ -114,6 +131,11 @@ edges:
       evidence:
         - frontend/src/services/api/upload.ts:52
         - backend/src/ledger_sync/api/upload.py:80
+  - dash -> txns:
+      label: "ledger rows, balances"
+      evidence:
+        - backend/src/ledger_sync/core/dashboard_metrics.py:82#build_transaction_query
+        - backend/src/ledger_sync/core/dashboard_metrics.py:119#account_balances
   - v2 -> rollups: { label: read, evidence: backend/src/ledger_sync/api/analytics_v2.py:17-27 }
   # Data health and the 50/30/20 spending rule query transactions directly.
   - v2 -> txns:

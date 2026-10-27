@@ -6,6 +6,92 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.31.0 - 2026-10-27
+
+The app no longer keeps a CPU core busy while it sits open, with every animation looking exactly as before. It also gains Safe to spend, a weekly recap and a watchlist on the Dashboard, a Review Queue, balance and bank-alert checks on Data Health, Tax Year 2026-27 with advance tax, AIS import and a Schedule FA worksheet for RSUs, CAS mutual fund import, Smart search, phone alerts and a read-only MCP server for Claude Code. App-mode chat moves to Claude Haiku 5.5. One migration adds 14 tables.
+
+### Performance
+
+Idle traces of 13-36 s per page on a 1920x1080 display that draws about 130-240 frames a second, live 2.30.2 against a local production build of this release, one tab open at a time. Busy time is per thread, and each row compares the two builds in the same session:
+
+| Idle page | Renderer main thread | GPU process | Compositors |
+| --- | --- | --- | --- |
+| Landing page (2026-10-26) | 23.1% -> 9.3% | 60.7% -> 42.6% | 15.6% -> 11.2% |
+| Cash Flow, Sankey (2026-10-26) | 83.8% -> 31.7% | 94.9% -> 37.8% | 52.1% -> 20.7% |
+| Dashboard, any signed-in page (2026-10-27, final build) | 1.3% -> 1.0% | 25.2% -> 17.2% | 24.7% -> 18.1% |
+
+The shares move with the machine's state and frame rate between sessions: a same-session Cash Flow pair on 2026-10-27 read 62.4% -> 57.8% on the main thread, the bead JavaScript gone but style recalculation per frame higher than on 2026-10-26. What holds in every run is the structure: the idle Cash Flow page makes no DOM writes, the landing page about 950 fewer a second, and the signed-in shell runs the same 10 CSS loops as before with no JavaScript per frame.
+
+- The Cash Flow and landing-page beads drift on CSS animations instead of a Motion loop that ran JavaScript on every frame. On Cash Flow that loop also rewrote every bead's `d` path about 2,700 times a second; the page now makes no DOM writes while idle. Speed, spacing and phase are unchanged, and the beads still stop off screen, in Reduced motion and in print.
+- The two scan beams moved out of the masked, translucent background field into their own layer and carry its fade and opacity themselves. Every beam frame used to redraw a full-viewport masked surface. Frozen frames of the old and new layouts match pixel for pixel (largest channel difference 1 of 255).
+- Count-ups write their number straight into the text node instead of re-rendering the card on every frame, and a count that is already at its target no longer schedules frames.
+- The route-pending and period-settling sweeps animate a full `transform`, which Motion hands to the compositor, instead of `x`, which ran on its JavaScript loop.
+- The AI usage badge refreshes when a message settles instead of polling every 30 s, Settings polls usage only while the AI section is open, and the currency rate pill no longer re-renders the sidebar every minute.
+- Number and date formatters are built once per locale and option set instead of on every call (25-45x cheaper per label).
+- Skeleton bars pulse as one layer per group instead of one per bar (47 animated layers on the page skeleton become about 7).
+- Disclosure panels measure their layout only when they open or close, not on every render.
+- Chart wrappers memoise their screen-reader tables, which also rebuild when the display currency changes.
+- The SheetJS chunk (about 490 KB) is cached the first time an upload uses it instead of being precached on every device; the precache drops from 2,744 KiB to 2,267 KiB.
+
+### Added
+
+Every figure below is a computation aid from your recorded data, not financial or tax advice, and the pages say so.
+
+- **Dashboard**
+  - Safe to spend: cash, bank and wallet balances less card dues and overdrafts, bills due before payday and a reserve for later bills the next paychecks cannot cover. It shows a per-day allowance, a spending pace bar and a low-balance warning from a 30-day per-account balance projection (`GET /api/safe-to-spend`, `GET /api/safe-to-spend/projection`).
+  - Weekly recap of the last full Monday-to-Sunday week (IST): spending against the 4-week average, the top category movers, the book-value net-worth change and its biggest driver, commitments due in the next 7 days, open anomalies and days to payday (`GET /api/weekly-recap`). Explain sends only these figures to your configured AI assistant for a three-sentence summary, counted against the chat's daily quota.
+  - Watchlist: pin up to 8 saved views from the Views menu on Transactions. Each tile shows this month so far against the same days of last month, with the last six complete months behind it. With nothing pinned it offers last month's top three spending categories as one-tap pins (`GET /api/saved-views/tiles`, `PUT`/`DELETE /api/saved-views/{view_id}/pin`, `PUT /api/saved-views/pins/order`, `POST /api/saved-views/pins/category`).
+  - Safe to spend, the recap and the watchlist ignore the time range, so they sit above the period content and never dim while it settles.
+- **Review Queue** (`/review`): one card per unreviewed income or expense row of the last 30 days, newest first. Swipe right or press K to keep the category; swipe left or press C to change it, with the category suggester's top two picks first; Undo with U. A change is stored per transaction in `category_overrides` and put back on every later spreadsheet or Money Manager import (`GET /api/review-queue`, `PUT`/`DELETE /api/review-queue/{transaction_id}`).
+- **Category suggestions** in the spreadsheet upload review: a per-user naive Bayes over note words, account, amount size and weekday suggests up to two categories for rows with a placeholder category. Nothing is applied. It turns on at 30 categorized rows in 2 categories and holds back guesses under 50% (`POST /api/category-suggestions`, `GET /api/category-suggestions/status`).
+- **Data Health**
+  - Balance checks: record the balance your bank or card app shows on a day and the ledger's running balance for that day is compared with it, per account, with a month grid of rows, gaps and checks (`/api/balance-checks`).
+  - Bank alerts: an iPhone Shortcut or any automation posts bank SMS or alert-email text to `POST /api/ingest/text` with a Bank alert inbox token. The amount, direction, date, last four digits, payee and bank are read; OTPs, promotions, collect requests and future or declined debits are refused, and the text itself is never stored. Data Health lists alerts no ledger row answers (same amount, date within 2 days, a fitting account), with Ignore and Restore. Alerts never become ledger rows.
+- **Bill Calendar**
+  - Credit card statement cycles from the Money Manager card days: each card's last and next statement, due date, billed and unbilled amounts, payment status and the cash left in the paying account after dues (`GET /api/card-cycles`), with each due date on the calendar and a Card statements panel.
+  - The four advance tax instalment dates (15 Jun, 15 Sep, 15 Dec, 15 Mar) as markers that link to the estimate on Income Tax and stay out of every total.
+- **Income Tax**
+  - Tax Year 2026-27 under the Income-tax Act 2025. The slabs, standard deduction and rebate match FY 2025-26, so no estimate moves; years from 2026-27 read Tax Year, and deduction labels show the new section beside the old one, such as s.123 (old 80C).
+  - Old-regime deductions are saved per tax year with Save and Clear instead of resetting on every visit, and each capped section shows how much of its limit is left (`/api/tax-deductions/{tax_year}`).
+  - Advance tax planner: the year's tax less TDS and TCS split into the four cumulative instalments once it reaches INR 10,000, with ledger payments matched to each date and estimated deferment and default interest. A filing calendar lists the return, belated and revised deadlines.
+  - AIS import (`/tax/ais`): the Annual Information Statement JSON is decrypted and read entirely in the browser with your PAN and date of birth, which are never sent, saved or logged. It shows TDS and TCS, interest, dividends, securities and mutual fund transactions, and compares the statement with the ledger both ways. Saving keeps only four totals per year (`/api/tax-ais`), which the Withholding to date card then shows beside its estimate.
+  - Foreign Assets (`/tax/foreign-assets`) for RSUs of a foreign employer: a lot ledger per vest, sales and dividends with US tax withheld, Schedule FA rows per calendar year with initial, peak and closing values, CSV export, and a FAST-DS 2026 check (holdings on 31 Mar 2026, declarations by 31 Dec 2026).
+  - RSU vests convert to rupees by the tax convention: the employer's perquisite figure, else the SBI TT buying rate you enter for the last day of the month before the vest, else the ECB rate labelled an approximation (`/api/rsu-tax`).
+- **Investments**: import a CAS PDF (CAMS or KFintech, detailed or summary, NSDL or CDSL), read in memory on the server; neither the PDF nor its password is stored or logged. Holdings are valued at AMFI's latest NAV, with cost, gain and XIRR from the statement's own transactions (`POST /api/upload/cas`, `GET /api/mf-holdings`). MFCentral statements and re-printed copies are refused with a message naming the statement to request.
+- **Smart search** on Transactions: an opt-in index embeds each transaction's note, category, subcategory and account (never amounts or dates) with Amazon Titan Text Embeddings V2, and the Smart search toggle answers the search box by meaning within the page filters. Indexing runs in rate-limited batches, re-embeds only changed rows, counts toward AI usage and budgets, and can be removed (`/api/semantic-search`).
+- **FIRE Calculator**: a Monte Carlo tab simulates 1,000 to 10,000 lifetimes in a Web Worker from today's net worth split into equity, debt and cash pots, each with its own return and volatility, plus INR inflation. It reports the success rate with its sampling margin, the median at retirement and at the end age, failure ages and a percentile fan, with an optional equity fall at retirement as a stress test.
+- **Budgets** (`/budgets`): this month's category budgets above the 50/30/20 rule, with inline limit and threshold edits, pause and resume, delete and Add budget (`PATCH`/`DELETE /api/analytics/v2/budgets/{budget_id}`).
+- **Recurring**: tap an amount to edit it in place; an edited commitment shows an Edited chip and its detected amount, with Reset.
+- **Anomaly Review** runs the four checks that were only in the type list (Unusual Category, Large Transfer, Possible Duplicate, Missing Recurring for confirmed commitments) and a new Fee or Interest check, follows the saved enabled-types and auto-dismiss settings again, and explains each check on its card.
+- **Money Manager import** brings repeat rules (as scheduled payments) and monthly category budgets, linked by their Money Manager IDs in `external_refs` so later backups update the same rows and keep edits made here. The Upload page gains a Sync from Money Manager button for the iOS Shortcut.
+- **Phone and browser alerts** (Web Push) in Settings > Notifications, on a Home Screen app on iOS 16.4 or later or any browser with push: bills due, budgets past their threshold and anomalies waiting for review, sent once a day by a Vercel cron, with counts and a deep link but never amounts. They stay off until the VAPID keys and `CRON_SECRET` are set.
+- **MCP server** at `POST /mcp`: Claude Code can query the ledger through the assistant's read-only tools with a Claude MCP read access token (`claude mcp add --transport http ledger-sync <API>/mcp --header "Authorization: Bearer <token>"`). Calls run in a transaction that cannot write, 60 a minute and 1,000 an hour per token.
+
+### Changed
+
+- The Dashboard and Overview no longer download the whole ledger (`/api/transactions/all`, 3.4 MB of JSON for a 9,000-row synthetic ledger). Age of Money, Days of Buffering, the investment-transfer split and the health-score inputs come from `GET /api/dashboard-metrics/pulse` and `GET /api/dashboard-metrics/health`, about 1.7 KB together, whose numbers matched the browser calculators on all 2,491 compared figures. Cash Flow, Comparison, GST, Tax, Returns, Investment Analytics and SIP projection now fetch the ledger on their first visit instead of finding it cached by the Dashboard.
+- App-mode chat defaults to Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`, USD 0.11 / 0.55 per 1M tokens on the us. profile against 1.10 / 5.50 for Haiku 4.5). The Bedrock proxy turns Claude 5.x thinking off, or to low effort where it cannot be turned off, so tool rounds keep working. To go back, set `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0` and redeploy. Cost estimates cover the Claude 5.x models, and the BYOK Bedrock list adds Haiku 5.5 and Sonnet 5.5.
+- Net Worth projects by compounding the average monthly saving at the measured growth of yearly savings (needs 24 complete months, held within 15% a year) for the 5 years the chart draws, then holds it; milestone ETAs follow the same path. With no measurable growth it is the previous straight line, which stays on the chart beside it.
+- Settings > Upload tokens is now Settings > Advanced > Access Tokens, with a purpose per token (Money Manager upload, Claude MCP read access, Bank alert inbox) and the five-token cap per purpose. Existing upload tokens keep working unchanged.
+- The Budget Rule page and nav entry are now Budgets.
+- Chart keyboard navigation follows the slider model: on a horizontal chart Up, Right and Page Up move forward; on a vertical chart Down and Page Down do.
+- Applying rules to existing transactions skips rows with a Review Queue fix, as imports already do.
+- Anomaly Review applies auto-dismiss, on by default, to existing accounts: a large expense that is an entry of a recurring pattern, and a category month explained by a bill on a longer-than-monthly schedule, are filed as dismissed with a note, so they leave the open list and the sidebar and notification counts. Turning the setting off brings them back on the next refresh.
+- Anomaly Review lists open findings first, then by type, severity and month instead of by detection time, 50 cards at a time. Each type has its own cap per refresh, and reviewing a finding on a transaction silences only that type there.
+- Money Manager import: a repeat rule or budget that cannot be stored no longer blocks the ledger import, transfer repeat rules are skipped, and monthly budgets follow this month's override.
+
+### Fixed
+
+- An amount you set on a detected recurring commitment survives the next analytics refresh; totals, sorting, the AI tools and the weekly recap use it. Un-confirming a bill clears it.
+- Creating a budget for a category with a paused one resumes it, an active duplicate returns 409 and a zero or negative limit 422 (both were 500s), and a new budget counts this month's spending at once instead of reading zero until the next import.
+- A full account reset now also clears RSU sales, dividends and vest exchange rates, bank alerts, balance checks, saved deductions, AIS totals, CAS holdings and the Money Manager links. A ledger-only reset keeps them, as before for other settings.
+
+### Database
+
+- One expand-only migration, `feature_domains_2026`, adds `balance_checks`, `bank_alerts`, `category_overrides`, `external_refs`, `foreign_asset_events`, `rsu_vest_fx`, `mf_holdings`, `mf_transactions`, `mf_nav_prices`, `push_subscriptions`, `saved_view_pins`, `tax_ais_summaries`, `tax_deductions` and `transaction_embeddings`. On PostgreSQL it first runs `CREATE EXTENSION IF NOT EXISTS vector`. No existing table changes. CI installs pgvector for the native PostgreSQL job.
+- `anomalies.anomaly_type` gains `FEE_CHARGE`, stored as text, so no migration. Before rolling back to 2.30.x, run `DELETE FROM anomalies WHERE anomaly_type = 'FEE_CHARGE'`, or older code fails to load those rows.
+- New dependencies: pywebpush, casparser, pypdfium2, pgvector and numpy (already installed through pandas, now declared).
+
 ## 2.30.2 - 2026-10-24
 
 Every outdated dependency, CI action and package-manager pin moves to its newest release, which also fixes all 24 open Dependabot alerts and all 9 `pnpm audit` advisories. No app, API or schema change.

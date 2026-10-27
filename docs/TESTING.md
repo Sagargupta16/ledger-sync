@@ -1,25 +1,26 @@
 # Testing Guide
 
-Testing reference for Ledger Sync 2.30.2.
+Testing reference for Ledger Sync 2.31.0.
 
-Collected on 2026-10-21:
+Collected on 2026-10-27:
 
 | Suite | Tests | Files |
 | --- | ---: | ---: |
-| Backend pytest | 1,817 | 106 |
-| Frontend Vitest | 1,792 | 190 |
-| Total | 3,609 | 296 |
+| Backend pytest | 1,866 | 110 |
+| Frontend Vitest | 2,225 | 202 |
+| Total | 4,091 | 312 |
 
 Backend counts come from `pytest --collect-only`, which expands parametrized
-cases. Frontend counts come from `vitest list`, which lists each `it.each` or
-`test.each` table once (79 of them), so a full run reports more frontend tests
-than this table.
+cases; a full SQLite run passes 1,654 and skips the 212 that need PostgreSQL.
+Frontend counts come from a full `vitest run`, which counts every row of an
+`it.each` or `test.each` table (`vitest list` lists each table once and shows
+1,901).
 
-Backend files are split into 49 unit files and 57 integration files. Without
-`LEDGER_SYNC_TEST_POSTGRES_URL`, 186 tests skip locally (PostgreSQL-only cases),
-leaving 1,631 to run; CI's `postgres-migrations` job reruns
-`tests/integration/` and three migration/compensation unit files against native
-PostgreSQL.
+Backend files are split into 50 unit files and 60 integration files. Without
+`LEDGER_SYNC_TEST_POSTGRES_URL` the PostgreSQL-only cases skip locally (how many
+needs a full run, which collection does not do); CI's `postgres-migrations` job
+reruns `tests/integration/` and three migration/compensation unit files against
+native PostgreSQL with pgvector installed.
 
 Counts are a point-in-time baseline, not a permanent assertion. Recalculate
 them when adding or removing tests.
@@ -64,8 +65,8 @@ changes, also run the application and exercise the affected workflow.
 backend/tests/
   conftest.py
   fixtures/
-  unit/             49 test files
-  integration/      57 test files
+  unit/             50 test files
+  integration/      60 test files
 ```
 
 Unit coverage includes:
@@ -91,6 +92,9 @@ Integration coverage includes:
 - Daily net-worth opening balances
 - Reconciliation and soft deletion
 - Saved views
+- Semantic search: opt-in indexing, ranking, funding, and per-user isolation, on
+  in-memory SQLite with a fake Titan client in place of Bedrock
+- Recurring user amounts: the expand revision and the phase 2 contract
 - 50/30/20 spending-rule responses
 - Tag replacement and user scoping
 - Transaction facets
@@ -143,6 +147,18 @@ diagnostic; behavioral risk determines what must be tested.
 
 The request fixture uses a shared SQLite connection so the fixture and FastAPI
 request thread observe the same database.
+
+### PostgreSQL runs
+
+Set `LEDGER_SYNC_TEST_POSTGRES_URL` to a local disposable `ledger_sync_test*`
+database to run the PostgreSQL cases; the tests fail on any other host or
+database name. That PostgreSQL needs the pgvector extension installed for its
+major version, because `create_all` and the migration create
+`transaction_embeddings` with a `vector(512)` column. The fixtures create a
+schema per test and create the extension inside it, so never `alembic upgrade`
+that database into `public`. If a stray `vector` extension ends up in `public`,
+run `DROP EXTENSION vector CASCADE` there. The semantic search ranking case
+also needs pgvector, and CI installs it first.
 
 ### Unit-test pattern
 
@@ -404,8 +420,10 @@ uv run --no-sync --locked --no-build alembic check          # same file
 
 ### PostgreSQL job
 
-`postgres-migrations` starts an isolated native PostgreSQL cluster on the
-runner, sets `LEDGER_SYNC_TEST_POSTGRES_URL`, and runs `tests/integration/`
+`postgres-migrations` first installs `postgresql-<major>-pgvector` for the
+runner's PostgreSQL major and checks that `vector.control` exists. It then
+starts an isolated native PostgreSQL cluster on the runner, sets
+`LEDGER_SYNC_TEST_POSTGRES_URL`, and runs `tests/integration/`
 plus `test_ai_settings_migration.py`, `test_compensation_migration.py`, and
 `test_compensation_records.py` from `tests/unit/`, then a CLI
 `alembic upgrade head` and `alembic check` against that cluster.
@@ -432,7 +450,8 @@ which gates the GitHub Pages deployment.
 | API contract | Unit validation plus integration endpoint test and OpenAPI inspection |
 | User-owned data mutation | Integration success, persistence, validation, and cross-user isolation |
 | Reconciliation or analytics | Focused tests plus full backend suite |
-| Migration or model | Migration review, upgrade on disposable database, backend suite |
+| Migration or model | Migration review, upgrade on disposable database, backend suite (PostgreSQL with pgvector for a `vector` column) |
+| Feature that calls Bedrock | Stub the client, as the semantic search tests do with a fake Titan client |
 | Auth, encryption, or rate limits | Focused security tests plus full backend suite and live workflow |
 | Cross-stack feature | Full root check, build, and browser workflow |
 

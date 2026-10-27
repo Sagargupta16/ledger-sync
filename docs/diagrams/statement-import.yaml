@@ -27,20 +27,20 @@ nodes:
     label: Parse, map, validate
     note: lazy SheetJS
     in: lane-browser
-    evidence: frontend/src/lib/fileParser.ts:283-314
+    evidence: frontend/src/lib/fileParser.ts:283-320
   hash:
     shape: process
     label: SHA-256 file hash
     in: lane-browser
-    evidence: [frontend/src/lib/fileParser.ts:54-55, frontend/src/lib/fileParser.ts:325]
+    evidence: [frontend/src/lib/fileParser.ts:54-55, frontend/src/lib/fileParser.ts:331]
   review:
     shape: manual
     label: Review snapshot
     note: "accounts, dates, counts; confirm full ledger"
     in: lane-browser
     evidence:
-      - frontend/src/pages/upload-sync/components/UploadReview.tsx:16
-      - frontend/src/pages/upload-sync/components/UploadReview.tsx:138
+      - frontend/src/pages/upload-sync/components/UploadReview.tsx:17
+      - frontend/src/pages/upload-sync/components/UploadReview.tsx:141
   cancelled:
     shape: terminator
     label: Import cancelled
@@ -56,12 +56,12 @@ nodes:
     shape: decision
     label: Body within limit?
     in: lane-api
-    evidence: backend/src/ledger_sync/api/main.py:81-120
+    evidence: backend/src/ledger_sync/api/main.py:97-136
   rej-size:
     shape: terminator
     label: "413, ledger unchanged"
     in: lane-api
-    evidence: backend/src/ledger_sync/api/main.py:114-120
+    evidence: backend/src/ledger_sync/api/main.py:130-136
   accepted:
     shape: decision
     label: Request accepted?
@@ -78,12 +78,12 @@ nodes:
     shape: process
     label: Normalize every row
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:289-305
+    evidence: backend/src/ledger_sync/core/sync_engine.py:293-309
   rows-ok:
     shape: decision
     label: All rows valid?
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:298-303
+    evidence: backend/src/ledger_sync/core/sync_engine.py:302-307
   rej-rows:
     shape: terminator
     label: "400, ledger unchanged"
@@ -99,30 +99,36 @@ nodes:
     shape: process
     label: Capture source fingerprints
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:215-221#capture_source_identities
+    evidence: backend/src/ledger_sync/core/sync_engine.py:217-223#capture_source_identities
   rules:
     shape: process
-    label: Apply rules, validate
+    label: Apply rules and Review Queue fixes
     note: re-validated
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:222-228
+    # a Review Queue fix wins over the rules and the source on every import (sync_engine.py:229-230); the
+    # reconciler puts it back on rows it pairs by shape (sync_engine.py:189-190)
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:224-232
+      - backend/src/ledger_sync/core/sync_engine.py:229-230#apply_to_import_rows
   reconcile:
     shape: process
     label: Reconcile transactions, transfers
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:171-188
+    evidence:
+      - backend/src/ledger_sync/core/sync_engine.py:171-188
+      - backend/src/ledger_sync/core/sync_engine.py:189-190#restore_overwritten_fixes
   rej-reconcile:
     shape: terminator
     label: "400, rolled back"
     in: lane-api
-    # validation after rules (sync_engine.py:175-177) or ambiguous identities (import_identity.py), rolled back at sync_engine.py:229-231
-    evidence: [backend/src/ledger_sync/core/sync_engine.py:206-208, backend/src/ledger_sync/api/upload.py:86-91]
+    # validation after rules (sync_engine.py:231-232) or ambiguous identities (import_identity.py), rolled back at sync_engine.py:208-210
+    evidence: [backend/src/ledger_sync/core/sync_engine.py:208-210, backend/src/ledger_sync/api/upload.py:86-91]
   commit:
     shape: database
     label: Commit ledger + import log
     note: one unit
     in: lane-api
-    evidence: backend/src/ledger_sync/core/sync_engine.py:198-205
+    evidence: backend/src/ledger_sync/core/sync_engine.py:200-207
   refresh:
     shape: predefined
     label: Refresh analytics
@@ -169,10 +175,10 @@ edges:
     evidence: frontend/src/pages/upload-sync/useUploadSync.ts:160#parseFile
   - from: parse
     to: hash
-    evidence: frontend/src/lib/fileParser.ts:325
+    evidence: frontend/src/lib/fileParser.ts:331
   - from: hash
     to: review
-    evidence: frontend/src/pages/upload-sync/UploadSyncPage.tsx:64#onConfirm
+    evidence: frontend/src/pages/upload-sync/UploadSyncPage.tsx:65#onConfirm
   - from: review
     to: post
     label: confirm
@@ -183,15 +189,15 @@ edges:
     evidence: frontend/src/pages/upload-sync/useUploadSync.ts:199-203#handleCancelReview
   - from: post
     to: size
-    evidence: backend/src/ledger_sync/api/main.py:91
+    evidence: backend/src/ledger_sync/api/main.py:107
   - from: size
     to: rej-size
     label: "no"
-    evidence: backend/src/ledger_sync/api/main.py:114-120
+    evidence: backend/src/ledger_sync/api/main.py:130-136
   - from: size
     to: accepted
     label: "yes"
-    evidence: backend/src/ledger_sync/api/main.py:91
+    evidence: backend/src/ledger_sync/api/main.py:107
   - from: accepted
     to: rej-request
     label: "no"
@@ -202,7 +208,7 @@ edges:
     evidence: backend/src/ledger_sync/services/upload_service.py:23-29
   - from: normalize
     to: rows-ok
-    evidence: backend/src/ledger_sync/core/sync_engine.py:295-305
+    evidence: backend/src/ledger_sync/core/sync_engine.py:299-309
   - from: rows-ok
     to: rej-rows
     label: "no"
@@ -210,7 +216,7 @@ edges:
   - from: rows-ok
     to: dup
     label: "yes"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:307
+    evidence: backend/src/ledger_sync/core/sync_engine.py:311
   - from: dup
     to: sync-choice
     label: "yes, not forced (409)"
@@ -218,27 +224,27 @@ edges:
   - from: dup
     to: fingerprint
     label: "no, or force"
-    evidence: backend/src/ledger_sync/core/sync_engine.py:307-317
+    evidence: backend/src/ledger_sync/core/sync_engine.py:311-321
   - from: sync-choice
     to: review
     label: force
     evidence: frontend/src/pages/upload-sync/useUploadSync.ts:178-184#handleForceReupload
   - from: fingerprint
     to: rules
-    evidence: backend/src/ledger_sync/core/sync_engine.py:221-225
+    evidence: backend/src/ledger_sync/core/sync_engine.py:223-227
   - from: rules
     to: reconcile
     evidence: backend/src/ledger_sync/core/sync_engine.py:164-175
   - from: reconcile
     to: commit
-    # rows absent from this upload are soft-deleted user-wide (sync_engine.py:213-228)
+    # rows absent from this upload are soft-deleted user-wide (sync_engine.py:268-272)
     label: soft-delete missing
-    evidence: backend/src/ledger_sync/core/sync_engine.py:198-205
+    evidence: backend/src/ledger_sync/core/sync_engine.py:200-207
   - from: reconcile
     to: rej-reconcile
-    # validation after rules (sync_engine.py:175-177) or ambiguous identities (import_identity.py), 400 at api/upload.py:86-91
+    # validation after rules (sync_engine.py:231-232) or ambiguous identities (import_identity.py), 400 at api/upload.py:86-91
     label: invalid or ambiguous
-    evidence: [backend/src/ledger_sync/core/sync_engine.py:206-208, backend/src/ledger_sync/api/upload.py:86-91]
+    evidence: [backend/src/ledger_sync/core/sync_engine.py:208-210, backend/src/ledger_sync/api/upload.py:86-91]
   - from: commit
     to: refresh
     evidence: backend/src/ledger_sync/services/upload_service.py:33

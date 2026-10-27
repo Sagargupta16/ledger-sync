@@ -1,10 +1,12 @@
--- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-22
--- Base checkout: 114fdbd999201173b58e5be0b373471aa7f5e0f3; includes uncommitted changes.
--- Source migration head: money_manager_source_2026
+-- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-27
+-- Base checkout: daa6d560bd8587a0e445430407662dbe4092933f; includes uncommitted changes.
+-- Source migration head: feature_domains_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
--- Includes 35 model tables and 483 columns. Excludes Alembic and the reported manual archive.
+-- Includes 49 model tables and 616 columns. Excludes Alembic and the reported manual archive.
 -- Models do not capture every server default/name retained by historical migrations.
 -- Unqualified object names use the database search_path; public is the application convention.
+
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TYPE transactiontype AS ENUM ('EXPENSE', 'INCOME', 'TRANSFER');
 
@@ -12,9 +14,21 @@ CREATE TYPE accounttype AS ENUM ('CASH', 'BANK_ACCOUNTS', 'CREDIT_CARDS', 'INVES
 
 CREATE TYPE recurrencefrequency AS ENUM ('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'YEARLY');
 
-CREATE TYPE anomalytype AS ENUM ('HIGH_EXPENSE', 'UNUSUAL_CATEGORY', 'LARGE_TRANSFER', 'DUPLICATE_SUSPECTED', 'MISSING_RECURRING', 'BUDGET_EXCEEDED', 'CLOSED_ACCOUNT_ACTIVITY');
+CREATE TYPE anomalytype AS ENUM ('HIGH_EXPENSE', 'UNUSUAL_CATEGORY', 'LARGE_TRANSFER', 'DUPLICATE_SUSPECTED', 'MISSING_RECURRING', 'BUDGET_EXCEEDED', 'CLOSED_ACCOUNT_ACTIVITY', 'FEE_CHARGE');
 
 CREATE TYPE goalstatus AS ENUM ('ACTIVE', 'COMPLETED', 'PAUSED', 'CANCELLED');
+
+CREATE TABLE mf_nav_prices (
+	id SERIAL NOT NULL,
+	lookup_key VARCHAR(40) NOT NULL,
+	scheme_code VARCHAR(16),
+	scheme_name VARCHAR(500),
+	nav NUMERIC(18, 6),
+	nav_date DATE,
+	checked_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_mf_nav_prices_lookup_key UNIQUE (lookup_key)
+);
 
 CREATE TABLE column_mapping_logs (
 	id SERIAL NOT NULL,
@@ -241,6 +255,40 @@ CREATE TABLE analytics_state (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE balance_checks (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	account VARCHAR(255) NOT NULL,
+	check_date DATE NOT NULL,
+	balance NUMERIC(15, 2) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_balance_checks_user_account_date UNIQUE (user_id, account, check_date),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE bank_alerts (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	text_hash VARCHAR(64) NOT NULL,
+	ref_hash VARCHAR(64),
+	direction VARCHAR(6) NOT NULL,
+	amount NUMERIC(15, 2) NOT NULL,
+	account_tail VARCHAR(4),
+	merchant VARCHAR(60),
+	bank VARCHAR(16),
+	occurred_on DATE NOT NULL,
+	received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	ignored_at TIMESTAMP WITHOUT TIME ZONE,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_bank_alerts_user_text_hash UNIQUE (user_id, text_hash),
+	CONSTRAINT uq_bank_alerts_user_ref UNIQUE (user_id, direction, ref_hash),
+	CONSTRAINT ck_bank_alerts_direction CHECK (direction IN ('debit', 'credit')),
+	CONSTRAINT ck_bank_alerts_amount_bounds CHECK (amount > 0 AND amount <= 9999999999999.99),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE TABLE salary_plans (
 	id SERIAL NOT NULL,
 	user_id INTEGER NOT NULL,
@@ -273,6 +321,21 @@ CREATE TABLE rsu_grants (
 	CONSTRAINT uq_rsu_grants_user_id UNIQUE (user_id, id),
 	CONSTRAINT ck_rsu_grants_position CHECK (position >= 0),
 	CONSTRAINT ck_rsu_grants_stock_price CHECK (stock_price > 0 AND stock_price < CAST('Infinity' AS NUMERIC)),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE external_refs (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	source_system VARCHAR(32) NOT NULL,
+	kind VARCHAR(32) NOT NULL,
+	source_uid VARCHAR(128) NOT NULL,
+	local_id INTEGER NOT NULL,
+	fingerprint VARCHAR(64) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_external_refs_user_source_kind_uid UNIQUE (user_id, source_system, kind, source_uid),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -379,6 +442,29 @@ CREATE TABLE ledger_categories (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE mf_holdings (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	source VARCHAR(16) NOT NULL,
+	cas_type VARCHAR(16),
+	folio VARCHAR(64),
+	amc VARCHAR(255),
+	scheme_name VARCHAR(500) NOT NULL,
+	isin VARCHAR(12),
+	amfi_code VARCHAR(16),
+	scheme_type VARCHAR(32),
+	open_units NUMERIC(20, 6),
+	units NUMERIC(20, 6) NOT NULL,
+	cost NUMERIC(15, 2),
+	statement_nav NUMERIC(18, 6),
+	statement_nav_date DATE,
+	statement_from DATE,
+	statement_to DATE,
+	imported_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE TABLE categorization_rules (
 	id SERIAL NOT NULL,
 	user_id INTEGER NOT NULL,
@@ -471,6 +557,51 @@ CREATE TABLE financial_goals (
 	completed_at TIMESTAMP WITHOUT TIME ZONE,
 	PRIMARY KEY (id),
 	CONSTRAINT ck_goal_target_positive CHECK (target_amount > 0),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE push_subscriptions (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	endpoint VARCHAR(2048) NOT NULL,
+	p256dh_key VARCHAR(128) NOT NULL,
+	auth_key VARCHAR(64) NOT NULL,
+	label VARCHAR(80) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	last_success_at TIMESTAMP WITHOUT TIME ZONE,
+	alert_keys TEXT NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_push_subscriptions_endpoint UNIQUE (endpoint),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tax_ais_summaries (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	tax_year VARCHAR(7) NOT NULL,
+	tds_salary NUMERIC(15, 2) NOT NULL,
+	tds_other NUMERIC(15, 2) NOT NULL,
+	interest NUMERIC(15, 2) NOT NULL,
+	dividends NUMERIC(15, 2) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_tax_ais_summaries_user_year UNIQUE (user_id, tax_year),
+	CONSTRAINT ck_tax_ais_summaries_amounts_non_negative CHECK (tds_salary >= 0 AND tds_other >= 0 AND interest >= 0 AND dividends >= 0),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tax_deductions (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	tax_year VARCHAR(7) NOT NULL,
+	section_key VARCHAR(16) NOT NULL,
+	amount NUMERIC(15, 2) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_tax_deductions_user_year_section UNIQUE (user_id, tax_year, section_key),
+	CONSTRAINT ck_tax_deductions_amount_positive CHECK (amount > 0),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -616,6 +747,23 @@ CREATE TABLE ledger_subcategories (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE mf_transactions (
+	id SERIAL NOT NULL,
+	holding_id INTEGER NOT NULL,
+	user_id INTEGER NOT NULL,
+	sequence INTEGER NOT NULL,
+	txn_date DATE NOT NULL,
+	txn_type VARCHAR(32) NOT NULL,
+	amount NUMERIC(15, 2),
+	units NUMERIC(20, 6),
+	nav NUMERIC(18, 6),
+	balance NUMERIC(20, 6),
+	PRIMARY KEY (id),
+	CONSTRAINT uq_mf_transactions_holding_sequence UNIQUE (holding_id, sequence),
+	FOREIGN KEY(holding_id) REFERENCES mf_holdings (id) ON DELETE CASCADE,
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE TABLE scheduled_transactions (
 	id SERIAL NOT NULL,
 	user_id INTEGER NOT NULL,
@@ -637,6 +785,62 @@ CREATE TABLE scheduled_transactions (
 	PRIMARY KEY (id),
 	CONSTRAINT fk_scheduled_user_recurring FOREIGN KEY(user_id, recurring_transaction_id) REFERENCES recurring_transactions (user_id, id),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE saved_view_pins (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	view_id INTEGER NOT NULL,
+	position INTEGER NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_saved_view_pins_user_view UNIQUE (user_id, view_id),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE,
+	FOREIGN KEY(view_id) REFERENCES saved_filter_views (id) ON DELETE CASCADE
+);
+
+CREATE TABLE rsu_vest_fx (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	vesting_id TEXT NOT NULL,
+	fx_source VARCHAR(16) NOT NULL,
+	fx_rate NUMERIC,
+	fx_date DATE,
+	quote_price NUMERIC,
+	quote_currency VARCHAR(3) NOT NULL,
+	employer_perquisite_inr NUMERIC,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_rsu_vest_fx_vesting UNIQUE (vesting_id),
+	CONSTRAINT ck_rsu_vest_fx_source CHECK (fx_source IN ('ecb', 'sbi_ttbr', 'employer')),
+	CONSTRAINT ck_rsu_vest_fx_employer CHECK (fx_source <> 'employer' OR employer_perquisite_inr IS NOT NULL),
+	CONSTRAINT ck_rsu_vest_fx_ttbr CHECK (fx_source <> 'sbi_ttbr' OR (fx_rate IS NOT NULL AND fx_date IS NOT NULL AND quote_price IS NOT NULL)),
+	CONSTRAINT ck_rsu_vest_fx_positive CHECK ((fx_rate IS NULL OR fx_rate > 0) AND (quote_price IS NULL OR quote_price > 0) AND (employer_perquisite_inr IS NULL OR employer_perquisite_inr > 0)),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE,
+	FOREIGN KEY(vesting_id) REFERENCES rsu_vestings (id) ON DELETE CASCADE
+);
+
+CREATE TABLE foreign_asset_events (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	kind VARCHAR(16) NOT NULL,
+	vesting_id TEXT,
+	symbol TEXT NOT NULL,
+	event_date DATE NOT NULL,
+	quantity NUMERIC,
+	gross_amount NUMERIC NOT NULL,
+	tax_withheld NUMERIC,
+	fx_rate NUMERIC,
+	fx_date DATE,
+	notes TEXT,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT ck_foreign_asset_events_kind CHECK (kind IN ('sale', 'dividend')),
+	CONSTRAINT ck_foreign_asset_events_sale_quantity CHECK (kind <> 'sale' OR quantity IS NOT NULL),
+	CONSTRAINT ck_foreign_asset_events_positive CHECK (gross_amount > 0 AND (quantity IS NULL OR quantity > 0) AND (tax_withheld IS NULL OR tax_withheld >= 0) AND (fx_rate IS NULL OR fx_rate > 0)),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE,
+	FOREIGN KEY(vesting_id) REFERENCES rsu_vestings (id) ON DELETE SET NULL
 );
 
 CREATE TABLE transactions (
@@ -684,6 +888,23 @@ CREATE TABLE transactions (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE category_overrides (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	transaction_id VARCHAR(64) NOT NULL,
+	decision VARCHAR(10) NOT NULL,
+	category VARCHAR(255) NOT NULL,
+	subcategory VARCHAR(255),
+	imported_category VARCHAR(255) NOT NULL,
+	imported_subcategory VARCHAR(255),
+	reviewed_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT fk_category_overrides_user_transaction FOREIGN KEY(user_id, transaction_id) REFERENCES transactions (user_id, transaction_id) ON DELETE CASCADE,
+	CONSTRAINT uq_category_overrides_user_transaction UNIQUE (user_id, transaction_id),
+	CONSTRAINT ck_category_overrides_decision CHECK (decision IN ('keep', 'change')),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE TABLE transaction_tags (
 	id SERIAL NOT NULL,
 	user_id INTEGER NOT NULL,
@@ -716,6 +937,20 @@ CREATE TABLE anomalies (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
+CREATE TABLE transaction_embeddings (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	transaction_id VARCHAR(64) NOT NULL,
+	model VARCHAR(64) NOT NULL,
+	text_hash VARCHAR(64) NOT NULL,
+	embedding VECTOR(512) NOT NULL,
+	embedded_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT fk_transaction_embeddings_user_transaction FOREIGN KEY(user_id, transaction_id) REFERENCES transactions (user_id, transaction_id) ON DELETE CASCADE,
+	CONSTRAINT uq_transaction_embeddings_user_transaction UNIQUE (user_id, transaction_id),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE INDEX ix_ai_usage_log_timestamp ON ai_usage_log (timestamp);
 
 CREATE INDEX ix_ai_usage_log_user_id ON ai_usage_log (user_id);
@@ -737,6 +972,8 @@ CREATE INDEX ix_audit_logs_operation ON audit_logs (operation);
 CREATE INDEX ix_audit_operation_entity ON audit_logs (operation, entity_type);
 
 CREATE INDEX ix_audit_user ON audit_logs (user_id);
+
+CREATE INDEX ix_bank_alerts_user_occurred_on ON bank_alerts (user_id, occurred_on);
 
 CREATE INDEX ix_budget_user_category ON budgets (user_id, category);
 
@@ -762,6 +999,10 @@ CREATE INDEX ix_daily_summaries_user_id ON daily_summaries (user_id);
 
 CREATE INDEX ix_financial_goals_user_id ON financial_goals (user_id);
 
+CREATE INDEX ix_foreign_asset_events_user_date ON foreign_asset_events (user_id, event_date);
+
+CREATE INDEX ix_foreign_asset_events_vesting ON foreign_asset_events (vesting_id);
+
 CREATE INDEX ix_fy_summaries_fiscal_year ON fy_summaries (fiscal_year);
 
 CREATE INDEX ix_fy_summaries_user_id ON fy_summaries (user_id);
@@ -780,6 +1021,10 @@ CREATE INDEX ix_merchant_intelligence_merchant_name ON merchant_intelligence (me
 
 CREATE INDEX ix_merchant_intelligence_user_id ON merchant_intelligence (user_id);
 
+CREATE INDEX ix_mf_holdings_user_source ON mf_holdings (user_id, source);
+
+CREATE INDEX ix_mf_transactions_user ON mf_transactions (user_id);
+
 CREATE INDEX ix_monthly_summaries_period_key ON monthly_summaries (period_key);
 
 CREATE INDEX ix_monthly_summaries_user_id ON monthly_summaries (user_id);
@@ -790,9 +1035,13 @@ CREATE INDEX ix_net_worth_snapshots_snapshot_date ON net_worth_snapshots (snapsh
 
 CREATE INDEX ix_net_worth_snapshots_user_id ON net_worth_snapshots (user_id);
 
+CREATE INDEX ix_push_subscriptions_user_id ON push_subscriptions (user_id);
+
 CREATE INDEX ix_recurring_category_account ON recurring_transactions (category, account);
 
 CREATE INDEX ix_recurring_transactions_user_id ON recurring_transactions (user_id);
+
+CREATE INDEX ix_rsu_vest_fx_user ON rsu_vest_fx (user_id);
 
 CREATE INDEX ix_rsu_vestings_user_grant_position ON rsu_vestings (user_id, grant_id, position);
 

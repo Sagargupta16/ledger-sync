@@ -7,6 +7,12 @@
 # SyncEngine(session) with no user_id, so that path raises today).
 # Every edge is a call site read from the code (source: inferred); evidence paths are relative
 # to the repo root and checked with `orrery verify`.
+# Routers api/main.py:355-372 registers beyond the ones drawn (dashboard_metrics, weekly_recap, rsu_tax,
+# bank_alerts, balance_checks, card_cycles, cas_upload, category_suggestions, push, review_queue,
+# safe_to_spend, semantic_search, tax_ais, tax_deductions, mcp) are left out on purpose: each has the same
+# router -> service or core -> ORM shape as a router drawn here, and a seventh router widens the api row
+# until the figure no longer reads at 880 px. The Dashboard metrics path is drawn in finance-composition
+# and analytics-boundaries.
 title: "Backend layers: api, services, core, ingest, db"
 subtitle: FastAPI calls from the routers down to Neon; every financial router also takes the API deps
 direction: down
@@ -16,7 +22,7 @@ groups:
   l-api:
     type: zone
     label: api/ (routers)
-    evidence: backend/src/ledger_sync/api/main.py:325-343
+    evidence: backend/src/ledger_sync/api/main.py:336-372
   l-services:
     type: zone
     label: services/
@@ -40,7 +46,7 @@ groups:
     type: zone
     label: Shared services
     in: l-api
-    evidence: backend/src/ledger_sync/api/deps.py:25-133
+    evidence: backend/src/ledger_sync/api/deps.py:30-197
 
 nodes:
   r-upload:
@@ -81,7 +87,7 @@ nodes:
     label: API deps
     note: CurrentUser, DatabaseSession, verify JWT
     in: l-shared
-    evidence: backend/src/ledger_sync/api/deps.py:25-133
+    evidence: backend/src/ledger_sync/api/deps.py:30-197
 
   s-upload:
     icon: tabler:package-import
@@ -170,11 +176,11 @@ edges:
   - s-upload -> c-sync: { label: import_rows, evidence: "backend/src/ledger_sync/services/upload_service.py:24#import_rows" }
   - s-upload -> c-analytics: { label: refresh, evidence: "backend/src/ledger_sync/services/upload_service.py:33#refresh_analytics" }
   - r-analytics -> c-analytics: { label: retry refresh, evidence: ["backend/src/ledger_sync/api/analytics_v2.py:26", "backend/src/ledger_sync/api/analytics_v2.py:46"] }
-  - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:297#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:228"] }
+  - c-sync -> i-norm: { label: "normalize, validate", evidence: ["backend/src/ledger_sync/core/sync_engine.py:301#normalize_from_dict", "backend/src/ledger_sync/core/sync_engine.py:232"] }
   - c-sync -> s-dims: { label: attach dimensions, constraint: false, evidence: backend/src/ledger_sync/core/sync_engine.py:173#attach_ledger_dimensions }
   - c-sync -> c-recon: { label: reconcile batches, evidence: ["backend/src/ledger_sync/core/sync_engine.py:175#reconcile_batch", "backend/src/ledger_sync/core/sync_engine.py:183"] }
   - c-recon -> i-hash: { label: SHA-256 IDs, evidence: "backend/src/ledger_sync/core/reconciler.py:53#TransactionHasher" }
-  - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:200-205" }
+  - c-sync -> orm: { label: commit reconciled rows + import log, evidence: "backend/src/ledger_sync/core/sync_engine.py:202-207" }
   # Analytics
   - c-analytics -> c-rules: { label: classify, evidence: "backend/src/ledger_sync/core/analytics/summaries.py:17#is_essential_expense" }
   - c-analytics -> orm: { label: publish rollups, evidence: "backend/src/ledger_sync/core/analytics/engine.py:287#publish_refresh" }
@@ -202,7 +208,7 @@ edges:
         - "backend/src/ledger_sync/api/ai_chat.py:120#reserve_usage"
         - "backend/src/ledger_sync/api/ai_tools.py:88#execute"
         - backend/src/ledger_sync/api/upload.py:132
-        - backend/src/ledger_sync/api/deps.py:133
+        - backend/src/ledger_sync/api/deps.py:197
   # Shared dependencies
   # Driver
   - orm -> pg: { label: psycopg 3, evidence: "backend/src/ledger_sync/db/session.py:14-39" }

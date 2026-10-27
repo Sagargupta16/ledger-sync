@@ -1,6 +1,6 @@
 # Development Guide
 
-Current for Ledger Sync 2.30.2.
+Current for Ledger Sync 2.31.0.
 
 This guide covers the supported local workflow. For behavior and ownership
 details, also see:
@@ -23,7 +23,8 @@ details, also see:
 | Frontend | React 19, TypeScript 7, Vite 8, Tailwind CSS 4 |
 
 Git is required. SQLite is used by default for local development; production
-uses PostgreSQL 17.
+uses PostgreSQL 17. Only PostgreSQL test runs need the pgvector extension (see
+[Database changes](#database-changes)).
 
 ## First Setup
 
@@ -61,6 +62,22 @@ least one OAuth provider is required for real sign-in:
 
 Set `LEDGER_SYNC_FRONTEND_URL=http://localhost:5173`. Register the matching
 callback with the provider and configure its client ID and secret.
+
+Phone alerts (`LEDGER_SYNC_VAPID_PUBLIC_KEY`, `LEDGER_SYNC_VAPID_PRIVATE_KEY`,
+`LEDGER_SYNC_VAPID_SUBJECT`, `CRON_SECRET`) and semantic search
+(`LEDGER_SYNC_EMBEDDING_*`) read their own settings classes. Set their values in
+the shell that starts the backend, never in `backend/.env`: `Settings` forbids
+any key it does not declare, so an undeclared one in that file stops the
+backend at start-up, and the error echoes its value.
+[DEPLOYMENT.md](DEPLOYMENT.md#optional-phone-alerts-web-push) has the
+PowerShell key generator. Smart search also needs Bedrock credentials
+(`LEDGER_SYNC_BEDROCK_API_KEY`, a declared setting). On SQLite it stores float32
+bytes and ranks with numpy, so it needs no extension.
+
+Two things differ under `pnpm run dev`. The PWA service worker is off, so the
+Settings > Notifications panel reports that alerts cannot be turned on; the
+worker, and so Web Push, exists only in a production build. Vite proxies only
+`/api`, so the MCP address Settings shows is `http://localhost:8000/mcp`.
 
 No frontend environment file is needed locally. The frontend uses same-origin
 `/api` requests, and Vite proxies them to `http://localhost:8000`.
@@ -149,6 +166,7 @@ ledger-sync/
       services/api/
       store/
       types/
+      workers/
   docs/
   .github/workflows/
 ```
@@ -193,6 +211,11 @@ def get_example(
 Register new routers in `api/main.py`, place reusable behavior in `core/`, and
 add integration coverage for the HTTP contract.
 
+A route that only an automation token may call depends on
+`require_token_scope(scope)` from `api/deps.py` instead of `CurrentUser`. Add a
+new scope to `TOKEN_SCOPES` in `db/_models/upload_tokens.py` first. Every
+token holds one scope and cannot sign in or reach any other route.
+
 ### Database changes
 
 1. Add the model to the relevant module under `db/_models/`.
@@ -210,6 +233,16 @@ uv run alembic current
 
 `db/models.py` is a compatibility facade, not the place to define a model.
 
+A table that no older backend names ships expand-only. Vercel can serve the new
+code before CI migrates the database, so an import or reset path that touches
+the table must tolerate its absence (`has_table`, as in `_delete_if_migrated`
+in `services/auth_account_data.py`); the routes that read it may fail until the
+revision runs. A PostgreSQL-only type needs a dialect-aware column: see
+`EmbeddingVector` in `db/_models/transaction_embeddings.py`, pgvector
+`vector(512)` on PostgreSQL and float32 bytes on SQLite, with a `before_create`
+hook that runs `CREATE EXTENSION IF NOT EXISTS vector` so `metadata.create_all`
+works too.
+
 Unsupported historical downgrades fail before any step in the rollback plan
 changes the schema or version marker. New revision templates use the same
 backup/forward-recovery guard. Use a verified backup or a forward repair rather
@@ -221,6 +254,14 @@ bootstrap and constraint behavior. Set `LEDGER_SYNC_TEST_POSTGRES_URL` to a loca
 disposable PostgreSQL database named `ledger_sync_test*` to run the same checks
 on PostgreSQL. CI starts an isolated native PostgreSQL cluster using installed
 runner binaries and gates releases on it, without containers.
+
+A local test PostgreSQL needs the pgvector extension installed for its major
+version, because the migration and `create_all` create `transaction_embeddings`
+with a `vector(512)` column. The fixtures create a schema per test and the
+extension inside it, so never run `alembic upgrade` against that database's
+`public` schema. If a stray `vector` extension ends up in `public`, run
+`DROP EXTENSION vector CASCADE` there. CI installs `postgresql-<major>-pgvector`
+before it starts its cluster and runs pytest before its CLI upgrade.
 
 Keep real imports in ignored `imports/` or `private/` directories and database
 backups in `backups/`. Environment variants, CSV/TSV imports, SQL dumps, and key
@@ -247,6 +288,10 @@ generation skips all work, daily and monthly summaries and category trends
 rebuild only their dirty days and months, and the other rollup domains rebuild
 in full. The CLI retains the file-based ingestion path.
 
+A Money Manager `.mmbak` backup (`POST /api/upload/money-manager`) and a CAS PDF
+(`POST /api/upload/cas`, read in memory) are read on the server instead; see
+[Architecture](architecture.md).
+
 ## Frontend Development
 
 ### Routing and pages
@@ -254,9 +299,9 @@ in full. The CLI retains the file-based ingestion path.
 `App.tsx` currently defines:
 
 - 3 public routes
-- 26 protected workspace routes
+- 29 protected workspace routes
 - 4 eager page components
-- 25 lazy page components
+- 28 lazy page components
 
 Add a route constant, direct page import, nested route, and navigation entry
 for every new page. Do not add page-level barrel files.
@@ -279,8 +324,14 @@ pure transformations in utility modules.
 
 1. Add a typed method under `services/api/`.
 2. Add or extend a TanStack Query hook under `hooks/api/`.
-3. Use stable query keys.
+3. Use stable query keys. A figure that depends on preferences or
+   classifications goes under `calculations`, so `invalidatePreferenceDependents`
+   refreshes it.
 4. Invalidate only affected keys after mutations.
+5. Add a `DEMO_ROUTES` entry in `services/api/client.ts` for every GET the page
+   makes, so `/demo` answers it from the demo ledger. The first substring match
+   wins, so specific paths precede generic ones. Load a feature resolver
+   through `lazyDemo(...)` to keep it out of the first-load bundle.
 
 The shared Axios client attaches bearer tokens, serializes refresh attempts,
 replays queued requests, and handles demo-mode interception. Do not bypass it
@@ -289,6 +340,14 @@ with ad hoc authenticated fetch calls.
 TanStack Query owns API server state. Use Zustand only for state that must
 persist or coordinate across pages, such as authentication, preferences,
 theme, and demo mode.
+
+### Web Workers
+
+Put a worker in `src/workers/` and start it with an inline
+`new Worker(new URL('../../workers/x.worker.ts', import.meta.url), { type: 'module' })`
+so Vite bundles it; the literal URL must stay inline. Keep a main-thread
+fallback, as `useMonteCarloRunner` does for the FIRE Monte Carlo. The CSP already
+allows `worker-src 'self'`, and Workbox precaches the worker chunk.
 
 ### UI and responsive behavior
 
@@ -431,6 +490,9 @@ pnpm.cmd run check
 - Confirm Python 3.14 and uv are available.
 - Run `uv sync --group dev` inside `backend`.
 - Run `uv run alembic upgrade head`.
+- If the error says `Extra inputs are not permitted`, `backend/.env` holds a key
+  that `Settings` does not declare. Move `LEDGER_SYNC_VAPID_*`,
+  `LEDGER_SYNC_EMBEDDING_*`, and `CRON_SECRET` to the shell environment.
 - Check whether port 8000 is already in use.
 - Check `/health/db` after startup.
 

@@ -27,24 +27,28 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Reviews the date range, accounts, and row counts before replacing the complete ledger snapshot.
 - Uses deterministic SHA-256 transaction IDs plus occurrence counters so repeated imports remain idempotent without collapsing legitimate duplicate rows.
 - Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again.
-- Imports Money Manager `.mmbak` backups directly. Each transaction keeps its Money Manager ID, so later edits update it in place. Card statement and payment days and times of day come along, and an upload-only token lets an iOS Shortcut sync the newest backup automatically ([Handbook](docs/HANDBOOK.md#money-manager-backups)).
+- Imports Money Manager `.mmbak` backups directly. Each transaction keeps its Money Manager ID, so later edits update it in place. Card statement and payment days, times of day, repeat rules (as scheduled payments) and monthly category budgets come along, and an upload-only Access Token lets an iOS Shortcut sync the newest backup automatically ([Handbook](docs/HANDBOOK.md#money-manager-backups)).
+- Suggests categories for placeholder rows in the upload review from your own categorized history. A per-user naive Bayes in plain Python; nothing is applied to the import.
+- Imports a mutual fund CAS PDF (CAMS, KFintech, NSDL or CDSL) on Investment Analytics. The PDF is read in memory for one request and never stored; holdings are valued at AMFI's latest NAV with cost, gain and XIRR.
+- Opens your AIS (Annual Information Statement) in the browser, decrypting it with WebCrypto; your PAN and date of birth are never sent. Only four totals per tax year can be saved.
 
 ### Financial workspace
 
-- Dashboard and fixed Overview for quick financial status.
-- Server-paginated transaction ledger with search, filters, tags, saved views, sorting, and CSV export.
-- Expense, income, cash flow, period comparison, year review, forecasting, and net worth analysis.
-- Investment contributions and realised cash flows, book-value holdings, SIP projections, and instrument calculators.
-- 50/30/20 budget analysis, goals, recurring commitments, bill calendar, and anomaly review.
+- Dashboard and fixed Overview for quick financial status. The Dashboard leads with Safe to spend until payday, a Weekly recap (with an optional AI explanation) and a Watchlist of saved views pinned from Transactions, and no longer downloads the whole ledger.
+- Server-paginated transaction ledger with search, opt-in Smart search (semantic, Amazon Titan embeddings), filters, tags, saved views, sorting, and CSV export.
+- Review Queue: swipe through your newest rows to keep or fix a category; a fix survives every later import.
+- Expense, income, cash flow, period comparison, year review, forecasting, and net worth analysis with a compounding savings projection.
+- Investment contributions and realised cash flows, book-value holdings, mutual funds from a CAS with XIRR, SIP projections, and instrument calculators.
+- Category budgets you can add, edit, pause and delete, beside the 50/30/20 analysis; goals; recurring commitments with amounts you can set; a bill calendar with credit card statement due dates and advance tax dates; and anomaly review with eight checks (duplicates, fees and interest, missing recurring entries, budgets, closed accounts, large transfers, unusual categories, high expenses).
 - Account-backed goals with explicit review before recovering older browser-only edits.
 - Merchant intelligence derived from transaction notes, with spend concentration and recurring detection.
-- Data health reporting: ledger coverage, last-import row counts, and whether analytics rollups are current.
-- Indian income tax, RSU vesting, projected TDS, GST estimation, and FIRE planning.
+- Data health reporting: ledger coverage, last-import row counts, whether analytics rollups are current, balance checks against what your bank shows, and a bank-alert inbox for SMS or email alerts that no ledger row answers.
+- Indian income tax (Tax Year 2026-27 rules under the Income-tax Act 2025, saved deductions, an advance tax planner and filing calendar), RSU vesting with a Schedule FA and FAST-DS 2026 worksheet, AIS import, projected TDS, GST estimation, and FIRE planning with a Monte Carlo simulation. Estimates are computation aids, not tax or financial advice.
 
 ### AI assistant
 
-- Fifteen read-only, user-scoped financial tools.
-- App-provided Bedrock mode with a shared-funding daily limit and database-backed usage reservations.
+- Fifteen read-only, user-scoped financial tools. The same tools are served read-only over MCP at `/mcp` to Claude Code with a Claude MCP read access token (Settings > Advanced > Access Tokens); claude.ai web connectors need OAuth and are not supported.
+- App-provided Bedrock mode (Claude Haiku 5.5 by default) with a shared-funding daily limit and database-backed usage reservations.
 - BYOK configuration for supported providers. Bedrock token budgets are enforced by the proxy; browser-direct OpenAI/Anthropic limits are informational.
 - AES-256-GCM encrypted key storage. Current v3 envelopes use HKDF-SHA256 with `LEDGER_SYNC_ENCRYPTION_KEY`; authenticated legacy ciphertexts remain readable and can be rewrapped.
 - Financial data is fetched through tools when needed instead of being copied into a large prompt.
@@ -58,6 +62,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Mobile card layouts for wide data tables and 44px touch targets for primary controls.
 - Distinct loading, empty, and retryable error states across protected financial pages.
 - Installable PWA that never caches API responses.
+- Opt-in Web Push alerts for upcoming bills, budgets and anomalies, once a day, with counts and timing but never amounts. They stay off until the server has push set up.
 
 ## Application Map
 
@@ -65,7 +70,7 @@ Explore the [architecture and flow diagrams](docs/diagrams/README.md), drawn wit
 orrery from the code, for the system boundaries, import pipeline, sign-in,
 sessions, calculations, the chart kit, AI chat and deployment.
 
-The router contains 3 public routes and 26 protected workspace pages.
+The router contains 3 public routes and 29 protected workspace pages.
 
 | Area | Pages |
 | --- | --- |
@@ -74,8 +79,8 @@ The router contains 3 public routes and 26 protected workspace pages.
 | Analytics | Expense Analysis, Merchant Intelligence, Income Analysis, Cash Flow, Comparison, Year in Review |
 | Wealth | Net Worth, Trends and Forecasts, Investment Analytics, Projections, Returns Analysis |
 | Commitments | Recurring, Bill Calendar |
-| Planning | Budget Rule, Financial Goals, FIRE Calculator, Anomaly Review, Data Health |
-| Tax | Income Tax, Indirect Tax (GST) |
+| Planning | Budgets, Financial Goals, FIRE Calculator, Anomaly Review, Review Queue, Data Health |
+| Tax | Income Tax, Indirect Tax (GST), Foreign Assets, AIS Import |
 | Utility bar | Upload and Sync, Settings |
 | Mobile | More |
 

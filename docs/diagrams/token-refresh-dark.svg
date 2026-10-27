@@ -9,7 +9,7 @@ direction: down
 
 layout: { spacing: 2 }
 groups:
-  lane-spa: { type: lane, label: SPA, evidence: "frontend/src/services/api/client.ts:255-316" }
+  lane-spa: { type: lane, label: SPA, evidence: "frontend/src/services/api/client.ts:278-339" }
   lane-be: { type: lane, label: Backend, evidence: "backend/src/ledger_sync/api/auth.py:24" }
 
 nodes:
@@ -27,13 +27,13 @@ nodes:
     shape: decision
     label: Response is a 401?
     in: lane-spa
-    evidence: "frontend/src/services/api/client.ts:299-309"
+    evidence: "frontend/src/services/api/client.ts:322-332"
   refresh:
     shape: data
     label: POST /api/auth/refresh
     note: one-use rotation
     in: lane-spa
-    evidence: ["frontend/src/services/api/client.ts:261-279", "backend/src/ledger_sync/api/auth.py:48-56"]
+    evidence: ["frontend/src/services/api/client.ts:284-302", "backend/src/ledger_sync/api/auth.py:48-56"]
   rotate:
     shape: process
     label: Consume refresh, issue pair
@@ -44,7 +44,7 @@ nodes:
     shape: process
     label: Store tokens, retry request
     in: lane-spa
-    evidence: ["frontend/src/services/api/client.ts:278", "frontend/src/services/api/client.ts:311-316"]
+    evidence: ["frontend/src/services/api/client.ts:301", "frontend/src/services/api/client.ts:334-339"]
     note: keeps the same session generation
   end:
     shape: predefined
@@ -60,15 +60,15 @@ nodes:
 
 edges:
   - signedin -> active: { evidence: "frontend/src/hooks/api/useAuth.ts:74-77" }
-  - active -> got401: { label: API error, evidence: "frontend/src/services/api/client.ts:293" }
-  - got401 -> active: { label: "no", evidence: "frontend/src/services/api/client.ts:304" }
-  - got401 -> refresh: { label: "yes, first time", evidence: "frontend/src/services/api/client.ts:311-313" }
-  - got401 -> end: { label: "yes, after retry", evidence: "frontend/src/services/api/client.ts:306-309" }
+  - active -> got401: { label: API error, evidence: "frontend/src/services/api/client.ts:316" }
+  - got401 -> active: { label: "no", evidence: "frontend/src/services/api/client.ts:327" }
+  - got401 -> refresh: { label: "yes, first time", evidence: "frontend/src/services/api/client.ts:334-336" }
+  - got401 -> end: { label: "yes, after retry", evidence: "frontend/src/services/api/client.ts:329-332" }
   - refresh -> rotate: { evidence: "backend/src/ledger_sync/api/auth.py:56#refresh_tokens" }
-  - refresh -> end: { label: no refresh token, evidence: "frontend/src/services/api/client.ts:264-266" }
-  - rotate -> retry: { label: new pair, evidence: "frontend/src/services/api/client.ts:273-279" }
-  - rotate -> end: { label: invalid or reused, evidence: ["frontend/src/services/api/client.ts:280-283", "backend/src/ledger_sync/services/auth_refresh.py:96-108"] }
-  - retry -> active: { evidence: ["frontend/src/services/api/client.ts:314-316", "frontend/src/lib/session.ts:15"] }
+  - refresh -> end: { label: no refresh token, evidence: "frontend/src/services/api/client.ts:287-289" }
+  - rotate -> retry: { label: new pair, evidence: "frontend/src/services/api/client.ts:296-302" }
+  - rotate -> end: { label: invalid or reused, evidence: ["frontend/src/services/api/client.ts:303-306", "backend/src/ledger_sync/services/auth_refresh.py:96-108"] }
+  - retry -> active: { evidence: ["frontend/src/services/api/client.ts:337-339", "frontend/src/lib/session.ts:15"] }
   - end -> signedout: { evidence: "frontend/src/lib/session.ts:50-54" }
 </orrery:spec></metadata>
 <title id="token-refresh-dark-sdw-title">Token refresh on a 401 in the SPA</title>

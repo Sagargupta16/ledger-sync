@@ -27,9 +27,19 @@ groups:
 nodes:
   # Page hooks, in the order their arrows enter lib/finance.
   h-income: { icon: tabler:app-window, label: useIncomeAnalysis, in: consumers, evidence: "frontend/src/pages/income-analysis/useIncomeAnalysis.ts:23" }
-  h-dash: { icon: tabler:app-window, label: useDashboardMetrics, in: consumers, evidence: "frontend/src/hooks/useDashboardMetrics.ts:38" }
+  # Reads Age of Money, Days of Buffering, the transfer split and the health inputs from the backend
+  # (GET /api/dashboard-metrics/pulse and /health); demo mode answers them with the browser calculators.
+  h-dash:
+    icon: tabler:app-window
+    label: useDashboardMetrics
+    note: demo mode runs the browser calculators
+    in: consumers
+    evidence:
+      - "frontend/src/hooks/useDashboardMetrics.ts:22"
+      - "frontend/src/hooks/useDashboardMetrics.ts:37"
+      - "frontend/src/lib/demo/demoDashboardMetrics.ts:47"
   h-tax: { icon: tabler:app-window, label: useTaxPlanning, in: consumers, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:27" }
-  h-nw: { icon: tabler:app-window, label: useNetWorth, in: consumers, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:9-17" }
+  h-nw: { icon: tabler:app-window, label: useNetWorth, in: consumers, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:5-12" }
   h-health: { icon: tabler:app-window, label: Health score analysis, in: consumers, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:10-11" }
   h-goals: { icon: tabler:app-window, label: useGoalsState, in: consumers, evidence: "frontend/src/pages/goals/useGoalsState.ts:7" }
   h-spend: { icon: tabler:app-window, label: useSpendingAnalysis, in: consumers, evidence: "frontend/src/pages/spending-analysis/useSpendingAnalysis.ts:30" }
@@ -55,7 +65,16 @@ nodes:
   f-income: { icon: tabler:math-function, label: incomeMetrics, in: libfin, evidence: frontend/src/lib/finance/incomeMetrics.ts }
   f-returns: { icon: tabler:math-function, label: investmentReturns, in: libfin, evidence: frontend/src/lib/finance/investmentReturns.ts }
 
-  # Backend twin and its consumer.
+  # Backend twin and its consumers: the Dashboard metrics ports of the browser calculators, and the analytics engine.
+  b-dash:
+    icon: tabler:gauge
+    label: Dashboard metrics
+    note: pulse and health reads
+    in: be-rules
+    align: b-rules
+    evidence:
+      - "backend/src/ledger_sync/core/dashboard_metrics.py:150#dashboard_pulse"
+      - "backend/src/ledger_sync/core/dashboard_metrics.py:171#dashboard_health"
   b-rules: { icon: tabler:scale, label: metric_rules.py, in: be-rules, evidence: "backend/src/ledger_sync/core/metric_rules.py:66-284" }
   b-analytics:
     icon: tabler:chart-bar
@@ -69,12 +88,22 @@ nodes:
 
 edges:
   # All call edges are inferred from imports and call sites.
-  - { from: h-dash, to: f-dash, label: calls, evidence: "frontend/src/hooks/useDashboardMetrics.ts:38#computeMonthlyChanges" }
-  - { from: h-dash, to: f-flows, label: calls, evidence: "frontend/src/hooks/useDashboardMetrics.ts:40#summarizeInvestmentTransfers" }
+  - { from: h-dash, to: f-dash, label: calls, evidence: "frontend/src/hooks/useDashboardMetrics.ts:37#computeMonthlyChanges" }
+  # HTTP, not a call: the hook asks the backend for the row-level figures it used to compute from /api/transactions/all.
+  - from: h-dash
+    to: be-rules
+    label: "GET pulse, health"
+    evidence:
+      - "frontend/src/hooks/api/useDashboardMetricsApi.ts:15#dashboardPulseOptions"
+      - "frontend/src/hooks/api/useDashboardMetricsApi.ts:23#dashboardHealthOptions"
+      - "frontend/src/services/api/dashboardMetrics.ts:163#getPulse"
+      - "frontend/src/services/api/dashboardMetrics.ts:168#getHealth"
+      - "backend/src/ledger_sync/api/dashboard_metrics.py:28#get_dashboard_pulse"
+      - "backend/src/ledger_sync/api/dashboard_metrics.py:47#get_dashboard_health"
   - { from: h-tax, to: f-taxhist, label: calls, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:23" }
   - { from: h-tax, to: f-tax, label: calls, evidence: "frontend/src/pages/tax-planning/useTaxPlanning.ts:27#computeAnnualTaxPlanning" }
-  - { from: h-nw, to: f-nw, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:17" }
-  - { from: h-nw, to: f-avg, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:9#averageMonthlySavings" }
+  - { from: h-nw, to: f-nw, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:12" }
+  - { from: h-nw, to: f-avg, label: calls, evidence: "frontend/src/pages/net-worth/useNetWorth.ts:5#averageMonthlySavings" }
   - { from: h-goals, to: f-avg, label: calls, evidence: "frontend/src/pages/goals/useGoalsState.ts:7#averageMonthlySavings" }
   - { from: h-health, to: f-avg, label: month spine, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:11#completeMonthSpine" }
   - { from: h-health, to: f-rules, label: essentials, evidence: "frontend/src/components/analytics/health/healthScoreAnalysis.ts:10#isEssentialExpense" }
@@ -100,6 +129,15 @@ edges:
     evidence:
       - "frontend/src/lib/finance/metricRules.ts:60#isEssentialExpense"
       - "backend/src/ledger_sync/core/metric_rules.py:139#is_essential_expense"
+  # Written from b-rules with the arrow flipped, like the analytics edge below: the Dashboard metrics ports call the matchers.
+  - from: b-rules
+    to: b-dash
+    arrow: start
+    label: classify
+    evidence:
+      - "backend/src/ledger_sync/core/dashboard_metrics.py:41#essential_keywords"
+      - "backend/src/ledger_sync/core/dashboard_metrics_pulse.py:19#is_investment_account"
+      - "backend/src/ledger_sync/core/dashboard_metrics_health.py:22#is_essential_expense"
   # Written from b-rules with the arrow flipped, so Analytics engine sits after metric_rules.py along the flow.
   - from: b-rules
     to: b-analytics
