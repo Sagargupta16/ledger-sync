@@ -9,7 +9,9 @@ import RadarChart from '../RadarChart'
 
 /**
  * Keyboard inspection on a focused chart frame: arrows step, Home and End jump to either end, and
- * Page Up and Page Down stride a tenth of an x/y chart's rows. `fireEvent` returns false once the
+ * Page Up and Page Down stride a tenth of an x/y chart's rows. Up, Right and Page Up move forward
+ * and Down, Left and Page Down back, as on ChartBrush's sliders; a vertical ranking runs down the
+ * screen, so there Down and Page Down move to the next row. `fireEvent` returns false once the
  * chart called preventDefault, which is what keeps the page from scrolling under it. jsdom has no
  * ResizeObserver, so the kit paints at its 640px fallback width; reduced motion draws final
  * geometry at once.
@@ -44,10 +46,10 @@ afterEach(() => {
 })
 
 /** The 25-row chart, zoomed to `visibleRange` when given, and a key press that reports what it did. */
-function renderRows(visibleRange?: { startIndex: number; endIndex: number }) {
+function renderRows(visibleRange?: { startIndex: number; endIndex: number }, layout?: 'horizontal' | 'vertical') {
   const onActiveIndexChange = vi.fn<(index: number | null) => void>()
   render(
-    <CartesianChart data={ROWS} categoryKey="month" series={SERIES} visibleRange={visibleRange}
+    <CartesianChart data={ROWS} categoryKey="month" series={SERIES} visibleRange={visibleRange} layout={layout}
       ariaLabel="Monthly totals" onActiveIndexChange={onActiveIndexChange}>
       {null}
     </CartesianChart>,
@@ -70,22 +72,22 @@ describe('CartesianChart keyboard', () => {
   it('jumps to either end with Home and End, and pages a tenth of the rows, clamped', () => {
     const press = renderRows()
     // 25 rows make a page of round(2.5) = 3 rows; a page past either end stops there.
-    const keys = ['End', 'PageUp', 'PageUp', 'PageDown', 'PageDown', 'PageDown', 'Home', 'PageUp', 'PageDown']
+    const keys = ['End', 'PageDown', 'PageDown', 'PageUp', 'PageUp', 'PageUp', 'Home', 'PageDown', 'PageUp']
     const presses = keys.map((key) => press(key))
 
     expect(presses.map(({ row }) => row)).toEqual([24, 21, 18, 21, 24, 24, 0, 0, 3])
     expect(presses.every(({ prevented }) => prevented)).toBe(true)
   })
 
-  it('enters at the first row on Page Down like an arrow, and keeps the arrows, Escape and other keys as they were', () => {
+  it('enters at the first row on Page Up like an arrow, steps forward on Right and Up, back on Left and Down, and keeps Escape and other keys as they were', () => {
     const press = renderRows()
 
-    expect(press('PageDown')).toEqual({ row: 0, prevented: true })
+    expect(press('PageUp')).toEqual({ row: 0, prevented: true })
     expect(press('ArrowRight')).toEqual({ row: 1, prevented: true })
-    expect(press('ArrowDown')).toEqual({ row: 2, prevented: true })
-    expect(press('ArrowUp')).toEqual({ row: 1, prevented: true })
+    expect(press('ArrowUp')).toEqual({ row: 2, prevented: true })
+    expect(press('ArrowDown')).toEqual({ row: 1, prevented: true })
     expect(press('ArrowLeft')).toEqual({ row: 0, prevented: true })
-    expect(press('ArrowLeft')).toEqual({ row: 0, prevented: true })
+    expect(press('ArrowDown')).toEqual({ row: 0, prevented: true })
     expect(press('Escape')).toEqual({ row: null, prevented: false })
     expect(press('Tab')).toEqual({ row: undefined, prevented: false })
   })
@@ -94,7 +96,14 @@ describe('CartesianChart keyboard', () => {
     // Rows 10 to 13 are plotted. A page of round(0.4) would be 0 rows, so it is one.
     const press = renderRows({ startIndex: 10, endIndex: 13 })
 
-    expect(['End', 'PageUp', 'PageUp', 'Home', 'PageDown'].map((key) => press(key).row)).toEqual([3, 2, 1, 0, 1])
+    expect(['End', 'PageDown', 'PageDown', 'Home', 'PageUp'].map((key) => press(key).row)).toEqual([3, 2, 1, 0, 1])
+  })
+
+  it('reads a vertical ranking top to bottom: Down and Page Down move to the next row, Up and Page Up back', () => {
+    const press = renderRows(undefined, 'vertical')
+
+    expect(['ArrowDown', 'ArrowDown', 'PageDown', 'ArrowUp', 'PageUp', 'ArrowRight'].map((key) => press(key).row))
+      .toEqual([0, 1, 4, 3, 0, 1])
   })
 })
 

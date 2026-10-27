@@ -4,8 +4,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, Money } from '@/components/ui'
 import { compareTaxRegimes } from '@/lib/finance/taxPlanning'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
+import { deductionLabel, OLD_REGIME_DEDUCTIONS, sectionTooltip } from '@/lib/tax-config'
 
 import DeductionInput from './DeductionInput'
+import DeductionSaveBar from './DeductionSaveBar'
+import { useDeductionDraft } from './useDeductionDraft'
 
 interface Props {
   grossIncome: number
@@ -83,22 +86,17 @@ export default function RegimeComparison({
   employmentIncome,
 }: Readonly<Props>) {
   const deductionFieldsId = useId()
-  const [sec80C, setSec80C] = useState(0)
-  const [sec80CCD1B, setSec80CCD1B] = useState(0)
-  const [sec80D, setSec80D] = useState(0)
-  const [hra, setHra] = useState(0)
-  const [sec24b, setSec24b] = useState(0)
+  // Saved per tax year, so the amounts survive a visit; edits apply at once.
+  const deductions = useDeductionDraft(fyYear)
   const [showDeductions, setShowDeductions] = useState(false)
 
-  // 80CCD(1B) is a standalone ₹50k additional deduction for NPS Tier-1 contributions,
-  // over and above the 80C 1.5L cap. Many salaried users miss it.
   const comparison = compareTaxRegimes({
     grossIncome,
     fyYear,
     salaryMonthsCount,
     hasEmploymentIncome,
     employmentIncome,
-    oldRegimeDeductions: sec80C + sec80CCD1B + sec80D + hra + sec24b,
+    oldRegimeDeductions: deductions.total,
   })
   if (!comparison) return null
   const { newTax, oldTax, newIsBetter, oldIsBetter, totalDeductions } = comparison
@@ -187,42 +185,24 @@ export default function RegimeComparison({
         </Button>
 
         {showDeductions && (
-          <div id={deductionFieldsId} className="mt-4 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-            <DeductionInput
-              label="Sec 80C"
-              sublabel="PPF, ELSS, LIC (max 1.5L)"
-              value={sec80C}
-              max={150000}
-              onChange={setSec80C}
-            />
-            <DeductionInput
-              label="Sec 80CCD(1B)"
-              sublabel="Extra NPS (max 50K, over 80C)"
-              value={sec80CCD1B}
-              max={50000}
-              onChange={setSec80CCD1B}
-            />
-            <DeductionInput
-              label="Sec 80D"
-              sublabel="Health Insurance (max 75K)"
-              value={sec80D}
-              max={75000}
-              onChange={setSec80D}
-            />
-            <DeductionInput
-              label="HRA"
-              sublabel="House Rent Allowance"
-              value={hra}
-              max={500000}
-              onChange={setHra}
-            />
-            <DeductionInput
-              label="Sec 24(b)"
-              sublabel="Home Loan Interest (max 2L)"
-              value={sec24b}
-              max={200000}
-              onChange={setSec24b}
-            />
+          <div id={deductionFieldsId} className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+              {OLD_REGIME_DEDUCTIONS.map((field) => (
+                <DeductionInput
+                  key={field.key}
+                  id={`${deductionFieldsId}-${field.key.replaceAll(/[^A-Za-z0-9]/g, '')}`}
+                  label={deductionLabel(field, fyYear)}
+                  sublabel={field.hint}
+                  title={sectionTooltip(field.key, fyYear)}
+                  value={deductions.values[field.key]}
+                  max={field.max}
+                  showHeadroom={field.headroom}
+                  disabled={deductions.isLoading}
+                  onChange={(amount) => deductions.setValue(field.key, amount)}
+                />
+              ))}
+            </div>
+            <DeductionSaveBar draft={deductions} fyStartYear={fyYear} />
           </div>
         )}
       </div>

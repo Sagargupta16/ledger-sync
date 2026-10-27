@@ -5,6 +5,7 @@ import { cssVar } from '@/constants/colors'
 
 import { SEVERITY_STYLES } from '../constants'
 import type { AnomalySummaryCounts } from '../types'
+import AnomalyTypeBreakdown from './AnomalyTypeBreakdown'
 
 interface Props {
   summary: AnomalySummaryCounts
@@ -67,6 +68,8 @@ export default function AnomalySummary({ summary }: Readonly<Props>) {
           ))}
         </div>
       )}
+
+      <AnomalyTypeBreakdown byType={summary.byType} fees={summary.fees} />
     </>
   )
 }

@@ -32,6 +32,8 @@ export default function CreateGoalForm({
     <AnimatePresence mode="popLayout" propagate>
       <motion.div
         {...DISCLOSURE_TRANSITION}
+        // Renders only while open, so its open flag is always true.
+        layoutDependency
         className="overflow-hidden"
       >
         <form onSubmit={onSubmit} aria-busy={isPending} className="ledger-panel space-y-4 p-4 sm:p-5">

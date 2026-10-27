@@ -1,6 +1,6 @@
 # Calculations and Data Processing
 
-Developer map and shared-finance contracts checked against source on 2026-09-16.
+Developer map and shared-finance contracts checked against source on 2026-10-27.
 Examples below are synthetic; payroll and forecast values retain their stated
 estimation limits.
 
@@ -33,12 +33,21 @@ them with preferences; pages and chart adapters supply labels and presentation.
 | Signed balances and investment transfers | [ledger_math.py](../backend/src/ledger_sync/core/ledger_math.py): `compute_account_balances` applies both transfer legs with `Decimal`; `investment_transfer_delta` computes signed external funding. Callers supply already-scoped rows and account membership. |
 | Persisted summaries, holdings, net worth, FY totals | [analytics/engine.py](../backend/src/ledger_sync/core/analytics/engine.py) composes the [domain modules](../backend/src/ledger_sync/core/analytics/). [query_helpers.py](../backend/src/ledger_sync/core/query_helpers.py) centralizes active-row filters and income/consumption/loss expressions. |
 | On-demand metrics | [core/calculator.py](../backend/src/ledger_sync/core/calculator.py) owns reusable in-memory calculations. The [api/calculations.py](../backend/src/ledger_sync/api/calculations.py) routes delegate to [calculations_impl/](../backend/src/ledger_sync/api/calculations_impl/__init__.py) (aggregates, categories, insights), which with [calculations_helpers.py](../backend/src/ledger_sync/api/calculations_helpers.py) owns endpoint-specific SQL aggregation and result shaping; not every metric routes through `calculator.py`. |
+| Dashboard row-level metrics | [dashboard_metrics.py](../backend/src/ledger_sync/core/dashboard_metrics.py) serves `/api/dashboard-metrics/pulse` and `/health` from the ports in `dashboard_metrics_pulse.py`, `dashboard_metrics_inputs.py`, `dashboard_metrics_health.py` and `dashboard_metrics_analysis.py`, on the arithmetic of `dashboard_metrics_base.py`. They return the browser calculators' numbers on the same rows; change a TypeScript calculator and its twin together. |
+| Safe to spend and balance projection | [safe_to_spend.py](../backend/src/ledger_sync/core/safe_to_spend.py) with `safe_to_spend_flows.py` (commitment and schedule flows), `safe_to_spend_ledger.py` (account roles, balances, spend history), `safe_to_spend_projection.py` and `safe_to_spend_report.py`. Read-only. See [Safe to spend](#safe-to-spend). |
+| Weekly recap | [weekly_recap.py](../backend/src/ledger_sync/core/weekly_recap.py) with `weekly_recap_flows.py` and `weekly_recap_upcoming.py`. Deterministic book values; the optional AI Explain text is built in the browser from the same figures. See [Weekly recap](#weekly-recap). |
+| Card statement cycles | [card_cycles.py](../backend/src/ledger_sync/core/card_cycles.py) holds the cycle rules, with `card_cycles_ledger.py` and `card_cycles_report.py`. See [Card statement cycles](#card-statement-cycles). |
+| Balance checks | [balance_checks.py](../backend/src/ledger_sync/core/balance_checks.py) compares a typed bank balance with the ledger's running balance on every read. See [Balance checks](#balance-checks). |
+| Category suggestions | [category_suggester.py](../backend/src/ledger_sync/core/category_suggester.py) with `category_suggester_model.py`, `category_suggester_features.py` and `category_suggester_store.py`. See [Category suggestions](#category-suggestions). |
+| Anomaly detection | [analytics/anomalies.py](../backend/src/ledger_sync/core/analytics/anomalies.py) orchestrates `anomaly_rules.py`, `anomaly_detectors.py`, `anomaly_baselines.py`, `anomaly_ledger_checks.py`, `anomaly_recurring.py`, `anomaly_recurring_schedule.py`, `anomaly_recurring_index.py`, `anomaly_fee_patterns.py` and `anomaly_store.py`. See [Anomaly Detection](#anomaly-detection). |
+| Mutual fund holdings from a CAS | [mf_valuation.py](../backend/src/ledger_sync/core/mf_valuation.py) values holdings at AMFI's NAV ([amfi_nav.py](../backend/src/ledger_sync/core/amfi_nav.py), `mf_nav_store.py`) with cost and gain, and [mf_xirr.py](../backend/src/ledger_sync/core/mf_xirr.py) owns XIRR on a 365-day year. See [Mutual funds from a CAS](#mutual-funds-from-a-cas). |
+| Foreign assets (RSU lots, Schedule FA, FAST-DS) | [foreign_assets.py](../backend/src/ledger_sync/core/foreign_assets.py) holds the RSU rupee-value rules, with `foreign_assets_schedule.py` (Schedule FA rows) and `foreign_assets_fast_ds.py`. The browser mirror of the vest rule is [rsuTaxFx.ts](../frontend/src/lib/rsuTaxFx.ts); change both together. See [Foreign assets](#foreign-assets-schedule-fa-and-fast-ds). |
 
 | Frontend concern | Canonical calculation owner | Caller or compatibility boundary |
 | --- | --- | --- |
 | Investment funding and account movements | [finance/investmentFlows.ts](../frontend/src/lib/finance/investmentFlows.ts): `investmentTransferDelta`, `investmentAccountDeltas`, `summarizeInvestmentTransfers` | Investment Analytics, Dashboard, health, and demo callers supply an account predicate. [investmentUtils.ts](../frontend/src/pages/investment-analytics/investmentUtils.ts) and [dailyAccountBalances.ts](../frontend/src/pages/investment-analytics/dailyAccountBalances.ts) retain chart/account adapters. Internal transfers move balances but add no external funding. |
 | Recorded investment returns | [finance/investmentReturns.ts](../frontend/src/lib/finance/investmentReturns.ts): `classifyInvestmentReturn`, `computeInvestmentMetrics`, `groupInvestmentReturnsByMonth` | [returnsAnalysisUtils.ts](../frontend/src/pages/returns-analysis/returnsAnalysisUtils.ts) re-exports metrics and formats chart rows. Exactly one return category per row; contributions and book balances are not returns. |
-| Net-worth balances, calendar growth, milestones, and cash-flow history | [finance/netWorth.ts](../frontend/src/lib/finance/netWorth.ts): `summarizeNetWorthAccounts`, `buildMonthlyNetWorthBalances`, `computeNetWorthMilestoneProgress`, growth/projection functions, `computeNetWorthTimeSeries` | [netWorthUtils.ts](../frontend/src/pages/net-worth/netWorthUtils.ts) and [netWorthProjection.ts](../frontend/src/pages/net-worth/netWorthProjection.ts) retain compatibility exports, classification, milestone labels/visible-row selection, and downsampling. [useNetWorth](../frontend/src/pages/net-worth/useNetWorth.ts) selects dates and the disclosed growth basis. |
+| Net-worth balances, calendar growth, milestones, and cash-flow history | [finance/netWorth.ts](../frontend/src/lib/finance/netWorth.ts): `summarizeNetWorthAccounts`, `buildMonthlyNetWorthBalances`, `computeNetWorthMilestoneProgress`, growth/projection functions, `computeNetWorthTimeSeries` | [netWorthUtils.ts](../frontend/src/pages/net-worth/netWorthUtils.ts) and [netWorthProjection.ts](../frontend/src/pages/net-worth/netWorthProjection.ts) retain compatibility exports, classification, milestone labels/visible-row selection, and downsampling. [useNetWorth](../frontend/src/pages/net-worth/useNetWorth.ts) selects dates and the disclosed growth basis. The compound projection (savings-growth rate, band and milestone ETAs) lives in [netWorthCompound.ts](../frontend/src/pages/net-worth/netWorthCompound.ts); see [Net Worth](#net-worth). |
 | Goal requirements, completion, and funding pace | [finance/goalProjection.ts](../frontend/src/lib/finance/goalProjection.ts): `computeGoalProjection`, `computeGoalPace` | [goals/helpers.ts](../frontend/src/pages/goals/helpers.ts) adds labels/colors; [GoalCard](../frontend/src/pages/goals/components/GoalCard.tsx) renders the shared pace. Goal and milestone ETAs reuse `dateUtils.addFractionalMonthsToKey`. |
 | Cash-flow forecast | [finance/cashFlowForecast.ts](../frontend/src/lib/finance/cashFlowForecast.ts): `buildCashFlowForecast`, `CASH_FLOW_FORECAST_ASSUMPTIONS` | [cashFlowUtils.ts](../frontend/src/components/analytics/cashFlowUtils.ts) adapts series keys and labels for [CashFlowForecast](../frontend/src/components/analytics/CashFlowForecast.tsx). Historical `net_savings` is canonical; the forecast estimates consumption surplus before future capital losses. |
 | Dashboard month comparisons | [finance/dashboardMetrics.ts](../frontend/src/lib/finance/dashboardMetrics.ts): `computeMonthlyChanges` | [useDashboardMetrics](../frontend/src/hooks/useDashboardMetrics.ts) fetches/selects inputs. Changes use complete periods and API net savings; savings-rate change is in percentage points. |
@@ -58,11 +67,13 @@ them with preferences; pages and chart adapters supply labels and presentation.
 | SIP scenarios and modeled history | [finance/sipProjection.ts](../frontend/src/lib/finance/sipProjection.ts): `projectMonthlySIP`, `allocateHistoricalSIPValue`, `calculateSIPBenchmarkValue` | [projectionUtils.ts](../frontend/src/pages/mutual-fund-projection/projectionUtils.ts) retains compatibility exports, date labels, chart rounding, account selection, and XIRR delegation. [useMutualFundProjection](../frontend/src/pages/mutual-fund-projection/useMutualFundProjection.ts) supplies the scenario. |
 | PPF, EPF, NPS | [instrumentCalculators.ts](../frontend/src/lib/instrumentCalculators.ts): projections, `epfMonthlyContributions`, `minimumEpfContribution`, `computeNpsWeightedReturn` | [instrumentProjectionUtils.ts](../frontend/src/components/analytics/instrumentProjectionUtils.ts) adapts display fields and re-exports weighted return. Display and NPS projection use one kernel; statutory splitting and minimum policy stay shared. |
 | Dated rate of return | [xirr.ts](../frontend/src/lib/xirr.ts): `calculateXIRR` | Supply dated contributions/withdrawals and a valid ending valuation. The Returns Analysis page reports recorded P&L and book balances, not a market return derived from salary or balance movement. |
-| FIRE and retirement | [fireCalculator.ts](../frontend/src/lib/fireCalculator.ts): `deriveFIREInputs` and FIRE/retirement solvers | [FIRECalculatorPage](../frontend/src/pages/FIRECalculatorPage.tsx) supplies period totals and observed-month count. Annualization, the one-month fallback, and the existing 60% essentials assumption belong in the library. |
+| FIRE and retirement | [fireCalculator.ts](../frontend/src/lib/fireCalculator.ts): `deriveFIREInputs` and FIRE/retirement solvers | [FIRECalculatorPage](../frontend/src/pages/fire-calculator/FIRECalculatorPage.tsx) supplies period totals and observed-month count. Annualization, the one-month fallback, and the existing 60% essentials assumption belong in the library. |
+| Monte Carlo retirement simulation | [finance/monteCarlo.ts](../frontend/src/lib/finance/monteCarlo.ts): `runMonteCarlo`, with the seeded generator in [finance/seededRandom.ts](../frontend/src/lib/finance/seededRandom.ts) | [workers/monteCarlo.worker.ts](../frontend/src/workers/monteCarlo.worker.ts) runs it off the main thread, and `useMonteCarloRunner` falls back to the same function on the main thread. [monteCarloSeed.ts](../frontend/src/pages/fire-calculator/monteCarloSeed.ts) splits net worth into equity, debt and cash pots; [monteCarloPlan.ts](../frontend/src/pages/fire-calculator/monteCarloPlan.ts) holds the default assumptions. See [Monte Carlo simulation](#monte-carlo-simulation). |
 | GST estimate | [gstCalculator.ts](../frontend/src/lib/gstCalculator.ts) | [useGSTAnalysis](../frontend/src/pages/gst-analysis/useGSTAnalysis.ts) supplies expense rows and rate overrides. Category-based GST is an estimate, not invoice tax. |
 | Credit-card debt, utilization, and coverage | [finance/creditCardUtilization.ts](../frontend/src/lib/finance/creditCardUtilization.ts): `buildCreditCardAccount`, `getCreditCardUtilizationStatus`, `summarizeCreditCards` | [CreditCardHealth](../frontend/src/components/analytics/CreditCardHealth.tsx) retains classification, sorting, and UI. Signed positive balances are prepaid assets and contribute zero outstanding; missing/zero limits remain unmeasured. |
 | Medians and concentration cutoff | [distribution.ts](../frontend/src/lib/distribution.ts): `medianOf`, `cumulativeShareCutoff` | [merchantUtils.ts](../frontend/src/pages/merchant-intelligence/merchantUtils.ts) and [ParetoChart](../frontend/src/components/analytics/ParetoChart.tsx) retain row filtering/order/identity and display caps. The threshold includes its crossing row before the chart's synthetic Other bucket. |
-| Buffering and financial health | [ageOfMoneyCalculator.ts](../frontend/src/lib/ageOfMoneyCalculator.ts), [financialHealthCalculator.ts](../frontend/src/lib/financialHealthCalculator.ts): `computeCFPScore`, `liquidAssetsFromFlows` | [healthScoreAnalysis.ts](../frontend/src/components/analytics/health/healthScoreAnalysis.ts) supplies canonical `cfpInputsFromAnalysis` to both summary and detail. Observed balances, including zero, precede the shared flow proxy; FHN and CFP remain separate models. |
+| Buffering and financial health | [ageOfMoneyCalculator.ts](../frontend/src/lib/ageOfMoneyCalculator.ts), [financialHealthCalculator.ts](../frontend/src/lib/financialHealthCalculator.ts): `computeCFPScore`, `liquidAssetsFromFlows` | [healthScoreAnalysis.ts](../frontend/src/components/analytics/health/healthScoreAnalysis.ts) supplies canonical `cfpInputsFromAnalysis` to both summary and detail. Observed balances, including zero, precede the shared flow proxy; FHN and CFP remain separate models. The Dashboard reads Age of Money, Days of Buffering, the investment-transfer split and the health analysis from the server twins in `core/dashboard_metrics_*.py`; demo mode and tests still run these TypeScript calculators. |
+| Advance tax, filing dates and AIS | [tax/advanceTaxRules.ts](../frontend/src/lib/tax/advanceTaxRules.ts) (the INR 10,000 gate, instalments, `advanceTaxDueDates`), [tax/advanceTax.ts](../frontend/src/lib/tax/advanceTax.ts) (the plan and payment matching), [tax/advanceTaxInterest.ts](../frontend/src/lib/tax/advanceTaxInterest.ts), [tax/filingDeadlines.ts](../frontend/src/lib/tax/filingDeadlines.ts); AIS decryption, parsing, totals and reconciliation in [tax/ais*.ts](../frontend/src/lib/tax/) | [AdvanceTaxPlanner](../frontend/src/pages/tax-planning/components/AdvanceTaxPlanner.tsx), [FilingCalendar](../frontend/src/pages/tax-planning/components/FilingCalendar.tsx), the Bill Calendar's `taxBills.ts` and the AIS Import page consume them. Pure functions with explicit inputs and a stated Act and section; a computation aid, not tax advice. See [Advance tax and filing dates](#advance-tax-and-filing-dates). |
 
 For the extracted domains above, fix arithmetic in `lib/finance` or the named
 shared helper. Page utility exports preserve existing imports; they are not a
@@ -265,6 +276,15 @@ backend/src/ledger_sync/
   core/ledger_math.py
   core/calculator.py
   core/analytics/
+  core/dashboard_metrics*.py
+  core/safe_to_spend*.py
+  core/weekly_recap*.py
+  core/card_cycles*.py
+  core/balance_checks.py
+  core/category_suggester*.py
+  core/mf_valuation.py
+  core/mf_xirr.py
+  core/foreign_assets*.py
   api/calculations.py
   api/analytics.py
   api/analytics_v2_impl/
@@ -285,8 +305,12 @@ frontend/src/lib/
     taxHistory.ts
     payrollPlanning.ts
     taxRateCurve.ts
+    monteCarlo.ts
+    seededRandom.ts
   taxCalculator.ts
   tax-config/
+  tax/
+  rsuTaxFx.ts
   projectionCalculator.ts
   rsuVesting.ts
   salaryCompensation.ts
@@ -624,8 +648,11 @@ and retain only adaptation/labels.
 
 ### Days of Buffering and Age of Money
 
-Both live in `frontend/src/lib/ageOfMoneyCalculator.ts` and feed Dashboard Quick
-Insights.
+Both live in `frontend/src/lib/ageOfMoneyCalculator.ts` and its server twin
+`backend/src/ledger_sync/core/dashboard_metrics_pulse.py`, which
+`/api/dashboard-metrics/pulse` serves to the Dashboard Quick Insights band; demo
+mode and tests still run the TypeScript. The burn uses the selected period's rows
+in the 90 days to today, so a period that ended earlier reads `null`.
 
 ```text
 net_liquid =
@@ -674,6 +701,16 @@ and weights.
 `max(0, cumulativeNetSavings - max(0, netInvestments))`. Observed account balances,
 including an observed zero liquid balance, take precedence. The fallback is a
 flow proxy, not a reconstructed bank balance.
+
+The Dashboard reads this analysis from `/api/dashboard-metrics/health`. Its twins
+are `core/dashboard_metrics_health.py` (`computeCurrentHealth`),
+`core/dashboard_metrics_analysis.py` (`computeAnalysis`) and
+`core/dashboard_metrics_inputs.py` (`resolveEarningStart`, `resolveAnalysisPeriod`
+and `computeBalancePosition` with `resolveAccountCategory`). The 0-100 scores stay
+in the browser. Change a TypeScript calculator and its twin together: the twins
+keep the browser's floating-point order (left-to-right sums, JavaScript object key
+order, `Math.round` halves, in `dashboard_metrics_base.py`) so both return identical
+numbers.
 
 ### Spending velocity
 
@@ -724,6 +761,143 @@ lifestyle_inflation =
   * 100
 ```
 
+### Safe to spend
+
+`GET /api/safe-to-spend` ([core/safe_to_spend.py](../backend/src/ledger_sync/core/safe_to_spend.py))
+answers how much is free until the next payday. It is a computation aid, not
+financial advice.
+
+```text
+safe_to_spend = net_liquid - bills_before_payday - reserve
+per_day = max(0, safe_to_spend) / days_left
+```
+
+- **Cycle:** from the last payday to the next, using the saved `payday` (1 to 31;
+  a day past a month's end clamps to its last day). With no preferences row, or
+  payday 1, the cycle runs to the month end.
+- **Net liquid:** positive balances of accounts classified Cash, Bank Accounts or
+  Other Wallets (a security or rent deposit filed under one of those types is left
+  out), minus what is owed: a negative balance on a classified spendable or Credit
+  Cards account. A closed account's positive balance is not cash, but what it still
+  owes stays owed. Unclassified accounts are left out and counted.
+- **Bills before payday:** accepted commitments and active scheduled transactions
+  (income and expense only) from the day after the newest imported row, or today
+  if sooner, up to the next payday. A commitment is accepted by the Bill Calendar's
+  rule: active, a commitment rather than a habit, and confirmed or seen within two
+  cadence intervals plus seven days. A schedule and the commitment detected from
+  the same bill count once, at the schedule's amount and dates;
+  `safe_to_spend_labels.same_commitment` pairs them when they are linked, or have
+  the same type and cadence and share a label on the same account, on any account
+  for a hand-added commitment, or on any account when the amounts are within 15%,
+  or, on one account, the same amount, day, category and subcategory. Transfers are
+  never bills, and money expected in before payday is never counted.
+- **Reserve:** over three cycles after payday, each cycle's recurring income pays
+  that cycle's bills and a surplus carries forward; the deepest running shortfall is
+  held back now. With no recurring income the reserve is zero and its status is
+  `no_recurring_income`.
+- **Typical day and pace:** `typical_daily_spend` is the median of daily spend over
+  the last 90 days up to the newest imported row, with no-spend days counted as
+  zero, bills left out and classified capital losses excluded. The pace compares the
+  cycle's spend so far, bills left out, with
+  `(spent + max(safe, 0)) * elapsed_days / total_days`, and `usual` is the 90-day
+  average day times the days elapsed.
+- **Balance projection:** `GET /api/safe-to-spend/projection` (7 to 90 days, 30 by
+  default) starts each spendable account at today's balance. Each day adds that
+  day's commitment and schedule flows and the account's usual net transfers (the
+  median, over the three whole months before the newest row, of net transfers into
+  the account per day), and subtracts its share of the average daily spend over the
+  last 90 days. The average, not the median, because a balance falls by everything
+  spent. Only accounts holding money today take a share, in proportion to their own
+  spend. A flag is a crossing: an account must start at or above the level to be
+  flagged for falling below it.
+
+### Weekly recap
+
+`GET /api/weekly-recap` ([core/weekly_recap.py](../backend/src/ledger_sync/core/weekly_recap.py))
+is deterministic: the same ledger read on the same day gives the same recap, with
+no model call. Every figure is a book value from the ledger, a computation aid, not
+financial advice.
+
+- **Week:** the last full Monday to Sunday week on the IST calendar, the week before
+  the current one.
+- **Spending:** expense rows in the week without classified capital losses, against
+  the average of the up to four full weeks before it
+  (`weekly_average = baseline_total / baseline_weeks`, `change = this_week - weekly_average`).
+  Weeks before the first transaction are left out, so a young ledger has fewer
+  baseline weeks or none.
+- **Movers:** the same comparison per category, ranked by absolute change, at most
+  five. A category with no spending in the week is left out, because a monthly bill
+  would otherwise read as a fall in three weeks out of four.
+- **Net-worth change:** the week's income minus every expense row (a realised loss
+  still left the books), on top of the opening book value. The driver is the
+  category with the largest absolute effect.
+- **Bills due:** active recurring expense commitments due today through seven days
+  ahead, at the effective amount (the user's own when set, else the detected one).
+  A past due date rolls forward by cadence while the last payment is inside the
+  review window. Card statement dues stay on the Bill Calendar.
+- **Anomalies:** open findings about a transaction dated in the week, or month-level
+  findings for the week's months; at most five, most severe first.
+- **Completeness:** the week reads as complete once a row is dated from its Sunday up
+  to today. A quiet Sunday and Monday read as a gap, so the card says the week may be
+  incomplete.
+
+### Card statement cycles
+
+`GET /api/card-cycles` ([core/card_cycles.py](../backend/src/ledger_sync/core/card_cycles.py))
+turns a card's Money Manager settlement day and payment day into statement cycles
+on IST dates. A computation aid, not financial advice.
+
+- The settlement day opens a statement period: with day 15 a period runs from the
+  15th to the 14th of the next month, and the 14th is the statement date. The bill
+  is due on the first payment day after the statement date, so day 5 falls in the
+  next month and day 28 in the same one. A day past a month's end lands on its last
+  day (31 is 28 February).
+- A statement bills what the card owed when it closed, as Money Manager's payable
+  balance does: an unpaid earlier balance is carried into it and a payment made
+  before the close lowers it. Payments after a close pay the oldest bill first.
+- Only the latest statement asks for money (`remaining = max(0, billed - paid)`). An
+  older one is `paid` once later payments cover it and `rolled_over` until then,
+  because what it still owes is inside the latest bill. Payments cover a statement
+  when they come within INR 1 of it.
+- The latest statement's status is `nothing_due` (billed at most INR 1), `paid`,
+  `overdue` (past the due date and not covered), `partial` (some payment, before the
+  due date) or `due`. The open period is `open`, and its spend is never shown below
+  zero.
+- Cash after dues for a paying account is its signed balance today minus the
+  `remaining` of the latest statement of each card it pays.
+
+### Balance checks
+
+`core/balance_checks.py` compares a balance the user types with the ledger. For each
+check, `difference = bank_balance - ledger_balance_at_end_of_check_day`, and the
+check matches when `abs(difference) <= INR 1`. The ledger balance counts every live
+row that touches the account (income credits and expenses debit it; a transfer
+debits `from_account` and credits `to_account`), including transfers to accounts
+excluded in Settings, through the end of the check's day. An account's status is
+decided in this order: `mismatch` (the newest check is off), `idle` (no row or
+check for more than 30 days), `unchecked` (no check), `changed` (rows dated after
+the newest check), otherwise `matched`. Only the typed check is stored, so a later
+import can change a status.
+
+### Category suggestions
+
+`core/category_suggester.py` is a per-user multinomial naive Bayes in plain Python,
+trained on the user's own live income and expense rows that carry a real category.
+A row is read as its distinct note words (a word holding a digit is dropped, which
+removes UPI references and card digits; stopwords and one-letter words go too) plus
+the account, a log2 amount bucket and the weekday. Income and expense rows train
+separate models, so an expense is never offered an income category. Every feature
+family uses add-one smoothing, and a row the model trained on is scored with its own
+counts removed.
+
+The model turns on at 30 categorized rows with at least 2 categories within income
+or within expense. It abstains for a row with no note word it has seen, and when its
+best label is under 50% likely; otherwise it returns that label plus the runner-up
+when the runner-up is at least 5% likely. A placeholder category (Other,
+Miscellaneous, Uncategorised, Unknown and similar) with no real subcategory is never
+a training label. Nothing here writes: the upload review and the Review Queue show
+the suggestions and the user decides.
+
 ## 50/30/20 Spending Rule
 
 `GET /api/analytics/v2/spending-rule` groups the selected period into:
@@ -732,7 +906,7 @@ lifestyle_inflation =
 - Wants
 - Savings
 
-The Budget Rule endpoint's targets default to 50, 30, and 20 percent via
+The 50/30/20 endpoint's targets (shown on the Budgets page) default to 50, 30, and 20 percent via
 `needs_target_percent`, `wants_target_percent`, and `savings_target_percent`.
 Expense Analysis uses the separate consumption-savings policy below.
 
@@ -743,7 +917,7 @@ against its own preference. They are not interchangeable.
 
 | Page | Savings numerator | Target preference |
 | --- | --- | --- |
-| Budget Rule (`/budgets`) | net change in the investment perimeter (allocations into SIP/PPF/EPF/NPS/stocks minus redemptions) | `savings_target_percent` |
+| Budgets, 50/30/20 rule (`/budgets`) | net change in the investment perimeter (allocations into SIP/PPF/EPF/NPS/stocks minus redemptions) | `savings_target_percent` |
 | Expense Analysis (`/spending-analysis`) | `max(0, income - comparable consumption spending)` | `savings_goal_percent` |
 
 The same `savings_goal_percent` also drives the Financial Health savings metric
@@ -909,9 +1083,30 @@ carrying the same income or expense into missing months would invent flows.
 `useNetWorth` fills months before excluding an incomplete current month. It
 uses completed months for growth when at least two deltas exist; short-history
 fallback can include the partial month and retains that disclosure. The latest
-filtered observation remains the projection anchor. Linear projections extend
-the monthly change for up to 60 months, with an illustrative sample-deviation
-band. They do not predict compounded market returns.
+filtered observation remains the projection anchor. The straight line extends
+the average monthly change for up to 60 months, with an illustrative
+sample-deviation band. It does not predict compounded market returns.
+
+The chart's projection compounds the saving itself, not the balance
+(`netWorthCompound.ts`). `measureSavingsGrowth` takes the last (up to) three
+complete 12-month blocks of net savings, oldest to newest. It needs at least two
+blocks (24 complete months) with a positive first and last block:
+
+```text
+measured = (last_block / first_block) ^ (1 / (blocks - 1)) - 1
+rate = clamp(measured, -15%, +15%)
+```
+
+Month `k` of the five-year horizon adds `monthly * q^k`, where
+`q = (1 + rate) ^ (1 / 12)`. After 60 months every later month adds the 60th
+month's saving, so a milestone ETA never stretches a short trend over decades. The
+band is one standard deviation of the summed savings, each month's spread scaled
+like its mean. With no measurable rate the projection is the straight line. Upcoming
+milestone ETAs (`monthsToGainCompound`) are solved on the compounding stretch when
+the gap closes inside the horizon, otherwise the remainder runs at the horizon
+month's saving. When the projection compounds, the straight line stays on the chart
+for comparison. Market returns are not included. A computation aid, not financial
+advice.
 
 The legacy `computeNetWorthTimeSeries().netWorth` field remains cumulative
 income minus **all** expenses, excluding transfers from the total. Its category
@@ -1017,7 +1212,13 @@ an expected day from the modal day, with special handling for late-month
 clamping.
 
 User-confirmed rows are preserved during a refresh and have their observed
-statistics updated. Manually entered amounts and due days remain user-owned.
+statistics updated. Manually entered amounts and due days remain user-owned. An
+amount the user sets on a detected commitment is stored beside the detected one
+(`user_expected_amount`), so a refresh keeps it: the list's `expected_amount` is the
+effective amount, `detected_amount` is what detection derived from history, and
+`amount_edited` is true while they differ. Totals, sorting, the Bill Calendar and
+the weekly recap use the effective amount. An amount equal to the detected one clears
+the override, and un-confirming a commitment clears it too.
 Normalization removes explicit billing month/year suffixes while retaining
 payee names and other identifying numbers.
 
@@ -1072,15 +1273,23 @@ income mean.
 
 ## Anomaly Detection
 
-The active detector creates two statistical finding types plus budget-overrun
-findings from budget tracking.
+Each analytics refresh runs the checks enabled in `anomaly_types_enabled` (all of
+them by default) over live rows outside excluded accounts. Classified capital
+losses stay out of every spending baseline. The setting is read this way: unset,
+unreadable, or exactly the four types the old grid offered (High Expense, Unusual
+Category, Large Transfer and Budget Exceeded, which is also the default and reset
+value) runs every detector; a list naming none of the newer types is honoured for
+those four and leaves the newer ones on; any other list is the complete set, and
+elements that are not known type names are ignored. A typical month below means
+the median monthly expense total over the 12 months ending at that month.
 
 ### High-expense months
 
-With at least four months:
+Each month is judged against the up to twelve months before it, and at least five
+of them are required:
 
 ```text
-median = median(monthly expense totals)
+median = median(trailing monthly expense totals)
 MAD = median(abs(value - median))
 modified_z = 0.6745 * (value - median) / MAD
 ```
@@ -1090,6 +1299,8 @@ The stored legacy threshold is mapped to a modified-Z cutoff:
 ```text
 effective_cutoff = 3.5 * (stored_threshold / 2.0)
 ```
+
+The same cutoff grades high-expense and unusual-category months.
 
 When MAD is zero, the detector uses Tukey's upper fence:
 
@@ -1106,23 +1317,113 @@ category from the preceding 365 days.
 - At least 3 times the median is flagged.
 - At least 5 times the median is high severity.
 - The transaction under review is excluded from its own baseline.
+- The amount must be at least 1 percent of the median monthly expense total.
+- A log-space modified-Z gate against the category's own amounts must pass; it is
+  skipped when those amounts are near-constant.
 
-Reviewed anomalies remain stored. Unreviewed findings are replaced on refresh.
-Findings are sorted by deviation and capped at 50 persisted rows.
+### Unusual category months
+
+A category's monthly expense total is compared with that category's totals in the
+preceding twelve months in which it had spending: median, MAD and
+`modified_z = 0.6745 * (value - median) / MAD` against the cutoff above, with
+Tukey's upper fence when MAD is zero. At least five such earlier months are
+required, and the month must beat the median by at least 2 percent of a typical
+month. A month that repeats the previous month's total exactly is a new level and
+is skipped, so a rent raised for good is flagged in its first month only. A month
+that one already-flagged single expense explains is skipped too.
+
+### Large transfers
+
+Each transfer is compared with the median of what the same source account sent in
+the preceding 365 days: at least five earlier transfers, an amount of at least 10
+percent of a typical month, at least 3 times the median, and an outlier of that
+account's log-space amounts. 5 times the median is high severity.
+
+### Possible duplicates
+
+Rows group by type, ledger account (both ends for a transfer), amount and cleaned
+note (the first 300 characters); empty or placeholder notes, and amounts under 0.5
+percent of a typical month, are skipped. Two neighbouring rows of a group within 3
+days are flagged when:
+
+- they fall on the same day and the payee's other repeats are usually 8 or more
+  days apart (or there are none), which is high severity; or
+- they are 1 to 3 days apart, the amount is at least 5 percent of a typical month,
+  and the other repeats are usually 12 or more days apart (or there are none); or
+- they are 1 to 3 days apart and the payee repeats on a regular cadence: two or
+  more other repeats, a median gap of 20 days or more and a spread within 25
+  percent.
+
+### Fee or interest
+
+An expense whose category, subcategory or note (whitespace collapsed, first 300
+characters) names:
+
+- a late or overdue fee, charge or penalty (high);
+- a finance charge, card, cc, revolving or overdue interest, or interest on a card,
+  outstanding balance or dues (high);
+- a forex, FX, DCC, cross-currency, currency conversion, foreign currency or
+  international transaction markup, fee or charge (medium);
+- a card annual, renewal or joining fee with the card as the subject (medium).
+
+The patterns are in `core/analytics/anomaly_fee_patterns.py`. Loan interest, a card
+used to pay for something else, and a waived, reversed or refunded charge are not
+flagged, and no pattern names a bank.
+
+### Missing recurring entries
+
+Only commitments the user confirmed, on open accounts, are checked. The walk starts
+after the due date the last occurrence paid and follows the schedule; a commitment
+on a fixed day of the month keeps its dates. The grace period grows with the
+cadence: 2, 3, 4, 7, 10, 15, 20 and 30 days for daily, weekly, biweekly, monthly,
+bimonthly, quarterly, semiannual and yearly. An entry (under the commitment's labels,
+or its category and subcategory, within 15 percent or two spreads of the detected
+or the user's amount) pays a due from the grace before it until the next cycle's
+window opens. A due is judged only once its grace has passed and the account holds
+rows that late; older data is stale, not missing. The finding stands for the latest
+run of consecutive misses, high severity for income or for two or more. Because the
+walk starts at the last occurrence, a skipped entry followed by a normal one is found
+only while the last occurrence lags the entries.
+
+### Closed-account activity
+
+Rows dated after an account's recorded close, up to 5 per account. This check is
+always on in the Anomaly Detection panel.
 
 ### Budget exceeded
 
-For each active budget, the current calendar month's category spending updates:
+For each active budget, the current IST month's category spending (live expense
+rows, with classified capital losses and excluded accounts left out, as the budget
+pages count it) updates:
 
 ```text
 remaining = monthly_limit - spent
 percent = spent / monthly_limit * 100
 ```
 
-A high-severity budget anomaly is created only after usage exceeds 100 percent.
+Spend is tracked even when the type is switched off. Past 100 percent a
+high-severity finding is added, unless that month's overrun for the category was
+reviewed. The alert follows the `budget_exceeded` switch.
 
-There are no active unusual-category, duplicate, missing-recurring, or
-auto-dismiss detectors in the current analytics run.
+### Auto-dismiss
+
+With `auto_dismiss_recurring_anomalies` on (the default), a large-expense flag on an
+entry of a recurring pattern (same label and type, a fitting amount), and a
+category month that drops below the cutoff once bills on a longer-than-monthly
+schedule are removed, are stored dismissed with an `Auto-dismissed:` note and no
+`reviewed_at`, and rebuilt on every refresh. Large transfers are never
+auto-dismissed. Turning the setting off brings the findings back as open ones.
+
+### Storage and caps
+
+Each refresh replaces the open rows and the engine's own auto-dismissed rows, and
+keeps the rows a user reviewed. A transaction finding is identified by its type and
+transaction; a month finding by its type, month and subject (a category or a
+commitment). Reviewed findings suppress the same finding on later refreshes. Caps
+per refresh, newest first: Unusual Category 20, Large Transfer 15, Possible
+Duplicate 20, Missing Recurring 15, other types 25. High Expense keeps up to 25
+months and fills up to 50 rows with single expenses by deviation. Auto-dismissed
+rows: 25.
 
 ## Tax Calculation
 
@@ -1130,6 +1431,14 @@ Tax rules are versioned by fiscal year under
 [`tax-config/`](../frontend/src/lib/tax-config/). The newest known fiscal-year
 configuration is used as fallback for later years until a new rule file is
 added. Keep that fallback visible.
+
+Tax Year 2026-27 has its own entry under the Income-tax Act 2025 (s.202 and
+Finance Act 2026). Its slabs, standard deduction and rebate equal FY 2025-26, so no
+estimate moves. From 2026-27 a year is labelled "Tax Year", and `tax-config/sections.ts`
+shows the 2025 Act reference beside the 1961 one (s.123 for old 80C, s.124(3) for
+80CCD(1B), s.126 for 80D, s.22 for 24(b)). Old-regime deduction inputs are saved per
+tax year and keep the 1961 Act names (`80C`, `80CCD(1B)`, `80D`, `HRA`, `24(b)`) as
+keys.
 
 The frontend tax engine applies:
 
@@ -1223,6 +1532,106 @@ and avoids a separate page-owned tax or net-salary reconstruction.
 Always update the versioned tax configuration and its tests when tax law
 changes. Do not hardcode new slabs inside page components.
 
+### Advance tax and filing dates
+
+These are pure functions in `frontend/src/lib/tax/`, ported from community/itr-agent
+(MIT, same author), with explicit inputs and a stated Act and section. A
+computation aid, not tax advice.
+
+```text
+net_liability = max(0, round(projected_tax - tds_and_tcs))
+applies = net_liability >= INR 10,000
+required_by_date = round(net_liability * cumulative_pct / 100)
+```
+
+- **Projected tax** is the Tax page's income tax for the year with surcharge and cess,
+  without professional tax. `tds_and_tcs` starts as the tax on employment income
+  alone (salary TDS, RSU perquisites included); the user can replace it with the
+  Form 26AS or AIS total.
+- **Instalments:** 15% by 15 June, 45% by 15 September, 75% by 15 December and 100%
+  by 15 March (1961 Act s.211; 2025 Act s.408), for the year starting 1 April. The
+  planner covers FY 2020-21 onward and needs an April fiscal year.
+- **Payments** are expense rows whose category or subcategory names Advance Tax,
+  summed in whole paise. A payment counts at the first due date on or after its date
+  (after the previous date, up to and including this one); 16 to 31 March counts for
+  the year, after the last instalment.
+- **Deferment interest** (1961 Act s.234C; 2025 Act s.425): 1% a month on the
+  shortfall at each date, 3 months at each of the first three dates and 1 month at
+  15 March; nil in June when 12% was paid and in September when 36% was. Rule 119A:
+  the principal is floored to a multiple of INR 100 and a part month counts as a full
+  month.
+- **Default interest** (1961 Act s.234B): 1% a month from 1 April after the year
+  while advance tax paid is under 90% of the tax after TDS and TCS. The clock stops
+  at a self-assessment payment that clears the balance (the s.234B(2) segments), at
+  the 31 July return date while that is still ahead, or today after it. After the
+  assessment year ends the ledger cannot say when the balance was paid, so the
+  estimate runs to 31 July, or to the last self-assessment payment when that came
+  later.
+- **Not modelled:** the proviso excusing a shortfall caused by capital gains or
+  dividends received after an instalment date, the single 15 March instalment for
+  presumptive income, and the exemption for resident seniors with no business income.
+
+Filing dates (`filingDeadlines.ts`) are statutory dates for an individual with no
+audit, which CBDT can extend. AY 2026-27 (FY 2025-26) falls under the 1961 Act as
+amended by Finance Act 2026: return due 31 July 2026, belated up to 31 December 2026,
+revised up to 31 March 2027 (a 12-month window, with the s.234I fee for a revision
+after 31 December). From Tax Year 2026-27 the Income-tax Act 2025 applies: the return
+is due 31 July after the year (s.263(1)), a belated return up to 9 months after it
+(s.263(4)), a revised one up to 12 months after it (s.263(5)), with a fee after 9
+months (s.428(b)). Business or professional income moves the AY 2026-27 due date or
+adds a caveat, because that return can be due later.
+
+### AIS reconciliation
+
+`lib/tax/aisReconcile.ts` (with `aisMatch.ts`) matches the AIS income lines of a tax
+year against the ledger's income, in both directions. A computation aid, not tax
+advice.
+
+- Salary matches by date only (within 12 days), because the ledger holds take-home
+  pay and the AIS the gross.
+- Any other line matches one ledger row whose amount equals its gross, or its gross
+  less TDS, within 1% (at least INR 1), and whose date is within 10 days when the
+  line has one. An interest or dividend line with no tax column also accepts the
+  gross less 10%.
+- An interest or dividend line still unmatched then matches one account's rows of
+  that kind whose sum agrees within 2% (at least INR 10): quarterly credits against
+  an annual SFT figure.
+- Totals count each payer's interest and dividends once: the larger of its SFT report
+  and its TDS lines. Sums are kept in paise.
+- AIS lines with no ledger match, and reportable ledger rows (salary, interest,
+  dividend, rent, gains, or income classified as taxable or investment) with no AIS
+  line, are listed for review.
+
+### Foreign assets (Schedule FA and FAST-DS)
+
+`core/foreign_assets*.py` values the RSU shares of a foreign employer for an Indian
+return. A computation aid, not tax advice.
+
+- **Rupee value of a vest** (`foreign_assets.py`, mirrored in `lib/rsuTaxFx.ts`): the
+  employer's perquisite figure when entered; otherwise the SBI TT buying rate (INR
+  per unit of the quote currency) the user looked up for the specified date, times
+  the vest-date price per share. The specified date is the last day of the month
+  before the vest month (r.115 of the Income-tax Rules 1962 for vests up to
+  2026-03-31, r.206/207 of the Income-tax Rules 2026 after), and a rate card up to 7
+  days before it still counts. Otherwise the saved vest price, which the app converted
+  at the ECB reference rate: an approximation. `fx_source` is `employer`, `sbi_ttbr`
+  or `ecb`, derived on every write.
+- **Received units** use the entered net quantity; until then they are estimated as
+  `1 - 0.30 - 0.30 * 0.04` of the gross quantity, like `netVestingQuantity`.
+- **Schedule FA** (Table A3, foreign equity interest) covers a calendar year, 1
+  January to 31 December, not the financial year (AY 2026-27 under the 1961 Act is
+  calendar 2025). The initial value is the lot's tax value for the shares held when
+  the period, or the holding, began. Peak and closing values come from the stock's
+  daily closes and the ECB reference rate of the day, an approximation of the SBI rate
+  the form asks for. Closes are split-adjusted, so a value is the lot's shares on
+  today's count times the close. A sale or dividend converts at the TTBR the user
+  entered for it, else at the ECB rate of its day.
+- **FAST-DS 2026** (Finance Act 2026) values a lot held on 2026-03-31 at the higher of
+  its cost and the average of that day's highest and lowest quote, converted at the
+  reference rate (the ECB rate here, an approximation). Declarations close on
+  2026-12-31. Whether a holding needs declaring, and in which category, depends on past
+  returns and is for a CA to confirm.
+
 ## Salary, RSU, and TDS Projections
 
 ### Salary projection
@@ -1303,6 +1712,9 @@ Each vesting has a date, gross `quantity`, optional `price_at_vest`, and optiona
   they affect cash/share settlement without reducing the taxable vest.
 - Changing a completed vesting date clears the stale locked price in the UI so
   it can be fetched again.
+- The rupee tax value recorded per vest (employer figure, SBI TT buying rate or the
+  ECB approximation) feeds the Foreign Assets worksheet. It does not change these
+  projections; see [Foreign assets](#foreign-assets-schedule-fa-and-fast-ds).
 
 These helpers multiply the supplied price. They do not migrate stored prices,
 attach a new base-currency contract, or reinterpret saved prices when display
@@ -1417,6 +1829,40 @@ monthly_rate = (1 + annual_return) ^ (1 / 12) - 1
 The projection uses an annuity-due model, with contributions at the beginning
 of each month.
 
+### Monte Carlo simulation
+
+`lib/finance/monteCarlo.ts` (`runMonteCarlo`) asks whether the money lasts to the
+end age. It is deterministic for a given input: run `r` draws from its own generator
+seeded by `(seed, r)`, in the same order every year, so the same inputs give the same
+fan, more runs extend the same set, and moving an age leaves every other year's draws
+alone. A computation aid built on the user's assumptions, not a forecast or financial
+advice.
+
+- **Pots:** equity, debt and cash, each with a starting balance in today's rupees, a
+  median annual return (a CAGR) and a volatility. The tab seeds balances from net
+  worth: investment accounts are equity unless mapped as PPF/EPF or fixed deposits
+  (debt); everything else, net of cards and loans, is cash. A pot left negative is
+  taken from the others pro rata, so the pots add up to net worth, or to zero when
+  net worth is not positive. Defaults: equity 12% return and 18% volatility, debt 7.5%
+  and 3%, cash 3.5% and 1%.
+- **Each year:** every pot draws a lognormal return whose median is its expected
+  return, and inflation draws from a normal around its average (default 6% with 1.5%
+  volatility). The portfolio is rebalanced to the starting mix every year, and pots
+  and inflation move independently. Nothing resamples market history.
+- **Cash flows:** savings and spending are in today's rupees and grow with that run's
+  inflation. Before retirement the year's savings land at its end; from retirement the
+  year's spending leaves at its start, and a run fails in the first year the portfolio
+  cannot fund it. Every reported balance is deflated back to today's rupees.
+- **Stress test:** an optional one-time fall in the equity pot (10% to 60%) lands as
+  retirement starts, so the balance at the retirement age already includes it. The
+  result also reports the success rate without the fall.
+- **Outputs:** `success_rate = 1 - failed_runs / runs`; the median balance at
+  retirement and at the end age (failed runs count as 0); the median and
+  earliest-tenth ages at which failed runs ran out; and a fan of the 10th, 25th, 50th,
+  75th and 90th percentile balances by age, with the share of runs already depleted.
+- **Runs:** 1,000, 5,000 or 10,000 (at most 20,000), in a Web Worker with a
+  main-thread fallback.
+
 ## Investment Returns
 
 `investmentReturns.ts` assigns at most one recorded-return bucket to each row:
@@ -1444,6 +1890,36 @@ withdrawals/ending valuation, returning percentage points. Its legacy zero
 fallback for insufficient or unsolvable flows is not evidence of a measured
 zero return. Do not derive a portfolio return from salary trends or book-balance
 movement without the required valuation inputs.
+
+### Mutual funds from a CAS
+
+`core/mf_valuation.py` values holdings imported from a CAS, which carry real market
+values unlike the ledger's cost-basis figures. A computation aid, not financial
+advice.
+
+- **NAV:** each held scheme is valued at AMFI's latest NAV (`core/amfi_nav.py`, the
+  `NAVAll.txt` file parsed by header name), looked up by `isin:` or `code:` key, else
+  at the statement's own NAV when AMFI has none. A cached NAV is fresh if it was
+  checked after the most recent 10:30 IST (SEBI's latest publish deadline is 10:00
+  IST on T+1), so there is at most one download a day per new set of schemes. After a
+  failed download, retries on that server instance wait 15 minutes.
+- **Value, cost and gain:** `value = units * nav`. `cost` is the statement's cost,
+  else worked out first-in-first-out from the transactions (a reversal comes off the
+  newest lot). `gain = value - cost` and `gain_pct = gain / cost * 100` when both are
+  known. Schemes without a NAV or a cost are skipped by the totals that need them,
+  and the summary says how many.
+- **XIRR** (`core/mf_xirr.py`) follows Excel: the annual rate at which the dated
+  flows' NPV is zero, with days divided by 365 (not 365.25), by Newton's method from
+  10% and then bisection. Flows are from the investor's side: money paid in is
+  negative; redemptions, IDCW payouts and today's value are positive; stamp duty, STT
+  and TDS count as money paid; a switch is a flow for each scheme and nets out across
+  the portfolio; IDCW reinvestment moves no money and is skipped. The result is a
+  percentage.
+- **When XIRR is shown:** a holding gets one only when its statement starts from zero
+  units; otherwise the note is `opening_balance`. A summary or depository CAS lists no
+  dated rows (`no_transactions`), no NAV gives `no_nav`, and flows with no rate (all in
+  or all out) give `no_solution`. The portfolio XIRR pools every holding with a
+  complete history, redeemed ones included.
 
 ## Currency Conversion
 

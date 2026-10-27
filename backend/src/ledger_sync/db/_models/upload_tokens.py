@@ -1,12 +1,14 @@
-"""Long-lived, upload-only credentials for automations such as an iOS Shortcut.
+"""Long-lived, single-scope credentials for automations such as an iOS Shortcut.
 
-Shortcuts cannot run the OAuth sign-in, so a user creates one of these in
-Settings and pastes it into the automation. Only its SHA-256 is stored; the
-plaintext is returned once, at creation. A token can only upload a Money
-Manager backup: it never reads ledger data or reaches any other endpoint.
+Shortcuts and MCP clients cannot run the OAuth sign-in, so a user creates one
+of these in Settings and pastes it into the automation. Only its SHA-256 is
+stored; the plaintext is returned once, at creation. Each token holds exactly
+one scope and reaches only the routes that require that scope; none of them
+can sign in or call any other endpoint.
 """
 
 from datetime import UTC, datetime
+from typing import Literal, get_args
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,7 +16,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ledger_sync.db._models._constants import USER_FK
 from ledger_sync.db.base import Base
 
-UPLOAD_SCOPE = "mmbak:upload"
+TokenScope = Literal["mmbak:upload", "ledger:read", "alerts:ingest"]
+# Upload a Money Manager backup (api/money_manager_upload.py); never reads.
+UPLOAD_SCOPE: TokenScope = "mmbak:upload"
+# Call the read-only chat tools over MCP (api/mcp.py); never writes.
+LEDGER_READ_SCOPE: TokenScope = "ledger:read"
+# Post bank-alert text to the alert inbox; never reads the ledger.
+ALERTS_INGEST_SCOPE: TokenScope = "alerts:ingest"
+TOKEN_SCOPES: tuple[TokenScope, ...] = get_args(TokenScope)
 
 
 class UploadToken(Base):

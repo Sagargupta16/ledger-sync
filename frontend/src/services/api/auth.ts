@@ -7,6 +7,7 @@
 
 import axios from 'axios'
 import { apiClient } from './client'
+import { forgetThisDevice } from './pushDevice'
 import { API_BASE_URL } from '@/constants'
 import type {
   User,
@@ -113,9 +114,12 @@ export const getMe = async (accessToken?: string): Promise<User> => {
 }
 
 /**
- * Logout (client-side token cleanup)
+ * Logout (client-side token cleanup). This device's push alerts stop first,
+ * while the session can still authorise that, so a shared phone does not keep
+ * getting this account's alerts.
  */
 export const logout = async (): Promise<void> => {
+  await forgetThisDevice()
   try {
     await apiClient.post(`${AUTH_BASE}/logout`)
   } catch (e) {

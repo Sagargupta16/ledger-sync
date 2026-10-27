@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ledger_sync.core import rules
+from ledger_sync.core import category_overrides, rules
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
 from ledger_sync.core.analytics_engine import AnalyticsEngine
 from ledger_sync.core.import_identity import capture_source_identities
@@ -186,6 +186,8 @@ class SyncEngine:
                     import_time=import_time,
                 )
             )
+            # Rows the reconciler paired by shape arrive without their fix; put it back.
+            category_overrides.restore_overwritten_fixes(self.session, user_id)
 
             if options.guard_deletions and stats.deleted > _deletion_allowance(live_before):
                 raise LargeDeletionError(stats.deleted, live_before)
@@ -224,6 +226,8 @@ class SyncEngine:
             for row in normalized_rows:
                 rules.apply_rules_to_row(active_rules, row)
         self._canonicalize_category_casing(normalized_rows)
+        # Review-queue fixes win over the rules and the source on every import.
+        category_overrides.apply_to_import_rows(self.session, self.user_id, normalized_rows)
         for row in normalized_rows:
             self.normalizer.validate_normalized_row(row)
         return self.user_id

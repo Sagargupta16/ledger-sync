@@ -13,7 +13,19 @@ export interface RecurringTransaction {
   account: string
   type: string | null
   frequency: string | null
+  /** The effective amount per cycle: the user's amount when one is set, else the detected one. */
   expected_amount: number
+  /**
+   * What detection last derived from history; refresh keeps updating it beside
+   * a user's amount. Null on a row added by hand. Optional because older
+   * backends and cached responses do not carry it.
+   */
+  detected_amount?: number | null
+  /**
+   * The user set `expected_amount` and it differs from `detected_amount`, so a
+   * reset would change it. Refresh never overwrites the user's amount.
+   */
+  amount_edited?: boolean
   variance: number
   expected_day: number | null
   confidence: number
@@ -33,6 +45,23 @@ export interface RecurringTransaction {
   pattern_kind: string
 }
 
+/** A PATCH answers with the row's amount state, in the same shape as the list. */
+export interface RecurringPatchResult {
+  status: string
+  id: number
+  expected_amount: number
+  detected_amount: number | null
+  amount_edited: boolean
+}
+
+async function patchRecurring(id: number, body: object) {
+  const response = await apiClient.patch<RecurringPatchResult>(
+    `/api/analytics/v2/recurring-transactions/${id}`,
+    body,
+  )
+  return response.data
+}
+
 export const recurringApi = {
   // Recurring Transactions
   //
@@ -46,7 +75,7 @@ export const recurringApi = {
     return getWrapped<RecurringTransaction>('/api/analytics/v2/recurring-transactions', params)
   },
 
-  async updateRecurringTransaction(
+  updateRecurringTransaction(
     id: number,
     body: {
       pattern_name?: string
@@ -57,11 +86,16 @@ export const recurringApi = {
       pattern_kind?: string
     },
   ) {
-    const response = await apiClient.patch<{ status: string; id: number }>(
-      `/api/analytics/v2/recurring-transactions/${id}`,
-      body,
-    )
-    return response.data
+    return patchRecurring(id, body)
+  },
+
+  /**
+   * Set the amount the user expects per cycle, or pass `null` to go back to the
+   * detected amount. On a detected row the amount is kept beside the detected
+   * one, so the next analytics refresh does not overwrite it.
+   */
+  setRecurringAmount(id: number, amount: number | null) {
+    return patchRecurring(id, amount === null ? { reset_amount: true } : { expected_amount: amount })
   },
 
   async createRecurringTransaction(body: {

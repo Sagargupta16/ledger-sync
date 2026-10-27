@@ -2,9 +2,9 @@
 
 Architecture reference for the current Ledger Sync source.
 
-Source walkthrough updated on 2026-09-16. The local Graphify graph is a
-navigation aid; the application entry points, routes, services, stores, models,
-and workflows define the contracts below.
+Source walkthrough updated on 2026-09-16 and revised for 2.31.0 on 2026-10-27.
+The local Graphify graph is a navigation aid; the application entry points,
+routes, services, stores, models, and workflows define the contracts below.
 
 Every figure on this page is drawn with orrery from a YAML spec in
 [diagrams/](diagrams/README.md) whose nodes and edges cite the file and line
@@ -63,13 +63,28 @@ handlers, health checks, and router registration.
 The registered routers cover:
 
 - Authentication and OAuth
-- Upload and transactions
-- Tags, rules, and saved views
-- Analytics and calculations
+- Upload (spreadsheet rows, Money Manager backups, CAS statements) and transactions
+- Tags, rules, saved views, and Dashboard watch tiles
+- Analytics, calculations, and budgets
+- Per-request Dashboard reads: dashboard metrics, weekly recap, safe to spend,
+  and credit-card statement cycles
+- Balance checks, the Review Queue, and category suggestions
 - Preferences and classifications
 - Goals
+- Tax: saved deductions, AIS totals, RSU conversions, and foreign assets
+- Mutual fund holdings from a CAS
+- The bank alert inbox
 - Currency, instrument, and stock rates
 - AI chat, tools, and usage
+- Semantic search, push alerts, and the MCP server
+
+Most routes authenticate a user session. Three take an `lsu_` automation token
+instead, one scope per token: the Money Manager upload (`mmbak:upload`), the
+bank alert inbox (`alerts:ingest`, `POST /api/ingest/text`) and the MCP server
+(`ledger:read`, `POST /mcp`, the one route outside `/api`).
+`require_token_scope(scope)` in `api/deps.py` resolves a scoped token to its
+active user; the upload route uses `get_upload_principal`, which accepts a
+session as well.
 
 See [API.md](API.md) for the complete inventory.
 
@@ -93,6 +108,14 @@ Key modules:
 | `rules.py` | Categorization rule matching |
 | `encryption.py` | AES-256-GCM BYOK key encryption and legacy migration |
 | `auth/` | JWT creation, decoding, and token-version verification |
+| `dashboard_metrics*.py` | The Dashboard's row-level metrics (Age of Money, Days of Buffering, the investment-transfer split, the health analysis) served as a few numbers; the arithmetic matches the browser calculators |
+| `safe_to_spend*.py`, `weekly_recap*.py`, `watch_tile*.py`, `card_cycles*.py`, `balance_check*.py` | Reads computed per request from live rows; none is an analytics input |
+| `bank_alert_*.py` | Parse, store, and match forwarded bank alerts; parsed fields and hashes only, never the text |
+| `category_suggester*.py`, `category_override*.py`, `review_queue.py` | Per-user naive Bayes suggestions; Review Queue fixes replayed on every import |
+| `foreign_assets*.py` | RSU rupee conversion, lot ledger, Schedule FA worksheet, FAST-DS valuation |
+| `cas_import.py`, `mf_*.py`, `amfi_nav.py` | CAS PDF read in memory with casparser; holdings valued at AMFI's latest NAV, with XIRR |
+| `embeddings.py`, `semantic_search.py` | Titan Text Embeddings V2 calls; what to embed, what is stale, exact per-user ranking |
+| `push_*.py` | VAPID check, Declarative Web Push payloads, per-device alert state, the daily run |
 
 Analytics implementation lives under `core/analytics/` as domain mixins:
 
@@ -115,6 +138,17 @@ It owns merchant label extraction: brands are matched with an ambiguity guard,
 and a miss keeps the whole normalized note as a descriptor instead of the first
 word, so nothing is dropped and unrelated purchases are not over-merged.
 
+Anomaly detection is split further: `anomaly_rules.py` decides which detectors
+run, finding identity, and caps; `anomaly_baselines.py`,
+`anomaly_detectors.py`, `anomaly_ledger_checks.py`, `anomaly_recurring.py`,
+`anomaly_recurring_index.py`, and `anomaly_fee_patterns.py` are the detectors
+and their patterns; `anomaly_store.py` persists a refresh's findings.
+`budget_tracking.py` holds this IST month's spend per budget and its open
+alerts, one definition shared by the refresh, the budget endpoints, and push
+alerts. `recurring_amounts.py` keeps the user's own amount
+(`recurring_transactions.user_expected_amount`) beside the detected one, so a
+refresh never overwrites it.
+
 `core/analytics_engine.py` is a backwards-compatible facade that re-exports
 the composed `AnalyticsEngine`. New analytics behavior belongs in the domain
 package, not in the facade.
@@ -130,9 +164,15 @@ Location: `backend/src/ledger_sync/db/`
 - `migrations/versions/` contains the Alembic history.
 
 The model metadata includes the ledger, derived analytics, preferences, goals,
-OAuth audit records, and AI usage reservations. Hosted deployments use Neon
-PostgreSQL; SQLite remains the default local and unit-test backend. Native
-PostgreSQL verifies dialect-specific migrations and constraints.
+OAuth audit records, and AI usage reservations, plus the 2.31.0 domains:
+balance checks, bank alerts, Review Queue decisions, links from imported rows to
+their Money Manager items, CAS holdings with the shared AMFI NAV cache, RSU
+conversions and foreign-asset events, saved tax deductions and AIS totals,
+pinned watch tiles, push devices, and transaction embeddings. Hosted
+deployments use Neon PostgreSQL; SQLite remains the default local and unit-test
+backend. Native PostgreSQL verifies dialect-specific migrations and
+constraints; `transaction_embeddings` keeps a pgvector `vector(512)` there and
+float32 bytes on SQLite.
 
 Every user-owned query includes `user_id`. Current model foreign keys use
 database cascades for account deletion, but authorization remains an explicit
@@ -147,6 +187,13 @@ revision closes uniqueness/constraint gaps, rejects conflicting identities or
 invalid positive amounts before changing data, and removes obsolete global
 uniqueness. It does not merge users or rewrite financial values. Goal editing
 uses the existing goal model without a new goal migration.
+
+`feature_domains_2026` (2.31.0) is expand-only: it creates 14 tables no older
+backend names and, on PostgreSQL, enables the `vector` extension. Because
+Vercel can serve a release before CI migrates, paths that touch those tables
+from an import or a reset tolerate an unmigrated database (`has_table` guards,
+`_delete_if_migrated` in `services/auth_account_data.py`); the routes that read
+them fail until the revision runs. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Historical transfer consolidation preserves unmatched incoming legs and
 ambiguous groups, collapsing only a matching pair. Unsupported downgrades
@@ -165,7 +212,9 @@ backend/src/ledger_sync/services/
 
 Pydantic models validate wire contracts. Services contain cross-router
 workflows such as OAuth user creation, token refresh, account reset, and
-account deletion.
+account deletion, a Money Manager backup's repeat rules and budgets
+(`money_manager_planning.py` with `external_ref_sync.py`), budget writes, and the
+semantic search flows.
 
 ### Ingestion
 
@@ -177,7 +226,13 @@ The web and CLI paths share normalization and hashing but enter differently:
 - CLI import reads a local file and calls `SyncEngine.import_file`.
 - A Money Manager backup is read on the server by
   [money_manager.py](../backend/src/ledger_sync/ingest/money_manager.py) and
-  also enters through `SyncEngine.import_rows`.
+  also enters through `SyncEngine.import_rows`. The same backup can carry
+  repeat rules and monthly budgets
+  ([money_manager_planning.py](../backend/src/ledger_sync/ingest/money_manager_planning.py)).
+- A CAS PDF is read on the server, in memory, by
+  [cas_import.py](../backend/src/ledger_sync/core/cas_import.py) with
+  casparser. It stores holdings and dated transactions, never the file, its
+  password, or investor details.
 
 The web upload router does not pass the source file through an Excel loader.
 
@@ -198,6 +253,11 @@ request
   -> commit only when the session has changes
   -> JSON response
 ```
+
+A token route replaces the JWT steps with `require_token_scope`: it looks the
+`lsu_` token up by hash on a unique index, checks its scope, and loads the
+active user. The MCP route counts every call by token digest and IP before that
+lookup, so guessed tokens are throttled too.
 
 An exception rolls back the request session. Database operational errors become
 HTTP 503. Unexpected errors return a correlation ID without a traceback.
@@ -265,12 +325,29 @@ differences:
 adds the backup's account settings to the same commit and reports an
 already-imported store as `unchanged`.
 
+A backup that carries repeat rules or monthly category budgets imports them in
+that commit too.
+[money_manager_planning.py](../backend/src/ledger_sync/services/money_manager_planning.py)
+turns each live repeat rule into a scheduled transaction and each monthly
+whole-category budget into a budget, and links the row to its Money Manager UID
+in `external_refs` with a fingerprint of the values it wrote. A later backup
+updates a linked row only while it still matches that fingerprint, so an edit
+made in Ledger Sync is kept. A linked row deleted here comes back while the
+source still has it, and a row with no link was made by hand and is never
+changed. The step runs in a savepoint and checks that `external_refs` exists, so
+a failure there, or a backend served before the migration, still imports the
+ledger.
+
 The same route accepts an upload token instead of a session.
 [upload_tokens.py](../backend/src/ledger_sync/services/upload_tokens.py) stores
-only token hashes. `get_upload_principal` in `api/deps.py` resolves a token to
-its user for this one route, and token uploads never preview or lift the guard.
-An iOS Shortcut can therefore sync the newest backup without OAuth; the steps
-are in the [Handbook](HANDBOOK.md#automatic-sync-with-an-ios-shortcut).
+only token hashes, and a token holds exactly one scope (`mmbak:upload`,
+`ledger:read`, or `alerts:ingest`), at most five active per scope.
+`get_upload_principal` in `api/deps.py` resolves a session or an `mmbak:upload`
+token to its user for this one route, and token uploads never preview or lift
+the guard. An iOS Shortcut can therefore sync the newest backup without OAuth;
+the steps are in the
+[Handbook](HANDBOOK.md#automatic-sync-with-an-ios-shortcut). The other two
+scopes reach only their own routes through `require_token_scope(scope)`.
 
 ### Analytics and calculation boundaries
 
@@ -299,6 +376,20 @@ arithmetic underneath backend callers; it does not decide user scope. Frontend
 domain modules own preference-sensitive tax, scenario, and projection models.
 Imported cash flows and book-value holdings do not establish a live market
 valuation or an actual investment return by themselves.
+
+Several 2.31.0 reads are computed per request from live rows, because no
+rollup holds what they need: the Dashboard's Age of Money, Days of Buffering,
+investment-transfer split, and current health analysis
+(`/api/dashboard-metrics/{pulse,health}`, which replaced the Dashboard's
+download of `/api/transactions/all`), safe to spend with its 30-day balance
+projection, the weekly recap, watch tiles, and credit-card statement cycles.
+They write nothing and are not analytics inputs, so none needs invalidation.
+Balance checks, bank alerts, saved tax deductions, AIS totals, and push devices
+are records that no rollup reads either. Budget edits and Review Queue category
+changes are the exceptions: like any input writer they mark preferences or
+ledger days dirty before commit. The bank alert inbox matches stored alerts
+against live rows on every read and never writes them into the ledger, because
+the next full Money Manager backup would soft-delete a hand-added row.
 
 The [developer calculation map](CALCULATIONS.md#developer-calculation-map)
 identifies the current backend and frontend owners, monetary/date conventions,
@@ -414,16 +505,21 @@ store/
 lib/
 constants/
 types/
+workers/
 ```
 
 ### Routing and loading
 
-`App.tsx` defines 29 routed page components:
+`App.tsx` defines 32 routed page components:
 
 - 3 public routes
-- 26 protected workspace pages
+- 29 protected workspace pages
 - 4 eager page components
-- 25 lazy page components
+- 28 lazy page components
+
+2.31.0 added the Review Queue (`/review`), Foreign Assets
+(`/tax/foreign-assets`), and AIS Import (`/tax/ais`) pages, and moved the FIRE
+Calculator to `pages/fire-calculator/`.
 
 Eager components:
 
@@ -481,8 +577,8 @@ utilities. Repeated visual patterns belong in shared components.
 | `components/ui/` | Buttons, cards, inputs, tables, chart helpers, and page primitives |
 | `components/charts/` | The in-house animated SVG chart kit |
 | `components/shared/` | Cross-feature states, authentication UI, command palette, and preferences |
-| `components/analytics/` | Reusable financial visualizations |
-| `components/transactions/` | Ledger filters, table, tags, pagination, and saved views |
+| `components/analytics/` | Reusable financial visualizations and the Dashboard cards (safe to spend, weekly recap, watch tiles, card statements) |
+| `components/transactions/` | Ledger filters, table, tags, pagination, saved views, and Smart search |
 | `components/chat/` | AI panel, messages, and orchestration |
 
 The upload drop zone, review, feedback, and import history are page-local under
@@ -666,7 +762,9 @@ stores, while a full reset clears them.
 
 Startup data prefetch is limited to preferences, active recurring commitments,
 and Data Health, and is skipped for demo mode. Full-ledger reads remain an
-explicit page need.
+explicit page need. The Dashboard and Overview no longer have one; seven pages
+still download the ledger (Cash Flow, Comparison, GST, Tax, Returns,
+Investment Analytics, and SIP projection).
 
 Settings batches ordinary preferences, salary structure, RSU grants, and
 growth assumptions into one preferences request. Classifications and rules
@@ -718,9 +816,12 @@ cross-page reason.
 
 Demo entry seeds generated transactions and analytics into the query cache.
 The API interceptor returns computed demo responses for supported GETs and
-rejects server mutations. Goal creation, editing, progress, and deletion have
-an explicit page-local demo implementation, discarded when the page remounts.
-The mode does not send the generated ledger to the backend. OAuth initiation
+rejects server mutations. Every GET a page makes needs an entry in the ordered
+`DEMO_ROUTES` table in `client.ts`, and resolvers for the newer features load
+through `lazyDemo(...)` so they stay out of the first-load bundle. Goal
+creation, editing, progress, and deletion have an explicit page-local demo
+implementation, discarded when the page remounts. The mode does not send the
+generated ledger to the backend. OAuth initiation
 can still contact the backend to leave demo mode and sign in.
 
 ### Responsive shell
@@ -732,6 +833,21 @@ where appropriate.
 
 The layout reserves fixed space for navigation and safe areas so the chat
 widget, demo banner, mobile bar, and page content do not overlap.
+
+### Workers
+
+`src/workers/monteCarlo.worker.ts` runs the FIRE Calculator's Monte Carlo
+([monteCarlo.ts](../frontend/src/lib/finance/monteCarlo.ts)) off the main
+thread. Vite bundles it from an inline
+`new Worker(new URL(...), { type: 'module' })`, the CSP's `worker-src 'self'`
+allows it, and Workbox precaches the chunk. `useMonteCarloRunner` falls back to
+the main thread when a Worker is unavailable or fails to load, and only the
+latest request may settle.
+
+The generated service worker also imports
+[push-sw.js](../frontend/public/push-sw.js) (`workbox.importScripts`), which
+shows Web Push notifications, sets the app badge, and handles taps. The PWA
+worker is off under `pnpm run dev`, so alerts need a production build.
 
 ## Authentication Flow
 
@@ -825,8 +941,10 @@ usage is reserved and settled by the proxy to avoid double counting.
   <img alt="AI chat turn: Bedrock via backend quota, OpenAI or Anthropic direct, tool loop capped at 6 calls" src="diagrams/ai-chat-light.svg" width="100%">
 </picture>
 
-App-funded Bedrock fixes the model and region and applies the shared daily
-limit. A usable personal Bedrock bearer key uses personal funding. Missing,
+App-funded Bedrock fixes the model (Claude Haiku 5.5,
+`us.anthropic.claude-haiku-5-5`, unless `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL`
+says otherwise) and region and applies the shared daily limit. A usable
+personal Bedrock bearer key uses personal funding. Missing,
 empty, placeholder, or unreadable Bedrock BYOK keys return HTTP 400 before
 reservation or invocation. Shared funding requires an explicit `app_bedrock`
 selection. OpenAI and Anthropic use the user's key directly from the browser.
@@ -855,6 +973,16 @@ limits are rejected before user-scoped reads. The tools do not mutate the
 ledger, but their returned financial data becomes part of the selected external
 provider's conversation.
 
+The Bedrock proxy also adds `additionalModelRequestFields` for the model family
+([ai_chat_thinking.py](../backend/src/ledger_sync/api/ai_chat_thinking.py)).
+The chat's wire format carries only text, `tool_use`, and `tool_result` blocks,
+so a reasoning block returned in one tool round never reaches the next, and
+thinking would bill as output inside the small `max_tokens` the chat sends.
+Thinking is turned off on Haiku 5.5, Sonnet 5, and Opus 5, and set to low effort
+on Sonnet 5.5, Opus 5.5, and Fable, which reject `disabled`. Models that think
+only when asked get no extra fields. The Weekly recap's optional Explain action
+is an ordinary tool-free chat call through the same funding and quota.
+
 Model/region-only saves omit `api_key` (or send null) and retain a usable stored
 key only when the provider is unchanged. A concurrent key/provider replacement
 returns HTTP 409; the UI reloads saved metadata while retaining the draft.
@@ -869,6 +997,46 @@ reservation migration before new workers, and drain old workers before v3
 writes because the old reader cannot decode that envelope. Retain previous
 encryption material until rewrapping finishes. See
 [DEPLOYMENT.md](DEPLOYMENT.md) for operational steps and rollback requirements.
+
+### MCP server
+
+The same typed tool registry is served to MCP clients at `POST /mcp`
+([mcp.py](../backend/src/ledger_sync/api/mcp.py),
+[mcp_protocol.py](../backend/src/ledger_sync/api/mcp_protocol.py),
+[mcp_tools.py](../backend/src/ledger_sync/api/mcp_tools.py)). It is stateless
+streamable HTTP with one JSON response per POST: no session, no stream, no
+server-to-client request, and no OAuth, so clients that can send an
+`Authorization` header (Claude Code) connect and claude.ai web connectors do
+not. A `ledger:read` token authenticates a call. `get_today` joins the 15 chat
+tools because an MCP client has only its own clock. The protocol layer answers
+revision 2026-07-28 (`server/discover`, `tools/list`, `tools/call`) and the
+legacy `initialize` handshake of 2025-11-25, 2025-06-18, and 2025-03-26.
+
+Each call runs in a transaction that cannot write: PostgreSQL gets
+`SET TRANSACTION READ ONLY`, and a flush or commit raises on every dialect. A
+browser `Origin` outside the CORS allowlist is refused, bodies are capped at 64
+KiB, and calls are limited per token and per IP. What the tools return goes to
+the model in the user's own Claude account.
+
+### Semantic search
+
+Smart search on the Transactions page is opt-in per user.
+[embeddings.py](../backend/src/ledger_sync/core/embeddings.py) makes one Titan
+Text Embeddings V2 `InvokeModel` call per text, fanned over a small thread pool
+under a 4.5 s batch budget so a batch fits one serverless request.
+[semantic_search.py](../backend/src/ledger_sync/core/semantic_search.py) embeds
+`note | category | subcategory | account` (never amounts or dates) for the
+user's live rows outside excluded accounts, and re-embeds only rows with no
+vector or a changed text hash.
+
+Funding follows the chat proxy: app mode spends the server's credentials, a
+personal Bedrock key spends the user's, and OpenAI or Anthropic modes get no
+shared fallback. Each batch is reserved in `ai_usage_log` before the call and
+settled after it under the provider `bedrock-embed`, so it counts toward token
+budgets and usage totals but not the app-mode message cap; app-funded calls also
+have a per-user daily token cap. Ranking is an exact nearest-neighbour scan
+filtered by `user_id`: pgvector cosine distance on PostgreSQL, numpy on SQLite.
+There is no approximate index, so no tenant shares a graph with another.
 
 ## Security Architecture
 
@@ -887,6 +1055,15 @@ encryption material until rewrapping finishes. See
 - No production source maps
 - Whole-batch upload validation, bounded AI rounds, and runtime-validated tool arguments
 - Database-backed Bedrock usage reservations across serverless instances
+- Single-scope `lsu_` automation tokens, stored as hashes, with a five-token cap
+  per scope, a one-year expiry, and no sign-in
+- A read-only transaction for every MCP tool call
+- Bank alerts, CAS statements, and AIS files kept out of storage: alerts keep
+  parsed fields and hashes, a CAS is read in memory, and an AIS is decrypted in
+  the browser with its PAN and date of birth never sent
+- Push subscriptions limited to https endpoints at the FCM, Mozilla, Apple, and
+  Windows push services
+- A constant-time check of the cron secret on the daily alert run
 - Distributed SlowAPI storage required for global per-minute limits
 - Generic server errors with correlation IDs
 
@@ -899,6 +1076,8 @@ Backend:
 - Pool pre-ping and bounded database timeouts
 - User-scoped composite transaction indexes
 - One active-transaction load per full analytics refresh
+- An exact per-user vector scan for semantic search, tenant-safe without an
+  approximate index
 - Persisted daily, monthly, category, cohort, net-worth, and fiscal-year data
 - GZip for larger responses
 
@@ -908,7 +1087,9 @@ Frontend:
 - Intent-based route chunk prefetch and small startup data prefetch
 - Vendor chunk splitting
 - Infinite-stale server cache with explicit invalidation
-- Lightweight facet and date-range endpoints instead of full-ledger reads
+- Lightweight facet and date-range endpoints, and server-computed Dashboard
+  metrics, instead of full-ledger reads
+- Monte Carlo runs in a Web Worker
 - Responsive chart sizing
 - PWA app-shell caching with API denial rules
 
@@ -935,6 +1116,12 @@ Deployment Check on `migrate / migrate` does. Preserve schema compatibility
 and follow [DEPLOYMENT.md](DEPLOYMENT.md) for that console step, rollout,
 health, and recovery procedures.
 
+`backend/vercel.json` also schedules the daily push alert run
+(`GET /api/push/run-due`, gated by `CRON_SECRET`). The 2.31.0 revision enables
+pgvector, so the CI PostgreSQL job installs it for the runner's PostgreSQL
+major. The CAS dependencies enlarge the function, and its deployed size is still
+to be read from the first preview build log; DEPLOYMENT.md has the fallbacks.
+
 ## Verification
 
 CI checks include:
@@ -944,7 +1131,8 @@ CI checks include:
 - Backend Python 3.14 job for Ruff, format check, mypy, pytest, and an
   `alembic upgrade head` plus `alembic check` run against an empty database
 - Shared security scan workflow
-- Native PostgreSQL bootstrap, constraints, data preservation, and rollback guards
+- Native PostgreSQL bootstrap, constraints, data preservation, and rollback
+  guards, with pgvector installed first
 
 Test totals change with the source and are not an architecture contract.
 SQLite tests do not establish PostgreSQL migration or locking behavior; those
@@ -970,10 +1158,11 @@ uv run pytest tests/unit/test_ledger_math.py tests/integration/test_investment_t
 ```
 
 No Docker is required. Use isolated test configuration; PostgreSQL-specific
-checks need a disposable native PostgreSQL cluster. Run fresh/populated
-migrations, constraints, downgrade guards, transaction-local timeouts, and
-cross-connection quota races there when those boundaries change. These commands
-and coverage descriptions are not a claim that CI or deployment checks passed.
+checks need a disposable native PostgreSQL cluster with pgvector installed for
+its major version. Run fresh/populated migrations, constraints, downgrade
+guards, transaction-local timeouts, and cross-connection quota races there when
+those boundaries change. These commands and coverage descriptions are not a
+claim that CI or deployment checks passed.
 Vercel protection/promotion and distributed rate-limit storage remain external
 deployment configuration.
 

@@ -10,14 +10,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { CreatedUploadToken, UploadToken } from '@/services/api/uploadTokens'
+import type { CreatedUploadToken, TokenScope, UploadToken } from '@/services/api/uploadTokens'
 import { useDemoStore } from '@/store/demoStore'
 
 import UploadTokensSection from '../UploadTokensSection'
 
 const api = vi.hoisted(() => ({
   listTokens: vi.fn<() => Promise<UploadToken[]>>(),
-  createToken: vi.fn<(name: string) => Promise<CreatedUploadToken>>(),
+  createToken: vi.fn<(name: string, scope: TokenScope) => Promise<CreatedUploadToken>>(),
   revokeToken: vi.fn<(id: number) => Promise<void>>(),
 }))
 
@@ -33,6 +33,7 @@ function makeToken(overrides: Partial<UploadToken> = {}): UploadToken {
   return {
     id: 1,
     name: 'iPhone Shortcut',
+    scope: 'mmbak:upload',
     prefix: 'lsu_ab12cd34',
     // Midday UTC keeps the calendar day the same in every common time zone.
     created_at: '2026-10-01T12:00:00Z',
@@ -52,7 +53,7 @@ function renderSection() {
     </QueryClientProvider>,
   )
   // Sections render collapsed; open this one so its body is in the tree.
-  fireEvent.click(screen.getByRole('button', { name: /Upload Tokens/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Access Tokens/ }))
   return client
 }
 
@@ -85,7 +86,7 @@ describe('UploadTokensSection', () => {
     expect(phone).toHaveTextContent(/Expires\s*Oct 1, 2027/)
     expect(tablet).toHaveTextContent('lsu_ff00ee11')
     expect(tablet).toHaveTextContent(/Last used\s*Oct 21, 2026/)
-    expect(screen.getByText('2 of 5')).toBeInTheDocument()
+    expect(screen.getByText('2 of 5 active')).toBeInTheDocument()
     expect(screen.getByText(/^https?:\/\/.+\/api\/upload\/money-manager$/)).toBeInTheDocument()
   })
 
@@ -103,7 +104,7 @@ describe('UploadTokensSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Copy your upload token' })
-    expect(api.createToken).toHaveBeenCalledExactlyOnceWith('iPhone Shortcut')
+    expect(api.createToken).toHaveBeenCalledExactlyOnceWith('iPhone Shortcut', 'mmbak:upload')
     const field = within(dialog).getByLabelText('Upload token')
     expect(field).toHaveValue(PLAINTEXT)
     expect(field).toHaveAttribute('readonly')
@@ -136,18 +137,18 @@ describe('UploadTokensSection', () => {
     renderSection()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke Old phone' }))
-    const cancelled = screen.getByRole('alertdialog', { name: 'Revoke upload token?' })
+    const cancelled = screen.getByRole('alertdialog', { name: 'Revoke access token?' })
     expect(cancelled).toHaveTextContent('"Old phone" (lsu_ab12cd34...) stops working right away.')
     fireEvent.click(within(cancelled).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(), { timeout: 3000 })
     expect(api.revokeToken).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Revoke Old phone' }))
-    const confirm = screen.getByRole('alertdialog', { name: 'Revoke upload token?' })
+    const confirm = screen.getByRole('alertdialog', { name: 'Revoke access token?' })
     fireEvent.click(within(confirm).getByRole('button', { name: 'Revoke token' }))
 
     await waitFor(() => expect(api.revokeToken).toHaveBeenCalledExactlyOnceWith(3))
-    expect(await screen.findByText('No upload tokens yet')).toBeInTheDocument()
+    expect(await screen.findByText('No access tokens yet')).toBeInTheDocument()
   })
 
   it('blocks a sixth token while five are active', async () => {
@@ -156,8 +157,10 @@ describe('UploadTokensSection', () => {
     )
     renderSection()
 
-    expect(await screen.findByText(/You have 5 active tokens, the most allowed/)).toBeInTheDocument()
-    expect(screen.getByText('5 of 5')).toBeInTheDocument()
+    expect(
+      await screen.findByText(/You have 5 active Money Manager upload tokens, the most allowed/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('5 of 5 active')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create token' })).toBeDisabled()
   })
 
@@ -181,7 +184,7 @@ describe('UploadTokensSection', () => {
     renderSection()
 
     expect(
-      screen.getByText('Demo mode is read-only. Creating an upload token requires your own account.'),
+      screen.getByText('Demo mode is read-only. Creating a token requires your own account.'),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Token name')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Create token' })).toBeDisabled()
@@ -193,8 +196,8 @@ describe('UploadTokensSection', () => {
     api.listTokens.mockRejectedValueOnce(new Error('offline')).mockResolvedValue([])
     renderSection()
 
-    expect(await screen.findByText('Could not load upload tokens')).toBeInTheDocument()
+    expect(await screen.findByText('Could not load access tokens')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry loading' }))
-    expect(await screen.findByText('No upload tokens yet')).toBeInTheDocument()
+    expect(await screen.findByText('No access tokens yet')).toBeInTheDocument()
   })
 })

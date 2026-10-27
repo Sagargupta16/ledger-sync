@@ -1,9 +1,14 @@
 """Import a Money Manager backup as a complete ledger snapshot, in one worker phase.
 
-The backup replaces the ledger like a spreadsheet export does, with three
+The backup replaces the ledger like a spreadsheet export does, with four
 differences: rows keep their Money Manager UIDs (so edits update rows in
-place), account settings the export leaves out are stored, and a repeat of
-the same backup is reported as unchanged instead of refused.
+place), account settings the export leaves out are stored, repeat rules and
+monthly budgets are kept in step (services/money_manager_planning.py), and a
+repeat of the same backup is reported as unchanged instead of refused.
+
+Repeat rules and budgets do not decide whether the ledger imports: they are
+written in a savepoint, and a database, number or value error there leaves
+them as they were and reports ``planning`` as None.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from sqlalchemy import bindparam, select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics import AnalyticsEngine
@@ -20,10 +26,16 @@ from ledger_sync.core.reconciler_helpers import ReconciliationStats
 from ledger_sync.core.sync_engine import SnapshotOptions, SyncEngine
 from ledger_sync.db.models import LEDGER_ACCOUNTS, AccountType, LedgerAccount
 from ledger_sync.ingest.money_manager import BackupAccount, MoneyManagerBackup, read_backup
-from ledger_sync.ingest.normalizer import DataNormalizer
-from ledger_sync.schemas.money_manager import BackupSummary, MoneyManagerUploadResponse
+from ledger_sync.ingest.money_manager_planning import BackupPlanning
+from ledger_sync.ingest.normalizer import DataNormalizer, NormalizationError
+from ledger_sync.schemas.money_manager import (
+    BackupSummary,
+    MoneyManagerUploadResponse,
+    PlanningSummary,
+)
 from ledger_sync.schemas.upload import MAX_LABEL_LENGTH
 from ledger_sync.services.ledger_dimensions import ensure_account_ids
+from ledger_sync.services.money_manager_planning import sync_planning
 from ledger_sync.utils.logging import logger
 
 DEFAULT_FILE_NAME = "Money Manager backup"
@@ -38,6 +50,8 @@ _GROUP_TYPES = {
     "loans": AccountType.LOANS,
     "digital wallets": AccountType.OTHER_WALLETS,
 }
+# What an odd backup can raise while its repeat rules and budgets are compared or stored.
+_PLANNING_ERRORS = (SQLAlchemyError, ArithmeticError, ValueError, NormalizationError)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,10 +73,16 @@ def import_money_manager_backup(
     engine = SyncEngine(db, user_id=user_id)
     if not upload.force and engine.check_already_imported(backup.database_hash) is not None:
         return _response("unchanged", upload, _unchanged(backup), summary, "skipped")
+    planned: list[PlanningSummary | None] = []
+
+    def before_commit() -> None:
+        apply_account_settings(db, user_id, backup.accounts)
+        planned.append(_sync_planning(db, user_id, backup.planning, apply=True))
+
     options = SnapshotOptions(
         dry_run=upload.dry_run,
         guard_deletions=not upload.dry_run and not upload.allow_large_delete,
-        before_commit=lambda: apply_account_settings(db, user_id, backup.accounts),
+        before_commit=before_commit,
     )
     try:
         # The repeat check above stands in for the engine's own refusal.
@@ -73,17 +93,43 @@ def import_money_manager_backup(
         db.rollback()
         raise
     if upload.dry_run:
-        return _response("preview", upload, stats, summary, "skipped")
-    analytics_status: Literal["ready", "failed"] = "ready"
+        # The ledger part rolled back; this comparison only reads.
+        planning = _sync_planning(db, user_id, backup.planning, apply=False)
+        db.rollback()
+        return _response("preview", upload, stats, summary, "skipped", planning)
+    analytics_status = _refresh_insights(db, user_id, upload.file_name)
+    planning = planned[0] if planned else None
+    return _response("imported", upload, stats, summary, analytics_status, planning)
+
+
+def _sync_planning(
+    db: Session, user_id: int, planning: BackupPlanning, *, apply: bool
+) -> PlanningSummary | None:
+    """Repeat rules and budgets, or None when they could not be compared or stored."""
     try:
-        AnalyticsEngine(db, user_id=user_id).refresh_analytics(source_file=upload.file_name)
+        if not apply:
+            return sync_planning(db, user_id, planning, apply=False)
+        # A savepoint, so a failed write is undone without undoing the ledger.
+        with db.begin_nested():
+            return sync_planning(db, user_id, planning, apply=True)
+    except _PLANNING_ERRORS as exc:
+        logger.warning(
+            "Repeat rules and budgets skipped for user_id=%s (%s)", user_id, type(exc).__name__
+        )
+        return None
+
+
+def _refresh_insights(db: Session, user_id: int, file_name: str) -> Literal["ready", "failed"]:
+    """Refresh analytics after the commit; a failure leaves the saved ledger alone."""
+    try:
+        AnalyticsEngine(db, user_id=user_id).refresh_analytics(source_file=file_name)
     except Exception as exc:
         logger.warning(
             "Post-backup analytics failed for user_id=%s (%s)", user_id, type(exc).__name__
         )
         db.rollback()
-        analytics_status = "failed"
-    return _response("imported", upload, stats, summary, analytics_status)
+        return "failed"
+    return "ready"
 
 
 def apply_account_settings(db: Session, user_id: int, accounts: list[BackupAccount]) -> None:
@@ -172,6 +218,7 @@ def _response(
     stats: ReconciliationStats,
     summary: BackupSummary,
     analytics_status: Literal["ready", "failed", "skipped"],
+    planning: PlanningSummary | None = None,
 ) -> MoneyManagerUploadResponse:
     return MoneyManagerUploadResponse(
         status=status,
@@ -190,4 +237,5 @@ def _response(
             if analytics_status == "failed"
             else None
         ),
+        planning=planning,
     )

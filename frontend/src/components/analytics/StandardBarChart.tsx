@@ -31,6 +31,7 @@ import ChartEmptyState from '@/components/shared/ChartEmptyState'
 import { BAR_RADIUS } from '@/components/ui/chartDefaults'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import type { ChartRangeControl } from '@/components/ui/useChartRange'
+import { useCurrencyKey } from '@/hooks/useCurrencyKey'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { formatChartDate } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
@@ -135,14 +136,27 @@ export default function StandardBarChart({
   const isMobile = useIsMobile()
   const toggles = showLegend && bars.length > 1
   const [hidden, toggleSeries] = useHiddenSeries(bars.map((bar) => bar.key), toggles)
+  const isRanking = layout === 'vertical'
+  // Row label comes from the category axis, which swaps sides with the layout.
+  const labelKey = isRanking ? (yCategoryKey ?? dataKey) : dataKey
+  const zoom = isRanking ? undefined : range
+  const zoomed = zoom !== undefined
+  const formatValue = tooltipFormatter ?? formatCurrency
+  const currencyKey = useCurrencyKey()
+  // The brush overview and the screen-reader table come from the data alone, so brush steps and
+  // legend toggles reuse them as long as `data` and `bars` keep their identity.
+  const overview = useMemo(() => (zoomed ? leadSeries(data, bars) : undefined), [zoomed, data, bars])
+  const table = useMemo(() => {
+    void currencyKey // formatValue reads the display currency at call time, so a switch rebuilds the cells
+    return renderBarDataTable(
+      data, bars, labelKey, rowHeaderLabel ?? (isRanking ? 'Category' : 'Period'), ariaLabel ?? 'Chart data', formatValue,
+    )
+  }, [data, bars, labelKey, rowHeaderLabel, isRanking, ariaLabel, formatValue, currencyKey])
 
   if (data.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
   }
 
-  const isRanking = layout === 'vertical'
-  // Row label comes from the category axis, which swaps sides with the layout.
-  const labelKey = isRanking ? (yCategoryKey ?? dataKey) : dataKey
   const [categoryFormat, valueFormat] = isRanking ? [yTickFormatter, xTickFormatter] : [xTickFormatter, yTickFormatter]
   // Hidden series leave the scales, the stacks and the tooltip; the legend, baseline, brush and table keep them all.
   const shown = bars.filter((bar) => !hidden.has(bar.key))
@@ -151,8 +165,6 @@ export default function StandardBarChart({
   const lines = (referenceLines ?? []).map((ref) => referenceLineProps(ref, layout))
   // A reference outside the data's span would otherwise fall off the value axis.
   const extraValues = [...lines, ...(typical ? [typical] : [])].flatMap((line) => line.value ?? [])
-  const zoom = isRanking ? undefined : range
-  const formatValue = tooltipFormatter ?? formatCurrency
   const series = bars.map((bar) => ({ key: bar.key, label: bar.label ?? bar.key, color: bar.color }))
   const select = onBarClick && ((row: Record<string, unknown>) => {
     const label = row[dataKey]
@@ -209,19 +221,12 @@ export default function StandardBarChart({
         ))}
         {typical && <ReferenceLine value={typical.value} variant="avg" label={typical.label} />}
       </CartesianChart>
-      {zoom && <ChartBrush range={zoom} values={leadSeries(data, bars)} />}
+      {zoom && <ChartBrush range={zoom} values={overview} />}
       {/* Screen-reader fallback, rendered as a SIBLING of the chart -- inside its
           role="img" frame it would be presentational. Call sites must pass
           `ariaLabel` rather than wrapping this component in their own
           role="img" div, which would swallow the table too. */}
-      {renderBarDataTable(
-        data,
-        bars,
-        labelKey,
-        rowHeaderLabel ?? (isRanking ? 'Category' : 'Period'),
-        ariaLabel ?? 'Chart data',
-        formatValue,
-      )}
+      {table}
     </>
   )
 }

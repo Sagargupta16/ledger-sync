@@ -139,8 +139,9 @@ class AnomalySettingsConfig(BaseModel):
         description="Standard deviations for expense anomaly detection",
     )
     anomaly_types_enabled: list[str] = Field(
-        description="Enabled anomaly types: high_expense, unusual_category, "
-        "large_transfer, budget_exceeded",
+        description="Enabled anomaly types, any of: high_expense, unusual_category, "
+        "large_transfer, duplicate_suspected, missing_recurring, budget_exceeded, "
+        "closed_account_activity, fee_charge",
     )
     auto_dismiss_recurring_anomalies: bool = Field(
         description="Auto-dismiss anomalies that match recurring patterns",

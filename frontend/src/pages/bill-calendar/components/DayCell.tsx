@@ -17,7 +17,11 @@ interface Props {
   isSelected: boolean
   isCurrentMonth: boolean
   bills: PlacedBill[]
-  /** Largest single-bill amount in the viewed month; the dot-size reference. */
+  /**
+   * The dot-size reference: the largest recurring bill in the viewed month (a
+   * larger card amount draws at the largest size), or the largest card entry
+   * when the month has no recurring bill.
+   */
   maxBillAmount: number
   tabIndex: number
   onFocus: FocusEventHandler<HTMLButtonElement>
@@ -106,16 +110,17 @@ export default function DayCell({
         <div className="flex items-center gap-0.5 mt-1.5 flex-wrap justify-center" aria-hidden="true">
           {bills.slice(0, maxDotsShown).map((bill) => {
             const size = dotSize(bill.amount)
+            // Faded: a paid statement or open-cycle spend, outside the totals.
             return (
               <div
                 key={bill.key}
-                className="rounded-full flex-shrink-0"
+                className={`rounded-full flex-shrink-0 ${bill.informational ? 'opacity-50' : ''}`}
                 style={{
                   width: size,
                   height: size,
                   backgroundColor: getBillDotColor(bill),
                 }}
-                title={`${bill.name} -- ${formatCurrency(bill.amount)}`}
+                title={bill.amount > 0 ? `${bill.name} -- ${formatCurrency(bill.amount)}` : bill.name}
               />
             )
           })}

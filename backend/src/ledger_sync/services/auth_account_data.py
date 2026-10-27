@@ -5,7 +5,9 @@ permanently (account deletion) or while keeping the OAuth account (reset).
 """
 
 import logging
+from typing import Any
 
+from sqlalchemy import ColumnElement, delete, inspect
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.refresh import (
@@ -16,12 +18,16 @@ from ledger_sync.core.analytics.refresh import (
 from ledger_sync.db.models import (
     AnalyticsState,
     Anomaly,
+    BalanceCheck,
+    BankAlert,
     Budget,
     CategorizationRule,
     CategoryTrend,
     CohortSpending,
     DailySummary,
+    ExternalRef,
     FinancialGoal,
+    ForeignAssetEvent,
     FYSummary,
     ImportLog,
     InvestmentHolding,
@@ -30,14 +36,19 @@ from ledger_sync.db.models import (
     LedgerCategory,
     LedgerSubcategory,
     MerchantIntelligence,
+    MfHolding,
+    MfTransaction,
     MonthlySummary,
     NetWorthSnapshot,
     RecurringTransaction,
     RsuGrantRecord,
+    RsuVestFx,
     RsuVestingRecord,
     SalaryPlan,
     SavedFilterView,
     ScheduledTransaction,
+    TaxAisSummary,
+    TaxDeduction,
     TaxRecord,
     Transaction,
     TransferFlow,
@@ -45,6 +56,7 @@ from ledger_sync.db.models import (
     UserAISettings,
     UserPreferences,
 )
+from ledger_sync.services.money_manager_planning import REPEAT_RULE_KIND
 
 logger = logging.getLogger("ledger_sync.auth")
 
@@ -53,6 +65,15 @@ class AccountDataMixin:
     """Mixin: delete or reset every user-scoped table for one account."""
 
     session: Session
+
+    def _delete_if_migrated(self, model: Any, *where: ColumnElement[bool]) -> None:
+        """Delete a newer domain's rows, skipping a table its migration has not created yet.
+
+        Vercel can serve this code a few minutes before CI applies the
+        migration, and a reset in that window must not fail on a missing table.
+        """
+        if inspect(self.session.connection()).has_table(model.__tablename__):
+            self.session.execute(delete(model).where(*where))
 
     def _delete_all_user_data(self, user_id: int) -> None:
         """Delete all user-scoped data across every table.
@@ -63,7 +84,8 @@ class AccountDataMixin:
         """
         self._delete_transaction_data(user_id)
 
-        # Budgets & goals
+        # Budgets & goals, and the Money Manager links to imported budgets.
+        self._delete_if_migrated(ExternalRef, ExternalRef.user_id == user_id)
         self.session.query(Budget).filter(Budget.user_id == user_id).delete()
         self.session.query(FinancialGoal).filter(FinancialGoal.user_id == user_id).delete()
 
@@ -80,10 +102,21 @@ class AccountDataMixin:
         self.session.query(LedgerAccount).filter(LedgerAccount.user_id == user_id).delete()
 
         # Independent configuration domains are preserved by a ledger-only reset.
+        # RSU sales and dividends go before the vests: a vest delete only unlinks them.
+        self._delete_if_migrated(ForeignAssetEvent, ForeignAssetEvent.user_id == user_id)
+        self._delete_if_migrated(RsuVestFx, RsuVestFx.user_id == user_id)
         self.session.query(RsuVestingRecord).filter(RsuVestingRecord.user_id == user_id).delete()
         self.session.query(RsuGrantRecord).filter(RsuGrantRecord.user_id == user_id).delete()
         self.session.query(SalaryPlan).filter(SalaryPlan.user_id == user_id).delete()
         self.session.query(UserAISettings).filter(UserAISettings.user_id == user_id).delete()
+        self._delete_if_migrated(BankAlert, BankAlert.user_id == user_id)
+        self._delete_if_migrated(BalanceCheck, BalanceCheck.user_id == user_id)
+        self._delete_if_migrated(TaxDeduction, TaxDeduction.user_id == user_id)
+        self._delete_if_migrated(TaxAisSummary, TaxAisSummary.user_id == user_id)
+        # A CAS import is its own record, apart from the ledger: a ledger-only
+        # reset keeps it. Transactions first, they reference their holding.
+        self._delete_if_migrated(MfTransaction, MfTransaction.user_id == user_id)
+        self._delete_if_migrated(MfHolding, MfHolding.user_id == user_id)
 
         # User preferences
         self.session.query(UserPreferences).filter(UserPreferences.user_id == user_id).delete()
@@ -117,6 +150,10 @@ class AccountDataMixin:
         self.session.query(ScheduledTransaction).filter(
             ScheduledTransaction.user_id == user_id
         ).delete()
+        # Money Manager repeat-rule links point at the schedules just deleted.
+        self._delete_if_migrated(
+            ExternalRef, ExternalRef.user_id == user_id, ExternalRef.kind == REPEAT_RULE_KIND
+        )
         self.session.query(RecurringTransaction).filter(
             RecurringTransaction.user_id == user_id
         ).delete()

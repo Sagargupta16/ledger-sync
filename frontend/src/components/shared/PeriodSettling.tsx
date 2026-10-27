@@ -18,7 +18,9 @@ import { useMotionStore } from '@/store/motionStore'
  *
  * Motion follows the in-app motion store, never the OS setting: the sweep runs
  * in full mode; in reduced mode the bar is a static stripe (the MotionConfig
- * skip would otherwise park the sweep off-screen) and the dim is instant.
+ * skip would otherwise park the sweep off-screen) and the dim is instant. The
+ * sweep animates a whole transform string, not `x`: Motion hands that straight
+ * to WAAPI, so the loop never falls back to its per-frame JS.
  */
 export function PeriodSettlingBar({ active }: Readonly<{ active: boolean }>) {
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
@@ -45,8 +47,8 @@ export function PeriodSettlingBar({ active }: Readonly<{ active: boolean }>) {
             ) : (
               <motion.span
                 className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-app-blue"
-                initial={{ x: '-100%' }}
-                animate={{ x: '250%' }}
+                initial={{ transform: 'translateX(-100%)' }}
+                animate={{ transform: 'translateX(250%)' }}
                 transition={{ duration: 1.1, ease: EASING.smooth, repeat: Infinity }}
               />
             )}

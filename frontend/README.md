@@ -12,6 +12,7 @@ React 19 and TypeScript 7 application for the Ledger Sync personal finance works
 - Zustand 5
 - Motion 14 (`motion/react`)
 - An in-house animated SVG chart kit (`src/components/charts/`), in place of a chart library
+- Module Web Workers in `src/workers/`, which Vite bundles from `new Worker(new URL(...), { type: 'module' })` (the CSP allows `worker-src 'self'` and Workbox precaches the chunk). The FIRE Monte Carlo simulation runs in one, with a main-thread fallback
 - Vitest and Testing Library
 
 ## Run Locally
@@ -34,11 +35,11 @@ The dev server runs at `http://localhost:5173` and proxies `/api` to `http://loc
 
 ## Router and Pages
 
-`src/App.tsx` defines 29 routed page components:
+`src/App.tsx` defines 32 routed page components:
 
 - 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 25 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
-- 3 public routes and 26 protected workspace routes.
+- 28 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
+- 3 public routes and 29 protected workspace routes.
 
 The protected workspace is organized into:
 
@@ -68,15 +69,18 @@ Commitments
   Bill Calendar
 
 Planning
-  Budget Rule
+  Budgets
   Financial Goals
   FIRE Calculator
   Anomaly Review
+  Review Queue
   Data Health
 
 Tax
   Income Tax
   Indirect Tax (GST)
+  Foreign Assets
+  AIS Import
 
 Utility bar (below the groups)
   Upload and Sync
@@ -132,7 +136,7 @@ The stores in `src/store/` are:
 5. The backend refreshes analytics as part of the upload. The frontend calls `/api/analytics/v2/refresh` only when the user retries a refresh that failed.
 6. Query caches are invalidated so the workspace reloads current data.
 
-There is no multipart file upload and no post-parse mapping screen. The Upload page shows an inline drop zone, progress states, conflict handling, and a static expected-format example.
+The Upload page sends no multipart file and has no post-parse mapping screen. A Money Manager `.mmbak` backup is gzipped in the browser and posted to its own route, with a review of its repeat rules and budgets; the CAS PDF import on Investment Analytics is the one multipart upload. The Upload page shows an inline drop zone, progress states, conflict handling, read-only category suggestions for placeholder rows in the review, and a static expected-format example.
 
 ## AI Assistant
 
@@ -141,7 +145,8 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 - OpenAI and Anthropic use browser-direct JSON requests.
 - Bedrock uses the backend proxy.
 - All provider adapters are non-streaming so tool calls can complete in bounded request rounds.
-- App Bedrock mode works without a user key. BYOK mode supports configured providers and usage limits.
+- App Bedrock mode works without a user key and runs Claude Haiku 5.5 by default. BYOK mode supports configured providers and usage limits.
+- The Dashboard's Weekly recap Explain button sends one tool-free request through the same adapters (`services/api/weeklyRecap.ts`), with only the recap's figures.
 
 ## Themes and Responsive Behavior
 
@@ -150,7 +155,7 @@ There is no multipart file upload and no post-parse mapping screen. The Upload p
 - Chart chrome paints with the `--chart-*` CSS variables and series colors come from `rawColors` through `usePaletteSnapshot`, so a theme change repaints charts without a remount; route-local filters, tabs, searches, and forms remain mounted.
 - Wide shared tables can switch to mobile cards below `sm`, with sortable tables exposing a compact mobile sort control.
 - Primary phone controls target at least 44px.
-- The service worker caches the application shell but excludes `/api/*`.
+- The service worker caches the application shell but excludes `/api/*`. It also handles `push` and `notificationclick` for opt-in alerts through `public/push-sw.js`, which the generated Workbox worker loads with `importScripts`.
 
 ## Tests
 

@@ -1,7 +1,8 @@
 """V2 endpoints: net worth, FY summaries, anomalies, budgets, goals.
 
 Net worth and FY summaries live in ``networth_fy``, mounted first so the route
-order is unchanged.
+order is unchanged. Budgets live in ``budgets``, mounted next; no budget path
+overlaps a route here, so each request still reaches the same handler.
 """
 
 from __future__ import annotations
@@ -13,14 +14,14 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func
 
+from ledger_sync.api.analytics_v2_impl.budgets import router as budgets_router
 from ledger_sync.api.analytics_v2_impl.networth_fy import router as networth_fy_router
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_preferences_changed
+from ledger_sync.core.analytics.refresh import lock_analytics_user
 from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import (
     Anomaly,
     AnomalyType,
-    Budget,
     FinancialGoal,
 )
 from ledger_sync.schemas.goals import CreateGoalRequest, UpdateGoalRequest
@@ -29,13 +30,7 @@ from ledger_sync.services.goal_service import new_goal, serialize_goal, update_g
 router = APIRouter()
 # Mounted before this module's own routes: /net-worth and /fy-summaries first.
 router.include_router(networth_fy_router)
-
-
-class CreateBudgetRequest(BaseModel):
-    category: str
-    monthly_limit: float
-    subcategory: str | None = None
-    alert_threshold: float = 80.0
+router.include_router(budgets_router)
 
 
 class ReviewAnomalyRequest(BaseModel):
@@ -51,8 +46,9 @@ def get_anomalies(
         str | None,
         Query(
             alias="type",
-            description="Filter by anomaly type "
-            "(high_expense/unusual_category/large_transfer/budget_exceeded)",
+            description="Filter by anomaly type, one of: high_expense, unusual_category, "
+            "large_transfer, duplicate_suspected, missing_recurring, budget_exceeded, "
+            "closed_account_activity, fee_charge",
         ),
     ] = None,
     severity: Annotated[
@@ -66,10 +62,14 @@ def get_anomalies(
     """Get detected anomalies and unusual patterns.
 
     Types:
-    - High expense months
-    - Unusual category spending
+    - High expense months and single expenses
+    - Unusual category months
     - Large transfers
+    - Possible duplicates
+    - Missing recurring entries of confirmed commitments
     - Budget exceeded
+    - Closed account activity
+    - Fees and card interest
 
     ``limit`` caps only ``data``. ``count`` and ``summary`` cover every
     matching anomaly, so badges and tiles do not stop at the page size.
@@ -160,66 +160,6 @@ def review_anomaly(
     db.commit()
 
     return {"success": True, "anomaly_id": anomaly_id}
-
-
-@router.get("/budgets")
-def get_budgets(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    active_only: Annotated[bool, Query()] = True,
-) -> dict[str, Any]:
-    """Get budget tracking data."""
-    query = db.query(Budget).filter(Budget.user_id == current_user.id)
-
-    if active_only:
-        query = query.filter(Budget.is_active.is_(True))
-
-    budgets = query.order_by(desc(Budget.current_month_pct)).all()
-
-    return {
-        "data": [
-            {
-                "id": b.id,
-                "category": b.category,
-                "subcategory": b.subcategory,
-                "monthly_limit": float(b.monthly_limit),
-                "current_spent": float(b.current_month_spent),
-                "remaining": float(b.current_month_remaining),
-                "usage_pct": b.current_month_pct,
-                "alert_threshold": b.alert_threshold_pct,
-                "avg_actual": float(b.avg_monthly_actual),
-                "months_over": b.months_over_budget,
-                "months_under": b.months_under_budget,
-            }
-            for b in budgets
-        ],
-        "count": len(budgets),
-    }
-
-
-@router.post("/budgets")
-def create_budget(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    body: CreateBudgetRequest,
-) -> dict[str, Any]:
-    """Create a new budget."""
-    lock_analytics_user(db, current_user.id)
-    budget = Budget(
-        user_id=current_user.id,
-        category=body.category,
-        subcategory=body.subcategory,
-        monthly_limit=body.monthly_limit,
-        alert_threshold_pct=body.alert_threshold,
-        is_active=True,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
-    )
-    db.add(budget)
-    mark_preferences_changed(db, current_user.id)
-    db.commit()
-
-    return {"success": True, "budget_id": budget.id}
 
 
 @router.get("/goals")

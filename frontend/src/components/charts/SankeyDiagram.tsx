@@ -6,8 +6,8 @@
  * value in a readout.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
-import { AnimatePresence, animate, motion, useMotionValue } from 'motion/react'
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { formatCurrency } from '@/lib/formatters'
 
@@ -26,6 +26,8 @@ export type { SankeyDiagramNode } from './sankeyModel'
 
 const SWEEP = { duration: CHART_MOTION.draw, ease: [0.65, 0, 0.35, 1] as const, delay: 0.2 } // the ribbons' left-to-right wipe
 const STEP_KEYS: Partial<Record<string, number>> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
+/** The bead loop's spacing and period, for sankeyBeads.css. */
+const BEAD_LOOP = { '--sankey-bead-gap': `${BEAD_GAP}px`, '--sankey-bead-seconds': `${BEAD_SECONDS}s` } as CSSProperties
 
 /** Defaults: height 360, formatValue formatCurrency, align 'justify', nodeWidth 12 and nodePadding 14 (10 and 8 on phones). */
 export interface SankeyDiagramProps {
@@ -114,16 +116,11 @@ function SankeyPlot({ focus: pointer, activeNodeId, onNodeSelect, setHovered, se
   const [introDone, setIntroDone] = useState(!frame.animate) // mounted without motion: no entrance to play later
   let phase: Phase = 'still'
   if (frame.animate) phase = introDone ? 'live' : 'intro'
-  // One offset loops for every bead, and only while the chart is on screen: off screen, or with motion
-  // off (Reduced mode, print), nothing ticks. Motion drives it, so the Reduced switch reaches it too.
+  // One offset loops for every bead, and only while the chart is on screen: off screen it pauses, and
+  // with motion off (Reduced mode, print) there are no beads. A CSS animation on the ribbon group runs
+  // it (sankeyBeads.css), so no script runs per frame; data-flowing plays it.
   const [plotRef, onScreen] = useSvgOnScreen()
-  const offset = useMotionValue(BEAD_GAP)
   const flowing = phase !== 'still' && onScreen
-  useEffect(() => {
-    if (!flowing) return
-    const loop = animate(offset, [BEAD_GAP, 0], { duration: BEAD_SECONDS, ease: 'linear', repeat: Infinity })
-    return () => loop.stop()
-  }, [flowing, offset])
   useLayoutEffect(() => {
     onLayout(new Map(layout.nodes.map((node) => [node.id, nodeCenter(node)])))
   }, [layout, onLayout])
@@ -148,10 +145,11 @@ function SankeyPlot({ focus: pointer, activeNodeId, onNodeSelect, setHovered, se
             onAnimationComplete={() => { if (frame.entered) setIntroDone(true) }} />
         </clipPath>
       )}
-      <g clipPath={phase === 'intro' ? `url(#${frame.chartId}-sweep)` : undefined}>
+      <g className="sankey-ribbons" style={BEAD_LOOP} data-flowing={flowing ? '' : undefined}
+        clipPath={phase === 'intro' ? `url(#${frame.chartId}-sweep)` : undefined}>
         <AnimatePresence>
           {layout.links.map((link) => (
-            <Ribbon key={link.id} link={link} phase={phase} level={emphasis(path, link.id)} offset={offset}
+            <Ribbon key={link.id} link={link} phase={phase} level={emphasis(path, link.id)}
               color={link.color ?? colors.get(link.source) ?? FALLBACK} {...bind({ kind: 'link', id: link.id })} />
           ))}
         </AnimatePresence>

@@ -53,7 +53,8 @@ describe('useCountUp', () => {
     act(() => useMotionStore.getState().setMode('full'))
     expect(result.current).toBe(100)
 
-    act(() => runNextFrame(100))
+    // Already settled on the target: back in Full mode nothing is left to count, so no frame is scheduled.
+    expect(frames.size).toBe(0)
     expect(result.current).toBe(100)
   })
 })

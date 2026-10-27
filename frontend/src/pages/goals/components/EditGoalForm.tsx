@@ -59,6 +59,8 @@ export default function EditGoalForm({
     <AnimatePresence mode="popLayout" propagate>
       <motion.div
         {...DISCLOSURE_TRANSITION}
+        // Renders only while open, so its open flag is always true.
+        layoutDependency
         className="overflow-hidden"
       >
         <form

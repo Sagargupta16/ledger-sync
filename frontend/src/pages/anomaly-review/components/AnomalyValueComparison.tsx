@@ -11,8 +11,13 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
   if (anomaly.expected_value == null || anomaly.actual_value == null) return null
 
   const scaleMax = Math.max(Math.abs(anomaly.expected_value), Math.abs(anomaly.actual_value))
+  // A missing entry is the one finding where falling short of the baseline is
+  // the problem, so its shortfall reads red like every other finding's excess.
+  const missing = anomaly.anomaly_type === 'missing_recurring'
   const overBaseline = (anomaly.deviation_pct ?? 0) >= 0
-  const actualColor = overBaseline ? colors.app.red : colors.app.green
+  const isBad = overBaseline !== missing
+  const actualColor = isBad ? colors.app.red : colors.app.green
+  const actualLabel = missing ? 'Recorded' : 'Actual'
 
   return (
     <div className="mt-3 max-w-md space-y-1.5 sm:ml-11">
@@ -28,7 +33,7 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
         {anomaly.deviation_pct != null && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-              overBaseline ? 'bg-app-red/10 text-app-red' : 'bg-app-green/10 text-app-green'
+              isBad ? 'bg-app-red/10 text-app-red' : 'bg-app-green/10 text-app-green'
             }`}
           >
             {anomaly.deviation_pct > 0 ? '+' : ''}
@@ -50,14 +55,14 @@ export default function AnomalyValueComparison({ anomaly }: Readonly<Props>) {
         </span>
       </div>
       <div className="grid grid-cols-[3.75rem_minmax(2.5rem,1fr)_auto] items-center gap-2">
-        <span className="text-xs text-text-tertiary">Actual</span>
+        <span className="text-xs text-text-tertiary">{actualLabel}</span>
         <ProgressBar
           value={Math.abs(anomaly.actual_value)}
           max={scaleMax}
           height={6}
           color={actualColor}
           target={Math.abs(anomaly.expected_value)}
-          ariaLabel={`Actual ${formatCurrency(anomaly.actual_value)}`}
+          ariaLabel={`${actualLabel} ${formatCurrency(anomaly.actual_value)}`}
         />
         <span className="text-right text-xs font-medium tabular-nums text-foreground">
           {formatCurrency(anomaly.actual_value)}

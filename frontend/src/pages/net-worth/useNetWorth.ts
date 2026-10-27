@@ -1,55 +1,44 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import { useAccountBalances, useDataDateRange } from '@/hooks/api/useAnalytics'
-import { useDailyNetWorth } from '@/hooks/api/useCalculations'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
-import { usePreferences } from '@/hooks/api/usePreferences'
-import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
-import { dropPartialMonth, formatMonthKey, getLedgerTodayKey } from '@/lib/dateUtils'
+import { dropPartialMonth, getLedgerTodayKey } from '@/lib/dateUtils'
 import { averageMonthlySavings, totalsByMonth } from '@/lib/finance/monthlyAverage'
 import {
   buildMonthlyNetWorthBalances,
   computeNetWorthTimeSeries,
   growthStatsFromMonthlySavings,
-  projectNetWorthLinearBand,
   summarizeNetWorthAccounts,
   type NetWorthPoint,
 } from '@/lib/finance/netWorth'
 
+import { buildNetWorthChartData, toNetWorthPoints } from './netWorthChartData'
+import { measureSavingsGrowth } from './netWorthCompound'
+import { summarizeMonthOverMonth } from './netWorthMoM'
 import {
   buildMilestoneRows,
-  downsampleToMonthly,
+  DEFAULT_MILESTONES,
+  DEFAULT_UPCOMING_WINDOW,
 } from './netWorthProjection'
 import {
   NON_ASSET_CATEGORIES,
   resolveAccountCategory,
   resolveAccountType,
 } from './netWorthUtils'
+import { useNetWorthSources } from './useNetWorthSources'
 
 export function useNetWorth() {
   // One "today" for the hero and the trend: the ledger's own IST calendar day.
-  // Unbounded balances summed forward-dated accruals the capped trend omits.
   const ledgerToday = getLedgerTodayKey()
-  const dateParams = { end_date: ledgerToday }
-  const balancesQuery = useAccountBalances(dateParams)
-  // All-time daily cash flow (server-aggregated) instead of the full ledger.
-  const dailyQuery = useDailyNetWorth()
-  const dateRangeQuery = useDataDateRange()
-  const preferencesQuery = usePreferences()
-  const classificationsQuery = useAccountClassifications()
-  const balanceData = balancesQuery.data
-  const dailyCashFlow = useMemo(
-    () => dailyQuery.data?.cumulative_data ?? [],
-    [dailyQuery.data],
-  )
-  // Same non-deleted, non-excluded rows as the ledger, so identical nav bounds.
-  const { minDate, maxDate } = dateRangeQuery
-  const dateBounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
-  const preferences = preferencesQuery.data
-  const classifications = useMemo(
-    () => classificationsQuery.data ?? {},
-    [classificationsQuery.data],
-  )
+  const {
+    isLoading,
+    isError,
+    retry,
+    accounts,
+    dailyCashFlow,
+    dateBounds,
+    classifications,
+    investmentMappings,
+  } = useNetWorthSources(ledgerToday)
   const [showStacked, setShowStacked] = useState(false)
   const [showProjection, setShowProjection] = useState(false)
   const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set())
@@ -60,33 +49,6 @@ export function useNetWorth() {
   const { dateRange, partialPeriod, timeFilterProps } = useAnalyticsTimeFilter(dateBounds, {
     defaultViewMode: 'all_time',
   })
-
-  const isLoading =
-    balancesQuery.isLoading ||
-    dailyQuery.isLoading ||
-    dateRangeQuery.isLoading ||
-    preferencesQuery.isLoading ||
-    classificationsQuery.isLoading
-  const isError =
-    balancesQuery.isError ||
-    dailyQuery.isError ||
-    dateRangeQuery.isError ||
-    preferencesQuery.isError ||
-    classificationsQuery.isError
-  const retry = () => {
-    void balancesQuery.refetch()
-    void dailyQuery.refetch()
-    void dateRangeQuery.refetch()
-    void preferencesQuery.refetch()
-    void classificationsQuery.refetch()
-  }
-
-  const accounts = useMemo(() => balanceData?.accounts ?? {}, [balanceData?.accounts])
-
-  const investmentMappings = useMemo(
-    () => preferences?.investment_account_mappings ?? {},
-    [preferences?.investment_account_mappings],
-  )
 
   const getAccountType = useCallback(
     (accountName: string): string =>
@@ -126,7 +88,7 @@ export function useNetWorth() {
    * chart drew its "Now" marker in the future, the last trend point showed money
    * not yet received, and the growth model's most recent monthly delta was taken
    * from a partly-future month. This is a HISTORICAL series, so it stops at
-   * today (the same ledger day the balances above are read at); the
+   * today (the same ledger day useNetWorthSources reads the balances at); the
    * projection overlay builds its own future points from the anchor.
    */
   const netWorthData = useMemo(
@@ -145,23 +107,8 @@ export function useNetWorth() {
     })
   }, [netWorthData, dateRange])
 
-  const chartSeries: NetWorthPoint[] = useMemo(
-    () =>
-      filteredNetWorthData.map((p) => ({
-        date: p.date as string,
-        netWorth: p.netWorth as number,
-      })),
-    [filteredNetWorthData],
-  )
-
-  const fullSeries: NetWorthPoint[] = useMemo(
-    () =>
-      netWorthData.map((p) => ({
-        date: p.date as string,
-        netWorth: p.netWorth as number,
-      })),
-    [netWorthData],
-  )
+  const chartSeries = useMemo(() => toNetWorthPoints(filteredNetWorthData), [filteredNetWorthData])
+  const fullSeries = useMemo(() => toNetWorthPoints(netWorthData), [netWorthData])
 
   const anchor: NetWorthPoint | null = useMemo(
     () => chartSeries.at(-1) ?? null,
@@ -180,6 +127,11 @@ export function useNetWorth() {
     [monthEndSeries],
   )
 
+  const monthlyNet = useMemo(
+    () => totalsByMonth(filteredNetWorthData, (point) => String(point.date), (point) => Number(point.dailyFlow)),
+    [filteredNetWorthData],
+  )
+
   /**
    * Growth is the shared average monthly savings: net cash flow over the
    * trailing 12 complete calendar months of the selected window, empty months
@@ -189,99 +141,44 @@ export function useNetWorth() {
   const growthStats = useMemo(
     () =>
       growthStatsFromMonthlySavings(
-        averageMonthlySavings(
-          totalsByMonth(filteredNetWorthData, (point) => String(point.date), (point) => Number(point.dailyFlow)),
-          { start: dateRange.start_date, end: dateRange.end_date },
-        ),
+        averageMonthlySavings(monthlyNet, { start: dateRange.start_date, end: dateRange.end_date }),
       ),
-    [filteredNetWorthData, dateRange],
+    [monthlyNet, dateRange],
   )
   const monthlyGrowth = growthStats.growth
 
-  const milestoneRows = useMemo(
-    () => buildMilestoneRows(fullSeries, anchor, monthlyGrowth),
-    [fullSeries, anchor, monthlyGrowth],
+  // How fast that saving itself has grown: the CAGR of yearly savings, which
+  // the projection and the milestone ETAs compound the monthly saving at.
+  const savingsGrowth = useMemo(
+    () => measureSavingsGrowth(monthlyNet, { start: dateRange.start_date, end: dateRange.end_date }),
+    [monthlyNet, dateRange],
   )
 
-  const chartData = useMemo(() => {
-    if (!showProjection || monthlyGrowth <= 0 || anchor === null) {
-      // Long ranges collapse to month-end points: an all-time view was
-      // feeding ~1,500 daily points into the SVG area chart (slow paint,
-      // sub-pixel segments), while the projection path below already renders
-      // at monthly resolution. Short windows keep full daily fidelity.
-      if (filteredNetWorthData.length > 366) {
-        const monthly = downsampleToMonthly(chartSeries)
-        const byDate = new Map(filteredNetWorthData.map((p) => [p.date as string, p]))
-        return monthly.map((p) => byDate.get(p.date) ?? { date: p.date, netWorth: p.netWorth })
-      }
-      return filteredNetWorthData
-    }
-    const monthlyHistorical = monthEndSeries
-    const band = projectNetWorthLinearBand(
+  const milestoneRows = useMemo(
+    () => buildMilestoneRows(
+      fullSeries, anchor, monthlyGrowth, DEFAULT_MILESTONES, DEFAULT_UPCOMING_WINDOW, savingsGrowth.rate,
+    ),
+    [fullSeries, anchor, monthlyGrowth, savingsGrowth.rate],
+  )
+
+  const chartData = useMemo(
+    () => buildNetWorthChartData({
+      showProjection,
       anchor,
       monthlyGrowth,
-      growthStats.sigma,
-      60,
-    )
-
-    const historicalPoints = monthlyHistorical.map((p) => ({
-      date: p.date,
-      netWorth: p.netWorth,
-      projected: null as number | null,
-      // [low, high] band, split by toNetWorthPlotRows into projectionLow and
-      // projectionHigh for the chart; null on historical points so the band
-      // only paints forward of the anchor.
-      projectionBand: null as [number, number] | null,
-    }))
-    const projectedPoints = [
-      {
-        date: anchor.date,
-        netWorth: null as number | null,
-        projected: anchor.netWorth,
-        // Anchor point: band collapses to the value (zero uncertainty at t=0).
-        projectionBand: [anchor.netWorth, anchor.netWorth] as [number, number] | null,
-      },
-      ...band.map((p) => ({
-        date: p.date,
-        netWorth: null as number | null,
-        projected: p.mean,
-        projectionBand: [p.lower, p.upper] as [number, number] | null,
-      })),
-    ]
-    return [...historicalPoints, ...projectedPoints]
-  }, [showProjection, anchor, monthlyGrowth, growthStats.sigma, chartSeries, monthEndSeries, filteredNetWorthData])
+      sigma: growthStats.sigma,
+      annualGrowth: savingsGrowth.rate,
+      chartSeries,
+      monthEndSeries,
+      filteredNetWorthData,
+    }),
+    [showProjection, anchor, monthlyGrowth, growthStats.sigma, savingsGrowth.rate, chartSeries, monthEndSeries, filteredNetWorthData],
+  )
 
   const currentNetWorth = anchor?.netWorth ?? 0
 
   // The badge and sparkline share the completed calendar-month balance series.
-  const monthlyNetWorth = completeMonthSeries
-
-  const netWorthSparkline = useMemo(
-    () => monthlyNetWorth.slice(-12).map((p) => p.netWorth),
-    [monthlyNetWorth],
-  )
-
-  // MoM % change on net worth. Returned only when the prior month-end is a
-  // positive base so the percentage is meaningful (negative/zero bases make
-  // a "% change" nonsensical -- the card then just omits the badge).
-  const netWorthMoMChange = useMemo(() => {
-    if (monthlyNetWorth.length < 2) return undefined
-    const prev = monthlyNetWorth.at(-2)?.netWorth ?? 0
-    const curr = monthlyNetWorth.at(-1)?.netWorth ?? 0
-    if (prev <= 0) return undefined
-    return Math.round(((curr - prev) / prev) * 1000) / 10
-  }, [monthlyNetWorth])
-
-  /**
-   * What the MoM badge and sparkline actually compare. Named explicitly because
-   * mid-month the most recent completed month is NOT "last month" -- saying so
-   * is the difference between an honest delta and a wrong one.
-   */
-  const netWorthMoMLabel = useMemo(() => {
-    const latestMonth = monthlyNetWorth.at(-1)?.date.slice(0, 7)
-    if (monthlyNetWorth.length < 2 || !latestMonth) return 'vs last month'
-    return `${formatMonthKey(latestMonth, { month: 'short', year: '2-digit' })} vs prior month`
-  }, [monthlyNetWorth])
+  const monthOverMonth = useMemo(() => summarizeMonthOverMonth(completeMonthSeries), [completeMonthSeries])
 
   // Account counts for the asset/liability KPI subtitles (point-in-time
   // balances have no truthful historical series client-side, so those two
@@ -326,12 +223,13 @@ export function useNetWorth() {
     showProjection,
     setShowProjection,
     monthlyGrowth,
+    savingsGrowth,
     anchor,
     milestoneRows,
     currentNetWorth,
-    netWorthSparkline,
-    netWorthMoMChange,
-    netWorthMoMLabel,
+    netWorthSparkline: monthOverMonth.sparkline,
+    netWorthMoMChange: monthOverMonth.change,
+    netWorthMoMLabel: monthOverMonth.label,
     partialPeriod,
     assetAccountCount,
     liabilityAccountCount,

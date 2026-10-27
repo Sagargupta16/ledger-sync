@@ -11,24 +11,24 @@ layout: { spacing: normal }
 legend: { dashed: "Side call, not awaited" }
 
 groups:
-  lane-browser: { type: lane, label: Browser (useChat), evidence: "frontend/src/components/chat/useChat.ts:98-339" }
+  lane-browser: { type: lane, label: Browser (useChat), evidence: "frontend/src/components/chat/useChat.ts:110-362" }
   lane-backend: { type: lane, label: Backend (FastAPI), evidence: "backend/src/ledger_sync/api/ai_chat.py:60" }
   lane-model:
     type: lane
     label: Model providers
-    evidence: ["frontend/src/lib/chatAdapters.ts:249-250", "backend/src/ledger_sync/api/ai_chat_bedrock.py:229"]
+    evidence: ["frontend/src/lib/chatAdapters.ts:249-250", "backend/src/ledger_sync/api/ai_chat_bedrock.py:233"]
 
 nodes:
   send:
     shape: terminator
     label: User sends message
     in: lane-browser
-    evidence: "frontend/src/components/chat/useChat.ts:124-142"
+    evidence: "frontend/src/components/chat/useChat.ts:137-158"
   mode:
     shape: decision
     label: Mode and provider?
     in: lane-browser
-    evidence: "frontend/src/components/chat/useChat.ts:74-96"   # resolveCredentials
+    evidence: "frontend/src/components/chat/useChat.ts:86-108"   # resolveCredentials
   getkey:
     shape: data
     label: GET stored API key
@@ -39,14 +39,14 @@ nodes:
     label: Build system prompt
     note: preferences only
     in: lane-browser
-    evidence: "frontend/src/components/chat/useChat.ts:147-151"   # built once per send, cached 5 minutes (:148)
+    evidence: "frontend/src/components/chat/useChat.ts:163-167"   # built once per send, cached 5 minutes (:164)
   # Each round calls sendChat, which dispatches on the provider; the next round comes back here,
   # not to the prompt step (useChat.ts:275, :338).
   dispatch:
     shape: decision
     label: Provider?
     in: lane-browser
-    evidence: ["frontend/src/lib/chatAdapters.ts:485-494", "frontend/src/components/chat/useChat.ts:275"]
+    evidence: ["frontend/src/lib/chatAdapters.ts:485-494", "frontend/src/components/chat/useChat.ts:296"]
   proxy:
     shape: data
     label: POST /api/ai/bedrock/chat
@@ -68,7 +68,7 @@ nodes:
     icon: aws:bedrock
     label: Bedrock Converse
     in: lane-model
-    evidence: "backend/src/ledger_sync/api/ai_chat_bedrock.py:204-229"
+    evidence: "backend/src/ledger_sync/api/ai_chat_bedrock.py:208-233"
   settle:
     shape: process
     label: Settle or release
@@ -85,13 +85,13 @@ nodes:
     label: POST /api/ai/usage/log
     note: best-effort, not awaited
     in: lane-browser
-    evidence: ["frontend/src/components/chat/useChat.ts:289-302", "backend/src/ledger_sync/api/ai_usage.py:306"]   # promise not awaited, .catch only
+    evidence: ["frontend/src/components/chat/useChat.ts:311-325", "backend/src/ledger_sync/api/ai_usage.py:306"]   # promise not awaited, .catch only
     align: proxy
   tooluse:
     shape: decision
     label: tool_use?
     in: lane-browser
-    evidence: "frontend/src/components/chat/useChat.ts:311-314"   # tests stopReason only
+    evidence: "frontend/src/components/chat/useChat.ts:334-337"   # tests stopReason only
   # Plan lane was lane-backend; drawn as the browser's call (like proxy and uselog) so the
   # 6-round loop stays in one lane (7 crossings -> 2). The note keeps the backend execution.
   tools:
@@ -99,24 +99,24 @@ nodes:
     label: POST /api/ai/tools/execute
     note: parallel, run user-scoped on the backend
     in: lane-browser
-    evidence: ["frontend/src/components/chat/useChat.ts:321-336", "frontend/src/lib/chatTools.ts:40", "backend/src/ledger_sync/api/ai_tools.py:56-98"]
+    evidence: ["frontend/src/components/chat/useChat.ts:344-359", "frontend/src/lib/chatTools.ts:40", "backend/src/ledger_sync/api/ai_tools.py:56-98"]
   # The limit is checked at the start of the next round, after the tools ran (useChat.ts:273, :338).
   rounds:
     shape: decision
     label: Rounds left?
     note: max 6 model calls
     in: lane-browser
-    evidence: ["frontend/src/components/chat/useChat.ts:273", "frontend/src/components/chat/useChat.ts:338", "frontend/src/components/chat/useChat.ts:13"]
+    evidence: ["frontend/src/components/chat/useChat.ts:294", "frontend/src/components/chat/useChat.ts:361", "frontend/src/components/chat/useChat.ts:14"]
   answer:
     shape: terminator
     label: Show final answer
     in: lane-browser
-    evidence: "frontend/src/components/chat/useChat.ts:311-313"
+    evidence: "frontend/src/components/chat/useChat.ts:334-336"
   capped:
     shape: terminator
     label: Stop after 6 rounds
     in: lane-browser
-    evidence: ["frontend/src/components/chat/useChat.ts:13", "frontend/src/components/chat/useChat.ts:253-263"]   # MAX_TOOL_ROUNDS
+    evidence: ["frontend/src/components/chat/useChat.ts:14", "frontend/src/components/chat/useChat.ts:274-284"]   # MAX_TOOL_ROUNDS
   quota:
     shape: terminator
     label: 429 quota exhausted
@@ -124,11 +124,11 @@ nodes:
     evidence: ["backend/src/ledger_sync/api/ai_usage.py:163", "backend/src/ledger_sync/api/ai_usage.py:217"]
 
 edges:
-  - { from: send, to: mode, evidence: "frontend/src/components/chat/useChat.ts:145" }
-  - { from: mode, to: context, label: any Bedrock mode, evidence: "frontend/src/components/chat/useChat.ts:80-93" }
-  - { from: mode, to: getkey, label: BYOK OpenAI or Anthropic, evidence: "frontend/src/components/chat/useChat.ts:91-94" }
-  - { from: getkey, to: context, evidence: "frontend/src/components/chat/useChat.ts:145-151" }
-  - { from: context, to: dispatch, evidence: "frontend/src/components/chat/useChat.ts:154-162" }
+  - { from: send, to: mode, evidence: "frontend/src/components/chat/useChat.ts:161" }
+  - { from: mode, to: context, label: any Bedrock mode, evidence: "frontend/src/components/chat/useChat.ts:92-105" }
+  - { from: mode, to: getkey, label: BYOK OpenAI or Anthropic, evidence: "frontend/src/components/chat/useChat.ts:103-106" }
+  - { from: getkey, to: context, evidence: "frontend/src/components/chat/useChat.ts:161-167" }
+  - { from: context, to: dispatch, evidence: "frontend/src/components/chat/useChat.ts:170-178" }
   - { from: dispatch, to: proxy, label: Bedrock, evidence: ["frontend/src/lib/chatAdapters.ts:451", "frontend/src/lib/chatAdapters.ts:488"] }
   - { from: dispatch, to: direct, label: OpenAI or Anthropic, evidence: ["frontend/src/lib/chatAdapters.ts:486-487", "frontend/src/lib/chatAdapters.ts:289", "frontend/src/lib/chatAdapters.ts:381"] }
   - { from: proxy, to: funding, label: JWT, evidence: "backend/src/ledger_sync/api/ai_chat.py:77-94" }
@@ -136,14 +136,14 @@ edges:
   - { from: reserve, to: quota, label: "no", evidence: ["backend/src/ledger_sync/api/ai_usage.py:153-163", "backend/src/ledger_sync/api/ai_usage.py:217"] }
   - { from: reserve, to: bedrock, label: "yes, reserved", evidence: "backend/src/ledger_sync/api/ai_chat.py:127-128#_call_bedrock" }
   - { from: bedrock, to: settle, label: usage counters, evidence: "backend/src/ledger_sync/api/ai_chat.py:136-151" }
-  - { from: settle, to: tooluse, label: content blocks, evidence: ["backend/src/ledger_sync/api/ai_chat.py:152-157", "frontend/src/components/chat/useChat.ts:305-311"] }
-  - { from: direct, to: tooluse, label: content blocks, evidence: "frontend/src/components/chat/useChat.ts:305-311" }
-  - { from: direct, to: uselog, label: provider usage, line: dashed, evidence: "frontend/src/components/chat/useChat.ts:289-302" }   # side call, not awaited
-  - { from: tooluse, to: answer, label: end_turn, evidence: "frontend/src/components/chat/useChat.ts:311-313" }
-  - { from: tooluse, to: tools, label: tool_use, evidence: "frontend/src/components/chat/useChat.ts:316-328#executeTool" }
-  - { from: tools, to: rounds, evidence: "frontend/src/components/chat/useChat.ts:329-338" }
-  - { from: rounds, to: dispatch, label: "yes, add tool_result", evidence: ["frontend/src/components/chat/useChat.ts:329-338", "frontend/src/components/chat/useChat.ts:275"] }
-  - { from: rounds, to: capped, label: "no, 6 used", evidence: ["frontend/src/components/chat/useChat.ts:273", "frontend/src/components/chat/useChat.ts:253-263"] }
+  - { from: settle, to: tooluse, label: content blocks, evidence: ["backend/src/ledger_sync/api/ai_chat.py:152-157", "frontend/src/components/chat/useChat.ts:328-334"] }
+  - { from: direct, to: tooluse, label: content blocks, evidence: "frontend/src/components/chat/useChat.ts:328-334" }
+  - { from: direct, to: uselog, label: provider usage, line: dashed, evidence: "frontend/src/components/chat/useChat.ts:311-325" }   # side call, not awaited
+  - { from: tooluse, to: answer, label: end_turn, evidence: "frontend/src/components/chat/useChat.ts:334-336" }
+  - { from: tooluse, to: tools, label: tool_use, evidence: "frontend/src/components/chat/useChat.ts:339-351#executeTool" }
+  - { from: tools, to: rounds, evidence: "frontend/src/components/chat/useChat.ts:352-361" }
+  - { from: rounds, to: dispatch, label: "yes, add tool_result", evidence: ["frontend/src/components/chat/useChat.ts:352-361", "frontend/src/components/chat/useChat.ts:296"] }
+  - { from: rounds, to: capped, label: "no, 6 used", evidence: ["frontend/src/components/chat/useChat.ts:294", "frontend/src/components/chat/useChat.ts:274-284"] }
 </orrery:spec></metadata>
 <title id="ai-chat-light-sdw-title">AI chat: funding modes, quota reservation and the tool loop</title>
 <desc id="ai-chat-light-sdw-desc">AI chat: funding modes, quota reservation and the tool loop. 18 components in 3 groups. Connections: User sends message to Mode and provider?; Mode and provider? to Build system prompt (any Bedrock mode); Mode and provider? to GET stored API key (BYOK OpenAI or Anthropic); GET stored API key to Build system prompt; Build system prompt to Provider?; Provider? to POST /api/ai/bedrock/chat (Bedrock); Provider? to OpenAI or Anthropic (OpenAI or Anthropic); POST /api/ai/bedrock/chat to Pick funding (JWT); Pick funding to Within quota?; Within quota? to 429 quota exhausted (no); Within quota? to Bedrock Converse (yes, reserved); Bedrock Converse to Settle or release (usage counters); Settle or release to tool_use? (content blocks); OpenAI or Anthropic to tool_use? (content blocks); OpenAI or Anthropic to POST /api/ai/usage/log (provider usage); tool_use? to Show final answer (end_turn); tool_use? to POST /api/ai/tools/execute (tool_use); POST /api/ai/tools/execute to Rounds left?; Rounds left? to Provider? (yes, add tool_result); Rounds left? to Stop after 6 rounds (no, 6 used).</desc>

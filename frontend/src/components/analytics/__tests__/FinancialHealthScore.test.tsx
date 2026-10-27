@@ -44,10 +44,6 @@ vi.mock('@/hooks/api/useAccountClassifications', () => ({
   }),
 }))
 
-vi.mock('@/hooks/useCountUp', () => ({
-  useCountUp: (value: number) => value,
-}))
-
 vi.mock('@/components/analytics/StandardRadarChart', () => ({
   default: () => null,
 }))

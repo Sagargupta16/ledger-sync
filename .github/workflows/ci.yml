@@ -138,6 +138,23 @@ jobs:
           enable-cache: true
       - name: Install locked dependencies
         run: uv sync --locked --no-build --no-install-project --all-extras --group dev
+      # The semantic-search revision runs CREATE EXTENSION vector, so the cluster
+      # below needs pgvector built for the same PostgreSQL major. The runner
+      # image installs PostgreSQL from apt.postgresql.org and then removes that
+      # repository; postgresql-common's own script adds it back.
+      - name: Install pgvector for the native PostgreSQL major
+        shell: bash
+        run: |
+          pg_ctl=$(find /usr/lib/postgresql -path '*/bin/pg_ctl' -type f | sort -V | tail -n 1)
+          if [ -z "$pg_ctl" ]; then
+            echo "::error::The runner must provide native PostgreSQL binaries."
+            exit 1
+          fi
+          pg_major=$(basename "$(dirname "$(dirname "$pg_ctl")")")
+          sudo sh /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            -o Dpkg::Options::=--force-confold "postgresql-${pg_major}-pgvector"
+          test -f "/usr/share/postgresql/${pg_major}/extension/vector.control"
       - name: Start an isolated native PostgreSQL cluster
         shell: bash
         run: |

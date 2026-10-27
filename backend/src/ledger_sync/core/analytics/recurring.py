@@ -19,6 +19,22 @@ from ledger_sync.core._analytics_helpers import (
     resolve_pattern_display as _resolve_pattern_display,
 )
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+
+# The amount helpers live in ``recurring_amounts``. They are re-exported here
+# because readers import them from this module.
+from ledger_sync.core.analytics.recurring_amounts import MANUAL_ACCOUNT as MANUAL_ACCOUNT
+from ledger_sync.core.analytics.recurring_amounts import (
+    detected_expected_amount as detected_expected_amount,
+)
+from ledger_sync.core.analytics.recurring_amounts import (
+    effective_amount_sql as effective_amount_sql,
+)
+from ledger_sync.core.analytics.recurring_amounts import (
+    effective_expected_amount as effective_expected_amount,
+)
+from ledger_sync.core.analytics.recurring_amounts import (
+    set_user_amount as set_user_amount,
+)
 from ledger_sync.core.query_helpers import closed_accounts_for
 from ledger_sync.db.models import (
     RecurrenceFrequency,
@@ -293,6 +309,9 @@ class RecurringMixin(AnalyticsEngineBase):
         # 1st must not keep rendering on the 20th forever. ``pattern_name``,
         # and ``frequency`` stay user-owned. Manually created rows also own
         # their amount and due day; matching history must not overwrite them.
+        # ``expected_amount`` is the detected amount; an amount the user set
+        # lives in ``user_expected_amount``, which detection never writes, so
+        # it survives this update (see ``set_user_amount``).
         if (label, txn_type) in confirmed_names:
             existing = confirmed_names[label, txn_type]
             if existing.pattern_kind == DISMISSED_PATTERN_KIND:
@@ -301,7 +320,7 @@ class RecurringMixin(AnalyticsEngineBase):
             existing.occurrences_detected = info["occurrences"]
             existing.last_occurrence = info["last_occurrence"]
             existing.confidence_score = info["confidence"]
-            if existing.account != "Manual":
+            if existing.account != MANUAL_ACCOUNT:
                 existing.expected_amount = info["expected_amount"]
                 existing.amount_variance = info["amount_variance"]
                 existing.expected_day = info["expected_day"]

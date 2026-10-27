@@ -101,7 +101,7 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
             onChange={(e) => setModel(e.target.value)}
             placeholder={
               isBedrock(provider)
-                ? 'e.g. us.anthropic.claude-opus-4-1-20250805-v1:0'
+                ? 'e.g. global.anthropic.claude-haiku-5-5'
                 : 'Model identifier'
             }
             className={`${inputClass} mt-2 font-mono text-xs`}
@@ -126,6 +126,11 @@ export function ByokConfigForm(props: Readonly<ByokConfigFormProps>) {
             placeholder="us-east-1"
             className={inputClass}
           />
+          <FieldHint>
+            The us. model IDs above work from US regions such as us-east-1. From other
+            regions, pick Custom and paste the model&apos;s global. ID if it has one, for
+            example global.anthropic.claude-haiku-5-5.
+          </FieldHint>
         </div>
       )}
 

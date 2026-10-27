@@ -1,3 +1,4 @@
+import type { SavingsGrowth } from '../netWorthCompound'
 import type { MilestoneRow, NetWorthPoint } from '../netWorthProjection'
 
 export type NetWorthChartRow = Record<string, number | string | [number, number] | null>
@@ -11,8 +12,10 @@ export interface NetWorthTrendChartProps {
   setShowStacked: (v: boolean) => void
   showProjection: boolean
   setShowProjection: (v: boolean) => void
-  /** Average monthly net-worth change in rupees (linear model over cash flows). */
+  /** Average monthly saving in rupees: the projection's starting slope over cash flows. */
   monthlyGrowth: number
+  /** Yearly rate that saving compounds at in the projection; omitted or rate 0 is the straight line. */
+  savingsGrowth?: SavingsGrowth
   anchor: NetWorthPoint | null
   /**
    * Upcoming milestones to draw as horizontal threshold lines so users see

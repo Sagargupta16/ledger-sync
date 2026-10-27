@@ -1,24 +1,17 @@
 import { memo, useMemo } from 'react'
 
+import { motion } from 'motion/react'
 import { ChevronDown, Shield } from 'lucide-react'
 
-import { useTransactions } from '@/hooks/api/useTransactions'
-import { usePreferences } from '@/hooks/api/usePreferences'
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import StandardRadarChart from '@/components/analytics/StandardRadarChart'
 import { colors, rawColors } from '@/constants/colors'
-import { useCountUp } from '@/hooks/useCountUp'
+import { useAnimatedInteger } from '@/hooks/useAnimatedValue'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Transaction } from '@/types'
-import { resolveAccountCategory } from '@/pages/net-worth/netWorthUtils'
 import { computeCFPScore } from '@/lib/financialHealthCalculator'
-import { capitalLossConfig } from '@/lib/expenseClassification'
 import ErrorState from '@/components/shared/ErrorState'
 import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
 import { analysisPeriodLabel, type EarningStart } from '@/lib/finance/analysisPeriod'
-import { investmentAccountTest } from '@/lib/finance/investmentFlows'
-import { resolveEssentialCategories } from '@/store/preferencesStore'
 
 import type { HealthMetric } from './health/healthScoreUtils'
 import {
@@ -27,10 +20,9 @@ import {
   getOverallStatus,
   getSummary,
 } from './health/healthScoreUtils'
-import { computeBalancePosition } from './health/healthScoreBalances'
-import { computeCurrentHealth } from './health/currentHealthAnalysis'
 import CFPScoreView from './health/CFPScoreView'
 import HealthIndicator from './health/HealthIndicator'
+import { useLedgerHealth, useServerHealth, type HealthSource } from './useFinancialHealthSource'
 
 // ─── Sub-components ────────────────────────────────────────────────────────
 
@@ -61,7 +53,8 @@ function ScoreHeader({ title, score, subtitle, status, color }: Readonly<{
   status: string
   color: string
 }>) {
-  const animatedScore = useCountUp(score)
+  // Frames go into the motion.span text, so the header renders once per score.
+  const animatedScore = useAnimatedInteger(score)
   return (
     <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -70,7 +63,7 @@ function ScoreHeader({ title, score, subtitle, status, color }: Readonly<{
         <p className={`mt-1 text-xs font-medium ${color}`}>{status}</p>
       </div>
       <p className={`ledger-figure font-mono text-3xl font-semibold leading-none tabular-nums ${color}`}>
-        {Math.round(animatedScore)}
+        <motion.span>{animatedScore}</motion.span>
         <span className="ml-1 text-xs font-normal text-text-tertiary">/100</span>
       </p>
     </div>
@@ -124,91 +117,28 @@ function HealthMetricCard({ metric }: Readonly<{ metric: HealthMetric }>) {
 // ─── Main Component ────────────────────────────────────────────────────────
 
 interface FinancialHealthScoreProps {
+  /**
+   * Analyse this ledger in the browser. Without it -- the Dashboard -- the
+   * analysis comes from `/api/dashboard-metrics/health`, so the page never
+   * downloads the whole ledger.
+   */
   transactions?: Transaction[]
 }
 
-export default function FinancialHealthScore({ transactions: propTransactions }: Readonly<FinancialHealthScoreProps>) {
-  const transactionsQuery = useTransactions()
-  const preferencesQuery = usePreferences()
-  const balancesQuery = useAccountBalances()
-  const classificationsQuery = useAccountClassifications()
-  const fetchedTransactions = transactionsQuery.data ?? []
-  const preferences = preferencesQuery.data
-  const balanceData = balancesQuery.data
-  const classifications = classificationsQuery.data
-  const transactions = propTransactions ?? fetchedTransactions
-  const isLoading =
-    (!propTransactions && transactionsQuery.isLoading) ||
-    preferencesQuery.isLoading ||
-    balancesQuery.isLoading ||
-    classificationsQuery.isLoading
-  const isError =
-    (!propTransactions && transactionsQuery.isError) ||
-    preferencesQuery.isError ||
-    balancesQuery.isError ||
-    classificationsQuery.isError
-  const savingsGoalPercent = preferences?.savings_goal_percent ?? 20
-  // The classified realised-loss keys `/totals` reads, so a classified loss
-  // leaves the score's expenses exactly as it leaves the Dashboard's.
-  const lossCategories = preferences?.capital_loss_categories
-  const expenseClassification = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
-  // The Needs list the spending rule reads, so "essential" means the same here as on /budgets.
-  const rawEssentials = preferences?.essential_categories
-  const essentialCategories = useMemo(() => resolveEssentialCategories(rawEssentials), [rawEssentials])
+export default function FinancialHealthScore({ transactions }: Readonly<FinancialHealthScoreProps>) {
+  return transactions ? <LedgerHealthScore transactions={transactions} /> : <ServerHealthScore />
+}
 
-  const userFixedCategories = useMemo<Set<string>>(() => {
-    const raw = preferences?.fixed_expense_categories
-    if (!raw) return new Set()
-    let arr: string[]
-    if (Array.isArray(raw)) {
-      arr = raw
-    } else {
-      try {
-        // JSON.parse is typed `any`; keep it at `unknown` and narrow.
-        const parsed: unknown = JSON.parse(raw)
-        arr = Array.isArray(parsed) ? (parsed as string[]) : []
-      } catch {
-        arr = []
-      }
-    }
-    return new Set(arr.map((c) => c.toLowerCase()))
-  }, [preferences?.fixed_expense_categories])
+function ServerHealthScore() {
+  return <HealthScorePanel source={useServerHealth()} />
+}
 
-  const investmentMappings = useMemo(
-    () => preferences?.investment_account_mappings ?? {},
-    [preferences?.investment_account_mappings],
-  )
-  // The shared investment perimeter (mapped names, case-insensitive; default
-  // keywords when nothing is mapped) -- the rule the Dashboard and Investment
-  // Analytics use, not the device-local exact-match store.
-  const isInvestmentAccount = useMemo(
-    () => investmentAccountTest(Object.keys(investmentMappings)),
-    [investmentMappings],
-  )
+function LedgerHealthScore({ transactions }: Readonly<{ transactions: Transaction[] }>) {
+  return <HealthScorePanel source={useLedgerHealth(transactions)} />
+}
 
-  // Real balance position (liquid vs investment vs liabilities) from actual
-  // account balances -- the correct basis for emergency-fund / liquidity /
-  // solvency. Null until balances load, in which case scorers fall back to the
-  // cumulative-flow proxy.
-  const balancePosition = useMemo(() => {
-    const accounts = balanceData?.accounts
-    if (!accounts || Object.keys(accounts).length === 0) return null
-    const classMap = classifications ?? {}
-    return computeBalancePosition(accounts, (name) =>
-      resolveAccountCategory(name, classMap, investmentMappings),
-    )
-  }, [balanceData?.accounts, classifications, investmentMappings])
-
-  const currentHealth = useMemo(() => computeCurrentHealth(transactions, isInvestmentAccount, {
-    earningStartDate: preferences?.earning_start_date,
-    fixedCategories: userFixedCategories.size > 0 ? userFixedCategories : undefined,
-    expenseClassification,
-    essentialCategories,
-    balances: balancePosition,
-  }), [
-    transactions, isInvestmentAccount, userFixedCategories, expenseClassification,
-    essentialCategories, balancePosition, preferences?.earning_start_date,
-  ])
+function HealthScorePanel({ source }: Readonly<{ source: HealthSource }>) {
+  const { currentHealth, savingsGoalPercent, isLoading, isError, retry } = source
   const analysisData = currentHealth?.analysis
 
   const cfpCompositeScore = useMemo(() => {
@@ -218,25 +148,20 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
 
   if (isLoading) return <PanelSkeleton />
   if (isError) {
-    const retryHealth = () => {
-      if (!propTransactions) void transactionsQuery.refetch()
-      void preferencesQuery.refetch()
-      void balancesQuery.refetch()
-      void classificationsQuery.refetch()
-    }
     return (
       <ErrorState
         title="Financial health unavailable"
         message="We could not load every balance and preference needed for an accurate score."
-        onRetry={retryHealth}
+        onRetry={retry}
         errorType="network"
         variant="card"
       />
     )
   }
-  if (!analysisData) return <HealthScoreEmpty />
+  if (!currentHealth) return <HealthScoreEmpty />
+  const { analysis, period, earningStart } = currentHealth
 
-  const metrics = calculateMetrics(analysisData, savingsGoalPercent)
+  const metrics = calculateMetrics(analysis, savingsGoalPercent)
   if (metrics.length === 0) return <HealthScoreEmpty />
 
   const overallScore = metrics.reduce((sum, m) => sum + (m.score * m.weight) / 100, 0)
@@ -275,13 +200,14 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
         />
       </summary>
       <div className="border-t border-[var(--hairline-1)] px-4 py-3 text-xs leading-5 text-muted-foreground sm:px-5">
-        <p>Cashflow: {analysisPeriodLabel(currentHealth.period)}</p>
+        <p>Cashflow: {analysisPeriodLabel(period)}</p>
         <p>
-          {EARNING_START_LABELS[currentHealth.earningStart.source]}
-          {currentHealth.earningStart.date ? `: ${currentHealth.earningStart.date}. ` : '. '}
+          {EARNING_START_LABELS[earningStart.source]}
+          {earningStart.date ? `: ${earningStart.date}. ` : '. '}
           Zero-income months after employment are included.
         </p>
-        <p>{balancePosition ? 'Lifetime balances from all recorded accounts' : 'Lifetime balances estimated from all recorded flows'}; expenses and income use the recent window. Income stability uses its last 12 months.</p>
+        <p>{analysis.balances ? 'Lifetime balances from all recorded accounts' : 'Lifetime balances estimated from all recorded flows'}; expenses and income use the recent window. Income stability uses its last 12 months.</p>
+        <p>Both scores are computation aids from your recorded data, not financial advice.</p>
       </div>
       <div className="grid grid-cols-1 gap-6 border-t border-[var(--hairline-1)] p-4 sm:p-5 lg:grid-cols-2">
         <section className="@container/finhealth min-w-0 lg:border-r lg:border-[var(--hairline-1)] lg:pr-6">
@@ -308,7 +234,7 @@ export default function FinancialHealthScore({ transactions: propTransactions }:
             status={cfpStatus.label}
             color={cfpStatus.color}
           />
-          <CFPScoreView analysisData={analysisData} />
+          <CFPScoreView analysisData={analysis} />
         </section>
       </div>
     </details>

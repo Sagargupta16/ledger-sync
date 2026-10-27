@@ -1,35 +1,62 @@
 /**
- * One-time display of a new upload token.
+ * One-time display of a new access token, with how to use it for its purpose.
  *
  * The server returns the plaintext only in the create response, so this is
  * the only time it appears. The section holds it in state and clears it when
  * this closes. A tap on the backdrop does not close it, so a stray touch
- * cannot discard a token before it is copied; Done and Escape do.
+ * cannot discard a token before it is copied; Done and Escape do. An MCP
+ * token also comes as a ready-to-run `claude mcp add` command.
  *
  * Same native `<dialog>` shell and motion as ConfirmDialog.
  */
 
-import { useEffect, useId, useRef, useState, type RefObject } from 'react'
+import { useEffect, useId, useRef, type RefObject } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Copy } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
 import { DURATION, EASING } from '@/constants/animations'
+import { bankAlertIngestUrl } from '@/services/api/bankAlerts'
+import {
+  LEDGER_READ_SCOPE,
+  UPLOAD_SCOPE,
+  claudeMcpAddCommand,
+  moneyManagerUploadUrl,
+  type TokenScope,
+} from '@/services/api/uploadTokens'
+
+import UploadTokenCopyField from './UploadTokenCopyField'
+import { purposeFor } from './uploadTokenPurposes'
 
 export interface RevealedUploadToken {
   name: string
+  scope: TokenScope
   token: string
 }
 
 interface Props {
   revealed: RevealedUploadToken | null
-  uploadUrl: string
   /** Focus target on close: what submitted the create, captured at submit time. */
   returnFocusRef: RefObject<HTMLElement | null>
   onClose: () => void
 }
 
+const CODE = 'font-mono text-xs text-foreground'
+
 type ContentProps = Omit<Props, 'revealed'> & { revealed: RevealedUploadToken }
+
+/** How the Shortcut or the alert automation sends the token, what it posts and where. */
+function AutomationUsage({ scope }: Readonly<{ scope: TokenScope }>) {
+  const upload = scope === UPLOAD_SCOPE
+  return (
+    <p className="mt-4 text-sm leading-6 text-muted-foreground">
+      In the {upload ? 'Shortcut' : 'automation that forwards your bank alerts'}, put it in the{' '}
+      <code className={CODE}>Authorization</code> header as{' '}
+      <code className={CODE}>Bearer &lt;token&gt;</code> and send{' '}
+      {upload ? 'the backup' : 'each alert as JSON with a text field'} with POST to{' '}
+      <code className={`break-all ${CODE}`}>{upload ? moneyManagerUploadUrl() : bankAlertIngestUrl()}</code>
+    </p>
+  )
+}
 
 export default function UploadTokenRevealDialog({ revealed, ...props }: Readonly<Props>) {
   return (
@@ -39,11 +66,10 @@ export default function UploadTokenRevealDialog({ revealed, ...props }: Readonly
   )
 }
 
-function RevealContent({ revealed, uploadUrl, returnFocusRef, onClose }: Readonly<ContentProps>) {
+function RevealContent({ revealed, returnFocusRef, onClose }: Readonly<ContentProps>) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const fieldRef = useRef<HTMLTextAreaElement>(null)
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const id = useId()
+  const purpose = purposeFor(revealed.scope)
 
   // Mounted only while open, so open on mount and hand focus back on unmount.
   useEffect(() => {
@@ -57,18 +83,6 @@ function RevealContent({ revealed, uploadUrl, returnFocusRef, onClose }: Readonl
       opener?.focus()
     }
   }, [returnFocusRef])
-
-  const copyToken = async () => {
-    try {
-      await navigator.clipboard.writeText(revealed.token)
-      setCopyState('copied')
-    } catch {
-      // Clipboard access needs a secure context and can be refused. Select
-      // the token so it can be copied by hand instead.
-      fieldRef.current?.select()
-      setCopyState('failed')
-    }
-  }
 
   return (
     <dialog
@@ -97,49 +111,32 @@ function RevealContent({ revealed, uploadUrl, returnFocusRef, onClose }: Readonl
         className="relative max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-5 shadow-[var(--glass-shadow-strong)] sm:p-6"
       >
         <h3 id={`${id}-title`} className="text-lg font-semibold text-foreground">
-          Copy your upload token
+          {purpose.revealTitle}
         </h3>
         <p id={`${id}-desc`} className="mt-2 break-words text-sm leading-6 text-muted-foreground">
           This is the token for "{revealed.name}". It won't be shown again, so copy it now. If
           you lose it, revoke it and create a new one.
         </p>
 
-        <label htmlFor={`${id}-token`} className="mt-4 mb-1.5 block text-sm font-medium text-foreground">
-          Upload token
-        </label>
-        <textarea
-          ref={fieldRef}
-          id={`${id}-token`}
-          readOnly
-          rows={2}
-          value={revealed.token}
-          spellCheck={false}
-          autoComplete="off"
-          className="ledger-control w-full resize-none break-all rounded-lg border border-border px-3 py-2 font-mono text-xs leading-5 text-foreground focus:border-primary focus:outline-none"
-        />
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Button
-            type="button"
-            onClick={() => void copyToken()}
-            icon={copyState === 'copied' ? <Check className="size-4" /> : <Copy className="size-4" />}
-          >
-            {copyState === 'copied' ? 'Copied' : 'Copy token'}
-          </Button>
-          <output
-            aria-live="polite"
-            className={`text-xs ${copyState === 'failed' ? 'text-app-red' : 'text-muted-foreground'}`}
-          >
-            {copyState === 'copied' && 'Copied to the clipboard.'}
-            {copyState === 'failed' && 'Could not copy. The token is selected; copy it by hand.'}
-          </output>
-        </div>
+        <UploadTokenCopyField label={purpose.tokenLabel} value={revealed.token} copyLabel="Copy token" />
 
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          In the Shortcut, put it in the <code className="font-mono text-xs text-foreground">Authorization</code>{' '}
-          header as <code className="font-mono text-xs text-foreground">Bearer &lt;token&gt;</code> and send
-          the backup with POST to{' '}
-          <code className="break-all font-mono text-xs text-foreground">{uploadUrl}</code>
-        </p>
+        {revealed.scope === LEDGER_READ_SCOPE ? (
+          <>
+            {/* About 160 characters, six lines of 12px mono on a 320px screen. */}
+            <UploadTokenCopyField
+              label="Claude Code command"
+              value={claudeMcpAddCommand(revealed.token)}
+              copyLabel="Copy command"
+              rows={6}
+            />
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              Run it in a terminal, then ask Claude about your money. It reads your ledger with
+              read-only tools and cannot change anything.
+            </p>
+          </>
+        ) : (
+          <AutomationUsage scope={revealed.scope} />
+        )}
 
         <div className="mt-6 flex justify-end">
           <Button type="button" variant="secondary" size="lg" onClick={onClose}>

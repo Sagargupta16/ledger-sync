@@ -1,6 +1,4 @@
 import type {
-  Anomaly,
-  Budget,
   CategoryTrend,
   FinancialGoal,
   FYSummary,
@@ -358,76 +356,6 @@ export function generateDemoFYSummaries(txs: Transaction[]): FYSummary[] {
       is_complete: i < sortedFYs.length - 1,
     }
   })
-}
-
-export function generateDemoAnomalies(): Anomaly[] {
-  const now = new Date()
-  const recent = (daysAgo: number) => {
-    const d = new Date(now)
-    d.setDate(d.getDate() - daysAgo)
-    return d.toISOString()
-  }
-
-  return [
-    {
-      id: 1,
-      anomaly_type: 'high_expense',
-      severity: 'high',
-      description: 'Unusually high spending in Shopping category - 3.2x above monthly average',
-      transaction_id: 'demo-00120',
-      period_key: null,
-      expected_value: 5000,
-      actual_value: 16000,
-      deviation_pct: 220,
-      detected_at: recent(3),
-      is_reviewed: false,
-      is_dismissed: false,
-      review_notes: null,
-      reviewed_at: null,
-    },
-    {
-      id: 2,
-      anomaly_type: 'large_transfer',
-      severity: 'medium',
-      description: 'Large transfer to SBI FD - Rs 50,000 (above usual pattern)',
-      transaction_id: 'demo-00200',
-      period_key: null,
-      expected_value: 25000,
-      actual_value: 50000,
-      deviation_pct: 100,
-      detected_at: recent(10),
-      is_reviewed: false,
-      is_dismissed: false,
-      review_notes: null,
-      reviewed_at: null,
-    },
-    {
-      id: 3,
-      anomaly_type: 'unusual_category',
-      severity: 'low',
-      description: 'First transaction in Education > Courses category in 4 months',
-      transaction_id: 'demo-00350',
-      period_key: null,
-      expected_value: null,
-      actual_value: 4500,
-      deviation_pct: null,
-      detected_at: recent(15),
-      is_reviewed: true,
-      is_dismissed: true,
-      review_notes: 'Online course purchase - expected',
-      reviewed_at: recent(14),
-    },
-  ]
-}
-
-export function generateDemoBudgets(): Budget[] {
-  return [
-    { id: 1, category: 'Food & Dining', subcategory: null, monthly_limit: 15000, current_spent: 12800, remaining: 2200, usage_pct: 85.3, alert_threshold: 80, avg_actual: 13500, months_over: 4, months_under: 20 },
-    { id: 2, category: 'Shopping', subcategory: null, monthly_limit: 8000, current_spent: 6200, remaining: 1800, usage_pct: 77.5, alert_threshold: 80, avg_actual: 7200, months_over: 6, months_under: 18 },
-    { id: 3, category: 'Entertainment', subcategory: null, monthly_limit: 5000, current_spent: 2800, remaining: 2200, usage_pct: 56, alert_threshold: 80, avg_actual: 3200, months_over: 2, months_under: 22 },
-    { id: 4, category: 'Transportation', subcategory: null, monthly_limit: 6000, current_spent: 4500, remaining: 1500, usage_pct: 75, alert_threshold: 80, avg_actual: 5000, months_over: 3, months_under: 21 },
-    { id: 5, category: 'Healthcare', subcategory: null, monthly_limit: 5000, current_spent: 1200, remaining: 3800, usage_pct: 24, alert_threshold: 80, avg_actual: 2000, months_over: 1, months_under: 23 },
-  ]
 }
 
 export function generateDemoGoals(): FinancialGoal[] {

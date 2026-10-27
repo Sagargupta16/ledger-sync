@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { WATCH_TILES_KEY } from '@/hooks/api/useWatchTiles'
 import { transactionsService } from '@/services/api/transactions'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 
@@ -31,6 +32,8 @@ export function useUpdateTransactionTags() {
       void queryClient.invalidateQueries({ queryKey: ['transactions', 'recent'] })
       void queryClient.invalidateQueries({ queryKey: ['transactions-page'] })
       void queryClient.invalidateQueries({ queryKey: ['transaction-facets'] })
+      // A watch tile can filter by tag, so its totals move with the tags.
+      void queryClient.invalidateQueries({ queryKey: WATCH_TILES_KEY })
     },
   })
 }

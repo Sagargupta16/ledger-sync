@@ -27,6 +27,8 @@ export const ROUTES = {
   // Tax
   TAX_PLANNING: '/tax',
   GST_ANALYSIS: '/tax/gst',
+  FOREIGN_ASSETS: '/tax/foreign-assets',
+  AIS_IMPORT: '/tax/ais',
 
   // Net Worth
   NET_WORTH: '/net-worth',
@@ -48,6 +50,7 @@ export const ROUTES = {
 
   // Monitoring
   ANOMALIES: '/anomalies',
+  REVIEW_QUEUE: '/review',
   GOALS: '/goals',
   SUBSCRIPTIONS: '/subscriptions',
   BILL_CALENDAR: '/bill-calendar',

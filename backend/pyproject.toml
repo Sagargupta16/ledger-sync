@@ -1,6 +1,6 @@
 [project]
 name = "ledger-sync"
-version = "2.30.2"
+version = "2.31.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
@@ -25,6 +25,12 @@ dependencies = [
     "httpx>=0.28.0",
     "cryptography>=50.0.0",
     "boto3>=1.43.0",
+    "casparser>=1.4.1",
+    # Imported directly to tell an unreadable CAS PDF from a wrong password.
+    "pypdfium2>=5.14.0",
+    "pgvector>=0.5.1",
+    # Imported directly by the embedding column type and the SQLite ranking.
+    "numpy>=2.5.4",
 ]
 
 [project.scripts]
@@ -175,6 +181,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "boto3.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["casparser.*", "pypdfium2.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

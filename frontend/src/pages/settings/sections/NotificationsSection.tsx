@@ -1,11 +1,14 @@
 /**
  * Notifications section - budget alerts, anomaly alerts, upcoming bills.
+ * The toggles save with the page; the daily push alerts read what is saved,
+ * and the device panel below turns them on per phone or browser.
  */
 
 import { Bell, Receipt, AlertTriangle, Clock } from 'lucide-react'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { Section, Toggle, FieldLabel } from '../sectionPrimitives'
 import { DAYS_AHEAD_OPTIONS } from '../helpers'
+import PushAlertsPanel from './PushAlertsPanel'
 
 interface Props {
   index: number
@@ -23,7 +26,7 @@ export default function NotificationsSection({
       index={index}
       icon={Bell}
       title="Notifications"
-      description="Configure alerts for budgets, anomalies, and upcoming bills"
+      description="Alerts for budgets, anomalies and upcoming bills, on your phone too"
     >
       <div className="space-y-3">
         {/* Budget alerts */}
@@ -100,6 +103,8 @@ export default function NotificationsSection({
           </select>
           <span className="text-sm text-muted-foreground">before due date</span>
         </div>
+
+        <PushAlertsPanel />
       </div>
     </Section>
   )

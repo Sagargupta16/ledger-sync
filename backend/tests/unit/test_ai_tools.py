@@ -23,6 +23,7 @@ from ledger_sync.api.ai_tools import router as tools_router
 from ledger_sync.api.ai_tools_impl import REGISTRY
 from ledger_sync.api.ai_tools_impl.registry import parse_date
 from ledger_sync.api.deps import get_current_user
+from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
     Budget,
@@ -742,6 +743,21 @@ def test_list_budgets_returns_active_with_usage() -> None:
             current_month_remaining=Decimal("0"),
             current_month_pct=100.0,
             is_active=False,  # should be filtered out
+        )
+    )
+    # The tool reads this month's spending live, as GET /budgets does, not the
+    # stored current_month_* columns, so the spend has to be in this IST month.
+    session.add(
+        Transaction(
+            transaction_id="hash_this_month_food",
+            user_id=user.id,
+            date=ledger_now(),
+            amount=Decimal("9500"),
+            currency="INR",
+            type=TransactionType.EXPENSE,
+            account="HDFC Bank",
+            category="Food",
+            source_file="test.xlsx",
         )
     )
     session.commit()

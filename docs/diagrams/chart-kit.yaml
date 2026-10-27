@@ -3,10 +3,13 @@
 # Evidence paths are relative to the repo root; every edge is a real render (<X ... />) or call.
 #
 # leftOut (put back on request):
-# - Callers of the Standard* wrappers (MonthlyFlowChart, CohortSpendingAnalysis, FIRECalculatorPage,
+# - Callers of the Standard* wrappers (MonthlyFlowChart, CohortSpendingAnalysis, the FIRE calculator panels,
 #   DayOfWeekChart, FinancialHealthScore, CFPScoreView and other pages): one hop further out; MonthlyFlowChart
 #   renders StandardBarChart (components/analytics/MonthlyFlowChart.tsx:81).
 # - CashFlowForecast panel: it only renders CashFlowForecastChart (components/analytics/CashFlowForecast.tsx:71).
+# - SafeToSpendCard renders BalanceProjectionChart (components/analytics/SafeToSpendCard.tsx:135) and the FIRE
+#   Monte Carlo results render MonteCarloFanChart (pages/fire-calculator/components/MonteCarloResults.tsx:67):
+#   one hop further out, like the other callers.
 # - Sankey internals SankeyMarks, SankeyReadout, sankeyModel, sankeyLayout: folded into the SankeyDiagram node
 #   (components/charts/SankeyDiagram.tsx:93-161).
 # - Treemap internals TreemapMarks, treemapLayout, treemapModel: folded into the Treemap node
@@ -73,13 +76,14 @@ nodes:
   bespoke:
     icon: tabler:chart-histogram
     label: Bespoke analytics charts
-    badge: x3
-    note: Pareto, effective tax rate, cash flow forecast
+    badge: x4
+    note: Pareto, effective tax rate, cash flow forecast, balance projection
     in: wrappers
     evidence:
       - "frontend/src/components/analytics/ParetoChart.tsx:81#ParetoChart"
       - "frontend/src/components/analytics/EffectiveTaxRateChart.tsx:54#EffectiveTaxRateChart"
       - "frontend/src/components/analytics/CashFlowForecastChart.tsx:86#CashFlowForecastChart"
+      - "frontend/src/components/analytics/BalanceProjectionChart.tsx:54#BalanceProjectionChart"
   std-xy:
     icon: tabler:chart-line
     label: Standard x/y wrappers
@@ -87,9 +91,9 @@ nodes:
     note: bar, area, time-series line
     in: wrappers
     evidence:
-      - "frontend/src/components/analytics/StandardBarChart.tsx:110#StandardBarChart"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:84#StandardAreaChart"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:41#TimeSeriesLineChart"
+      - "frontend/src/components/analytics/StandardBarChart.tsx:111#StandardBarChart"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:89#StandardAreaChart"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:44#TimeSeriesLineChart"
   std-pie:
     icon: tabler:chart-pie
     label: StandardPieChart
@@ -100,11 +104,11 @@ nodes:
   page-xy:
     icon: tabler:app-window
     label: Page x/y charts
-    badge: x13
-    note: net worth, returns, trends, tax, GST, year in review
+    badge: x14
+    note: net worth, returns, trends, tax, GST, FIRE, year in review
     in: pages
     evidence:
-      - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:78#CartesianChart"
+      - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:83#CartesianChart"
       - "frontend/src/pages/returns-analysis/components/ReturnsMonthlyChart.tsx:140#CartesianChart"
       - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:121#CartesianChart"
       - "frontend/src/pages/trends-forecasts/components/MonthlyTrendPanel.tsx:118#CartesianChart"
@@ -117,6 +121,7 @@ nodes:
       - "frontend/src/pages/comparison/components/SpendingButterflyChart.tsx:69#CartesianChart"
       - "frontend/src/pages/year-in-review/components/MonthlyBreakdownChart.tsx:68#CartesianChart"
       - "frontend/src/pages/mutual-fund-projection/components/GrowthPlot.tsx:91#CartesianChart"
+      - "frontend/src/pages/fire-calculator/components/MonteCarloFanChart.tsx:52#CartesianChart"
   page-pie:
     icon: tabler:app-window
     label: Page pies
@@ -171,10 +176,10 @@ nodes:
     in: kit
     align: cartesian
     evidence:
-      - "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
+      - "frontend/src/components/charts/CartesianChart.tsx:137#CartesianContext"
       - "frontend/src/components/charts/Bars.tsx:71#Bars"
-      - "frontend/src/components/charts/LineSeries.tsx:46#LineSeries"
-      - "frontend/src/components/charts/AreaSeries.tsx:25#AreaSeries"
+      - "frontend/src/components/charts/LineSeries.tsx:48#LineSeries"
+      - "frontend/src/components/charts/AreaSeries.tsx:27#AreaSeries"
       - "frontend/src/components/charts/Axis.tsx:68#CategoryAxis"
       - "frontend/src/components/charts/Axis.tsx:100#ValueAxis"
       - "frontend/src/components/charts/Grid.tsx:33#Grid"
@@ -199,7 +204,7 @@ nodes:
     label: SankeyDiagram
     note: marks, readout, layout model
     in: kit
-    evidence: "frontend/src/components/charts/SankeyDiagram.tsx:55#SankeyDiagram"
+    evidence: "frontend/src/components/charts/SankeyDiagram.tsx:57#SankeyDiagram"
   slope:
     icon: tabler:trending-up
     label: SlopeChart
@@ -233,20 +238,21 @@ edges:
       - "frontend/src/components/analytics/ParetoChart.tsx:139#CartesianChart"
       - "frontend/src/components/analytics/EffectiveTaxRateChart.tsx:137#CartesianChart"
       - "frontend/src/components/analytics/CashFlowForecastChart.tsx:97#CartesianChart"
+      - "frontend/src/components/analytics/BalanceProjectionChart.tsx:116#CartesianChart"
   - from: std-xy
     to: cartesian
     label: renders
     evidence:
-      - "frontend/src/components/analytics/StandardBarChart.tsx:165#CartesianChart"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:138#CartesianChart"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:82#CartesianChart"
+      - "frontend/src/components/analytics/StandardBarChart.tsx:177#CartesianChart"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:172#CartesianChart"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:115#CartesianChart"
   - from: std-xy
     to: brush
     label: zoom
     evidence:
-      - "frontend/src/components/analytics/StandardBarChart.tsx:212#ChartBrush"
-      - "frontend/src/components/analytics/StandardAreaChart.tsx:187#ChartBrush"
-      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:101#ChartBrush"
+      - "frontend/src/components/analytics/StandardBarChart.tsx:224#ChartBrush"
+      - "frontend/src/components/analytics/StandardAreaChart.tsx:221#ChartBrush"
+      - "frontend/src/components/analytics/TimeSeriesLineChart.tsx:133#ChartBrush"
   - { from: std-pie, to: pie, label: renders, evidence: "frontend/src/components/analytics/StandardPieChart.tsx:115#PieChart" }
 
   - { from: cat-treemap, to: treemap, label: renders, evidence: "frontend/src/components/analytics/CategoryTreemap.tsx:103#Treemap" }
@@ -255,12 +261,12 @@ edges:
   - from: page-xy
     to: cartesian
     label: renders
-    evidence: "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:78#CartesianChart"
+    evidence: "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:83#CartesianChart"
   - from: page-xy
     to: brush
     label: zoom
     evidence:
-      - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:151#ChartBrush"
+      - "frontend/src/pages/net-worth/components/NetWorthAreaPlot.tsx:167#ChartBrush"
       - "frontend/src/pages/returns-analysis/components/ReturnsMonthlyChart.tsx:177#ChartBrush"
       - "frontend/src/pages/investment-analytics/components/GrowthOverTimeChart.tsx:155#ChartBrush"
       - "frontend/src/pages/income-analysis/components/IncomeTrendSection.tsx:138#ChartBrush"
@@ -273,14 +279,14 @@ edges:
 
   # Inside the kit.
   - { from: radar, to: frame, evidence: "frontend/src/components/charts/RadarChart.tsx:74#ChartFrame" }
-  - { from: cartesian, to: frame, label: wraps in, evidence: "frontend/src/components/charts/CartesianChart.tsx:81#ChartFrame" }
+  - { from: cartesian, to: frame, label: wraps in, evidence: "frontend/src/components/charts/CartesianChart.tsx:82#ChartFrame" }
   - from: cartesian
     to: children
     label: scales via context
-    evidence: "frontend/src/components/charts/CartesianChart.tsx:130#CartesianContext"
+    evidence: "frontend/src/components/charts/CartesianChart.tsx:137#CartesianContext"
   - { from: pie, to: frame, evidence: "frontend/src/components/charts/PieChart.tsx:95#ChartFrame" }
   - { from: treemap, to: frame, evidence: "frontend/src/components/charts/Treemap.tsx:187#ChartFrame" }
-  - { from: sankey, to: frame, evidence: "frontend/src/components/charts/SankeyDiagram.tsx:91#ChartFrame" }
+  - { from: sankey, to: frame, evidence: "frontend/src/components/charts/SankeyDiagram.tsx:93#ChartFrame" }
   - { from: slope, to: frame, evidence: "frontend/src/components/charts/SlopeChart.tsx:81#ChartFrame" }
 
   # Animation: every mark calls the chartMotion tokens and draws motion elements; ChartFrame calls useInView.

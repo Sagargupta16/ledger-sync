@@ -17,6 +17,23 @@ export interface MoneyManagerImportStats {
   unchanged: number
 }
 
+/** How one kind of Money Manager setting compared with what is stored (server counts). */
+export interface BackupPlanningCounts {
+  readonly found: number
+  readonly added: number
+  readonly updated: number
+  readonly unchanged: number
+  readonly kept: number
+  readonly removed: number
+  readonly skipped: Readonly<Record<string, number>>
+}
+
+/** Repeat rules and budgets; a part is null when the backup has no such tables. */
+export interface BackupPlanning {
+  readonly repeat_rules: BackupPlanningCounts | null
+  readonly budgets: BackupPlanningCounts | null
+}
+
 /**
  * `preview` is a dry run that saved nothing, with the stats it would commit.
  * `unchanged` means this exact backup was already imported.
@@ -28,6 +45,8 @@ export interface MoneyManagerImportResponse {
   summary: MoneyManagerBackupSummary
   analytics_status: 'ready' | 'failed' | 'skipped'
   analytics_message: string | null
+  /** Null when there is nothing to compare; absent from a server that predates it. */
+  planning?: BackupPlanning | null
 }
 
 export interface MoneyManagerImportParams {

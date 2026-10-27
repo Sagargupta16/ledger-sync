@@ -82,21 +82,24 @@ export function buildBillMap(
 }
 
 export function getBillDotColor(bill: PlacedBill): string {
+  if (bill.source === 'card') {
+    if (bill.cardStatus === 'paid') return rawColors.app.green
+    return bill.cardStatus === 'overdue' ? rawColors.app.red : rawColors.app.purple
+  }
   if (bill.source === 'confirmed') return rawColors.app.green
+  if (bill.source === 'tax') return rawColors.app.orange
   return getCategoryColor(bill.category)
 }
 
-/** Find the first bill from a given start day through end of month */
+/** Find the first bill still to pay from a given start day through end of month */
 function findFirstBillFromDay(
   billMap: Map<number, PlacedBill[]>,
   startDay: number,
   daysInMonth: number,
 ): PlacedBill | null {
   for (let d = startDay; d <= daysInMonth; d++) {
-    const dayBills = billMap.get(d)
-    if (dayBills && dayBills.length > 0) {
-      return dayBills[0]
-    }
+    const next = billMap.get(d)?.find((bill) => !bill.informational)
+    if (next) return next
   }
   return null
 }

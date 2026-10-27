@@ -293,8 +293,14 @@ export async function parseFile(file: File): Promise<ParseResult> {
     throw new FileParseError('File is empty')
   }
 
-  // Lazy-load SheetJS to keep it out of the initial bundle
-  const XLSX = await import('xlsx')
+  // Lazy-load SheetJS to keep it out of the initial bundle. It is not precached either, so the first
+  // upload on a device needs the network to fetch it.
+  let XLSX: typeof import('xlsx')
+  try {
+    XLSX = await import('xlsx')
+  } catch {
+    throw new FileParseError('Could not load the spreadsheet reader. Check your connection and try again.')
+  }
 
   let rawRows: Record<string, unknown>[]
   try {

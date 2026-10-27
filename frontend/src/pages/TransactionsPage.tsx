@@ -8,9 +8,13 @@ import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/u
 import TransactionTable from '@/components/transactions/TransactionTable'
 import TransactionFilters, { type FilterValues } from '@/components/transactions/TransactionFilters'
 import SavedViewsMenu from '@/components/transactions/SavedViewsMenu'
+import SmartSearchIndexCard from '@/components/transactions/SmartSearchIndexCard'
+import SmartSearchPausedNotice from '@/components/transactions/SmartSearchPausedNotice'
+import SmartSearchResults from '@/components/transactions/SmartSearchResults'
 import Pagination from '@/components/transactions/Pagination'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import { useSmartSearchMode } from '@/hooks/api/useSemanticSearch'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { useTransactionPage } from '@/hooks/api/useTransactionPage'
 import { getTodayKey } from '@/lib/dateUtils'
@@ -54,11 +58,17 @@ export default function TransactionsPage() {
   // Bumped on each saved-view apply to remount TransactionFilters, which
   // re-seeds its internal state from initialValues.
   const [filtersVersion, setFiltersVersion] = useState(0)
+  // Smart search ranks the search box by meaning once its index can answer.
+  const [smartSearchOn, setSmartSearchOn] = useState(false)
+  const smart = useSmartSearchMode(smartSearchOn, filters)
+  const smartActive = smart.active !== null
 
   // Build server-side filter params from current UI state
   const serverFilters = useMemo(
-    () => buildServerFilters(filters, sorting, currentPage, itemsPerPage),
-    [filters, sorting, currentPage, itemsPerPage],
+    () => buildServerFilters(
+      smartActive ? { ...filters, query: undefined } : filters, sorting, currentPage, itemsPerPage,
+    ),
+    [filters, smartActive, sorting, currentPage, itemsPerPage],
   )
 
   // Dropdown options + per-type counts, aggregated server-side (no full-ledger
@@ -88,6 +98,10 @@ export default function TransactionsPage() {
   // When filters narrow the result set, show "X of Y" so the card doesn't
   // contradict the filtered count shown in pagination.
   const isFiltered = total !== unfilteredTotal
+  const availableTags = facets?.tags?.map((t) => t.name) ?? []
+  let exportTitle: string | undefined
+  if (smartActive) exportTitle = 'Export covers the regular search. Turn off Smart search to export.'
+  else if (filteredTransactions.length === 0) exportTitle = 'No transactions to export'
 
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters)
@@ -170,9 +184,9 @@ export default function TransactionsPage() {
               // "Export failed" toast, so it never rejects; `void` adapts the
               // async handler to the void-returning onClick prop.
               onClick={() => void handleExportCSV()}
-              disabled={isExporting || filteredTransactions.length === 0}
-              aria-disabled={isExporting || filteredTransactions.length === 0}
-              title={filteredTransactions.length === 0 ? 'No transactions to export' : undefined}
+              disabled={isExporting || filteredTransactions.length === 0 || smartActive}
+              aria-disabled={isExporting || filteredTransactions.length === 0 || smartActive}
+              title={exportTitle}
               variant="outline"
               size="md"
               icon={<Download className={`size-4 ${isExporting ? 'animate-pulse' : ''}`} />}
@@ -245,22 +259,33 @@ export default function TransactionsPage() {
             initialValues={filters}
             tagOptions={facets?.tags ?? []}
             savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
+            smartSearch={smartSearchOn}
+            onSmartSearchChange={setSmartSearchOn}
           />
         </StickyToolbar>
 
-        {/* Table */}
-        <div>
-          <TransactionTable
-            transactions={filteredTransactions}
-            isLoading={pageQuery.isLoading}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            availableTags={facets?.tags?.map((t) => t.name) ?? []}
-          />
-        </div>
+        {smartSearchOn && <SmartSearchIndexCard statusQuery={smart.statusQuery} />}
+        {smart.pausedFor && (
+          <SmartSearchPausedNotice message={smart.pausedFor} onRetry={smart.resume} />
+        )}
+
+        {/* Table: ranked by meaning while Smart search answers the search box */}
+        {smart.active ? (
+          <SmartSearchResults {...smart.active} availableTags={availableTags} />
+        ) : (
+          <div>
+            <TransactionTable
+              transactions={filteredTransactions}
+              isLoading={pageQuery.isLoading}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              availableTags={availableTags}
+            />
+          </div>
+        )}
 
         {/* Pagination */}
-        {total > 0 && (
+        {total > 0 && !smartActive && (
           <div>
             <Pagination
               currentPage={currentPage}

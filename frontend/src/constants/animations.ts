@@ -112,6 +112,12 @@ export function inViewReveal(kind: keyof typeof IN_VIEW_REVEAL, motionEnabled: b
 
 export const TAP_FEEDBACK = { scale: 0.97 } as const
 
+// For a panel that mounts open. Every use except CollapsibleSection passes `layoutDependency` with what can
+// move the open panel or resize its `layout` parent, or else its open flag (`true`
+// in a form that only renders open), so Motion measures layout on those changes
+// instead of every render. A resizing parent projects the panel from its last
+// measured box, which a #main-content scroll leaves stale, so CollapsibleSection,
+// whose content can resize it on any render, leaves the dependency off.
 export const DISCLOSURE_TRANSITION = {
   layout: 'position',
   initial: { opacity: 0, y: -8 },

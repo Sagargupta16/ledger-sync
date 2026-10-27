@@ -9,6 +9,7 @@ import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
 
+import FilingCalendar from './components/FilingCalendar'
 import MultiYearProjectionTable from './components/MultiYearProjectionTable'
 import TaxEstimateBasis from './components/TaxEstimateBasis'
 import TaxOverviewSections from './components/TaxOverviewSections'
@@ -101,6 +102,7 @@ export default function TaxPlanningPage() {
         >
           <TaxEstimateBasis planning={planning} />
           <TaxOverviewSections planning={planning} />
+          <FilingCalendar planning={planning} />
           <TaxSavingSuggestions planning={planning} />
           <TaxYearChart planning={planning} />
           <TaxRegimeComparisonSection planning={planning} />

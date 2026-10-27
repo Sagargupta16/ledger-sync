@@ -24,6 +24,8 @@ interface NetWorthAreaPlotProps {
   allCategories: readonly string[]
   effectiveStacked: boolean
   showProjectionLine: boolean
+  /** Also draw the previous straight-line projection beside the compound one. */
+  showLinearLine: boolean
   spansYears: boolean
   anchor: NetWorthPoint | null
   anchorDateIso: string
@@ -37,6 +39,7 @@ const PROJECTION_SERIES: readonly SeriesSpec[] = [
   { key: 'projected' },
   { key: 'projectionLow' },
   { key: 'projectionHigh' },
+  { key: 'linear' },
 ]
 
 const monthLabel = (key: string) => formatChartPeriod(key, true)
@@ -47,6 +50,7 @@ export function NetWorthAreaPlot({
   allCategories,
   effectiveStacked,
   showProjectionLine,
+  showLinearLine,
   spansYears,
   anchor,
   anchorDateIso,
@@ -55,6 +59,7 @@ export function NetWorthAreaPlot({
 }: Readonly<NetWorthAreaPlotProps>) {
   // Resolved hex for the SVG attributes; the snapshots repaint them on a theme toggle.
   const app = usePaletteSnapshot(rawColors.app)
+  const ink = usePaletteSnapshot(rawColors.text)
   const config = usePaletteSnapshot(CATEGORY_CONFIG)
   const layers = useMemo(
     () => (effectiveStacked
@@ -83,8 +88,15 @@ export function NetWorthAreaPlot({
         visibleRange={range}
         height={360}
         mobileHeight={300}
-        ariaLabel="Cumulative income less expenses over time, with optional allocated category breakdown and forward projection band"
-        tooltip={<NetWorthTooltip layers={layers} color={app.blue} projection={showProjectionLine} />}
+        ariaLabel="Cumulative income less expenses over time, with optional allocated category breakdown and a forward compound projection band beside the previous straight line"
+        tooltip={(
+          <NetWorthTooltip
+            layers={layers}
+            color={app.blue}
+            projection={showProjectionLine}
+            linear={showLinearLine ? ink.tertiary : null}
+          />
+        )}
       >
         <Grid />
         <Crosshair />
@@ -121,6 +133,10 @@ export function NetWorthAreaPlot({
               seriesIndex={1}
             />
             <LineSeries dataKey="projected" color={app.blue} strokeWidth={2.5} dash="6 4" seriesIndex={2} />
+            {/* The previous model, kept thin and grey so the compound bend reads against it. */}
+            {showLinearLine && (
+              <LineSeries dataKey="linear" color={ink.tertiary} strokeWidth={1.5} dash="3 4" seriesIndex={3} />
+            )}
           </>
         )}
         {milestones.map((milestone) => (

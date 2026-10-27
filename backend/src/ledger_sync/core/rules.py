@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
+from ledger_sync.core.category_overrides import fixed_transaction_ids
 from ledger_sync.db.models import CategorizationRule, Transaction, TransactionType
 from ledger_sync.services.ledger_dimensions import sync_transactions_dimensions
 from ledger_sync.utils.logging import logger
@@ -67,6 +68,7 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
     if not rules:
         session.commit()
         return (0, 0)
+    fixed = fixed_transaction_ids(session, user_id)
     rows = list(
         session.scalars(
             select(Transaction)
@@ -86,6 +88,8 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
             if rule is None:
                 continue
             matched += 1
+            if row.transaction_id in fixed:
+                continue  # a review-queue fix wins over rules, as it does at import
             if row.category == rule.category and row.subcategory == rule.subcategory:
                 continue
             row.category = rule.category

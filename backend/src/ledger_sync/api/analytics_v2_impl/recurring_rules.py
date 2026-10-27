@@ -17,6 +17,7 @@ from ledger_sync.core.analytics.recurring import (
     effective_pattern_kind,
     normalize_recurring_note,
 )
+from ledger_sync.core.analytics.recurring_amounts import MANUAL_ACCOUNT as _MANUAL_ACCOUNT
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.models import RecurringTransaction
 
@@ -72,7 +73,6 @@ def _next_expected_for_record(record: RecurringTransaction) -> str | None:
 
 
 _VALID_PATTERN_KINDS = {"commitment", "habit"}
-_MANUAL_ACCOUNT = "Manual"
 _USER_EDITABLE_FIELDS = (
     "pattern_name",
     "frequency",

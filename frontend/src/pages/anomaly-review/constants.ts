@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Archive,
   ArrowRightLeft,
+  BadgePercent,
   CalendarX,
   Copy,
   HelpCircle,
@@ -13,7 +14,9 @@ import {
 
 import { colors, cssVar } from '@/constants/colors'
 import type { Anomaly, AnomalySeverityValue, AnomalyTypeValue } from '@/services/api/analyticsV2'
-import { ANOMALY_TYPE_VALUES, EMITTED_ANOMALY_TYPES } from '@/services/api/analyticsV2'
+import { EMITTED_ANOMALY_TYPES } from '@/services/api/analyticsV2'
+
+import { ANOMALY_TYPE_ORDER } from './typeCopy'
 
 /**
  * The single label/icon/style vocabulary for anomalies.
@@ -33,6 +36,7 @@ const ANOMALY_TYPE_LABELS: Record<AnomalyTypeValue, string> = {
   missing_recurring: 'Missing Recurring',
   budget_exceeded: 'Budget Exceeded',
   closed_account_activity: 'Closed Account Activity',
+  fee_charge: 'Fee or Interest',
 }
 
 const ANOMALY_TYPE_ICONS: Record<AnomalyTypeValue, LucideIcon> = {
@@ -43,6 +47,7 @@ const ANOMALY_TYPE_ICONS: Record<AnomalyTypeValue, LucideIcon> = {
   missing_recurring: CalendarX,
   budget_exceeded: AlertTriangle,
   closed_account_activity: Archive,
+  fee_charge: BadgePercent,
 }
 
 export const SEVERITY_LABELS: Record<AnomalySeverityValue, string> = {
@@ -121,15 +126,14 @@ export function severityStyle(severity: Anomaly['severity']): SeverityStyle {
  * Options for the anomaly-type filter, derived from the label map so the two can
  * never drift.
  *
- * Only the types a detector actually writes are offered:
- * `core/analytics/anomalies.py` emits three of the seven enum members, so a chip
- * for `unusual_category`, `large_transfer`, `duplicate_suspected` or
- * `missing_recurring` would filter to an empty list every time. The maps above
- * still cover all seven because a row written by a future detector must render.
+ * Only the types a detector writes are offered (every member today), so no
+ * option can filter to an empty list by construction, in the order the cards
+ * and chips use. The maps above still cover the whole enum because a row
+ * written by a future detector must render.
  */
 export const ANOMALY_TYPE_FILTER_OPTIONS: readonly { value: string; label: string }[] = [
   { value: '', label: 'All Types' },
-  ...ANOMALY_TYPE_VALUES.filter((type) =>
+  ...ANOMALY_TYPE_ORDER.filter((type) =>
     (EMITTED_ANOMALY_TYPES as readonly string[]).includes(type),
   ).map((type) => ({ value: type, label: ANOMALY_TYPE_LABELS[type] })),
 ]

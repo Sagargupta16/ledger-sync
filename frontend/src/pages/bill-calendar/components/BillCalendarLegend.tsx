@@ -11,6 +11,22 @@ export default function BillCalendarLegend() {
         <span>Detected</span>
       </div>
       <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+        <span className="h-2 w-2 rounded-full bg-app-purple" />
+        <span>Card due</span>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+        <span className="h-2 w-2 rounded-full bg-app-red" />
+        <span>Card overdue</span>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+        <span className="h-2 w-2 rounded-full bg-app-orange opacity-50" />
+        <span>Advance tax date</span>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+        <span className="h-2 w-2 rounded-full bg-app-green opacity-50" />
+        <span>Faded: card paid or still open, not in totals</span>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
         <span className="flex items-end gap-0.5" aria-hidden="true">
           <span className="h-1 w-1 rounded-full bg-text-tertiary" />
           <span className="h-2 w-2 rounded-full bg-text-tertiary" />

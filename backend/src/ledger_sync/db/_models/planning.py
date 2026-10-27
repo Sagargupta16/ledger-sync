@@ -69,12 +69,14 @@ class RecurringTransaction(Base):
     )  # Allowed variance
     expected_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Day of month/week
     # Amount the user typed, kept beside the detected ``expected_amount``; NULL
-    # means no override. Expand phase only: nothing reads or writes it yet, so a
-    # backend promoted before the migration must never name it. ``deferred``
-    # keeps it out of SELECTs. ``FetchedValue`` (no DDL, no Python default)
-    # stops the ORM from inserting an explicit NULL for an unset nullable
-    # column, and ``eager_defaults=False`` below stops it from adding the column
-    # to INSERT ... RETURNING. See MIGRATION_NOTES.md, Phase 2.
+    # means no override. Phase 2 reads and writes it through
+    # ``core/analytics/recurring_amounts``; refresh never writes it. It stays
+    # ``deferred`` (a reader of the effective amount adds ``load_user_amount()``)
+    # and keeps ``FetchedValue`` and ``eager_defaults=False`` (below) until
+    # phase 5. ``FetchedValue`` (no DDL, no Python default) stops the ORM from
+    # inserting an explicit NULL for an unset nullable column, and
+    # ``eager_defaults=False`` stops it from adding the column to INSERT ...
+    # RETURNING. See MIGRATION_NOTES.md, Recurring User Amount.
     user_expected_amount: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=15, scale=2),
         nullable=True,

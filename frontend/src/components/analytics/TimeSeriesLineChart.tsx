@@ -5,6 +5,8 @@
  * more series the legend toggles each one and the rest morph to the new axis.
  */
 
+import { useMemo } from 'react'
+
 import { CategoryAxis, ValueAxis } from '@/components/charts/Axis'
 import CartesianChart from '@/components/charts/CartesianChart'
 import CartesianTooltip, { type TooltipSeries } from '@/components/charts/CartesianTooltip'
@@ -18,6 +20,7 @@ import ChartRangeControls from '@/components/ui/ChartRangeControls'
 import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { useChartRange } from '@/components/ui/useChartRange'
+import { useCurrencyKey } from '@/hooks/useCurrencyKey'
 import { chartDateKey, formatChartDate, formatChartPeriod } from '@/lib/chartDateLabels'
 import { formatCurrency } from '@/lib/formatters'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
@@ -50,9 +53,39 @@ export default function TimeSeriesLineChart({
   const dateKey = chartData.length > 0 && chartDateKey(String(chartData[0].period ?? ''))
     ? 'period'
     : 'displayPeriod'
-  const range = useChartRange(chartData.map((row) => String(row[dateKey] ?? '')))
+  const labels = useMemo(() => chartData.map((row) => String(row[dateKey] ?? '')), [chartData, dateKey])
+  const range = useChartRange(labels)
   const toggles = seriesKeys.length > 1
   const [hidden, toggleSeries] = useHiddenSeries(seriesKeys, toggles)
+  // The brush overview and the screen-reader table come from the data alone, so brush steps and
+  // legend toggles reuse them. The overview traces the total of every series, the whole chart's shape.
+  const overview = useMemo(() => chartData.map((row) => seriesKeys.reduce((sum, key) => {
+    const value = row[key]
+    return typeof value === 'number' ? sum + value : sum
+  }, 0)), [chartData, seriesKeys])
+  const currencyKey = useCurrencyKey()
+  const table = useMemo(() => {
+    void currencyKey // formatCurrency reads the display currency at call time, so a switch rebuilds the cells
+    return chartDataTable(
+      chartData,
+      [
+        {
+          header: 'Period',
+          rowHeader: true,
+          value: (row) => formatChartDate(String(row[dateKey] ?? '')),
+        },
+        ...seriesKeys.map((key) => ({
+          header: legendFormatter?.(key) ?? key,
+          value: (row: Record<string, number | string>) => {
+            const value = row[key]
+            return typeof value === 'number' ? formatCurrency(value) : String(value ?? '')
+          },
+        })),
+      ],
+      ariaLabel ?? 'Line chart data',
+      (row, index) => `${String(row.displayPeriod ?? 'row')}-${index}`,
+    )
+  }, [chartData, seriesKeys, legendFormatter, dateKey, ariaLabel, currencyKey])
 
   if (chartData.length === 0 || seriesKeys.length === 0) {
     return <ChartEmptyState message={emptyMessage} height={height} />
@@ -97,36 +130,8 @@ export default function TimeSeriesLineChart({
           <LineSeries key={key} dataKey={key} color={colorFor(index)} seriesIndex={index} />
         ))}
       </CartesianChart>
-      {zoomable && (
-        <ChartBrush
-          range={range}
-          // The overview traces the total of every series, the shape of the whole chart.
-          values={chartData.map((row) => seriesKeys.reduce((sum, key) => {
-            const value = row[key]
-            return typeof value === 'number' ? sum + value : sum
-          }, 0))}
-          ariaLabel="Chart zoom"
-        />
-      )}
-      {chartDataTable(
-        chartData,
-        [
-          {
-            header: 'Period',
-            rowHeader: true,
-            value: (row) => formatChartDate(String(row[dateKey] ?? '')),
-          },
-          ...seriesKeys.map((key) => ({
-            header: legendFormatter?.(key) ?? key,
-            value: (row: Record<string, number | string>) => {
-              const value = row[key]
-              return typeof value === 'number' ? formatCurrency(value) : String(value ?? '')
-            },
-          })),
-        ],
-        ariaLabel ?? 'Line chart data',
-        (row, index) => `${String(row.displayPeriod ?? 'row')}-${index}`,
-      )}
+      {zoomable && <ChartBrush range={range} values={overview} ariaLabel="Chart zoom" />}
+      {table}
     </>
   )
 }

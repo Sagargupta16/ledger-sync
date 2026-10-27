@@ -109,9 +109,9 @@ export function useAnalyticsTimeFilter(
   )
 
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(defaultMode)
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
-  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+  const [currentYear, setCurrentYear] = useState(getCurrentYear)
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
+  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
 
   // The state above is seeded ONCE from defaults (fiscalYearStartMonth falls
   // back to 4) before /api/preferences resolves. useState initializers never
@@ -216,11 +216,13 @@ export function useAnalyticsTimeFilter(
       rawMin = transactions.minDate
       rawMax = transactions.maxDate
     } else if (transactions && transactions.length > 0) {
-      const dates = transactions
-        .map((t) => t.date.substring(0, 10))
-        .sort((a, b) => a.localeCompare(b))
-      rawMin = dates[0]
-      rawMax = dates.at(-1)
+      // ISO date keys order as plain text, so one pass of < and > finds both
+      // ends without mapping and collation-sorting every row of the ledger.
+      for (const t of transactions) {
+        const key = t.date.substring(0, 10)
+        if (rawMin === undefined || key < rawMin) rawMin = key
+        if (rawMax === undefined || key > rawMax) rawMax = key
+      }
     }
     if (!rawMin) return { minDate: undefined, maxDate: undefined }
     const clampedMin =

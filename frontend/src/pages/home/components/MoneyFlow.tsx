@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, type CSSProperties } from 'react'
 import { motion, useInView, type Variants } from 'motion/react'
 
 import { EASING } from '@/constants/animations'
@@ -17,6 +17,7 @@ import { CountUp } from './CountUp'
 import { NODE_WIDTH, layoutFlow } from './flowLayout'
 import { SampleBadge } from './SampleBadge'
 import { useElementWidth } from './useElementWidth'
+import './moneyFlowBeads.css'
 
 const COMPACT_BELOW = 420
 const DRAW_START = 0.2
@@ -24,6 +25,11 @@ const DRAW_START = 0.2
 const BEAD_PERIOD = 16
 const BEAD_CYCLE = BEAD_PERIOD * 4
 const BEAD_SECONDS = BEAD_CYCLE / 36
+/** The bead loop runs in CSS (moneyFlowBeads.css), so no script runs per frame. */
+const BEAD_LOOP = {
+  '--bead-offset': `${-BEAD_CYCLE}px`,
+  '--bead-seconds': `${BEAD_SECONDS}s`,
+} as CSSProperties
 
 const sourceNode: Variants = {
   hidden: { scaleY: 0, opacity: 0 },
@@ -104,6 +110,8 @@ export function MoneyFlow() {
           ref={svgRef}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           className="block h-auto w-full"
+          style={BEAD_LOOP}
+          data-flowing={flowing ? '' : undefined}
           role="img"
           aria-labelledby={`${id}-title`}
         >
@@ -152,23 +160,16 @@ export function MoneyFlow() {
               {!reduce && (
                 <motion.path
                   data-flow-bead=""
+                  className="money-flow-bead"
                   d={link.path}
                   fill="none"
                   stroke={link.color}
                   strokeWidth={Math.min(5, Math.max(2, link.thickness * 0.1))}
                   strokeLinecap="round"
                   strokeDasharray={`0.1 ${BEAD_PERIOD - 0.1}`}
-                  initial={{ opacity: 0, strokeDashoffset: 0 }}
-                  animate={{
-                    opacity: entered ? 0.9 : 0,
-                    strokeDashoffset: flowing ? -BEAD_CYCLE : 0,
-                  }}
-                  transition={{
-                    opacity: { delay: DRAW_START + 1, duration: 0.4 },
-                    strokeDashoffset: flowing
-                      ? { duration: BEAD_SECONDS, ease: 'linear', repeat: Infinity }
-                      : { duration: 0 },
-                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: entered ? 0.9 : 0 }}
+                  transition={{ opacity: { delay: DRAW_START + 1, duration: 0.4 } }}
                 />
               )}
               <motion.rect

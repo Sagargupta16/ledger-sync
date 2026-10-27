@@ -8,6 +8,11 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND, effective_pattern_kind
+from ledger_sync.core.analytics.recurring_amounts import (
+    effective_amount_sql,
+    effective_expected_amount,
+    load_user_amount,
+)
 from ledger_sync.core.expense_class import without_capital_losses
 from ledger_sync.core.query_helpers import capital_loss_keys_for
 from ledger_sync.db.models import (
@@ -246,7 +251,7 @@ _PERIODS_PER_YEAR = {
 
 def _monthly_equivalent(record: RecurringTransaction) -> float:
     periods = _PERIODS_PER_YEAR.get(record.frequency, 12)
-    return abs(to_decimal(record.expected_amount)) * periods / 12
+    return abs(to_decimal(effective_expected_amount(record))) * periods / 12
 
 
 def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
@@ -254,16 +259,20 @@ def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
     include_habits = bool(args.get("include_habits", False))
     # "dismissed" is the tombstone for a detected pattern the user deleted: it
     # stays stored so re-detection does not resurrect it, but is never listed.
-    stmt = select(RecurringTransaction).where(
-        RecurringTransaction.user_id == user.id,
-        RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+    stmt = (
+        select(RecurringTransaction)
+        .options(load_user_amount())
+        .where(
+            RecurringTransaction.user_id == user.id,
+            RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
+        )
     )
     if active_only:
         stmt = stmt.where(RecurringTransaction.is_active.is_(True))
     if not include_habits:
         # An effective commitment is always stored as one; this only narrows the read.
         stmt = stmt.where(RecurringTransaction.pattern_kind == "commitment")
-    stmt = stmt.order_by(RecurringTransaction.expected_amount.desc())
+    stmt = stmt.order_by(effective_amount_sql().desc())
     # The kind the REST list and the dashboard show: old unconfirmed
     # detections of periodic shopping read as habits, not bills.
     rows: list[tuple[RecurringTransaction, str]] = []
@@ -287,7 +296,7 @@ def _exec_list_recurring(user: User, db: Session, args: dict[str, Any]) -> Any:
                 "type": r.transaction_type.value if r.transaction_type else None,
                 "pattern_kind": kind,
                 "frequency": r.frequency.value if r.frequency else None,
-                "expected_amount": to_decimal(r.expected_amount),
+                "expected_amount": to_decimal(effective_expected_amount(r)),
                 "monthly_equivalent": _monthly_equivalent(r),
                 "last_occurrence": (
                     r.last_occurrence.date().isoformat() if r.last_occurrence else None

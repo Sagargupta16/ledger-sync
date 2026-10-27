@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
 import type { Block, ChatMessage, ToolSpec } from '@/lib/chatAdapters'
 import { sendChat } from '@/lib/chatAdapters'
 import { buildFinancialContext } from '@/lib/chatContext'
 import { executeTool, fetchTools } from '@/lib/chatTools'
+import { getSessionSignal, isCurrentSession } from '@/lib/session'
 import { aiConfigService, type AIMode } from '@/services/api/aiConfig'
 import { aiUsageService } from '@/services/api/aiUsage'
 import { useAuthStore } from '@/store/authStore'
@@ -52,6 +53,17 @@ function textFromBlocks(blocks: Block[]): string {
 function sendErrorMessage(err: unknown): string | null {
   if (err instanceof DOMException && err.name === 'AbortError') return null
   return err instanceof Error ? err.message : 'Failed to send message'
+}
+
+/**
+ * Refresh ['ai-usage'] (the chat badge and Settings) once a send has settled
+ * and every usage log it posted has landed, unless the session that sent it
+ * has ended. This is what keeps the badge current without polling.
+ */
+function refreshUsage(queryClient: QueryClient, signal: AbortSignal, usageLogs: Promise<void>[]): void {
+  void Promise.allSettled(usageLogs).then(() => {
+    if (isCurrentSession(signal)) void queryClient.invalidateQueries({ queryKey: ['ai-usage'] })
+  })
 }
 
 interface ResolvedCredentials {
@@ -110,6 +122,7 @@ export function useChat(
   const runRef = useRef(0)
   const contextRef = useRef<string | null>(null)
   const contextTimestamp = useRef(0)
+  const queryClient = useQueryClient()
 
   // Load tools once; they're static per deploy. Disabled until the user is
   // authed so anonymous browsing doesn't try to fetch.
@@ -135,6 +148,9 @@ export function useChat(
       // Created before any await so Stop works during credential/context loading.
       const controller = new AbortController()
       abortRef.current = controller
+      // Also before any await: only the session that sent may refresh usage.
+      const sessionSignal = getSessionSignal()
+      const usageLogs: Promise<void>[] = []
 
       const userMsg: ChatMessage = { role: 'user', content }
       const conversation: ChatMessage[] = [...messages, userMsg]
@@ -160,6 +176,7 @@ export function useChat(
           conversation,
           tools: tools ?? [],
           signal: controller.signal,
+          usageLogs,
           onFinalText: (text) => {
             if (!isCurrent()) return
             if (text.trim()) {
@@ -188,9 +205,11 @@ export function useChat(
           abortRef.current = null
           setIsStreaming(false)
         }
+        // A stopped or failed send can still have used quota, so refresh either way.
+        refreshUsage(queryClient, sessionSignal, usageLogs)
       }
     },
-    [mode, provider, model, region, isStreaming, messages, tools],
+    [mode, provider, model, region, isStreaming, messages, tools, queryClient],
   )
 
   // The public `send` is declared void-returning (ChatPanel's onSend prop), so
@@ -234,6 +253,8 @@ interface LoopParams {
   conversation: ChatMessage[]
   tools: ToolSpec[]
   signal: AbortSignal
+  /** Each round's usage log (browser-direct providers), so the usage refresh can wait for them. */
+  usageLogs: Promise<void>[]
   onFinalText: (text: string) => void
   onStatus: (status: string) => void
 }
@@ -285,9 +306,10 @@ async function runRounds(params: LoopParams, convo: ChatMessage[], roundsLeft: n
   // Report usage back to our server. For Bedrock the backend already
   // logged it (usage === null) so we skip; for OpenAI/Anthropic we post
   // the provider-reported token counts so the user's usage dashboard
-  // and limit enforcement stay accurate.
+  // and limit enforcement stay accurate. The send's usage refresh waits
+  // for these; the chat itself does not.
   if (response.usage) {
-    aiUsageService
+    const logged = aiUsageService
       .log({
         provider: params.provider,
         model: params.model,
@@ -299,6 +321,7 @@ async function runRounds(params: LoopParams, convo: ChatMessage[], roundsLeft: n
         // Usage logging is best-effort -- never fail the chat over it.
         console.warn('[useChat] failed to log usage:', err)
       })
+    params.usageLogs.push(logged)
   }
 
   // Append the assistant turn (whatever mix of text + tool_use).

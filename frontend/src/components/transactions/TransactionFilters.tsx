@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
-import { Search, Filter, X, Calendar } from 'lucide-react'
+import { Search, Filter, X, Calendar, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button, Input, Select } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import type { TagFacet } from '@/services/api/transactions'
+
+import SmartSearchToggle from './SmartSearchToggle'
 
 interface TransactionFiltersProps {
   onFilterChange: (filters: FilterValues) => void
@@ -25,6 +27,10 @@ interface TransactionFiltersProps {
   tagOptions?: TagFacet[]
   /** Rendered in the search-bar row between the input and the Filters toggle. */
   savedViewsSlot?: ReactNode
+  /** Search box ranks by meaning (semantic search) instead of matching words. */
+  smartSearch?: boolean
+  /** Shows the Smart search toggle when set. */
+  onSmartSearchChange?: (enabled: boolean) => void
 }
 
 export interface FilterValues {
@@ -49,6 +55,8 @@ export default function TransactionFilters({
   initialValues,
   tagOptions = [],
   savedViewsSlot,
+  smartSearch = false,
+  onSmartSearchChange,
 }: Readonly<TransactionFiltersProps>) {
   const [filters, setFilters] = useState<FilterValues>(initialValues ?? {})
   const [searchQuery, setSearchQuery] = useState(initialValues?.query ?? '')
@@ -114,14 +122,19 @@ export default function TransactionFilters({
           <div className="min-w-[12rem] flex-1">
             <Input
               type="text"
-              placeholder="Search transactions by note, category, or account..."
+              placeholder={smartSearch
+                ? 'Describe it, e.g. coffee with friends'
+                : 'Search transactions by note, category, or account...'}
               value={searchQuery}
               onChange={(e) => handleFilterChange('query', e.target.value)}
-              icon={<Search className="size-4" />}
+              icon={smartSearch ? <Sparkles className="size-4" /> : <Search className="size-4" />}
               className="lg:min-h-10"
-              aria-label="Search transactions"
+              aria-label={smartSearch ? 'Smart search transactions by meaning' : 'Search transactions'}
             />
           </div>
+          {onSmartSearchChange && (
+            <SmartSearchToggle pressed={smartSearch} onChange={onSmartSearchChange} />
+          )}
           {savedViewsSlot}
           <Button
             type="button"
@@ -169,6 +182,11 @@ export default function TransactionFilters({
           <motion.div
             id="advanced-filters"
             {...DISCLOSURE_TRANSITION}
+            // On a phone the Clear button can wrap the search row, which moves this
+            // panel and resizes the `layout` wrapper around it. Anything else that can
+            // resize this row or the panel while it is open must also change this value,
+            // or a #main-content scroll leaves the measured box stale and the wrapper misdraws it.
+            layoutDependency={hasActiveFilters}
             // Capped and scrollable: the filter bar is a sticky toolbar, so an
             // uncapped panel would pin over the whole table on a phone.
             className="ledger-panel max-h-[45dvh] space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5"

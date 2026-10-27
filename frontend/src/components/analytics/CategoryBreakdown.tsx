@@ -268,6 +268,9 @@ export default function CategoryBreakdown({
                 {isExpanded && hasSubcategories && (
                   <motion.div
                     {...DISCLOSURE_TRANSITION}
+                    // The row button above resizes with this category's data (its sparkline
+                    // and average come from a second query), which moves this panel.
+                    layoutDependency={cat}
                     className="overflow-hidden"
                   >
                     <div className="ml-3 mr-1 sm:ml-6 sm:mr-2 py-1 space-y-0.5">

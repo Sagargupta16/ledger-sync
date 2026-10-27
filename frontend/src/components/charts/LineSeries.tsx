@@ -5,12 +5,14 @@
  * through a clip (`pathLength` overwrites dash patterns). New data morphs `d`,
  * which Motion only interpolates between paths of one command structure, so a
  * new point count remounts the path and replays a quick wipe. A resize jumps.
+ * Hovering changes only the active row: the geometry is memoized and SeriesPath
+ * is a memo component, so the paths skip those renders and only the ring moves.
  */
 
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 
-import { useCartesian, useChartFrame, type FrameState } from './chartContext'
+import { useCartesian, useChartFrame, type FrameState, type PlotBox } from './chartContext'
 import { CHART_MOTION, chartTransition, staggerDelay } from './chartMotion'
 import { areaPath, linePath, type Curve, type Point } from './paths'
 import type { CategoryScale } from './scales'
@@ -44,18 +46,20 @@ export interface LineSeriesProps {
 
 /** A stroked value series: draws in left to right, morphs with the data, rings the active row. */
 export default function LineSeries({ showDots = 'auto', activeDot = true, ...path }: LineSeriesProps) {
-  const { rows, numberAt, stacked, scaleFor, category, activeIndex } = useCartesian()
-  const scale = scaleFor(path.dataKey)
-  const stack = stacked(path.dataKey)
-  const top = rows.map((row, index) => {
-    const value = stack ? stack[index].y1 : numberAt(row, path.dataKey)
+  const { rows, numberAt, stacked, scaleFor, category, plot, activeIndex } = useCartesian()
+  const { dataKey } = path
+  const scale = scaleFor(dataKey)
+  const stack = stacked(dataKey)
+  const top = useMemo(() => rows.map((row, index) => {
+    const value = stack ? stack[index].y1 : numberAt(row, dataKey)
     return value === null ? null : scale(value)
-  })
+  }), [rows, numberAt, scale, stack, dataKey])
   const count = top.filter((y) => y !== null).length
   const activeY = activeIndex === null ? null : top[activeIndex]
   return (
     <g>
-      <SeriesPath {...path} top={top} dots={showDots === true || (showDots === 'auto' && count === 1)} />
+      <SeriesPath {...path} top={top} category={category} plot={plot}
+        dots={showDots === true || (showDots === 'auto' && count === 1)} />
       {activeDot && activeIndex !== null && activeY !== null && (
         <ActiveDot x={category.center(activeIndex)} y={activeY} color={path.color} />
       )}
@@ -68,6 +72,9 @@ export interface SeriesPathProps extends Omit<LineSeriesProps, 'showDots' | 'act
   readonly top: Ys
   /** A fill's bottom edge. Given means this path is a gradient fill. */
   readonly bottom?: Ys
+  /** The chart's category scale and plot box, passed in so a hover never re-renders the path. */
+  readonly category: CategoryScale
+  readonly plot: PlotBox
   /** Fill opacity at the top (default 0.22), fading to 0 at the bottom. */
   readonly fillOpacity?: number
   /** Mark every point with a small dot. */
@@ -85,15 +92,19 @@ interface Shape {
 }
 
 /** One series' animated path: a stroke, or a gradient fill when `bottom` is given. */
-export function SeriesPath({
-  dataKey, color, top, bottom, fillOpacity = 0.22, strokeWidth = 2.25, dash,
+export const SeriesPath = memo(function SeriesPath({
+  dataKey, color, top, bottom, category, plot, fillOpacity = 0.22, strokeWidth = 2.25, dash,
   curve = 'monotone', connectNulls = true, opacity, seriesIndex = 0, dots = false,
 }: SeriesPathProps) {
   const frame = useChartFrame()
-  const { category, plot } = useCartesian()
-  const runs = toRuns(top, bottom, category, connectNulls)
-  const d = runs.map((run) => (bottom ? areaPath(run.top, run.bottom, curve) : linePath(run.top, curve))).join('')
-  const structure = `${curve}|${runs.map((run) => run.top.length).join(',')}`
+  const { runs, d, structure } = useMemo(() => {
+    const found = toRuns(top, bottom, category, connectNulls)
+    return {
+      runs: found,
+      d: found.map((run) => (bottom ? areaPath(run.top, run.bottom, curve) : linePath(run.top, curve))).join(''),
+      structure: `${curve}|${found.map((run) => run.top.length).join(',')}`,
+    }
+  }, [top, bottom, category, connectNulls, curve])
   const box = `${plot.x},${plot.y},${plot.width},${plot.height}`
   const [shape, setShape] = useState<Shape>(() => ({ structure, box, d, epoch: 0, rewipe: false, snap: true }))
   // Previous-render bookkeeping, updated during render as React documents.
@@ -150,7 +161,7 @@ export function SeriesPath({
       </g>
     </>
   )
-}
+})
 
 /** The bookkeeping after this render, or null when nothing changed: a new structure remounts, a new box snaps, new data morphs. */
 function nextShape(shape: Shape, { structure, box, d }: Pick<Shape, 'structure' | 'box' | 'd'>, frame: FrameState): Shape | null {

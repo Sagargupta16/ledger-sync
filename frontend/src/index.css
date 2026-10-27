@@ -460,6 +460,19 @@ body {
   mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
 }
 
+/* The beams sit in their own unmasked layer over the field. Inside the masked,
+   translucent field every beam frame re-rendered a viewport-sized masked
+   surface (79% of the GPU process idle on the dashboard, 2026-10-26); here
+   each beam carries the field's 0.48 opacity and bottom fade itself, with no
+   mask, so the static grid is drawn once and only two 1px lines move. */
+.workspace-motion-beams {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .workspace-motion-beam {
   position: absolute;
   display: block;
@@ -472,6 +485,9 @@ body {
   bottom: 0;
   left: -2px;
   width: 1px;
+  /* The field's bottom fade, painted into the beam's own full-height box: a
+     colour-to-transparent gradient draws what the mask did, without a mask. */
+  background: linear-gradient(to bottom, var(--color-app-blue-vibrant) 0%, transparent 92%);
   animation: workspace-scan-x 14s linear infinite;
 }
 
@@ -557,6 +573,7 @@ body {
 
 /* ===== ANIMATIONS ===== */
 
+/* Opacities carry the field's 0.48: 0.42 x 0.48 = 0.2016. */
 @keyframes workspace-scan-x {
   0%,
   12% {
@@ -566,7 +583,7 @@ body {
 
   18%,
   82% {
-    opacity: 0.42;
+    opacity: 0.2016;
   }
 
   88%,
@@ -576,6 +593,9 @@ body {
   }
 }
 
+/* 0.28 x 0.48 = 0.1344, times the field's bottom fade at the beam's height:
+   the fade is linear in y and y is linear in time, so it falls in a straight
+   line from 18% and reaches 0 at 79.9%, where the old mask hid the beam. */
 @keyframes workspace-scan-y {
   0%,
   12% {
@@ -583,9 +603,16 @@ body {
     transform: translate3d(0, 0, 0);
   }
 
-  18%,
-  82% {
-    opacity: 0.28;
+  15% {
+    opacity: 0.0642;
+  }
+
+  18% {
+    opacity: 0.1225;
+  }
+
+  79.9% {
+    opacity: 0;
   }
 
   88%,
@@ -626,7 +653,21 @@ body {
 .skeleton-surface,
 .skeleton {
   background: var(--skeleton-base);
+}
+
+/* A `.skeleton-group` wrapper pulses its bars as one animated layer instead of
+   one per bar. The bars are flat and never overlap, so the group opacity draws
+   the same pixels. Put it on a wrapper that paints nothing itself, or its fill
+   and borders would pulse too. */
+.skeleton-surface,
+.skeleton,
+.skeleton-group {
   animation: skeleton-pulse 1.35s ease-in-out infinite;
+}
+
+.skeleton-group .skeleton-surface,
+.skeleton-group .skeleton {
+  animation: none;
 }
 
 @keyframes fade-up {

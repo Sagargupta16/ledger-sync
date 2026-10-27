@@ -12,7 +12,36 @@ const mocks = vi.hoisted(() => ({
   getDataHealth: vi.fn(),
   refreshAnalytics: vi.fn(),
   updateCapitalLossCategories: vi.fn(),
+  // The balance-check panel runs its own query. An empty summary keeps it off
+  // the network and out of these assertions.
+  getBalanceCheckSummary: vi.fn(() =>
+    Promise.resolve({ as_of: '2026-07-26', idle_days: 30, tolerance: 1, accounts: [] }),
+  ),
+  // The bank-alert panel too.
+  listBankAlerts: vi.fn(() =>
+    Promise.resolve({
+      alerts: [],
+      counts: { matched: 0, missing: 0, ignored: 0 },
+      window_days: 2,
+      since: '2026-05-27',
+      truncated: false,
+      last_import_at: null,
+    }),
+  ),
 }))
+
+vi.mock('@/services/api/bankAlerts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/api/bankAlerts')>()
+  return { ...actual, bankAlertsService: { ...actual.bankAlertsService, list: mocks.listBankAlerts } }
+})
+
+vi.mock('@/services/api/balanceChecks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/api/balanceChecks')>()
+  return {
+    ...actual,
+    balanceChecksService: { ...actual.balanceChecksService, getSummary: mocks.getBalanceCheckSummary },
+  }
+})
 
 vi.mock('@/services/api/analyticsV2', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/api/analyticsV2')>()

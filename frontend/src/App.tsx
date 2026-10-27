@@ -35,6 +35,8 @@ const pageImports = {
   ReturnsAnalysisPage: () => import('@/pages/returns-analysis/ReturnsAnalysisPage'),
   TaxPlanningPage: () => import('@/pages/tax-planning/TaxPlanningPage'),
   GSTAnalysisPage: () => import('@/pages/gst-analysis/GSTAnalysisPage'),
+  ForeignAssetsPage: () => import('@/pages/foreign-assets/ForeignAssetsPage'),
+  AisImportPage: () => import('@/pages/ais-import/AisImportPage'),
   NetWorthPage: () => import('@/pages/net-worth/NetWorthPage'),
   SpendingAnalysisPage: () => import('@/pages/spending-analysis/SpendingAnalysisPage'),
   MerchantIntelligencePage: () =>
@@ -47,11 +49,12 @@ const pageImports = {
   YearInReviewPage: () => import('@/pages/year-in-review/YearInReviewPage'),
   SettingsPage: () => import('@/pages/settings/SettingsPage'),
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
+  ReviewQueuePage: () => import('@/pages/review-queue/ReviewQueuePage'),
   DataHealthPage: () => import('@/pages/data-health/DataHealthPage'),
   GoalsPage: () => import('@/pages/goals/GoalsPage'),
   SubscriptionTrackerPage: () => import('@/pages/subscription-tracker/SubscriptionTrackerPage'),
   BillCalendarPage: () => import('@/pages/bill-calendar/BillCalendarPage'),
-  FIRECalculatorPage: () => import('@/pages/FIRECalculatorPage'),
+  FIRECalculatorPage: () => import('@/pages/fire-calculator/FIRECalculatorPage'),
   MorePage: () => import('@/pages/MorePage'),
   OverviewPage: () => import('@/pages/OverviewPage'),
 }
@@ -63,6 +66,8 @@ const MutualFundProjectionPage = lazy(pageImports.MutualFundProjectionPage)
 const ReturnsAnalysisPage = lazy(pageImports.ReturnsAnalysisPage)
 const TaxPlanningPage = lazy(pageImports.TaxPlanningPage)
 const GSTAnalysisPage = lazy(pageImports.GSTAnalysisPage)
+const ForeignAssetsPage = lazy(pageImports.ForeignAssetsPage)
+const AisImportPage = lazy(pageImports.AisImportPage)
 const NetWorthPage = lazy(pageImports.NetWorthPage)
 const SpendingAnalysisPage = lazy(pageImports.SpendingAnalysisPage)
 const MerchantIntelligencePage = lazy(pageImports.MerchantIntelligencePage)
@@ -74,6 +79,7 @@ const BudgetPage = lazy(pageImports.BudgetPage)
 const YearInReviewPage = lazy(pageImports.YearInReviewPage)
 const SettingsPage = lazy(pageImports.SettingsPage)
 const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
+const ReviewQueuePage = lazy(pageImports.ReviewQueuePage)
 const DataHealthPage = lazy(pageImports.DataHealthPage)
 const GoalsPage = lazy(pageImports.GoalsPage)
 const SubscriptionTrackerPage = lazy(pageImports.SubscriptionTrackerPage)
@@ -90,6 +96,8 @@ const routeLoaders = new Map<string, () => Promise<unknown>>([
   [ROUTES.RETURNS_ANALYSIS, pageImports.ReturnsAnalysisPage],
   [ROUTES.TAX_PLANNING, pageImports.TaxPlanningPage],
   [ROUTES.GST_ANALYSIS, pageImports.GSTAnalysisPage],
+  [ROUTES.FOREIGN_ASSETS, pageImports.ForeignAssetsPage],
+  [ROUTES.AIS_IMPORT, pageImports.AisImportPage],
   [ROUTES.NET_WORTH, pageImports.NetWorthPage],
   [ROUTES.SPENDING_ANALYSIS, pageImports.SpendingAnalysisPage],
   [ROUTES.MERCHANT_INTELLIGENCE, pageImports.MerchantIntelligencePage],
@@ -101,6 +109,7 @@ const routeLoaders = new Map<string, () => Promise<unknown>>([
   [ROUTES.YEAR_IN_REVIEW, pageImports.YearInReviewPage],
   [ROUTES.SETTINGS, pageImports.SettingsPage],
   [ROUTES.ANOMALIES, pageImports.AnomalyReviewPage],
+  [ROUTES.REVIEW_QUEUE, pageImports.ReviewQueuePage],
   [ROUTES.DATA_HEALTH, pageImports.DataHealthPage],
   [ROUTES.GOALS, pageImports.GoalsPage],
   [ROUTES.SUBSCRIPTIONS, pageImports.SubscriptionTrackerPage],
@@ -270,6 +279,8 @@ function AppRoutes() {
         <Route path={toRelativePath(ROUTES.RETURNS_ANALYSIS)} element={<ReturnsAnalysisPage />} />
         <Route path={toRelativePath(ROUTES.TAX_PLANNING)} element={<TaxPlanningPage />} />
         <Route path={toRelativePath(ROUTES.GST_ANALYSIS)} element={<GSTAnalysisPage />} />
+        <Route path={toRelativePath(ROUTES.FOREIGN_ASSETS)} element={<ForeignAssetsPage />} />
+        <Route path={toRelativePath(ROUTES.AIS_IMPORT)} element={<AisImportPage />} />
         <Route path={toRelativePath(ROUTES.NET_WORTH)} element={<NetWorthPage />} />
         <Route path={toRelativePath(ROUTES.SPENDING_ANALYSIS)} element={<SpendingAnalysisPage />} />
         <Route path={toRelativePath(ROUTES.MERCHANT_INTELLIGENCE)} element={<MerchantIntelligencePage />} />
@@ -280,6 +291,7 @@ function AppRoutes() {
         <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
         <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
         <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
+        <Route path={toRelativePath(ROUTES.REVIEW_QUEUE)} element={<ReviewQueuePage />} />
         <Route path={toRelativePath(ROUTES.DATA_HEALTH)} element={<DataHealthPage />} />
         <Route path={toRelativePath(ROUTES.GOALS)} element={<GoalsPage />} />
         <Route path={toRelativePath(ROUTES.SUBSCRIPTIONS)} element={<SubscriptionTrackerPage />} />

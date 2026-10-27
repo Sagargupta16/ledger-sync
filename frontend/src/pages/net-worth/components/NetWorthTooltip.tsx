@@ -12,6 +12,8 @@ interface NetWorthTooltipProps {
   readonly color: string
   /** Read the projected median and band on rows past the anchor. */
   readonly projection: boolean
+  /** Colour of the previous straight-line projection when it is drawn; null hides its reading. */
+  readonly linear: string | null
 }
 
 interface Reading {
@@ -34,9 +36,10 @@ const bandText = (high: number, row: ChartRow) => `${formatCurrency(amount(row, 
 /**
  * The trend chart's readout. The stacked view lists its layers top to bottom
  * with their total; the total view reads the recorded trend, or on a projected
- * row an Estimate tag with the median and the low to high band.
+ * row an Estimate tag with the compound median, the low to high band and, when
+ * it is drawn, the previous straight line.
  */
-export function NetWorthTooltip({ layers, color, projection }: Readonly<NetWorthTooltipProps>) {
+export function NetWorthTooltip({ layers, color, projection, linear }: Readonly<NetWorthTooltipProps>) {
   if (layers.length > 0) {
     return (
       <CartesianTooltip
@@ -49,7 +52,8 @@ export function NetWorthTooltip({ layers, color, projection }: Readonly<NetWorth
   const forecast: readonly TooltipSeries[] = projection
     ? [
         { key: 'projectionHigh', label: 'Projected range (±1σ)', color, format: bandText },
-        { key: 'projected', label: 'Projected (median)', color },
+        { key: 'projected', label: 'Compound projection (median)', color },
+        ...(linear === null ? [] : [{ key: 'linear', label: 'Straight line (previous model)', color: linear }]),
       ]
     : []
   return (

@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/hooks/api/useAnalyticsV2', () => ({
   useRecurringTransactions: mocks.useRecurringTransactions,
 }))
+// Card due dates are a second source; this case covers recurring bills only.
+vi.mock('@/hooks/api/useCardCycles', () => ({
+  useCardCycles: () => ({ data: undefined, isLoading: false, isError: false }),
+}))
 
 function bill(patch: Partial<RecurringTransaction> = {}): RecurringTransaction {
   return {

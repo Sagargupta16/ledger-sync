@@ -9,13 +9,13 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.db.models import (
     Anomaly,
-    Budget,
     FYSummary,
     MonthlySummary,
     TaxRecord,
     User,
     UserPreferences,
 )
+from ledger_sync.services import budget_service
 from ledger_sync.services.compensation import read_compensation
 
 from .registry import (
@@ -290,28 +290,19 @@ register(
 
 
 def _exec_list_budgets(user: User, db: Session, _args: dict[str, Any]) -> Any:
-    """Return active budgets with current-month usage."""
-    rows = (
-        db.execute(
-            select(Budget)
-            .where(Budget.user_id == user.id, Budget.is_active.is_(True))
-            .order_by(Budget.current_month_pct.desc())
-            .limit(LIST_ENTITIES_MAX_LIMIT)
-        )
-        .scalars()
-        .all()
-    )
+    """Return active budgets with this IST month's spend, as the /budgets page counts it."""
+    rows = budget_service.list_budgets(db, user, active_only=True)[:LIST_ENTITIES_MAX_LIMIT]
     return {
         "budgets": [
             {
-                "category": b.category,
-                "subcategory": b.subcategory,
-                "monthly_limit": to_decimal(b.monthly_limit),
-                "spent": to_decimal(b.current_month_spent),
-                "remaining": to_decimal(b.current_month_remaining),
-                "usage_pct": b.current_month_pct,
-                "alert_threshold_pct": b.alert_threshold_pct,
-                "over_budget": b.current_month_pct is not None and b.current_month_pct > 100,
+                "category": b["category"],
+                "subcategory": b["subcategory"],
+                "monthly_limit": b["monthly_limit"],
+                "spent": b["current_spent"],
+                "remaining": b["remaining"],
+                "usage_pct": b["usage_pct"],
+                "alert_threshold_pct": b["alert_threshold"],
+                "over_budget": b["usage_pct"] > 100,
             }
             for b in rows
         ],

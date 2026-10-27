@@ -12,9 +12,9 @@ directly.
 | [System overview](#system-overview) | Hosting, the browser app, backend, database and outside services | [system-overview.yaml](system-overview.yaml) |
 | [Backend layers](#backend-layers) | Routers, services, core, ingest and the ORM | [backend-layers.yaml](backend-layers.yaml) |
 | [Statement import](#statement-import) | Parse, review, upload checks, reconcile, commit, analytics refresh | [statement-import.yaml](statement-import.yaml) |
-| [Money Manager import](#money-manager-import) | A `.mmbak` from the Upload page or an iOS Shortcut: checks, UID-first reconcile, guard, commit | [money-manager-import.yaml](money-manager-import.yaml) |
-| [Analytics boundaries](#analytics-boundaries) | Where each number comes from: rollups, SQL, the ledger, the browser | [analytics-boundaries.yaml](analytics-boundaries.yaml) |
-| [Shared finance rules](#shared-finance-rules) | Page hooks, lib/finance and the metric-rules mirror | [finance-composition.yaml](finance-composition.yaml) |
+| [Money Manager import](#money-manager-import) | A `.mmbak` from the Upload page or an iOS Shortcut: checks, UID-first reconcile, guard, repeat rules and budgets, commit | [money-manager-import.yaml](money-manager-import.yaml) |
+| [Analytics boundaries](#analytics-boundaries) | Where each number comes from: rollups, SQL, Dashboard metrics, the ledger, the browser | [analytics-boundaries.yaml](analytics-boundaries.yaml) |
+| [Shared finance rules](#shared-finance-rules) | Page hooks, lib/finance, the Dashboard metrics reads and the metric-rules mirror | [finance-composition.yaml](finance-composition.yaml) |
 | [Chart kit](#chart-kit) | The in-house animated SVG chart kit and who uses it | [chart-kit.yaml](chart-kit.yaml) |
 | [Session lifecycle](#session-lifecycle) | Startup, sign-out and identity changes | [session-lifecycle.yaml](session-lifecycle.yaml) |
 | [Token refresh](#token-refresh) | One refresh per 401 with one-use rotation | [token-refresh.yaml](token-refresh.yaml) |
@@ -47,21 +47,21 @@ directly.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="money-manager-import-dark.svg">
-  <img alt="Money Manager .mmbak import: iPhone Shortcut or browser dry run, backend checks, reconcile, commit" src="money-manager-import-light.svg" width="100%">
+  <img alt="Money Manager .mmbak import: iPhone Shortcut or browser dry run, backend checks, reconcile, repeat rules and budgets, commit" src="money-manager-import-light.svg" width="100%">
 </picture>
 
 ## Analytics boundaries
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="analytics-boundaries-dark.svg">
-  <img alt="Ledger Sync data sources: rollup tables, on-demand SQL, full ledger and browser lib/finance" src="analytics-boundaries-light.svg" width="100%">
+  <img alt="Ledger Sync data sources: rollup tables, on-demand SQL, Dashboard metrics, full ledger and browser lib/finance" src="analytics-boundaries-light.svg" width="100%">
 </picture>
 
 ## Shared finance rules
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="finance-composition-dark.svg">
-  <img alt="Page hooks calling lib/finance modules, with metricRules.ts kept in step with metric_rules.py" src="finance-composition-light.svg" width="100%">
+  <img alt="Page hooks calling lib/finance modules and the Dashboard metrics reads, with metricRules.ts kept in step with metric_rules.py" src="finance-composition-light.svg" width="100%">
 </picture>
 
 ## Chart kit

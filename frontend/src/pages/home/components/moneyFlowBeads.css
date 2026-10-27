@@ -1,0 +1,19 @@
+/* MoneyFlow beads on the landing hero. Each bead path is a dotted stroke along
+   its ribbon, and sliding the dash offset by one cycle (a whole number of dash
+   periods) loops the dots without a seam. The loop is a CSS animation rather
+   than a Motion repeat, so no script runs per frame. MoneyFlow.tsx sets both
+   variables from BEAD_CYCLE and BEAD_SECONDS, and sets data-flowing only while
+   the figure has entered and is on screen. Reduced mode renders no beads. */
+[data-flowing] .money-flow-bead {
+  animation: money-flow-bead-loop var(--bead-seconds) linear infinite;
+}
+
+@keyframes money-flow-bead-loop {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: var(--bead-offset);
+  }
+}

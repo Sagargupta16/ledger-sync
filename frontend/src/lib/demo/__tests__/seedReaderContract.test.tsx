@@ -101,7 +101,8 @@ const READERS: readonly Reader[] = [
   // No DEMO_ROUTES entry at all, so this seed is the only source of preference
   // data in demo mode -- a drift here empties the app, not just slows it.
   { form: 'usePreferences()', use: () => usePreferences().data },
-  // `useTransactions()` with no filters -- 15 call sites incl. useDashboardMetrics.
+  // `useTransactions()` with no filters -- the pages that still analyse the
+  // whole ledger in the browser (the Dashboard reads /api/dashboard-metrics).
   { form: 'useTransactions()', use: () => useTransactions().data },
   // useDashboardMetrics.ts keeps this warm for other pages.
   { form: 'useRecentTransactions(5)', use: () => useRecentTransactions(5).data },

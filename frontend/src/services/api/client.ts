@@ -15,11 +15,8 @@ import {
   generateDemoTrends,
   generateDemoMonthlySummaries,
   generateDemoCategoryTrends,
-  generateDemoRecurring,
   generateDemoNetWorth,
   generateDemoFYSummaries,
-  generateDemoAnomalies,
-  generateDemoBudgets,
   generateDemoGoals,
   generateDemoDataHealth,
 } from '@/lib/demo/generateDerivedData'
@@ -51,6 +48,8 @@ import {
 import { generateDemoAiConfig, generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
 import { generateDemoExportBlob } from '@/lib/demo/demoExport'
 import { generateDemoIncomeAnalysis } from '@/lib/demo/demoIncomeAnalysis'
+import { resolveDemoBudgets } from '@/lib/demo/demoBudgets'
+import { resolveDemoRecurring } from '@/lib/demo/demoRecurring'
 import type { AuthTokens, Transaction } from '@/types'
 
 /** V2 list endpoints are wrapped as { data, count }. */
@@ -63,6 +62,15 @@ type DemoResolver = (
   params: Record<string, unknown>,
   url: string,
 ) => unknown
+
+/**
+ * A resolver whose module loads on first use. client.ts is in every entry's
+ * graph, the anonymous Home page included, so the newer feature resolvers (and
+ * the calculators they pull in) stay out of the first-load bundle.
+ */
+function lazyDemo<M>(load: () => Promise<M>, pick: (module: M) => DemoResolver): DemoResolver {
+  return async (txs, params, url) => pick(await load())(txs, params, url)
+}
 
 /**
  * Ordered demo-route table: first URL-substring match wins, so specific
@@ -104,6 +112,36 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
       ),
   ],
   ['/calculations/category-daily-series', (txs, params) => generateDemoCategoryDailySeries(txs, params)],
+  // Dashboard row-level metrics, worked out over the demo ledger.
+  [
+    '/dashboard-metrics/pulse',
+    lazyDemo(() => import('@/lib/demo/demoDashboardMetrics'), (m) => m.generateDemoDashboardPulse),
+  ],
+  [
+    '/dashboard-metrics/health',
+    lazyDemo(() => import('@/lib/demo/demoDashboardMetrics'), (m) => m.generateDemoDashboardHealth),
+  ],
+  ['/api/weekly-recap', lazyDemo(() => import('@/lib/demo/demoWeeklyRecap'), (m) => m.generateDemoWeeklyRecap)],
+  ['/api/rsu-tax/', lazyDemo(() => import('@/lib/demo/demoRsuTax'), (m) => m.resolveDemoRsuTax)],
+  ['/api/bank-alerts', lazyDemo(() => import('@/lib/demo/demoBankAlerts'), (m) => m.generateDemoBankAlerts)],
+  ['/balance-checks', lazyDemo(() => import('@/lib/demo/demoBalanceChecks'), (m) => m.generateDemoBalanceChecks)],
+  ['/api/card-cycles', lazyDemo(() => import('@/lib/demo/demoCardCycles'), (m) => m.generateDemoCardCycles)],
+  // Only the status GET reaches the adapter; the suggestion POST is a write.
+  [
+    '/category-suggestions',
+    lazyDemo(() => import('@/lib/demo/demoCategorySuggestions'), (m) => m.generateDemoCategorySuggestionStatus),
+  ],
+  ['/api/review-queue', lazyDemo(() => import('@/lib/demo/demoReviewQueue'), (m) => m.generateDemoReviewQueue)],
+  ['/api/safe-to-spend', lazyDemo(() => import('@/lib/demo/demoSafeToSpend'), (m) => m.resolveDemoSafeToSpend)],
+  ['/api/tax-deductions', lazyDemo(() => import('@/lib/demo/demoTaxDeductions'), (m) => m.generateDemoTaxDeductions)],
+  ['/api/tax-ais', lazyDemo(() => import('@/lib/demo/demoTaxAis'), (m) => m.generateDemoTaxAis)],
+  ['/api/mf-holdings', lazyDemo(() => import('@/lib/demo/demoMfHoldings'), (m) => m.generateDemoMfHoldings)],
+  [
+    '/api/semantic-search',
+    lazyDemo(() => import('@/lib/demo/demoSemanticSearch'), (m) => m.resolveDemoSemanticSearch),
+  ],
+  ['/api/push/config', lazyDemo(() => import('@/lib/demo/demoPush'), (m) => m.generateDemoPushConfig)],
+  ['/api/push/subscriptions', lazyDemo(() => import('@/lib/demo/demoPush'), (m) => m.generateDemoPushDevices)],
   // Analytics V1
   ['/analytics/kpis', (txs) => generateDemoKPIs(txs)],
   // Analytics V2 -- specific endpoints first, generic {data: []} last.
@@ -118,34 +156,16 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/analytics/v2/investment-holdings', (txs) => wrap(generateDemoInvestmentHoldings(txs))],
   ['/analytics/v2/monthly-summaries', (txs) => wrap(generateDemoMonthlySummaries(txs))],
   ['/analytics/v2/category-trends', (txs) => wrap(generateDemoCategoryTrends(txs))],
-  [
-    '/analytics/v2/recurring-transactions',
-    (_txs, params) => {
-      let rows = generateDemoRecurring()
-      if (params.active_only) rows = rows.filter((r) => r.is_active)
-      if (params.pattern_kind) rows = rows.filter((r) => r.pattern_kind === params.pattern_kind)
-      return wrap(rows)
-    },
-  ],
+  ['/analytics/v2/recurring-transactions', (txs, params) => resolveDemoRecurring(txs, params)],
   ['/analytics/v2/net-worth', (txs) => wrap(generateDemoNetWorth(txs))],
   ['/analytics/v2/fy-summaries', (txs) => wrap(generateDemoFYSummaries(txs))],
+  // Detected from the demo ledger with the server's rules, filtered like
+  // `get_anomalies` (type, severity, include_reviewed, limit).
   [
     '/analytics/v2/anomalies',
-    // `get_anomalies`: `type` / `severity` are exact filters, reviewed and
-    // dismissed rows are hidden unless `include_reviewed` is true (the handler's
-    // default is false), and `limit` caps the page at 50 by default. Only the
-    // explicit `false` used to filter, and type/severity were ignored, so the
-    // demo anomaly filters changed nothing on screen.
-    (_txs, params) => {
-      let rows = generateDemoAnomalies()
-      if (params.type) rows = rows.filter((a) => a.anomaly_type === params.type)
-      if (params.severity) rows = rows.filter((a) => a.severity === params.severity)
-      if (params.include_reviewed !== true) rows = rows.filter((a) => !a.is_reviewed && !a.is_dismissed)
-      const limit = Number(params.limit)
-      return wrap(rows.slice(0, Number.isInteger(limit) && limit >= 1 ? limit : 50))
-    },
+    lazyDemo(() => import('@/lib/demo/demoAnomalies'), (m) => m.generateDemoAnomalyList),
   ],
-  ['/analytics/v2/budgets', () => wrap(generateDemoBudgets())],
+  ['/analytics/v2/budgets', (txs, params) => resolveDemoBudgets(txs, params)],
   ['/analytics/v2/goals', () => wrap(generateDemoGoals())],
   // Bare object, not a { data, count } list -- and it must precede the catch-all
   // below, whose empty-list shape fails assertDataHealth and hangs the page.
@@ -161,6 +181,8 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // the page toasts "Export failed".
   ['/transactions/export', (txs, params) => generateDemoExportBlob(txs, params)],
   ['/transactions/search', (txs, params) => generateDemoSearch(txs, params)],
+  // Watch tiles answer a different shape from the views list, so they precede it.
+  ['/saved-views/tiles', lazyDemo(() => import('@/lib/demo/demoWatchTiles'), (m) => m.generateDemoWatchTiles)],
   ['/saved-views', () => generateDemoSavedViews()],
   // Closed-accounts list must precede the generic prefix match below.
   ['/account-classifications/closed', () => []],
@@ -222,11 +244,12 @@ apiClient.interceptors.request.use(
       throw new Error('Mutations are disabled in demo mode')
     }
 
-    config.adapter = () => {
+    config.adapter = async () => {
       const url = config.url ?? ''
       const params = (config.params ?? {}) as Record<string, unknown>
-      const data = resolveDemoData(url, params, getDemoTransactions())
-      return Promise.resolve({ data, status: 200, statusText: 'OK', headers: {}, config })
+      // A lazy resolver answers a promise; awaiting a plain value is a no-op.
+      const data: unknown = await resolveDemoData(url, params, getDemoTransactions())
+      return { data, status: 200, statusText: 'OK', headers: {}, config }
     }
 
     return config

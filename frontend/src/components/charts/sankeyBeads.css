@@ -1,0 +1,35 @@
+/* Sankey beads (SankeyMarks.tsx): a dotted stroke along each ribbon's centre
+   line, looped by sliding the dash offset through one dash period. One CSS
+   animation on the ribbon group moves a registered, inherited offset that every
+   bead reads, so all beads keep one phase (a ribbon a data change adds joins it
+   mid-loop) and no script runs per frame. SankeyDiagram.tsx sets the variables
+   from BEAD_GAP and BEAD_SECONDS, and data-flowing only while the chart is on
+   screen; off screen the loop pauses where it is. Reduced mode and print draw
+   no beads. */
+@property --sankey-bead-offset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.sankey-ribbons {
+  animation: sankey-bead-drift var(--sankey-bead-seconds) linear infinite paused;
+}
+
+.sankey-ribbons[data-flowing] {
+  animation-play-state: running;
+}
+
+.sankey-bead {
+  stroke-dashoffset: var(--sankey-bead-offset);
+}
+
+@keyframes sankey-bead-drift {
+  from {
+    --sankey-bead-offset: var(--sankey-bead-gap);
+  }
+
+  to {
+    --sankey-bead-offset: 0px;
+  }
+}

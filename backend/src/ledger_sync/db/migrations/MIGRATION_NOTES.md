@@ -1,6 +1,6 @@
 # Migration Notes
 
-Current for Ledger Sync 2.30.2.
+Current for Ledger Sync 2.31.0.
 
 ## Revision Chain
 
@@ -34,6 +34,24 @@ Current for Ledger Sync 2.30.2.
   still list deferred columns. Only the backup import reads and writes them,
   through Core. Each step skips an object that already has the expected shape
   and stops on any other shape. It is irreversible.
+- `feature_domains_2026` follows `money_manager_source_2026`. It creates 14
+  tables and changes no existing one: `balance_checks`, `bank_alerts`,
+  `category_overrides`, `external_refs`, `foreign_asset_events`, `rsu_vest_fx`,
+  `mf_holdings`, `mf_transactions`, `mf_nav_prices`, `push_subscriptions`,
+  `saved_view_pins`, `tax_ais_summaries`, `tax_deductions` and
+  `transaction_embeddings`. Each table is skipped when it already has the
+  expected columns, and any other shape stops the revision before a change. On
+  PostgreSQL it sets a 10 s `lock_timeout` (creating a table locks nothing but
+  the brief foreign-key reference) and, when `transaction_embeddings` is
+  missing, first runs `CREATE EXTENSION IF NOT EXISTS vector` (pgvector, which
+  Neon ships on every plan). The embedding column is `vector(512)` there and
+  float32 bytes on SQLite, and the `before_create` hook on the model runs the
+  same `CREATE EXTENSION` for `create_all`. The revision needs an online schema
+  check, so offline SQL generation is refused, and it is irreversible. A
+  backend served before it still imports, runs the Money Manager repeat-rule and
+  budget step, applies rules and resets or deletes accounts, because those skip
+  a missing table. The routes behind the other new tables fail until it runs,
+  so apply it before or with the backend.
 
 Alembic imports `ledger_sync.db.models`, which registers every model exported
 from `ledger_sync.db._models`. `create_all()` only creates missing tables. It
@@ -79,7 +97,10 @@ SQLite tests always run. The PostgreSQL cases require
 test. Remote endpoints and other database names are refused. CI uses the
 runner's installed native PostgreSQL binaries to start an isolated loopback
 cluster, logs its version, and runs these cases as a release gate. It stops
-only its owned cluster afterward and uses no containers.
+only its owned cluster afterward and uses no containers. Because
+`feature_domains_2026` runs `CREATE EXTENSION vector`, the job first installs
+`postgresql-<major>-pgvector` from apt.postgresql.org for the runner's own
+PostgreSQL major and checks that `vector.control` exists.
 Three PostgreSQL concurrency cases race six independent server connections for
 one remaining daily message, daily token, or monthly token reservation. Each
 case must admit one worker, reject five with 429, and persist one reservation.
@@ -118,17 +139,17 @@ holds the amount the user typed while `expected_amount` stays the detected
 value; NULL means no override. A boolean "amount set by user" flag could not
 keep both values.
 
-Phase 1 (this revision) only adds the column: nullable, no server default, no
-backfill, skipped when it already exists with that shape, and irreversible
-because a downgrade would discard user amounts once phase 2 writes them. The
-ORM maps it `deferred` with `FetchedValue()` and `eager_defaults=False` and no
-app code names it, so a backend that Vercel promotes before `migrate` runs
-never SELECTs, INSERTs, or RETURNs it.
-`tests/integration/test_recurring_user_amount_expand.py` runs the recurring
+Phase 1 (the revision, shipped in 2.28.0) only added the column: nullable, no
+server default, no backfill, skipped when it already exists with that shape,
+and irreversible because a downgrade would discard user amounts once phase 2
+writes them. The ORM maps it `deferred` with `FetchedValue()` and
+`eager_defaults=False`. While no app code named it, a backend that Vercel
+promoted before `migrate` ran never SELECTed, INSERTed, or RETURNed it, and
+`tests/integration/test_recurring_user_amount_expand.py` ran the recurring
 list/create/patch/delete endpoints and an analytics refresh at the previous
-head and asserts no emitted statement names the column.
+head and asserted that no emitted statement named the column.
 
-Phase 2 (a later release, after this revision is applied in production):
+Phase 2 (done in this release; the revision shipped in 2.28.0):
 
 1. `PATCH /api/analytics/v2/recurring-transactions/{id}` stores an edited
    amount in `user_expected_amount` and leaves `expected_amount` alone;
@@ -143,8 +164,18 @@ Phase 2 (a later release, after this revision is applied in production):
    scheduled-transaction projections use the effective amount.
 4. The frontend shows an "edited" state with the detected amount beside it and
    a way to clear the override (PATCH with an explicit reset).
-5. The mapping drops `deferred`, `FetchedValue()`, and `eager_defaults=False`
-   only once no deployed backend can run against a schema without the column.
+
+The list `undefer`s the column and every PATCH answers with the amount state.
+A row added by hand keeps its amount in `expected_amount`. An amount equal to
+the detected one clears the override, and un-confirming an item clears the
+user's amount, because refresh deletes and re-derives unconfirmed rows.
+`tests/integration/test_recurring_user_amount_expand.py` now pins the phase 2
+contract at head; its previous-head check that no statement names the column
+is retired, because this backend needs the column.
+
+Step 5 stays open: the mapping drops `deferred`, `FetchedValue()`, and
+`eager_defaults=False` only once no deployed backend can run against a schema
+without the column.
 
 ## Rollback and Recovery
 
@@ -159,6 +190,13 @@ reviewed and tested reversible migration.
 The transfer consolidation revision `b08e16c7e62c` is also guarded. It cannot
 reconstruct the original transfer legs or safely remove the account-link
 columns. A direct downgrade is rejected with data, schema, and version intact.
+
+Rolling the application back to 2.30.x also needs one data cleanup, because the
+anomaly engine gained a type without a migration. `anomalies.anomaly_type`
+holds the `AnomalyType` member name in `VARCHAR(50)` (it is in the
+`_ENUM_STORED_AS_VARCHAR` filter of `env.py`), so `FEE_CHARGE` needed no schema
+change, but a build without that member fails to load such a row. Run
+`DELETE FROM anomalies WHERE anomaly_type = 'FEE_CHARGE'` first.
 
 For a failed production migration:
 

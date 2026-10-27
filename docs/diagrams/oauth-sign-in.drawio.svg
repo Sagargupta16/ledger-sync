@@ -22,7 +22,7 @@ groups:
   tab:
     type: zone
     label: Browser tab
-    evidence: frontend/src/services/api/auth.ts:21-30
+    evidence: frontend/src/services/api/auth.ts:22-31
   vercel:
     type: box
     label: FastAPI on Vercel
@@ -44,15 +44,15 @@ nodes:
     icon: logos:react
     label: SPA auth service
     in: tab
-    evidence: frontend/src/services/api/auth.ts:180-267
+    evidence: frontend/src/services/api/auth.ts:184-271
   storage:
     shape: cylinder
     label: sessionStorage attempt
     note: "verifier, state"
     in: tab
     evidence:
-      - frontend/src/services/api/auth.ts:21
-      - frontend/src/services/api/auth.ts:206-216
+      - frontend/src/services/api/auth.ts:22
+      - frontend/src/services/api/auth.ts:210-220
   authstore:
     label: Auth store
     note: persisted JWTs
@@ -70,7 +70,7 @@ nodes:
     badge: x2
     in: idp
     evidence:
-      - frontend/src/services/api/auth.ts:39-42
+      - frontend/src/services/api/auth.ts:40-43
       - backend/src/ledger_sync/api/oauth.py:61-63
 
   audit:
@@ -91,7 +91,7 @@ edges:
     step: 1
     label: POST authorize + challenge
     evidence:
-      - frontend/src/services/api/auth.ts:185-191
+      - frontend/src/services/api/auth.ts:189-195
       - backend/src/ledger_sync/api/oauth.py:108-128
   - from: api
     to: audit
@@ -106,17 +106,17 @@ edges:
     label: "signed state, 10 min"
     evidence:
       - backend/src/ledger_sync/api/oauth.py:123-128
-      - frontend/src/services/api/auth.ts:192-204
+      - frontend/src/services/api/auth.ts:196-208
   - from: spa
     to: storage
     step: 4
     label: keep verifier
-    evidence: frontend/src/services/api/auth.ts:206-216
+    evidence: frontend/src/services/api/auth.ts:210-220
   - from: spa
     to: provider
     step: 5
     label: redirect with challenge
-    evidence: frontend/src/services/api/auth.ts:218-231
+    evidence: frontend/src/services/api/auth.ts:222-235
   - from: spa
     to: provider
     arrow: start
@@ -124,19 +124,19 @@ edges:
     line: dashed
     label: "callback with code, state"
     evidence:
-      - frontend/src/App.tsx:255
+      - frontend/src/App.tsx:264
       - frontend/src/pages/OAuthCallbackPage.tsx:42-47
   - from: spa
     to: storage
     step: 7
     label: consume attempt
-    evidence: frontend/src/services/api/auth.ts:249-259
+    evidence: frontend/src/services/api/auth.ts:253-263
   - from: spa
     to: api
     step: 8
     label: POST callback + verifier
     evidence:
-      - frontend/src/services/api/auth.ts:260-265
+      - frontend/src/services/api/auth.ts:264-269
       - backend/src/ledger_sync/api/oauth.py:209
       - backend/src/ledger_sync/api/oauth.py:276
   - from: api
@@ -185,14 +185,14 @@ edges:
     label: access + refresh tokens
     evidence:
       - backend/src/ledger_sync/api/oauth.py:283#Token
-      - frontend/src/services/api/auth.ts:265-266
+      - frontend/src/services/api/auth.ts:269-270
   - from: spa
     to: api
     step: 15
     label: GET /api/auth/me
     evidence:
       - frontend/src/pages/OAuthCallbackPage.tsx:74
-      - frontend/src/services/api/auth.ts:105-112
+      - frontend/src/services/api/auth.ts:106-113
   - from: spa
     to: authstore
     step: 16

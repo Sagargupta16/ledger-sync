@@ -4,7 +4,6 @@ import secrets
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, Request, Response
@@ -27,24 +26,41 @@ from ledger_sync.api.ai_usage import router as ai_usage_router
 from ledger_sync.api.analytics import router as analytics_router
 from ledger_sync.api.analytics_v2 import router as analytics_v2_router
 from ledger_sync.api.auth import router as auth_router
+from ledger_sync.api.balance_checks import router as balance_checks_router
+from ledger_sync.api.bank_alerts import ingest_router as bank_alerts_ingest_router
+from ledger_sync.api.bank_alerts import router as bank_alerts_router
 from ledger_sync.api.calculations import router as calculations_router
+from ledger_sync.api.card_cycles import router as card_cycles_router
+from ledger_sync.api.cas_upload import router as cas_upload_router
 from ledger_sync.api.categorization_rules import router as categorization_rules_router
+from ledger_sync.api.category_suggestions import router as category_suggestions_router
+from ledger_sync.api.dashboard_metrics import router as dashboard_metrics_router
+from ledger_sync.api.deps import cors_allowed_origins
 from ledger_sync.api.error_handlers import (
     database_error_handler,
     rate_limit_error_handler,
     validation_error_handler,
 )
 from ledger_sync.api.exchange_rates import router as exchange_rates_router
+from ledger_sync.api.mcp import router as mcp_router
 from ledger_sync.api.money_manager_upload import router as money_manager_upload_router
 from ledger_sync.api.oauth import router as oauth_router
 from ledger_sync.api.preferences import router as preferences_router
+from ledger_sync.api.push import router as push_router
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.api.rates import router as rates_router
+from ledger_sync.api.review_queue import router as review_queue_router
+from ledger_sync.api.rsu_tax import router as rsu_tax_router
+from ledger_sync.api.safe_to_spend import router as safe_to_spend_router
 from ledger_sync.api.saved_views import router as saved_views_router
+from ledger_sync.api.semantic_search import router as semantic_search_router
 from ledger_sync.api.stock_price import router as stock_price_router
+from ledger_sync.api.tax_ais import router as tax_ais_router
+from ledger_sync.api.tax_deductions import router as tax_deductions_router
 from ledger_sync.api.transactions import router as transactions_router
 from ledger_sync.api.upload import router as upload_router
 from ledger_sync.api.upload_tokens import router as upload_tokens_router
+from ledger_sync.api.weekly_recap import router as weekly_recap_router
 from ledger_sync.config.settings import settings
 from ledger_sync.db.session import get_engine, init_db
 from ledger_sync.schemas.transactions import HealthResponse
@@ -298,12 +314,7 @@ async def add_timing_header(
 
 # ─── CORS (outermost user middleware; fallback 500s handled above) ────────
 
-_cors_origins = list(settings.cors_origins)
-if settings.frontend_url:
-    _parsed = urlparse(settings.frontend_url)
-    _frontend_origin = f"{_parsed.scheme}://{_parsed.netloc}"
-    if _frontend_origin and _frontend_origin not in _cors_origins:
-        _cors_origins.append(_frontend_origin)
+_cors_origins = cors_allowed_origins()
 
 # Use the computed allowlist instead of "*". The list always contains the
 # localhost dev origins plus the production frontend origin derived from
@@ -341,6 +352,24 @@ app.include_router(stock_price_router)
 app.include_router(ai_chat_router)
 app.include_router(ai_tools_router)
 app.include_router(ai_usage_router)
+app.include_router(dashboard_metrics_router)
+app.include_router(weekly_recap_router)
+app.include_router(rsu_tax_router)
+app.include_router(bank_alerts_router)
+app.include_router(bank_alerts_ingest_router)
+app.include_router(balance_checks_router)
+app.include_router(card_cycles_router)
+app.include_router(cas_upload_router)
+app.include_router(category_suggestions_router)
+app.include_router(push_router)
+app.include_router(review_queue_router)
+app.include_router(safe_to_spend_router)
+app.include_router(semantic_search_router)
+app.include_router(tax_ais_router)
+app.include_router(tax_deductions_router)
+# MCP streamable HTTP transport at /mcp (not under /api): read-only ledger
+# tools for an MCP client that holds a `ledger:read` access token.
+app.include_router(mcp_router)
 
 
 # ─── Health Check ────────────────────────────────────────────────────────────

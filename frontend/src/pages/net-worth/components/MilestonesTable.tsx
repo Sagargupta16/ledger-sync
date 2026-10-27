@@ -3,15 +3,18 @@ import { CheckCircle2, Circle, Target, TrendingUp } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import { formatMonthKey } from '@/lib/dateUtils'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatPercent } from '@/lib/formatters'
 
+import { NO_SAVINGS_GROWTH, PROJECTION_HORIZON_MONTHS, type SavingsGrowth } from '../netWorthCompound'
 import type { MilestoneRow } from '../netWorthProjection'
 
 interface MilestonesTableProps {
   readonly rows: readonly MilestoneRow[]
   readonly currentNetWorth: number
-  /** Average monthly net-worth change in rupees (linear model over cash flows). */
+  /** Average monthly saving in rupees (the projection's starting slope over cash flows). */
   readonly monthlyGrowth: number
+  /** Yearly rate that saving compounds at in the ETAs; omitted or rate 0 is the straight line. */
+  readonly savingsGrowth?: SavingsGrowth
 }
 
 /** "3mo" / "1y 2mo" / "2y" */
@@ -139,10 +142,12 @@ export default function MilestonesTable({
   rows,
   currentNetWorth,
   monthlyGrowth,
+  savingsGrowth = NO_SAVINGS_GROWTH,
 }: MilestonesTableProps) {
   const stableCount = rows.filter((r) => r.stableSince !== null).length
   const reachedCount = rows.filter((r) => r.status === 'achieved').length
   const hasGrowth = monthlyGrowth > 0
+  const compounding = hasGrowth && savingsGrowth.rate !== 0
   const columns = buildColumns()
 
   if (rows.length === 0) {
@@ -176,6 +181,11 @@ export default function MilestonesTable({
             {!hasGrowth && (
               <span className="mt-0.5 block text-xs font-normal text-text-quaternary">
                 Positive growth is needed to project.
+              </span>
+            )}
+            {compounding && (
+              <span className="mt-0.5 block text-xs font-normal text-text-tertiary">
+                {savingsGrowth.rate > 0 ? 'growing' : 'shrinking'} {formatPercent(Math.abs(savingsGrowth.rate) * 100)} a year
               </span>
             )}
           </dd>
@@ -214,9 +224,11 @@ export default function MilestonesTable({
         <span className="text-app-green">Stable</span> means your net worth never dropped below
         that threshold after the crossing.{' '}
         <span className="text-app-yellow">Reached</span> means you crossed it but later dipped
-        below. ETAs extrapolate your average monthly saving over the last 12 months. Figures are
-        book value (cash flows in minus out) -- market gains on investments aren't tracked, so
-        treat ETAs as conservative.
+        below. ETAs follow the chart&apos;s projection: your average monthly saving over the last 12
+        months{compounding
+          ? `, compounding at ${formatPercent(savingsGrowth.rate * 100)} a year (the CAGR of your yearly savings over the last ${savingsGrowth.years} years) for the ${PROJECTION_HORIZON_MONTHS / 12} years the chart shows, then held at that level`
+          : ', held flat'}. Figures are book value (cash flows in minus out) -- market gains on
+        investments aren't tracked, so treat ETAs as estimates, not advice.
       </p>
     </div>
   )

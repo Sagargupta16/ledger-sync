@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.30.2.
+Current for Ledger Sync 2.31.0.
 
 ## Production Topology
 
@@ -37,7 +37,8 @@ after migrations.
 | Backend entry point | `backend/api/index.py` |
 | Database migration | `.github/workflows/migrate.yml` |
 | Scheduled health ping (disabled) | `.github/workflows/keepalive.yml` |
-| Runtime settings | `backend/src/ledger_sync/config/settings.py` |
+| Runtime settings | `backend/src/ledger_sync/config/settings.py`, plus `push_settings.py` and `embedding_settings.py` beside it |
+| Scheduled push run | `crons` in `backend/vercel.json` |
 | Frontend base and proxy | `frontend/vite.config.ts` |
 
 ## Production Configuration
@@ -70,10 +71,19 @@ Optional AI settings:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `LEDGER_SYNC_BEDROCK_API_KEY` | unset | Server credential for app Bedrock mode |
-| `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL` | Haiku 4.5 model ID | App-mode model |
+| `LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL` | `us.anthropic.claude-haiku-5-5` | App-mode model (Claude Haiku 5.5) |
 | `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION` | `us-east-1` | Bedrock region |
 | `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | `10` | Per-user daily app-mode cap |
 | `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | `6` | Tool rounds per message |
+
+The key behind `LEDGER_SYNC_BEDROCK_API_KEY` must be allowed to invoke the default
+model. If app mode answers 502 after a deploy, set
+`LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL` to
+`us.anthropic.claude-haiku-4-5-20251001-v1:0` and redeploy to go back to Haiku
+4.5. Check by name whether the Vercel project already sets that variable: if it
+does, the new default never applies, so change that value instead. For app and
+personal-key calls alike, the chat proxy turns Claude 5.x thinking off (low
+effort where a model cannot turn it off) through `api/ai_chat_thinking.py`.
 
 Optional PostgreSQL tuning:
 
@@ -88,6 +98,95 @@ Optional PostgreSQL tuning:
 
 The current defaults are sized for the Neon free tier. Do not increase them
 without checking the database connection limit.
+
+Release 2.31.0 adds no required setting. Its two optional features below read
+their own settings classes (`config/embedding_settings.py` and
+`config/push_settings.py`). Set their values as real environment variables: the
+Vercel project for production, the shell for a local run. Never put them in
+`backend/.env`: `Settings` forbids any key it does not declare, so an
+undeclared `LEDGER_SYNC_*` key, or `CRON_SECRET`, in that file stops the backend
+at start-up, and the validation error echoes the value.
+
+### Optional semantic search
+
+Smart search on the Transactions page finds rows by meaning with Amazon Titan
+Text Embeddings V2 (`amazon.titan-embed-text-v2:0`). It is opt-in per user and
+uses the chat's Bedrock credentials: `LEDGER_SYNC_BEDROCK_API_KEY`, the AWS
+credential chain, or a user's own Bedrock key. Without them it stays off and the
+page says why. The credential must be allowed to invoke the Titan model in the
+embedding region. Each indexed transaction sends its note, category,
+subcategory and account to Bedrock, never an amount or a date.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LEDGER_SYNC_EMBEDDING_REGION` | unset (follows `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION`) | Region for app-funded embedding calls |
+| `LEDGER_SYNC_EMBEDDING_BATCH_SIZE` | `64` (1 to 256) | Transactions embedded per index request |
+| `LEDGER_SYNC_EMBEDDING_CONCURRENCY` | `8` (1 to 10) | Parallel Titan calls within a batch |
+| `LEDGER_SYNC_EMBEDDING_DAILY_TOKEN_LIMIT` | `1000000` | App-funded tokens per user per UTC day; `0` turns the cap off |
+
+A value outside its range stops the backend at start-up. Every call is reserved
+and settled in `ai_usage_log` under the provider `bedrock-embed`, so it counts
+toward the user's daily and monthly token budgets and the AI usage totals, but
+not toward the app-mode message cap.
+
+### Optional phone alerts (Web Push)
+
+Settings > Notifications can send the saved budget, anomaly and upcoming-bill
+choices to a phone or browser. Alerts carry counts and timing, never amounts.
+They stay off, and the panel names what is missing, until the three VAPID values
+are set. The daily run also needs `CRON_SECRET`; without it, test sends work and
+the daily run stays off:
+
+| Variable | Purpose |
+| --- | --- |
+| `LEDGER_SYNC_VAPID_PUBLIC_KEY` | VAPID public key the browser subscribes with |
+| `LEDGER_SYNC_VAPID_PRIVATE_KEY` | Matching private key; signs every push, never returned or logged |
+| `LEDGER_SYNC_VAPID_SUBJECT` | `mailto:` address or `https://` URL push services can contact |
+| `CRON_SECRET` | Vercel sends it as `Authorization: Bearer` on the daily cron; the run refuses without it (`LEDGER_SYNC_CRON_SECRET` also works) |
+
+The public key must come from the private key; `GET /api/push/config` names a
+mismatch.
+
+Generate the key pair and the cron secret from the repository root in
+PowerShell. The command writes them to `ledger-sync-push-keys.txt` in your home
+folder and prints only that path:
+
+```powershell
+uv run --directory backend python -c "import base64, secrets; from pathlib import Path; from cryptography.hazmat.primitives.asymmetric import ec; from cryptography.hazmat.primitives import serialization as s; b=lambda raw: base64.urlsafe_b64encode(raw).rstrip(b'=').decode(); k=ec.generate_private_key(ec.SECP256R1()); pub=k.public_key().public_bytes(s.Encoding.X962, s.PublicFormat.UncompressedPoint); priv=k.private_numbers().private_value.to_bytes(32, 'big'); f=Path.home() / 'ledger-sync-push-keys.txt'; f.write_text('LEDGER_SYNC_VAPID_PUBLIC_KEY=' + b(pub) + chr(10) + 'LEDGER_SYNC_VAPID_PRIVATE_KEY=' + b(priv) + chr(10) + 'CRON_SECRET=' + secrets.token_urlsafe(32) + chr(10)); print('Wrote', f)"
+```
+
+Paste each value into Vercel (project `ledger-sync-api` > **Settings** >
+**Environment Variables**, Production), add `LEDGER_SYNC_VAPID_SUBJECT` with a
+contact you read, redeploy, then delete the file:
+
+```powershell
+Remove-Item $env:USERPROFILE\ledger-sync-push-keys.txt
+```
+
+`backend/vercel.json` registers one cron, `GET /api/push/run-due` at
+`0 3 * * *` (UTC). Vercel calls it on the production deployment only, with the
+`CRON_SECRET` bearer header. On the Hobby plan Vercel may start it anywhere in
+03:00 to 03:59 UTC (08:30 to 09:29 IST), at most once a day. Delivery is best
+effort and can repeat, and Vercel does not retry a failed run. A repeated run
+sends nothing new, because each device records what it was already told.
+`POST /api/push/run-due` with the same header runs it by hand. The route answers
+503 naming the missing setting until `CRON_SECRET` and the VAPID values are set,
+and 401 for a wrong secret. A run stops sending after 8 seconds and leaves the
+rest for the next run. The function's Max Duration is a Vercel project setting
+(Settings > Functions), because `vercel.json` cannot carry `functions` next to
+its legacy `builds` key.
+
+The cron entry has not been seen running on Vercel for this project yet. After
+the first deploy, confirm `/api/push/run-due` is listed under the project's
+Settings > Cron Jobs, trigger it once (the deployment summary can run a cron
+job) and read the function log: 503 naming the missing setting until push is
+configured, then 200 with counts.
+
+Rotating the VAPID pair or `CRON_SECRET` takes a redeploy. A new pair
+invalidates every stored subscription: each device taps Turn on again, which
+replaces its subscription. A device that is never reopened keeps failing, because
+only a 404 or 410 from the push service deletes its row; remove it from the
+device list in Settings > Notifications.
 
 ### Required frontend value
 
@@ -114,6 +213,8 @@ Requirements:
 - PgBouncer pooler endpoint
 - `sslmode=require`
 - No `channel_binding=require`
+- The `vector` extension (pgvector), which the 2.31.0 migration creates; Neon
+  ships it on every plan and installs extensions per database
 
 The application normalizes `postgresql://` and
 `postgresql+psycopg2://` URLs to the psycopg 3 driver.
@@ -143,7 +244,11 @@ server version, binds only loopback, and stops only the cluster it created.
 The PostgreSQL job runs the complete integration directory, plus the AI-settings
 and compensation migration/record unit files, so migration, analytics
 publication, concurrency, and lifecycle tests share the same gate.
-It does not use containers or alter a pre-existing database service.
+It does not use containers or alter a pre-existing database service. Before it
+starts the cluster, the job installs `postgresql-<major>-pgvector` for the
+runner's PostgreSQL major from apt.postgresql.org and checks that
+`vector.control` exists, because the 2.31.0 revision runs
+`CREATE EXTENSION vector`.
 The migration tests compare table and column coverage, primary keys,
 unique constraints, foreign keys and cascade rules, and check constraints
 against the ORM. They exercise duplicate OAuth identities, invalid amounts,
@@ -240,6 +345,41 @@ safe. PostgreSQL holds ACCESS EXCLUSIVE locks on the affected tables with a
 traffic; rehearse on a Neon branch copied from production. The revision is
 irreversible: recover with a verified restore point or a forward repair.
 
+### 2.31.0 feature tables rollout
+
+`feature_domains_2026`
+([20261027_1000_feature_domains.py](../backend/src/ledger_sync/db/migrations/versions/20261027_1000_feature_domains.py))
+follows `money_manager_source_2026` and creates 14 tables: `balance_checks`, `bank_alerts`, `category_overrides`, `external_refs`,
+`foreign_asset_events`, `rsu_vest_fx`, `mf_holdings`, `mf_transactions`,
+`mf_nav_prices`, `push_subscriptions`, `saved_view_pins`, `tax_ais_summaries`,
+`tax_deductions` and `transaction_embeddings`. No older backend names any of
+them, so the revision is expand-only: the running backend works before and
+after it.
+
+- On PostgreSQL it sets a 10 s lock timeout and, while `transaction_embeddings`
+  is still to be created, runs `CREATE EXTENSION IF NOT EXISTS vector`. The
+  pending revisions run in one transaction, so a failed run changes nothing. If
+  the migrate job stops at that statement, run
+  `CREATE EXTENSION IF NOT EXISTS vector;` once in the Neon SQL editor and rerun
+  the workflow; the revision is safe to rerun.
+- A table that already exists with the expected columns (a `create_all`
+  bootstrap) is skipped. Any other shape stops the revision before a change.
+- The revision is irreversible. Recover with a verified restore point or a
+  forward repair, as in [DATABASE.md](DATABASE.md).
+- Vercel can serve the new backend minutes before the CI `migrate` job (see the
+  Deployment Check above). Until then the routes that store or read the new
+  tables fail with HTTP 500: balance checks, bank alerts, the Review Queue, tax
+  deductions and AIS totals, RSU conversions, mutual fund holdings, pinned
+  watch tiles, push devices and semantic search. Everything else works.
+  Account reset and deletion skip a table that does not exist yet
+  (`_delete_if_migrated` in `services/auth_account_data.py`), and the Review
+  Queue replay on import and the Money Manager repeat-rule and budget import
+  check for their tables first. With the Deployment Check set, Vercel holds the
+  deployment until the revision is applied, so no such window opens.
+- Recurring amount edits also need `recurring_transactions.user_expected_amount`,
+  added by `recurring_user_amount_2026` in 2.28.0; the backend now reads and
+  writes it.
+
 ### AI configuration and encryption rollout
 
 Apply `ai_usage_reservations_2026` and subsequent revisions before promoting
@@ -270,7 +410,10 @@ The Vercel project root must be `backend`.
 
 - pins the function region to `sin1`
 - routes every request to `api/index.py`
-- allows a 50 MB function bundle
+- sets `maxLambdaSize` to `50mb` on the legacy `builds` entry (see
+  [Function size](#function-size))
+- schedules the daily push alert run in `crons` (see
+  [Optional phone alerts](#optional-phone-alerts-web-push))
 
 `api/index.py` imports the FastAPI ASGI `app`. Vercel's Python runtime serves
 the ASGI app directly, so the application lifespan runs in production (the old
@@ -288,6 +431,61 @@ What the build log shows ("Installing required dependencies from uv.lock",
 
 After changing Vercel environment values, redeploy the backend so the function
 receives the new configuration.
+
+### Function size
+
+The CAS import added `casparser`, `pypdfium2` and, through `casparser-isin`,
+`rapidfuzz`. Phone alerts add no package: they encrypt and sign with
+`cryptography` and PyJWT, which the backend already had. In the local backend environment
+the `casparser-isin` ISIN database alone is about 47 MB, the `pypdfium2` native
+library about 7 MB and `rapidfuzz` about 6 MB. No Vercel build has measured the
+deployed function yet, so read its size in the first preview build log of the
+release before merging.
+
+`maxLambdaSize` is a builder option on the deprecated `builds` entry. Vercel's
+`vercel.json` reference does not document it, and Vercel documents 500 MB
+uncompressed as the limit for Python functions (Functions limits page, read
+2026-10-27). If the build or the first request fails on size:
+
+1. Raise `maxLambdaSize` in `backend/vercel.json`, or drop it.
+2. If that is not enough, move the CAS routes (`api/cas_upload.py`) into their
+   own function so the rest of the API stays small.
+
+### Token-authenticated routes
+
+Automations use `lsu_` access tokens created in Settings > Advanced > Access
+Tokens. A token holds one scope and reaches only that scope's route; none can
+sign in or call any other API route. A user can hold five active tokens per
+scope, and a token expires after a year.
+
+| Scope | Only route | Used by |
+| --- | --- | --- |
+| `mmbak:upload` | `POST /api/upload/money-manager` | iOS Shortcut that uploads a Money Manager backup |
+| `ledger:read` | `POST /mcp` (no `/api` prefix) | Claude Code, through the read-only MCP server |
+| `alerts:ingest` | `POST /api/ingest/text` | Automation that forwards bank alert SMS or email text |
+
+`POST /mcp` serves MCP over streamable HTTP with one JSON response per POST: no
+session, no stream and no OAuth, so claude.ai web connectors cannot use it and
+clients that send an `Authorization` header, such as Claude Code, can. It
+answers protocol 2026-07-28 and the legacy 2025-11-25, 2025-06-18 and
+2025-03-26 handshake. Its tools are the in-app assistant's 15 read-only tools
+plus `get_today`, run in a transaction that cannot write. Settings shows this
+command with the new token filled in:
+
+```bash
+claude mcp add --transport http ledger-sync https://ledger-sync-api.vercel.app/mcp --header "Authorization: Bearer <token>"
+```
+
+The route refuses a browser `Origin` outside the CORS allowlist with 403 (Claude
+Code sends none), caps a body at 64 KiB (413), and limits each token to 60
+calls a minute and 1,000 an hour, plus 120 a minute per IP, counted before the
+token lookup. What Claude reads goes to the user's own Claude account. The
+alert inbox limits each token to 30 requests a minute and 500 a day, plus 60 a
+minute per IP, and stores at most 500 new alerts per user in any 24 hours,
+enforced in the database. Like every SlowAPI limit here, the per-minute and
+per-day counters live in each serverless instance's memory (see
+[AI configuration and encryption rollout](#ai-configuration-and-encryption-rollout)),
+so treat them as best effort.
 
 ### Health checks
 
@@ -399,6 +597,20 @@ Then verify the frontend:
 For a schema release, also confirm the migration workflow completed and
 `/health/db` remains healthy.
 
+For 2.31.0, also:
+
+- Read the function size in the Vercel build log
+  ([Function size](#function-size)).
+- Confirm the migrate job log shows `feature_domains_2026`.
+- Confirm `/api/push/run-due` is listed under Settings > Cron Jobs and trigger
+  it once, as described under
+  [Optional phone alerts](#optional-phone-alerts-web-push).
+- Open Transactions and Settings > Notifications signed in. The Smart search
+  card and the alerts panel report their status, or what is missing, instead of
+  an error.
+- Optionally create a `ledger:read` token, run the command from its dialog, and
+  ask Claude Code for one number from the ledger.
+
 ## Sign-In Incident Runbook
 
 The message "Couldn't reach the sign-in service" means the frontend did not
@@ -440,7 +652,8 @@ normal migration and Pages sequence. A code revert does not revert the database.
 ### Backend
 
 Promote a known-good Vercel deployment or revert the application change through
-a new pull request.
+a new pull request. After `feature_domains_2026` the previous backend keeps
+working, because it names none of the new tables.
 
 ### Database
 
@@ -465,5 +678,8 @@ Before every production release:
 - Keep CORS restricted to explicit origins.
 - Keep `LEDGER_SYNC_JWT_SECRET_KEY` and
   `LEDGER_SYNC_ENCRYPTION_KEY` separate.
+- Keep `LEDGER_SYNC_VAPID_PRIVATE_KEY`, `CRON_SECRET` and every `lsu_` token out
+  of Git, logs and chat, and delete `ledger-sync-push-keys.txt` once the values
+  are in Vercel.
 - Rotate a credential immediately if it appears in logs, Git history, or a
   public artifact.

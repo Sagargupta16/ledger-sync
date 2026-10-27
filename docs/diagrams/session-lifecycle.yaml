@@ -19,7 +19,7 @@ nodes:
     shape: terminator
     label: App loads
     in: lane-spa
-    evidence: "frontend/src/App.tsx:192-194"   # useAuthInit
+    evidence: "frontend/src/App.tsx:201-203"   # useAuthInit
   has-token:
     shape: decision
     label: Stored access token?
@@ -30,7 +30,7 @@ nodes:
     label: GET /api/auth/me
     note: a 401 refreshes once first
     in: lane-spa
-    evidence: ["frontend/src/hooks/api/useAuth.ts:72", "frontend/src/services/api/auth.ts:111", "frontend/src/services/api/client.ts:304-316"]
+    evidence: ["frontend/src/hooks/api/useAuth.ts:72", "frontend/src/services/api/auth.ts:112", "frontend/src/services/api/client.ts:327-339"]
   verify:
     shape: process
     label: Verify token, load user
@@ -52,7 +52,7 @@ nodes:
     label: Serve authenticated requests
     note: a 401 runs the token refresh figure
     in: lane-spa
-    evidence: ["frontend/src/hooks/api/useAuth.ts:74-77", "frontend/src/services/api/client.ts:299-309"]
+    evidence: ["frontend/src/hooks/api/useAuth.ts:74-77", "frontend/src/services/api/client.ts:322-332"]
   identity:
     shape: decision
     label: Identity changed?
@@ -68,8 +68,9 @@ nodes:
   logout:
     shape: data
     label: POST /api/auth/logout
+    note: "this device's push alerts stop first"
     in: lane-spa
-    evidence: ["frontend/src/services/api/auth.ts:118-124", "frontend/src/hooks/api/useAuth.ts:26-40"]
+    evidence: ["frontend/src/services/api/auth.ts:121-128", "frontend/src/services/api/auth.ts:122#forgetThisDevice", "frontend/src/services/api/pushDevice.ts:183#forgetThisDevice", "frontend/src/hooks/api/useAuth.ts:26-40"]
   revoke:
     shape: process
     label: Bump token_version
@@ -102,5 +103,5 @@ edges:
   - clear -> active: { label: new identity continues, evidence: "frontend/src/lib/session.ts:65-67" }
   - active -> logout: { label: user signs out, evidence: "frontend/src/hooks/api/useAuth.ts:30-35" }
   - logout -> revoke: { evidence: "backend/src/ledger_sync/api/auth.py:73" }
-  - revoke -> end: { label: on settle or error, evidence: ["frontend/src/hooks/api/useAuth.ts:37-38", "frontend/src/services/api/auth.ts:119-123"] }
+  - revoke -> end: { label: on settle or error, evidence: ["frontend/src/hooks/api/useAuth.ts:37-38", "frontend/src/services/api/auth.ts:123-127"] }
   - end -> signedout: { evidence: "frontend/src/lib/session.ts:50-54" }

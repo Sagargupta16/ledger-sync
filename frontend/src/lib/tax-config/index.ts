@@ -8,26 +8,28 @@
  *
  * `source` links the Budget notification so a future maintainer can
  * verify values against the original document.
+ *
+ * The rate tables live in `./regimes.ts`, the Income-tax Act 2025 section
+ * map in `./sections.ts` and the "Tax Year" naming in `./taxYear.ts`.
  */
 
-import type { TaxSlab } from '../taxCalculator'
+import {
+  NEW_REGIME_115BAC_ORIGINAL,
+  NEW_REGIME_FY2023,
+  NEW_REGIME_FY2024,
+  NEW_REGIME_FY2025,
+  OLD_REGIME_BASE,
+  type RegimeConfig,
+} from './regimes'
 
-interface SurchargeBand {
-  above: number
-  rate: number
-}
-
-interface RebateConfig {
-  maxIncome: number
-  maxRebate: number
-}
-
-interface RegimeConfig {
-  slabs: TaxSlab[]
-  surcharge: SurchargeBand[]
-  rebate87A: RebateConfig
-  standardDeduction: number
-}
+export {
+  deductionLabel,
+  formatSectionRef,
+  OLD_REGIME_DEDUCTIONS,
+  sectionTooltip,
+  type DeductionKey,
+} from './sections'
+export { formatTaxYearLabel, isAct2025Year, taxYearKey } from './taxYear'
 
 interface FYTaxConfig {
   fyStartYear: number
@@ -40,117 +42,6 @@ interface FYTaxConfig {
   professionalTaxPerMonth: number
   /** Health & education cess on (tax after rebate + surcharge) */
   cessRate: number
-}
-
-// ─── Old regime -- unchanged across FYs ──────────────────────────────────────
-// Same slabs / surcharge / rebate from FY 2020-21 onward. Embedded in each
-// FY block by reference so a future Budget that changes old-regime rules
-// can diverge without a global edit.
-
-const OLD_REGIME_BASE: RegimeConfig = {
-  slabs: [
-    { lower: 0, upper: 250_000, rate: 0 },
-    { lower: 250_000, upper: 500_000, rate: 5 },
-    { lower: 500_000, upper: 1_000_000, rate: 20 },
-    { lower: 1_000_000, upper: Infinity, rate: 30 },
-  ],
-  surcharge: [
-    { above: 50_000_000, rate: 0.37 },
-    { above: 20_000_000, rate: 0.25 },
-    { above: 10_000_000, rate: 0.15 },
-    { above: 5_000_000, rate: 0.1 },
-  ],
-  rebate87A: { maxIncome: 500_000, maxRebate: 12_500 },
-  standardDeduction: 50_000,
-}
-
-// ─── FY 2020-21 to FY 2022-23 (original Section 115BAC, Finance Act 2020) ───
-// Optional regime with 2.5L-wide slabs. No standard deduction (Finance Act
-// 2023 added it from FY 2023-24). Section 87A: rebate up to 12,500 for total
-// income up to 5L, same as the old regime. Surcharge followed the old-regime
-// bands, including 37% above 5 Cr: the 25% cap for the new regime arrived with
-// Finance Act 2023. Cess is 4%. Not modelled: the 15% surcharge cap on
-// dividends and listed-equity capital gains.
-
-const NEW_REGIME_115BAC_ORIGINAL: RegimeConfig = {
-  slabs: [
-    { lower: 0, upper: 250_000, rate: 0 },
-    { lower: 250_000, upper: 500_000, rate: 5 },
-    { lower: 500_000, upper: 750_000, rate: 10 },
-    { lower: 750_000, upper: 1_000_000, rate: 15 },
-    { lower: 1_000_000, upper: 1_250_000, rate: 20 },
-    { lower: 1_250_000, upper: 1_500_000, rate: 25 },
-    { lower: 1_500_000, upper: Infinity, rate: 30 },
-  ],
-  surcharge: [
-    { above: 50_000_000, rate: 0.37 },
-    { above: 20_000_000, rate: 0.25 },
-    { above: 10_000_000, rate: 0.15 },
-    { above: 5_000_000, rate: 0.1 },
-  ],
-  rebate87A: { maxIncome: 500_000, maxRebate: 12_500 },
-  standardDeduction: 0,
-}
-
-// ─── FY 2023-24 (Budget 2023 new regime) ────────────────────────────────────
-
-const NEW_REGIME_FY2023: RegimeConfig = {
-  slabs: [
-    { lower: 0, upper: 300_000, rate: 0 },
-    { lower: 300_000, upper: 600_000, rate: 5 },
-    { lower: 600_000, upper: 900_000, rate: 10 },
-    { lower: 900_000, upper: 1_200_000, rate: 15 },
-    { lower: 1_200_000, upper: 1_500_000, rate: 20 },
-    { lower: 1_500_000, upper: Infinity, rate: 30 },
-  ],
-  surcharge: [
-    { above: 20_000_000, rate: 0.25 },
-    { above: 10_000_000, rate: 0.15 },
-    { above: 5_000_000, rate: 0.1 },
-  ],
-  rebate87A: { maxIncome: 700_000, maxRebate: 25_000 },
-  standardDeduction: 50_000,
-}
-
-// ─── FY 2024-25 (Budget 2024) ───────────────────────────────────────────────
-
-const NEW_REGIME_FY2024: RegimeConfig = {
-  slabs: [
-    { lower: 0, upper: 300_000, rate: 0 },
-    { lower: 300_000, upper: 700_000, rate: 5 },
-    { lower: 700_000, upper: 1_000_000, rate: 10 },
-    { lower: 1_000_000, upper: 1_200_000, rate: 15 },
-    { lower: 1_200_000, upper: 1_500_000, rate: 20 },
-    { lower: 1_500_000, upper: Infinity, rate: 30 },
-  ],
-  surcharge: [
-    { above: 20_000_000, rate: 0.25 },
-    { above: 10_000_000, rate: 0.15 },
-    { above: 5_000_000, rate: 0.1 },
-  ],
-  rebate87A: { maxIncome: 700_000, maxRebate: 25_000 },
-  standardDeduction: 75_000,
-}
-
-// ─── FY 2025-26 (Budget 2025 -- major revision) ──────────────────────────────
-
-const NEW_REGIME_FY2025: RegimeConfig = {
-  slabs: [
-    { lower: 0, upper: 400_000, rate: 0 },
-    { lower: 400_000, upper: 800_000, rate: 5 },
-    { lower: 800_000, upper: 1_200_000, rate: 10 },
-    { lower: 1_200_000, upper: 1_600_000, rate: 15 },
-    { lower: 1_600_000, upper: 2_000_000, rate: 20 },
-    { lower: 2_000_000, upper: 2_400_000, rate: 25 },
-    { lower: 2_400_000, upper: Infinity, rate: 30 },
-  ],
-  surcharge: [
-    { above: 20_000_000, rate: 0.25 },
-    { above: 10_000_000, rate: 0.15 },
-    { above: 5_000_000, rate: 0.1 },
-  ],
-  rebate87A: { maxIncome: 1_200_000, maxRebate: 60_000 },
-  standardDeduction: 75_000,
 }
 
 // ─── Ordered list (oldest → newest) ─────────────────────────────────────────
@@ -211,6 +102,29 @@ const FY_CONFIGS: FYTaxConfig[] = [
     fyLabel: 'FY 2025-26',
     source: 'Budget 2025 (Feb 2025)',
     effectiveFrom: '2025-04-01',
+    oldRegime: OLD_REGIME_BASE,
+    newRegime: NEW_REGIME_FY2025,
+    professionalTaxPerMonth: 200,
+    cessRate: 0.04,
+  },
+  // Tax Year 2026-27: the Income-tax Act 2025 replaced the 1961 Act from
+  // 2026-04-01 and Finance Act 2026 changed no personal rate, so every figure
+  // equals FY 2025-26 (cess and professional tax are carried over). Default
+  // regime s.202(1): nil to 4L, 5% to 8L, 10% to 12L, 15% to 16L, 20% to 20L,
+  // 25% to 24L, 30% above; old (opt-out) regime slabs unchanged in the First
+  // Schedule. Standard deduction s.19(1) Table item 2: 75,000 in the default
+  // regime, 50,000 otherwise. Rebate s.156: 60,000 up to 12L with marginal
+  // relief (default), 12,500 up to 5L (old). Surcharge 10/15/25% above
+  // 50L/1Cr/2Cr, 37% above 5Cr in the old regime only. Sources, read 2026-10-26:
+  // https://www.pib.gov.in/PressReleasePage.aspx?PRID=2248005&reg=48&lang=2
+  // https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/objective-and-scope-new-act
+  // https://web.archive.org/web/20260612085646id_/https://www.incometaxindia.gov.in/documents/d/guest/income_tax_act_2025_as_amended_by_fa_act_2026-pdf
+  // https://www.indiabudget.gov.in/doc/memo.pdf
+  {
+    fyStartYear: 2026,
+    fyLabel: 'Tax Year 2026-27',
+    source: 'Income-tax Act 2025 (s.202) and Finance Act 2026',
+    effectiveFrom: '2026-04-01',
     oldRegime: OLD_REGIME_BASE,
     newRegime: NEW_REGIME_FY2025,
     professionalTaxPerMonth: 200,

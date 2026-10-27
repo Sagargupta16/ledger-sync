@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
+  setAmount: vi.fn(),
   refetch: vi.fn(),
 }))
 
@@ -24,6 +25,11 @@ vi.mock('@/hooks/api/useAnalyticsV2', () => ({
   useCreateRecurringTransaction: () => ({ mutate: mocks.create, isPending: false }),
   useUpdateRecurringTransaction: () => ({ mutate: mocks.update, isPending: false }),
   useDeleteRecurringTransaction: () => ({ mutate: mocks.remove, isPending: false }),
+}))
+
+// Each card owns its amount mutation (inline edit and reset).
+vi.mock('@/hooks/api/useRecurringAmount', () => ({
+  useRecurringAmount: () => ({ mutate: mocks.setAmount, isPending: false }),
 }))
 
 vi.mock('@/hooks/useDemoGuard', () => ({

@@ -1,6 +1,7 @@
 /**
- * Active upload tokens with their dates and a revoke action. The plaintext is
- * never listed; the prefix is enough to tell tokens apart.
+ * Active access tokens of every purpose, which doubles as the list of
+ * connected clients: what each may do, its dates and a revoke action. The
+ * plaintext is never listed; the prefix is enough to tell tokens apart.
  */
 
 import { useId, type ReactNode } from 'react'
@@ -11,7 +12,9 @@ import ErrorState from '@/components/shared/ErrorState'
 import Button from '@/components/ui/Button'
 import Spinner from '@/components/ui/Spinner'
 import { formatDate } from '@/lib/formatters'
-import { MAX_UPLOAD_TOKENS, type UploadToken } from '@/services/api/uploadTokens'
+import type { UploadToken } from '@/services/api/uploadTokens'
+
+import { purposeFor } from './uploadTokenPurposes'
 
 interface Props {
   tokens: UploadToken[] | undefined
@@ -45,6 +48,16 @@ function TokenDate({ label, value }: Readonly<{ label: string; value: string }>)
   )
 }
 
+function PurposeBadge({ token }: Readonly<{ token: UploadToken }>) {
+  const { Icon, label } = purposeFor(token.scope)
+  return (
+    <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+      <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+      {label}
+    </span>
+  )
+}
+
 export default function UploadTokenList(props: Readonly<Props>) {
   const { tokens, isLoading, isError, onRetry, revokingId, revokeError, onRevoke } = props
   const headingId = useId()
@@ -54,20 +67,20 @@ export default function UploadTokenList(props: Readonly<Props>) {
     body = (
       <ErrorState
         variant="compact"
-        title="Could not load upload tokens"
+        title="Could not load access tokens"
         message="Your tokens were not changed. Check your connection and try again."
         onRetry={onRetry}
       />
     )
   } else if (isLoading || !tokens) {
-    body = <Spinner size="sm" label="Loading upload tokens" />
+    body = <Spinner size="sm" label="Loading access tokens" />
   } else if (tokens.length === 0) {
     body = (
       <EmptyState
         variant="compact"
         icon={KeyRound}
-        title="No upload tokens yet"
-        description="Create one above, then paste it into your Shortcut."
+        title="No access tokens yet"
+        description="Create one above, then paste it into your Shortcut, Claude Code or alert automation."
       />
     )
   } else {
@@ -79,6 +92,7 @@ export default function UploadTokenList(props: Readonly<Props>) {
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium text-foreground">{token.name}</p>
                 <p className="font-mono text-xs text-muted-foreground">{token.prefix}...</p>
+                <PurposeBadge token={token} />
               </div>
               <Button
                 type="button"
@@ -117,9 +131,7 @@ export default function UploadTokenList(props: Readonly<Props>) {
       <div className="flex items-baseline justify-between gap-3">
         <h4 id={headingId} className="text-sm font-medium text-foreground">Active tokens</h4>
         {tokens && (
-          <span className="text-xs text-muted-foreground">
-            {tokens.length} of {MAX_UPLOAD_TOKENS}
-          </span>
+          <span className="text-xs tabular-nums text-muted-foreground">{tokens.length} active</span>
         )}
       </div>
       {body}

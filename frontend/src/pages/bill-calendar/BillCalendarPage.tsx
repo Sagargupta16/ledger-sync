@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 
+import CardCyclesPanel from '@/components/analytics/CardCyclesPanel'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
@@ -10,7 +11,7 @@ import SelectedDayPanel from './components/SelectedDayPanel'
 import { useBillCalendar } from './useBillCalendar'
 
 const PAGE_TITLE = 'Bill Calendar'
-const PAGE_SUBTITLE = 'Upcoming expected payments in a monthly calendar view'
+const PAGE_SUBTITLE = 'Upcoming expected payments and card due dates in a monthly calendar view'
 
 export default function BillCalendarPage() {
   const calendar = useBillCalendar()
@@ -69,6 +70,7 @@ export default function BillCalendarPage() {
         bills={calendar.selectedDayBills}
         onClose={() => calendar.setSelectedDay(null)}
       />
+      <CardCyclesPanel />
     </PageContainer>
   )
 }

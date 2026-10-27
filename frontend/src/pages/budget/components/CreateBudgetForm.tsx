@@ -7,14 +7,20 @@ import { useBudgets, useCreateBudget } from '@/hooks/api/useAnalyticsV2'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { useDemoStore } from '@/store/demoStore'
 
+const SETTINGS_DESCRIPTION =
+  'Choose a category and review the limit and alert threshold before saving. This creates one budget separately from saving your settings.'
+
 interface CreateBudgetFormProps {
   defaultAlertThreshold: number
+  /** Help text under the title; defaults to the Settings wording. */
+  description?: string
   onCancel: () => void
   onCreated: (category: string) => void
 }
 
 export default function CreateBudgetForm({
   defaultAlertThreshold,
+  description = SETTINGS_DESCRIPTION,
   onCancel,
   onCreated,
 }: Readonly<CreateBudgetFormProps>) {
@@ -66,10 +72,7 @@ export default function CreateBudgetForm({
         <h4 id={`${formId}-title`} className="text-sm font-semibold text-foreground">
           Create a monthly budget
         </h4>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Choose a category and review the limit and alert threshold before saving.
-          This creates one budget separately from saving your settings.
-        </p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
       {isDemoMode && (
         <p className="text-sm text-muted-foreground">
@@ -119,6 +122,7 @@ export default function CreateBudgetForm({
             type="number"
             inputMode="decimal"
             min="0.01"
+            max="9999999999999.99"
             step="0.01"
             required
             value={monthlyLimit}
