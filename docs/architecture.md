@@ -510,12 +510,12 @@ workers/
 
 ### Routing and loading
 
-`App.tsx` defines 32 routed page components:
+`App.tsx` defines 33 routed page components:
 
 - 3 public routes
-- 29 protected workspace pages
+- 30 protected workspace pages
 - 4 eager page components
-- 28 lazy page components
+- 29 lazy page components
 
 2.31.0 added the Review Queue (`/review`), Foreign Assets
 (`/tax/foreign-assets`), and AIS Import (`/tax/ais`) pages, and moved the FIRE
@@ -1119,8 +1119,9 @@ health, and recovery procedures.
 `backend/vercel.json` also schedules the daily push alert run
 (`GET /api/push/run-due`, gated by `CRON_SECRET`). The 2.31.0 revision enables
 pgvector, so the CI PostgreSQL job installs it for the runner's PostgreSQL
-major. The CAS dependencies enlarge the function, and its deployed size is still
-to be read from the first preview build log; DEPLOYMENT.md has the fallbacks.
+major. The CAS import's dependencies are the optional `cas` extra, left out of
+the Vercel install to keep the function under the 250 MB standard size, so the
+hosted CAS upload answers 503; DEPLOYMENT.md, "Function size", has the numbers.
 
 ## Verification
 

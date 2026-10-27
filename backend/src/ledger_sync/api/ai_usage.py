@@ -150,11 +150,24 @@ def count_app_messages_today(db: Session, user_id: int) -> int:
     )
 
 
+def app_message_limit(db: Session, user_id: int) -> int:
+    """The shared daily call cap for *user_id*; 0 or less means none.
+
+    An account listed in ``ai_unlimited_emails`` has none.
+    """
+    if settings.ai_unlimited_emails:
+        email = db.scalar(select(User.email).where(User.id == user_id))
+        unlimited = {address.strip().casefold() for address in settings.ai_unlimited_emails}
+        if email is not None and email.strip().casefold() in unlimited:
+            return 0
+    return settings.ai_daily_message_limit
+
+
 def check_app_message_limit(db: Session, user_id: int) -> None:
     """Raise 429 if an app_bedrock user has hit the app-wide daily message
     cap. Only applies to users on the shared Bedrock token; BYOK is not
     affected."""
-    limit = settings.ai_daily_message_limit
+    limit = app_message_limit(db, user_id)
     if limit <= 0:
         return  # 0/negative disables the cap entirely
     used = count_app_messages_today(db, user_id)
@@ -351,9 +364,9 @@ def get_usage(
         "limits": {
             "daily": ai_settings.ai_daily_token_limit if ai_settings else None,
             "monthly": ai_settings.ai_monthly_token_limit if ai_settings else None,
-            # App-wide message cap surfaced here so the client can render
-            # "X / 10 messages today" without knowing the setting.
-            "app_daily_messages": settings.ai_daily_message_limit,
+            # This user's app message cap, so the client can render
+            # "X / 10 messages today" without knowing the setting; 0 is none.
+            "app_daily_messages": app_message_limit(session, current_user.id),
         },
         "messages_today": messages_today,
         "as_of": now.isoformat(),

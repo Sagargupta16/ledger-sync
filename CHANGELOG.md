@@ -6,6 +6,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.32.0 - 2026-10-27
+
+An AI Canvas that draws charts of your data on request, and a way for the server owner to lift the app-mode daily AI limit for chosen accounts. No migration.
+
+### Added
+
+- **AI Canvas** (`/ai-canvas`, Analytics in the sidebar and on More). Ask for a chart in plain words and the assistant fetches the numbers with its 15 read-only tools, then calls a new browser-side `render_chart` tool that draws a bar, ranking, line, area or pie chart with the in-house chart kit, followed by a one or two sentence takeaway. Arguments the chart cannot show (more than 60 labels or 4 series, a pie over 7 slices or with negative values, values that do not line up with the labels) come back to the model as an error it corrects. The 12 newest charts stay for the tab's session, per signed-in account. Phone first: the composer, then the charts; from `xl` the conversation sits beside them. Off in demo mode.
+- `LEDGER_SYNC_AI_UNLIMITED_EMAILS` (JSON array): accounts whose stored, provider-verified email is listed have no app-mode daily call limit. `/api/ai/usage` reports their `limits.app_daily_messages` as 0, and the chat badge shows today's count instead of what is left. Token budgets set in Settings still apply.
+
+### Changed
+
+- `useChat` takes optional browser-side tools and a system-prompt note, so a page can extend the assistant without a backend tool. The floating assistant button is hidden on the AI Canvas, which has its own composer.
+
+### Fixed
+
+- Docs that still said no Vercel build had measured the CAS dependencies (CLAUDE.md, backend README, architecture). They now say what 2.31.0 found: the bundle measured 283.6 MB, so CAS import is the optional `cas` extra and the hosted `POST /api/upload/cas` answers 503, which the API reference now lists.
+
 ## 2.31.0 - 2026-10-27
 
 The app no longer keeps a CPU core busy while it sits open, with every animation looking exactly as before. It also gains Safe to spend, a weekly recap and a watchlist on the Dashboard, a Review Queue, balance and bank-alert checks on Data Health, Tax Year 2026-27 with advance tax, AIS import and a Schedule FA worksheet for RSUs, CAS mutual fund import, Smart search, phone alerts and a read-only MCP server for Claude Code. App-mode chat moves to Claude Haiku 5.5. One migration adds 14 tables.

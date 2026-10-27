@@ -25,6 +25,7 @@ import {
   Receipt,
   Compass,
   Store,
+  Sparkles,
   LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -69,6 +70,7 @@ const SECTIONS: readonly MoreSection[] = [
       { to: ROUTES.INCOME_ANALYSIS, label: 'Income', icon: CircleDollarSign, color: 'text-app-green' },
       { to: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows, color: 'text-app-blue' },
       { to: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays, color: 'text-app-purple' },
+      { to: ROUTES.AI_CANVAS, label: 'AI Canvas', icon: Sparkles, color: 'text-app-purple' },
     ],
   },
   {

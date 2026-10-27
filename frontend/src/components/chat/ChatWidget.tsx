@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from 'react-router'
 import { aiConfigService } from '@/services/api/aiConfig'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
+import { ROUTES } from '@/constants'
 import { useChat } from './useChat'
 import ChatPanel from './ChatPanel'
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
+  const { pathname } = useLocation()
   const accessToken = useAuthStore((s) => s.accessToken)
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
 
@@ -81,25 +84,28 @@ export default function ChatWidget() {
         )}
       </AnimatePresence>
 
-      <motion.button
-        type="button"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleToggle}
-        title={isConfigured ? 'AI Assistant' : 'Configure AI key in Settings'}
-        aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant -- configure API key in Settings'}
-        aria-expanded={isOpen}
-        className={`flex size-11 items-center justify-center rounded-lg border shadow-sm transition-colors lg:hidden ${
-          isConfigured
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
-        }`}
-      >
-        <Sparkles className="w-5 h-5" />
-        {isConfigured && !isOpen && (
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-[var(--color-background)]" />
-        )}
-      </motion.button>
+      {/* The AI Canvas has its own composer, and this button would sit over its charts. */}
+      {pathname !== ROUTES.AI_CANVAS && (
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleToggle}
+          title={isConfigured ? 'AI Assistant' : 'Configure AI key in Settings'}
+          aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant -- configure API key in Settings'}
+          aria-expanded={isOpen}
+          className={`flex size-11 items-center justify-center rounded-lg border shadow-sm transition-colors lg:hidden ${
+            isConfigured
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'bg-[var(--overlay-5)] text-muted-foreground cursor-not-allowed'
+          }`}
+        >
+          <Sparkles className="w-5 h-5" />
+          {isConfigured && !isOpen && (
+            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-app-green rounded-full border-2 border-[var(--color-background)]" />
+          )}
+        </motion.button>
+      )}
     </div>
   )
 }

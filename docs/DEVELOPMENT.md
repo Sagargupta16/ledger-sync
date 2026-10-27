@@ -299,9 +299,9 @@ A Money Manager `.mmbak` backup (`POST /api/upload/money-manager`) and a CAS PDF
 `App.tsx` currently defines:
 
 - 3 public routes
-- 29 protected workspace routes
+- 30 protected workspace routes
 - 4 eager page components
-- 28 lazy page components
+- 29 lazy page components
 
 Add a route constant, direct page import, nested route, and navigation entry
 for every new page. Do not add page-level barrel files.

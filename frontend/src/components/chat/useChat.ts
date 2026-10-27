@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
 import type { Block, ChatMessage, ToolSpec } from '@/lib/chatAdapters'
@@ -26,6 +26,38 @@ function withPendingReply(text: string) {
     prev.at(-1)?.role === 'assistant'
       ? [...prev.slice(0, -1), { role: 'assistant', content: text }]
       : prev
+}
+
+/**
+ * A tool the browser runs itself instead of the server's `/api/ai/tools/execute`,
+ * such as the AI Canvas's `render_chart`. Its result goes back to the model as
+ * the tool_result.
+ */
+export interface ClientTool {
+  spec: ToolSpec
+  run: (input: Record<string, unknown>) => unknown
+}
+
+export interface UseChatOptions {
+  /** Offered beside the server's tools; a call to one runs locally. */
+  clientTools?: readonly ClientTool[]
+  /** Appended to the system prompt for this chat only. */
+  systemNote?: string
+}
+
+/** Run a requested tool: a matching client tool locally, anything else on the server. */
+async function dispatchTool(
+  clientTools: readonly ClientTool[],
+  name: string,
+  input: Record<string, unknown>,
+): Promise<unknown> {
+  const local = clientTools.find((tool) => tool.spec.name === name)
+  if (!local) return executeTool(name, input)
+  try {
+    return await local.run(input)
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : 'The tool failed' }
+  }
 }
 
 interface UseChatReturn {
@@ -112,8 +144,14 @@ export function useChat(
   provider: string | null,
   model: string | null,
   region: string | null,
+  options?: UseChatOptions,
 ): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Read when a send starts, so a caller's new options object never re-creates `send`.
+  const optionsRef = useRef(options)
+  useEffect(() => {
+    optionsRef.current = options
+  }, [options])
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Set only while a send is in flight; `stop` uses it to know a placeholder exists.
@@ -167,14 +205,17 @@ export function useChat(
         }
         controller.signal.throwIfAborted()
 
+        const clientTools = optionsRef.current?.clientTools ?? []
+        const systemNote = optionsRef.current?.systemNote
         await runToolLoop({
           provider: resolved.provider,
           model: resolved.model,
           region: resolved.region,
           apiKey: resolved.apiKey,
-          systemPrompt: contextRef.current,
+          systemPrompt: systemNote ? `${contextRef.current}\n\n${systemNote}` : contextRef.current,
           conversation,
-          tools: tools ?? [],
+          tools: [...(tools ?? []), ...clientTools.map((tool) => tool.spec)],
+          runTool: (name, input) => dispatchTool(clientTools, name, input),
           signal: controller.signal,
           usageLogs,
           onFinalText: (text) => {
@@ -252,6 +293,8 @@ interface LoopParams {
   systemPrompt: string
   conversation: ChatMessage[]
   tools: ToolSpec[]
+  /** Executes one tool_use: a client tool locally, otherwise through the server. */
+  runTool: (name: string, input: Record<string, unknown>) => Promise<unknown>
   signal: AbortSignal
   /** Each round's usage log (browser-direct providers), so the usage refresh can wait for them. */
   usageLogs: Promise<void>[]
@@ -341,12 +384,15 @@ async function runRounds(params: LoopParams, convo: ChatMessage[], roundsLeft: n
   const interimText = textFromBlocks(response.blocks)
   params.onStatus(interimText || 'Looking up your data…')
 
+  // A stopped send must not run tools, client tools included, after the fact.
+  params.signal.throwIfAborted()
+
   // Execute all tool_use blocks in parallel and append the results as a
   // single user turn.
   const results = await Promise.all(
     toolUses.map(async (tu) => ({
       tool_use_id: tu.tool_use_id,
-      content: await executeTool(tu.name, tu.input),
+      content: await params.runTool(tu.name, tu.input),
     })),
   )
   convo.push({

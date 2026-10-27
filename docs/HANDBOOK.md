@@ -404,6 +404,14 @@ The page includes:
 
 The page does not currently include net-worth milestones, merchant growth, or category-growth rankings.
 
+### AI Canvas
+
+**Route:** `/ai-canvas`
+
+Ask for a chart in plain words, such as "income vs spending by month this financial year" or "top 8 spending categories since April", and the assistant looks the numbers up with its read-only tools, then draws the chart: bars to compare periods, a ranking for top items, a line or area for a trend, or a pie for the parts of one whole. It adds one or two sentences with the main takeaway. Ask again to change the type, period or breakdown; each answer draws a new chart.
+
+Every value comes from your data through the same tools the assistant uses in chat, and the chart shows exactly what the assistant passed. Each chart uses about three AI calls against the app-mode daily allowance. The canvas keeps your 12 newest charts while the tab stays open; remove one with its close button or clear them all. The canvas is not available in demo mode.
+
 ## Wealth
 
 ### Net Worth Tracker
@@ -879,7 +887,9 @@ key. A conflicting save offers **Reload saved configuration** and keeps your
 draft. App mode preserves your personal configuration for a later switch back.
 
 The shared allowance counts model requests, including follow-up tool rounds,
-so one question can use more than one unit. Bedrock reserves token budget
+so one question can use more than one unit. The server owner can list accounts
+with no daily allowance in `LEDGER_SYNC_AI_UNLIMITED_EMAILS`; for them the chat
+shows today's count instead of what is left. Bedrock reserves token budget
 before a request and settles recorded usage afterward. An uncertain provider
 failure can continue to count against the budget. Browser-direct usage
 tracking does not replace spending limits at your provider.

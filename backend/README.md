@@ -212,6 +212,6 @@ On PostgreSQL, `feature_domains_2026` runs `CREATE EXTENSION IF NOT EXISTS vecto
 
 ## Deployment
 
-Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Vercel's Python runtime serves the FastAPI ASGI app directly, so the application lifespan runs in production. Database migrations are applied by `.github/workflows/migrate.yml`. `vercel.json` also schedules the daily push alert run (`GET /api/push/run-due` at `0 3 * * *`), and the CAS dependencies make the function larger, so read its size in the first preview build log.
+Production runs on Vercel through `api/index.py` and `vercel.json`, with Neon PostgreSQL behind the PgBouncer pooler. Vercel's Python runtime serves the FastAPI ASGI app directly, so the application lifespan runs in production. Database migrations are applied by `.github/workflows/migrate.yml`. `vercel.json` also schedules the daily push alert run (`GET /api/push/run-due` at `0 3 * * *`), and the CAS import's dependencies are the optional `cas` extra, which the Vercel install leaves out to keep the function under Vercel's 250 MB standard size (the hosted `POST /api/upload/cas` answers 503; see `docs/DEPLOYMENT.md`, "Function size"). Install it locally with `uv sync --extra cas` or `--all-extras`.
 
 See [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) and [docs/API.md](../docs/API.md).
