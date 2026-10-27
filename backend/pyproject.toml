@@ -25,12 +25,20 @@ dependencies = [
     "httpx>=0.28.0",
     "cryptography>=50.0.0",
     "boto3>=1.43.0",
-    "casparser>=1.4.1",
-    # Imported directly to tell an unreadable CAS PDF from a wrong password.
-    "pypdfium2>=5.14.0",
     "pgvector>=0.5.1",
     # Imported directly by the embedding column type and the SQLite ranking.
     "numpy>=2.5.4",
+]
+
+[project.optional-dependencies]
+# CAS PDF import (Investment Analytics). Not installed on the hosted Vercel
+# function: casparser's ISIN database alone is ~49 MB and took the bundle to
+# 283.6 MB, past Vercel's 250 MB standard size, and the optimized bundle failed
+# at runtime (2026-10-27). Without it the upload route answers 503.
+cas = [
+    "casparser>=1.4.1",
+    # Imported directly to tell an unreadable CAS PDF from a wrong password.
+    "pypdfium2>=5.14.0",
 ]
 
 [project.scripts]

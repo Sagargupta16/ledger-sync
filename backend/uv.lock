@@ -578,7 +578,6 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "boto3" },
-    { name = "casparser" },
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -590,12 +589,17 @@ dependencies = [
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
-    { name = "pypdfium2" },
     { name = "rich" },
     { name = "slowapi" },
     { name = "sqlalchemy" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+cas = [
+    { name = "casparser" },
+    { name = "pypdfium2" },
 ]
 
 [package.dev-dependencies]
@@ -612,7 +616,7 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "boto3", specifier = ">=1.43.0" },
-    { name = "casparser", specifier = ">=1.4.1" },
+    { name = "casparser", marker = "extra == 'cas'", specifier = ">=1.4.1" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "fastapi", specifier = ">=0.138.0" },
     { name = "httpx", specifier = ">=0.28.0" },
@@ -624,13 +628,14 @@ requires-dist = [
     { name = "pydantic", extras = ["email"], specifier = ">=2.13.0" },
     { name = "pydantic-settings", specifier = ">=2.2.0" },
     { name = "pyjwt", specifier = ">=2.12.0" },
-    { name = "pypdfium2", specifier = ">=5.14.0" },
+    { name = "pypdfium2", marker = "extra == 'cas'", specifier = ">=5.14.0" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "slowapi", specifier = ">=0.1.10" },
     { name = "sqlalchemy", specifier = ">=2.0.51,<2.1" },
     { name = "typer", specifier = ">=0.21.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.49.0" },
 ]
+provides-extras = ["cas"]
 
 [package.metadata.requires-dev]
 dev = [

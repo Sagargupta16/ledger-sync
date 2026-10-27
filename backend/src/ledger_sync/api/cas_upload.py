@@ -23,7 +23,12 @@ from ledger_sync.api.cas_holdings import build_response
 from ledger_sync.api.deps import HttpClient, ProviderUser
 from ledger_sync.api.rate_limit import user_limiter
 from ledger_sync.core.amfi_nav import utc_now
-from ledger_sync.core.cas_import import CasImportError, read_cas
+from ledger_sync.core.cas_import import (
+    UNAVAILABLE,
+    CasImportError,
+    CasUnavailableError,
+    read_cas,
+)
 from ledger_sync.core.cas_records import ParsedCas
 from ledger_sync.core.mf_snapshot import load_snapshot, refresh_if_due
 from ledger_sync.core.mf_store import replace_holdings
@@ -122,6 +127,7 @@ def _import_response(parsed: ParsedCas, replaced: int) -> CasImportResponse:
         413: {"description": "Upload exceeds 4.5 MB"},
         429: {"description": "Rate limit exceeded"},
         500: {"description": "The holdings could not be saved"},
+        503: {"description": "CAS import is not installed on this server"},
     },
 )
 @user_limiter.limit("10/minute;30/hour")
@@ -134,6 +140,9 @@ async def upload_cas(request: Request, identity: ProviderUser) -> CasImportRespo
     except CasImportError as error:
         logger.info("CAS upload rejected")
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except CasUnavailableError as error:
+        logger.warning("CAS upload refused: the cas extra is not installed")
+        raise HTTPException(status_code=503, detail=UNAVAILABLE) from error
     try:
         replaced = await run_in_threadpool(_replace, identity.id, parsed)
     except SQLAlchemyError as error:
