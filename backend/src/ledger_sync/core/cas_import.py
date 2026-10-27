@@ -80,10 +80,18 @@ UNREADABLE = (
     "request a new statement."
 )
 NO_FUNDS = "This statement lists no mutual fund schemes."
+UNAVAILABLE = (
+    "CAS import is not available on this server yet. Your holdings are unchanged; "
+    "the rest of Investment Analytics works as before."
+)
 
 
 class CasImportError(ValueError):
     """A statement that cannot be imported, with a message safe to show the user."""
+
+
+class CasUnavailableError(RuntimeError):
+    """The optional ``cas`` extra (casparser) is not installed on this server."""
 
 
 # casparser's warnings use en and em dashes (U+2013, U+2014); the UI shows hyphens.
@@ -146,12 +154,16 @@ def _parse(content: bytes, password: str) -> Any:
     An NSDL or CDSL CAS opens with the PAN in capitals, which people often type
     in lower case. A variant that opens the PDF is the password, so trying it is safe.
     """
-    import casparser
-    from casparser.exceptions import (
-        CASParseError,
-        IncorrectPasswordError,
-        ParserException,
-    )
+    try:
+        import casparser
+        from casparser.exceptions import (
+            CASParseError,
+            IncorrectPasswordError,
+            ParserException,
+        )
+    except ModuleNotFoundError as error:
+        # The hosted function ships without the ``cas`` extra (pyproject.toml).
+        raise CasUnavailableError(UNAVAILABLE) from error
 
     for candidate in dict.fromkeys([password, password.strip(), password.strip().upper()]):
         try:

@@ -434,22 +434,22 @@ receives the new configuration.
 
 ### Function size
 
-The CAS import added `casparser`, `pypdfium2` and, through `casparser-isin`,
-`rapidfuzz`. Phone alerts add no package: they encrypt and sign with
-`cryptography` and PyJWT, which the backend already had. In the local backend environment
-the `casparser-isin` ISIN database alone is about 47 MB, the `pypdfium2` native
-library about 7 MB and `rapidfuzz` about 6 MB. No Vercel build has measured the
-deployed function yet, so read its size in the first preview build log of the
-release before merging.
+Vercel builds Python functions up to 250 MB as a standard bundle. Past that it
+"optimizes dependencies", and on 2026-10-27 that optimized bundle failed every
+request with `FUNCTION_INVOCATION_FAILED`: the first 2.31.0 build measured
+283.6 MB. The CAS import's `casparser` brings `casparser-isin` (an ISIN database
+of about 49 MB), `pypdfium2` (about 8 MB) and `rapidfuzz` (about 6 MB), so it
+is now the optional `cas` extra in `backend/pyproject.toml`, which the Vercel
+install leaves out. The production dependencies without it come to about
+229 MB for Linux, so there is roughly 20 MB of headroom; check the
+`Bundle size` line of the Vercel build log whenever a dependency is added.
 
-`maxLambdaSize` is a builder option on the deprecated `builds` entry. Vercel's
-`vercel.json` reference does not document it, and Vercel documents 500 MB
-uncompressed as the limit for Python functions (Functions limits page, read
-2026-10-27). If the build or the first request fails on size:
-
-1. Raise `maxLambdaSize` in `backend/vercel.json`, or drop it.
-2. If that is not enough, move the CAS routes (`api/cas_upload.py`) into their
-   own function so the rest of the API stays small.
+Without the extra, `POST /api/upload/cas` answers 503 with a plain message and
+the rest of Investment Analytics, saved holdings included, works as before.
+CI, local development and the CLI install it with `--all-extras` (or
+`uv sync --extra cas`). To offer CAS import on the hosted backend, move the CAS
+routes (`api/cas_upload.py`) into their own function with that extra, so the
+main API stays under the standard size.
 
 ### Token-authenticated routes
 
