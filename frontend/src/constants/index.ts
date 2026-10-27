@@ -41,6 +41,7 @@ export const ROUTES = {
   COMPARISON: '/comparison',
   BUDGETS: '/budgets',
   YEAR_IN_REVIEW: '/year-in-review',
+  AI_CANVAS: '/ai-canvas',
 
   // Trends & Forecasts
   TRENDS_FORECASTS: '/forecasts',

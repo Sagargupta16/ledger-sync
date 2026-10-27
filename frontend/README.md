@@ -35,11 +35,11 @@ The dev server runs at `http://localhost:5173` and proxies `/api` to `http://loc
 
 ## Router and Pages
 
-`src/App.tsx` defines 32 routed page components:
+`src/App.tsx` defines 33 routed page components:
 
 - 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 28 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
-- 3 public routes and 29 protected workspace routes.
+- 29 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
+- 3 public routes and 30 protected workspace routes.
 
 The protected workspace is organized into:
 

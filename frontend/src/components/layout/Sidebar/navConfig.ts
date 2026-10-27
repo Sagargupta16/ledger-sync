@@ -25,6 +25,7 @@ import {
   Compass,
   HeartPulse,
   Store,
+  Sparkles,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -87,6 +88,9 @@ export const navigationSections: NavSection[] = [
       { path: ROUTES.INCOME_EXPENSE_FLOW, label: 'Cash Flow', icon: ArrowRightLeft },
       { path: ROUTES.COMPARISON, label: 'Comparison', icon: GitCompareArrows },
       { path: ROUTES.YEAR_IN_REVIEW, label: 'Year in Review', icon: CalendarDays },
+      // Last in Analytics: the open-ended version of the pages above, for any
+      // chart they do not already draw.
+      { path: ROUTES.AI_CANVAS, label: 'AI Canvas', icon: Sparkles },
     ],
   },
   {

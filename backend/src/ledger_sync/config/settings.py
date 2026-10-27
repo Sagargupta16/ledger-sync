@@ -109,6 +109,12 @@ class Settings(BaseSettings):
     # counts as one call. Users who want more switch to BYOK. Make it generous
     # enough for normal finance Q&A without being a blank check.
     ai_daily_message_limit: int = 10
+    # Accounts that skip that cap (JSON array env var, like CORS origins):
+    # LEDGER_SYNC_AI_UNLIMITED_EMAILS='["owner@example.com"]'. Matched without
+    # case against the user's stored email, which sign-in takes only from a
+    # provider-verified address and which is unique per user. Token budgets a
+    # user sets in Settings still apply.
+    ai_unlimited_emails: list[str] = []
     # Hard stop on tool-calling rounds per user message (browser enforces
     # this; backend UsageLogRequest validation allows a small buffer on
     # top so a slightly-over report isn't silently dropped). Keep this aligned

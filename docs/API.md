@@ -374,7 +374,7 @@ against intervening edits.
 | `GET` | `/api/ai/tools` | List 15 read-only tool schemas |
 | `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
 | `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
-| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage |
+| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS`) |
 | `GET` | `/api/exchange-rates` | Latest or historical currency rates by base currency |
 | `GET` | `/api/rates/instruments` | EPF, PPF, and NPS reference rates |
 | `GET` | `/api/stock-price/{symbol}` | Latest or historical stock price |
@@ -1180,8 +1180,9 @@ It returns `{source, cas_type, statement_from, statement_to, folios, schemes,
 holdings, transactions, replaced, warnings}`. Errors: 400 with a plain reason
 (not a PDF, the password did not open it, an MFCentral statement, a re-printed
 or "Save as PDF" copy, not a CAS, no mutual fund schemes, or a malformed form),
-413 over 4.5 MB, 429 over 10 a minute or 30 an hour per user, and 500 if the
-save fails.
+413 over 4.5 MB, 429 over 10 a minute or 30 an hour per user, 500 if the
+save fails, and 503 when the server was installed without the optional `cas`
+extra, as the hosted backend is (see DEPLOYMENT.md, "Function size").
 
 `GET /api/mf-holdings` (30 a minute per user, access token only) values every
 held scheme at AMFI's latest NAV and returns:

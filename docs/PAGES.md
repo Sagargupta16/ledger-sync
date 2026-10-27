@@ -6,12 +6,12 @@ Checked against `frontend/src/App.tsx`, navigation configuration, page component
 
 ## Router Summary
 
-The application has 32 routed page components:
+The application has 33 routed page components:
 
 - 3 public page routes.
-- 29 protected workspace page routes.
+- 30 protected workspace page routes.
 - 4 eager page components: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 28 lazy page components, prefetched on route intent after authentication initializes.
+- 29 lazy page components, prefetched on route intent after authentication initializes.
 
 `/home` is a protected compatibility route that redirects to `/dashboard`.
 
@@ -60,6 +60,7 @@ message that their existing error handler can display.
 | Analytics | `/income-expense-flow` | Cash Flow |
 | Analytics | `/comparison` | Comparison |
 | Analytics | `/year-in-review` | Year in Review |
+| Analytics | `/ai-canvas` | AI Canvas |
 | Wealth | `/net-worth` | Net Worth |
 | Wealth | `/forecasts` | Trends and Forecasts |
 | Wealth | `/investments/analytics` | Investment Analytics |
@@ -282,6 +283,16 @@ Headline metrics:
 Also displays a spending heatmap, monthly breakdown, day-of-week analysis, and generated year insights. It does not include merchant-growth, category-growth, net-worth, or milestone sections.
 
 The heatmap is desktop-only; phones get month tiles, because day cells are far below a 44px touch target. It waves in week by week and retints in a sweep when the year changes. Legend swatches highlight one level, and the grid is one tab stop: arrow keys move, Enter or Space selects a day, and Escape clears.
+
+### AI Canvas
+
+**Route:** `/ai-canvas`
+
+**Source:** `frontend/src/pages/ai-canvas/AiCanvasPage.tsx`
+
+A chat that answers with charts. The request goes through the shared `useChat` tool loop with the 15 data tools plus one browser-side tool, `render_chart` (`renderChartTool.ts`): the model fetches the numbers, then calls it with a title, a chart type (`bar`, `horizontal_bar`, `line`, `area` or `pie`), up to 60 labels and up to four series of values, one per label (a pie takes one series of at most 7 non-negative slices). The arguments are columns rather than row objects so a chart fits in a round's 1024 output tokens. `chartSpec.ts` validates them and returns an error the model reads and corrects, so nothing malformed reaches a chart; valid calls draw with the Standard Bar, Area and Pie wrappers, newest first.
+
+The canvas keeps at most 12 charts in `sessionStorage` under the signed-in user's id, so a reload keeps them, closing the tab drops them, and every stored chart is validated again on load. Phone to `lg`: the composer, then the charts (two across from `lg`); from `xl` the conversation is pinned in a column beside them. The floating assistant button is hidden on this page. Each chart costs about three model calls (data, chart, takeaway) against the app-mode daily limit. Demo mode shows an explanation instead, because the assistant is off there, and a personal-key setup without a stored key links to Settings.
 
 ## Wealth
 

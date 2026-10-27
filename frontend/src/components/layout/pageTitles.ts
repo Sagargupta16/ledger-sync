@@ -21,6 +21,7 @@ export const PAGE_TITLES: Record<string, string> = {
   '/income-expense-flow': 'Cash Flow',
   '/comparison': 'Comparison',
   '/year-in-review': 'Year in Review',
+  '/ai-canvas': 'AI Canvas',
   '/merchants': 'Merchant Intelligence',
   '/data-health': 'Data Health',
   '/budgets': 'Budgets',

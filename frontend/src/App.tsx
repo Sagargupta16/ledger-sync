@@ -47,6 +47,7 @@ const pageImports = {
   ComparisonPage: () => import('@/pages/comparison/ComparisonPage'),
   BudgetPage: () => import('@/pages/budget/BudgetPage'),
   YearInReviewPage: () => import('@/pages/year-in-review/YearInReviewPage'),
+  AiCanvasPage: () => import('@/pages/ai-canvas/AiCanvasPage'),
   SettingsPage: () => import('@/pages/settings/SettingsPage'),
   AnomalyReviewPage: () => import('@/pages/AnomalyReviewPage'),
   ReviewQueuePage: () => import('@/pages/review-queue/ReviewQueuePage'),
@@ -77,6 +78,7 @@ const TrendsForecastsPage = lazy(pageImports.TrendsForecastsPage)
 const ComparisonPage = lazy(pageImports.ComparisonPage)
 const BudgetPage = lazy(pageImports.BudgetPage)
 const YearInReviewPage = lazy(pageImports.YearInReviewPage)
+const AiCanvasPage = lazy(pageImports.AiCanvasPage)
 const SettingsPage = lazy(pageImports.SettingsPage)
 const AnomalyReviewPage = lazy(pageImports.AnomalyReviewPage)
 const ReviewQueuePage = lazy(pageImports.ReviewQueuePage)
@@ -107,6 +109,7 @@ const routeLoaders = new Map<string, () => Promise<unknown>>([
   [ROUTES.COMPARISON, pageImports.ComparisonPage],
   [ROUTES.BUDGETS, pageImports.BudgetPage],
   [ROUTES.YEAR_IN_REVIEW, pageImports.YearInReviewPage],
+  [ROUTES.AI_CANVAS, pageImports.AiCanvasPage],
   [ROUTES.SETTINGS, pageImports.SettingsPage],
   [ROUTES.ANOMALIES, pageImports.AnomalyReviewPage],
   [ROUTES.REVIEW_QUEUE, pageImports.ReviewQueuePage],
@@ -290,6 +293,7 @@ function AppRoutes() {
         <Route path={toRelativePath(ROUTES.COMPARISON)} element={<ComparisonPage />} />
         <Route path={toRelativePath(ROUTES.BUDGETS)} element={<BudgetPage />} />
         <Route path={toRelativePath(ROUTES.YEAR_IN_REVIEW)} element={<YearInReviewPage />} />
+        <Route path={toRelativePath(ROUTES.AI_CANVAS)} element={<AiCanvasPage />} />
         <Route path={toRelativePath(ROUTES.ANOMALIES)} element={<AnomalyReviewPage />} />
         <Route path={toRelativePath(ROUTES.REVIEW_QUEUE)} element={<ReviewQueuePage />} />
         <Route path={toRelativePath(ROUTES.DATA_HEALTH)} element={<DataHealthPage />} />

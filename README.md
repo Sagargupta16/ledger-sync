@@ -47,8 +47,9 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 
 ### AI assistant
 
+- AI Canvas: ask for a chart in plain words ("income vs spending by month this year") and the assistant fetches the numbers with its tools, then draws a bar, ranking, line, area or pie chart with the app's own chart kit.
 - Fifteen read-only, user-scoped financial tools. The same tools are served read-only over MCP at `/mcp` to Claude Code with a Claude MCP read access token (Settings > Advanced > Access Tokens); claude.ai web connectors need OAuth and are not supported.
-- App-provided Bedrock mode (Claude Haiku 5.5 by default) with a shared-funding daily limit and database-backed usage reservations.
+- App-provided Bedrock mode (Claude Haiku 5.5 by default) with a shared-funding daily limit, which the accounts in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` skip, and database-backed usage reservations.
 - BYOK configuration for supported providers. Bedrock token budgets are enforced by the proxy; browser-direct OpenAI/Anthropic limits are informational.
 - AES-256-GCM encrypted key storage. Current v3 envelopes use HKDF-SHA256 with `LEDGER_SYNC_ENCRYPTION_KEY`; authenticated legacy ciphertexts remain readable and can be rewrapped.
 - Financial data is fetched through tools when needed instead of being copied into a large prompt.
@@ -70,13 +71,13 @@ Explore the [architecture and flow diagrams](docs/diagrams/README.md), drawn wit
 orrery from the code, for the system boundaries, import pipeline, sign-in,
 sessions, calculations, the chart kit, AI chat and deployment.
 
-The router contains 3 public routes and 29 protected workspace pages.
+The router contains 3 public routes and 30 protected workspace pages.
 
 | Area | Pages |
 | --- | --- |
 | Public | Home, demo entry, OAuth callback |
 | Top level | Dashboard, Overview, Transactions |
-| Analytics | Expense Analysis, Merchant Intelligence, Income Analysis, Cash Flow, Comparison, Year in Review |
+| Analytics | Expense Analysis, Merchant Intelligence, Income Analysis, Cash Flow, Comparison, Year in Review, AI Canvas |
 | Wealth | Net Worth, Trends and Forecasts, Investment Analytics, Projections, Returns Analysis |
 | Commitments | Recurring, Bill Calendar |
 | Planning | Budgets, Financial Goals, FIRE Calculator, Anomaly Review, Review Queue, Data Health |

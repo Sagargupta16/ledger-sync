@@ -251,6 +251,13 @@ function UsageBadge() {
   if (data.mode === 'app_bedrock') {
     const used = data.messages_today
     const cap = data.limits.app_daily_messages
+    if (cap <= 0) {
+      return (
+        <span className="text-[10px] font-mono text-muted-foreground truncate" title={`Today: ${used} messages. No daily cap.`}>
+          · {used} today
+        </span>
+      )
+    }
     const remaining = Math.max(cap - used, 0)
     const pct = cap > 0 ? used / cap : 0
     return (
