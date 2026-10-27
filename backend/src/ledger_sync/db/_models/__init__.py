@@ -21,6 +21,9 @@ from ledger_sync.db._models.analytics import (
     TransferFlow,
 )
 from ledger_sync.db._models.analytics_state import AnalyticsState
+from ledger_sync.db._models.balance_checks import BalanceCheck
+from ledger_sync.db._models.bank_alerts import BankAlert
+from ledger_sync.db._models.category_overrides import CategoryOverride
 from ledger_sync.db._models.compensation import RsuGrantRecord, RsuVestingRecord, SalaryPlan
 from ledger_sync.db._models.enums import (
     AccountType,
@@ -29,6 +32,7 @@ from ledger_sync.db._models.enums import (
     RecurrenceFrequency,
     TransactionType,
 )
+from ledger_sync.db._models.external_refs import ExternalRef
 from ledger_sync.db._models.investments import (
     InvestmentHolding,
     NetWorthSnapshot,
@@ -41,6 +45,7 @@ from ledger_sync.db._models.ledger_dimensions import (
     LedgerCategory,
     LedgerSubcategory,
 )
+from ledger_sync.db._models.mf_holdings import MfHolding, MfNavPrice, MfTransaction
 from ledger_sync.db._models.organization import (
     CategorizationRule,
     SavedFilterView,
@@ -53,6 +58,12 @@ from ledger_sync.db._models.planning import (
     RecurringTransaction,
     ScheduledTransaction,
 )
+from ledger_sync.db._models.push_subscriptions import PushSubscription
+from ledger_sync.db._models.rsu_tax import ForeignAssetEvent, RsuVestFx
+from ledger_sync.db._models.saved_view_pins import SavedViewPin
+from ledger_sync.db._models.tax_ais import TaxAisSummary
+from ledger_sync.db._models.tax_deductions import TaxDeduction
+from ledger_sync.db._models.transaction_embeddings import TransactionEmbedding
 from ledger_sync.db._models.transactions import (
     TRANSACTIONS,
     ColumnMappingLog,
@@ -73,14 +84,19 @@ __all__ = [
     "Anomaly",
     "AnomalyType",
     "AuditLog",
+    "BalanceCheck",
+    "BankAlert",
     "Budget",
     "CategorizationRule",
+    "CategoryOverride",
     "CategoryTrend",
     "CohortSpending",
     "ColumnMappingLog",
     "DailySummary",
+    "ExternalRef",
     "FYSummary",
     "FinancialGoal",
+    "ForeignAssetEvent",
     "GoalStatus",
     "ImportLog",
     "InvestmentHolding",
@@ -89,17 +105,26 @@ __all__ = [
     "LedgerCategory",
     "LedgerSubcategory",
     "MerchantIntelligence",
+    "MfHolding",
+    "MfNavPrice",
+    "MfTransaction",
     "MonthlySummary",
     "NetWorthSnapshot",
+    "PushSubscription",
     "RecurrenceFrequency",
     "RecurringTransaction",
     "RsuGrantRecord",
+    "RsuVestFx",
     "RsuVestingRecord",
     "SalaryPlan",
     "SavedFilterView",
+    "SavedViewPin",
     "ScheduledTransaction",
+    "TaxAisSummary",
+    "TaxDeduction",
     "TaxRecord",
     "Transaction",
+    "TransactionEmbedding",
     "TransactionTag",
     "TransactionType",
     "TransferFlow",

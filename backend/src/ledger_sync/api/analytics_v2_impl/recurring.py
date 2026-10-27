@@ -12,7 +12,6 @@ from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
 from sqlalchemy import desc, or_, update
 
 from ledger_sync.api.analytics_v2_impl.merchant_intelligence import (
@@ -21,7 +20,6 @@ from ledger_sync.api.analytics_v2_impl.merchant_intelligence import (
 
 # Re-exported: tests import the date estimator from this module.
 from ledger_sync.api.analytics_v2_impl.recurring_rules import (
-    _MANUAL_ACCOUNT,
     _USER_EDITABLE_FIELDS,
     _VALID_FREQUENCIES,
     _VALID_PATTERN_KINDS,
@@ -33,9 +31,15 @@ from ledger_sync.api.analytics_v2_impl.recurring_rules import (
     _compute_next_expected as _compute_next_expected,
 )
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
-from ledger_sync.core.analytics.recurring import (
-    DISMISSED_PATTERN_KIND,
-    effective_pattern_kind,
+from ledger_sync.core.analytics.recurring import DISMISSED_PATTERN_KIND, effective_pattern_kind
+from ledger_sync.core.analytics.recurring_amounts import (
+    MANUAL_ACCOUNT,
+    detected_expected_amount,
+    effective_amount_sql,
+    effective_expected_amount,
+    is_amount_edited,
+    load_user_amount,
+    set_user_amount,
 )
 from ledger_sync.core.analytics.refresh import lock_analytics_user
 from ledger_sync.db.models import (
@@ -45,12 +49,25 @@ from ledger_sync.db.models import (
     TransactionType,
 )
 from ledger_sync.ingest.normalizer import DataNormalizer
-from ledger_sync.schemas.transactions import PositiveAmount
+from ledger_sync.schemas.recurring_v2 import (
+    RecurringTransactionCreate,
+    RecurringTransactionUpdate,
+)
 
 router = APIRouter()
 
 # Expected amounts are rounded to paise exactly like imported rows.
 _normalizer = DataNormalizer()
+
+
+def _amount_fields(record: RecurringTransaction) -> dict[str, Any]:
+    """The effective amount as ``expected_amount``, with the detected one beside it."""
+    detected = detected_expected_amount(record)
+    return {
+        "expected_amount": float(effective_expected_amount(record)),
+        "detected_amount": None if detected is None else float(detected),
+        "amount_edited": is_amount_edited(record),
+    }
 
 
 @router.get("/recurring-transactions")
@@ -78,16 +95,22 @@ def get_recurring_transactions(
     calendar date, ``habit`` rows just repeat (the daily lunch, the weekly fruit
     run). Fixed-cost totals, the bill calendar and missed-payment alerts must
     filter to ``commitment`` -- a repeated meal is not a bill.
+
+    ``expected_amount`` is the effective amount: the one the user set, else the
+    detected one. ``detected_amount`` is what detection last derived from
+    history (null on a row added by hand). ``amount_edited`` is true while the
+    user's amount differs from the detected one, so a reset would change it.
     """
     query = (
         db.query(RecurringTransaction)
+        .options(load_user_amount())
         .filter(
             RecurringTransaction.user_id == current_user.id,
             RecurringTransaction.pattern_kind != DISMISSED_PATTERN_KIND,
         )
         .order_by(
             desc(RecurringTransaction.confidence_score),
-            desc(RecurringTransaction.expected_amount),
+            desc(effective_amount_sql()),
         )
     )
 
@@ -116,7 +139,7 @@ def get_recurring_transactions(
                 "account": r.account,
                 "type": r.transaction_type.value if r.transaction_type else None,
                 "frequency": r.frequency.value if r.frequency else None,
-                "expected_amount": float(r.expected_amount),
+                **_amount_fields(r),
                 "variance": float(r.amount_variance),
                 "expected_day": r.expected_day,
                 "confidence": r.confidence_score,
@@ -134,7 +157,7 @@ def get_recurring_transactions(
         "summary": {
             # Commitments only: a repeated lunch is not a fixed monthly cost.
             "total_monthly_recurring": sum(
-                float(r.expected_amount)
+                float(effective_expected_amount(r))
                 for r in recurring
                 if r.frequency
                 and r.frequency.value == "monthly"
@@ -148,22 +171,11 @@ def get_recurring_transactions(
     }
 
 
-class RecurringTransactionUpdate(BaseModel):
-    """Partial update for a recurring transaction."""
-
-    pattern_name: str | None = None
-    frequency: str | None = None
-    expected_amount: PositiveAmount | None = None
-    is_confirmed: bool | None = None
-    is_active: bool | None = None
-    pattern_kind: str | None = None
-
-
 @router.patch(
     "/recurring-transactions/{item_id}",
     responses={
         404: {"description": "Recurring transaction not found"},
-        422: {"description": "Invalid frequency or pattern kind value"},
+        422: {"description": "Invalid frequency, pattern kind, or amount change"},
     },
 )
 def update_recurring_transaction(
@@ -177,6 +189,13 @@ def update_recurring_transaction(
     Any edit is a user decision, so the row becomes user-confirmed: refresh
     deletes and re-derives unconfirmed rows, which would silently undo the edit.
     An explicit ``is_confirmed`` in the body still wins.
+
+    ``expected_amount`` on a detected row is stored as the user's amount beside
+    the detected one, so refresh keeps it; ``reset_amount`` clears it. Only a
+    confirmed row keeps one: refresh deletes unconfirmed rows, so un-confirming
+    clears the user's amount, and ``expected_amount`` with ``is_confirmed=false``
+    is rejected. The response carries the row's amount state as the list
+    returns it.
     """
     lock_analytics_user(db, current_user.id)
     record = _find_visible_record(db, current_user.id, item_id)
@@ -192,9 +211,15 @@ def update_recurring_transaction(
             raise HTTPException(status_code=422, detail=f"Invalid frequency: {body.frequency}")
         record.frequency = RecurrenceFrequency(freq)
     if body.expected_amount is not None:
-        record.expected_amount = _normalizer.normalize_amount(body.expected_amount)
+        set_user_amount(record, _normalizer.normalize_amount(body.expected_amount))
+    elif body.reset_amount:
+        set_user_amount(record, None)
     if body.is_confirmed is not None:
         record.is_user_confirmed = body.is_confirmed
+    if not record.is_user_confirmed:
+        # The next refresh deletes and re-derives this row, so an amount of the
+        # user's would vanish with it: un-confirming hands it back to detection.
+        set_user_amount(record, None)
     if body.is_active is not None:
         record.is_active = body.is_active
     if body.pattern_kind is not None:
@@ -207,18 +232,7 @@ def update_recurring_transaction(
     record.last_updated = datetime.now(UTC)
     db.commit()
 
-    return {"status": "ok", "id": item_id}
-
-
-class RecurringTransactionCreate(BaseModel):
-    """Create a user-defined recurring transaction."""
-
-    name: str
-    type: str  # "Income" or "Expense"
-    frequency: str
-    amount: PositiveAmount
-    category: str | None = None
-    expected_day: int | None = Field(default=None, ge=1, le=31)
+    return {"status": "ok", "id": item_id, **_amount_fields(record)}
 
 
 @router.post(
@@ -247,7 +261,7 @@ def create_recurring_transaction(
         pattern_name=body.name.strip(),
         category=body.category or ("Income" if txn_type == "INCOME" else "Expense"),
         subcategory=None,
-        account=_MANUAL_ACCOUNT,
+        account=MANUAL_ACCOUNT,
         transaction_type=TransactionType(txn_type.capitalize()),
         frequency=RecurrenceFrequency(freq),
         expected_amount=_normalizer.normalize_amount(body.amount),
@@ -304,7 +318,7 @@ def delete_recurring_transaction(
             updated_at=ScheduledTransaction.updated_at,
         )
     )
-    if record.account == _MANUAL_ACCOUNT:
+    if record.account == MANUAL_ACCOUNT:
         db.delete(record)
     else:
         record.pattern_kind = DISMISSED_PATTERN_KIND

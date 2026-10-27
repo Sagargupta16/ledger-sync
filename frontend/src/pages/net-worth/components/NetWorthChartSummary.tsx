@@ -8,6 +8,7 @@ import type { NetWorthTrendChartProps } from './netWorthChartView'
 interface NetWorthChartSummaryProps extends Pick<NetWorthTrendChartProps, 'filteredNetWorthData' | 'allCategories' | 'milestoneRows'> {
   effectiveStacked: boolean
   showProjectionLine: boolean
+  showLinearLine: boolean
 }
 
 export function NetWorthChartSummary({
@@ -16,6 +17,7 @@ export function NetWorthChartSummary({
   milestoneRows,
   effectiveStacked,
   showProjectionLine,
+  showLinearLine,
 }: Readonly<NetWorthChartSummaryProps>) {
   const firstPoint = filteredNetWorthData[0]
   const lastPoint = filteredNetWorthData.at(-1)
@@ -74,8 +76,11 @@ export function NetWorthChartSummary({
           : [
             { key: 'netWorth', label: 'Net worth trend · cumulative cash flow', color: rawColors.app.blue },
             ...(showProjectionLine ? [
-              { key: 'projected', label: 'Dashed · projected median', color: rawColors.app.blue },
+              { key: 'projected', label: 'Dashed · compound projection median', color: rawColors.app.blue },
               { key: 'projectionBand', label: 'Shaded · projection band (±1σ)', color: rawColors.app.blue },
+            ] : []),
+            ...(showLinearLine ? [
+              { key: 'linear', label: 'Grey dashed · straight line, previous model', color: rawColors.text.tertiary },
             ] : []),
           ]}
       />

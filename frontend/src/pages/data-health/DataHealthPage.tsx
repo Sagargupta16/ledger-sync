@@ -1,11 +1,13 @@
 import { Database } from 'lucide-react'
 
+import BankAlertsPanel from '@/components/shared/BankAlertsPanel'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton, TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
 
+import BalanceChecksPanel from './components/BalanceChecksPanel'
 import CapitalLossPanel from './components/CapitalLossPanel'
 import CoveragePanel from './components/CoveragePanel'
 import HealthMetricGrid from './components/HealthMetricGrid'
@@ -77,6 +79,10 @@ export default function DataHealthPage() {
       />
 
       {state.coverage && <CoveragePanel coverage={state.coverage} />}
+
+      {/* Own queries and states: a failed balance or alert read must not blank the page. */}
+      <BalanceChecksPanel />
+      <BankAlertsPanel />
 
       <QualityIssueList
         issues={state.issues}

@@ -89,21 +89,11 @@ export const TIME_RANGE_OPTIONS = [
 ]
 
 /*
- * `ANOMALY_TYPES` used to live here: a hand-written four, picked from a
- * seven-member backend enum, feeding an "Enabled Types" checkbox grid.
- *
- * Completing it to seven was the obvious fix and the wrong one.
- * `anomaly_types_enabled` is PERSISTED AND IGNORED -- nothing under
- * `backend/src/ledger_sync/core/` reads it (only `api/preferences.py` and
- * `api/preferences_helpers.py`, which store it and echo it back), so
- * `_detect_anomalies()` runs all of its detectors no matter what is ticked.
- * Completing the list would have turned three dead checkboxes into six.
- * `auto_dismiss_recurring_anomalies` has exactly the same problem.
- *
- * So both controls were removed from `sections/AnomalyDetectionSubsection.tsx`.
- * The preference FIELDS stay on `UserPreferences` and are still round-tripped by
- * the save call: they are real columns, and honouring them is a backend change
- * (a filter in `_detect_anomalies()`), not a frontend one.
+ * `ANOMALY_TYPES` used to live here, feeding an "Enabled Types" grid that the
+ * engine never read. The engine now honours `anomaly_types_enabled` and
+ * `auto_dismiss_recurring_anomalies` (`core/analytics/anomaly_rules.py`), and
+ * their switches live on /anomalies (`pages/anomaly-review/components/
+ * AnomalyTypeToggles.tsx`), next to the findings they change.
  */
 
 // Income classification types

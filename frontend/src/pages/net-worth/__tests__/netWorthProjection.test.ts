@@ -401,8 +401,9 @@ describe('projectNetWorthLinearBand', () => {
   })
 
   it('gives every calendar month exactly one point from a month-end anchor', () => {
-    // This is the band variant the chart actually renders (useNetWorth.ts feeds
-    // it `chartSeries.at(-1)`), so the month-overflow guard matters here most.
+    // The chart's compound projection (netWorthCompound.ts) takes its dates from
+    // this band, and the whole band when the saving has no measurable growth,
+    // anchored on `chartSeries.at(-1)`, so the month-overflow guard matters here most.
     const pts = projectNetWorthLinearBand({ date: '2025-12-31', netWorth: 1_000_000 }, 10_000, 0, 60)
     expect(new Set(pts.map((p) => p.date.slice(0, 7))).size).toBe(60)
     expect(pts[1].date).toBe('2026-02-28')

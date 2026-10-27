@@ -19,6 +19,9 @@ import {
   CreditCard,
   Settings2,
   Flame,
+  FileText,
+  Globe,
+  ListChecks,
   Compass,
   HeartPulse,
   Store,
@@ -106,10 +109,11 @@ export const navigationSections: NavSection[] = [
   {
     title: 'Planning',
     items: [
-      { path: ROUTES.BUDGETS, label: 'Budget Rule', icon: Wallet2 },
+      { path: ROUTES.BUDGETS, label: 'Budgets', icon: Wallet2 },
       { path: ROUTES.GOALS, label: 'Financial Goals', icon: Goal },
       { path: ROUTES.FIRE_CALCULATOR, label: 'FIRE Calculator', icon: Flame },
       { path: ROUTES.ANOMALIES, label: 'Anomaly Review', icon: AlertTriangle },
+      { path: ROUTES.REVIEW_QUEUE, label: 'Review Queue', icon: ListChecks },
       // Sits beside Anomaly Review because both answer "can I trust what the
       // other pages are showing me" -- one about individual rows, one about
       // whether the ledger is current at all.
@@ -121,6 +125,8 @@ export const navigationSections: NavSection[] = [
     items: [
       { path: ROUTES.TAX_PLANNING, label: 'Income Tax', icon: Landmark },
       { path: ROUTES.GST_ANALYSIS, label: 'Indirect Tax (GST)', icon: Receipt },
+      { path: ROUTES.FOREIGN_ASSETS, label: 'Foreign Assets', icon: Globe },
+      { path: ROUTES.AIS_IMPORT, label: 'AIS Import', icon: FileText },
     ],
   },
 ]

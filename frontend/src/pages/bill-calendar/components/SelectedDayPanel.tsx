@@ -72,9 +72,11 @@ export default function SelectedDayPanel({
                 <BillDetailItem key={bill.key} bill={bill} />
               ))}
               <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                <span className="text-sm text-muted-foreground">Total for this day</span>
+                <span className="text-sm text-muted-foreground">Due this day</span>
                 <span className="text-sm font-bold tabular-nums text-foreground">
-                  {formatCurrency(bills.reduce((sum, bill) => sum + bill.amount, 0))}
+                  {formatCurrency(
+                    bills.reduce((sum, bill) => (bill.informational ? sum : sum + bill.amount), 0),
+                  )}
                 </span>
               </div>
             </div>

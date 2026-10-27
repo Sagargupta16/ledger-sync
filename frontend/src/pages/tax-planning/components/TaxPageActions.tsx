@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/components/ui'
+import { parseFYLabelStartYear } from '@/lib/dateUtils'
+import { formatTaxYearLabel } from '@/lib/tax-config'
 
 interface Props {
   isNewRegime: boolean
@@ -31,6 +33,7 @@ export default function TaxPageActions({
   goToNextFY,
   hasSalaryData,
 }: Readonly<Props>) {
+  const fyStartYear = parseFYLabelStartYear(selectedFY)
   // Wraps instead of stacking, with the fiscal year first: on a phone the FY
   // arrows and the regime switch share one row, so this sticky toolbar stays
   // at two rows at most.
@@ -50,7 +53,7 @@ export default function TaxPageActions({
         />
 
         <span className="min-w-0 flex-1 text-center font-medium text-foreground sm:min-w-28 sm:flex-none">
-          {selectedFY || 'Select FY'}
+          {fyStartYear === null ? selectedFY || 'Select FY' : formatTaxYearLabel(fyStartYear)}
         </span>
 
         <Button

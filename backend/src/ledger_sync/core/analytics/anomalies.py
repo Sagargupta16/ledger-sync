@@ -39,265 +39,217 @@ the modified-Z cutoff space:
 So the default 2.0 gives the recommended 3.5 modified-Z cutoff; a user
 who tuned to 2.5 (stricter) gets 4.375; a user who tuned to 1.5 (looser)
 gets 2.625. Same knob, better math underneath, no migration required.
+The unusual-category detector reads the same cutoff.
+
+## The other detectors
+
+- ``anomaly_baselines``: large transfers (per source account) and unusual
+  category months (per category).
+- ``anomaly_ledger_checks``: possible duplicates, fee and interest charges,
+  activity on closed accounts.
+- ``anomaly_recurring``: missing entries of the commitments the user confirmed.
+- ``anomaly_recurring_index``: which recurring pattern a row is an entry of,
+  for the missing-entry check and ``auto_dismiss_recurring_anomalies``.
+
+## Settings
+
+``anomaly_types_enabled`` picks the detectors (see
+``anomaly_rules.enabled_anomaly_types`` for how a list saved before the newer
+types existed is read). With ``auto_dismiss_recurring_anomalies`` on, a
+large-expense flag on an entry of a recurring pattern, and an unusual category
+month explained by a bill on a longer-than-monthly schedule, are stored
+already dismissed with an ``Auto-dismissed:`` note, and rebuilt on every
+refresh so turning the setting off brings them back.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, func
+from ledger_sync.core.analytics.anomaly_baselines import AnomalyBaselinesMixin, CategoryGates
 
-# The detectors and their tuning constants live in ``anomaly_detectors``.
+# The robust detectors and their tuning constants live in ``anomaly_detectors``.
 from ledger_sync.core.analytics.anomaly_detectors import (
     _DEFAULT_MODIFIED_Z_CUTOFF,
     _LEGACY_ANCHOR_STDEV,
-    AnomalyDetectorsMixin,
+)
+from ledger_sync.core.analytics.anomaly_ledger_checks import AnomalyLedgerChecksMixin
+from ledger_sync.core.analytics.anomaly_recurring import AnomalyRecurringMixin
+from ledger_sync.core.analytics.anomaly_recurring_index import auto_dismiss_matches
+from ledger_sync.core.analytics.anomaly_rules import (
+    ALL_TYPES,
+    FEE_CHARGE,
+    SpendScale,
+    enabled_anomaly_types,
+)
+from ledger_sync.core.analytics.anomaly_store import AnomalyStoreMixin
+from ledger_sync.core.analytics.budget_tracking import (
+    BUDGET_EXCEEDED_PREFIX,
+    apply_tracking,
+    budget_category_from_description,
+    month_bounds,
+    month_spend_by_category,
 )
 from ledger_sync.core.ledger_clock import ledger_now
-from ledger_sync.core.query_helpers import apply_excluded_accounts_filter
 from ledger_sync.db.models import (
     Anomaly,
     AnomalyType,
     Budget,
     Transaction,
-    TransactionType,
 )
-from ledger_sync.services.account_settings import get_closed_account_dates
 
-# BUDGET_EXCEEDED descriptions read "Budget exceeded for <category>: <spent> /
-# <limit>". The amounts never contain ": ", so the category is everything
-# between the prefix and the last ": ".
-_BUDGET_EXCEEDED_PREFIX = "Budget exceeded for "
-
-
-def _budget_category_from_description(description: str) -> str | None:
-    """Recover the budget category a BUDGET_EXCEEDED description was written for."""
-    if not description.startswith(_BUDGET_EXCEEDED_PREFIX):
-        return None
-    category, separator, _amounts = description.removeprefix(_BUDGET_EXCEEDED_PREFIX).rpartition(
-        ": "
-    )
-    return category if separator else None
+#: Every detector but these three reads the whole ledger, loaded once for all.
+_LEDGER_TYPES = ALL_TYPES - {
+    AnomalyType.HIGH_EXPENSE,
+    AnomalyType.BUDGET_EXCEEDED,
+    AnomalyType.CLOSED_ACCOUNT_ACTIVITY,
+}
 
 
-class AnomaliesMixin(AnomalyDetectorsMixin):
+class AnomaliesMixin(
+    AnomalyBaselinesMixin, AnomalyLedgerChecksMixin, AnomalyRecurringMixin, AnomalyStoreMixin
+):
     """Mixin: anomaly detection + monthly budget tracking."""
 
-    def _detect_anomalies(self) -> int:
-        """Detect anomalies in the data using configurable thresholds."""
-        anomalies_detected: list[dict[str, Any]] = []
+    @property
+    def _enabled_anomaly_types(self) -> frozenset[AnomalyType]:
+        prefs = self._preferences
+        return enabled_anomaly_types(prefs.anomaly_types_enabled if prefs else None)
 
+    @property
+    def _auto_dismiss_recurring(self) -> bool:
+        """``auto_dismiss_recurring_anomalies``; on (the column default) with no row."""
+        prefs = self._preferences
+        return True if prefs is None else bool(prefs.auto_dismiss_recurring_anomalies)
+
+    def _detect_anomalies(self) -> int:
+        """Run the enabled detectors and replace this user's open findings.
+
+        Returns how many open (not auto-dismissed) findings survived review
+        suppression, before the per-type caps.
+        """
+        enabled = self._enabled_anomaly_types
         # Map the legacy stdev-multiplier preference to the modified-Z cutoff.
         # See module docstring for the anchor rationale.
         stored = self.anomaly_expense_threshold
         z_cutoff = _DEFAULT_MODIFIED_Z_CUTOFF * (stored / _LEGACY_ANCHOR_STDEV)
 
-        self._detect_high_expense_months(anomalies_detected, z_cutoff)
-        self._detect_large_transactions(anomalies_detected)
-        self._detect_closed_account_activity(anomalies_detected)
+        findings: list[dict[str, Any]] = []
+        if AnomalyType.HIGH_EXPENSE in enabled:
+            self._detect_high_expense_months(findings, z_cutoff)
+            self._detect_large_transactions(findings)
+        if enabled & _LEDGER_TYPES or (findings and self._auto_dismiss_recurring):
+            self._run_ledger_detectors(findings, enabled, z_cutoff)
+        if AnomalyType.CLOSED_ACCOUNT_ACTIVITY in enabled:
+            self._detect_closed_account_activity(findings)
 
-        # Suppress findings the user already reviewed/dismissed BEFORE the cap,
-        # so a dismissed anomaly neither resurrects as a fresh unreviewed row
-        # nor consumes cap slots. The `if r.period_key` / `if r.transaction_id`
-        # guards are load-bearing: both detectors emit HIGH_EXPENSE, so without
-        # them one reviewed txn anomaly (period_key=None) would suppress every
-        # month anomaly via (HIGH_EXPENSE, None) and vice versa.
-        reviewed_rows = (
-            self.db.query(Anomaly.anomaly_type, Anomaly.period_key, Anomaly.transaction_id)
-            .filter(Anomaly.user_id == self.user_id, Anomaly.is_reviewed.is_(True))
-            .all()
-        )
-        reviewed_periods = {(r.anomaly_type, r.period_key) for r in reviewed_rows if r.period_key}
-        reviewed_txn_ids = {r.transaction_id for r in reviewed_rows if r.transaction_id}
-        anomalies_detected = [
-            a
-            for a in anomalies_detected
-            if (a["type"], a.get("period_key")) not in reviewed_periods
-            and a.get("transaction_id") not in reviewed_txn_ids
-        ]
+        return self._replace_findings(findings)
 
-        # Delete old unreviewed anomalies for this user and insert new. Reviewed
-        # anomalies are preserved so users don't have to re-dismiss the same
-        # finding on every refresh.
-        del_stmt = delete(Anomaly).where(Anomaly.is_reviewed.is_(False))
-        del_stmt = del_stmt.where(Anomaly.user_id == self.user_id)
-        self.db.execute(del_stmt)
-
-        # Cap per shape, not across shapes: month rows (period_key) and single-
-        # transaction rows (transaction_id) have different natural deviation_pct
-        # scales, so a global sort let hundreds of 300%-deviation txn flags
-        # evict nearly every month anomaly. Reserve up to 25 slots for months,
-        # give the remainder to transactions.
-        month_rows = [a for a in anomalies_detected if a.get("period_key")]
-        txn_rows = [a for a in anomalies_detected if not a.get("period_key")]
-        month_rows.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
-        txn_rows.sort(key=lambda a: a.get("deviation_pct") or 0, reverse=True)
-        kept_months = month_rows[:25]
-        keep = kept_months + txn_rows[: 50 - len(kept_months)]
-
-        for anomaly_data in keep:
-            anomaly = Anomaly(
-                user_id=self.user_id,
-                anomaly_type=anomaly_data["type"],
-                severity=anomaly_data["severity"],
-                description=anomaly_data["description"],
-                transaction_id=anomaly_data.get("transaction_id"),
-                period_key=anomaly_data.get("period_key"),
-                expected_value=anomaly_data.get("expected_value"),
-                actual_value=anomaly_data.get("actual_value"),
-                deviation_pct=anomaly_data.get("deviation_pct"),
-                detected_at=datetime.now(UTC),
+    def _run_ledger_detectors(
+        self, findings: list[dict[str, Any]], enabled: frozenset[AnomalyType], z_cutoff: float
+    ) -> None:
+        """The detectors that share one ascending read of the ledger."""
+        ledger = self._user_transaction_query().order_by(Transaction.date.asc()).all()
+        recurring = self._recurring_index()
+        scale = SpendScale.from_ledger(ledger, self.capital_loss_keys)
+        if AnomalyType.UNUSUAL_CATEGORY in enabled:
+            singles = frozenset(
+                f["transaction_id"]
+                for f in findings
+                if f["type"] == AnomalyType.HIGH_EXPENSE and f.get("transaction_id")
             )
-            self.db.add(anomaly)
-
-        return len(anomalies_detected)
-
-    def _detect_closed_account_activity(self, anomalies: list[dict[str, Any]]) -> None:
-        """Flag transactions landing on a closed account after its close date.
-
-        Statements routinely trail closures in India by a cycle or two
-        (refunds, final interest, reversal entries), so new activity is
-        imported normally -- this just surfaces it for review instead of
-        silently absorbing it. Only rows dated AFTER the recorded close
-        date count; the account's own history never triggers it.
-        """
-        close_dates = get_closed_account_dates(self.db, self.user_id)
-        if not close_dates:
-            return
-
-        sym = self._currency_symbol
-        # One candidate query for all closed accounts avoids a query per account.
-        # Python lower matches the dimension keys even for Unicode source labels.
-        late_txns = (
-            self._user_transaction_query()
-            .filter(Transaction.date > min(close_dates.values()))
-            .order_by(Transaction.date.desc())
-        )
-        counts: dict[str, int] = {}
-        for txn in late_txns:
-            key = (txn.account or "").lower()
-            closed_at = close_dates.get(key)
-            if (
-                closed_at is None
-                or txn.date.replace(tzinfo=None) <= closed_at.replace(tzinfo=None)
-                or counts.get(key, 0) >= 5
-            ):
-                continue
-            counts[key] = counts.get(key, 0) + 1
-            anomalies.append(
-                {
-                    "type": AnomalyType.CLOSED_ACCOUNT_ACTIVITY,
-                    "severity": "medium",
-                    "description": (
-                        f"Activity on closed account {txn.account}: "
-                        f"{sym}{float(txn.amount):,.0f} ({txn.category}) "
-                        f"on {txn.date.strftime('%d %b %Y')}"
-                    ),
-                    "transaction_id": txn.transaction_id,
-                    "actual_value": Decimal(str(txn.amount)),
-                },
+            gates = CategoryGates(
+                z_cutoff, scale, singles, recurring if self._auto_dismiss_recurring else None
             )
+            self._detect_unusual_categories(findings, ledger, gates)
+        if AnomalyType.LARGE_TRANSFER in enabled:
+            self._detect_large_transfers(findings, ledger, scale)
+        if AnomalyType.DUPLICATE_SUSPECTED in enabled:
+            self._detect_duplicate_rows(findings, ledger, scale)
+        if AnomalyType.MISSING_RECURRING in enabled:
+            self._detect_missing_recurring(findings, ledger, recurring)
+        if FEE_CHARGE in enabled:
+            self._detect_fee_charges(findings, ledger)
+        if self._auto_dismiss_recurring:
+            by_id = {txn.transaction_id: txn for txn in ledger}
+            auto_dismiss_matches(findings, by_id, recurring)
 
-    # ─── budget tracking (unchanged behavior; kept in this mixin) ─────────
+    # ─── budget tracking (kept in this mixin) ──────────────────────────────
 
     def _update_budget_tracking(self) -> int:
-        """Update budget tracking with current month's spending."""
-        sym = self._currency_symbol
-        user_id = self.user_id
-        budget_query = (
-            self.db.query(Budget)
-            .filter(Budget.user_id == user_id)
-            .filter(Budget.is_active.is_(True))
-        )
-        budgets = budget_query.all()
+        """Store this month's spend on every active budget and alert the ones over.
 
+        Spend is ``budget_tracking.month_spend_by_category``, the definition the
+        budget endpoints and push alerts read (classified losses and excluded
+        accounts left out). The month is read from ``ledger_now()`` here, an
+        IST month because the date column holds naive IST wall-clock values:
+        from ``datetime.now(UTC)``, 01:30 IST on 1 August still read July's
+        spend. ``now`` stays UTC; it only feeds the naive-UTC audit columns.
+        """
+        budgets = (
+            self.db.query(Budget)
+            .filter(Budget.user_id == self.user_id, Budget.is_active.is_(True))
+            .all()
+        )
         if not budgets:
             return 0
-
-        # "Current month" is an IST month, because the date column holds naive
-        # IST wall-clock values. Deriving the key from ``datetime.now(UTC)`` was
-        # wrong for the first 5.5 hours of every month: at 01:30 IST on 1 August
-        # it is still 31 July in UTC, so budget tracking read July's spend as
-        # the current month and could key a BUDGET_EXCEEDED anomaly to the
-        # month that had just ended.
-        #
-        # ``now`` stays UTC: it only feeds the audit columns
-        # (``budget.updated_at``, ``detected_at``), whose stored values are
-        # naive UTC throughout the schema.
-        month_start = ledger_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        next_month_start = (month_start + timedelta(days=32)).replace(day=1)
+        month_start, _next_month = month_bounds(ledger_now())
         current_period = month_start.strftime("%Y-%m")
-        now = datetime.now(UTC)
-
-        # A half-open date range selects exactly the rows whose YYYY-MM equals
-        # ``current_period`` and, unlike formatting the column, can use the
-        # date index.
-        spending_query = (
-            self.db.query(Transaction.category, func.sum(Transaction.amount).label("total"))
-            .filter(Transaction.user_id == user_id)
-            .filter(Transaction.is_deleted.is_(False))
-            .filter(Transaction.type == TransactionType.EXPENSE)
-            .filter(Transaction.date >= month_start, Transaction.date < next_month_start)
+        spending = month_spend_by_category(
+            self.db,
+            self.user_id,
+            capital_loss_keys=self.capital_loss_keys,
+            excluded_accounts=self.excluded_accounts,
+            now=month_start,
         )
-        # A realised loss must not consume a spending budget. Left in, a single
-        # loss booked to a budgeted category blows that budget for the month and
-        # fires a BUDGET_EXCEEDED anomaly, while ``budget.current_month_spent``
-        # and ``current_month_remaining`` -- persisted, and read straight into the
-        # budget UI -- report money the user never spent.
-        spending_query = self._exclude_capital_losses(spending_query)
-        spending_query = apply_excluded_accounts_filter(spending_query, self.excluded_accounts)
-        current_spending = spending_query.group_by(Transaction.category).all()
-        spending_map = {c.category: float(c.total) for c in current_spending}
-
-        # Don't resurrect a budget-exceeded anomaly the user already reviewed
-        # for this period and category. Keyed per category: reviewing one
-        # category's overrun must not silence another's. The category is read
-        # back from the description, the only column that carries it.
-        reviewed_budget_keys = {
-            (r.period_key, _budget_category_from_description(r.description))
-            for r in self.db.query(Anomaly.period_key, Anomaly.description)
-            .filter(
-                Anomaly.user_id == user_id,
-                Anomaly.is_reviewed.is_(True),
-                Anomaly.anomaly_type == AnomalyType.BUDGET_EXCEEDED,
-            )
-            .all()
-            if r.period_key
-        }
-
-        count = 0
+        reviewed = self._reviewed_budget_keys()
+        # Spend is tracked either way; only the alert follows the type toggle.
+        alerts_on = AnomalyType.BUDGET_EXCEEDED in self._enabled_anomaly_types
+        sym = self._currency_symbol
+        now = datetime.now(UTC)
         for budget in budgets:
-            spent = Decimal(str(spending_map.get(budget.category, 0)))
-            budget.current_month_spent = spent
-            budget.current_month_remaining = budget.monthly_limit - spent
-            budget.current_month_pct = (
-                float(spent / budget.monthly_limit * 100) if budget.monthly_limit > 0 else 0
-            )
+            spent = spending.get(budget.category, Decimal(0))
+            apply_tracking(budget, spent)
             budget.updated_at = now
-
-            # Check for budget exceeded anomaly
             if (
-                budget.current_month_pct > 100
-                and (current_period, budget.category) not in reviewed_budget_keys
+                alerts_on
+                and budget.current_month_pct > 100
+                and (current_period, budget.category) not in reviewed
             ):
-                anomaly = Anomaly(
-                    user_id=self.user_id,
-                    anomaly_type=AnomalyType.BUDGET_EXCEEDED,
-                    severity="high",
-                    description=(
-                        f"{_BUDGET_EXCEEDED_PREFIX}{budget.category}: "
-                        f"{sym}{float(spent):,.0f} / {sym}{float(budget.monthly_limit):,.0f}"
-                    ),
-                    period_key=current_period,
-                    expected_value=budget.monthly_limit,
-                    actual_value=spent,
-                    deviation_pct=budget.current_month_pct - 100,
-                    detected_at=now,
+                self.db.add(
+                    Anomaly(
+                        user_id=self.user_id,
+                        anomaly_type=AnomalyType.BUDGET_EXCEEDED,
+                        severity="high",
+                        description=(
+                            f"{BUDGET_EXCEEDED_PREFIX}{budget.category}: "
+                            f"{sym}{float(spent):,.0f} / {sym}{float(budget.monthly_limit):,.0f}"
+                        ),
+                        period_key=current_period,
+                        expected_value=budget.monthly_limit,
+                        actual_value=spent,
+                        deviation_pct=budget.current_month_pct - 100,
+                        detected_at=now,
+                    )
                 )
-                self.db.add(anomaly)
+        return len(budgets)
 
-            count += 1
+    def _reviewed_budget_keys(self) -> set[tuple[str, str | None]]:
+        """``(month, category)`` of every overrun the user reviewed, so none comes back.
 
-        return count
+        Per category: reviewing one category's overrun must not silence
+        another's. The category is read back from the description, the only
+        column that carries it.
+        """
+        rows = self.db.query(Anomaly.period_key, Anomaly.description).filter(
+            Anomaly.user_id == self.user_id,
+            Anomaly.is_reviewed.is_(True),
+            Anomaly.anomaly_type == AnomalyType.BUDGET_EXCEEDED,
+        )
+        return {
+            (period, budget_category_from_description(description))
+            for period, description in rows
+            if period
+        }

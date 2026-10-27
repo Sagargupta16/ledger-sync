@@ -112,6 +112,9 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        // Push alerts: the push and notificationclick handlers in
+        // public/push-sw.js run inside this generated worker.
+        importScripts: ['push-sw.js'],
       },
       devOptions: {
         // Disabled in dev to avoid caching interfering with HMR.

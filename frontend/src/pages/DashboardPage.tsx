@@ -8,7 +8,12 @@ import PieLegend from '@/components/shared/PieLegend'
 import { capPieSlices } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import QuickInsights from '@/components/shared/QuickInsights'
-import LoadingSkeleton, { ChartSkeleton, PageSkeleton, PanelSkeleton } from '@/components/shared/LoadingSkeleton'
+import LoadingSkeleton, {
+  CardGridSkeleton,
+  ChartSkeleton,
+  PageSkeleton,
+  PanelSkeleton,
+} from '@/components/shared/LoadingSkeleton'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
@@ -18,15 +23,7 @@ import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
 import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
-import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
-import {
-  computeAgeOfMoney,
-  computeDaysOfBuffering,
-  computeLiquidPosition,
-  spendableAccountTest,
-} from '@/lib/ageOfMoneyCalculator'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 
 // Dashboard is an eager route, so anything it imports statically is
@@ -36,8 +33,15 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 const StandardPieChart = lazy(() => import('@/components/analytics/StandardPieChart'))
 const MonthlyFlowChart = lazy(() => import('@/components/analytics/MonthlyFlowChart'))
 const FinancialHealthScore = lazy(() => import('@/components/analytics/FinancialHealthScore'))
+// The recap's Explain button pulls in the chat adapters, the watch tiles
+// MetricCard and Sparkline, and safe to spend its balance projection chart, so
+// these load on demand as well.
+const SafeToSpendCard = lazy(() => import('@/components/analytics/SafeToSpendCard'))
+const WeeklyRecapCard = lazy(() => import('@/components/analytics/WeeklyRecapCard'))
+const WatchTiles = lazy(() => import('@/components/analytics/WatchTiles'))
 
 const PIE_FALLBACK = <LoadingSkeleton className="h-[180px] w-full" />
+const SAFE_TO_SPEND_FALLBACK = <PanelSkeleton blocks={2} blockClassName="h-16" />
 
 function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
   hasHistory: boolean
@@ -59,6 +63,12 @@ function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
   return (
     <PageContainer>
       <PageHeader title="Dashboard" subtitle="Monitor cash flow, financial health, and account activity." />
+      {/* Safe to spend is about today, so an empty period still shows it. */}
+      {hasHistory && (
+        <Suspense fallback={SAFE_TO_SPEND_FALLBACK}>
+          <SafeToSpendCard />
+        </Suspense>
+      )}
       <EmptyState {...empty} variant="card" />
     </PageContainer>
   )
@@ -74,7 +84,8 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    filteredTransactions, isSummaryLoading, isLedgerLoading, hasTransactionsInRange, isError, retry,
+    isSummaryLoading, hasTransactionsInRange, isError, retry,
+    ageOfMoney, daysOfBuffering,
     isSettling,
     incomeBreakdown, cashbacksTotal,
     incomeChartData,
@@ -105,39 +116,6 @@ export default function DashboardPage() {
     [fixedCommitments, today],
   )
 
-  // Days of Buffering runs on LIQUID balances only (cash / bank / wallets).
-  // Feeding lifetime income-minus-expense here counted investments (PPF, MF,
-  // stocks) as spendable and inflated the runway (~754 days vs the real
-  // cash position on audit data). Balances come from account_balances and
-  // are folded by `computeLiquidPosition`, which owns the classification set,
-  // the parked-deposit exclusion, and the negative-balance-is-a-liability rule.
-  // Summing a bare total here instead re-inflated the runway to 150 days.
-  const balanceQuery = useAccountBalances()
-  const balanceData = balanceQuery.data
-  // The shared hook, not an inline `['account-classifications']` query: the
-  // inline key cached the same map a second time beside the hook's
-  // `['account-classifications', 'all']` entry, so a classification change
-  // could refresh one copy and leave this page reading the other.
-  const classificationsQuery = useAccountClassifications()
-  const accountClassifications = classificationsQuery.data
-  // Age of Money. With the classifications already loaded above, only transfers
-  // that cross the spendable-cash boundary move money in or out of the FIFO
-  // pool; a move between the user's own cash accounts changes nothing.
-  const ageOfMoney = useMemo(() => {
-    if (!filteredTransactions?.length) return null
-    const isSpendable = accountClassifications ? spendableAccountTest(accountClassifications) : undefined
-    return computeAgeOfMoney(filteredTransactions, isSpendable)
-  }, [filteredTransactions, accountClassifications])
-  const daysOfBuffering = useMemo(() => {
-    if (!filteredTransactions?.length || !balanceData?.accounts || !accountClassifications) {
-      return null
-    }
-    // Unclassified accounts are excluded rather than guessed -- counting an
-    // unlabeled brokerage as cash would silently re-inflate the runway.
-    const liquid = computeLiquidPosition(balanceData.accounts, accountClassifications)
-    return computeDaysOfBuffering(liquid, filteredTransactions)
-  }, [filteredTransactions, balanceData, accountClassifications])
-
   const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
   const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
 
@@ -149,23 +127,14 @@ export default function DashboardPage() {
   const incomeSlices = useMemo(() => capPieSlices(incomeChartData), [incomeChartData])
   const expenseSlices = useMemo(() => capPieSlices(expenseChartData), [expenseChartData])
 
-  // The summary gates the page; the full ledger only feeds Age of Money, Days of
-  // Buffering and the investment-transfer panel, which fill in when it lands.
-  const pageLoading =
-    isSummaryLoading ||
-    recurringQuery.isLoading ||
-    balanceQuery.isLoading ||
-    classificationsQuery.isLoading
-  const pageError =
-    isError ||
-    recurringQuery.isError ||
-    balanceQuery.isError ||
-    classificationsQuery.isError
+  // One snapshot gates the page: the rollups and `/api/dashboard-metrics/pulse`
+  // (Age of Money, Days of Buffering, the investment-transfer split) settle
+  // together, so nothing fills in after first paint.
+  const pageLoading = isSummaryLoading || recurringQuery.isLoading
+  const pageError = isError || recurringQuery.isError
   const retryDashboard = () => {
     retry()
     void recurringQuery.refetch()
-    void balanceQuery.refetch()
-    void classificationsQuery.refetch()
   }
   const focusCurrentFY = () => {
     setCurrentFY(getCurrentFY(fiscalYearStartMonth))
@@ -210,6 +179,18 @@ export default function DashboardPage() {
         <PeriodSettlingBar active={isSettling} />
       </StickyToolbar>
 
+      {/* Today to payday, the last full week and this month so far: none follows
+          the time range, so they sit outside the settling wrapper and never dim. */}
+      <Suspense fallback={SAFE_TO_SPEND_FALLBACK}>
+        <SafeToSpendCard />
+      </Suspense>
+      <Suspense fallback={<PanelSkeleton blockClassName="h-28" blocks={2} />}>
+        <WeeklyRecapCard />
+      </Suspense>
+      <Suspense fallback={<CardGridSkeleton count={2} cols="grid-cols-2 lg:grid-cols-4" />}>
+        <WatchTiles />
+      </Suspense>
+
       <PeriodSettlingContent settling={isSettling}>
         <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-[var(--hairline-1)] pb-4">
           <p className="text-xs leading-5 text-muted-foreground">
@@ -239,7 +220,8 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Financial pulse</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              The selected period's money flow, liquidity, and recurring load.
+              The selected period's money flow, liquidity, and recurring load. Computation
+              aids from your recorded data, not financial advice.
             </p>
           </div>
           <QuickInsights
@@ -370,11 +352,7 @@ export default function DashboardPage() {
 
         </div>
 
-        {isLedgerLoading && hasInvestmentMappings ? (
-          <LoadingSkeleton className="h-32 w-full" />
-        ) : (
-          <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
-        )}
+        <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />
       </PeriodSettlingContent>
 
       {/* Same shape as FinancialHealthScore's own loading state. */}

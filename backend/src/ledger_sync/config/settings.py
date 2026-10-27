@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     db_statement_timeout_seconds: int = 30
     db_idle_transaction_timeout_seconds: int = 60
 
-    # OAuth settings — set client ID and secret for each provider to enable.
+    # OAuth settings -- set client ID and secret for each provider to enable.
     # Google: https://console.cloud.google.com/apis/credentials
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -96,9 +96,13 @@ class Settings(BaseSettings):
     bedrock_api_key: str = ""
     # Default Bedrock model used by users in "app_bedrock" mode (the app
     # picks so we can control cost/latency). Override via env var if needed.
-    # Haiku is the cheap default; operators can switch to Sonnet/Opus when
-    # willing to absorb the bill.
-    ai_default_bedrock_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    # Haiku 5.5 on the us. profile costs USD 0.11 / 0.55 per 1M tokens, a
+    # tenth of Haiku 4.5; the chat proxy turns its default thinking off
+    # (api/ai_chat_thinking.py). The key behind LEDGER_SYNC_BEDROCK_API_KEY
+    # must be allowed to invoke it. If app mode answers 502 after a deploy, set
+    # LEDGER_SYNC_AI_DEFAULT_BEDROCK_MODEL to
+    # us.anthropic.claude-haiku-4-5-20251001-v1:0 and redeploy to go back.
+    ai_default_bedrock_model: str = "us.anthropic.claude-haiku-5-5"
     ai_default_bedrock_region: str = "us-east-1"
     # Hard cap per user per day in "app_bedrock" mode, counted in model
     # invocations: every tool-calling round of one user message reserves and
@@ -111,7 +115,7 @@ class Settings(BaseSettings):
     # with MAX_TOOL_ROUNDS in the frontend chat loop.
     ai_max_tool_rounds: int = 6
 
-    # CORS settings — override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
+    # CORS settings -- override with LEDGER_SYNC_CORS_ORIGINS env var (JSON array).
     # Defaults include localhost origins for development only.
     cors_origins: list[str] = [
         "http://localhost:3000",
@@ -195,7 +199,7 @@ if settings.bedrock_api_key and not os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
     os.environ["AWS_BEARER_TOKEN_BEDROCK"] = settings.bedrock_api_key
 
 # In development, auto-generate a random secret so tokens work without config.
-# This is NOT used in production — the startup validator blocks non-dev
+# This is NOT used in production -- the startup validator blocks non-dev
 # environments that haven't set LEDGER_SYNC_JWT_SECRET_KEY.
 if settings.environment == "development" and not settings.jwt_secret_key:
     settings.jwt_secret_key = secrets.token_urlsafe(48)

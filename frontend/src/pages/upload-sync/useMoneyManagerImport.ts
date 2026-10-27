@@ -8,7 +8,9 @@ import { gzipBackup, type MoneyManagerImportResponse } from '@/services/api/mone
 
 import {
   describeBackupChanges,
+  describePlanningChanges,
   getBackupErrorMessage,
+  getBackupPlanning,
   toUploadAnalyticsStatus,
 } from './moneyManagerUtils'
 import type { UploadPhase, UploadSuccess } from './useUploadSync'
@@ -86,7 +88,10 @@ export function useMoneyManagerImport({
       })
       return
     }
-    const summary = describeBackupChanges(result.stats)
+    // Repeat rules and budgets follow the ledger counts when the backup had any to sync.
+    const summary = [describeBackupChanges(result.stats), describePlanningChanges(getBackupPlanning(result))]
+      .filter(Boolean)
+      .join(' ')
     setSuccess({
       fileName,
       summary,

@@ -3,7 +3,9 @@
 A ``.mmbak`` is the app's Core Data SQLite store, sent as is or gzip- or
 zip-compressed. It is loaded into an in-memory, query-only connection with a
 size cap and a query deadline; nothing touches the disk. Only live rows of the
-transaction, account, account-group, category and currency tables are read.
+transaction, account, account-group, category and currency tables are read,
+plus the repeat-rule and budget tables when the backup has them (see
+``money_manager_planning``).
 
 Rows come out in the upload shape that ``normalize_from_dict`` takes, so they
 normalize exactly like an Excel export of the same ledger, plus source keys
@@ -25,6 +27,8 @@ from decimal import Decimal
 from typing import Any
 
 from ledger_sync.core.ledger_clock import IST_OFFSET
+from ledger_sync.ingest.money_manager_labels import category_labels, clean_text
+from ledger_sync.ingest.money_manager_planning import BackupPlanning, read_planning
 
 SOURCE_SYSTEM = "money_manager"
 # The largest SQLite store accepted after decompression.
@@ -38,7 +42,6 @@ _ZIP_MAGIC = b"PK\x03\x04"
 _CORE_DATA_EPOCH = datetime(2001, 1, 1, tzinfo=UTC)
 
 _INCOME, _EXPENSE, _TRANSFER_OUT, _TRANSFER_IN = "0", "1", "3", "4"
-_UNCATEGORIZED = "Uncategorized"
 
 _REQUIRED_COLUMNS = {
     "ZINOUTCOME": {
@@ -110,6 +113,8 @@ class MoneyManagerBackup:
     accounts: list[BackupAccount]
     transactions: int
     transfers: int
+    # Repeat rules and budgets; each part is None when the backup lacks its tables.
+    planning: BackupPlanning
 
 
 def read_backup(body: bytes) -> MoneyManagerBackup:
@@ -120,6 +125,7 @@ def read_backup(body: bytes) -> MoneyManagerBackup:
         _check_schema(connection)
         rows, transfers = _read_rows(connection)
         accounts = _read_accounts(connection)
+        planning = read_planning(connection)
     except sqlite3.Error as error:
         raise MoneyManagerBackupError(_unreadable(error)) from error
     finally:
@@ -132,6 +138,7 @@ def read_backup(body: bytes) -> MoneyManagerBackup:
         accounts=accounts,
         transactions=len(rows) - transfers,
         transfers=transfers,
+        planning=planning,
     )
 
 
@@ -273,27 +280,28 @@ def _row_from_record(record: tuple[Any, ...]) -> tuple[dict[str, Any] | None, st
         return None, None
     if iso not in (None, "INR"):
         return None, "in a currency other than INR"
-    if not _text(account):
+    if not clean_text(account):
         return None, "without an account"
     base = _base_row(uid, day, stamp, amount, note, updated)
     if kind in (_INCOME, _EXPENSE):
+        category, subcategory = category_labels(name, parent)
         return {
             **base,
             "type": "Income" if kind == _INCOME else "Expense",
-            "account": _text(account),
-            "category": _text(parent) or _text(name) or _UNCATEGORIZED,
-            "subcategory": _text(name) if _text(parent) else None,
+            "account": clean_text(account),
+            "category": category,
+            "subcategory": subcategory,
         }, None
-    if not _text(other):
+    if not clean_text(other):
         return None, "as transfers without a second account"
     # Both legs share ZTXUIDTRANS, which names the transfer as a whole. Like an
     # Excel export, the Out leg reads account -> category and the In leg the reverse.
     return {
         **base,
-        "_source_uid": _text(pair) or str(uid),
+        "_source_uid": clean_text(pair) or str(uid),
         "type": "Transfer-Out" if kind == _TRANSFER_OUT else "Transfer-In",
-        "account": _text(account),
-        "category": _text(other),
+        "account": clean_text(account),
+        "category": clean_text(other),
         "subcategory": None,
     }, None
 
@@ -302,12 +310,12 @@ def _base_row(
     uid: object, day: object, stamp: object, amount: object, note: object, updated: object
 ) -> dict[str, Any]:
     occurred = _core_data_time(stamp)
-    date_text = _text(day) or (occurred.date().isoformat() if occurred else "")
+    date_text = clean_text(day) or (occurred.date().isoformat() if occurred else "")
     return {
         "date": date_text,
         "amount": abs(Decimal(str(amount))) if amount is not None else None,
         "currency": "INR",
-        "note": _text(note) or None,
+        "note": clean_text(note) or None,
         "_source_system": SOURCE_SYSTEM,
         "_source_uid": str(uid),
         "_source_updated_at": _epoch_millis(updated),
@@ -319,22 +327,18 @@ def _read_accounts(connection: sqlite3.Connection) -> list[BackupAccount]:
     return [
         BackupAccount(
             uid=str(uid),
-            name=_text(name),
-            group=_text(group) or None,
+            name=clean_text(name),
+            group=clean_text(group) or None,
             statement_day=_day_of_month(statement),
             payment_day=_day_of_month(payment),
-            paid_from_uid=_text(paid_from) or None,
+            paid_from_uid=clean_text(paid_from) or None,
         )
         for uid, name, group, statement, payment, paid_from in connection.execute(_ACCOUNTS_SQL)
     ]
 
 
-def _text(value: object) -> str:
-    return str(value).strip() if value is not None else ""
-
-
 def _day_of_month(value: object) -> int | None:
-    text = _text(value)
+    text = clean_text(value)
     if not text.isdigit():
         return None
     day = int(text)

@@ -1,23 +1,12 @@
 /**
- * Anomaly Detection sub-section within Advanced settings.
+ * Anomaly Detection sub-section within Advanced settings: the expense threshold.
  *
- * Only `anomaly_expense_threshold` is here, because it is the only anomaly
- * preference the detection engine reads: `core/analytics/base.py` exposes it and
- * `core/analytics/anomalies.py` converts it into the modified-Z cutoff.
- *
- * Two controls were removed rather than completed:
- *
- *  - "Enabled Types" (an `anomaly_types_enabled` checkbox grid). Nothing under
- *    `backend/src/ledger_sync/core/` reads that field -- only
- *    `api/preferences.py` and `api/preferences_helpers.py`, which persist it and
- *    echo it back -- so `_detect_anomalies()` ran every detector regardless of
- *    what was ticked. It also listed four of the enum's seven members, so the
- *    tempting fix was to add three more checkboxes that equally do nothing.
- *  - "Auto-dismiss recurring anomalies" (`auto_dismiss_recurring_anomalies`),
- *    which has no reader either.
- *
- * Both columns still exist and are still round-tripped by the save call in
- * `AnomalyDetectionPanel`, so wiring them up server-side loses no stored data.
+ * `core/analytics/anomalies.py` turns `anomaly_expense_threshold` into the
+ * modified-Z cutoff for high-expense months, large single expenses and unusual
+ * category months. The per-check switches (`anomaly_types_enabled`) and
+ * auto-dismiss (`auto_dismiss_recurring_anomalies`), which the engine now reads
+ * through `core/analytics/anomaly_rules.py`, live with the findings in the
+ * Anomaly Detection panel on /anomalies, which also edits the threshold.
  */
 
 import { AlertTriangle } from 'lucide-react'
@@ -57,8 +46,8 @@ export default function AnomalyDetectionSubsection({
             className={inputClass}
           />
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Lower flags more months as unusually high. Applies to the high-expense and
-            large-transaction detectors.
+            Lower flags more. Applies to high-expense months, large single expenses and
+            unusual category months; turn checks on or off on Anomaly Review.
           </p>
         </div>
       </div>

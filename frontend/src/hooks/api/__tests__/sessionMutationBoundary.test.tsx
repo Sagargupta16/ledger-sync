@@ -92,7 +92,13 @@ const scenarios = [
     run: (hooks: ReturnType<typeof useFinancialMutations>) =>
       hooks.tags.mutateAsync({ transactionId: 'account-701-transaction', tags: ['reviewed'] }),
     // Not the whole ['transactions'] prefix: the full-ledger entry carries no tags.
-    invalidations: [['transactions', 'recent'], ['transactions-page'], ['transaction-facets']],
+    // Watch tiles can filter by tag, so they refresh too.
+    invalidations: [
+      ['transactions', 'recent'],
+      ['transactions-page'],
+      ['transaction-facets'],
+      ['calculations', 'watch-tiles'],
+    ],
   },
   {
     name: 'saved view update',

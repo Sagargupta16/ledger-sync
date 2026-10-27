@@ -1,10 +1,7 @@
-import { AnimatePresence, motion } from 'motion/react'
-import { Check, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { motion } from 'motion/react'
 
 import type { LucideIcon } from 'lucide-react'
 
-import { Button, Input } from '@/components/ui'
-import { DISCLOSURE_TRANSITION } from '@/constants/animations'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 import { formatDate } from '@/lib/formatters'
 
@@ -15,6 +12,9 @@ import {
   severityIcon,
   severityStyle,
 } from '../constants'
+import { reviewCopy } from '../typeCopy'
+import AnomalyFacts from './AnomalyFacts'
+import AnomalyReviewActions from './AnomalyReviewActions'
 import AnomalyValueComparison from './AnomalyValueComparison'
 
 /**
@@ -91,6 +91,9 @@ export default function AnomalyCard({
             <p className="mt-1 break-words text-sm text-muted-foreground">
               {anomaly.description}
             </p>
+            <p className="mt-1 text-xs leading-5 text-text-tertiary">
+              {reviewCopy(anomaly.anomaly_type).explanation}
+            </p>
           </div>
         </div>
         <span className="self-end whitespace-nowrap text-xs text-text-tertiary sm:self-auto">
@@ -98,6 +101,7 @@ export default function AnomalyCard({
         </span>
       </div>
 
+      <AnomalyFacts anomaly={anomaly} />
       <AnomalyValueComparison anomaly={anomaly} />
 
       {anomaly.review_notes && (
@@ -107,66 +111,15 @@ export default function AnomalyCard({
       )}
 
       {!anomaly.is_reviewed && (
-        <div className="relative mt-4 ml-0 space-y-2 sm:ml-11">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              icon={<Check className="w-3 h-3" />}
-              onClick={() => onReview(anomaly.id, false)}
-              disabled={isReviewPending}
-              className="border-app-green/20 bg-app-green/10 text-app-green hover:bg-app-green/20"
-            >
-              Review
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              icon={<X className="w-3 h-3" />}
-              onClick={() => onReview(anomaly.id, true)}
-              disabled={isReviewPending}
-              className="border-app-red/20 bg-app-red/10 text-app-red hover:bg-app-red/20"
-            >
-              Dismiss
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={
-                isExpanded ? (
-                  <ChevronUp className="w-3 h-3" />
-                ) : (
-                  <ChevronDown className="w-3 h-3" />
-                )
-              }
-              onClick={() => onToggleNote(anomaly.id)}
-              aria-expanded={isExpanded}
-            >
-              Add Note
-            </Button>
-          </div>
-
-          <AnimatePresence mode="popLayout">
-            {isExpanded && (
-              <motion.div
-                {...DISCLOSURE_TRANSITION}
-                // Only a change to the anomaly can resize the card content above this note.
-                layoutDependency={anomaly}
-              >
-                <Input
-                  type="text"
-                  value={noteText}
-                  onChange={(event) => onNoteTextChange(event.target.value)}
-                  placeholder="Add review notes..."
-                  aria-label="Add review notes"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AnomalyReviewActions
+          anomaly={anomaly}
+          isExpanded={isExpanded}
+          noteText={noteText}
+          isReviewPending={isReviewPending}
+          onToggleNote={onToggleNote}
+          onNoteTextChange={onNoteTextChange}
+          onReview={onReview}
+        />
       )}
     </motion.div>
   )

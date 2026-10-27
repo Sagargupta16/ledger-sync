@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
+import { useCardCycles } from '@/hooks/api/useCardCycles'
 import { getTodayKey, MS_PER_DAY } from '@/lib/dateUtils'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { buildBillMap, findNextUpcomingBill, getBillDaysForMonth, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
+import { appendBills, buildCardBillMap } from './cardBills'
+import { buildAdvanceTaxMap } from './taxBills'
 import type { PlacedBill } from './types'
 
 interface CalendarCell {
@@ -17,7 +20,11 @@ export function useBillCalendar() {
   // A bill calendar plots things that are owed on a date. Habit rows repeat but
   // are not owed, so plotting them filled the grid with lunch purchases.
   const recurringQuery = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
-  const { data: recurringTransactions, isLoading, isError } = recurringQuery
+  const { data: recurringTransactions, isError } = recurringQuery
+  // Card due dates are their own source. A failed card read leaves the
+  // recurring bills on screen; the Card statements panel reports that error.
+  const cardQuery = useCardCycles()
+  const cards = cardQuery.data?.cards
   const asOfDateKey = getTodayKey()
   const acceptedBills = useMemo(
     () => (recurringTransactions ?? []).filter(
@@ -25,6 +32,9 @@ export function useBillCalendar() {
     ),
     [recurringTransactions, asOfDateKey],
   )
+  // Recurring bills paint as soon as they load and card dots join when ready.
+  // Only a calendar with no bill yet waits for cards, so it never flashes empty.
+  const isLoading = recurringQuery.isLoading || (cardQuery.isLoading && acceptedBills.length === 0)
 
   const now = useMemo(() => new Date(), [])
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
@@ -61,8 +71,14 @@ export function useBillCalendar() {
   }
 
   const billMap = useMemo(
-    () => buildBillMap(acceptedBills, viewYear, viewMonth, asOfDateKey),
-    [acceptedBills, viewYear, viewMonth, asOfDateKey],
+    () => appendBills(
+      appendBills(
+        buildBillMap(acceptedBills, viewYear, viewMonth, asOfDateKey),
+        buildCardBillMap(cards ?? [], viewYear, viewMonth),
+      ),
+      buildAdvanceTaxMap(viewYear, viewMonth),
+    ),
+    [acceptedBills, cards, viewYear, viewMonth, asOfDateKey],
   )
   const unscheduledBills = useMemo(
     () => acceptedBills.filter((item) => !Array.from({ length: 12 }, (_, month) => month)
@@ -112,14 +128,22 @@ export function useBillCalendar() {
   const summary = useMemo(() => {
     let totalDue = 0
     let billCount = 0
-    let maxBillAmount = 0
+    let maxRecurring = 0
+    let maxCard = 0
     for (const [, bills] of billMap) {
       for (const bill of bills) {
+        if (bill.source === 'card') maxCard = Math.max(maxCard, bill.amount)
+        else maxRecurring = Math.max(maxRecurring, bill.amount)
+        // Paid statements and open-cycle spend are markers, not money owed.
+        if (bill.informational) continue
         totalDue += bill.amount
         billCount++
-        if (bill.amount > maxBillAmount) maxBillAmount = bill.amount
       }
     }
+    // Card statements dwarf most bills, so they do not set the dot scale: a card
+    // larger than every recurring bill draws at the largest size. In a month with
+    // no recurring bill, card entries scale among themselves.
+    const maxBillAmount = maxRecurring > 0 ? maxRecurring : maxCard
     const nextBill = findNextUpcomingBill(billMap, viewYear, viewMonth, now)
 
     // Whole-day countdown to the next bill, measured at local midnight so
@@ -139,7 +163,7 @@ export function useBillCalendar() {
     return billMap.get(selectedDay) ?? []
   }, [billMap, selectedDay])
 
-  const hasAnyData = acceptedBills.length > 0
+  const hasAnyData = acceptedBills.length > 0 || (cards?.length ?? 0) > 0
   const isCurrentViewToday = viewYear === now.getFullYear() && viewMonth === now.getMonth()
   const retry = () => {
     void recurringQuery.refetch()

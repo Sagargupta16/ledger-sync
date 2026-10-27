@@ -6,6 +6,8 @@
 import { apiClient } from './client'
 import { getWrapped } from './analyticsV2Request'
 
+/** A category budget. `current_spent`, `remaining` and `usage_pct` cover this
+ *  IST month, counted from the ledger when the list or a write responds. */
 export interface Budget {
   id: number
   category: string
@@ -18,6 +20,15 @@ export interface Budget {
   avg_actual: number
   months_over: number
   months_under: number
+  /** False for a paused budget; only an `active_only: false` list returns those. */
+  is_active: boolean
+}
+
+/** `PATCH /budgets/{id}` body. Omitted fields keep their saved value. */
+export interface UpdateBudgetRequest {
+  monthly_limit?: number
+  alert_threshold?: number
+  is_active?: boolean
 }
 
 /**
@@ -91,6 +102,8 @@ export interface UpdateGoalRequest {
 export interface CreateBudgetResult {
   success: boolean
   budget_id: number
+  /** True when the category's paused budget was resumed with the new values. */
+  reactivated?: boolean
 }
 
 export interface CreateGoalResult {
@@ -181,6 +194,16 @@ export const planningApi = {
     alert_threshold?: number
   }) {
     const response = await apiClient.post<CreateBudgetResult>('/api/analytics/v2/budgets', data)
+    return response.data
+  },
+
+  async updateBudget(budgetId: number, data: UpdateBudgetRequest) {
+    const response = await apiClient.patch<Budget>(`/api/analytics/v2/budgets/${budgetId}`, data)
+    return response.data
+  },
+
+  async deleteBudget(budgetId: number) {
+    const response = await apiClient.delete<{ success: boolean }>(`/api/analytics/v2/budgets/${budgetId}`)
     return response.data
   },
 

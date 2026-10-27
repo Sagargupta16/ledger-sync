@@ -3,6 +3,7 @@ import { PageContainer, PageHeader } from '@/components/ui'
 import ImportHistory from './components/ImportHistory'
 import MoneyManagerNotice from './components/MoneyManagerNotice'
 import MoneyManagerReview from './components/MoneyManagerReview'
+import MoneyManagerShortcutButton from './components/MoneyManagerShortcutButton'
 import UploadDropzone from './components/UploadDropzone'
 import UploadFeedback from './components/UploadFeedback'
 import UploadFormatPreview from './components/UploadFormatPreview'
@@ -74,6 +75,7 @@ export default function UploadSyncPage() {
             onCancel={backup.cancel}
           />
         )}
+        <MoneyManagerShortcutButton disabled={isBusy || review !== null || backup.review !== null} />
         <ImportHistory />
         <UploadFormatPreview />
       </div>

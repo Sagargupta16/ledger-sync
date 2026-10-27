@@ -127,6 +127,7 @@ export default function NetWorthPage() {
         showProjection={m.showProjection}
         setShowProjection={m.setShowProjection}
         monthlyGrowth={m.monthlyGrowth}
+        savingsGrowth={m.savingsGrowth}
         anchor={m.anchor}
         milestoneRows={m.milestoneRows}
       />
@@ -145,6 +146,7 @@ export default function NetWorthPage() {
           rows={m.milestoneRows}
           currentNetWorth={m.currentNetWorth}
           monthlyGrowth={m.monthlyGrowth}
+          savingsGrowth={m.savingsGrowth}
         />
       </section>
 

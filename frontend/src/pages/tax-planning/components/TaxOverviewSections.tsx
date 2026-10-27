@@ -10,6 +10,7 @@ import { CollapsibleSection, Money } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'
 
 import type { TaxPlanningModel } from '../useTaxPlanning'
+import AdvanceTaxPlanner from './AdvanceTaxPlanner'
 import TdsScheduleChart from './TdsScheduleChart'
 import WithholdingSummary from './WithholdingSummary'
 
@@ -37,6 +38,8 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
         <WithholdingSummary
           estimate={planning.paidTaxEstimate}
           salaryMonths={planning.paidMonthIndices.length}
+          fiscalYear={planning.effectiveFY}
+          fiscalYearStartMonth={planning.fiscalYearStartMonth}
         />
       )}
 
@@ -68,6 +71,11 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
           </dl>
         </section>
       )}
+
+      <motion.div variants={fadeUpItem}>
+        {/* Keyed by year so a TDS figure typed for one year never carries into another. */}
+        <AdvanceTaxPlanner key={planning.effectiveFY} planning={planning} />
+      </motion.div>
 
       <motion.div variants={fadeUpItem}>
         <CollapsibleSection title="Tax Slab Breakdown" icon={ListTree} defaultExpanded={false}>

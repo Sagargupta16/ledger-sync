@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { Button, Input, Select } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
+import { BASE_CURRENCY } from '@/constants/currencies'
 
 import { FREQUENCY_OPTIONS } from '../constants'
 import type { RecurringFormData, Suggestion } from '../types'
@@ -77,7 +78,7 @@ export function AddRecurringForm({
             />
             <Input
               id="add-amt"
-              label="Amount"
+              label={`Amount (${BASE_CURRENCY})`}
               type="number"
               min={0}
               step="any"

@@ -17,6 +17,9 @@ import {
   Goal,
   Flame,
   AlertTriangle,
+  ListChecks,
+  Globe,
+  FileText,
   HeartPulse,
   Landmark,
   Receipt,
@@ -88,10 +91,11 @@ const SECTIONS: readonly MoreSection[] = [
   {
     title: 'Planning',
     items: [
-      { to: ROUTES.BUDGETS, label: 'Budget Rule', icon: Wallet2, color: 'text-app-green' },
+      { to: ROUTES.BUDGETS, label: 'Budgets', icon: Wallet2, color: 'text-app-green' },
       { to: ROUTES.GOALS, label: 'Goals', icon: Goal, color: 'text-app-purple' },
       { to: ROUTES.FIRE_CALCULATOR, label: 'FIRE', icon: Flame, color: 'text-app-orange' },
       { to: ROUTES.ANOMALIES, label: 'Anomalies', icon: AlertTriangle, color: 'text-app-red' },
+      { to: ROUTES.REVIEW_QUEUE, label: 'Review', icon: ListChecks, color: 'text-app-blue' },
       { to: ROUTES.DATA_HEALTH, label: 'Data Health', icon: HeartPulse, color: 'text-app-teal' },
     ],
   },
@@ -100,6 +104,8 @@ const SECTIONS: readonly MoreSection[] = [
     items: [
       { to: ROUTES.TAX_PLANNING, label: 'Income Tax', icon: Landmark, color: 'text-app-indigo' },
       { to: ROUTES.GST_ANALYSIS, label: 'GST', icon: Receipt, color: 'text-app-teal' },
+      { to: ROUTES.FOREIGN_ASSETS, label: 'Foreign Assets', icon: Globe, color: 'text-app-blue' },
+      { to: ROUTES.AIS_IMPORT, label: 'AIS', icon: FileText, color: 'text-app-purple' },
     ],
   },
   {

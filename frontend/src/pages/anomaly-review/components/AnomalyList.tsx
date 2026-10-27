@@ -1,6 +1,15 @@
+import { useState } from 'react'
+
+import { Button } from '@/components/ui'
 import type { Anomaly } from '@/hooks/api/useAnalyticsV2'
 
 import AnomalyCard from './AnomalyCard'
+
+/**
+ * Cards per step. A read can return 200 rows, and every card animates its
+ * position, so opening one note would re-measure them all on a phone.
+ */
+const STEP = 50
 
 interface Props {
   anomalies: Anomaly[]
@@ -21,9 +30,13 @@ export default function AnomalyList({
   onNoteTextChange,
   onReview,
 }: Readonly<Props>) {
+  const [visible, setVisible] = useState(STEP)
+  const shown = anomalies.slice(0, visible)
+  const remaining = anomalies.length - shown.length
+
   return (
     <div className="space-y-3">
-      {anomalies.map((anomaly) => (
+      {shown.map((anomaly) => (
         <AnomalyCard
           key={anomaly.id}
           anomaly={anomaly}
@@ -35,6 +48,16 @@ export default function AnomalyList({
           onReview={onReview}
         />
       ))}
+      {remaining > 0 && (
+        <div className="flex flex-col items-center gap-1.5 pt-1">
+          <Button type="button" variant="secondary" onClick={() => setVisible((n) => n + STEP)}>
+            Show {Math.min(STEP, remaining)} more
+          </Button>
+          <p className="text-xs text-text-tertiary tabular-nums">
+            Showing {shown.length} of {anomalies.length}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

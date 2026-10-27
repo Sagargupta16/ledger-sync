@@ -27,12 +27,35 @@ CREATE TABLE ZCURRENCY (Z_PK INTEGER PRIMARY KEY, ZUID VARCHAR, ZISO VARCHAR);
 INSERT INTO ZCURRENCY (ZUID, ZISO) VALUES ('cur-inr', 'INR'), ('cur-usd', 'USD');
 """
 
+# Optional tables: older backups lack them, and the importer must not need them.
+_PLANNING_SCHEMA = """
+CREATE TABLE ZREPEATTRANSACTION (
+    Z_PK INTEGER PRIMARY KEY, ZUID VARCHAR, ZISDEL INTEGER, ZREPEATTYPE INTEGER,
+    ZDOTYPE INTEGER, ZNEXTDATE INTEGER, ZENDDATE INTEGER, ZAMOUNTSUB FLOAT, ZASSETUID VARCHAR,
+    ZTOASSETUID VARCHAR, ZCATEGORYUID VARCHAR, ZCURRENCYUID VARCHAR, ZPAYEE VARCHAR
+);
+CREATE TABLE ZBUDGET (
+    Z_PK INTEGER PRIMARY KEY, ZUID VARCHAR, ZISDEL INTEGER, ZPERIODTYPEINT INTEGER,
+    ZTOTALTYPEINT INTEGER, ZTRANSTYPEINT INTEGER, ZDOTYPESTR VARCHAR, ZTARGETUID VARCHAR
+);
+CREATE TABLE ZBUDGETAMOUNT (
+    Z_PK INTEGER PRIMARY KEY, ZBUDGETUID VARCHAR, ZBUDGETPERIOD INTEGER, ZISDEL INTEGER,
+    ZAMOUNT FLOAT
+);
+ALTER TABLE ZCATEGORY ADD COLUMN ZISDEL INTEGER;
+"""
+
 
 def core_data_seconds(day: str, at: timedelta = timedelta(0)) -> float:
     """Core Data timestamp of an IST wall-clock time on ``day``."""
     midnight = datetime.combine(date.fromisoformat(day), datetime.min.time(), tzinfo=UTC)
     unix = midnight.timestamp() - _IST_SECONDS + at.total_seconds()
     return unix - _CORE_DATA_EPOCH_UNIX
+
+
+def unix_millis(day: str, at: timedelta = timedelta(0)) -> int:
+    """Unix milliseconds of an IST wall-clock time on ``day``, as repeat rules store dates."""
+    return round((core_data_seconds(day, at) + _CORE_DATA_EPOCH_UNIX) * 1000)
 
 
 class BackupBuilder:
@@ -118,6 +141,75 @@ class BackupBuilder:
         """Both legs of a transfer, the way Money Manager stores one."""
         self.entry(f"{pair}-out", "3", day, amount, source, to=target, pair=pair, note=note)
         return self.entry(f"{pair}-in", "4", day, amount, target, to=source, pair=pair, note=note)
+
+    def with_planning(self) -> BackupBuilder:
+        """Add the optional repeat-rule and budget tables, empty."""
+        self.db.executescript(_PLANNING_SCHEMA)
+        return self
+
+    def repeat_rule(
+        self,
+        uid: str,
+        kind: int,
+        next_due: str,
+        amount: float,
+        account: str,
+        *,
+        repeat_type: int = 1,
+        category: str | None = None,
+        to: str | None = None,
+        payee: str | None = None,
+        end: str | None = None,
+        deleted: bool = False,
+        currency: str = "cur-inr",
+    ) -> BackupBuilder:
+        """One ZREPEATTRANSACTION row; ``kind`` is 0 income, 1 expense, 3 transfer."""
+        self.db.execute(
+            "INSERT INTO ZREPEATTRANSACTION (ZUID, ZISDEL, ZREPEATTYPE, ZDOTYPE, ZNEXTDATE,"
+            " ZENDDATE, ZAMOUNTSUB, ZASSETUID, ZTOASSETUID, ZCATEGORYUID, ZCURRENCYUID, ZPAYEE)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                uid,
+                int(deleted),
+                repeat_type,
+                kind,
+                unix_millis(next_due),
+                unix_millis(end) if end else 0,
+                amount,
+                account,
+                to,
+                category,
+                currency,
+                payee,
+            ),
+        )
+        return self
+
+    def budget(
+        self,
+        uid: str,
+        target: str,
+        amount: float,
+        *,
+        period: int = 6,
+        overrides: dict[int, float] | None = None,
+        total_type: int = 0,
+        trans_type: int = 0,
+        deleted: bool = False,
+    ) -> BackupBuilder:
+        """A ZBUDGET row with its default amount (period key 0) and any overrides."""
+        self.db.execute(
+            "INSERT INTO ZBUDGET (ZUID, ZISDEL, ZPERIODTYPEINT, ZTOTALTYPEINT, ZTRANSTYPEINT,"
+            " ZDOTYPESTR, ZTARGETUID) VALUES (?, ?, ?, ?, ?, '1', ?)",
+            (uid, int(deleted), period, total_type, trans_type, target),
+        )
+        for key, value in {0: amount, **(overrides or {})}.items():
+            self.db.execute(
+                "INSERT INTO ZBUDGETAMOUNT (ZBUDGETUID, ZBUDGETPERIOD, ZISDEL, ZAMOUNT)"
+                " VALUES (?, ?, NULL, ?)",
+                (uid, key, value),
+            )
+        return self
 
     def backup(self) -> bytes:
         return self.db.serialize()

@@ -8,6 +8,7 @@ import {
   totalsOptions,
   trendsOptions,
 } from '@/hooks/api/useAnalytics'
+import { resolveDemoBudgets } from './demoBudgets'
 import { generateDemoTransactions } from './generateTransactions'
 import {
   generateDemoPreferences,
@@ -16,7 +17,6 @@ import {
   generateDemoAccountBalances,
   generateDemoMasterCategories,
   generateDemoTrends,
-  generateDemoBudgets,
   generateDemoGoals,
 } from './generateDerivedData'
 
@@ -60,9 +60,14 @@ export function seedDemoCache(qc: QueryClient): void {
   // Preferences -- no DEMO_ROUTES entry, so this seed is the only data source.
   qc.setQueryData(['preferences'], generateDemoPreferences())
 
-  // Transactions. `useTransactions()` is called with no filters, so the key
-  // carries an `undefined` params slot.
+  // The full ledger, for the pages that still analyse it in the browser (Cash
+  // Flow, Comparison, GST, Tax, Returns, Investment Analytics, SIP projection).
+  // `useTransactions()` is called with no filters, so the key carries an
+  // `undefined` params slot. The Dashboard no longer reads it: its row-level
+  // figures come from `/api/dashboard-metrics`, which DEMO_ROUTES answers from
+  // `demoDashboardMetrics.ts` over these same transactions.
   qc.setQueryData(['transactions', undefined], txs)
+  // `useDashboardMetrics` keeps this warm for other pages.
   qc.setQueryData(recentTransactionsOptions(5).queryKey, recentTxs)
 
   // Calculations. Keys come from the same factories the hooks call, so a param
@@ -80,6 +85,9 @@ export function seedDemoCache(qc: QueryClient): void {
   // in the sidebar / mobile tab bar / notification center, and Overview, which
   // renders a skeleton until both settle. Every other v2 param combination is
   // served by DEMO_ROUTES.
-  qc.setQueryData(analyticsV2Keys.budgets({ active_only: true }), generateDemoBudgets())
+  qc.setQueryData(
+    analyticsV2Keys.budgets({ active_only: true }),
+    resolveDemoBudgets(txs, { active_only: true }).data,
+  )
   qc.setQueryData([...analyticsV2Keys.goals(), 'demo'], generateDemoGoals())
 }

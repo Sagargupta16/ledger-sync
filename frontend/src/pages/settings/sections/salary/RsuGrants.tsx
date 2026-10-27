@@ -1,93 +1,21 @@
 import { Plus, RefreshCw, Trash2 } from 'lucide-react'
 
 import Button from '@/components/ui/Button'
-import { formatCurrency, getActiveLocale } from '@/lib/formatters'
 import {
   DEFAULT_RSU_CESS_PERCENT,
   DEFAULT_RSU_TAX_PERCENT,
-  needsHistoricalVestingPrice,
   splitRsuTotals,
   todayKey,
-  type RsuSplitTotals,
 } from '@/lib/rsuVesting'
 import type { RsuGrant, RsuVesting } from '@/types/salary'
 
 import { FieldLabel } from '@/pages/settings/sectionPrimitives'
 import { inputClass } from '@/pages/settings/styles'
+import { HistoricalPriceAction } from './HistoricalPriceAction'
+import { ReceivedTotal } from './ReceivedTotal'
 import { VestingTable } from './VestingTable'
+import VestFxPanel from './VestFxPanel'
 import type { RsuPriceStatus } from './useRsuPrices'
-
-function ReceivedTotal({
-  label,
-  totals,
-}: Readonly<{ label: string; totals: RsuSplitTotals['vested'] }>) {
-  const quantityOptions = { maximumFractionDigits: 6 }
-  let source = 'Actual units'
-  if (totals.hasEstimates) source = 'Includes estimated units'
-  if (totals.shares === 0) source = 'No vestings'
-
-  return (
-    <div className="min-w-0 rounded-lg border border-border bg-[var(--overlay-1)] p-3">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="ledger-figure mt-1 text-lg font-semibold text-foreground">
-        {totals.receivedShares.toLocaleString(getActiveLocale(), quantityOptions)} shares
-      </p>
-      <p className="ledger-figure text-sm text-app-green">
-        {totals.value > 0 ? formatCurrency(totals.receivedValue) : '--'}
-      </p>
-      <p className="mt-1 text-[11px] text-text-tertiary">{source}</p>
-      {totals.hasEstimatedPrices && (
-        <p className="text-[11px] text-text-tertiary">Includes values estimated at current prices</p>
-      )}
-      <p className="mt-2 text-xs text-muted-foreground">
-        Gross: {totals.shares.toLocaleString(getActiveLocale(), quantityOptions)} shares
-        {totals.value > 0 && ` (${formatCurrency(totals.value)})`}
-      </p>
-    </div>
-  )
-}
-
-function HistoricalPriceAction({
-  grant, today, busy, fetching, status, onFetch,
-}: Readonly<{
-  grant: RsuGrant
-  today: string
-  busy: boolean
-  fetching: boolean
-  status?: RsuPriceStatus
-  onFetch: (grant: RsuGrant) => void
-}>) {
-  const missingPrice = grant.vestings.some((vesting) => needsHistoricalVestingPrice(vesting, today))
-  return (
-    <>
-      {missingPrice && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={busy || !grant.stock_name.trim()}
-            isLoading={fetching}
-            onClick={() => onFetch(grant)}
-          >
-            Fetch vest-date prices
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Past entries without a locked price use current-price estimates.
-          </p>
-        </div>
-      )}
-      {status && (
-        <output
-          className={`block text-xs ${status.kind === 'error' ? 'text-app-red' : 'text-muted-foreground'}`}
-          aria-live="polite"
-        >
-          {status.message}
-        </output>
-      )}
-    </>
-  )
-}
 
 interface RsuGrantsProps {
   grants: RsuGrant[]
@@ -262,6 +190,8 @@ export function RsuGrants(props: Readonly<RsuGrantsProps>) {
               onSortVestings={onSortVestings}
             />
           )}
+
+          <VestFxPanel grant={grant} today={today} />
 
           <Button
             id={`add-vesting-${grant.id}`}

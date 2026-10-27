@@ -25,22 +25,27 @@ export const ANOMALY_TYPE_VALUES = [
   'missing_recurring',
   'budget_exceeded',
   'closed_account_activity',
+  'fee_charge',
 ] as const
 
 export type AnomalyTypeValue = (typeof ANOMALY_TYPE_VALUES)[number]
 
 /**
- * The subset of the enum any detector actually constructs today.
- *
- * `core/analytics/anomalies.py` only ever appends `HIGH_EXPENSE` (the
- * high-expense-month and large-transaction detectors both use it),
- * `CLOSED_ACCOUNT_ACTIVITY`, and `BUDGET_EXCEEDED`. The other four members exist
- * in the enum with no producer, so a filter chip for them can never return a
- * row. Anything that offers the user a choice must offer THIS list; anything
- * that renders a value the server sent must handle the full enum.
+ * The members a detector constructs, which is now every one of them:
+ * `anomaly_detectors.py` (high expense), `anomaly_baselines.py` (unusual
+ * category, large transfer), `anomaly_ledger_checks.py` (possible duplicate, fee
+ * or interest, closed-account activity), `anomaly_recurring.py` (missing
+ * recurring) and budget tracking in `anomalies.py`. Anything that offers the
+ * user a choice offers THIS list; anything that renders a value the server sent
+ * handles the full enum, and an unknown one through the fallbacks.
  */
 export const EMITTED_ANOMALY_TYPES = [
   'high_expense',
+  'unusual_category',
+  'large_transfer',
+  'duplicate_suspected',
+  'missing_recurring',
+  'fee_charge',
   'budget_exceeded',
   'closed_account_activity',
 ] as const satisfies readonly AnomalyTypeValue[]
@@ -59,10 +64,10 @@ export const ANOMALY_SEVERITY_VALUES = ['high', 'medium', 'low'] as const
 export type AnomalySeverityValue = (typeof ANOMALY_SEVERITY_VALUES)[number]
 
 /**
- * The severities the detectors actually write: `anomalies.py` grades every
- * finding `"high"` or `"medium"` and nothing else. A `Low` filter option
- * therefore returned an empty list 100% of the time, and a `Low` count tile read
- * zero forever.
+ * The severities the detectors actually write: every finding is graded
+ * `"high"` or `"medium"` and nothing else. A `Low` filter option therefore
+ * returned an empty list 100% of the time, and a `Low` count tile read zero
+ * forever.
  */
 export const EMITTED_ANOMALY_SEVERITIES = [
   'high',

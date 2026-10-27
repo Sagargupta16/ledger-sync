@@ -20,7 +20,7 @@ describe('getTaxConfig', () => {
   it('falls back to latest known config for future years', () => {
     // Unknown future FY should pick up the most recent config we know about.
     const cfg = getTaxConfig(2099)
-    expect(cfg.fyStartYear).toBe(2025)
+    expect(cfg).toBe(getAllFYConfigs().at(-1))
   })
 
   it('falls back to oldest known config for ancient years', () => {

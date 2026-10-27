@@ -1,12 +1,13 @@
 /**
- * Upload Tokens section - long-lived, upload-only tokens for an iPhone
- * Shortcut that posts Money Manager backups. Shortcuts cannot run the OAuth
- * sign-in, so the token goes in the Shortcut's Authorization header instead.
+ * Access Tokens section - long-lived, single-purpose tokens for clients that
+ * cannot run the OAuth sign-in: an iPhone Shortcut that posts Money Manager
+ * backups, Claude Code reading the ledger over MCP, or an automation that
+ * forwards bank alerts. The token goes in the client's Authorization header.
  * Create and revoke apply immediately, outside the page's draft and Save.
  */
 
 import { useRef, useState } from 'react'
-import { Plus, Smartphone } from 'lucide-react'
+import { KeyRound, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import Button from '@/components/ui/Button'
@@ -14,15 +15,16 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useCreateUploadToken, useRevokeUploadToken, useUploadTokens } from '@/hooks/api/useUploadTokens'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { isCurrentSession } from '@/lib/session'
-import { MAX_UPLOAD_TOKENS, moneyManagerUploadUrl, type UploadToken } from '@/services/api/uploadTokens'
+import { MAX_UPLOAD_TOKENS, UPLOAD_SCOPE, type TokenScope, type UploadToken } from '@/services/api/uploadTokens'
 import { useDemoStore } from '@/store/demoStore'
 
 import { FieldHint, FieldLabel, Section } from '../sectionPrimitives'
 import { inputClass } from '../styles'
 import UploadTokenList from './UploadTokenList'
+import UploadTokenPurposePicker from './UploadTokenPurposePicker'
 import UploadTokenRevealDialog, { type RevealedUploadToken } from './UploadTokenRevealDialog'
-
-const DEFAULT_TOKEN_NAME = 'iPhone Shortcut'
+import UploadTokenUsage from './UploadTokenUsage'
+import { purposeFor } from './uploadTokenPurposes'
 
 interface Props {
   index: number
@@ -36,28 +38,37 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
   // The reveal dialog opens when the request settles, not on the click, so
   // remember what submitted the form to hand focus back to it.
   const openerRef = useRef<HTMLElement | null>(null)
-  const [name, setName] = useState(DEFAULT_TOKEN_NAME)
+  const [scope, setScope] = useState<TokenScope>(UPLOAD_SCOPE)
+  const [name, setName] = useState(purposeFor(UPLOAD_SCOPE).defaultName)
   // The plaintext lives only here, from the create response until the dialog closes.
   const [revealed, setRevealed] = useState<RevealedUploadToken | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<UploadToken | null>(null)
 
-  const atLimit = (tokensQuery.data?.length ?? 0) >= MAX_UPLOAD_TOKENS
+  const purpose = purposeFor(scope)
+  // The limit is per purpose, so a full set of Shortcut tokens never blocks Claude.
+  const atLimit = (tokensQuery.data?.filter((token) => token.scope === scope).length ?? 0) >= MAX_UPLOAD_TOKENS
   const trimmedName = name.trim()
   const canCreate = !isDemoMode && !atLimit && trimmedName.length > 0
-  const uploadUrl = moneyManagerUploadUrl()
   const revokeError = revokeToken.isError && revokeToken.variables !== undefined
     ? { id: revokeToken.variables, message: getApiErrorMessage(revokeToken.error, 'Please try again.') }
     : null
+
+  const handlePurpose = (next: TokenScope) => {
+    // Swap the suggested name along with the purpose, but keep one the user typed.
+    if (trimmedName === '' || name === purpose.defaultName) setName(purposeFor(next).defaultName)
+    setScope(next)
+    if (createToken.isError) createToken.reset()
+  }
 
   const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canCreate || createToken.isPending) return
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    createToken.mutate(trimmedName, {
-      onSuccess: (created, _name, signal) => {
+    createToken.mutate({ name: trimmedName, scope }, {
+      onSuccess: (created, _input, signal) => {
         if (!signal || !isCurrentSession(signal)) return
-        setRevealed({ name: created.name, token: created.token })
-        setName(DEFAULT_TOKEN_NAME)
+        setRevealed({ name: created.name, scope: created.scope, token: created.token })
+        setName(purposeFor(created.scope).defaultName)
         // Drop the response from the mutation, leaving state the only copy.
         createToken.reset()
       },
@@ -78,28 +89,28 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
     <div>
       <Section
         index={index}
-        icon={Smartphone}
-        title="Upload Tokens"
-        description="Let an iPhone Shortcut upload Money Manager backups"
+        icon={KeyRound}
+        title="Access Tokens"
+        description="Tokens for an iPhone Shortcut, Claude Code and bank alerts"
       >
         <p className="text-sm leading-6 text-muted-foreground">
-          A token lets an iPhone Shortcut upload Money Manager backups without signing in. It can
-          only upload, never read your data, and expires after 365 days. Changes apply immediately.
-        </p>
-        <p className="text-sm leading-6 text-muted-foreground">
-          The Shortcut sends each backup with POST to{' '}
-          <code className="break-all font-mono text-xs text-foreground">{uploadUrl}</code>
+          A token lets an automation or Claude reach one part of your account without signing in.
+          Each token has one purpose, expires after 365 days and can be revoked at any time.
+          Changes apply immediately.
         </p>
 
         {isDemoMode && (
           <p className="text-sm text-muted-foreground">
-            Demo mode is read-only. Creating an upload token requires your own account.
+            Demo mode is read-only. Creating a token requires your own account.
           </p>
         )}
 
-        <form onSubmit={handleCreate}>
+        <form onSubmit={handleCreate} className="space-y-4">
+          {/* Outside the disabled fieldset: demo visitors can still compare purposes. */}
+          <UploadTokenPurposePicker value={scope} onChange={handlePurpose} tokens={tokensQuery.data} />
+          <UploadTokenUsage scope={scope} />
           <fieldset disabled={isDemoMode} className="m-0 min-w-0 border-0 p-0">
-            <legend className="sr-only">Create an upload token</legend>
+            <legend className="sr-only">Create a {purpose.label} token</legend>
             <FieldLabel htmlFor="upload-token-name">Token name</FieldLabel>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -127,8 +138,8 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
             </div>
             <FieldHint>
               {atLimit
-                ? `You have ${MAX_UPLOAD_TOKENS} active tokens, the most allowed. Revoke one to create another.`
-                : 'Name it after the device or Shortcut that will use it.'}
+                ? `You have ${MAX_UPLOAD_TOKENS} active ${purpose.label} tokens, the most allowed. Revoke one to create another.`
+                : 'Name it after the device or app that will use it.'}
             </FieldHint>
             {createToken.isError && (
               <p role="alert" className="mt-2 text-sm text-app-red">
@@ -159,9 +170,9 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
         onOpenChange={(open) => {
           if (!open) setRevokeTarget(null)
         }}
-        title="Revoke upload token?"
+        title="Revoke access token?"
         description={revokeTarget
-          ? `"${revokeTarget.name}" (${revokeTarget.prefix}...) stops working right away. A Shortcut that uses it cannot upload until you give it a new token.`
+          ? `"${revokeTarget.name}" (${revokeTarget.prefix}...) stops working right away. ${purposeFor(revokeTarget.scope).revokeEffect}`
           : ''}
         confirmLabel="Revoke token"
         onConfirm={handleRevoke}
@@ -169,7 +180,6 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
 
       <UploadTokenRevealDialog
         revealed={revealed}
-        uploadUrl={uploadUrl}
         returnFocusRef={openerRef}
         onClose={() => setRevealed(null)}
       />

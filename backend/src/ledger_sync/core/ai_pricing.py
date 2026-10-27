@@ -1,9 +1,15 @@
 """Provider cost-per-1M-token reference table.
 
-Numbers reflect public list prices as of 2026-04-27. USD per 1M tokens.
-Refresh when vendors change their rates. Unknown models fall back to a
-conservative "we'll overestimate" entry so users aren't surprised by
-larger bills than we reported.
+Numbers reflect public list prices as of 2026-04-27, USD per 1M tokens. The
+Claude 5.x rows, the Sonnet 4.5 and 4.6 us. rows and the global. rows for
+Haiku 4, Sonnet 4 and Opus 4 were added 2026-10-27: Anthropic rows from
+Anthropic's pricing page, Bedrock rows from the AWS Price List
+(AmazonBedrockFoundationModels, us-east-1, published 2026-10-12), where a us.
+profile costs 10% more than global. Haiku 5.5 bills prompts over 100K tokens
+at 5x; these rows assume the shorter tier, which the chat proxy's 256 KB
+request cap normally keeps a call in. Refresh when vendors change their rates.
+Unknown models fall back to a conservative "we'll overestimate" entry so users
+aren't surprised by larger bills than we reported.
 """
 
 from __future__ import annotations
@@ -22,17 +28,40 @@ _PRICING: dict[str, dict[str, tuple[float, float]]] = {
         "gpt-4o-mini": (0.15, 0.60),
     },
     "anthropic": {
+        "claude-fable-5": (10.00, 50.00),
+        "claude-opus-5-5": (4.00, 20.00),
+        "claude-opus-5": (5.00, 25.00),
         "claude-opus-4-7": (15.00, 75.00),
         "claude-opus-4": (15.00, 75.00),
+        "claude-sonnet-5": (2.00, 10.00),
         "claude-sonnet-4": (3.00, 15.00),
+        "claude-haiku-5": (0.10, 0.50),
         "claude-haiku-4": (1.00, 5.00),
     },
-    # Bedrock mirrors Anthropic pricing (AWS passes it through) plus a small
-    # AWS markup. We use Anthropic list prices as a near-enough estimate.
+    # Each row is AWS's own price for that profile except the us. Opus 4 row,
+    # which keeps the Opus 4 and 4.1 price (test_pricing_longest_prefix_wins
+    # pins it), so Opus 4.5 to 4.8 over-report there, the safe side. Opus 4 and
+    # 4.1 have no global. profile, so the global. Opus 4 row is the Opus 4.5 to
+    # 4.8 price. Sonnet 4 costs the same on both profiles.
     "bedrock": {
+        "us.anthropic.claude-fable-5": (11.00, 55.00),
+        "us.anthropic.claude-opus-5-5": (4.40, 22.00),
+        "us.anthropic.claude-opus-5": (5.50, 27.50),
         "us.anthropic.claude-opus-4": (15.00, 75.00),
+        "us.anthropic.claude-sonnet-5": (2.20, 11.00),
+        "us.anthropic.claude-sonnet-4-6": (3.30, 16.50),
+        "us.anthropic.claude-sonnet-4-5": (3.30, 16.50),
         "us.anthropic.claude-sonnet-4": (3.00, 15.00),
-        "us.anthropic.claude-haiku-4": (1.00, 5.00),
+        "us.anthropic.claude-haiku-5": (0.11, 0.55),
+        "us.anthropic.claude-haiku-4": (1.10, 5.50),
+        "global.anthropic.claude-fable-5": (10.00, 50.00),
+        "global.anthropic.claude-opus-5-5": (4.00, 20.00),
+        "global.anthropic.claude-opus-5": (5.00, 25.00),
+        "global.anthropic.claude-opus-4": (5.00, 25.00),
+        "global.anthropic.claude-sonnet-5": (2.00, 10.00),
+        "global.anthropic.claude-sonnet-4": (3.00, 15.00),
+        "global.anthropic.claude-haiku-5": (0.10, 0.50),
+        "global.anthropic.claude-haiku-4": (1.00, 5.00),
     },
 }
 

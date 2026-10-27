@@ -106,6 +106,7 @@ const AT_RISK_BUDGET: Budget = {
   avg_actual: 8_500,
   months_over: 1,
   months_under: 5,
+  is_active: true,
 }
 
 const ACTIVE_GOAL: FinancialGoal = {

@@ -16,8 +16,6 @@ export {
   generateDemoTrends,
 } from './demoCalculations'
 export {
-  generateDemoAnomalies,
-  generateDemoBudgets,
   generateDemoCategoryTrends,
   generateDemoFYSummaries,
   generateDemoGoals,

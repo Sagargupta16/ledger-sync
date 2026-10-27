@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from ledger_sync.api.ai_chat_schemas import BedrockChatRequest, StructuredMessage
+from ledger_sync.api.ai_chat_thinking import thinking_request_fields
 from ledger_sync.api.deps import DatabaseSession
 from ledger_sync.config.settings import settings
 from ledger_sync.core.encryption import DecryptionError, decrypt_api_key
@@ -115,6 +116,9 @@ def _build_converse_kwargs(payload: BedrockChatRequest, model_id: str) -> dict[s
     }
     if payload.system_prompt:
         kwargs["system"] = [{"text": payload.system_prompt}]
+    thinking_fields = thinking_request_fields(model_id)
+    if thinking_fields:
+        kwargs["additionalModelRequestFields"] = thinking_fields
     if payload.tools:
         kwargs["toolConfig"] = {
             "tools": [

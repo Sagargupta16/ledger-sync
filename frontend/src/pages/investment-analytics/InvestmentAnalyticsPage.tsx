@@ -10,6 +10,7 @@ import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { AccountsTable } from './components/AccountsTable'
 import { AssetAllocationChart } from './components/AssetAllocationChart'
 import { GrowthOverTimeChart } from './components/GrowthOverTimeChart'
+import { MutualFundsSection } from './components/MutualFundsSection'
 import { PortfolioMetrics } from './components/PortfolioMetrics'
 import { useInvestmentAnalytics } from './useInvestmentAnalytics'
 
@@ -44,6 +45,7 @@ export default function InvestmentAnalyticsPage() {
             actionHref="/settings"
           />
         </section>
+        <MutualFundsSection />
       </PageContainer>
     )
   }
@@ -76,8 +78,10 @@ export default function InvestmentAnalyticsPage() {
 
       <CostBasisOnlyNotice
         metricLabel="Portfolio return and XIRR"
-        shownInstead="Every figure here is cost basis: what you contributed, where it went, and when."
+        shownInstead="Every ledger figure here is cost basis: what you contributed, where it went, and when. Mutual funds imported from a CAS below show market value and XIRR."
       />
+
+      <MutualFundsSection />
 
       <AssetAllocationChart isLoading={m.isLoading} assetAllocation={m.investmentTypeBreakdown} />
 

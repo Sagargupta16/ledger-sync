@@ -5,8 +5,9 @@ import { AlertTriangle, DatabaseBackup } from 'lucide-react'
 import { Button, Card } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
-import { formatCount } from '../moneyManagerUtils'
+import { formatCount, getBackupPlanning } from '../moneyManagerUtils'
 import type { BackupReview } from '../useMoneyManagerImport'
+import BackupPlanningSummary from './BackupPlanningSummary'
 
 interface MoneyManagerReviewProps {
   readonly review: BackupReview
@@ -24,6 +25,7 @@ export default function MoneyManagerReview({
   const [confirmed, setConfirmed] = useState(false)
   const { fileName, preview, force } = review
   const { summary, stats } = preview
+  const planning = getBackupPlanning(preview)
   const contents = [
     { label: 'Transactions', value: summary.transactions },
     { label: 'Transfers', value: summary.transfers },
@@ -85,6 +87,8 @@ export default function MoneyManagerReview({
             The server counted these in a dry run. Nothing is saved until you confirm.
           </p>
         </div>
+
+        {planning && <BackupPlanningSummary planning={planning} />}
 
         <div className="flex items-start gap-3 rounded-md border border-app-yellow/30 bg-app-yellow/10 p-4">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-text" aria-hidden="true" />

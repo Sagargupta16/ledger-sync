@@ -19,7 +19,7 @@ import {
   totalsOptions,
   useRecentTransactions,
 } from '@/hooks/api/useAnalytics'
-import { useTransactions } from '@/hooks/api/useTransactions'
+import { dashboardHealthOptions, dashboardPulseOptions } from '@/hooks/api/useDashboardMetricsApi'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { useStablePeriodData } from '@/hooks/useStablePeriodData'
@@ -30,16 +30,15 @@ import {
   getCurrentYear,
   getCurrentMonth,
   getCurrentFY,
-  filterTransactionsByDateRange,
 } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
 import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
-import { investmentAccountTest, summarizeInvestmentTransfers } from '@/lib/finance/investmentFlows'
 import { CHART_COLORS, SEMANTIC_COLORS } from '@/constants/chartColors'
 import type { TotalsData } from '@/services/api/calculations'
+import type { DashboardPulse } from '@/services/api/dashboardMetrics'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,20 +94,27 @@ interface DashboardMetrics {
    * savings definition every page shows.
    */
   filteredTotals: TotalsData | undefined
-  /** Every query, the full ledger included. */
+  /** Same as `isSummaryLoading`: no read is left outside the window snapshot. */
   isLoading: boolean
-  /** The rollup-backed summary only; the ledger may still be in flight. */
+  /** The window's first snapshot (the pulse included, when read) is still loading. */
   isSummaryLoading: boolean
-  /** The full ledger behind the row-level metrics is still loading. */
-  isLedgerLoading: boolean
   isError: boolean
   retry: () => void
 
   /** The selected window holds at least one transaction (any type). */
   hasTransactionsInRange: boolean
 
-  // Transactions filtered by selected time range
-  filteredTransactions: import('@/types').Transaction[]
+  /**
+   * FIFO age in days of the money spent in the window. Null with no matched
+   * spend, and whenever the pulse is not read (`includeQuickInsights` off).
+   */
+  ageOfMoney: number | null
+  /**
+   * Days today's net spendable balance lasts at the mean daily spend of the
+   * window's rows in the 90 days to today. Null with no such spend (a past
+   * window), and whenever the pulse is not read.
+   */
+  daysOfBuffering: number | null
 
   // Income breakdown
   incomeBreakdown: Record<string, number> | null
@@ -134,18 +140,31 @@ interface DashboardMetrics {
 
   // Month-over-month changes
   momChanges: MonthlyChanges
-  investmentTransfers: ReturnType<typeof summarizeInvestmentTransfers>
+  investmentTransfers: DashboardPulse['investmentTransfers']
   hasInvestmentMappings: boolean
 }
 
 interface DashboardMetricsOptions {
   /**
-   * Also read `/quick-insights` for the selected window. The Dashboard's
-   * QuickInsights band reads it for the committed `dateRange`, so gating the
-   * page on it lets the band switch with everything else instead of dropping
-   * to its own skeleton once the page has moved on. Overview shows no band.
+   * Also read `/quick-insights` and `/api/dashboard-metrics/pulse` for the
+   * selected window. The Dashboard's QuickInsights band reads the first for the
+   * committed `dateRange` and shows Age of Money and Days of Buffering from the
+   * second, which also feeds the investment-transfer panel. Gating the page on
+   * both lets the band switch with everything else instead of dropping to its
+   * own skeleton once the page has moved on. It also starts
+   * `/api/dashboard-metrics/health` for the health panel, which gates nothing.
+   * Overview shows none of them.
    */
   readonly includeQuickInsights?: boolean
+}
+
+/** The transfer split while the pulse is not read (Overview) or has not loaded. */
+const NO_TRANSFERS: DashboardPulse['investmentTransfers'] = {
+  contributions: 0,
+  withdrawals: 0,
+  netContributions: 0,
+  internalTransfers: 0,
+  otherTransfers: 0,
 }
 
 // ---------------------------------------------------------------------------
@@ -210,11 +229,11 @@ export function useDashboardMetrics(
 
   // ------ Data fetching ------
   //
-  // The KPIs, charts and breakdowns read rollups and SQL aggregates. The full
-  // ledger (~2.9 MB) is still fetched for the row-level metrics that no
-  // endpoint reproduces -- Age of Money's FIFO matching, Days of Buffering's
-  // lookback, investment-transfer classification -- but it no longer gates the
-  // summary, so the page paints without waiting for it.
+  // The KPIs, charts and breakdowns read rollups and SQL aggregates, and the
+  // row-level figures no rollup holds -- Age of Money's FIFO matching, Days of
+  // Buffering's lookback, the investment-transfer split -- come from
+  // `/api/dashboard-metrics/pulse`, computed server-side over the window's rows.
+  // The page never downloads the ledger (`/api/transactions/all`, ~3.4 MB at 9,000 rows).
   //
   // Every read keyed on the window keeps its previous data while the next one
   // loads, and `useStablePeriodData` below holds the page on the last window
@@ -222,14 +241,17 @@ export function useDashboardMetrics(
   // for its skeleton (which threw a scrolled reader back to the top) and never
   // shows two windows at once (a cached read resolving beside a pending one).
   useRecentTransactions(5) // keep prefetch warm for other pages
+  // Current health keys on no window. Requested with the page's other reads so
+  // the lazy FinancialHealthScore finds it cached on mount instead of starting
+  // it after first paint; `notifyOnChangeProps: []` keeps this hook from
+  // re-rendering when it lands.
+  useQuery({ ...dashboardHealthOptions(), enabled: includeQuickInsights, notifyOnChangeProps: [] })
   const totalsQuery = useQuery({ ...totalsOptions(dateRange), placeholderData: keepPreviousData })
   const monthlyQuery = useQuery({
     ...monthlyAggregationOptions(dateRange),
     placeholderData: keepPreviousData,
   })
   const dateRangeQuery = useQuery(dataDateRangeOptions())
-  const transactionsQuery = useTransactions()
-  const allTransactions = transactionsQuery.data
 
   // `?? []` per field was the bug: the backend column default is the JSON string
   // "[]", so an unconfigured user sends four empty lists, and a cashback match
@@ -261,16 +283,22 @@ export function useDashboardMetrics(
     enabled: includeQuickInsights,
     placeholderData: keepPreviousData,
   })
+  const pulseQuery = useQuery({
+    ...dashboardPulseOptions(dateRange),
+    enabled: includeQuickInsights,
+    placeholderData: keepPreviousData,
+  })
 
   const stable = useStablePeriodData(analyticsDateRange, [
     totalsQuery,
     monthlyQuery,
     incomeQuery,
     expenseCategoryQuery,
+    includeQuickInsights ? pulseQuery : null,
     includeQuickInsights ? quickInsightsQuery : null,
   ])
   const committedRange = stable.period
-  const [filteredTotals, monthlyData, incomeData, expenseCategoryData] = stable.data
+  const [filteredTotals, monthlyData, incomeData, expenseCategoryData, pulse] = stable.data
   const committedDateRange = useMemo(
     () => ({
       start_date: committedRange.start_date ?? undefined,
@@ -293,12 +321,11 @@ export function useDashboardMetrics(
   // Expense row once a loss was classified, so the pie total and the KPI
   // disagreed by exactly `capital_losses` for the users who had classified one.
 
-  const isLedgerLoading = transactionsQuery.isLoading
   const isError =
     totalsQuery.isError ||
     monthlyQuery.isError ||
     dateRangeQuery.isError ||
-    transactionsQuery.isError ||
+    pulseQuery.isError ||
     preferencesQuery.isError ||
     incomeQuery.isError ||
     expenseCategoryQuery.isError ||
@@ -313,16 +340,15 @@ export function useDashboardMetrics(
       dateRangeQuery.isLoading ||
       preferencesQuery.isLoading ||
       earningEvidenceQuery.isLoading)
-  const isLoading = isSummaryLoading || isLedgerLoading
   const retry = () => {
     void Promise.all([
       totalsQuery.refetch(),
       monthlyQuery.refetch(),
       dateRangeQuery.refetch(),
-      transactionsQuery.refetch(),
       preferencesQuery.refetch(),
       incomeQuery.refetch(),
       expenseCategoryQuery.refetch(),
+      ...(includeQuickInsights ? [pulseQuery.refetch()] : []),
       ...(needsEarningEvidence ? [earningEvidenceQuery.refetch()] : []),
     ])
   }
@@ -337,20 +363,9 @@ export function useDashboardMetrics(
     [dateRangeQuery.data],
   )
 
-  // ------ Filter transactions by selected time range ------
-  const filteredTransactions = useMemo(
-    () => filterTransactionsByDateRange(allTransactions, committedRange),
-    [allTransactions, committedRange],
-  )
-  const investmentMappings = preferences?.investment_account_mappings
-  const hasInvestmentMappings = Object.keys(investmentMappings ?? {}).length > 0
-  const investmentTransfers = useMemo(
-    () => summarizeInvestmentTransfers(
-      filteredTransactions,
-      investmentAccountTest(Object.keys(investmentMappings ?? {})),
-    ),
-    [filteredTransactions, investmentMappings],
-  )
+  // ------ Row-level window figures (server-side, see `dashboardPulseOptions`) ------
+  const hasInvestmentMappings = Object.keys(preferences?.investment_account_mappings ?? {}).length > 0
+  const investmentTransfers = pulse?.investmentTransfers ?? NO_TRANSFERS
 
   // Rows in the window, all types -- the same count the ledger filter produced.
   const hasTransactionsInRange = (filteredTotals?.transaction_count ?? 0) > 0
@@ -476,13 +491,13 @@ export function useDashboardMetrics(
     dateRange: committedDateRange,
     isSettling: stable.isSettling,
     filteredTotals,
-    isLoading,
+    isLoading: isSummaryLoading,
     isSummaryLoading,
-    isLedgerLoading,
     isError,
     retry,
     hasTransactionsInRange,
-    filteredTransactions,
+    ageOfMoney: pulse?.ageOfMoney ?? null,
+    daysOfBuffering: pulse?.daysOfBuffering ?? null,
     incomeBreakdown,
     cashbacksTotal,
     incomeChartData,

@@ -2,8 +2,6 @@ import { useState } from 'react'
 import {
   Trash2,
   Pencil,
-  Check,
-  X,
   Power,
   PowerOff,
   RefreshCw,
@@ -11,17 +9,16 @@ import {
   CheckCircle2,
   Receipt,
   ShoppingBag,
-  CircleHelp,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
-import { Button, Input, Select } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { Button } from '@/components/ui'
 import { getRecurringFreshness } from '@/lib/recurringCalculations'
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
-import { FREQUENCY_OPTIONS } from '../constants'
-import { toMonthlyAmount, capitalize, formatDate } from '../helpers'
+import { formatDate } from '../helpers'
+import { RecurringAmount } from './RecurringAmount'
+import { RecurringBadges } from './RecurringBadges'
+import { RecurringEditForm } from './RecurringEditForm'
 
 interface RecurringCardPatch {
   pattern_name?: string
@@ -44,83 +41,21 @@ export function RecurringCard({
   onDelete: () => void
 }>) {
   const [editing, setEditing] = useState(false)
-  const [editName, setEditName] = useState(item.name)
-  const [editFreq, setEditFreq] = useState(item.frequency ?? 'monthly')
-  const [editAmt, setEditAmt] = useState(String(Math.abs(item.expected_amount)))
 
-  const monthly = toMonthlyAmount(item.expected_amount, item.frequency)
   const isIncome = item.type === 'Income'
   const isHabit = item.pattern_kind === 'habit'
   const freshness = getRecurringFreshness(item, asOfDateKey)
 
-  const saveEdit = () => {
-    const amt = Number(editAmt)
-    if (!editName.trim()) {
-      toast.error('Name is required')
-      return
-    }
-    if (Number.isNaN(amt) || amt <= 0) {
-      toast.error('Enter a valid amount')
-      return
-    }
-    onUpdate({ pattern_name: editName.trim(), frequency: editFreq, expected_amount: amt })
-    setEditing(false)
-  }
-
   if (editing) {
     return (
-      <div className="ledger-panel space-y-3 border-app-blue/30 p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Input
-              id={`e-n-${item.id}`}
-              label="Name"
-              type="text"
-              value={editName}
-              onChange={(event) => setEditName(event.target.value)}
-              autoFocus
-            />
-          </div>
-          <Select
-            id={`e-f-${item.id}`}
-            label="Frequency"
-            value={editFreq}
-            onChange={(event) => setEditFreq(event.target.value)}
-            options={FREQUENCY_OPTIONS}
-          />
-        </div>
-        <div className="w-full sm:max-w-[200px]">
-          <Input
-            id={`e-a-${item.id}`}
-            label="Amount"
-            type="number"
-            min={0}
-            step="any"
-            value={editAmt}
-            onChange={(event) => setEditAmt(event.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            icon={<Check className="h-3.5 w-3.5" />}
-            onClick={saveEdit}
-          >
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={<X className="h-3.5 w-3.5" />}
-            onClick={() => setEditing(false)}
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
+      <RecurringEditForm
+        item={item}
+        onSave={(patch) => {
+          onUpdate(patch)
+          setEditing(false)
+        }}
+        onCancel={() => setEditing(false)}
+      />
     )
   }
 
@@ -136,36 +71,7 @@ export function RecurringCard({
               <h3 className="font-medium text-foreground truncate" title={item.name}>
                 {item.name}
               </h3>
-              <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${isIncome ? 'bg-app-green/10 text-app-green' : 'bg-app-red/10 text-app-red'}`}>
-                {item.type}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-blue/10 text-app-blue">
-                {capitalize(item.frequency)}
-              </span>
-              {!item.is_active && (
-                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--overlay-5)] text-text-tertiary">
-                  Paused
-                </span>
-              )}
-              {isHabit && (
-                <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--overlay-5)] text-text-tertiary">
-                  Not a bill
-                </span>
-              )}
-              {!item.is_confirmed && !isHabit && (
-                <span
-                  className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-app-yellow/10 text-app-yellow"
-                  title={`Detected from ${item.occurrences} matching transactions (${Math.round(item.confidence)}% confidence)`}
-                >
-                  Detected
-                </span>
-              )}
-              {freshness === 'needs-review' && (
-                <span className="inline-flex items-center gap-1 rounded bg-app-yellow/10 px-1.5 py-0.5 text-[11px] font-medium text-warning-text">
-                  <CircleHelp aria-hidden="true" className="h-3 w-3" />
-                  <span>Needs review</span>
-                </span>
-              )}
+              <RecurringBadges item={item} needsReview={freshness === 'needs-review'} />
             </div>
             {freshness === 'needs-review' && (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -188,14 +94,7 @@ export function RecurringCard({
           </div>
         </div>
         <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
-          <div className="text-right">
-            <p className={`whitespace-nowrap text-base font-bold tabular-nums ${isIncome ? 'text-app-green' : 'text-app-red'}`}>
-              {formatCurrency(Math.abs(item.expected_amount))}
-            </p>
-            <p className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums">
-              {formatCurrency(monthly)}/mo
-            </p>
-          </div>
+          <RecurringAmount item={item} />
           <div className="flex w-full items-center justify-between gap-0.5 sm:w-auto sm:justify-start">
             {!item.is_confirmed && !isHabit && (
               <Button
@@ -235,12 +134,7 @@ export function RecurringCard({
               variant="ghost"
               size="sm"
               icon={<Pencil className="h-3.5 w-3.5" />}
-              onClick={() => {
-                setEditName(item.name)
-                setEditFreq(item.frequency ?? 'monthly')
-                setEditAmt(String(Math.abs(item.expected_amount)))
-                setEditing(true)
-              }}
+              onClick={() => setEditing(true)}
               title="Edit"
               aria-label="Edit recurring item"
             />

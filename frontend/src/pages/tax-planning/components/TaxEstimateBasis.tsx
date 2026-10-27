@@ -1,5 +1,11 @@
 import { Money } from '@/components/ui'
-import { getTaxConfig } from '@/lib/tax-config'
+import {
+  formatSectionRef,
+  formatTaxYearLabel,
+  getTaxConfig,
+  isAct2025Year,
+  sectionTooltip,
+} from '@/lib/tax-config'
 
 import type { TaxPlanningModel } from '../useTaxPlanning'
 
@@ -29,7 +35,9 @@ export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
           <dd className="mt-1 text-sm font-medium text-foreground">{incomeBasis}</dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs text-muted-foreground">Standard deduction</dt>
+          <dt className="text-xs text-muted-foreground" title={sectionTooltip('16(ia)', planning.fyYear)}>
+            Standard deduction
+          </dt>
           <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
             <Money value={planning.standardDeduction} bold />
             <span className="text-xs text-muted-foreground">
@@ -50,9 +58,17 @@ export default function TaxEstimateBasis({ planning }: Readonly<Props>) {
           This view calculates liability on income received; the withholding estimate is shown separately.
         </p>
       )}
+      {isAct2025Year(planning.fyYear) && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          The Income-tax Act 2025 replaces the 1961 Act from Tax Year 2026-27 with new section
+          numbers, such as {formatSectionRef('115BAC', planning.fyYear)} for the new regime and{' '}
+          {formatSectionRef('80C', planning.fyYear)}. Tax Year 2026-27 keeps the FY 2025-26 slabs,
+          standard deduction and rebate.
+        </p>
+      )}
       {rules.fyStartYear !== planning.fyYear && (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Rules for {planning.effectiveFY} are not available here yet. This estimate uses{' '}
+          Rules for {formatTaxYearLabel(planning.fyYear)} are not available here yet. This estimate uses{' '}
           {rules.fyLabel}; check the applicable rules before filing.
         </p>
       )}

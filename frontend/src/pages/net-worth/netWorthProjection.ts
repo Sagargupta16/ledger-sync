@@ -2,7 +2,8 @@
  * Net-worth milestone detection + projection helpers.
  *
  * All three views (milestones table, ETA rows, chart projection overlay)
- * share ONE "current" value and ONE growth rate so the numbers stay
+ * share ONE "current" value and ONE growth model (the monthly saving and the
+ * yearly rate it compounds at, see netWorthCompound.ts) so the numbers stay
  * self-consistent. Anchor: the last point of the historical series that
  * the chart itself is rendering.
  *
@@ -18,6 +19,8 @@ import {
   type NetWorthMilestoneProgress,
   type NetWorthPoint,
 } from '@/lib/finance/netWorth'
+
+import { withCompoundEta } from './netWorthCompound'
 
 export {
   computeAvgMonthlyGrowth,
@@ -106,7 +109,9 @@ export function downsampleToMonthly(
  *
  * - achieved: rows whose value was ever crossed by the series (ALL kept -- they
  *   are history).
- * - upcoming: rows whose value is above the anchor's net worth. ETA is
+ * - upcoming: rows whose value is above the anchor's net worth. ETA is where
+ *   the chart's compound projection reaches the value: the monthly saving
+ *   growing at ``annualGrowth`` a year, which at 0 is the straight line
  *   anchor.date + (value - anchor.netWorth) / monthlyGrowth months. Omitted
  *   from the upcoming set when growth <= 0. Capped to ``upcomingWindow`` so the
  *   table shows the next few reachable targets, not a "₹10Cr in 72 years" row.
@@ -117,11 +122,18 @@ export function buildMilestoneRows(
   monthlyGrowth: number,
   milestones: readonly Milestone[] = DEFAULT_MILESTONES,
   upcomingWindow: number = DEFAULT_UPCOMING_WINDOW,
+  annualGrowth = 0,
 ): MilestoneRow[] {
   const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date))
   const rows: MilestoneRow[] = milestones.map((m) => ({
     ...m,
-    ...computeNetWorthMilestoneProgress(sorted, anchor, monthlyGrowth, m.value),
+    ...withCompoundEta(
+      computeNetWorthMilestoneProgress(sorted, anchor, monthlyGrowth, m.value),
+      anchor,
+      monthlyGrowth,
+      annualGrowth,
+      m.value,
+    ),
   }))
 
   // Keep ALL achieved rows (history); cap the upcoming rows to the nearest

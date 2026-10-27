@@ -5,7 +5,7 @@
  * animated expand/collapse via motion, and an optional badge pill.
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
@@ -27,6 +27,7 @@ export default function CollapsibleSection({
   children,
 }: CollapsibleSectionProps) {
   const [expanded, setExpanded] = useState<boolean>(defaultExpanded)
+  const contentId = useId()
 
   return (
     <motion.div layout className="ledger-panel relative overflow-hidden">
@@ -34,6 +35,8 @@ export default function CollapsibleSection({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        aria-controls={contentId}
         className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-[var(--overlay-2)] sm:px-5"
       >
         <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -56,6 +59,7 @@ export default function CollapsibleSection({
         {expanded && (
           <motion.div
             {...DISCLOSURE_TRANSITION}
+            id={contentId}
             className="overflow-hidden"
           >
             <div className="border-t border-[var(--hairline-1)] px-4 py-4 sm:px-5">{children}</div>

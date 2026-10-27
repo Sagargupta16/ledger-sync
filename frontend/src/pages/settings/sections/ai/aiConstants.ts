@@ -20,7 +20,10 @@ export const MODELS: Record<string, { value: string; label: string }[]> = {
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
   bedrock: [
-    // Anthropic Claude (US cross-region inference profiles)
+    // Anthropic Claude (US cross-region inference profiles). The first entry is
+    // preselected when Bedrock is picked: Haiku 5.5 is the app-mode model too.
+    { value: 'us.anthropic.claude-haiku-5-5', label: 'Claude Haiku 5.5 (Bedrock)' },
+    { value: 'us.anthropic.claude-sonnet-5-5', label: 'Claude Sonnet 5.5 (Bedrock)' },
     { value: 'us.anthropic.claude-fable-5', label: 'Claude Fable 5 (Bedrock)' },
     { value: 'us.anthropic.claude-sonnet-5', label: 'Claude Sonnet 5 (Bedrock)' },
     { value: 'us.anthropic.claude-opus-4-8', label: 'Claude Opus 4.8 (Bedrock)' },

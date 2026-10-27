@@ -5,6 +5,7 @@ import { AlertTriangle, FileCheck2 } from 'lucide-react'
 import { Button, Card } from '@/components/ui'
 
 import type { UploadReview as UploadReviewState } from '../useUploadSync'
+import UploadCategorySuggestions from './UploadCategorySuggestions'
 
 interface UploadReviewProps {
   readonly review: UploadReviewState
@@ -116,6 +117,8 @@ export default function UploadReview({ review, isBusy, onConfirm, onCancel }: Up
           Unchanged entries keep their IDs. Repeated transactions are preserved; paired
           transfer rows count as one transfer. Final change counts appear after saving.
         </p>
+
+        <UploadCategorySuggestions rows={parsed.rows} fileHash={parsed.fileHash} />
 
         <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-border p-3 text-sm leading-6">
           <input

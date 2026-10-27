@@ -1,27 +1,17 @@
-import { useMemo, useState } from 'react'
+import { PageContainer, PageHeader } from '@/components/ui'
 
-import { motion } from 'motion/react'
-import { AlertTriangle, PiggyBank, ShoppingBag, Target } from 'lucide-react'
-
-import EmptyState from '@/components/shared/EmptyState'
-import PageErrorState from '@/components/shared/PageErrorState'
-import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
-import { fadeUpItem, staggerContainer } from '@/constants/animations'
-import { useDataDateRange } from '@/hooks/api/useAnalytics'
-import { useSpendingRule } from '@/hooks/api/useAnalyticsV2'
-import type { SpendingBucket, SpendingRuleResponse } from '@/services/api/analyticsV2'
-import { formatCurrency, formatDate, formatPercent } from '@/lib/formatters'
-
-import { BucketCard } from './components/BucketCard'
-import { CategoryTable } from './components/CategoryTable'
-import { PeriodPicker, type PresetPeriod } from './components/PeriodPicker'
-import { toPeriodRange } from './budgetUtils'
+import { BudgetRuleSection } from './components/BudgetRuleSection'
+import { CategoryBudgets } from './components/CategoryBudgets'
 
 /**
- * /budgets -- the 50/30/20 Budget Rule page.
+ * /budgets -- category budgets, then the 50/30/20 rule.
  *
- * Header cards show Needs / Wants / Savings actuals vs targets from
+ * Category budgets are monthly limits per expense category, tracked against the
+ * current IST month (the endpoint counts the month's spend each time the list
+ * loads, so it never waits for an analytics refresh). They come first because the
+ * navigation badges and Overview's "Budgets at risk" panel send readers here.
+ *
+ * In the 50/30/20 half, header cards show Needs / Wants / Savings actuals vs targets from
  * `user_preferences.{needs,wants,savings}_target_percent`. The table below
  * breaks down every category the user spent on in the selected period,
  * grouped by bucket, with monthly-average calculated over the period length.
@@ -37,235 +27,14 @@ import { toPeriodRange } from './budgetUtils'
  * three buckets plus unallocated add up to income exactly.
  */
 export default function BudgetPage() {
-  const [period, setPeriod] = useState<PresetPeriod>('last_12_months')
-  const [customStart, setCustomStart] = useState<string>('')
-  const [customEnd, setCustomEnd] = useState<string>('')
-  const dateRangeQuery = useDataDateRange()
-  const { minDate, maxDate } = dateRangeQuery
-
-  const range = useMemo(
-    () => toPeriodRange(period, { customStart, customEnd, minDate, maxDate }),
-    [period, customStart, customEnd, minDate, maxDate],
-  )
-
-  const spendingRuleQuery = useSpendingRule({
-    start_date: range.start,
-    end_date: range.end,
-  })
-  const { data } = spendingRuleQuery
-
-  if (dateRangeQuery.isError || spendingRuleQuery.isError) {
-    const retryBudget = () => {
-      void dateRangeQuery.refetch()
-      void spendingRuleQuery.refetch()
-    }
-    return (
-      <PageErrorState
-        title="50/30/20 Budget Rule"
-        subtitle="Actual split of your income across Needs, Wants, and Savings"
-        onRetry={retryBudget}
-      />
-    )
-  }
-
   return (
     <PageContainer>
       <PageHeader
-        title="50/30/20 Budget Rule"
-        subtitle="Actual split of your income across Needs, Wants, and Savings"
+        title="Budgets"
+        subtitle="Monthly limits per spending category, and how your income splits across Needs, Wants, and Savings"
       />
-
-      <StickyToolbar label="Budget period">
-        <PeriodPicker
-          value={period}
-          onChange={setPeriod}
-          customStart={customStart}
-          customEnd={customEnd}
-          onCustomChange={(s, e) => {
-            setCustomStart(s)
-            setCustomEnd(e)
-          }}
-          minDate={minDate}
-          maxDate={maxDate}
-        />
-      </StickyToolbar>
-
-      {renderBody(dateRangeQuery.isLoading || spendingRuleQuery.isLoading, data)}
+      <CategoryBudgets />
+      <BudgetRuleSection />
     </PageContainer>
   )
-}
-
-function renderBody(isLoading: boolean, data: SpendingRuleResponse | undefined) {
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <LoadingSkeleton className="h-52" />
-          <LoadingSkeleton className="h-52" />
-          <LoadingSkeleton className="h-52" />
-        </div>
-        <LoadingSkeleton className="h-96" />
-      </div>
-    )
-  }
-  // Defensive: some upstream (demo adapter, cached wrong shape, etc.) could
-  // feed us an object without the expected keys. Fail soft rather than crash.
-  if (!data.period || !data.buckets) {
-    return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="Unexpected response shape"
-        description="The budget rule endpoint returned data in an unexpected format. Try refreshing the page."
-        variant="card"
-      />
-    )
-  }
-  return <BudgetRuleContent data={data} />
-}
-
-function BudgetRuleContent({ data }: { readonly data: SpendingRuleResponse }) {
-  const cards: Array<{
-    readonly bucket: SpendingBucket
-    readonly title: string
-    readonly description: string
-    readonly icon: typeof Target
-    readonly kind: 'cap' | 'floor'
-  }> = [
-    {
-      bucket: 'needs',
-      title: 'Needs',
-      description: 'Housing, Healthcare, Food, etc.',
-      icon: Target,
-      kind: 'cap',
-    },
-    {
-      bucket: 'wants',
-      title: 'Wants',
-      description: 'Entertainment, Shopping, etc.',
-      icon: ShoppingBag,
-      kind: 'cap',
-    },
-    {
-      bucket: 'savings',
-      title: 'Savings',
-      // The caption has to state the definition, because the intuitive reading
-      // (income minus expenses) is a DIFFERENT and larger number: on the real
-      // ledger for FY2025-26 the perimeter change is 578,428.79 while income
-      // minus expenses is 1,182,355.68. Whatever stayed in the bank shows up as
-      // Unallocated instead.
-      //
-      // It also has to state WHICH target the floor is, because the Expense
-      // Analysis page shows a Savings card too, on the income-minus-expenses
-      // numerator against `savings_goal_percent`. This bucket is scored against
-      // `savings_target_percent` (the 50/30/20 leg). Same word, two bars: a
-      // reader comparing the two pages needs each card to say which is which.
-      description: 'Net moved into investments, vs Spending Rule target',
-      icon: PiggyBank,
-      kind: 'floor',
-    },
-  ]
-
-  const hasIncome = data.income_total > 0
-
-  return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
-      <motion.div variants={fadeUpItem}>
-        <dl className="ledger-band grid-cols-2 lg:grid-cols-4">
-          <div className="ledger-cell col-span-2 p-3 lg:col-span-1">
-            <dt className="ledger-meta text-text-tertiary">Period</dt>
-            <dd className="mt-1 text-sm font-medium text-foreground">
-              {formatDateShort(data.period.start)} to {formatDateShort(data.period.end)}
-            </dd>
-            <dd className="mt-0.5 text-xs text-text-tertiary">
-              {completeMonthsLabel(data.period.months)}
-            </dd>
-          </div>
-          <div className="ledger-cell p-3">
-            <dt className="ledger-meta text-text-tertiary">Income</dt>
-            <dd className="ledger-figure mt-1 whitespace-nowrap text-sm font-semibold text-foreground">
-              {formatCurrency(data.income_total)}
-            </dd>
-          </div>
-          <div className="ledger-cell p-3">
-            <dt className="ledger-meta text-text-tertiary">Expenses</dt>
-            <dd className="ledger-figure mt-1 whitespace-nowrap text-sm font-semibold text-foreground">
-              {formatCurrency(data.expense_total)}
-            </dd>
-          </div>
-          {hasIncome && (
-            <div className="ledger-cell col-span-2 p-3 lg:col-span-1">
-              <dt className="ledger-meta text-text-tertiary">Unallocated</dt>
-              <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="ledger-figure whitespace-nowrap text-sm font-semibold text-foreground">
-                  {formatCurrency(data.unallocated_amount)}
-                </span>
-                <span className="text-xs text-text-tertiary">
-                  {formatPercent(data.unallocated_pct_of_income)} of income
-                </span>
-              </dd>
-              <dd className="mt-0.5 text-xs text-text-tertiary">
-                Stayed in cash: neither spent nor invested
-              </dd>
-            </div>
-          )}
-        </dl>
-      </motion.div>
-
-      {!hasIncome && (
-        <motion.div variants={fadeUpItem}>
-          <EmptyState
-            icon={AlertTriangle}
-            title="No income in this period"
-            description="The 50/30/20 rule is computed as a percentage of income. Widen the date range or add income transactions."
-            variant="card"
-          />
-        </motion.div>
-      )}
-
-      {/* Three-card row */}
-      <motion.div
-        variants={fadeUpItem}
-        className="grid grid-cols-1 gap-4 md:grid-cols-3"
-      >
-        {cards.map((card) => (
-          <BucketCard
-            key={card.bucket}
-            bucket={card.bucket}
-            title={card.title}
-            description={card.description}
-            icon={card.icon}
-            kind={card.kind}
-            amount={data.buckets[card.bucket].amount}
-            pctOfIncome={data.buckets[card.bucket].pct_of_income}
-            target={data.targets[card.bucket]}
-            scoreDelta={data.buckets[card.bucket].score_delta}
-            hasIncome={hasIncome}
-          />
-        ))}
-      </motion.div>
-
-      {/* Category breakdown table */}
-      <motion.div variants={fadeUpItem}>
-        <CategoryTable rows={data.categories} months={data.period.months} />
-      </motion.div>
-    </motion.div>
-  )
-}
-
-// The period bounds are `YYYY-MM-DD` calendar days; the string form keeps the
-// day where `new Date(iso)` read it as UTC midnight.
-function formatDateShort(iso: string): string {
-  return formatDate(iso, { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-// Averages use complete months only, so a range inside the current month has
-// none yet -- say so instead of "0 months".
-function completeMonthsLabel(months: number): string {
-  if (months === 0) return 'Current month in progress'
-  return `${months} complete ${months === 1 ? 'month' : 'months'}`
 }

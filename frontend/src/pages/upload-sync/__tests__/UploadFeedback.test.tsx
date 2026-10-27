@@ -29,6 +29,12 @@ vi.mock('@/hooks/useDemoGuard', () => ({
 vi.mock('@/services/api/upload', () => ({
   uploadService: { refreshAnalytics: mocks.refreshAnalytics },
 }))
+// UploadReview's category-suggestion section reads two queries; with no
+// status it renders nothing, which keeps this suite free of a QueryClient.
+vi.mock('@/hooks/api/useCategorySuggestions', () => ({
+  useCategorySuggestionStatus: () => ({ data: undefined }),
+  useUploadRowSuggestions: () => ({ data: undefined, isPending: false, fetchStatus: 'idle' }),
+}))
 
 const PARSED: ParseResult = {
   rows: [{
