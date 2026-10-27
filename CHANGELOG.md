@@ -90,7 +90,7 @@ Every figure below is a computation aid from your recorded data, not financial o
 
 - One expand-only migration, `feature_domains_2026`, adds `balance_checks`, `bank_alerts`, `category_overrides`, `external_refs`, `foreign_asset_events`, `rsu_vest_fx`, `mf_holdings`, `mf_transactions`, `mf_nav_prices`, `push_subscriptions`, `saved_view_pins`, `tax_ais_summaries`, `tax_deductions` and `transaction_embeddings`. On PostgreSQL it first runs `CREATE EXTENSION IF NOT EXISTS vector`. No existing table changes. CI installs pgvector for the native PostgreSQL job.
 - `anomalies.anomaly_type` gains `FEE_CHARGE`, stored as text, so no migration. Before rolling back to 2.30.x, run `DELETE FROM anomalies WHERE anomaly_type = 'FEE_CHARGE'`, or older code fails to load those rows.
-- New dependencies: pywebpush, casparser, pypdfium2, pgvector and numpy (already installed through pandas, now declared).
+- New dependencies: casparser, pypdfium2, pgvector and numpy (already installed through pandas, now declared). Push messages are encrypted (RFC 8291) and signed (RFC 8292) with `cryptography` and PyJWT rather than pywebpush, whose `http-ece` dependency ships no wheel; the RFC 8291 test vector reproduces byte for byte.
 
 ## 2.30.2 - 2026-10-24
 

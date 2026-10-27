@@ -45,7 +45,8 @@ _PENDING_BEFORE = re.compile(
     r"|(?<!\b\d[-\s/])(?<!\b\d\d[-\s/])\bmay\b(?![-\s/]*\d)",
     _I,
 )
-_PENDING_AFTER = re.compile(r"\s*(?:\?|(?:if|unless|in case)\b)", _I)
+# Matched after the marker once its leading whitespace is skipped (see _pending).
+_PENDING_AFTER = re.compile(r"\?|(?:if|unless|in case)\b", _I)
 # After a refund or reversal noun: "Refund of Rs 500 initiated", "Refund, if any, ...".
 _UNFINISHED = re.compile(
     r"\b(?:initiated|will|shall|would|may|if any|in process|under process|being processed|"
@@ -68,7 +69,8 @@ def clause_before(text: str, start: int, floor: int, width: int) -> str:
 
 def _pending(text: str, found: re.Match[str]) -> bool:
     before = clause_before(text, found.start(), 0, 30)
-    if _PENDING_BEFORE.search(before) or _PENDING_AFTER.match(text, found.end()):
+    after = text[found.end() : found.end() + 40].lstrip()
+    if _PENDING_BEFORE.search(before) or _PENDING_AFTER.match(after):
         return True
     if found.lastgroup != "weak_credit":
         return False

@@ -167,4 +167,4 @@ def _call(params: dict[str, Any], user: User, db: Session) -> dict[str, Any]:
     try:
         return call_tool(user, db, params.get("name"), params.get("arguments"))
     except InvalidToolCallError as exc:
-        raise McpError(INVALID_PARAMS, str(exc)) from exc
+        raise McpError(INVALID_PARAMS, exc.public_message) from exc

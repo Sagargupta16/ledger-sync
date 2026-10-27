@@ -37,7 +37,11 @@ export function bestRow(line: AisLine, pool: readonly ReconLedgerRow[]): ReconLe
   let best: ReconLedgerRow | null = null
   let bestScore = Number.POSITIVE_INFINITY
   for (const row of pool) {
-    const target = targets.reduce((a, b) => (Math.abs(row.amount - a) <= Math.abs(row.amount - b) ? a : b))
+    // Every target list starts with the line's own amount, so it seeds the pick.
+    const target = targets.reduce(
+      (a, b) => (Math.abs(row.amount - a) <= Math.abs(row.amount - b) ? a : b),
+      line.amount,
+    )
     if (!within(row.amount, target, 0.01, 1)) continue
     const days = line.date ? daysApart(row.date, line.date) : 0
     if (days > ROW_WINDOW_DAYS) continue

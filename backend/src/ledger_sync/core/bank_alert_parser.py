@@ -61,7 +61,9 @@ _REFUSE = re.compile(
     r"pre-?approved|apply now)\b",
     _I,
 )
-_ADDRESS = re.compile(r"\S+@\S+")
+# Starts only where a run of non-space characters starts, so a long run with no
+# "@" is scanned once instead of once per character.
+_ADDRESS = re.compile(r"(?<![^\s@])[^\s@]+@\S+")
 # IFSCs, UTRs and masked numbers ("SBIN0001234", "HDFC52612...") start with a bank's letters.
 _CODES = re.compile(r"\b[a-z]+\d[a-z\d]*", _I)
 
@@ -78,7 +80,8 @@ class ParsedAlert:
 
 
 def _clean(text: str) -> str:
-    text = html.unescape(re.sub(r"<[^>]+>", " ", text)).replace("\r\n", "\n")
+    # A tag cannot contain "<", so each attempt stops at the next one: linear on "<<<<".
+    text = html.unescape(re.sub(r"<[^<>]*>", " ", text)).replace("\r\n", "\n")
     return re.sub(r"[ \t\r\f\v\u00a0]+", " ", text)[:_MAX_CHARS]
 
 

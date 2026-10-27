@@ -23,7 +23,7 @@ _DATE_FUTURE = timedelta(days=1)
 
 _TAIL = re.compile(
     r"\b(?:a/c|acct|acc|account|card|ac)\.?(?:\s*(?:no|number)\b\.?)?"
-    r"(?:\s*ending(?:\s+(?:with|in))?)?\s*[:\-]?\s*[x*#.]*\s?(\d{3,})",
+    r"(?:\s*ending(?:\s+(?:with|in))?)?\s*(?:[:\-]\s*)?[x*#.]*\s?(\d{3,})",
     _I,
 )
 _REFERENCES = (

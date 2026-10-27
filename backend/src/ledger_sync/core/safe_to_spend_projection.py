@@ -27,6 +27,9 @@ from ledger_sync.core.safe_to_spend_ledger import AccountPool
 
 BreachKind = Literal["below_zero", "below_threshold"]
 _ZERO = Decimal(0)
+#: Days the balance projection may cover, from today.
+PROJECTION_MIN_DAYS = 7
+PROJECTION_MAX_DAYS = 90
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +113,9 @@ def project_balances(
     threshold: Decimal,
 ) -> Projection:
     """Project ``days`` end-of-day balances; flows dated before today land today."""
-    dates = [today + timedelta(days=i) for i in range(days)]
+    # The route validates the range too; the loop never trusts its caller.
+    horizon = min(max(days, PROJECTION_MIN_DAYS), PROJECTION_MAX_DAYS)
+    dates = [today + timedelta(days=i) for i in range(horizon)]
     labels = {name.lower(): name for name in start_balances}
     placed: dict[str, dict[date, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
     unassigned: dict[date, Decimal] = defaultdict(Decimal)

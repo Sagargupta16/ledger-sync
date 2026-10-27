@@ -36,7 +36,15 @@ _ANNOTATIONS = {"readOnlyHint": True, "openWorldHint": False}
 
 
 class InvalidToolCallError(Exception):
-    """tools/call named no registered tool, or its arguments are not an object."""
+    """tools/call named no registered tool, or its arguments are not an object.
+
+    ``public_message`` is the only text a client sees: it is built from the
+    request, never from another exception.
+    """
+
+    def __init__(self, public_message: str) -> None:
+        super().__init__(public_message)
+        self.public_message = public_message
 
 
 def _exec_get_today(user: User, db: Session, _args: dict[str, Any]) -> dict[str, Any]:

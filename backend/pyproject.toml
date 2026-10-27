@@ -25,7 +25,6 @@ dependencies = [
     "httpx>=0.28.0",
     "cryptography>=50.0.0",
     "boto3>=1.43.0",
-    "pywebpush>=2.5.0",
     "casparser>=1.4.1",
     # Imported directly to tell an unreadable CAS PDF from a wrong password.
     "pypdfium2>=5.14.0",

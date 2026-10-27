@@ -1,4 +1,7 @@
-"""Encrypt and send one Web Push message with pywebpush, and read the reply.
+"""Encrypt and send one Web Push message, and read the reply.
+
+The payload is encrypted and the request signed in ``push_crypto`` (RFC 8291
+and RFC 8292), then posted with httpx without following redirects.
 
 Every message is Declarative Web Push JSON (``web_push: 8030``). iOS and iPadOS
 18.4+ Home Screen apps show it without running any service worker code; older
@@ -16,6 +19,9 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from urllib.parse import urlsplit
 
+import httpx
+
+from ledger_sync.core.push_crypto import encrypt_message, vapid_authorization
 from ledger_sync.core.push_vapid import VapidKeys
 
 logger = logging.getLogger(__name__)
@@ -103,35 +109,34 @@ def message_json(message: PushMessage, app_url: str) -> str:
 
 def deliver(target: PushTarget, message: PushMessage, vapid: VapidKeys, app_url: str) -> Delivery:
     """Send one message to one device and say whether to keep the subscription."""
-    # Imported here so its HTTP stack loads only when something is sent, not on
-    # every cold start of the API.
-    from pywebpush import WebPushException, webpush  # type: ignore[import-untyped]
-
     try:
-        webpush(
-            subscription_info={
-                "endpoint": target.endpoint,
-                "keys": {"p256dh": target.p256dh, "auth": target.auth},
+        body = encrypt_message(message_json(message, app_url).encode(), target.p256dh, target.auth)
+        response = httpx.post(
+            target.endpoint,
+            content=body,
+            headers={
+                "Authorization": vapid_authorization(target.endpoint, vapid),
+                "Content-Encoding": "aes128gcm",
+                "Content-Type": "application/octet-stream",
+                "TTL": str(message.ttl),
+                "Topic": message.kind,
+                "Urgency": "normal",
             },
-            data=message_json(message, app_url),
-            vapid_private_key=vapid.private_key,
-            # A fresh dict per call: pywebpush writes the audience into it.
-            vapid_claims={"sub": vapid.subject},
-            ttl=message.ttl,
             timeout=SEND_TIMEOUT_SECONDS,
-            headers={"Topic": message.kind, "Urgency": "normal"},
+            follow_redirects=False,
         )
-    except WebPushException as exc:
-        status = getattr(exc.response, "status_code", None)
-        if status in _GONE_STATUSES:
-            return Delivery.GONE
-        logger.warning("Push to device %s was refused with HTTP %s", target.id, status)
-        return Delivery.FAILED
     except Exception as exc:
-        # requests' connection errors are OSError and bad keys are ValueError, but
-        # pywebpush, py_vapid and http_ece raise types of their own. Whatever it is,
-        # one device must never stop the run for the others. Only the type is
-        # logged: the message of such an error can carry the endpoint URL.
+        # Connection errors are httpx.HTTPError and bad device keys ValueError or
+        # a cryptography error. Whatever it is, one device must never stop the
+        # run for the others. Only the type is logged: the message of such an
+        # error can carry the endpoint URL.
         logger.warning("Push to device %s failed: %s", target.id, type(exc).__name__)
+        return Delivery.FAILED
+    if response.status_code in _GONE_STATUSES:
+        return Delivery.GONE
+    if not response.is_success:
+        logger.warning(
+            "Push to device %s was refused with HTTP %s", target.id, response.status_code
+        )
         return Delivery.FAILED
     return Delivery.SENT

@@ -435,7 +435,8 @@ receives the new configuration.
 ### Function size
 
 The CAS import added `casparser`, `pypdfium2` and, through `casparser-isin`,
-`rapidfuzz`; phone alerts added `pywebpush`. In the local backend environment
+`rapidfuzz`. Phone alerts add no package: they encrypt and sign with
+`cryptography` and PyJWT, which the backend already had. In the local backend environment
 the `casparser-isin` ISIN database alone is about 47 MB, the `pypdfium2` native
 library about 7 MB and `rapidfuzz` about 6 MB. No Vercel build has measured the
 deployed function yet, so read its size in the first preview build log of the

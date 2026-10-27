@@ -34,7 +34,7 @@ class PushNotConfiguredError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class VapidKeys:
-    # base64url of the raw 32-byte key, the form pywebpush loads; kept out of repr
+    # base64url of the raw 32-byte key, the form push_crypto signs with; kept out of repr
     # so a stray f-string, assert message or error report cannot print it.
     private_key: str = field(repr=False)
     public_key: str

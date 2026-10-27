@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.core.safe_to_spend import balance_projection, safe_to_spend
+from ledger_sync.core.safe_to_spend_projection import PROJECTION_MAX_DAYS, PROJECTION_MIN_DAYS
 from ledger_sync.schemas.safe_to_spend import BalanceProjectionResponse, SafeToSpendResponse
 
 router = APIRouter(prefix="/api/safe-to-spend", tags=["safe-to-spend"])
@@ -50,7 +51,14 @@ def get_safe_to_spend(
 def get_balance_projection(
     current_user: CurrentUser,
     db: DatabaseSession,
-    days: Annotated[int, Query(ge=7, le=90, description="Days to project, from today")] = 30,
+    days: Annotated[
+        int,
+        Query(
+            ge=PROJECTION_MIN_DAYS,
+            le=PROJECTION_MAX_DAYS,
+            description="Days to project, from today",
+        ),
+    ] = 30,
     threshold: Threshold = Decimal(0),
 ) -> BalanceProjectionResponse:
     """End-of-day balance per spendable account from today's balance.
