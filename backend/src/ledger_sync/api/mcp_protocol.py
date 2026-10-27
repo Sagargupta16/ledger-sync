@@ -61,11 +61,14 @@ class McpError(Exception):
     def __init__(self, code: int, message: str, status: int = 200, data: object = None) -> None:
         super().__init__(message)
         self.code = code
+        # The client sees this text, set by whoever raised the error; the body is
+        # never built from the exception's own string or traceback.
+        self.message = message
         self.status = status
         self.data = data
 
     def body(self) -> dict[str, Any]:
-        error: dict[str, Any] = {"code": self.code, "message": str(self)}
+        error: dict[str, Any] = {"code": self.code, "message": self.message}
         if self.data is not None:
             error["data"] = self.data
         return error

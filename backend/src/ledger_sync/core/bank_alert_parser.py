@@ -61,9 +61,7 @@ _REFUSE = re.compile(
     r"pre-?approved|apply now)\b",
     _I,
 )
-# Starts only where a run of non-space characters starts, so a long run with no
-# "@" is scanned once instead of once per character.
-_ADDRESS = re.compile(r"(?<![^\s@])[^\s@]+@\S+")
+_WORD = re.compile(r"\S+")
 # IFSCs, UTRs and masked numbers ("SBIN0001234", "HDFC52612...") start with a bank's letters.
 _CODES = re.compile(r"\b[a-z]+\d[a-z\d]*", _I)
 
@@ -83,6 +81,15 @@ def _clean(text: str) -> str:
     # A tag cannot contain "<", so each attempt stops at the next one: linear on "<<<<".
     text = html.unescape(re.sub(r"<[^<>]*>", " ", text)).replace("\r\n", "\n")
     return re.sub(r"[ \t\r\f\v\u00a0]+", " ", text)[:_MAX_CHARS]
+
+
+def _without_addresses(text: str) -> str:
+    """Blank every word with an "@" inside it (a VPA or an email address).
+
+    Word by word rather than one ``\\S+@\\S+`` pattern, which backtracks over a
+    long run of non-space characters that holds no "@".
+    """
+    return _WORD.sub(lambda word: " " if "@" in word.group()[1:-1] else word.group(), text)
 
 
 def _decimal(raw: str) -> Decimal | None:
@@ -123,7 +130,7 @@ def parse_bank_alert(
         return None
     # VPAs, email addresses and IFSC or UTR codes name other banks, so they cannot pick it.
     profile = profile_for_sender(sender) or profile_in_text(
-        _CODES.sub(" ", _ADDRESS.sub(" ", cleaned))
+        _CODES.sub(" ", _without_addresses(cleaned))
     )
     return ParsedAlert(
         direction=moved,
