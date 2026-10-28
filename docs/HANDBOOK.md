@@ -408,15 +408,19 @@ The page does not currently include net-worth milestones, merchant growth, or ca
 
 **Route:** `/ai-canvas`
 
-Ask for a chart in plain words, such as "income vs spending by month this financial year", "top 8 spending categories since April" or "insurance premiums per month for the last three years", and the assistant looks the numbers up with its read-only tools, then draws the chart: bars to compare periods, a ranking for top items, a line or area for a trend, or a pie for the parts of one whole. It adds one or two sentences with the main takeaway. Ask again to change the type, period or breakdown; each answer draws a new chart.
+Ask for a chart in plain words, such as "income vs spending by month this financial year", "top 8 spending categories since April", "how my income flowed into spending this year, as a sankey" or "insurance premiums per month for the last three years", and the assistant looks the numbers up with its read-only tools, then draws the chart. It can draw bars, stacked bars, a ranking, a line, an area or stacked area, bars with a line (for example spending with your savings rate), a pie or donut, a radar, a treemap, a sankey, a slope (each item between two periods), a scatter, a heatmap (for example categories by month) or a waterfall (for example income stepping down through each expense to what you saved). It picks the form that fits the data, and you can name one. It adds one or two sentences with the main takeaway. Ask again to change the type, period or breakdown; each answer draws a new chart, and a follow-up builds on what is already drawn.
+
+You can also ask for projections and what-ifs, such as "a 10,000 monthly SIP at 12% for 15 years", "a 50 lakh home loan at 8.5% for 20 years, principal versus interest" or "what 1 lakh is worth after 10 years of 6% inflation". These are calculated in code, not estimated by the AI, and use your own amounts when you say "my". If you ask for outside figures, such as India's inflation or an index's returns, the assistant draws them from its general knowledge, rounds them and tells you to check them against the official source.
+
+Every chart has a badge saying where its numbers came from: **Your data** (every value from your ledger), **Calculated** (computed from your data or by the calculator, with the assumptions under "How this was made") or **Estimate, not your data** (outside figures you asked for).
 
 When you ask for something your ledger does not record directly, such as tax deductions, the assistant charts the closest categories you do have instead of refusing, labels the chart as a stand-in (for example rent as the HRA basis) and says which parts it could not find. It answers without a chart only when there are no rows at all for the period.
 
 While it works, the place where the chart will appear shows each step in words ("Finding your categories", "Totalling expenses by month for Rent"), how many steps are done and the seconds so far. Stop stops waiting; a call already sent still counts toward today's AI usage. If a request fails, Try again sends it once more.
 
-Each chart has a Chart and Table switch, so you can read the exact values, a few one-tap follow-ups (for example as a line chart or grouped by quarter), the request it came from, and "How this was made", which lists the look-ups behind it. On a phone the composer and the latest reply come first, with the conversation behind a toggle; on a wide screen the conversation sits in a column on the left and the charts fill the rest.
+Each chart has a Chart and Table switch, so you can read the exact values, a few one-tap follow-ups (for example as a line chart, as a treemap or grouped by quarter), the request it came from, and "How this was made", which lists the look-ups and assumptions behind it. On a phone the composer and the latest reply come first, with the conversation behind a toggle; on a wide screen the conversation sits in a full-height column on the left with the composer at its foot, the newest chart spans the canvas and older charts fill the space below.
 
-Every value comes from your data through the same tools the assistant uses in chat, and the chart shows exactly what the assistant passed. Each chart uses three or four AI calls against the app-mode daily allowance. The canvas keeps your 12 newest charts while the tab stays open; remove one with its close button or clear them all. The canvas is not available in demo mode.
+Values from your data come through the same tools the assistant uses in chat, and the chart shows exactly what the assistant passed. Each chart uses three or four AI calls against the app-mode daily allowance. The canvas keeps your 12 newest charts while the tab stays open; remove one with its close button or clear them all. The canvas is not available in demo mode.
 
 ## Wealth
 
@@ -855,24 +859,25 @@ account's data and page drafts. Theme and motion remain device preferences.
 
 The assistant is available from the workspace header or floating chat control when configured.
 
-It can use 16 read-only tools for:
+It can use 19 read-only tools for:
 
 - Custom breakdowns and histories (any category, account or type by month, quarter, fiscal year or year, over any range)
 - Accounts
 - Transactions
 - Monthly summaries
 - Categories and category spending
-- Net worth
+- Net worth, and net worth over time
+- Investment holdings (mutual funds from your CAS, investment accounts)
 - Recurring items
 - Goals
 - Fiscal-year summaries
 - Budgets
 - Cash flow
-- Tax summary
+- Tax summary, and every fiscal year's income, deductions and tax paid
 - Preference summary
 - Anomalies
 
-The prompt contains currency, date, fiscal-year, and tool guidance. The assistant fetches actual numbers through tools and should state when no data is found.
+The prompt contains currency, date, fiscal-year, and tool guidance. The assistant fetches actual numbers through tools in the same reply instead of saying it will, and states when no data is found. A follow-up question builds on the look-ups behind its earlier answers, which stay in the conversation it reads even though the transcript shows only the replies.
 
 OpenAI and Anthropic BYOK calls go directly from the browser to the selected
 provider with your key. Bedrock calls pass through the backend. A usable
@@ -919,12 +924,21 @@ plus a helper that returns today's date, with a Claude MCP read access token
 
 An account whose email the server lists in `LEDGER_SYNC_ADMIN_EMAILS` sees an
 Owner section with Admin at the end of the sidebar, and an Admin tile on More.
-The page shows app-wide totals: how many accounts there are and how many signed
-in recently, live ledger rows and recent imports, AI calls today and over 30
-days with their estimated spend in US dollars, a chart of AI calls per day, and
-which funding paid for them. It shows counts and sums only, never any account's
-transactions, names or emails. Everyone else, and demo mode, sees an
-explanation instead. An admin account also has no app-mode daily AI allowance.
+The page shows:
+
+- **Accounts:** how many there are, how many were active recently (a sign-in,
+  an import or an AI call), sign-ups per month and which sign-in each uses.
+- **Ledger:** live ledger rows by type, and imports per day.
+- **AI:** calls today and over 30 days with their estimated spend in US
+  dollars, per day, by funding and by model.
+- **Server:** the version, database and migration, how many accounts use each
+  feature, and table sizes.
+- **Account list:** up to 200 accounts with masked emails (for example
+  `sg8***@gmail.com`) and their counts of transactions, imports and AI calls.
+
+It never shows any account's transactions, amounts, names or full emails.
+Everyone else, and demo mode, sees an explanation instead. An admin account
+also has no app-mode daily AI allowance.
 
 ## Demo Mode
 

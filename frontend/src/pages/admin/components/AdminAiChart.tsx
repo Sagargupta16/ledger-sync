@@ -6,7 +6,7 @@ import { SEMANTIC_COLORS } from '@/constants'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import type { AdminStats } from '@/services/api/admin'
 
-import { formatCount, formatUsd } from '../adminFormat'
+import { formatCount, formatCountTick, formatUsd } from '../adminFormat'
 
 /** Model calls per UTC day for the last 30 days, every account and funding source together. */
 export default function AdminAiChart({ daily }: Readonly<{ daily: AdminStats['ai']['daily'] }>) {
@@ -33,7 +33,7 @@ export default function AdminAiChart({ daily }: Readonly<{ daily: AdminStats['ai
           height={260}
           bars={[{ key: 'calls', label: 'AI calls', color: semantic.investment }]}
           tooltipFormatter={formatCount}
-          yTickFormatter={(value) => formatCount(Number(value))}
+          yTickFormatter={(value) => formatCountTick(Number(value))}
           rowHeaderLabel="Day (UTC)"
           ariaLabel="Bar chart of AI model calls per UTC day over the last 30 days, all accounts"
         />

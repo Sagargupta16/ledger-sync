@@ -1,8 +1,9 @@
 """Owner admin endpoints (``/api/admin``).
 
 Only accounts in LEDGER_SYNC_ADMIN_EMAILS get past ``AdminUser``; everyone else
-gets 403. The stats are app-wide counts and sums (``core/admin_stats.py``),
-never another user's rows.
+gets 403. The stats are app-wide counts and sums (``core/admin_stats.py``) and
+a list of accounts with masked emails and activity counts
+(``core/admin_users.py``), never another user's transactions or amounts.
 """
 
 from __future__ import annotations
@@ -37,5 +38,5 @@ AdminUser = Annotated[User, Depends(require_admin)]
 def get_admin_stats(
     request: Request, _admin: AdminUser, session: DatabaseSession
 ) -> dict[str, Any]:
-    """Users, ledger volume and AI usage across the app, as totals only."""
+    """Users, ledger volume, AI usage and app health across the app."""
     return admin_stats(session)

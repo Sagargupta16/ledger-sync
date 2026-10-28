@@ -43,7 +43,7 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
   }
 
   return (
-    <section aria-label="Ask the assistant" className="ledger-panel flex flex-col gap-3 p-4 xl:max-h-[calc(100dvh-9rem)]">
+    <section aria-label="Ask the assistant" className="ledger-panel flex flex-col gap-3 p-4 xl:h-full">
       <form
         className="flex items-end gap-2 xl:order-last"
         onSubmit={(event) => {
@@ -90,6 +90,18 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
             <RotateCcw className="size-3.5" aria-hidden="true" />
             Try again
           </Button>
+        </div>
+      )}
+
+      {messages.length === 0 && (
+        // The full-height column on wide screens says what it is for before the first request.
+        <div className="hidden flex-1 flex-col justify-end gap-2 text-xs text-muted-foreground xl:flex">
+          <p className="font-medium text-foreground">Ask for any chart</p>
+          <p>
+            Your data, a calculation such as a SIP or loan schedule, or outside figures you name. Each answer
+            lands on the canvas with where its numbers came from, and follow-ups build on what is already
+            drawn.
+          </p>
         </div>
       )}
 

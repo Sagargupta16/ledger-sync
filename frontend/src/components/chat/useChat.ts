@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
 import type { Block, ChatMessage, ToolSpec } from '@/lib/chatAdapters'
@@ -236,15 +236,19 @@ export function useChat(
           runTool,
           signal: controller.signal,
           usageLogs,
-          onFinalText: (text) => {
+          onFinalText: (text, exchange) => {
             if (!isCurrent()) return
+            // The tool calls and results stay in the history the model reads
+            // next time, hidden from the transcript. Without them a follow-up
+            // saw figures with no look-up behind them and "corrected" itself.
+            const kept = exchange.map((message) => ({ ...message, internal: true }))
             if (text.trim()) {
-              setMessages(withPendingReply(text))
+              setMessages((prev) => [...withoutPendingReply(prev), ...kept, { role: 'assistant', content: text }])
             } else {
-              // An empty turn would be dropped from the next request anyway;
-              // say so instead of leaving a bubble that looks like it is loading.
-              setMessages(withoutPendingReply)
-              setError(EMPTY_REPLY_MESSAGE)
+              // A run whose tools did the work (a chart drawn) needs no reply;
+              // with no tools at all, say so instead of a bubble that looks like it is loading.
+              setMessages((prev) => [...withoutPendingReply(prev), ...kept])
+              if (kept.length === 0) setError(EMPTY_REPLY_MESSAGE)
             }
           },
           // Show transient "Checking..." while tools execute
@@ -298,7 +302,10 @@ export function useChat(
     contextRef.current = null
   }, [])
 
-  return { messages, isStreaming, error, send, stop, clear }
+  // Callers show the transcript; the tool exchanges are for the model only.
+  const visible = useMemo(() => messages.filter((message) => !message.internal), [messages])
+
+  return { messages: visible, isStreaming, error, send, stop, clear }
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +323,8 @@ interface LoopParams {
   signal: AbortSignal
   /** Each round's usage log (browser-direct providers), so the usage refresh can wait for them. */
   usageLogs: Promise<void>[]
-  onFinalText: (text: string) => void
+  /** The final text, and the tool exchange that led to it (calls and results, oldest first). */
+  onFinalText: (text: string, exchange: ChatMessage[]) => void
   onStatus: (status: string) => void
 }
 
@@ -342,6 +350,7 @@ async function runToolLoop(params: LoopParams): Promise<void> {
   params.onFinalText(
     (lastAssistant?.blocks ? textFromBlocks(lastAssistant.blocks) : '') ||
       `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
+    convo.slice(params.conversation.length),
   )
 }
 
@@ -393,7 +402,8 @@ async function runRounds(params: LoopParams, convo: ChatMessage[], roundsLeft: n
   )
 
   if (response.stopReason !== 'tool_use' || toolUses.length === 0) {
-    params.onFinalText(textFromBlocks(response.blocks))
+    // The exchange is every round before this final one.
+    params.onFinalText(textFromBlocks(response.blocks), convo.slice(params.conversation.length, -1))
     return true
   }
 

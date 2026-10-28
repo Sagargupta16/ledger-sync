@@ -930,12 +930,27 @@ send messages
 
 `chatContext.ts` fetches preferences only. It provides currency, date,
 fiscal-year context, and tool-use rules. Financial summaries are not copied
-into the system prompt; the model calls one of 16 read-only, user-scoped tools
+into the system prompt; the model calls one of 19 read-only, user-scoped tools
 for data. `aggregate_transactions` covers any breakdown or history the fixed
 summary tools do not, so a request such as a category per month over three
-years is answered rather than refused. The AI Canvas adds the browser-side
-`render_chart` tool and listens to each tool call's start and end through
-`useChat`'s `onToolStart` and `onToolEnd` options to show its step list.
+years is answered rather than refused; `list_tax_years`, `get_net_worth_history`
+and `list_investment_holdings` give tax history, net worth over time and
+holdings from stored values only.
+
+Each answer's tool exchange (the `tool_use` and `tool_result` messages before
+its final text) stays in `useChat`'s history marked `internal`: sent to the
+model on the next request, filtered out of the transcript the UI shows. A
+follow-up therefore sees the look-ups behind earlier figures instead of
+concluding they were unsupported. `prepareMessages` keeps at most 40 messages,
+starting at a question, so a tool call and its result are never split.
+
+The AI Canvas passes two browser-side client tools through `useChat`'s
+`clientTools` option, which run locally instead of `/api/ai/tools/execute`:
+`render_chart` validates a chart (16 types, `pages/ai-canvas/chartSpec.ts`) and
+puts it on the canvas, and `calculate` runs SIP, lump-sum, loan, inflation, goal
+and CAGR maths in code (`calculators.ts`). The canvas also listens to each tool
+call's start and end through the `onToolStart` and `onToolEnd` options to show
+its step list and to record the look-ups behind each chart.
 
 Browser-direct provider usage is logged through `/api/ai/usage/log`. Bedrock
 usage is reserved and settled by the proxy to avoid double counting.

@@ -7,14 +7,19 @@ import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { isForbidden, useAdminStats, useIsAdmin } from '@/hooks/api/useAdminStats'
 import { useDemoStore } from '@/store/demoStore'
 
-import { formatAsOf } from './adminFormat'
+import { PROVIDER_LABELS, formatAsOf } from './adminFormat'
 import AdminAiChart from './components/AdminAiChart'
+import AdminAppInfo from './components/AdminAppInfo'
+import AdminBreakdown from './components/AdminBreakdown'
+import AdminCountChart from './components/AdminCountChart'
 import AdminMetricGrid from './components/AdminMetricGrid'
+import AdminModelsTable from './components/AdminModelsTable'
+import AdminUsersTable from './components/AdminUsersTable'
 import FundingBreakdown from './components/FundingBreakdown'
 
 const TITLE = 'Admin'
 const SUBTITLE =
-  "App-wide totals across every account. Counts only: no account's transactions, names or emails are shown here."
+  "App-wide totals, the accounts with masked emails, AI usage and the server's health. No account's transactions, amounts or full emails are shown here."
 
 function NotAvailable({ demo }: Readonly<{ demo: boolean }>) {
   return (
@@ -72,10 +77,39 @@ export default function AdminPage() {
           <AdminMetricGrid stats={data} />
           <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
             <div className="min-w-0 lg:col-span-2">
+              <AdminCountChart id="admin-signups" title="Sign-ups per month" summary="sign-ups in 12 months"
+                rows={data.users.signups_by_month} labelKey="month" valueKey="signups" seriesLabel="Sign-ups"
+                rowHeaderLabel="Month" tone="income"
+                ariaLabel="Bar chart of new accounts per month over the last 12 months" />
+            </div>
+            <AdminBreakdown id="admin-providers" title="Sign-in providers"
+              rows={(['google', 'github', 'other'] as const).map((key) => ({
+                key, label: PROVIDER_LABELS[key], value: data.users.by_provider[key],
+              }))}
+              note="Other covers accounts created before provider sign-in was recorded." />
+          </div>
+          <AdminUsersTable users={data.users} />
+          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+            <div className="min-w-0 lg:col-span-2">
               <AdminAiChart daily={data.ai.daily} />
             </div>
             <FundingBreakdown rows={data.ai.by_funding_30d} />
           </div>
+          <AdminModelsTable rows={data.ai.by_model_30d} />
+          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+            <div className="min-w-0 lg:col-span-2">
+              <AdminCountChart id="admin-imports" title="Imports per day" summary="imports over 30 UTC days"
+                rows={data.ledger.imports_daily} labelKey="date" valueKey="imports" seriesLabel="Imports"
+                rowHeaderLabel="Day (UTC)" tone="investment"
+                ariaLabel="Bar chart of statement imports per UTC day over the last 30 days, all accounts" />
+            </div>
+            <AdminBreakdown id="admin-types" title="Transactions by type"
+              rows={(['Income', 'Expense', 'Transfer'] as const).map((key) => ({
+                key, label: key, value: data.ledger.by_type[key],
+              }))}
+              note="Live rows across every account; counts only." />
+          </div>
+          <AdminAppInfo app={data.app} />
           <p className="text-xs text-muted-foreground">As of {formatAsOf(data.as_of)}</p>
         </>
       )}

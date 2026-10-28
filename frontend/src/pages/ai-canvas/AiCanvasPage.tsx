@@ -15,8 +15,9 @@ import { useAiCanvas } from './useAiCanvas'
  * AI Canvas: ask for a chart in plain words and the assistant fetches the
  * numbers with the read-only data tools, then draws them with the chart kit.
  * Phone to lg: the chat (composer first), then the canvas. xl: the chat in a
- * 22rem column on the left, composer at its foot, as a chat beside its work;
- * the canvas fills the rest. A running request holds the next chart's place.
+ * full-height 24rem column on the left, composer at its foot, as a chat beside
+ * its work; the canvas fills the rest. The newest chart (or the one being drawn)
+ * spans the canvas; older ones fill an auto-fit grid, so no row is half empty.
  */
 export default function AiCanvasPage() {
   const canvas = useAiCanvas()
@@ -61,8 +62,9 @@ export default function AiCanvasPage() {
       )}
 
       {canvas.availability === 'ready' && (
-        <div className="grid gap-4 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
-          <div className="min-w-0 xl:sticky xl:top-4">
+        <div className="grid gap-4 xl:grid-cols-[24rem_minmax(0,1fr)] xl:items-start xl:gap-6">
+          {/* 15rem is the app header, the page header and the page padding above and below. */}
+          <div className="min-w-0 xl:sticky xl:top-4 xl:h-[calc(100dvh-15rem)] xl:min-h-[28rem]">
             <CanvasChatPane
               messages={canvas.messages}
               isStreaming={canvas.isStreaming}
@@ -79,7 +81,7 @@ export default function AiCanvasPage() {
               {status}
             </p>
             {hasCharts || generating ? (
-              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))] gap-4 [&>*:first-child]:col-span-full">
                 <AnimatePresence initial={false}>
                   {generating && canvas.startedAt !== null && (
                     <GeneratingCard
@@ -101,7 +103,9 @@ export default function AiCanvasPage() {
                 </AnimatePresence>
               </div>
             ) : (
-              <CanvasEmpty onPick={canvas.ask} disabled={canvas.isStreaming} />
+              <div className="xl:h-[calc(100dvh-15rem)] xl:min-h-[28rem]">
+                <CanvasEmpty onPick={canvas.ask} disabled={canvas.isStreaming} />
+              </div>
             )}
           </section>
         </div>

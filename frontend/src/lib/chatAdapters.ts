@@ -36,6 +36,8 @@ export interface ChatMessage {
   /** Simple text content OR structured blocks. Never both. */
   content?: string
   blocks?: Block[]
+  /** A tool call or result from an earlier answer: sent to the model, hidden from the transcript. */
+  internal?: boolean
 }
 
 export interface ToolSpec {

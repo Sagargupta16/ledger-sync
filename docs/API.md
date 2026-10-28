@@ -371,7 +371,7 @@ against intervening edits.
 | `PATCH` | `/api/preferences/ai-config/limits` | Set or clear user token limits |
 | `GET` | `/api/preferences/ai-config/key` | Reveal the current user's decrypted key |
 | `POST` | `/api/ai/bedrock/chat` | Non-streaming Bedrock Converse proxy |
-| `GET` | `/api/ai/tools` | List 16 read-only tool schemas |
+| `GET` | `/api/ai/tools` | List 19 read-only tool schemas |
 | `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
 | `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
 | `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` or `LEDGER_SYNC_ADMIN_EMAILS`) |
@@ -383,7 +383,7 @@ against intervening edits.
 
 | Methods | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/admin/stats` | App-wide counts and sums for an account in `LEDGER_SYNC_ADMIN_EMAILS`; 403 for everyone else |
+| `GET` | `/api/admin/stats` | App-wide counts and sums, plus an accounts list with masked emails, for an account in `LEDGER_SYNC_ADMIN_EMAILS`; 403 for everyone else |
 
 ## Upload Contract
 
@@ -838,7 +838,7 @@ round. Thinking is turned off for Haiku 5.5, Sonnet 5 and Opus 5, and set to low
 effort for Sonnet 5.5, Opus 5.5 and Fable 5 and 5.1, which reject a disabled
 setting. Models that think only when asked get no extra fields.
 
-All 16 financial tools validate arguments and are read-only, user-scoped, and
+All 19 financial tools validate arguments and are read-only, user-scoped, and
 response-capped. The AI cannot mutate ledger data through the tool endpoint. Provider calls are
 non-streaming JSON requests with a maximum tool-round count enforced by the
 frontend.
@@ -856,7 +856,8 @@ fixed summary tools do not give (`api/ai_tools_impl/aggregate.py`). Arguments:
   `start_date`/`end_date` (`YYYY-MM-DD`, inclusive).
 - `measure`: `sum` of amounts (default) or `count` of rows; `limit` 1 to 60
   periods or groups (default 36, the most recent periods); `series_limit` 1 to
-  6 series (default 5), the rest folded into `Other`.
+  6 series (default 5), the rest folded into `Other`. When only one series would
+  be left over, it keeps its own name instead of becoming an `Other` of one.
 
 A period grouping returns `rows` of `{period, value}`, or `{period, values,
 total}` with `series` when split, for every period in the range: a period with
@@ -870,6 +871,37 @@ from the live ledger minus excluded accounts, and Expense rows in a classified
 capital-loss taxonomy are left out, as every spending total in the app does. An
 invalid combination (for example `split_by` with a ranking) is a 422 the model
 can correct.
+
+`list_tax_years` (`api/ai_tools_impl/tax_history_tools.py`) takes `limit` (1 to
+15, default 15) and returns `years`, newest first, plus `years_left_out` and a
+`note`. Each year has `fiscal_year`, `source`, `gross_income`,
+`taxable_income`, `deductions` (`standard`, `section_80c`, `section_80d`,
+`other`, `total`), `tax_paid` (`tds`, `advance_tax`, `self_assessment`,
+`total`) and `saved_deductions` (the /tax page's saved amounts by section key,
+or null). `source` is `tax_record` when a return was uploaded for that year;
+otherwise `ledger_summary`, which knows only the tax-paid total recorded in the
+ledger, so `taxable_income`, `deductions` and the tax-paid split are null. Years
+are matched on the year they start in, because the two tables label them
+differently. For tax paid month by month, the note points the model to
+`aggregate_transactions` over the tax categories.
+
+`get_net_worth_history` (`api/ai_tools_impl/wealth_tools.py`) takes `months` (1
+to 60, default 24, ending this month) and returns `from_month`, `snapshots` (at
+most 60 stored net-worth snapshots in the window, oldest first, each `date`,
+`net_worth`, `assets`, `liabilities`), `ledger_monthly` (every month in the
+window: `month`, `net_flow` as income minus expenses that month, and
+`book_balance` as their running total since the first transaction) and a
+`note`. Snapshots are stored at import time and can be sparse; the ledger
+series is book value, so market gains are not included.
+
+`list_investment_holdings` takes no arguments and returns `mutual_funds` (CAS
+schemes with units above zero, largest value first: `scheme`, `amc`, `type`,
+`units`, `cost`, `nav`, `nav_date`, `value` at the statement NAV),
+`mutual_fund_totals` (`schemes`, `cost`, `value`), `investment_accounts`
+(accounts classified Investments with their `book_balance`) and
+`other_holdings` (active manual holdings: `account`, `type`, `instrument`,
+`invested`, `value`), each capped at 100, and a `note`. It reads stored values
+only and never calls AMFI; Investment Analytics refreshes NAVs.
 
 ## Exchange and Instrument Data
 
@@ -1365,7 +1397,7 @@ Transport:
   no body. A request with no version header is treated as `2025-03-26`, and an
   unknown method is an in-band -32601.
 
-`tools/list` returns the 16 read-only tools of `GET /api/ai/tools`, in
+`tools/list` returns 20 tools: the 19 read-only tools of `GET /api/ai/tools`, in
 registration order, plus `get_today` (today's date in India and the month the
 fiscal year starts), each with `name`, `description`, `inputSchema` and
 `annotations` `{readOnlyHint: true, openWorldHint: false}`. `tools/call`
@@ -1383,30 +1415,90 @@ with a request id, never its arguments or result.
 `GET /api/admin/stats` answers only an account whose stored email is listed in
 `LEDGER_SYNC_ADMIN_EMAILS` (a JSON array, matched without case; sign-in stores a
 provider-verified address and the column is unique). Everyone else gets 403 with
-`Admin only`. It is the one route that reads across accounts on purpose, and it
-returns counts and sums only (`core/admin_stats.py`), never a row, email,
-account name, file name or amount of any user:
+`Admin only`. It is the one route that reads across accounts on purpose
+(`core/admin_stats.py`, with `core/admin_users.py` and `core/admin_app.py`): it
+returns counts and sums, plus an accounts list with masked emails and
+per-account counts, never a transaction, an amount, an account or category
+name, a file name or a full email:
 
 ```json
 {
   "as_of": "2026-10-28T05:30:00+00:00",
-  "users": {"total": 2, "signed_in_7d": 1, "signed_in_30d": 2, "new_30d": 2},
-  "ledger": {"transactions": 9000, "imports_30d": 3, "rows_imported_30d": 27000},
+  "users": {
+    "total": 2, "signed_in_7d": 1, "signed_in_30d": 2, "new_30d": 2,
+    "active_7d": 1, "active_30d": 2,
+    "by_provider": {"google": 1, "github": 1, "other": 0},
+    "signups_by_month": [{"month": "2025-11", "signups": 0}],
+    "list": [{
+      "id": 1, "email": "sg8***@gmail.com", "provider": "google",
+      "created_at": "2026-01-04T10:00:00+00:00", "last_login": "2026-10-27T18:02:00+00:00",
+      "last_active": "2026-10-28T05:10:00+00:00",
+      "transactions": 9000, "imports": 40, "ai_calls_30d": 57
+    }],
+    "list_limit": 200
+  },
+  "ledger": {
+    "transactions": 9000,
+    "by_type": {"Expense": 6000, "Income": 900, "Transfer": 2100},
+    "imports_30d": 3, "rows_imported_30d": 27000,
+    "imports_daily": [{"date": "2026-09-29", "imports": 0}]
+  },
   "ai": {
     "today": {"calls": 2, "tokens": 300, "cost_usd": 0.012},
     "last_30d": {"calls": 3, "tokens": 450, "cost_usd": 0.015},
     "by_funding_30d": [{"funding_source": "app", "calls": 2, "cost_usd": 0.005}],
+    "by_model_30d": [{"model": "us.anthropic.claude-haiku-5-5", "calls": 3, "tokens": 450, "cost_usd": 0.015}],
     "daily": [{"date": "2026-09-29", "calls": 0, "cost_usd": 0.0}]
+  },
+  "app": {
+    "version": "2.34.0", "database": "postgresql", "revision": "feature_domains_2026",
+    "features": {
+      "cas_holdings": 1, "push_subscriptions": 0, "active_upload_tokens": 1,
+      "bank_alerts": 0, "saved_views": 2, "byok_ai": 0
+    },
+    "tables": [{"table": "users", "rows": 2}, {"table": "transactions", "rows": 9200}]
   }
 }
 ```
 
-`signed_in_*` counts `last_login` (set at OAuth sign-in) and `new_30d` counts
-`created_at`. `transactions` counts live rows; imports count `import_logs` in
-the last 30 days. AI usage counts completed and reserved calls, as the quota
-does, over UTC days: `daily` has 30 entries, oldest first and zero-filled, and
-`cost_usd` is the estimate recorded with each call, in US dollars. An admin also
-has no app-mode daily call limit.
+Users:
+
+- `signed_in_*` counts `last_login` (set at OAuth sign-in) and `new_30d` counts
+  `created_at`.
+- `active_7d` and `active_30d` count accounts with a sign-in, an import or an
+  AI call in the window.
+- `by_provider` splits accounts by sign-in provider; `other` covers accounts
+  created before the provider was recorded.
+- `signups_by_month` has the last 12 months, oldest first and zero-filled.
+- `list` holds up to `list_limit` (200) accounts, most recently active first.
+  `email` keeps the first three characters of the local part and the full
+  domain (a local part of three or fewer keeps one). `last_active` is the
+  latest of the sign-in, the last import and the last AI call. `transactions`
+  counts live rows, `imports` every import and `ai_calls_30d` the last 30 days.
+
+Ledger:
+
+- `transactions` and `by_type` count live rows.
+- Imports count `import_logs` in the last 30 days; `imports_daily` has 30 UTC
+  days, oldest first and zero-filled.
+
+AI:
+
+- Usage counts completed and reserved calls, as the quota does, over UTC days.
+- `daily` has 30 entries, oldest first and zero-filled.
+- `by_model_30d` lists at most 20 models, most calls first.
+- `cost_usd` is the estimate recorded with each call, in US dollars.
+
+App:
+
+- `version` is the running backend, `database` its dialect, and `revision`
+  the applied Alembic head.
+- `features` counts accounts using each feature. A feature whose table does not
+  exist yet (code served before CI migrates) reads `null` instead of failing
+  the page.
+- `tables` gives row counts for ten main tables.
+
+An admin also has no app-mode daily call limit.
 
 ## Rate Limiting
 

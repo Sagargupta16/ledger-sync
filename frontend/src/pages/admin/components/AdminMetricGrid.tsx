@@ -22,7 +22,8 @@ export default function AdminMetricGrid({ stats }: Readonly<{ stats: AdminStats 
     >
       <motion.div variants={fadeUpItem}>
         <MetricCard title="Accounts" value={formatCount(users.total)} icon={Users} color="blue"
-          subtitle={`${formatCount(users.signed_in_30d)} signed in within 30 days`} />
+          subtitle={`${formatCount(users.active_30d)} active within 30 days`}
+          titleInfo="Active means a sign-in, an import or an AI call." />
       </motion.div>
       <motion.div variants={fadeUpItem}>
         <MetricCard title="Signed in, 7 days" value={formatCount(users.signed_in_7d)} icon={CalendarClock}
