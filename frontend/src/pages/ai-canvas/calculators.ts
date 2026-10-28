@@ -33,11 +33,12 @@ export function sip(monthly: number, ratePct: number, years: number, stepUpPct =
   const rows = months
     .filter((month) => month.month % 12 === 0)
     .map((month) => ({ year: month.month / 12, invested: round(month.invested), value: round(month.value) }))
+  const stepUp = stepUpPct ? `, ${stepUpPct}% yearly step-up` : ''
   return {
     kind: 'sip',
     rows,
     summary: { invested: round(summary.invested), value: round(summary.value), gain: round(summary.returns) },
-    assumptions: `${ratePct}% a year compounded monthly, contribution at the start of each month${stepUpPct ? `, ${stepUpPct}% yearly step-up` : ''}`,
+    assumptions: `${ratePct}% a year compounded monthly, contribution at the start of each month${stepUp}`,
   }
 }
 
