@@ -145,7 +145,8 @@ The Upload page sends no multipart file and has no post-parse mapping screen. A 
 ## AI Assistant
 
 - The system prompt contains preferences, current date and fiscal-year context, and tool-use guidance.
-- Financial data is fetched on demand through 16 read-only tools.
+- Financial data is fetched on demand through 19 read-only tools. Each answer's tool calls and results stay in the history `useChat` sends next, marked `internal` and hidden from the transcript, so follow-ups build on earlier look-ups.
+- The AI Canvas adds two browser-side tools through `useChat`'s `clientTools`: `render_chart` (16 chart types, validated in `pages/ai-canvas/chartSpec.ts`) and `calculate` (SIP, lump-sum, loan, inflation, goal and CAGR maths in `pages/ai-canvas/calculators.ts`).
 - OpenAI and Anthropic use browser-direct JSON requests.
 - Bedrock uses the backend proxy.
 - All provider adapters are non-streaming so tool calls can complete in bounded request rounds.

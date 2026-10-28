@@ -19,6 +19,26 @@ interface Props {
 
 type View = 'chart' | 'table'
 
+/** Where the numbers came from, on every card: the user's data, a calculation, or an outside estimate. */
+const SOURCE_BADGES = {
+  ledger: { label: 'Your data', className: 'text-app-green' },
+  calculated: { label: 'Calculated', className: 'text-app-blue' },
+  estimate: { label: 'Estimate, not your data', className: 'text-app-orange' },
+} as const
+
+function SourceBadge({ source, note }: Readonly<{ source: keyof typeof SOURCE_BADGES; note?: string }>) {
+  const badge = SOURCE_BADGES[source]
+  return (
+    <span
+      title={note}
+      className={`inline-flex items-center gap-1 rounded-full border border-[var(--hairline-1)] px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+    >
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {badge.label}
+    </span>
+  )
+}
+
 const TIME_FORMAT = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit' })
 
 function ViewSwitch({ view, onChange }: Readonly<{ view: View; onChange: (view: View) => void }>) {
@@ -60,6 +80,9 @@ function CanvasChartCard({ chart, onRemove, onAsk, busy }: Props) {
         <div className="min-w-0 flex-1 basis-48">
           <h2 className="text-sm font-semibold text-foreground">{spec.title}</h2>
           {spec.subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{spec.subtitle}</p>}
+          <div className="mt-1.5">
+            <SourceBadge source={spec.source} note={spec.sourceNote} />
+          </div>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <ViewSwitch view={view} onChange={setView} />
@@ -106,7 +129,7 @@ function CanvasChartCard({ chart, onRemove, onAsk, busy }: Props) {
             {TIME_FORMAT.format(new Date(chart.createdAt))}
           </time>
         </div>
-        {chart.sources.length > 0 && (
+        {(chart.sources.length > 0 || spec.sourceNote) && (
           <details className="group">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-foreground/80 hover:text-foreground lg:pointer-fine:min-h-7">
               <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
@@ -116,7 +139,12 @@ function CanvasChartCard({ chart, onRemove, onAsk, busy }: Props) {
               {chart.sources.map((source) => (
                 <li key={source}>{source}</li>
               ))}
-              <li>Drew the values above exactly as those look-ups returned them</li>
+              {spec.sourceNote && <li>{spec.sourceNote}</li>}
+              <li>
+                {spec.source === 'estimate'
+                  ? 'Drew approximate outside figures; check them before relying on them'
+                  : 'Drew the values above exactly as those steps returned them'}
+              </li>
             </ol>
           </details>
         )}

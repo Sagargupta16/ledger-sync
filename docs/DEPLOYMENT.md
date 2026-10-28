@@ -470,7 +470,7 @@ scope, and a token expires after a year.
 session, no stream and no OAuth, so claude.ai web connectors cannot use it and
 clients that send an `Authorization` header, such as Claude Code, can. It
 answers protocol 2026-07-28 and the legacy 2025-11-25, 2025-06-18 and
-2025-03-26 handshake. Its tools are the in-app assistant's 16 read-only tools
+2025-03-26 handshake. Its tools are the in-app assistant's 19 read-only tools
 plus `get_today`, run in a transaction that cannot write. Settings shows this
 command with the new token filled in:
 

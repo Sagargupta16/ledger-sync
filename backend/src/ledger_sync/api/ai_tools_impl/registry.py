@@ -123,3 +123,8 @@ def to_decimal(v: Decimal | float | None) -> float:
     if v is None:
         return 0.0
     return float(v)
+
+
+def to_optional_float(v: Decimal | float | None) -> float | None:
+    """Like ``to_decimal`` but keeps "not recorded" distinct from zero."""
+    return None if v is None else float(v)

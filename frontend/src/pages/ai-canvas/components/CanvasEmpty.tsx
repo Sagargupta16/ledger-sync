@@ -8,8 +8,9 @@ const SUGGESTIONS: ReadonlyArray<{ icon: LucideIcon; prompt: string }> = [
   { icon: BarChart3, prompt: 'Monthly income vs spending for the last 12 months' },
   { icon: ListOrdered, prompt: 'My top 10 expense categories this financial year' },
   { icon: LineChart, prompt: 'My savings rate each month for the last 6 months' },
-  { icon: PieChart, prompt: 'Where my money went last month, as a pie' },
-  { icon: TrendingUp, prompt: 'Food spending each month this year' },
+  { icon: PieChart, prompt: 'Where my money went last month, as a donut' },
+  { icon: TrendingUp, prompt: 'How my income flowed into spending this year, as a sankey' },
+  { icon: Sparkles, prompt: 'A 10,000 monthly SIP at 12% for 15 years' },
 ]
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
 
 export default function CanvasEmpty({ onPick, disabled }: Props) {
   return (
-    <div className="ledger-panel flex flex-col items-center gap-4 px-4 py-8 text-center sm:px-8">
+    <div className="ledger-panel flex h-full flex-col items-center justify-center gap-4 px-4 py-8 text-center sm:px-8">
       <div className="flex size-11 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
         <Sparkles className="size-5 text-app-purple" aria-hidden="true" />
       </div>

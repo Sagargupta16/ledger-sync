@@ -135,7 +135,9 @@ def _time_series(user: User, db: Session, args: dict[str, Any]) -> dict[str, Any
         bucket[series] = bucket.get(series, 0.0) + value
         totals[series] += value
         transactions += count
-    keep = sorted(totals, key=lambda name: -abs(totals[name]))[: args["series_limit"]]
+    ranked = sorted(totals, key=lambda name: -abs(totals[name]))
+    # An "Other" of one series only hides its name, so keep it.
+    keep = ranked if len(ranked) <= args["series_limit"] + 1 else ranked[: args["series_limit"]]
     keys = sorted(periods)
     shown = keys[-args["limit"] :]
     rows = []

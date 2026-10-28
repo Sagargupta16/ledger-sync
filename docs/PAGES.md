@@ -291,13 +291,34 @@ The heatmap is desktop-only; phones get month tiles, because day cells are far b
 
 **Source:** `frontend/src/pages/ai-canvas/AiCanvasPage.tsx`
 
-A chat that answers with charts. The request goes through the shared `useChat` tool loop with the 16 data tools plus one browser-side tool, `render_chart` (`renderChartTool.ts`): the model fetches the numbers, usually with `aggregate_transactions`, then calls it with a title, a chart type (`bar`, `horizontal_bar`, `line`, `area` or `pie`), up to 60 labels and up to four series of values, one per label (a pie takes one series of at most 7 non-negative slices). The arguments are columns rather than row objects so a chart fits in a round's 1024 output tokens. `chartSpec.ts` validates them and returns an error the model reads and corrects, so nothing malformed reaches a chart; valid calls draw with the Standard Bar, Area and Pie wrappers, newest first. The canvas prompt (`canvasPrompt.ts`) asks for a chart whenever the ledger has rows for the period: a measure it does not store directly, such as tax deductions, is charted from the categories that represent it (80C, 80D, NPS, home-loan interest, rent for HRA and so on) and labelled as a stand-in, and every number in the takeaway must be a drawn value or their exact sum, minimum or maximum.
+A chat that answers with charts. The request goes through the shared `useChat` tool loop with the 19 data tools plus two browser-side tools: `calculate` (`calculatorTool.ts`) and `render_chart` (`renderChartTool.ts`). The model fetches the numbers, usually with `aggregate_transactions`, or computes them with `calculate`, then calls `render_chart` with a title, a chart type, labels and series of values, one per label, or `links` for a sankey. The arguments are columns rather than row objects so a chart fits in a round's 1024 output tokens. `chartSpec.ts` validates them and returns an error the model reads and corrects, so nothing malformed reaches a chart.
+
+The 16 chart types and their limits (`chartSpec.ts`):
+
+| Type | Draws | Limits |
+| --- | --- | --- |
+| `bar`, `stacked_bar`, `horizontal_bar`, `line`, `area`, `stacked_area` | Periods or groups side by side, parts of a total over time, a ranking, series over time | 1 to 60 labels, 1 to 6 series |
+| `combo` | Bars with a line, a rate optionally on a right axis | 1 to 60 labels, 2 to 6 series, each with `kind` bar or line and at least one of each |
+| `pie`, `donut` | Parts of one whole (a donut shows the total in its centre) | 1 series, at most 7 labels, no negatives, sum above 0 |
+| `radar` | A 0 to 100 profile | 1 series, 3 to 12 labels, values 0 to 100 |
+| `treemap` | Parts of a whole with many items | 1 series, 2 to 40 labels, no negatives, sum above 0 |
+| `sankey` | Flows from one thing to another | 1 to 40 `links` of `{from, to, value}`, each value above 0, no self or repeated pair, at most 30 nodes, no cycles |
+| `slope` | Each item between two periods | 2 series (start, then end), 2 to 12 labels |
+| `scatter` | Two measures per item | 2 series (x, then y), 2 to 60 labels as point names |
+| `heatmap` | A grid of rows by columns | 1 to 24 rows, 1 to 12 series as columns |
+| `waterfall` | How signed steps add up to a net change | 1 series, 1 to 24 labels; the chart adds the Net bar, so a last step equal to the running total is rejected |
+
+Cartesian types draw with the Standard Bar and Area wrappers and `combo` with `CartesianChart`; pie, donut, radar, treemap, sankey and slope use the kit's components; scatter, heatmap and waterfall are canvas-only SVG renderers inside `ChartFrame`. Scatter names its outliers first and skips any label that would overlap another, and an axis whose short ticks would repeat ("1.1L" twice) switches to whole-rupee ticks. Canvas line and area charts have no range brush. Currency values read in whole rupees unless a value has paise.
+
+`calculate` runs the maths in code (`calculators.ts`, SIP growth reusing `lib/finance/sipProjection.ts`): `sip` (monthly amount, optional yearly step-up and starting amount), `lumpsum`, `loan` (an EMI schedule of principal and interest paid and the balance per year), `inflation`, `goal` (the monthly SIP that reaches a target) and `cagr`, for 1 to 50 years, returning yearly rows in whole rupees with a summary and the assumptions. Every chart records a `source`: `ledger` when every value came from the data tools, `calculated` for projections and what-ifs computed from them or by `calculate`, and `estimate` only when the user asked for outside figures (inflation, index returns), drawn from general knowledge and marked approximate. The card shows it as a badge: Your data, Calculated, or Estimate, not your data.
+
+The canvas prompt (`canvasPrompt.ts`) requires a chart in the same turn: no announcing, no refusing, no retracting earlier answers. A measure the ledger does not store directly, such as tax deductions, is charted from the categories that represent it (80C, 80D, NPS, home-loan interest, rent for HRA and so on) and labelled as a stand-in, and every number in the takeaway must be a drawn value or their exact sum, minimum or maximum. Earlier answers' tool calls and results stay in the conversation, hidden from the transcript, so a follow-up redraws from them instead of fetching again.
 
 While a request runs, a generating card (`components/GeneratingCard.tsx`) holds the next chart's place: a chart-shaped skeleton, "N of M steps" with the elapsed seconds, and the step list in words (`canvasSteps.ts`), built from `useChat`'s `onToolStart` and `onToolEnd` events: reading the request, each tool call ("Totalling expenses by month for Rent, 2023-11-01 to 2026-10-31"), then writing the takeaway. A step the model has to correct shows as retrying. Stop stops waiting; on the Python Vercel runtime it cannot cancel a call already sent, which still counts toward the day's usage, and its tooltip says so. A failed request shows the error with Try again, which sends the same request again.
 
-Each chart card has a Chart/Table switch (the table is a sortable `DataTable` of the exact drawn values, stacked cards on phones), up to three follow-up chips that send a redraw request for the same chart (as a line, as bars, grouped by quarter, as a pie or as a ranking, whichever fit the data), the request it came from, and "How this was made": the data look-ups behind it in words, stored with the chart.
+Each chart card has its source badge, a Chart/Table switch (the table is a sortable `DataTable` of the exact drawn values, stacked cards on phones; a sankey lists From, To and Value, a waterfall adds its Net row), up to three follow-up chips that send a redraw request for the same chart (as a line, as bars, stacked area or stacked bar, grouped by quarter, as a pie, a treemap or a ranking, whichever fit the data), the request it came from, and "How this was made": the data look-ups and calculations behind it in words and the model's `source_note` (what was used or assumed), stored with the chart. A chart drawn only from results already in the conversation says so; an estimate lists no look-ups, its badge and note explain it.
 
-The canvas keeps at most 12 charts in `sessionStorage` under the signed-in user's id, so a reload keeps them, closing the tab drops them, and every stored chart, look-up list included, is validated again on load. Phone to `lg`: the chat (composer first, the latest reply under it, the conversation behind a toggle), then the charts (two across from `lg`); from `xl` the chat is a 22rem column on the left with the composer at its foot and the conversation always open, and the canvas fills the rest (one chart across, two from `2xl`). A screen-reader status region announces "Drawing your chart" and the chart count when a run ends; the conversation is a `log` region. The floating assistant button is hidden on this page. Each chart costs three or four model calls (a category look-up when needed, the data, the chart, the takeaway) against the app-mode daily limit. Demo mode shows an explanation instead, because the assistant is off there, and a personal-key setup without a stored key links to Settings.
+The canvas keeps at most 12 charts in `sessionStorage` under the signed-in user's id, so a reload keeps them, closing the tab drops them, and every stored chart, look-up list included, is validated again on load. Phone to `lg`: the chat (composer first, the latest reply under it, the conversation behind a toggle), then the charts; from `xl` the chat is a full-height 24rem column on the left with the conversation always open and the composer at its foot, and the canvas fills the rest. The newest chart (or the one being drawn) spans the canvas and older charts fill an auto-fit grid of at least 26rem columns, so a row is never half empty; the empty canvas matches the chat column's height. A screen-reader status region announces "Drawing your chart" and the chart count when a run ends; the conversation is a `log` region. The floating assistant button is hidden on this page. Each chart costs three or four model calls (a category look-up when needed, the data, the chart, the takeaway) against the app-mode daily limit. Demo mode shows an explanation instead, because the assistant is off there, and a personal-key setup without a stored key links to Settings.
 
 ## Wealth
 
@@ -824,7 +845,17 @@ Access Tokens (`UploadTokensSection`) shows a purpose picker (radio cards, stack
 
 App-wide totals for the server owner, from `GET /api/admin/stats` (`hooks/api/useAdminStats.ts`). Only an account the server marks `is_admin` (its email is in `LEDGER_SYNC_ADMIN_EMAILS`) sees the sidebar's Owner section and the Admin tile at the end of Data on More (`adminOnly` nav items), and only then does the page ask for data; a 403 is final, not retried. Anyone else, and demo mode, gets an explanation instead of the data.
 
-Eight cards, two across on a phone and four from `lg` (`components/AdminMetricGrid.tsx`): Accounts (with how many signed in within 30 days), Signed in in 7 days, New in 30 days, Transactions (live rows across every account), Imports in 30 days (with rows processed), AI calls today (with tokens, UTC day), AI calls in 30 days (with tokens), and AI spend in 30 days (estimated at list prices). Below them, AI calls per day for 30 UTC days as a bar chart (`AdminAiChart.tsx`), and the 30-day calls and spend per funding source: the shared app Bedrock key, personal keys, and calls logged before funding was recorded (`FundingBreakdown.tsx`). Spend stays in US dollars, as the provider bills it. The header has Refresh, the footer the as-of time, loading shows card and chart skeletons, and any other failure shows `PageErrorState` with retry. The page shows counts and sums only, never an account's rows, names or emails.
+Sections, top to bottom (`components/`):
+
+- **Cards** (`AdminMetricGrid.tsx`), two across on a phone and four from `lg`: Accounts (with how many were active within 30 days), Signed in in 7 days, New in 30 days, Transactions (live rows across every account), Imports in 30 days (with rows processed), AI calls today (with tokens, UTC day), AI calls in 30 days (with tokens), and AI spend in 30 days (estimated at list prices).
+- **Sign-ups per month** for 12 months as a bar chart (`AdminCountChart.tsx`, whole-number ticks), beside **Sign-in providers** (Google, GitHub, and Other or legacy for accounts created before the provider was recorded; `AdminBreakdown.tsx`).
+- **Accounts** (`AdminUsersTable.tsx`): up to 200 accounts, most recently active first, with the active counts for 7 and 30 days above. Columns: masked email (`abc***@domain`) with its provider, last active, joined, transactions, imports and AI calls in 30 days. The table is sortable with a sticky header and stacks into cards on phones. Active means a sign-in, an import or an AI call.
+- **AI calls per day** for 30 UTC days (`AdminAiChart.tsx`), beside the 30-day calls and spend per funding source: the shared app Bedrock key, personal keys, and calls logged before funding was recorded (`FundingBreakdown.tsx`).
+- **AI by model, 30 days** (`AdminModelsTable.tsx`): calls, tokens and estimated spend per model.
+- **Imports per day** for 30 UTC days, beside **Transactions by type** (Income, Expense and Transfer counts).
+- **Server, Feature adoption and Table rows** (`AdminAppInfo.tsx`): backend version, database and applied migration; how many accounts use mutual funds from a CAS, phone alerts, active access tokens, the bank-alert inbox, saved views and AI on a personal key (a feature whose table does not exist yet reads "not migrated"); and row counts for ten main tables.
+
+Spend stays in US dollars, as the provider bills it. The header has Refresh, the footer the as-of time, loading shows card and chart skeletons, and any other failure shows `PageErrorState` with retry. The page never shows an account's transactions, amounts, names or full emails.
 
 ## Mobile
 
@@ -882,7 +913,7 @@ offline use, including for anonymous sessions.
 
 ### AI assistant
 
-The assistant has these 16 tools:
+The assistant has these 19 tools:
 
 1. `list_accounts`
 2. `search_transactions`
@@ -900,8 +931,13 @@ The assistant has these 16 tools:
 14. `get_preferences_summary`
 15. `list_anomalies`
 16. `aggregate_transactions` (any breakdown or history: sums or counts by month, quarter, fiscal year or year, optionally split into series, or a ranking by category, subcategory, account or type)
+17. `list_tax_years` (every fiscal year's income, deductions by section, saved deductions and tax paid, newest first)
+18. `get_net_worth_history` (stored net-worth snapshots plus a month-by-month book balance from the ledger)
+19. `list_investment_holdings` (CAS mutual funds at their statement NAV, investment accounts with their book balances, and manual holdings)
 
 Tools execute through the authenticated backend and are scoped to the current user.
+
+Each answer's tool calls and results stay in the conversation `useChat` sends next, marked `internal` and hidden from the transcript, so a follow-up builds on the look-ups behind earlier answers instead of treating their figures as unsupported. The prompts (`lib/chatContext.ts`, and `pages/ai-canvas/canvasPrompt.ts` on the canvas) tell the model to call tools in the same turn rather than announce them, to chart or answer from the closest stored data rather than refuse, and never to retract an earlier answer unless a new tool result contradicts it.
 
 The registry's typed argument models define both advertised schemas and runtime
 validation. Results are read-only, bounded, and may be sent to the selected

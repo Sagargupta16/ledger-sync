@@ -6,6 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.34.0 - 2026-10-28
+
+The assistant now remembers how it got its earlier answers, the AI Canvas draws 16 kinds of chart from your data, calculations or outside figures (each labelled), and the owner's admin page covers users and the project. No migration.
+
+### Fixed
+
+- **Follow-ups no longer "correct" earlier answers.** The chat sent only the text of earlier replies, so on the next message the model saw figures with no look-up behind them, decided it had invented them and said a chart "was never drawn". Each answer's tool calls and results now stay in the history the model reads (hidden from the transcript), and a follow-up reuses them.
+- **No more promises without action.** Both prompts require calling the tools in the same turn: no "let me fetch the data", no refusing while related data exists, and no apologising for an earlier answer unless a new result contradicts it.
+- Canvas layout on wide screens: the chat column fills the height with the composer at its foot, the newest chart spans the canvas and older ones fill an auto-fit grid instead of leaving half the width empty; the range brush is gone from canvas line and area charts.
+
+### Added
+
+- **16 canvas chart types:** bar, stacked bar, ranking, line, area, stacked area, combo (bars with a line on an optional right axis), pie, donut, radar, treemap, sankey, slope, scatter, heatmap and waterfall, each validated before it is drawn (for example a pie holds at most 7 slices, a radar 0 to 100, a sankey no cycles, and a waterfall rejects a final total step because it adds Net itself).
+- **`calculate`**, a canvas tool that runs SIP (with step-up), lump sum, loan EMI schedules, inflation, goal SIP and CAGR in code, so a projection never rests on the model's arithmetic (a 10,000 monthly SIP at 12% for 10 years gives 23,23,391; a 50 lakh loan at 8.5% for 20 years an EMI of 43,391).
+- **Where the numbers came from**, on every chart: "Your data", "Calculated" or "Estimate, not your data" (outside figures such as inflation, only when asked), with the assumptions in "How this was made". Canvas amounts show whole rupees.
+- Three read-only AI tools, 19 in all (20 over MCP): `list_tax_years` (income, deductions and tax paid per fiscal year), `get_net_worth_history` (snapshots plus a monthly book balance) and `list_investment_holdings` (CAS funds at the statement NAV and investment-account balances).
+- **Admin page:** active accounts (a sign-in, import or AI call in 7 or 30 days), sign-ups per month, sign-in providers, an accounts table with masked emails (`abc***@domain`), imports per day, transactions by type, AI calls by model, the server's version, database and migration revision, feature adoption and table sizes. Still no account's transactions, amounts or full emails.
+
+### Changed
+
+- `aggregate_transactions` keeps a lone leftover series by name instead of an "Other" of one.
+- Scatter labels are placed outliers first without overlapping, and axis ticks switch to whole rupees when the short form would repeat a label.
+
 ## 2.33.0 - 2026-10-28
 
 The AI Canvas now charts almost anything you ask, shows its work while it runs, and lets you check every number. The owner gets an admin page of app-wide totals. No migration.

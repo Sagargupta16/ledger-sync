@@ -41,6 +41,9 @@ const FIXED: Record<string, string> = {
   list_goals: 'Reading your goals',
   list_anomalies: 'Reading anomalies',
   get_preferences_summary: 'Reading your settings',
+  list_tax_years: 'Reading your tax years',
+  get_net_worth_history: 'Reading your net worth history',
+  list_investment_holdings: 'Reading your investment holdings',
 }
 
 function text(value: unknown): string | null {
@@ -76,9 +79,26 @@ function aggregateLabel(input: Record<string, unknown>): string {
   return `${verb} ${what} by ${grain}${split}${filter}${note}${range(input)}`
 }
 
+const CALCULATIONS: Record<string, string> = {
+  sip: 'a SIP projection',
+  lumpsum: 'a lump-sum projection',
+  loan: 'a loan EMI schedule',
+  inflation: 'an inflation projection',
+  goal: 'the monthly SIP for a goal',
+  cagr: 'a growth rate',
+}
+
+function calculateLabel(input: Record<string, unknown>): string {
+  const what = CALCULATIONS[text(input.kind) ?? ''] ?? 'a projection'
+  const rate = typeof input.annual_rate_pct === 'number' ? ` at ${input.annual_rate_pct}%` : ''
+  const years = typeof input.years === 'number' ? ` over ${input.years} years` : ''
+  return `Calculating ${what}${rate}${years}`
+}
+
 /** What a tool call does, in words a user reads in the step list. */
 export function describeToolCall(name: string, input: Record<string, unknown>): string {
   if (name === 'aggregate_transactions') return aggregateLabel(input)
+  if (name === 'calculate') return calculateLabel(input)
   if (name === 'render_chart') return `Drawing "${text(input.title) ?? 'the chart'}"`
   if (name === 'get_category_spending') {
     return `Totalling ${text(input.category) ?? 'a category'}${range(input)}`

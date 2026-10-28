@@ -7,12 +7,23 @@ import { aiConfigService } from '@/services/api/aiConfig'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 
+import { CALCULATE_TOOL } from './calculatorTool'
 import { CANVAS_SYSTEM_NOTE } from './canvasPrompt'
 import { describeToolCall, isToolError, type ProgressStep } from './canvasSteps'
 import { canvasStorageKey, loadCanvas, MAX_CANVAS_CHARTS, saveCanvas } from './canvasStorage'
 import { MAX_SOURCES, parseChartArgs, type CanvasChart } from './chartSpec'
 import { RENDER_CHART_TOOL } from './renderChartTool'
 import { useCanvasProgress } from './useCanvasProgress'
+
+/**
+ * A chart's "How this was made" list: this request's look-ups. With none, the
+ * model drew from results already in the conversation, which is all that can
+ * be said truthfully; an estimate has no look-ups, its badge and note explain it.
+ */
+function sourcesFor(current: readonly string[], source: CanvasChart['spec']['source']): string[] {
+  if (current.length > 0) return current.slice(0, MAX_SOURCES)
+  return source === 'estimate' ? [] : ['Used results already in this conversation']
+}
 
 /** `demo`: AI is off in demo mode. `needs-key`: BYOK without a stored key. */
 export type CanvasAvailability = 'ready' | 'demo' | 'needs-key'
@@ -78,7 +89,7 @@ export function useAiCanvas(): AiCanvas {
           spec: parsed.spec,
           prompt: promptRef.current,
           createdAt: new Date().toISOString(),
-          sources: sourcesRef.current.slice(0, MAX_SOURCES),
+          sources: sourcesFor(sourcesRef.current, parsed.spec.source),
         }
         setCharts((previous) => [chart, ...previous].slice(0, MAX_CANVAS_CHARTS))
         return { rendered: true, chart_id: chart.id }
@@ -89,7 +100,7 @@ export function useAiCanvas(): AiCanvas {
   const { toolStarted, toolEnded } = progress
   const chatOptions = useMemo<UseChatOptions>(
     () => ({
-      clientTools: [renderChart],
+      clientTools: [renderChart, CALCULATE_TOOL],
       systemNote: CANVAS_SYSTEM_NOTE,
       onToolStart: toolStarted,
       onToolEnd: (event: ToolEvent, result: unknown) => {

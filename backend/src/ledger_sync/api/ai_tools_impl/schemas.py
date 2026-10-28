@@ -116,6 +116,16 @@ class CashFlowArguments(ToolArguments):
     months: int = Field(default=12, ge=1, le=60)
 
 
+class TaxYearsArguments(ToolArguments):
+    limit: int = Field(default=15, ge=1, le=15, description="Most fiscal years, newest first")
+
+
+class NetWorthHistoryArguments(ToolArguments):
+    months: int = Field(
+        default=24, ge=1, le=60, description="Months of ledger history, ending this month"
+    )
+
+
 class AnomalyArguments(ToolArguments):
     include_reviewed: bool = False
 

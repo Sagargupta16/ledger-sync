@@ -26,14 +26,17 @@ from ledger_sync.api.deps import get_current_user
 from ledger_sync.core.ledger_clock import ledger_now
 from ledger_sync.db.base import Base
 from ledger_sync.db.models import (
+    AccountType,
     Budget,
     FinancialGoal,
     FYSummary,
     GoalStatus,
+    MfHolding,
     MonthlySummary,
     NetWorthSnapshot,
     RecurrenceFrequency,
     RecurringTransaction,
+    TaxDeduction,
     TaxRecord,
     Transaction,
     TransactionType,
@@ -41,6 +44,7 @@ from ledger_sync.db.models import (
     UserPreferences,
 )
 from ledger_sync.db.session import get_session
+from ledger_sync.services.account_settings import set_account_type
 from ledger_sync.services.compensation import replace_salary_structure
 
 TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
@@ -843,4 +847,125 @@ def test_list_tools_returns_sixteen() -> None:
         "get_preferences_summary",
         # 2.33.0
         "aggregate_transactions",
+        # 2.34.0
+        "list_tax_years",
+        "get_net_worth_history",
+        "list_investment_holdings",
     }
+
+
+# --- 2.34.0 history tools ------------------------------------------------------
+
+
+def test_list_tax_years_is_empty_without_records() -> None:
+    app, session, _u = _make_app_with_data()
+    session.query(FYSummary).delete()
+    session.commit()
+
+    result = _exec(TestClient(app), "list_tax_years")
+
+    assert result["years"] == []
+    assert result["years_left_out"] == 0
+
+
+def test_list_tax_years_prefers_a_return_and_joins_saved_deductions() -> None:
+    app, session, user = _make_app_with_data()
+    session.add_all(
+        [
+            TaxRecord(
+                user_id=user.id,
+                financial_year="FY2024-25",
+                total_gross_income=Decimal("1200000"),
+                tds_deducted=Decimal("110000"),
+                total_tax_paid=Decimal("110000"),
+                taxable_income=Decimal("1050000"),
+                standard_deduction=Decimal("75000"),
+                section_80c=Decimal("150000"),
+                source_file="form16.pdf",
+            ),
+            FYSummary(
+                user_id=user.id,
+                fiscal_year="FY2023-24",
+                start_date=datetime(2023, 4, 1, tzinfo=UTC),
+                end_date=datetime(2024, 3, 31, tzinfo=UTC),
+                total_income=Decimal("900000"),
+                tax_paid=Decimal("70000"),
+            ),
+            TaxDeduction(
+                user_id=user.id, tax_year="2024-25", section_key="80C", amount=Decimal("150000")
+            ),
+        ]
+    )
+    session.commit()
+
+    years = {
+        year["fiscal_year"]: year for year in _exec(TestClient(app), "list_tax_years")["years"]
+    }
+
+    filed = years["FY2024-25"]
+    assert filed["source"] == "tax_record"
+    assert filed["tax_paid"]["tds"] == 110000.0
+    assert filed["deductions"]["section_80c"] == 150000.0
+    assert filed["saved_deductions"] == {"80C": 150000.0}
+    derived = years["FY2023-24"]
+    assert derived["source"] == "ledger_summary"
+    assert derived["tax_paid"]["total"] == 70000.0
+    assert derived["deductions"] is None
+
+
+def test_net_worth_history_runs_the_book_balance_month_by_month() -> None:
+    app, _s, _u = _make_app_with_data()
+
+    result = _exec(TestClient(app), "get_net_worth_history", {"months": 60})
+
+    by_month = {row["month"]: row for row in result["ledger_monthly"]}
+    # Seed: Feb income 100000, expenses 5000 + 170; Mar expenses 12000 + 1500; transfers ignored.
+    assert by_month["2026-02"] == {"month": "2026-02", "net_flow": 94830.0, "book_balance": 94830.0}
+    assert by_month["2026-03"]["book_balance"] == 81330.0
+    assert by_month["2026-04"]["net_flow"] == 0.0
+    assert result["snapshots"] == []
+
+
+def test_net_worth_history_is_empty_without_rows() -> None:
+    app, session, _u = _make_app_with_data()
+    session.query(Transaction).delete()
+    session.commit()
+
+    result = _exec(TestClient(app), "get_net_worth_history")
+
+    assert result["ledger_monthly"] == []
+    assert result["snapshots"] == []
+
+
+def test_investment_holdings_value_funds_at_the_statement_nav() -> None:
+    app, session, user = _make_app_with_data()
+    session.add(
+        MfHolding(
+            user_id=user.id,
+            source="CAMS",
+            scheme_name="Index Fund Direct Growth",
+            units=Decimal("100.5"),
+            cost=Decimal("10000"),
+            statement_nav=Decimal("120"),
+        )
+    )
+    session.commit()
+    set_account_type(session, user.id, "ICICI Bank", AccountType.INVESTMENTS)
+    session.commit()
+
+    result = _exec(TestClient(app), "list_investment_holdings")
+
+    assert result["mutual_funds"][0]["value"] == 12060.0
+    assert result["mutual_fund_totals"] == {"schemes": 1, "cost": 10000.0, "value": 12060.0}
+    # ICICI Bank: 5000 transferred in, 1500 spent.
+    assert result["investment_accounts"] == [{"account": "ICICI Bank", "book_balance": 3500.0}]
+
+
+def test_investment_holdings_are_empty_without_imports() -> None:
+    app, _s, _u = _make_app_with_data()
+
+    result = _exec(TestClient(app), "list_investment_holdings")
+
+    assert result["mutual_funds"] == []
+    assert result["mutual_fund_totals"]["schemes"] == 0
+    assert result["investment_accounts"] == []
