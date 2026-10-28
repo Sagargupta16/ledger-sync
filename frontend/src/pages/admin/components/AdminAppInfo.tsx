@@ -14,6 +14,12 @@ function KeyValue({ label, value, mono = false }: Readonly<{ label: string; valu
   )
 }
 
+/** A feature's adoption: its account count, or "not migrated" while its table is missing. */
+function adoptionText(value: number | null): string {
+  if (value === null) return 'not migrated'
+  return `${formatCount(value)} ${value === 1 ? 'account' : 'accounts'}`
+}
+
 /**
  * The server the page reads: release, database and applied migration, how many
  * accounts use each optional feature, and the size of the main tables.
@@ -39,8 +45,7 @@ export default function AdminAppInfo({ app }: Readonly<{ app: AdminStats['app'] 
           {FEATURE_LABELS.map(([key, label]) => {
             const value = app.features[key as keyof AdminStats['app']['features']]
             return (
-              <KeyValue key={key} label={label}
-                value={value === null ? 'not migrated' : `${formatCount(value)} ${value === 1 ? 'account' : 'accounts'}`} />
+              <KeyValue key={key} label={label} value={adoptionText(value)} />
             )
           })}
         </dl>
