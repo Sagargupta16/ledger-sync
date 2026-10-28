@@ -64,6 +64,8 @@ class UserResponse(BaseModel):
     auth_provider: str | None = None
     created_at: str
     last_login: str | None = None
+    # Listed in LEDGER_SYNC_ADMIN_EMAILS: sees /admin (core/admin_access.py).
+    is_admin: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

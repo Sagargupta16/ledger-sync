@@ -186,7 +186,7 @@ Common status codes:
 | `GET` | `/health` | API process and version health |
 | `GET` | `/health/db` | Database connectivity |
 | `POST` | `/api/auth/refresh` | Exchange a refresh token for a new token pair |
-| `GET`, `PUT` | `/api/auth/me` | Read or update the current profile |
+| `GET`, `PUT` | `/api/auth/me` | Read or update the current profile; `is_admin` is true for an account in `LEDGER_SYNC_ADMIN_EMAILS` |
 | `POST` | `/api/auth/logout` | Revoke all current sessions |
 | `DELETE` | `/api/auth/account` | Delete the current account |
 | `POST` | `/api/auth/account/reset` | Reset full or transaction-only data |
@@ -371,13 +371,19 @@ against intervening edits.
 | `PATCH` | `/api/preferences/ai-config/limits` | Set or clear user token limits |
 | `GET` | `/api/preferences/ai-config/key` | Reveal the current user's decrypted key |
 | `POST` | `/api/ai/bedrock/chat` | Non-streaming Bedrock Converse proxy |
-| `GET` | `/api/ai/tools` | List 15 read-only tool schemas |
+| `GET` | `/api/ai/tools` | List 16 read-only tool schemas |
 | `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
 | `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
-| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS`) |
+| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` or `LEDGER_SYNC_ADMIN_EMAILS`) |
 | `GET` | `/api/exchange-rates` | Latest or historical currency rates by base currency |
 | `GET` | `/api/rates/instruments` | EPF, PPF, and NPS reference rates |
 | `GET` | `/api/stock-price/{symbol}` | Latest or historical stock price |
+
+### Owner admin
+
+| Methods | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/admin/stats` | App-wide counts and sums for an account in `LEDGER_SYNC_ADMIN_EMAILS`; 403 for everyone else |
 
 ## Upload Contract
 
@@ -832,10 +838,38 @@ round. Thinking is turned off for Haiku 5.5, Sonnet 5 and Opus 5, and set to low
 effort for Sonnet 5.5, Opus 5.5 and Fable 5 and 5.1, which reject a disabled
 setting. Models that think only when asked get no extra fields.
 
-All 15 financial tools validate arguments and are read-only, user-scoped, and
+All 16 financial tools validate arguments and are read-only, user-scoped, and
 response-capped. The AI cannot mutate ledger data through the tool endpoint. Provider calls are
 non-streaming JSON requests with a maximum tool-round count enforced by the
 frontend.
+
+`aggregate_transactions` is the general read for any breakdown or history the
+fixed summary tools do not give (`api/ai_tools_impl/aggregate.py`). Arguments:
+
+- `group_by`: `month`, `quarter`, `fiscal_year` or `year` for periods, or
+  `category`, `subcategory`, `account` or `type` for a ranking (default `month`).
+- `split_by`: `category`, `account` or `type`, one series per value, for period
+  groupings only; it must differ from `group_by`.
+- Filters: `type` (`Income`, `Expense` or `Transfer`), `categories` (each name
+  matched exactly without case, else by substring), `subcategories` and
+  `accounts` (exact, without case), up to 20 names each, `note_contains`, and
+  `start_date`/`end_date` (`YYYY-MM-DD`, inclusive).
+- `measure`: `sum` of amounts (default) or `count` of rows; `limit` 1 to 60
+  periods or groups (default 36, the most recent periods); `series_limit` 1 to
+  6 series (default 5), the rest folded into `Other`.
+
+A period grouping returns `rows` of `{period, value}`, or `{period, values,
+total}` with `series` when split, for every period in the range: a period with
+no rows is zero, the range ends at today, a fiscal year uses the user's start
+month (`FY2026-27`) and a quarter is a calendar quarter (`2026-Q2`). A ranking
+returns `rows` of `{key, value}`, largest first, and `other` with the count and
+total of the groups left out. Every result also carries `transactions` (rows
+matched), `matched_categories`, the grouping, measure and dates asked for, and
+today's date. Rows come
+from the live ledger minus excluded accounts, and Expense rows in a classified
+capital-loss taxonomy are left out, as every spending total in the app does. An
+invalid combination (for example `split_by` with a ranking) is a 422 the model
+can correct.
 
 ## Exchange and Instrument Data
 
@@ -1331,7 +1365,7 @@ Transport:
   no body. A request with no version header is treated as `2025-03-26`, and an
   unknown method is an in-band -32601.
 
-`tools/list` returns the 15 read-only tools of `GET /api/ai/tools`, in
+`tools/list` returns the 16 read-only tools of `GET /api/ai/tools`, in
 registration order, plus `get_today` (today's date in India and the month the
 fiscal year starts), each with `name`, `description`, `inputSchema` and
 `annotations` `{readOnlyHint: true, openWorldHint: false}`. `tools/call`
@@ -1343,6 +1377,36 @@ id. Success returns one text content block holding the tool's JSON result. Every
 call runs in a transaction that cannot write (`SET TRANSACTION READ ONLY` on
 PostgreSQL, flush and commit refused, always rolled back) and is logged once
 with a request id, never its arguments or result.
+
+## Admin Stats
+
+`GET /api/admin/stats` answers only an account whose stored email is listed in
+`LEDGER_SYNC_ADMIN_EMAILS` (a JSON array, matched without case; sign-in stores a
+provider-verified address and the column is unique). Everyone else gets 403 with
+`Admin only`. It is the one route that reads across accounts on purpose, and it
+returns counts and sums only (`core/admin_stats.py`), never a row, email,
+account name, file name or amount of any user:
+
+```json
+{
+  "as_of": "2026-10-28T05:30:00+00:00",
+  "users": {"total": 2, "signed_in_7d": 1, "signed_in_30d": 2, "new_30d": 2},
+  "ledger": {"transactions": 9000, "imports_30d": 3, "rows_imported_30d": 27000},
+  "ai": {
+    "today": {"calls": 2, "tokens": 300, "cost_usd": 0.012},
+    "last_30d": {"calls": 3, "tokens": 450, "cost_usd": 0.015},
+    "by_funding_30d": [{"funding_source": "app", "calls": 2, "cost_usd": 0.005}],
+    "daily": [{"date": "2026-09-29", "calls": 0, "cost_usd": 0.0}]
+  }
+}
+```
+
+`signed_in_*` counts `last_login` (set at OAuth sign-in) and `new_30d` counts
+`created_at`. `transactions` counts live rows; imports count `import_logs` in
+the last 30 days. AI usage counts completed and reserved calls, as the quota
+does, over UTC days: `daily` has 30 entries, oldest first and zero-filled, and
+`cost_usd` is the estimate recorded with each call, in US dollars. An admin also
+has no app-mode daily call limit.
 
 ## Rate Limiting
 
@@ -1374,6 +1438,7 @@ with a request id, never its arguments or result.
 | Bedrock chat | IP | 60/minute |
 | AI tool execution | Authenticated user | 120/minute |
 | Analytics refresh | Authenticated user | 10/minute |
+| Admin stats | Authenticated user | 30/minute |
 | Exchange rates | Authenticated user | 60/minute |
 | Stock price | Authenticated user | 60/minute |
 

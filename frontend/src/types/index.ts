@@ -74,6 +74,8 @@ export interface User {
   auth_provider: string | null
   created_at: string
   last_login: string | null
+  /** Listed in LEDGER_SYNC_ADMIN_EMAILS; absent on a user persisted before the admin page shipped. */
+  is_admin?: boolean
 }
 
 export interface AuthTokens {

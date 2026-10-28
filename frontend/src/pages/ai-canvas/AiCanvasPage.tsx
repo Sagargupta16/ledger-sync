@@ -8,18 +8,23 @@ import { ROUTES } from '@/constants'
 import CanvasChartCard from './components/CanvasChartCard'
 import CanvasChatPane from './components/CanvasChatPane'
 import CanvasEmpty from './components/CanvasEmpty'
+import GeneratingCard from './components/GeneratingCard'
 import { useAiCanvas } from './useAiCanvas'
 
 /**
  * AI Canvas: ask for a chart in plain words and the assistant fetches the
  * numbers with the read-only data tools, then draws them with the chart kit.
- * Phone to lg: composer first, charts under it (two across from lg). xl: charts
- * on the left, the chat pinned in a 22rem column on the right, which is the
- * first width where that column leaves the charts room.
+ * Phone to lg: the chat (composer first), then the canvas. xl: the chat in a
+ * 22rem column on the left, composer at its foot, as a chat beside its work;
+ * the canvas fills the rest. A running request holds the next chart's place.
  */
 export default function AiCanvasPage() {
   const canvas = useAiCanvas()
   const hasCharts = canvas.charts.length > 0
+  const generating = canvas.isStreaming && canvas.startedAt !== null
+  let status = ''
+  if (generating) status = 'Drawing your chart'
+  else if (hasCharts) status = `${canvas.charts.length} ${canvas.charts.length === 1 ? 'chart' : 'charts'} on the canvas`
 
   return (
     <PageContainer>
@@ -56,23 +61,42 @@ export default function AiCanvasPage() {
       )}
 
       {canvas.availability === 'ready' && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          <div className="xl:sticky xl:top-4 xl:order-2">
+        <div className="grid gap-4 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
+          <div className="min-w-0 xl:sticky xl:top-4">
             <CanvasChatPane
               messages={canvas.messages}
               isStreaming={canvas.isStreaming}
               error={canvas.error}
               onSend={canvas.ask}
+              onRetry={canvas.retry}
               onStop={canvas.stop}
               onClear={canvas.clearChat}
             />
           </div>
-          <section aria-label="Charts" className="min-w-0 xl:order-1">
-            {hasCharts ? (
+          <section aria-label="Charts" className="min-w-0">
+            {/* Rendered even when empty, so a screen reader hears the start and the end of a run. */}
+            <p className="sr-only" role="status">
+              {status}
+            </p>
+            {hasCharts || generating ? (
               <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <AnimatePresence initial={false}>
+                  {generating && canvas.startedAt !== null && (
+                    <GeneratingCard
+                      key="generating"
+                      steps={canvas.steps}
+                      startedAt={canvas.startedAt}
+                      onStop={canvas.stop}
+                    />
+                  )}
                   {canvas.charts.map((chart) => (
-                    <CanvasChartCard key={chart.id} chart={chart} onRemove={canvas.removeChart} />
+                    <CanvasChartCard
+                      key={chart.id}
+                      chart={chart}
+                      onRemove={canvas.removeChart}
+                      onAsk={canvas.ask}
+                      busy={canvas.isStreaming}
+                    />
                   ))}
                 </AnimatePresence>
               </div>

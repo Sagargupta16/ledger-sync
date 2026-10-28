@@ -4,10 +4,10 @@ import StandardAreaChart from '@/components/analytics/StandardAreaChart'
 import StandardBarChart from '@/components/analytics/StandardBarChart'
 import StandardPieChart from '@/components/analytics/StandardPieChart'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
-import { formatCurrency, formatCurrencyShort, formatPercent } from '@/lib/formatters'
 import { CHART_COLORS, SEMANTIC_COLORS } from '@/constants'
 
-import type { ChartSeries, ChartSpec, ValueFormat } from '../chartSpec'
+import { tickFormatter, valueFormatter } from '../chartFormat'
+import type { ChartSeries, ChartSpec } from '../chartSpec'
 
 const CHART_HEIGHT = 300
 
@@ -37,18 +37,6 @@ function seriesColors(
     used.add(color)
     return color
   })
-}
-
-function valueFormatter(format: ValueFormat): (value: number) => string {
-  if (format === 'percent') return (value) => formatPercent(value)
-  if (format === 'number') return (value) => value.toLocaleString('en-IN')
-  return formatCurrency
-}
-
-function tickFormatter(format: ValueFormat): (value: string | number) => string {
-  if (format === 'percent') return (value) => formatPercent(Number(value), false, 0)
-  if (format === 'number') return (value) => Number(value).toLocaleString('en-IN')
-  return (value) => formatCurrencyShort(Number(value))
 }
 
 /** One canvas chart, drawn with the kit's standard wrappers. */

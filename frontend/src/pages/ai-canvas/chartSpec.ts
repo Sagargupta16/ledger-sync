@@ -57,7 +57,12 @@ export interface CanvasChart {
   /** The request that produced it, shown on the card. */
   readonly prompt: string
   readonly createdAt: string
+  /** The data look-ups before it was drawn, in words (canvasSteps.ts). */
+  readonly sources: readonly string[]
 }
+
+export const MAX_SOURCES = 8
+export const MAX_SOURCE_LENGTH = 240
 
 export type ParseResult = { ok: true; spec: ChartSpec } | { ok: false; error: string }
 

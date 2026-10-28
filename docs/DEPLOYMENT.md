@@ -75,6 +75,7 @@ Optional AI settings:
 | `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION` | `us-east-1` | Bedrock region |
 | `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | `10` | Per-user daily app-mode cap |
 | `LEDGER_SYNC_AI_UNLIMITED_EMAILS` | `[]` | JSON array of account emails with no app-mode cap (the owner's), matched without case; personal token budgets still apply |
+| `LEDGER_SYNC_ADMIN_EMAILS` | `[]` | JSON array of owner account emails, matched the same way: they see `/admin` (app-wide totals from `GET /api/admin/stats`) and have no app-mode cap either |
 | `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | `6` | Tool rounds per message |
 
 The key behind `LEDGER_SYNC_BEDROCK_API_KEY` must be allowed to invoke the default
@@ -469,7 +470,7 @@ scope, and a token expires after a year.
 session, no stream and no OAuth, so claude.ai web connectors cannot use it and
 clients that send an `Authorization` header, such as Claude Code, can. It
 answers protocol 2026-07-28 and the legacy 2025-11-25, 2025-06-18 and
-2025-03-26 handshake. Its tools are the in-app assistant's 15 read-only tools
+2025-03-26 handshake. Its tools are the in-app assistant's 16 read-only tools
 plus `get_today`, run in a transaction that cannot write. Settings shows this
 command with the new token filled in:
 

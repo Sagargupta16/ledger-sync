@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.config.settings import settings
+from ledger_sync.core.admin_access import has_unlimited_ai
 from ledger_sync.core.ai_pricing import estimate_cost_usd
 from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.db.models import AIUsageLog, User
@@ -153,12 +154,11 @@ def count_app_messages_today(db: Session, user_id: int) -> int:
 def app_message_limit(db: Session, user_id: int) -> int:
     """The shared daily call cap for *user_id*; 0 or less means none.
 
-    An account listed in ``ai_unlimited_emails`` has none.
+    An admin, or an account listed in ``ai_unlimited_emails``, has none.
     """
-    if settings.ai_unlimited_emails:
+    if settings.ai_unlimited_emails or settings.admin_emails:
         email = db.scalar(select(User.email).where(User.id == user_id))
-        unlimited = {address.strip().casefold() for address in settings.ai_unlimited_emails}
-        if email is not None and email.strip().casefold() in unlimited:
+        if has_unlimited_ai(email):
             return 0
     return settings.ai_daily_message_limit
 

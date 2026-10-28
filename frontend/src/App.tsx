@@ -58,6 +58,7 @@ const pageImports = {
   FIRECalculatorPage: () => import('@/pages/fire-calculator/FIRECalculatorPage'),
   MorePage: () => import('@/pages/MorePage'),
   OverviewPage: () => import('@/pages/OverviewPage'),
+  AdminPage: () => import('@/pages/admin/AdminPage'),
 }
 
 const UploadSyncPage = lazy(pageImports.UploadSyncPage)
@@ -89,6 +90,7 @@ const BillCalendarPage = lazy(pageImports.BillCalendarPage)
 const FIRECalculatorPage = lazy(pageImports.FIRECalculatorPage)
 const MorePage = lazy(pageImports.MorePage)
 const OverviewPage = lazy(pageImports.OverviewPage)
+const AdminPage = lazy(pageImports.AdminPage)
 
 const routeLoaders = new Map<string, () => Promise<unknown>>([
   [ROUTES.UPLOAD, pageImports.UploadSyncPage],
@@ -120,6 +122,7 @@ const routeLoaders = new Map<string, () => Promise<unknown>>([
   [ROUTES.FIRE_CALCULATOR, pageImports.FIRECalculatorPage],
   [ROUTES.MORE, pageImports.MorePage],
   [ROUTES.OVERVIEW, pageImports.OverviewPage],
+  [ROUTES.ADMIN, pageImports.AdminPage],
 ])
 
 /**
@@ -302,6 +305,7 @@ function AppRoutes() {
         <Route path={toRelativePath(ROUTES.BILL_CALENDAR)} element={<BillCalendarPage />} />
         <Route path={toRelativePath(ROUTES.FIRE_CALCULATOR)} element={<FIRECalculatorPage />} />
         <Route path={toRelativePath(ROUTES.MORE)} element={<MorePage />} />
+        <Route path={toRelativePath(ROUTES.ADMIN)} element={<AdminPage />} />
         {/* 404 catch-all for unmatched routes */}
         <Route path="*" element={<NotFoundPage />} />
       </Route>

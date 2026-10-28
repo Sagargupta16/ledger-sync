@@ -5,7 +5,7 @@
  * load; anything that no longer parses is dropped.
  */
 
-import { chartArgs, parseChartArgs, type CanvasChart } from './chartSpec'
+import { chartArgs, MAX_SOURCE_LENGTH, MAX_SOURCES, parseChartArgs, type CanvasChart } from './chartSpec'
 
 export const MAX_CANVAS_CHARTS = 12
 
@@ -18,6 +18,15 @@ interface StoredChart {
   prompt: string
   createdAt: string
   args: Record<string, unknown>
+  sources?: unknown
+}
+
+function storedSources(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .slice(0, MAX_SOURCES)
+    .map((item) => item.slice(0, MAX_SOURCE_LENGTH))
 }
 
 function restore(value: unknown): CanvasChart | null {
@@ -29,7 +38,13 @@ function restore(value: unknown): CanvasChart | null {
   }
   const parsed = parseChartArgs(stored.args)
   return parsed.ok
-    ? { id: stored.id, prompt: stored.prompt, createdAt: stored.createdAt, spec: parsed.spec }
+    ? {
+        id: stored.id,
+        prompt: stored.prompt,
+        createdAt: stored.createdAt,
+        spec: parsed.spec,
+        sources: storedSources(stored.sources),
+      }
     : null
 }
 
@@ -49,7 +64,13 @@ export function loadCanvas(key: string | null): CanvasChart[] {
 }
 
 function toStored(chart: CanvasChart): StoredChart {
-  return { id: chart.id, prompt: chart.prompt, createdAt: chart.createdAt, args: chartArgs(chart.spec) }
+  return {
+    id: chart.id,
+    prompt: chart.prompt,
+    createdAt: chart.createdAt,
+    args: chartArgs(chart.spec),
+    sources: [...chart.sources],
+  }
 }
 
 export function saveCanvas(key: string | null, charts: readonly CanvasChart[]): void {

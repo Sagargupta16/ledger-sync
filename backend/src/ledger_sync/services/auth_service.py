@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.admin_access import is_admin_email
 from ledger_sync.core.auth import verify_token
 from ledger_sync.db.models import (
     User,
@@ -224,6 +225,7 @@ class AuthService(RefreshRotationMixin, AccountDataMixin):
             auth_provider=user.auth_provider,
             created_at=user.created_at.isoformat(),
             last_login=user.last_login.isoformat() if user.last_login else None,
+            is_admin=is_admin_email(user.email),
         )
 
     def update_profile(self, user: User, full_name: str | None) -> User:

@@ -41,5 +41,6 @@ export const PAGE_TITLES: Record<string, string> = {
   '/upload': 'Upload & Sync',
   '/settings': 'Settings',
   '/more': 'More',
+  '/admin': 'Admin',
   '/demo': 'Demo',
 }

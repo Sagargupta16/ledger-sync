@@ -510,16 +510,18 @@ workers/
 
 ### Routing and loading
 
-`App.tsx` defines 33 routed page components:
+`App.tsx` defines 34 routed page components:
 
 - 3 public routes
-- 30 protected workspace pages
+- 31 protected workspace pages
 - 4 eager page components
-- 29 lazy page components
+- 30 lazy page components
 
 2.31.0 added the Review Queue (`/review`), Foreign Assets
 (`/tax/foreign-assets`), and AIS Import (`/tax/ais`) pages, and moved the FIRE
-Calculator to `pages/fire-calculator/`.
+Calculator to `pages/fire-calculator/`. 2.32.0 added the AI Canvas
+(`/ai-canvas`) and 2.33.0 the owner-only Admin page (`/admin`), whose nav entry
+shows only for an account the server marks `is_admin`.
 
 Eager components:
 
@@ -928,8 +930,12 @@ send messages
 
 `chatContext.ts` fetches preferences only. It provides currency, date,
 fiscal-year context, and tool-use rules. Financial summaries are not copied
-into the system prompt; the model calls one of 15 read-only, user-scoped tools
-for data.
+into the system prompt; the model calls one of 16 read-only, user-scoped tools
+for data. `aggregate_transactions` covers any breakdown or history the fixed
+summary tools do not, so a request such as a category per month over three
+years is answered rather than refused. The AI Canvas adds the browser-side
+`render_chart` tool and listens to each tool call's start and end through
+`useChat`'s `onToolStart` and `onToolEnd` options to show its step list.
 
 Browser-direct provider usage is logged through `/api/ai/usage/log`. Bedrock
 usage is reserved and settled by the proxy to avoid double counting.

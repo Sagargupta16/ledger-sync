@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     # provider-verified address and which is unique per user. Token budgets a
     # user sets in Settings still apply.
     ai_unlimited_emails: list[str] = []
+    # Owner accounts (JSON array, matched the same way): they see /admin, the
+    # app-wide totals in core/admin_stats.py, and have no app AI cap either.
+    admin_emails: list[str] = []
     # Hard stop on tool-calling rounds per user message (browser enforces
     # this; backend UsageLogRequest validation allows a small buffer on
     # top so a slightly-over report isn't silently dropped). Keep this aligned

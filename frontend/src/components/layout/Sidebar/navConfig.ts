@@ -26,6 +26,7 @@ import {
   HeartPulse,
   Store,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -35,6 +36,8 @@ interface NavItem {
   path: string
   label: string
   icon: LucideIcon
+  /** Shown only to an account the server marks `is_admin`, never in demo mode. */
+  adminOnly?: boolean
 }
 
 interface NavSection {
@@ -133,7 +136,20 @@ export const navigationSections: NavSection[] = [
       { path: ROUTES.AIS_IMPORT, label: 'AIS Import', icon: FileText },
     ],
   },
+  {
+    // Last, and only for LEDGER_SYNC_ADMIN_EMAILS accounts: app-wide totals.
+    title: 'Owner',
+    items: [{ path: ROUTES.ADMIN, label: 'Admin', icon: ShieldCheck, adminOnly: true }],
+  },
 ]
+
+/** The sections this account sees: admin-only items dropped, then any section left empty. */
+export function visibleSections(isAdmin: boolean): NavSection[] {
+  if (isAdmin) return navigationSections
+  return navigationSections
+    .map((section) => ({ ...section, items: section.items.filter((item) => !item.adminOnly) }))
+    .filter((section) => section.items.length > 0)
+}
 
 /**
  * Bottom utility bar is the single home for Upload & Sync and Settings --
