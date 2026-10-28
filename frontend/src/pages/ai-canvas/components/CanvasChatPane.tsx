@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, ChevronDown, Send, Square, Trash2 } from 'lucide-react'
+import { AlertCircle, ChevronDown, RotateCcw, Send, Square, Trash2 } from 'lucide-react'
 
 import ChatMessage from '@/components/chat/ChatMessage'
 import { Button } from '@/components/ui'
@@ -11,16 +11,17 @@ interface Props {
   readonly isStreaming: boolean
   readonly error: string | null
   readonly onSend: (prompt: string) => void
+  readonly onRetry: () => void
   readonly onStop: () => void
   readonly onClear: () => void
 }
 
 /**
- * The canvas's composer and conversation. On a phone the log folds behind a
- * toggle and the latest reply shows under the composer; from `xl` the log is
- * always open beside the canvas.
+ * The canvas's conversation and composer. On a phone the composer comes first,
+ * the log folds behind a toggle and the latest reply shows under it; from `xl`
+ * the log is always open and the composer sits at its foot, as in a chat.
  */
-export default function CanvasChatPane({ messages, isStreaming, error, onSend, onStop, onClear }: Props) {
+export default function CanvasChatPane({ messages, isStreaming, error, onSend, onRetry, onStop, onClear }: Props) {
   const [input, setInput] = useState('')
   const [logOpen, setLogOpen] = useState(false)
   const motionMode = useMotionStore((state) => state.mode)
@@ -44,7 +45,7 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
   return (
     <section aria-label="Ask the assistant" className="ledger-panel flex flex-col gap-3 p-4 xl:max-h-[calc(100dvh-9rem)]">
       <form
-        className="flex items-end gap-2"
+        className="flex items-end gap-2 xl:order-last"
         onSubmit={(event) => {
           event.preventDefault()
           submit()
@@ -69,7 +70,7 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
           className="ledger-control min-h-11 min-w-0 flex-1 resize-none rounded-md border px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:text-sm"
         />
         {isStreaming ? (
-          <Button type="button" variant="secondary" onClick={onStop} aria-label="Stop" title="Stop">
+          <Button type="button" variant="secondary" onClick={onStop} aria-label="Stop" title="Stop waiting">
             <Square className="size-4" aria-hidden="true" />
           </Button>
         ) : (
@@ -80,10 +81,16 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
       </form>
 
       {error && (
-        <p role="alert" className="flex items-start gap-2 text-xs text-app-red">
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {error}
-        </p>
+        <div role="alert" className="flex items-start justify-between gap-2 rounded-md border border-[var(--hairline-1)] p-2 text-xs xl:order-last">
+          <p className="flex items-start gap-2 text-app-red">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            {error}
+          </p>
+          <Button type="button" variant="ghost" size="sm" onClick={onRetry} disabled={isStreaming}>
+            <RotateCcw className="size-3.5" aria-hidden="true" />
+            Try again
+          </Button>
+        </div>
       )}
 
       {messages.length > 0 && (
@@ -115,8 +122,8 @@ export default function CanvasChatPane({ messages, isStreaming, error, onSend, o
           <div
             id="ai-canvas-log"
             ref={logRef}
-            aria-live="polite"
-            className={`${logOpen ? 'flex' : 'hidden'} min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain xl:flex`}
+            role="log"
+            className={`${logOpen ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain xl:flex`}
           >
             {/* Messages only ever append or clear, so the index is a stable key. */}
             {messages.map((message, index) => (

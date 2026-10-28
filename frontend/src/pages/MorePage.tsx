@@ -26,12 +26,14 @@ import {
   Compass,
   Store,
   Sparkles,
+  ShieldCheck,
   LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
+import { useIsAdmin } from '@/hooks/api/useAdminStats'
 import { useLogout } from '@/hooks/api/useAuth'
 
 interface MoreItem {
@@ -39,6 +41,8 @@ interface MoreItem {
   label: string
   icon: LucideIcon
   color: string
+  /** Shown only to an account the server marks `is_admin`, never in demo mode. */
+  adminOnly?: boolean
 }
 
 interface MoreSection {
@@ -116,9 +120,16 @@ const SECTIONS: readonly MoreSection[] = [
       { to: ROUTES.TRANSACTIONS, label: 'Transactions', icon: Receipt, color: 'text-app-blue' },
       { to: ROUTES.UPLOAD, label: 'Upload', icon: Upload, color: 'text-app-blue' },
       { to: ROUTES.SETTINGS, label: 'Settings', icon: Settings2, color: 'text-text-secondary' },
+      { to: ROUTES.ADMIN, label: 'Admin', icon: ShieldCheck, color: 'text-app-orange', adminOnly: true },
     ],
   },
 ]
+
+/** Admin-only tiles dropped for everyone else; no section is admin-only, so none goes empty. */
+function sectionsFor(isAdmin: boolean): readonly MoreSection[] {
+  if (isAdmin) return SECTIONS
+  return SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => !item.adminOnly) }))
+}
 
 function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
   return (
@@ -139,6 +150,7 @@ function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
 export default function MorePage() {
   const logout = useLogout()
   const navigate = useNavigate()
+  const isAdmin = useIsAdmin()
 
   const handleSignOut = () => {
     // Block body + `void`: the mutate callback must return void, and navigate
@@ -152,7 +164,7 @@ export default function MorePage() {
     <PageContainer>
       <PageHeader title="More" subtitle="All workspace tools, grouped by workflow" />
 
-      {SECTIONS.map((section, sIdx) => (
+      {sectionsFor(isAdmin).map((section, sIdx) => (
         <motion.section
           key={section.title}
           initial={{ opacity: 0, y: 8 }}

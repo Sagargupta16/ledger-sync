@@ -20,6 +20,7 @@ from ledger_sync import __version__
 from ledger_sync.api.account_classifications import (
     router as account_classifications_router,
 )
+from ledger_sync.api.admin import router as admin_router
 from ledger_sync.api.ai_chat import router as ai_chat_router
 from ledger_sync.api.ai_tools import router as ai_tools_router
 from ledger_sync.api.ai_usage import router as ai_usage_router
@@ -367,6 +368,7 @@ app.include_router(safe_to_spend_router)
 app.include_router(semantic_search_router)
 app.include_router(tax_ais_router)
 app.include_router(tax_deductions_router)
+app.include_router(admin_router)
 # MCP streamable HTTP transport at /mcp (not under /api): read-only ledger
 # tools for an MCP client that holds a `ledger:read` access token.
 app.include_router(mcp_router)

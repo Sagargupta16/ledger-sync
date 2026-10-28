@@ -46,7 +46,8 @@ Local endpoints:
 - Ledger data-health diagnostics at `/api/analytics/v2/data-health` and income-classification facets at `/api/calculations/income-facets`.
 - Tax records: saved deductions, AIS totals, RSU conversions, and foreign assets. Mutual fund holdings from a CAS, valued at AMFI's latest NAV.
 - Exchange-rate, instrument-rate, and stock-price proxies.
-- Fifteen read-only AI tools and AI usage accounting, also served over MCP at `POST /mcp` (plus `get_today`) to clients holding a `ledger:read` access token.
+- Sixteen read-only AI tools and AI usage accounting, also served over MCP at `POST /mcp` (plus `get_today`) to clients holding a `ledger:read` access token. `aggregate_transactions` (`api/ai_tools_impl/aggregate.py`) sums or counts any slice of the ledger by period or ranks it by dimension, so the assistant can chart histories the fixed summary tools do not cover.
+- Owner admin totals at `GET /api/admin/stats` (`api/admin.py`, `core/admin_stats.py`), for accounts in `LEDGER_SYNC_ADMIN_EMAILS` only: counts and sums across every account, never rows or emails.
 - Bedrock Converse proxy for server-side Bedrock authentication, with per-model thinking fields (`api/ai_chat_thinking.py`).
 - Opt-in semantic transaction search with Titan Text Embeddings V2.
 - Bank alert inbox at `POST /api/ingest/text` (an `alerts:ingest` access token), and Web Push alerts with a daily Vercel cron.

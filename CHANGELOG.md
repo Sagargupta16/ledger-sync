@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.33.0 - 2026-10-28
+
+The AI Canvas now charts almost anything you ask, shows its work while it runs, and lets you check every number. The owner gets an admin page of app-wide totals. No migration.
+
+### Added
+
+- **`aggregate_transactions`**, a 16th read-only AI tool (chat, canvas and MCP): sums or counts any slice of the ledger by month, quarter, fiscal year or year, split into up to six series by category, account or type, or ranks it by category, subcategory, account or type, filtered by type, categories, subcategories, accounts, note text and dates. Periods with no rows come back as zero, so a 36-month chart never skips a month; excluded accounts and classified capital-loss expenses are left out as everywhere else. Asked for "tax deductions per month for 36 months", the assistant used to say its tools only had a yearly total; now it charts the matching categories and labels the stand-in (rent as the HRA basis, for example).
+- **AI Canvas, generating**: the next chart's place holds a chart-shaped placeholder with each step in words as it runs ("Finding your categories", "Totalling expenses by month for Rent, 2023-11-01 to 2026-10-28", "Drawing ..."), the elapsed seconds and Stop, which stops waiting (a call already sent still counts). A screen reader hears the start and the end of each run, and a failed request offers Try again.
+- **AI Canvas, checking**: every chart has a Chart/Table switch with the exact values, a "How this was made" list of the look-ups behind it (kept with the chart), and one-tap follow-ups such as "as a line chart" or "grouped by quarter".
+- **Admin page** (`/admin`, sidebar Owner section) for the accounts in `LEDGER_SYNC_ADMIN_EMAILS`: accounts, sign-ins, new accounts, live transactions, imports, AI calls and estimated Bedrock spend per day for 30 days, split by funding source. Counts and sums only: no account's rows, names or emails. `GET /api/admin/stats` answers 403 to everyone else, `/api/auth/me` reports `is_admin`, and admins have no app AI cap.
+
+### Changed
+
+- The AI Canvas sits beside its chat from `xl`: the conversation on the left with the composer at its foot, the charts on the right; phones keep the composer first.
+- The assistant's prompts tell it to use `aggregate_transactions` for any breakdown the fixed tools lack, to chart the closest stored data rather than refuse, and to quote only numbers it drew.
+
 ## 2.32.0 - 2026-10-27
 
 An AI Canvas that draws charts of your data on request, and a way for the server owner to lift the app-mode daily AI limit for chosen accounts. No migration.

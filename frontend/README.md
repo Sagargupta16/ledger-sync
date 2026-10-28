@@ -35,11 +35,11 @@ The dev server runs at `http://localhost:5173` and proxies `/api` to `http://loc
 
 ## Router and Pages
 
-`src/App.tsx` defines 33 routed page components:
+`src/App.tsx` defines 34 routed page components:
 
 - 4 eager core pages: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 29 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
-- 3 public routes and 30 protected workspace routes.
+- 30 lazy workspace pages, each prefetched when an internal link to it is hovered, focused, or touched after authentication initializes.
+- 3 public routes and 31 protected workspace routes. `/admin` is listed in the sidebar and on More only for an account the server marks `is_admin` (nav items with `adminOnly`).
 
 The protected workspace is organized into:
 
@@ -56,6 +56,7 @@ Analytics
   Cash Flow
   Comparison
   Year in Review
+  AI Canvas
 
 Wealth
   Net Worth
@@ -81,6 +82,9 @@ Tax
   Indirect Tax (GST)
   Foreign Assets
   AIS Import
+
+Owner (admins only)
+  Admin
 
 Utility bar (below the groups)
   Upload and Sync
@@ -141,7 +145,7 @@ The Upload page sends no multipart file and has no post-parse mapping screen. A 
 ## AI Assistant
 
 - The system prompt contains preferences, current date and fiscal-year context, and tool-use guidance.
-- Financial data is fetched on demand through 15 read-only tools.
+- Financial data is fetched on demand through 16 read-only tools.
 - OpenAI and Anthropic use browser-direct JSON requests.
 - Bedrock uses the backend proxy.
 - All provider adapters are non-streaming so tool calls can complete in bounded request rounds.

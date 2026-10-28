@@ -816,8 +816,8 @@ def test_get_preferences_summary_does_not_expose_another_owners_salary() -> None
     assert result["salary_components"] == {}
 
 
-def test_list_tools_returns_fifteen_after_pr() -> None:
-    """Sanity-check: the expanded registry exposes all 15 tools to the LLM.
+def test_list_tools_returns_sixteen() -> None:
+    """Sanity-check: the expanded registry exposes all 16 tools to the LLM.
     If this breaks, update the expected set below alongside the ai_tools.py
     _register() calls so the frontend sees the right list."""
     app, _s, _u = _make_app_with_data()
@@ -841,4 +841,6 @@ def test_list_tools_returns_fifteen_after_pr() -> None:
         "list_budgets",
         "list_anomalies",
         "get_preferences_summary",
+        # 2.33.0
+        "aggregate_transactions",
     }

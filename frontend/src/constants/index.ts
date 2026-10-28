@@ -58,6 +58,9 @@ export const ROUTES = {
 
   // Mobile
   MORE: '/more',
+
+  // Owner stats, for LEDGER_SYNC_ADMIN_EMAILS accounts only
+  ADMIN: '/admin',
 } as const
 
 const _apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined

@@ -38,12 +38,24 @@ export interface ClientTool {
   run: (input: Record<string, unknown>) => unknown
 }
 
+/** One requested tool call; `id` pairs its start with its end. */
+export interface ToolEvent {
+  id: number
+  name: string
+  input: Record<string, unknown>
+}
+
 export interface UseChatOptions {
   /** Offered beside the server's tools; a call to one runs locally. */
   clientTools?: readonly ClientTool[]
   /** Appended to the system prompt for this chat only. */
   systemNote?: string
+  /** Each tool call of the current send as it starts and settles, client tools included. */
+  onToolStart?: (event: ToolEvent) => void
+  onToolEnd?: (event: ToolEvent, result: unknown) => void
 }
+
+let toolEventSeq = 0
 
 /** Run a requested tool: a matching client tool locally, anything else on the server. */
 async function dispatchTool(
@@ -205,8 +217,14 @@ export function useChat(
         }
         controller.signal.throwIfAborted()
 
-        const clientTools = optionsRef.current?.clientTools ?? []
-        const systemNote = optionsRef.current?.systemNote
+        const { clientTools = [], systemNote, onToolStart, onToolEnd } = optionsRef.current ?? {}
+        const runTool = async (name: string, input: Record<string, unknown>) => {
+          const event = { id: ++toolEventSeq, name, input }
+          if (isCurrent()) onToolStart?.(event)
+          const result = await dispatchTool(clientTools, name, input)
+          if (isCurrent()) onToolEnd?.(event, result)
+          return result
+        }
         await runToolLoop({
           provider: resolved.provider,
           model: resolved.model,
@@ -215,7 +233,7 @@ export function useChat(
           systemPrompt: systemNote ? `${contextRef.current}\n\n${systemNote}` : contextRef.current,
           conversation,
           tools: [...(tools ?? []), ...clientTools.map((tool) => tool.spec)],
-          runTool: (name, input) => dispatchTool(clientTools, name, input),
+          runTool,
           signal: controller.signal,
           usageLogs,
           onFinalText: (text) => {

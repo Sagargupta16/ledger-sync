@@ -118,3 +118,35 @@ class CashFlowArguments(ToolArguments):
 
 class AnomalyArguments(ToolArguments):
     include_reviewed: bool = False
+
+
+TimeGrain = Literal["month", "quarter", "fiscal_year", "year"]
+Dimension = Literal["category", "subcategory", "account", "type"]
+LabelList = Annotated[list[Label], Field(min_length=1, max_length=20)]
+
+
+class AggregateArguments(DateRangeArguments):
+    group_by: TimeGrain | Dimension = Field(
+        default="month",
+        description="Periods (month, quarter, fiscal_year, year) or a dimension to rank",
+    )
+    split_by: Literal["category", "account", "type"] | None = Field(
+        default=None,
+        description="Second dimension, one series per value, for time groupings only",
+    )
+    type: Literal["Income", "Expense", "Transfer"] | None = None
+    categories: LabelList | None = None
+    subcategories: LabelList | None = None
+    accounts: LabelList | None = None
+    note_contains: str | None = Field(default=None, min_length=1, max_length=200)
+    measure: Literal["sum", "count"] = "sum"
+    limit: int = Field(default=36, ge=1, le=60, description="Most periods or groups returned")
+    series_limit: int = Field(default=5, ge=1, le=6, description="Most series; the rest is Other")
+
+    @model_validator(mode="after")
+    def validate_split(self) -> Self:
+        if self.split_by and self.group_by not in ("month", "quarter", "fiscal_year", "year"):
+            raise ValueError("split_by needs a time group_by (month, quarter, fiscal_year, year)")
+        if self.split_by and self.split_by == self.group_by:
+            raise ValueError("split_by must differ from group_by")
+        return self

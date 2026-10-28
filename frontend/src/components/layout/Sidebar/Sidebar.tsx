@@ -9,6 +9,7 @@ import { getProfileInitials } from '@/components/shared/profileModalUtils'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
+import { useIsAdmin } from '@/hooks/api/useAdminStats'
 import {
   useAnomalyCounts,
   useBudgets,
@@ -26,10 +27,10 @@ import CurrencySwitcher from './CurrencySwitcher'
 import {
   ALERT_BADGE_ROUTES,
   dashboardItem,
-  navigationSections,
   overviewItem,
   transactionsItem,
   utilityItems,
+  visibleSections,
 } from './navConfig'
 import SidebarItem from './SidebarItem'
 import SidebarSection from './SidebarSection'
@@ -90,6 +91,8 @@ export default function Sidebar() {
     () => countAlertBadges(anomalyCount, budgets, recurring, new Date()),
     [anomalyCount, budgets, recurring],
   )
+  const isAdmin = useIsAdmin()
+  const sections = useMemo(() => visibleSections(isAdmin), [isAdmin])
 
   const closeMobile = useCallback(() => {
     setIsMobileOpen(false)
@@ -194,7 +197,7 @@ export default function Sidebar() {
               />
             </div>
 
-            {navigationSections.map((section) => (
+            {sections.map((section) => (
               <SidebarSection key={section.title} title={section.title}>
                 {section.items.map((item) => (
                   <SidebarItem

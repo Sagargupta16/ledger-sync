@@ -2,16 +2,16 @@
 
 Developer-facing route and data-source catalog for the current Ledger Sync source.
 
-Checked against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-10-27.
+Checked against `frontend/src/App.tsx`, navigation configuration, page components, and API hooks on 2026-10-28.
 
 ## Router Summary
 
-The application has 33 routed page components:
+The application has 34 routed page components:
 
 - 3 public page routes.
-- 30 protected workspace page routes.
+- 31 protected workspace page routes.
 - 4 eager page components: Home, Dashboard, Demo Entry, and OAuth Callback.
-- 29 lazy page components, prefetched on route intent after authentication initializes.
+- 30 lazy page components, prefetched on route intent after authentication initializes.
 
 `/home` is a protected compatibility route that redirects to `/dashboard`.
 
@@ -81,6 +81,7 @@ message that their existing error handler can display.
 | Data | `/transactions` | Transactions |
 | Data | `/upload` | Upload and Sync |
 | Data | `/settings` | Settings |
+| Owner | `/admin` | Admin (listed only for an `is_admin` account) |
 | Mobile | `/more` | More |
 
 ## Shared Time Filter
@@ -290,9 +291,13 @@ The heatmap is desktop-only; phones get month tiles, because day cells are far b
 
 **Source:** `frontend/src/pages/ai-canvas/AiCanvasPage.tsx`
 
-A chat that answers with charts. The request goes through the shared `useChat` tool loop with the 15 data tools plus one browser-side tool, `render_chart` (`renderChartTool.ts`): the model fetches the numbers, then calls it with a title, a chart type (`bar`, `horizontal_bar`, `line`, `area` or `pie`), up to 60 labels and up to four series of values, one per label (a pie takes one series of at most 7 non-negative slices). The arguments are columns rather than row objects so a chart fits in a round's 1024 output tokens. `chartSpec.ts` validates them and returns an error the model reads and corrects, so nothing malformed reaches a chart; valid calls draw with the Standard Bar, Area and Pie wrappers, newest first.
+A chat that answers with charts. The request goes through the shared `useChat` tool loop with the 16 data tools plus one browser-side tool, `render_chart` (`renderChartTool.ts`): the model fetches the numbers, usually with `aggregate_transactions`, then calls it with a title, a chart type (`bar`, `horizontal_bar`, `line`, `area` or `pie`), up to 60 labels and up to four series of values, one per label (a pie takes one series of at most 7 non-negative slices). The arguments are columns rather than row objects so a chart fits in a round's 1024 output tokens. `chartSpec.ts` validates them and returns an error the model reads and corrects, so nothing malformed reaches a chart; valid calls draw with the Standard Bar, Area and Pie wrappers, newest first. The canvas prompt (`canvasPrompt.ts`) asks for a chart whenever the ledger has rows for the period: a measure it does not store directly, such as tax deductions, is charted from the categories that represent it (80C, 80D, NPS, home-loan interest, rent for HRA and so on) and labelled as a stand-in, and every number in the takeaway must be a drawn value or their exact sum, minimum or maximum.
 
-The canvas keeps at most 12 charts in `sessionStorage` under the signed-in user's id, so a reload keeps them, closing the tab drops them, and every stored chart is validated again on load. Phone to `lg`: the composer, then the charts (two across from `lg`); from `xl` the conversation is pinned in a column beside them. The floating assistant button is hidden on this page. Each chart costs about three model calls (data, chart, takeaway) against the app-mode daily limit. Demo mode shows an explanation instead, because the assistant is off there, and a personal-key setup without a stored key links to Settings.
+While a request runs, a generating card (`components/GeneratingCard.tsx`) holds the next chart's place: a chart-shaped skeleton, "N of M steps" with the elapsed seconds, and the step list in words (`canvasSteps.ts`), built from `useChat`'s `onToolStart` and `onToolEnd` events: reading the request, each tool call ("Totalling expenses by month for Rent, 2023-11-01 to 2026-10-31"), then writing the takeaway. A step the model has to correct shows as retrying. Stop stops waiting; on the Python Vercel runtime it cannot cancel a call already sent, which still counts toward the day's usage, and its tooltip says so. A failed request shows the error with Try again, which sends the same request again.
+
+Each chart card has a Chart/Table switch (the table is a sortable `DataTable` of the exact drawn values, stacked cards on phones), up to three follow-up chips that send a redraw request for the same chart (as a line, as bars, grouped by quarter, as a pie or as a ranking, whichever fit the data), the request it came from, and "How this was made": the data look-ups behind it in words, stored with the chart.
+
+The canvas keeps at most 12 charts in `sessionStorage` under the signed-in user's id, so a reload keeps them, closing the tab drops them, and every stored chart, look-up list included, is validated again on load. Phone to `lg`: the chat (composer first, the latest reply under it, the conversation behind a toggle), then the charts (two across from `lg`); from `xl` the chat is a 22rem column on the left with the composer at its foot and the conversation always open, and the canvas fills the rest (one chart across, two from `2xl`). A screen-reader status region announces "Drawing your chart" and the chart count when a run ends; the conversation is a `log` region. The floating assistant button is hidden on this page. Each chart costs three or four model calls (a category look-up when needed, the data, the chart, the takeaway) against the app-mode daily limit. Demo mode shows an explanation instead, because the assistant is off there, and a personal-key setup without a stored key links to Settings.
 
 ## Wealth
 
@@ -809,6 +814,18 @@ Notifications adds an Alerts on this device panel below the saved toggles (`Push
 
 Access Tokens (`UploadTokensSection`) shows a purpose picker (radio cards, stacked until `lg` and three columns from there, each with its "N of 5 active" count), a usage note per purpose (the upload POST URL, the MCP URL with its data and OAuth notes, or the alert inbox header), the token name field, and the active token list with a purpose badge per row. The revoke confirmation and the one-time reveal dialog are worded per purpose; a Claude MCP read token also gets the copy-ready `claude mcp add` command. It reads `GET /api/upload-tokens` (disabled in demo mode, where the create controls are off) and writes with `POST` and `DELETE /api/upload-tokens`.
 
+## Owner
+
+### Admin
+
+**Route:** `/admin`
+
+**Source:** `frontend/src/pages/admin/AdminPage.tsx`
+
+App-wide totals for the server owner, from `GET /api/admin/stats` (`hooks/api/useAdminStats.ts`). Only an account the server marks `is_admin` (its email is in `LEDGER_SYNC_ADMIN_EMAILS`) sees the sidebar's Owner section and the Admin tile at the end of Data on More (`adminOnly` nav items), and only then does the page ask for data; a 403 is final, not retried. Anyone else, and demo mode, gets an explanation instead of the data.
+
+Eight cards, two across on a phone and four from `lg` (`components/AdminMetricGrid.tsx`): Accounts (with how many signed in within 30 days), Signed in in 7 days, New in 30 days, Transactions (live rows across every account), Imports in 30 days (with rows processed), AI calls today (with tokens, UTC day), AI calls in 30 days (with tokens), and AI spend in 30 days (estimated at list prices). Below them, AI calls per day for 30 UTC days as a bar chart (`AdminAiChart.tsx`), and the 30-day calls and spend per funding source: the shared app Bedrock key, personal keys, and calls logged before funding was recorded (`FundingBreakdown.tsx`). Spend stays in US dollars, as the provider bills it. The header has Refresh, the footer the as-of time, loading shows card and chart skeletons, and any other failure shows `PageErrorState` with retry. The page shows counts and sums only, never an account's rows, names or emails.
+
 ## Mobile
 
 ### More
@@ -825,7 +842,7 @@ Phone navigation mirror grouped as:
 - Commitments
 - Planning
 - Tax
-- Data
+- Data (ending with Admin for an `is_admin` account)
 
 The page includes sign-out and exposes every route that is not a dedicated bottom-tab destination.
 
@@ -865,7 +882,7 @@ offline use, including for anonymous sessions.
 
 ### AI assistant
 
-The assistant has these 15 tools:
+The assistant has these 16 tools:
 
 1. `list_accounts`
 2. `search_transactions`
@@ -882,6 +899,7 @@ The assistant has these 15 tools:
 13. `get_tax_summary`
 14. `get_preferences_summary`
 15. `list_anomalies`
+16. `aggregate_transactions` (any breakdown or history: sums or counts by month, quarter, fiscal year or year, optionally split into series, or a ranking by category, subcategory, account or type)
 
 Tools execute through the authenticated backend and are scoped to the current user.
 

@@ -408,9 +408,15 @@ The page does not currently include net-worth milestones, merchant growth, or ca
 
 **Route:** `/ai-canvas`
 
-Ask for a chart in plain words, such as "income vs spending by month this financial year" or "top 8 spending categories since April", and the assistant looks the numbers up with its read-only tools, then draws the chart: bars to compare periods, a ranking for top items, a line or area for a trend, or a pie for the parts of one whole. It adds one or two sentences with the main takeaway. Ask again to change the type, period or breakdown; each answer draws a new chart.
+Ask for a chart in plain words, such as "income vs spending by month this financial year", "top 8 spending categories since April" or "insurance premiums per month for the last three years", and the assistant looks the numbers up with its read-only tools, then draws the chart: bars to compare periods, a ranking for top items, a line or area for a trend, or a pie for the parts of one whole. It adds one or two sentences with the main takeaway. Ask again to change the type, period or breakdown; each answer draws a new chart.
 
-Every value comes from your data through the same tools the assistant uses in chat, and the chart shows exactly what the assistant passed. Each chart uses about three AI calls against the app-mode daily allowance. The canvas keeps your 12 newest charts while the tab stays open; remove one with its close button or clear them all. The canvas is not available in demo mode.
+When you ask for something your ledger does not record directly, such as tax deductions, the assistant charts the closest categories you do have instead of refusing, labels the chart as a stand-in (for example rent as the HRA basis) and says which parts it could not find. It answers without a chart only when there are no rows at all for the period.
+
+While it works, the place where the chart will appear shows each step in words ("Finding your categories", "Totalling expenses by month for Rent"), how many steps are done and the seconds so far. Stop stops waiting; a call already sent still counts toward today's AI usage. If a request fails, Try again sends it once more.
+
+Each chart has a Chart and Table switch, so you can read the exact values, a few one-tap follow-ups (for example as a line chart or grouped by quarter), the request it came from, and "How this was made", which lists the look-ups behind it. On a phone the composer and the latest reply come first, with the conversation behind a toggle; on a wide screen the conversation sits in a column on the left and the charts fill the rest.
+
+Every value comes from your data through the same tools the assistant uses in chat, and the chart shows exactly what the assistant passed. Each chart uses three or four AI calls against the app-mode daily allowance. The canvas keeps your 12 newest charts while the tab stays open; remove one with its close button or clear them all. The canvas is not available in demo mode.
 
 ## Wealth
 
@@ -849,8 +855,9 @@ account's data and page drafts. Theme and motion remain device preferences.
 
 The assistant is available from the workspace header or floating chat control when configured.
 
-It can use 15 read-only tools for:
+It can use 16 read-only tools for:
 
+- Custom breakdowns and histories (any category, account or type by month, quarter, fiscal year or year, over any range)
 - Accounts
 - Transactions
 - Monthly summaries
@@ -888,8 +895,9 @@ draft. App mode preserves your personal configuration for a later switch back.
 
 The shared allowance counts model requests, including follow-up tool rounds,
 so one question can use more than one unit. The server owner can list accounts
-with no daily allowance in `LEDGER_SYNC_AI_UNLIMITED_EMAILS`; for them the chat
-shows today's count instead of what is left. Bedrock reserves token budget
+with no daily allowance in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` or
+`LEDGER_SYNC_ADMIN_EMAILS`; for them the chat shows today's count instead of
+what is left. Bedrock reserves token budget
 before a request and settles recorded usage afterward. An uncertain provider
 failure can continue to count against the budget. Browser-direct usage
 tracking does not replace spending limits at your provider.
@@ -904,6 +912,19 @@ counts as one chat message. Smart search counts toward your token budgets, not
 the message count. Claude Code can use the same read-only tools outside the app,
 plus a helper that returns today's date, with a Claude MCP read access token
 (see Access tokens under Settings).
+
+### Admin
+
+**Route:** `/admin`, for the server owner only.
+
+An account whose email the server lists in `LEDGER_SYNC_ADMIN_EMAILS` sees an
+Owner section with Admin at the end of the sidebar, and an Admin tile on More.
+The page shows app-wide totals: how many accounts there are and how many signed
+in recently, live ledger rows and recent imports, AI calls today and over 30
+days with their estimated spend in US dollars, a chart of AI calls per day, and
+which funding paid for them. It shows counts and sums only, never any account's
+transactions, names or emails. Everyone else, and demo mode, sees an
+explanation instead. An admin account also has no app-mode daily AI allowance.
 
 ## Demo Mode
 
