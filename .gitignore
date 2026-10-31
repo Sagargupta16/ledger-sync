@@ -258,7 +258,9 @@ test-results/
 
 # AI assistant local files
 MEMORY.md
-.claude/
+# .claude/ stays local except the path-scoped rules that CLAUDE.md points to
+**/.claude/*
+!/.claude/rules/
 # `npx skills` lockfile for the vendor skill installed into the ignored .claude/skills
 skills-lock.json
 

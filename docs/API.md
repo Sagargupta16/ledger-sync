@@ -1451,7 +1451,7 @@ name, a file name or a full email:
     "daily": [{"date": "2026-09-29", "calls": 0, "cost_usd": 0.0}]
   },
   "app": {
-    "version": "2.34.0", "database": "postgresql", "revision": "feature_domains_2026",
+    "version": "2.34.1", "database": "postgresql", "revision": "feature_domains_2026",
     "features": {
       "cas_holdings": 1, "push_subscriptions": 0, "active_upload_tokens": 1,
       "bank_alerts": 0, "saved_views": 2, "byok_ai": 0
