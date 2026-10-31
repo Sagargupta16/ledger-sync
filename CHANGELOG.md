@@ -14,6 +14,7 @@ The working agreement for finance math is written down where every agent reads i
 
 - `docs/CALCULATIONS.md` "Changing a calculation" opens with the rule: any change to tax, TDS, bonus, RSU, salary or projection math starts with the formulas in plain text and one worked example, signed off before code, and salaried income actually received is never recomputed.
 - `CLAUDE.md` points to `docs/CALCULATIONS.md` as the owner of every finance formula, with the same rule. Tax, TDS and RSU math had been re-derived in six sessions across three coding agents before this.
+- `CLAUDE.md` goes from 54,870 to 11,718 characters (234 to 136 lines). Area detail moved verbatim, all 183 original non-empty lines kept, into six path-scoped rules under `.claude/rules/` that Claude Code loads only when a matching file is read or edited: `backend.md` (13,027 characters), `frontend.md` (13,049), `frontend-ui.md` (5,211), `shared-patterns.md` (6,156), `ai-chat.md` (7,284) and `deployment.md` (4,437). A one-word `claude -p` in the repo (Haiku 5.5, the maintainer's setup) now starts at 58,814 input tokens instead of 75,934. `.gitignore` tracks `.claude/rules/` and still ignores the rest of `.claude/`.
 
 ## 2.34.0 - 2026-10-28
 
