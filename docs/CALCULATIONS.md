@@ -240,6 +240,13 @@ SQLite suites do not establish those results.
 
 ### Changing a calculation
 
+Agree the math before writing code. For any change to tax, TDS, bonus, RSU, salary
+or projection math, write the formulas in plain text with one worked example and get
+the owner's sign-off first; only then change the owner function. Salaried income
+actually received is an observed fact: never recompute, reduce or re-derive it from a
+model. Both rules come from 2026-06-07, when two TDS schedules coded ahead of the
+formulas were wrong and a requested revert went wrong too.
+
 1. Find its owner above and search its imports before changing behavior. Keep
    formulas in pure functions with explicit inputs; hooks own fetching and
    preferences, and components own rendering.

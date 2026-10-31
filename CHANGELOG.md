@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.34.1 - 2026-10-31
+
+The working agreement for finance math is written down where every agent reads it. No app, API or schema change.
+
+### Changed
+
+- `docs/CALCULATIONS.md` "Changing a calculation" opens with the rule: any change to tax, TDS, bonus, RSU, salary or projection math starts with the formulas in plain text and one worked example, signed off before code, and salaried income actually received is never recomputed.
+- `CLAUDE.md` points to `docs/CALCULATIONS.md` as the owner of every finance formula, with the same rule. Tax, TDS and RSU math had been re-derived in six sessions across three coding agents before this.
+
 ## 2.34.0 - 2026-10-28
 
 The assistant now remembers how it got its earlier answers, the AI Canvas draws 16 kinds of chart from your data, calculations or outside figures (each labelled), and the owner's admin page covers users and the project. No migration.
