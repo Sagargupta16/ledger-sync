@@ -39,7 +39,11 @@ describe('generateDemoMerchantIntelligence label_kind', () => {
     // The generator groups by `t.note`, so a branded note keeps its full text
     // ("Amazon Fashion") rather than folding to the canonical brand
     // ("Amazon"). No fold happened, so 'brand' would be a false claim.
-    const branded = rows.find((row) => row.merchant.startsWith('Amazon '))
+    // Search past the default top 50: the demo window ends at the current
+    // month, and in 6 of the 12 calendar months every "Amazon ..." note ranks
+    // below 50th by spend.
+    const uncapped = generateDemoMerchantIntelligence(generateDemoTransactions(), { limit: 1000 })
+    const branded = uncapped.find((row) => row.merchant.startsWith('Amazon '))
     expect(branded).toBeDefined()
     expect(branded?.label_kind).toBe('descriptor')
   })
