@@ -79,14 +79,32 @@ describe('formatMonthKey', () => {
 })
 
 describe('capEndDateAtToday', () => {
-  const today = toLocalDateKey(new Date())
-  const yesterday = toLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000))
-  const tomorrow = toLocalDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  // The cap is the ledger (IST) day, so the expected keys are too. On a UTC
+  // runner its own calendar is still the previous day from 18:30 to 24:00 UTC.
+  const today = getTodayKey()
+  const yesterday = addDaysToKey(today, -1)
+  const tomorrow = addDaysToKey(today, 1)
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.useRealTimers()
+  })
 
   it('caps a future end_date at today', () => {
     const result = capEndDateAtToday({ start_date: '2026-01-01', end_date: tomorrow })
     expect(result.end_date).toBe(today)
     expect(result.start_date).toBe('2026-01-01')
+  })
+
+  it('caps at the IST day while a UTC runner is still on the previous day', () => {
+    vi.stubEnv('TZ', 'UTC')
+    vi.useFakeTimers()
+    // 04:01 IST on 1 November; the CI run that caught this read 31 October.
+    vi.setSystemTime(new Date('2026-10-31T22:31:00.000Z'))
+    expect(toLocalDateKey(new Date())).toBe('2026-10-31')
+
+    const result = capEndDateAtToday({ start_date: '2026-10-01', end_date: '2026-11-30' })
+    expect(result.end_date).toBe('2026-11-01')
   })
 
   it('leaves past end_date untouched', () => {
@@ -138,7 +156,7 @@ describe('filterTransactionsByDateRange', () => {
 })
 
 describe('capSeriesToToday', () => {
-  const today = toLocalDateKey(new Date())
+  const today = getTodayKey()
   const currentMonth = today.slice(0, 7)
 
   it('drops future day-keyed rows and keeps today', () => {
