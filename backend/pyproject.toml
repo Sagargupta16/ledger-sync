@@ -6,7 +6,7 @@ authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
 # One minor version: Vercel picks the newest Python this allows (it ran 3.14
 # while CI tested 3.13). Move CI, migrate.yml and this pin together.
-requires-python = ">=3.15,<3.16"
+requires-python = ">=3.14,<3.15"
 dependencies = [
     # <2.1: SQLAlchemy 2.1.6 still fails mypy (27 errors, 21 of them order_by/Select arg-type, 2026-10-24).
     "sqlalchemy>=2.0.51,<2.1",
