@@ -1,0 +1,26 @@
+---
+paths:
+  - "frontend/src/**/*.tsx"
+  - "frontend/src/**/*.css"
+  - "frontend/src/components/**"
+  - "frontend/src/constants/**"
+  - "frontend/src/lib/dateUtils.ts"
+---
+
+# Frontend UI
+
+Moved verbatim from the repo `CLAUDE.md` on 2026-10-31; repo-wide rules stay there. Paths and links below are relative to the repo root.
+
+## Design System Constraints
+
+- **Colors**: Use CSS custom properties from `index.css` (`var(--color-income)`, `var(--color-expense)`, etc.). Never raw hex/rgb. Chart series colors that need a resolved string come from the `rawColors.*` JS values, read through `usePaletteSnapshot` so they repaint on a theme toggle; kit chrome uses the `--chart-*` variables directly.
+- **Page scaffold**: Wrap page bodies in `PageContainer` (`@/components/ui`) -- one centered `max-w-7xl` root with consistent padding + section spacing. Don't hand-roll `min-h-dvh p-4 ... max-w-7xl mx-auto` per page.
+- **Charts**: Draw with the kit in `components/charts/`; never add a chart library. Prefer the `Standard{Bar,Area,Pie,Radar}Chart` and `TimeSeriesLineChart` wrappers, and compose `CartesianChart` with marks, `PieChart`, `RadarChart`, `SankeyDiagram`, `Treemap` or `SlopeChart` only for a chart they cannot express. Every root draws inside `ChartFrame`: pass `ariaLabel` (every chart needs an accessible name). Use `ReferenceLine`/`ReferenceArea`/`ReferenceDot` (peak/avg/target/goal/zero) and `currencyTooltipFormatter()` from `chartDefaults` instead of hand-rolling reference marks / tooltip formatters, and time any new chart animation with the `chartMotion` tokens. Colors from `constants/`. Respect the data-viz-fit rules: pie/donut only <=7 slices, radar only for fixed 0-100 multivariate profiles, bars for rankings, time-series default to per-period not cumulative.
+- **Layout**: `PageHeader` for titles, `MetricCard` for KPIs (use its `change`/`subtitle`/`trend`/`hero` props to make a number informative -- don't hand-roll delta badges or sparkline slots), `EmptyState` for no-data, `Spinner` (`@/components/ui`) for transient loads and the `LoadingSkeleton` family for page/chart/table skeletons, `ProgressBar` (`@/components/shared`) for any actual-vs-target metric (fill + optional target tick + bullet `bands`) -- don't hand-roll `h-2 rounded-full` bars.
+- **Page filters**: Period/FY/sort/filter controls that change what a page shows go in `<StickyToolbar>` (`@/components/ui`) placed directly after `<PageHeader>` as a child of the page column, never in `PageHeader`'s `action` slot (a sticky element only sticks inside its parent). `#main-content` is the scroll container; the toolbar publishes `--sticky-toolbar-h` for focus scroll-padding and nested sticky headers. Filter-driven queries keep previous data (`placeholderData: keepPreviousData`) so a filter change never swaps the page for a skeleton and jumps scroll.
+- **Tables**: Use `DataTable` from `@/components/ui` for flat + sortable tables. Column-driven API (`DataTableColumn<T>`), internal sort state, keyboard-accessible sort headers, optional row animation, `stickyHeader`, and `mobileCards` (below `sm`, rows render as stacked label/value cards via `mobilePrimary`/`mobileLabel` -- use for wide tables so they don't horizontal-scroll on phones). Don't hand-roll `<table>` unless the shape is genuinely different (expandable groups, pivoted rows-as-columns); for those, drop low-priority columns on mobile (`hidden sm:table-cell`) or pin the label column. **At narrow widths (3-column grids, expandable rows), DataTable's `<td>` truncates money -- render amount cells with `<Money>` instead, or hand-roll a flex row following the CategoryBreakdown pattern.**
+- **Money**: Any amount rendered in a flex row or narrow table cell uses `<Money>` from `@/components/ui`. Signature: `<Money value={n} width="sm|md|lg|xl" bold muted />`. Codifies `shrink-0 text-right tabular-nums whitespace-nowrap font-medium` so the digits never truncate (was the `₹12,91` bug in the 3-col /budget layout). Omit `width` for free-flow contexts (hero KPIs, tooltips).
+- **Historical charts**: Time-series data must not extend past today. Rely on `getAnalyticsDateRange()` -- it now caps `end_date` at today for FY/yearly/monthly modes (via `capEndDateAtToday()` in `lib/dateUtils.ts`), so every analytics endpoint call inherits the fix. For pre-computed in-memory series, wrap with `capSeriesToToday<T>(rows, key)`. Projection pages (FIRE, tax multi-year, retirement) build their own future ranges and are exempt.
+- **Themes**: Light and dark only -- the `system` mode was removed, so `ThemeMode` is `'dark' | 'light'` and `resolveTheme` is now identity. Users with no stored choice get the OS `prefers-color-scheme` value once at load; a stored legacy `'system'` value falls back the same way. Keep every shared token and new component readable in both themes.
+- **No inline styles** for layout -- use Tailwind classes.
+- **Mobile-first**: most users are on phones. KPI/stat grids should be `grid-cols-2` on phone (not single-column), gate changes behind `sm:`/`lg:`/`useIsMobile` so desktop never regresses, keep interactive controls >=44px, and verify at real mobile width (Playwright) -- never claim mobile-friendly on static reasoning.
