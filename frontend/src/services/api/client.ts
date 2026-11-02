@@ -245,6 +245,8 @@ export const apiClient = axios.create({
 type SessionRequest = InternalAxiosRequestConfig & {
   _retry?: boolean
   _sessionSignal?: AbortSignal
+  _callerSignal?: AbortSignal
+  _releaseSignal?: () => void
 }
 
 function isOAuthRequest(url: string = ''): boolean {
@@ -252,17 +254,23 @@ function isOAuthRequest(url: string = ''): boolean {
 }
 
 // `AbortSignal.any` is missing before iOS 17.4, so bridge the two signals by hand there.
-function anySignal(first: AbortSignal, second: AbortSignal): AbortSignal {
-  if (typeof AbortSignal.any === 'function') return AbortSignal.any([first, second])
+// `release` drops the bridge's listeners once the request settles, so the session-long
+// signal does not collect one per request.
+function anySignal(first: AbortSignal, second: AbortSignal): { signal: AbortSignal; release?: () => void } {
+  if (typeof AbortSignal.any === 'function') return { signal: AbortSignal.any([first, second]) }
   const controller = new AbortController()
+  const listeners = new AbortController()
   for (const source of [first, second]) {
     if (source.aborted) {
       controller.abort(source.reason)
       break
     }
-    source.addEventListener('abort', () => controller.abort(source.reason), { once: true })
+    source.addEventListener('abort', () => controller.abort(source.reason), {
+      once: true,
+      signal: listeners.signal,
+    })
   }
-  return controller.signal
+  return { signal: controller.signal, release: () => listeners.abort() }
 }
 
 // Capture the session synchronously, before the caller can log out or switch
@@ -272,9 +280,16 @@ apiClient.interceptors.request.use(
     const request = config as SessionRequest
     request._sessionSignal ??= getSessionSignal()
     assertCurrentSession(request._sessionSignal)
-    request.signal = config.signal
-      ? anySignal(config.signal as AbortSignal, request._sessionSignal)
-      : request._sessionSignal
+    // A retry re-enters here, so combine the caller's own signal, not the last bridge.
+    request._callerSignal ??= config.signal as AbortSignal | undefined
+    request._releaseSignal?.()
+    if (request._callerSignal) {
+      const combined = anySignal(request._callerSignal, request._sessionSignal)
+      request.signal = combined.signal
+      request._releaseSignal = combined.release
+    } else {
+      request.signal = request._sessionSignal
+    }
 
     const oauthRequest = isOAuthRequest(config.url)
     const token = getAccessToken()
@@ -321,12 +336,15 @@ function withBearer(headers: AxiosRequestConfig['headers'], token: string): Axio
   return AxiosHeaders.from(headers as never).set('Authorization', `Bearer ${token}`)
 }
 
-// Only the server rejecting the refresh token proves the session is over. A dropped
-// connection, timeout, 5xx or 429 leaves the stored tokens valid for the next attempt.
+// Refresh tokens are single-use, and one that comes back after the server's 60 s
+// grace revokes every session for the account. A failure that may have rotated the
+// pair (no response, a timeout, most 5xx) therefore ends the local session. Only a
+// 429 (the limiter runs before rotation) or a 503 (the database refused the write)
+// proves the stored token is still unused, so those keep it for the next attempt.
 function isRefreshRejected(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return true
   const status = error.response?.status
-  return status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429
+  return status !== 429 && status !== 503
 }
 
 // Concurrent 401s share one refresh within their original session only.
@@ -370,14 +388,16 @@ function refreshAccessToken(signal: AbortSignal): Promise<string> {
 // Response interceptor for error handling and token refresh
 apiClient.interceptors.response.use(
   (response) => {
-    const signal = (response.config as SessionRequest)._sessionSignal
-    if (signal) assertCurrentSession(signal)
+    const request = response.config as SessionRequest
+    request._releaseSignal?.()
+    if (request._sessionSignal) assertCurrentSession(request._sessionSignal)
     return response
   },
   async (error: unknown) => {
     if (!axios.isAxiosError(error)) throw error
 
     const request = error.config as SessionRequest | undefined
+    request?._releaseSignal?.()
     if (request?._sessionSignal) assertCurrentSession(request._sessionSignal)
     if (error.response?.status !== 401 || !request || isOAuthRequest(request.url)) throw error
 

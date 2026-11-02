@@ -33,7 +33,7 @@ A whole-repo bug hunt: 524 raw findings, merged to 487 distinct ones, were each 
 ### Changed
 
 - `pnpm run setup` installs the backend's optional extras, so CAS import works on a local install.
-- The Pages deploy accepts a backend at the expected version or newer, and logs what it saw on each poll.
+- The Pages deploy logs what it saw on each poll, and a run whose backend has already moved to a newer version stops at once instead of waiting ten minutes.
 - The CLI `import` and `import-file` commands take a required `--user-id`; any error other than an already-imported file exits 1.
 - Assistant cost estimates use current Opus 4.5 and later and GPT-4.1 prices, and price the Bedrock Nova, Llama and DeepSeek models.
 - `GET /health/db` is limited to 30 requests a minute.

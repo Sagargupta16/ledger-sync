@@ -63,19 +63,21 @@ jobs:
           import { setTimeout } from 'node:timers/promises'
 
           const expectedVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
-          // A newer live backend is fine: its own run publishes the newer frontend.
-          const versionAtLeast = (live, wanted) => {
+          // Publish only against the matching backend. A newer live backend means a later
+          // commit is deploying, and its own run publishes the matching frontend.
+          const compareVersions = (live, wanted) => {
             const [a, b] = [live, wanted].map((version) => String(version).split('.').map(Number))
             for (let i = 0; i < Math.max(a.length, b.length); i++) {
               const diff = (a[i] ?? 0) - (b[i] ?? 0)
-              if (diff !== 0) return diff > 0
+              if (diff !== 0) return Math.sign(diff)
             }
-            return true
+            return 0
           }
           const apiBase = process.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
           if (!apiBase) throw new Error('VITE_API_BASE_URL must be configured before deployment.')
           const deadline = Date.now() + 10 * 60 * 1000
           let ready = false
+          let superseded = false
           let seen = 'no response yet'
           while (Date.now() < deadline) {
             try {
@@ -84,8 +86,12 @@ jobs:
               if (responses.every((response) => response.ok)) {
                 const [health, database] = await Promise.all(responses.map((response) => response.json()))
                 seen = `${health.status} ${health.version}, database ${database.database}`
-                if (health.status === 'healthy' && versionAtLeast(health.version, expectedVersion)
-                  && database.database === 'connected') {
+                const order = compareVersions(health.version, expectedVersion)
+                if (order > 0) {
+                  superseded = true
+                  break
+                }
+                if (health.status === 'healthy' && order === 0 && database.database === 'connected') {
                   ready = true
                   break
                 }
@@ -96,9 +102,10 @@ jobs:
               // A backend rollout can briefly interrupt health requests.
               seen = `request failed: ${error.message}`
             }
-            console.log(`Waiting for healthy backend ${expectedVersion} or newer before publishing Pages; last saw ${seen}.`)
+            console.log(`Waiting for healthy backend ${expectedVersion} before publishing Pages; last saw ${seen}.`)
             await setTimeout(10000)
           }
+          if (superseded) throw new Error(`Backend is already newer than ${expectedVersion} (saw ${seen}). A later run publishes the matching frontend, so this run publishes nothing.`)
           if (!ready) throw new Error(`Backend rollout is not ready (last saw ${seen}). The existing Pages deployment remains active.`)
           console.log(`Backend ready (${seen}) for frontend ${expectedVersion}.`)
           NODE

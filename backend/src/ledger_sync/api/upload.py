@@ -58,7 +58,8 @@ def _read_snapshot(body: bytes) -> TransactionUploadRequest:
         return TransactionUploadRequest.model_validate_json(body)
     except ValidationError as e:
         errors = [
-            {**error, "loc": ("body", *error["loc"])} for error in e.errors(include_url=False)
+            {**error, "loc": ("body", *error["loc"])}
+            for error in e.errors(include_url=False, include_input=False)
         ]
         raise RequestValidationError(errors) from e
 
