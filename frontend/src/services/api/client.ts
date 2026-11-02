@@ -338,13 +338,12 @@ function withBearer(headers: AxiosRequestConfig['headers'], token: string): Axio
 
 // Refresh tokens are single-use, and one that comes back after the server's 60 s
 // grace revokes every session for the account. A failure that may have rotated the
-// pair (no response, a timeout, most 5xx) therefore ends the local session. Only a
-// 429 (the limiter runs before rotation) or a 503 (the database refused the write)
-// proves the stored token is still unused, so those keep it for the next attempt.
+// pair (no response, a timeout, any 5xx) therefore ends the local session. Only a
+// 429 proves the stored token is still unused (the limiter runs before rotation),
+// so that alone keeps it for the next attempt.
 function isRefreshRejected(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return true
-  const status = error.response?.status
-  return status !== 429 && status !== 503
+  return error.response?.status !== 429
 }
 
 // Concurrent 401s share one refresh within their original session only.
