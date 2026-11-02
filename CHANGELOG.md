@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.35.1 - 2026-11-02
+
+### Fixed
+
+- **A page opened after a deploy no longer fails to load.** A tab, or the installed app's first launch, could still run the previous build after the new service worker had deleted its files, so the next page you opened asked for a file that no longer exists (a 404 on `OverviewPage-<hash>.js`). The app now reloads once to pick up the current build. If the page still fails within a minute, it shows the existing "Failed to load page" screen with a Reload button instead of reloading again.
+
 ## 2.35.0 - 2026-11-02
 
 A whole-repo bug hunt: 524 raw findings, merged to 487 distinct ones, were each checked by three independent refuters. 386 held up, and 363 are fixed here; 21 wait on a decision. No new migration (two old revisions now refuse to downgrade, like the rest), and the API only gains optional fields.
