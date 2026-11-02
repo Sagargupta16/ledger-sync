@@ -8,6 +8,7 @@ import {
 
 import { ProgressBar } from '@/components/shared'
 import { colors } from '@/constants/colors'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
 
 import type { useYearInReview } from '../useYearInReview'
@@ -20,7 +21,11 @@ interface YearStatsGridProps {
   readonly stats: YearStats
 }
 
+const DEFAULT_SAVINGS_GOAL = 20
+
 export default function YearStatsGrid({ stats }: YearStatsGridProps) {
+  const savingsGoal = usePreferences().data?.savings_goal_percent ?? DEFAULT_SAVINGS_GOAL
+  const savingsColor = stats.savingsRate >= savingsGoal ? colors.app.green : colors.app.orange
   return (
     <div className="grid grid-cols-1 gap-x-6 gap-y-5 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-4">
       <StatCard
@@ -39,15 +44,15 @@ export default function YearStatsGrid({ stats }: YearStatsGridProps) {
         label="Savings Rate"
         value={formatPercent(stats.savingsRate)}
         icon={stats.savingsRate >= 0 ? ArrowUpRight : ArrowDownRight}
-        color={stats.savingsRate >= 20 ? colors.app.green : colors.app.orange}
+        color={savingsColor}
         footer={
           <ProgressBar
             value={stats.savingsRate}
-            max={50}
-            target={20}
-            color={stats.savingsRate >= 20 ? colors.app.green : colors.app.orange}
+            max={Math.max(50, savingsGoal * 2.5)}
+            target={savingsGoal}
+            color={savingsColor}
             height={6}
-            ariaLabel={`Savings rate ${stats.savingsRate.toFixed(1)} percent against a 20 percent target`}
+            ariaLabel={`Savings rate ${stats.savingsRate.toFixed(1)} percent against a ${savingsGoal} percent target`}
           />
         }
       />

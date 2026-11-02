@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 
 import { motion } from 'motion/react'
 import { CreditCard, AlertTriangle, CheckCircle, CircleHelp, Info } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
@@ -12,9 +11,10 @@ import ProgressBar from '@/components/shared/ProgressBar'
 import { Money } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import { ROUTES } from '@/constants'
+import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
+import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import type { AccountTypeValue } from '@/services/api/accountClassifications'
-import { accountClassificationsService } from '@/services/api/accountClassifications'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import {
   buildCreditCardAccount,
@@ -231,17 +231,17 @@ export default function CreditCardHealth() {
   // Settings -> Accounts. Previously this component only looked for the
   // literal word "credit" in the account name -- cards named "HDFC Millennia"
   // or "Amazon Pay Card" were silently dropped.
-  const classificationsQuery = useQuery({
-    queryKey: ['account-classifications'],
-    queryFn: () => accountClassificationsService.getAllClassifications(),
-    staleTime: Infinity,
-  })
+  const classificationsQuery = useAccountClassifications()
   const { data: classifications, isLoading: isClassifyLoading } = classificationsQuery
+  // Settings offers no limit for a closed card, so it is not rated here either.
+  const closedAccountsQuery = useClosedAccounts()
+  const { data: closedAccounts, isLoading: isClosedLoading } = closedAccountsQuery
 
-  const isLoading = isBalanceLoading || isClassifyLoading
+  const isLoading = isBalanceLoading || isClassifyLoading || isClosedLoading
   // A failed classification read would silently fall back to the name match
-  // and drop user-classified cards, so it is an error here too, not a subset.
-  const isError = balancesQuery.isError || classificationsQuery.isError
+  // and drop user-classified cards, and a failed closed-list read would rate
+  // closed cards, so each is an error here too, not a subset.
+  const isError = balancesQuery.isError || classificationsQuery.isError || closedAccountsQuery.isError
 
   const creditCards = useMemo((): CreditCardAccount[] => {
     if (!balanceData?.accounts) return []
@@ -249,6 +249,8 @@ export default function CreditCardHealth() {
     const cards: CreditCardAccount[] = []
 
     Object.entries(balanceData.accounts).forEach(([name, data]) => {
+      if (closedAccounts?.includes(name)) return
+
       // Prefer the user's explicit classification. Fall back to the old name
       // match only when the account hasn't been classified yet -- so users
       // who haven't visited Settings > Accounts still see their cards.
@@ -269,7 +271,7 @@ export default function CreditCardHealth() {
       if (b.utilization === null) return -1
       return b.utilization - a.utilization
     })
-  }, [balanceData, creditCardLimits, classifications])
+  }, [balanceData, creditCardLimits, classifications, closedAccounts])
 
   // Every aggregate needing a denominator is computed over measured cards only,
   // and the coverage is always disclosed next to the number.
@@ -292,6 +294,7 @@ export default function CreditCardHealth() {
     const retryCreditCards = () => {
       if (balancesQuery.isError) void balancesQuery.refetch()
       if (classificationsQuery.isError) void classificationsQuery.refetch()
+      if (closedAccountsQuery.isError) void closedAccountsQuery.refetch()
     }
     return (
       <ErrorState

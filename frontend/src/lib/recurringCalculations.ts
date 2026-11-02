@@ -1,7 +1,7 @@
 import { getDateKey, MONTHS_PER_YEAR, MS_PER_DAY, parseLocalDate, toLocalDateKey } from '@/lib/dateUtils'
 import { DAYS_PER_YEAR, recurrenceCadence, toMonthlyAmount } from '@/lib/recurrenceFrequency'
 import { medianOf } from '@/lib/distribution'
-import { currentMonthKey, shareOfIncomePercent } from '@/lib/savingsRate'
+import { isCompleteMonth, shareOfIncomePercent } from '@/lib/savingsRate'
 import type { RecurringTransaction } from '@/services/api/analyticsV2'
 
 type RecurringFreshness = 'confirmed' | 'recent' | 'needs-review' | 'unassessed' | 'paused'
@@ -147,7 +147,7 @@ export function typicalMonthlyIncome(
   now: Date = new Date(),
 ): number | null {
   if (!summaries?.length) return null
-  const usable = summaries.filter((row) => row.period < currentMonthKey(now) && row.income.total > 0)
+  const usable = summaries.filter((row) => isCompleteMonth(row.period, now) && row.income.total > 0)
   if (usable.length === 0) return null
   const window = new Set(
     usable.map((row) => row.period).sort((a, b) => a.localeCompare(b)).slice(-RECENT_INCOME_MONTHS),

@@ -63,7 +63,7 @@ export function NetWorthViewToggles({
         }}
         disabled={!stackedAllowed}
         aria-pressed={effectiveStacked}
-        title={stackedAllowed ? undefined : 'Stacked view is unavailable while net worth is negative in this range'}
+        title={stackedAllowed ? undefined : 'Stacked view is unavailable in this range: it needs asset categories and a net worth that stays above zero'}
         className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-blue/50 disabled:cursor-not-allowed disabled:opacity-40 ${effectiveStacked
             ? 'border-primary bg-primary text-primary-foreground'
             : 'border-border bg-[var(--overlay-2)] text-muted-foreground hover:bg-[var(--overlay-5)]'

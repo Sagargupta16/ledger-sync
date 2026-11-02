@@ -66,10 +66,16 @@ class CsvLoader:
             df = pd.read_csv(file_path, encoding="utf-8", nrows=MAX_UPLOAD_ROWS + 1)
             logger.info(f"Loaded {len(df)} rows from CSV")
         except UnicodeDecodeError:
-            # Fall back to latin-1 which accepts any byte sequence
+            # Excel on Windows saves cp1252, whose curly quotes and dashes latin-1 would
+            # read as control characters. latin-1 stays the last resort: it accepts any
+            # byte sequence, including the few bytes cp1252 leaves undefined.
             try:
-                df = pd.read_csv(file_path, encoding="latin-1", nrows=MAX_UPLOAD_ROWS + 1)
-                logger.info(f"Loaded {len(df)} rows from CSV (latin-1 fallback)")
+                try:
+                    df = pd.read_csv(file_path, encoding="cp1252", nrows=MAX_UPLOAD_ROWS + 1)
+                    logger.info(f"Loaded {len(df)} rows from CSV (cp1252 fallback)")
+                except UnicodeDecodeError:
+                    df = pd.read_csv(file_path, encoding="latin-1", nrows=MAX_UPLOAD_ROWS + 1)
+                    logger.info(f"Loaded {len(df)} rows from CSV (latin-1 fallback)")
             except (ValueError, OSError) as e:
                 msg = f"Failed to read CSV file: {e}"
                 raise ValidationError(msg) from e

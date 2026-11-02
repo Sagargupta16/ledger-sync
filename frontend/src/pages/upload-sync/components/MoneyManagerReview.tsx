@@ -90,6 +90,13 @@ export default function MoneyManagerReview({
 
         {planning && <BackupPlanningSummary planning={planning} />}
 
+        {preview.planning_message && (
+          <div className="flex items-start gap-3 rounded-md border border-app-yellow/30 bg-app-yellow/10 p-4">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-text" aria-hidden="true" />
+            <p className="min-w-0 text-sm leading-6 text-warning-text">{preview.planning_message}</p>
+          </div>
+        )}
+
         <div className="flex items-start gap-3 rounded-md border border-app-yellow/30 bg-app-yellow/10 p-4">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning-text" aria-hidden="true" />
           <div className="min-w-0 space-y-2 text-sm leading-6">

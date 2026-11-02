@@ -49,7 +49,8 @@ export function useComparisonData() {
   const currentMonthKey = useMemo(() => getCurrentMonth(), [])
   const defaultMonths = useMemo(() => {
     const complete = monthOptions.filter((m) => m < currentMonthKey)
-    return { a: complete[1] || monthOptions[1] || '', b: complete[0] || monthOptions[0] || '' }
+    const b = complete[0] || monthOptions[0] || ''
+    return { a: complete[1] || monthOptions[1] || b, b }
   }, [monthOptions, currentMonthKey])
   const [monthA, setMonthA] = useState('')
   const [monthB, setMonthB] = useState('')
@@ -58,8 +59,18 @@ export function useComparisonData() {
 
   // Year selectors
   const yearOptions = useMemo(() => getYearOptions(transactions), [transactions])
-  const [yearA, setYearA] = useState(() => getCurrentYear() - 1)
-  const [yearB, setYearB] = useState(() => getCurrentYear())
+  // Keep null until the user picks, and derive the default from the LOADED
+  // options so the select always shows the year that is compared.
+  const defaultYears = useMemo(() => {
+    const curr = getCurrentYear()
+    const b = yearOptions.includes(curr) ? curr : (yearOptions[0] ?? curr)
+    const a = yearOptions[yearOptions.indexOf(b) + 1] ?? yearOptions.at(-1) ?? b - 1
+    return { a, b }
+  }, [yearOptions])
+  const [yearAChoice, setYearA] = useState<number | null>(null)
+  const [yearBChoice, setYearB] = useState<number | null>(null)
+  const yearA = yearAChoice ?? defaultYears.a
+  const yearB = yearBChoice ?? defaultYears.b
 
   // FY selectors
   const fyOptions = useMemo(
@@ -102,8 +113,8 @@ export function useComparisonData() {
         if (d < startDate || d > endDate) continue
         count++
         const cat = tx.category || 'Uncategorized'
-        if (!cats[cat]) cats[cat] = { income: 0, expense: 0 }
         if (tx.type === 'Income') {
+          if (!cats[cat]) cats[cat] = { income: 0, expense: 0 }
           income += Math.abs(tx.amount)
           cats[cat].income += Math.abs(tx.amount)
         } else if (tx.type === 'Expense' && isCapitalLoss(tx, lossConfig)) {
@@ -112,6 +123,7 @@ export function useComparisonData() {
           // left, so savings still subtract it below (the `/totals` rule).
           capitalLosses += Math.abs(tx.amount)
         } else if (tx.type === 'Expense') {
+          if (!cats[cat]) cats[cat] = { income: 0, expense: 0 }
           expense += Math.abs(tx.amount)
           cats[cat].expense += Math.abs(tx.amount)
         }
@@ -172,7 +184,7 @@ export function useComparisonData() {
   }, [mode, effectiveMonthA, effectiveMonthB, yearA, yearB, fyA, fyB, fiscalYearStartMonth])
 
   /**
-   * When period B is still running, BOTH spans are cut to the same elapsed-day
+   * When either period is still running, BOTH spans are cut to the same elapsed-day
    * count. A month, a calendar year and an FY all suffer the same distortion
    * otherwise: 26 days of July against all 31 of June reads as a spending win,
    * and two months into an FY against a full prior FY reads as an 83% income
@@ -183,11 +195,11 @@ export function useComparisonData() {
   const partialPeriod = useMemo((): PartialPeriod | null => {
     if (!aligned.partial) return null
     return {
-      label: rawSpans.labelB,
+      label: aligned.runningSide === 'a' ? rawSpans.labelA : rawSpans.labelB,
       daysElapsed: aligned.partial.daysElapsed,
       daysTotal: aligned.partial.daysTotal,
     }
-  }, [aligned, rawSpans.labelB])
+  }, [aligned, rawSpans.labelA, rawSpans.labelB])
 
   const [periodA, periodB] = useMemo((): [PeriodSummary, PeriodSummary] => {
     if (transactions.length === 0) {
@@ -199,8 +211,8 @@ export function useComparisonData() {
     }
 
     const isPartial = aligned.partial !== null
-    const labelA = isPartial ? `${rawSpans.labelA} (to same day)` : rawSpans.labelA
-    const labelB = isPartial ? `${rawSpans.labelB} (to date)` : rawSpans.labelB
+    const labelA = isPartial ? `${rawSpans.labelA} (${aligned.runningSide === 'a' ? 'to date' : 'to same day'})` : rawSpans.labelA
+    const labelB = isPartial ? `${rawSpans.labelB} (${aligned.runningSide === 'b' ? 'to date' : 'to same day'})` : rawSpans.labelB
     return [
       buildSummary(labelA, aligned.a.start, aligned.a.end, isPartial),
       buildSummary(labelB, aligned.b.start, aligned.b.end, isPartial),
@@ -242,7 +254,6 @@ export function useComparisonData() {
       .map(([cat, data]) => ({ name: cat, value: data.expense }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8)
   }, [periodA])
 
   const distributionB = useMemo(() => {
@@ -250,7 +261,6 @@ export function useComparisonData() {
       .map(([cat, data]) => ({ name: cat, value: data.expense }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8)
   }, [periodB])
 
   // Auto-generated insights

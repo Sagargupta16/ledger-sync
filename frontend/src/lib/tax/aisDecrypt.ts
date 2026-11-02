@@ -79,9 +79,14 @@ function readEnvelope(fileText: string) {
       'This is not the encrypted AIS JSON. On the AIS portal choose Download, then JSON (not the PDF or the CSV).',
     )
   }
-  const ciphertexts = ciphertextCandidates(payload.slice(64).replaceAll(/[\r\n]/g, ''))
-  if (ciphertexts.length === 0) {
+  const candidates = ciphertextCandidates(payload.slice(64).replaceAll(/[\r\n]/g, ''))
+  if (candidates.length === 0) {
     throw new AisDecryptError('The encrypted part is neither base64 nor hex. Is this the AIS JSON download?')
+  }
+  // AES-CBC output is whole 16-byte blocks; any other length is a cut-off download, not a wrong password.
+  const ciphertexts = candidates.filter((bytes) => bytes.length % 16 === 0)
+  if (ciphertexts.length === 0) {
+    throw new AisDecryptError('The encrypted part is cut short, so it cannot be opened. Download the AIS JSON again.')
   }
   return { iv: hexBytes(payload.slice(0, 32)), salt: hexBytes(payload.slice(32, 64)), ciphertexts }
 }

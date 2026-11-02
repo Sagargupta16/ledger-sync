@@ -260,7 +260,7 @@ function AppRoutes() {
   const visibleLocation = isPublicRoute ? location : deferredLocation
   const pendingTitle = location.pathname === visibleLocation.pathname
     ? undefined
-    : PAGE_TITLES[location.pathname] ?? 'Page'
+    : PAGE_TITLES[location.pathname.toLowerCase().replace(/\/$/, '')] ?? 'Page'
 
   return (
     <Routes location={visibleLocation}>

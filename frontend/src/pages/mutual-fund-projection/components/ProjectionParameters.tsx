@@ -1,3 +1,6 @@
+const MIN_PROJECTION_YEARS = 1
+const MAX_PROJECTION_YEARS = 40
+
 interface ProjectionParametersProps {
   sipInputValue: number
   expectedReturn: number
@@ -95,10 +98,12 @@ export function ProjectionParameters(props: Readonly<ProjectionParametersProps>)
             type="number"
             inputMode="decimal"
             value={projectionYears}
-            onChange={(e) => onProjectionYearsChange(Number(e.target.value))}
+            onChange={(e) => onProjectionYearsChange(
+              Math.min(MAX_PROJECTION_YEARS, Math.max(MIN_PROJECTION_YEARS, Number(e.target.value))),
+            )}
             className="ledger-control min-h-11 w-full rounded-md border px-3 py-2.5 text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-10"
-            min="1"
-            max="40"
+            min={MIN_PROJECTION_YEARS}
+            max={MAX_PROJECTION_YEARS}
           />
         </div>
 

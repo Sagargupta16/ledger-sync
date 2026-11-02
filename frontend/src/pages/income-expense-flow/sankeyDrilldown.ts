@@ -33,6 +33,11 @@ export interface DrillCrumb {
   flow: 'income' | 'expense'
   /** view='other' only: the folded tail categories to display. */
   tail?: FlowEntry[]
+  /**
+   * flow='expense' category view: true when opened from the Tax branch (only its tax-paid rows),
+   * false from Expenses (only the rest). Unset follows the category name, which is all one branch.
+   */
+  tax?: boolean
 }
 
 export interface SankeyNodeMeta {
@@ -132,18 +137,20 @@ export function foldTopWithOther(
   return { entries, tail }
 }
 
-/** Distinct positive subcategory buckets per category, per flow. Drives "is
- * this category worth drilling into" (>= 2 buckets; a single bucket view
- * would just restate the category). */
+/** Distinct positive subcategory buckets per category, per flow; tax-paid
+ * expense rows are counted apart from the rest because they form their own
+ * branch. Drives "is this category worth drilling into" (>= 2 buckets; a
+ * single bucket view would just restate the category). */
 export function countSubBuckets(
   transactions: Transaction[],
-): { income: Map<string, Set<string>>; expense: Map<string, Set<string>> } {
+): { income: Map<string, Set<string>>; expense: Map<string, Set<string>>; tax: Map<string, Set<string>> } {
   const income = new Map<string, Set<string>>()
   const expense = new Map<string, Set<string>>()
+  const tax = new Map<string, Set<string>>()
   for (const txn of transactions) {
     let map: Map<string, Set<string>>
     if (txn.type === 'Income') map = income
-    else if (txn.type === 'Expense') map = expense
+    else if (txn.type === 'Expense') map = isTaxCategory(txn.category || 'Other Expense', txn.subcategory) ? tax : expense
     else continue
     if (txn.amount <= 0) continue
     const category = txn.category || (map === income ? 'Other Income' : 'Other Expense')
@@ -151,7 +158,7 @@ export function countSubBuckets(
     if (!map.has(category)) map.set(category, new Set())
     map.get(category)!.add(sub)
   }
-  return { income, expense }
+  return { income, expense, tax }
 }
 
 const categoryCrumb = (flow: 'income' | 'expense', label: string): DrillCrumb => ({
@@ -199,6 +206,7 @@ export function buildCategoryView(
     if (txn.type !== txnType || txn.amount <= 0) continue
     const category = txn.category || (crumb.flow === 'income' ? 'Other Income' : 'Other Expense')
     if (category !== crumb.label) continue
+    if (crumb.flow === 'expense' && isTaxCategory(category, txn.subcategory) !== (crumb.tax ?? isTaxCategory(category))) continue
     const sub = txn.subcategory?.trim() || NO_SUBCATEGORY
     bySub[sub] = (bySub[sub] || 0) + txn.amount
   }

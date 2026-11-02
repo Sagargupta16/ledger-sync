@@ -4,7 +4,6 @@ import {
   accountBalancesOptions,
   masterCategoriesOptions,
   monthlyAggregationOptions,
-  recentTransactionsOptions,
   totalsOptions,
   trendsOptions,
 } from '@/hooks/api/useAnalytics'
@@ -55,7 +54,6 @@ export function getDemoTransactions() {
  */
 export function seedDemoCache(qc: QueryClient): void {
   const txs = getDemoTransactions()
-  const recentTxs = txs.slice(0, 5) // already sorted newest-first
 
   // Preferences -- no DEMO_ROUTES entry, so this seed is the only data source.
   qc.setQueryData(['preferences'], generateDemoPreferences())
@@ -67,15 +65,12 @@ export function seedDemoCache(qc: QueryClient): void {
   // figures come from `/api/dashboard-metrics`, which DEMO_ROUTES answers from
   // `demoDashboardMetrics.ts` over these same transactions.
   qc.setQueryData(['transactions', undefined], txs)
-  // `useDashboardMetrics` keeps this warm for other pages.
-  qc.setQueryData(recentTransactionsOptions(5).queryKey, recentTxs)
 
   // Calculations. Keys come from the same factories the hooks call, so a param
   // added to a factory can no longer leave the seed behind on a stale slot.
   qc.setQueryData(totalsOptions().queryKey, generateDemoTotals(txs))
   qc.setQueryData(monthlyAggregationOptions().queryKey, generateDemoMonthlyAggregation(txs))
   qc.setQueryData(accountBalancesOptions().queryKey, generateDemoAccountBalances(txs))
-  // No DEMO_ROUTES entry either -- the seed is the only source.
   qc.setQueryData(masterCategoriesOptions().queryKey, generateDemoMasterCategories(txs))
 
   // Analytics V1 -- `useTrends('all_time')` is the one v1 endpoint still read.

@@ -1,14 +1,13 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo, type ReactNode } from 'react'
 
-import { Wallet, CreditCard, Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
-import { Link, useNavigate } from 'react-router'
+import { Upload, ArrowUpRight, CalendarRange } from 'lucide-react'
+import { Link } from 'react-router'
 import InvestmentFlowSummary from '@/components/analytics/InvestmentFlowSummary'
+import SourcePanel from '@/components/analytics/SourcePanel'
 
-import PieLegend from '@/components/shared/PieLegend'
-import { capPieSlices } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import QuickInsights from '@/components/shared/QuickInsights'
-import LoadingSkeleton, {
+import {
   CardGridSkeleton,
   ChartSkeleton,
   PageSkeleton,
@@ -18,8 +17,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
-import { formatCurrency, formatCurrencyShort, formatDate } from '@/lib/formatters'
-import { getCurrentFY, getTodayKey } from '@/lib/dateUtils'
+import { formatCurrency, formatDate } from '@/lib/formatters'
+import { getFYFromDate, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
 import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
@@ -30,7 +29,6 @@ import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 // modulepreloaded on every entry, including the anonymous Home page. The chart
 // components are what pull the chart kit in; loading them on demand keeps it
 // off the first-load path. Each fallback matches its component's footprint.
-const StandardPieChart = lazy(() => import('@/components/analytics/StandardPieChart'))
 const MonthlyFlowChart = lazy(() => import('@/components/analytics/MonthlyFlowChart'))
 const FinancialHealthScore = lazy(() => import('@/components/analytics/FinancialHealthScore'))
 // The recap's Explain button pulls in the chat adapters, the watch tiles
@@ -40,17 +38,17 @@ const SafeToSpendCard = lazy(() => import('@/components/analytics/SafeToSpendCar
 const WeeklyRecapCard = lazy(() => import('@/components/analytics/WeeklyRecapCard'))
 const WatchTiles = lazy(() => import('@/components/analytics/WatchTiles'))
 
-const PIE_FALLBACK = <LoadingSkeleton className="h-[180px] w-full" />
 const SAFE_TO_SPEND_FALLBACK = <PanelSkeleton blocks={2} blockClassName="h-16" />
 
-function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
+function DashboardEmpty({ hasHistory, onViewAll, toolbar }: Readonly<{
   hasHistory: boolean
   onViewAll: () => void
+  toolbar: ReactNode
 }>) {
   const empty = hasHistory ? {
     icon: CalendarRange,
     title: 'No transactions in this period',
-    description: 'Your history is available. Choose the full history to continue exploring.',
+    description: 'Pick another period above, or open your full history.',
     actionLabel: 'View all history',
     onAction: onViewAll,
   } : {
@@ -63,6 +61,7 @@ function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
   return (
     <PageContainer>
       <PageHeader title="Dashboard" subtitle="Monitor cash flow, financial health, and account activity." />
+      {hasHistory && toolbar}
       {/* Safe to spend is about today, so an empty period still shows it. */}
       {hasHistory && (
         <Suspense fallback={SAFE_TO_SPEND_FALLBACK}>
@@ -75,8 +74,6 @@ function DashboardEmpty({ hasHistory, onViewAll }: Readonly<{
 }
 
 export default function DashboardPage() {
-  const navigate = useNavigate()
-
   const {
     viewMode, setViewMode,
     currentYear, setCurrentYear,
@@ -99,8 +96,8 @@ export default function DashboardPage() {
 
   // Fixed Commitments from active recurring.
   //
-  // Commitments only, confirmed OR detected. Requiring is_confirmed read 0 --
-  // nothing in the product sets that flag, so a ledger full of real rent
+  // Commitments only, confirmed OR detected. Requiring is_confirmed read 0 until
+  // rows are confirmed on the Subscriptions page, so a ledger full of real rent
   // reported no fixed costs. Habit rows (the daily lunch) are excluded because
   // they repeat without being owed. The shared params object keeps this on the
   // same cache entry as every other "active commitments" reader.
@@ -116,16 +113,10 @@ export default function DashboardPage() {
     [fixedCommitments, today],
   )
 
-  const incomeTotal = useMemo(() => incomeChartData.reduce((sum, d) => sum + d.value, 0), [incomeChartData])
-  const expenseTotal = useMemo(() => expenseChartData.reduce((sum, d) => sum + d.value, 0), [expenseChartData])
-
-  // The legend is built from the SAME capped array the pie renders, not a
-  // hand-mirrored slice count -- that drifted the moment the pie's default cap
-  // changed (7 rows listed against 6 wedges, row 7 wearing a color the pie never
-  // painted). One row per wedge, including the folded "Other" rollup, so the
-  // rows also add up to the Total below.
-  const incomeSlices = useMemo(() => capPieSlices(incomeChartData), [incomeChartData])
-  const expenseSlices = useMemo(() => capPieSlices(expenseChartData), [expenseChartData])
+  const incomeBreakdownTotal = useMemo(
+    () => Object.values(incomeBreakdown ?? {}).reduce((a, b) => a + b, 0),
+    [incomeBreakdown],
+  )
 
   // One snapshot gates the page: the rollups and `/api/dashboard-metrics/pulse`
   // (Age of Money, Days of Buffering, the investment-transfer split) settle
@@ -137,9 +128,22 @@ export default function DashboardPage() {
     void recurringQuery.refetch()
   }
   const focusCurrentFY = () => {
-    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    setCurrentFY(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
     setViewMode('fy')
   }
+
+  const timeToolbar = (
+    <StickyToolbar label="Time range">
+      <AnalyticsTimeFilter
+        viewMode={viewMode} onViewModeChange={setViewMode}
+        currentYear={currentYear} currentMonth={currentMonth} currentFY={currentFY}
+        onYearChange={setCurrentYear} onMonthChange={setCurrentMonth} onFYChange={setCurrentFY}
+        minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
+        fiscalYearStartMonth={fiscalYearStartMonth}
+      />
+      <PeriodSettlingBar active={isSettling} />
+    </StickyToolbar>
+  )
 
   if (pageLoading) return <PageSkeleton />
 
@@ -157,7 +161,11 @@ export default function DashboardPage() {
   // instead of a grid of empty widgets.
   if (!hasTransactionsInRange) {
     return (
-      <DashboardEmpty hasHistory={Boolean(dataDateRange.maxDate)} onViewAll={() => setViewMode('all_time')} />
+      <DashboardEmpty
+        hasHistory={Boolean(dataDateRange.maxDate)}
+        onViewAll={() => setViewMode('all_time')}
+        toolbar={timeToolbar}
+      />
     )
   }
 
@@ -168,16 +176,7 @@ export default function DashboardPage() {
         subtitle="Monitor cash flow, financial health, and account activity."
       />
 
-      <StickyToolbar label="Time range">
-        <AnalyticsTimeFilter
-          viewMode={viewMode} onViewModeChange={setViewMode}
-          currentYear={currentYear} currentMonth={currentMonth} currentFY={currentFY}
-          onYearChange={setCurrentYear} onMonthChange={setCurrentMonth} onFYChange={setCurrentFY}
-          minDate={dataDateRange.minDate} maxDate={dataDateRange.maxDate}
-          fiscalYearStartMonth={fiscalYearStartMonth}
-        />
-        <PeriodSettlingBar active={isSettling} />
-      </StickyToolbar>
+      {timeToolbar}
 
       {/* Today to payday, the last full week and this month so far: none follows
           the time range, so they sit outside the settling wrapper and never dim. */}
@@ -248,108 +247,19 @@ export default function DashboardPage() {
 
         {/* Spending first, then the income that funds it. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Expense Sources */}
-          <section className="dashboard-source ledger-panel p-4 sm:p-5">
-            <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
-              <span className="flex size-7 items-center justify-center text-app-red">
-                <CreditCard className="size-3.5 text-app-red" />
-              </span>
-              <span>Expense Sources</span>
-            </h2>
-            {expenseChartData.length > 0 ? (
-              <div className="dashboard-source-body">
-                <Suspense fallback={PIE_FALLBACK}>
-                  <StandardPieChart
-                    data={expenseChartData}
-                    height={180}
-                    showLegend={false}
-                    ariaLabel="Expense sources pie chart"
-                    centerValue={formatCurrencyShort(expenseTotal)}
-                    centerLabel="Total"
-                    onSliceClick={(name) => {
-                      void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                    }}
-                  />
-                </Suspense>
-                <div className="space-y-1">
-                  <PieLegend
-                    slices={expenseSlices}
-                    focusRingClass="focus-visible:ring-app-red/40"
-                    onSelect={(name) => {
-                      void navigate(`${ROUTES.SPENDING_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                    }}
-                  />
-                  <div className="pt-2 mt-2 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Total</span>
-                      <span className="text-sm font-bold text-app-red">{formatCurrency(expenseTotal)}</span>
-                    </div>
-                  </div>
-                </div>
+          <SourcePanel kind="expense" data={expenseChartData} />
+          <SourcePanel kind="income" data={incomeChartData} total={incomeBreakdownTotal}>
+            {/* Same figure and label as the band's "Net Cashback Earned"
+                card: cashback rows minus cashback shared on. It used to
+                read "Cashbacks Earned" over the whole non-taxable list,
+                product refunds and reimbursements included. */}
+            {cashbacksTotal > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-app-teal">Net Cashback Earned</span>
+                <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
               </div>
-            ) : (
-              <EmptyState icon={CreditCard} title="No expense data available" description="Upload transactions to see your expense breakdown." actionLabel="Upload Data" actionHref="/upload" variant="compact" />
             )}
-          </section>
-          {/* Income Sources */}
-          <section className="dashboard-source ledger-panel p-4 sm:p-5">
-            <h2 className="mb-5 flex items-center gap-2.5 text-base font-semibold">
-              <span className="flex size-7 items-center justify-center text-app-green">
-                <Wallet className="size-3.5 text-app-green" />
-              </span>
-              <span>Income Sources</span>
-            </h2>
-            {incomeChartData.length > 0 ? (
-              <div className="dashboard-source-body">
-                <Suspense fallback={PIE_FALLBACK}>
-                  <StandardPieChart
-                    data={incomeChartData}
-                    height={180}
-                    showLegend={false}
-                    ariaLabel="Income sources pie chart"
-                    centerValue={formatCurrencyShort(incomeTotal)}
-                    centerLabel="Total"
-                    // `void navigate(...)`: react-router types it `void |
-                    // Promise<void>`, and these props expect a void return. Same
-                    // convention as CommandPalette and ProfileModal.
-                    onSliceClick={(name) => {
-                      void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                    }}
-                  />
-                </Suspense>
-                <div className="space-y-1">
-                  <PieLegend
-                    slices={incomeSlices}
-                    focusRingClass="focus-visible:ring-app-green/40"
-                    onSelect={(name) => {
-                      void navigate(`${ROUTES.INCOME_ANALYSIS}?category=${encodeURIComponent(name)}`)
-                    }}
-                  />
-                  {incomeBreakdown && (
-                    <div className="pt-2 mt-2 border-t border-border space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Total</span>
-                        <span className="text-sm font-bold text-app-green">{formatCurrency(Object.values(incomeBreakdown).reduce((a, b) => a + b, 0))}</span>
-                      </div>
-                      {/* Same figure and label as the band's "Net Cashback Earned"
-                          card: cashback rows minus cashback shared on. It used to
-                          read "Cashbacks Earned" over the whole non-taxable list,
-                          product refunds and reimbursements included. */}
-                      {cashbacksTotal > 0 && (
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-app-teal">Net Cashback Earned</span>
-                          <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <EmptyState icon={Wallet} title="No income data available" description="Configure income categories in Settings." actionLabel="Go to Settings" actionHref="/settings" variant="compact" />
-            )}
-          </section>
-
+          </SourcePanel>
         </div>
 
         <InvestmentFlowSummary flows={investmentTransfers} hasMappings={hasInvestmentMappings} />

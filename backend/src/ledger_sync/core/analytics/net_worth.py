@@ -221,18 +221,17 @@ class NetWorthMixin(AnalyticsEngineBase):
         if all_transactions is None:
             all_transactions = self._user_transaction_query().all()
 
-        if not self.investment_account_patterns:
-            return 0
-
-        holdings_data = _aggregate_holdings_data(
-            all_transactions,
-            self._is_investment_account,  # type: ignore[attr-defined]
+        holdings_data = (
+            _aggregate_holdings_data(
+                all_transactions,
+                self._is_investment_account,  # type: ignore[attr-defined]
+            )
+            if self.investment_account_patterns
+            else {}
         )
 
-        if not holdings_data:
-            return 0
-
-        # Delete existing auto-computed holdings for this user
+        # Delete existing auto-computed holdings for this user, even when nothing
+        # replaces them: a surviving row would keep being served as current.
         del_stmt = delete(InvestmentHolding)
         del_stmt = del_stmt.where(InvestmentHolding.user_id == self.user_id)
         self.db.execute(del_stmt)

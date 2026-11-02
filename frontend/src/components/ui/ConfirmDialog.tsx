@@ -60,8 +60,18 @@ function ConfirmDialogContent({
   // rejecting onConfirm behaves exactly as before. Every current caller already
   // handles its own errors (Settings reset toasts; goals and subscriptions pass
   // synchronous handlers).
+  // A second click while onConfirm is pending (or during the exit animation)
+  // is ignored; a rejection re-arms the button so the user can retry.
+  const confirmingRef = useRef(false)
   const handleConfirm = useCallback(async () => {
-    await onConfirm()
+    if (confirmingRef.current) return
+    confirmingRef.current = true
+    try {
+      await onConfirm()
+    } catch (error) {
+      confirmingRef.current = false
+      throw error
+    }
     handleClose()
   }, [onConfirm, handleClose])
 

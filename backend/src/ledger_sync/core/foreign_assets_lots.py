@@ -76,19 +76,28 @@ class Lot:
     def sold_vest_shares(self) -> Decimal:
         return sum((self._vest_shares_of(sale) for sale in self.sales), _ZERO)
 
+    def _unsold(self, sold: Decimal) -> Decimal:
+        left = self.held_quantity - sold
+        return _ZERO if left <= _SHARE_TOLERANCE else left
+
+    @property
+    def remaining_vest_shares(self) -> Decimal:
+        """Vest shares still held after every recorded sale."""
+        return self._unsold(self.sold_vest_shares)
+
     def vest_shares_before(self, day: date) -> Decimal:
         """Vest shares held as ``day`` opens: sales on that day have not happened yet."""
         if day < self.acquired_on:
             return _ZERO
         sold = sum((self._vest_shares_of(s) for s in self.sales if s.day < day), _ZERO)
-        return max(_ZERO, self.held_quantity - sold)
+        return self._unsold(sold)
 
     def vest_shares_after(self, day: date) -> Decimal:
         """Vest shares held when ``day`` closes, after its sales."""
         if day < self.acquired_on:
             return _ZERO
         sold = sum((self._vest_shares_of(s) for s in self.sales if s.day <= day), _ZERO)
-        return max(_ZERO, self.held_quantity - sold)
+        return self._unsold(sold)
 
     def shares_on(self, day: date, vest_shares: Decimal) -> Decimal:
         """The share count on ``day`` for ``vest_shares``, as a statement of that day shows."""

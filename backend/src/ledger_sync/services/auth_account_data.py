@@ -186,7 +186,8 @@ class AccountDataMixin:
                 (transactions, import logs, analytics, investment holdings).
                 Preserves preferences, budgets, goals, account classifications,
                 categorization rules, and saved views. Otherwise every
-                user-scoped table except usage and audit logs is cleared.
+                user-scoped table is cleared except usage and audit logs,
+                push subscriptions and upload tokens, which a reset keeps.
         """
         user_id = user.id
         lock_analytics_user(self.session, user_id)

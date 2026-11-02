@@ -27,5 +27,7 @@ export function useUpload() {
       queryClient.clear()
       prefetchCoreData()
     },
+    // The Upload page reports each failure itself, so skip the global toast.
+    onError: () => undefined,
   })
 }

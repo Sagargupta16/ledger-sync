@@ -33,6 +33,12 @@ export function OverviewMetricRow({
   const change = isPercent ? valueB - valueA : pctChange(valueB, valueA)
   const isPositive = change >= 0
   const isGood = invertChange ? !isPositive : isPositive
+  // A sub-1 swing is flat: neutral text to match the neutral icon.
+  const isFlat = Math.abs(change) < 1
+  let changeColorClass = 'text-muted-foreground'
+  if (!isFlat) {
+    changeColorClass = isGood ? 'text-app-green' : 'text-app-red'
+  }
   const fmtVal = (v: number) => (isPercent ? formatPercent(v) : formatCurrency(v))
 
   return (
@@ -40,7 +46,7 @@ export function OverviewMetricRow({
       {/* Header: metric label + change badge */}
       <div className="flex items-center justify-between gap-3 md:block">
         <span className="text-sm font-semibold text-foreground">{label}</span>
-        <div className={`flex items-center gap-1 font-mono text-xs font-medium tabular-nums md:mt-2 ${isGood ? 'text-app-green' : 'text-app-red'}`}>
+        <div className={`flex items-center gap-1 font-mono text-xs font-medium tabular-nums md:mt-2 ${changeColorClass}`}>
           <ChangeIcon change={change} size="w-3 h-3" />
           <span>{change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}</span>
         </div>

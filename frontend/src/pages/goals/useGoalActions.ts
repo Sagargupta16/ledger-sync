@@ -3,6 +3,7 @@ import { useState, type Dispatch, type SetStateAction, type SubmitEvent } from '
 import { toast } from 'sonner'
 
 import { useCreateGoal, useDeleteGoal, useUpdateGoal } from '@/hooks/api/useAnalyticsV2'
+import { getTodayKey } from '@/lib/dateKeys'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import type { FinancialGoal, UpdateGoalRequest } from '@/services/api/analyticsV2'
 
@@ -20,7 +21,7 @@ export default function useGoalActions(
   isDemoMode: boolean,
   setDemoGoals: Dispatch<SetStateAction<FinancialGoal[]>>,
 ) {
-  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showCreateForm, setShowCreateFormOpen] = useState(false)
   const [formData, setFormData] = useState(INITIAL_FORM_DATA)
   const [editingGoalId, setEditingGoalId] = useState<number | null>(null)
   const [editingDetailsGoalId, setEditingDetailsGoalId] = useState<number | null>(null)
@@ -29,6 +30,18 @@ export default function useGoalActions(
   const updateGoal = useUpdateGoal()
   const deleteGoal = useDeleteGoal()
   const isGoalMutationPending = updateGoal.isPending || deleteGoal.isPending
+
+  // Opening or closing the form starts it clean: no error from the last attempt.
+  const setShowCreateForm = (open: boolean) => {
+    setShowCreateFormOpen(open)
+    setValidationError(null)
+    createGoal.reset()
+  }
+
+  const clearEditingFor = (goalId: number) => {
+    setEditingGoalId((id) => (id === goalId ? null : id))
+    setEditingDetailsGoalId((id) => (id === goalId ? null : id))
+  }
 
   const handleCancelEdit = () => {
     if (isGoalMutationPending) return
@@ -62,7 +75,7 @@ export default function useGoalActions(
     }
     const onSuccess = () => {
       toast.success(isDemoMode ? 'Demo goal created for this visit' : 'Goal created')
-      setShowCreateForm(false)
+      setShowCreateFormOpen(false)
       setFormData(INITIAL_FORM_DATA)
     }
     if (isDemoMode) {
@@ -72,7 +85,7 @@ export default function useGoalActions(
         id: Math.min(0, ...goals.map((goal) => goal.id)) - 1,
         current_amount: 0,
         progress_pct: 0,
-        start_date: now,
+        start_date: getTodayKey(),
         is_achieved: false,
         achieved_date: null,
         created_at: now,
@@ -114,11 +127,13 @@ export default function useGoalActions(
     if (isGoalMutationPending) return false
     if (isDemoMode) {
       setDemoGoals((goals) => goals.filter((goal) => goal.id !== goalId))
+      clearEditingFor(goalId)
       toast.success('Demo goal removed for this visit')
       return true
     }
     try {
       await deleteGoal.mutateAsync(goalId)
+      clearEditingFor(goalId)
       toast.success('Goal deleted')
       return true
     } catch {
@@ -143,6 +158,7 @@ export default function useGoalActions(
     updateError: updateGoal.error ? getApiErrorMessage(updateGoal.error) : null,
     deleteError: deleteGoal.error ? getApiErrorMessage(deleteGoal.error) : null,
     deleteErrorGoalId: deleteGoal.variables,
+    clearDeleteError: () => deleteGoal.reset(),
     handleSubmit,
     handleSaveAllocation: (goalId: number, amount: number) =>
       saveGoal(goalId, { current_amount: amount }, 'Progress saved'),

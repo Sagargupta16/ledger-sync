@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { useCategoryBreakdown } from '@/hooks/api/useAnalytics'
+import { useCurrencyKey } from '@/hooks/useCurrencyKey'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { calculationsApi } from '@/services/api/calculations'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
@@ -67,7 +68,11 @@ export default function CategoryBreakdown({
   // calendar) and the backend buckets into exactly those, so the window lines
   // up with tx.date regardless of timezone -- no full-ledger fetch.
   const monthKeys = useMemo(() => trailingMonthKeys(12), [])
-  const { data: historyByCategory } = useQuery({
+  const {
+    data: historyByCategory,
+    isError: isHistoryError,
+    refetch: refetchHistory,
+  } = useQuery({
     queryKey: ['category-monthly-history', transactionType, monthKeys],
     queryFn: async () =>
       (await calculationsApi.getCategoryMonthlyHistory(monthKeys, transactionType)).data,
@@ -82,7 +87,7 @@ export default function CategoryBreakdown({
   // Theme-scoped copies of the in-place palettes, so rows re-colour on a toggle.
   const themedColorMap = usePaletteSnapshot(colorMap)
   const themedDefaultColors = usePaletteSnapshot(defaultColors)
-  const { categories, grandTotal } = useMemo(
+  const { categories } = useMemo(
     () => buildCategories(categoryData, themedColorMap, themedDefaultColors, monthlyHistoryByCategory, categoryFilter),
     [categoryData, themedColorMap, themedDefaultColors, monthlyHistoryByCategory, categoryFilter],
   )
@@ -91,10 +96,14 @@ export default function CategoryBreakdown({
   // series already on each row. `null` where there is nothing to average, so the
   // clause is dropped rather than printed as a zero. The label carries its own
   // divisor -- see `monthlyAvgLabel`.
-  const avgLabelByName = useMemo(
-    () => new Map(categories.map((cat) => [cat.name, monthlyAvgLabel(cat.monthlyHistory, formatCurrency)])),
-    [categories],
-  )
+  const currencyKey = useCurrencyKey()
+  const avgLabelByName = useMemo(() => {
+    void currencyKey // formatCurrency reads the display currency at call time, so a switch rebuilds the labels
+    return new Map(categories.map((cat) => [cat.name, monthlyAvgLabel(cat.monthlyHistory, formatCurrency)]))
+  }, [categories, currencyKey])
+  // The header total follows the rows on screen, so a category filter does not
+  // print the sum of the categories it hides.
+  const shownTotal = categories.reduce((sum, cat) => sum + cat.total, 0)
 
   // Auto-expand when a single category is rendered (deep-link drill-down).
   useEffect(() => {
@@ -110,13 +119,16 @@ export default function CategoryBreakdown({
     return <ChartSkeleton height="h-80" />
   }
 
-  if (isError) {
+  if (isError || isHistoryError) {
     return (
       <ErrorState
         variant="card"
         title={`Unable to load ${headerTitle}`}
         message="Your category totals couldn't be loaded. Try again to see the breakdown."
-        onRetry={() => { void refetch() }}
+        onRetry={() => {
+          if (isError) void refetch()
+          if (isHistoryError) void refetchHistory()
+        }}
       />
     )
   }
@@ -144,7 +156,7 @@ export default function CategoryBreakdown({
           <HeaderIcon className={`w-5 h-5 ${headerIconColor}`} />
           <div>
             <h3 className="text-lg font-semibold text-foreground">{headerTitle}</h3>
-            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(grandTotal)} total</p>
+            <p className="text-xs text-text-tertiary">{categories.length} categories &middot; {formatCurrency(shownTotal)} total</p>
           </div>
         </div>
       </div>

@@ -101,7 +101,7 @@ export default function MutualFundProjectionPage() {
       <ChartStatsFooter
         isLoading={m.isLoading}
         totalHistoricalInvested={m.totalHistoricalInvested}
-        currentBalance={m.currentBalance}
+        currentBalance={m.effectiveCurrentValue}
         projectedInvested={m.projection.invested}
         projectedValue={m.projection.value}
       />

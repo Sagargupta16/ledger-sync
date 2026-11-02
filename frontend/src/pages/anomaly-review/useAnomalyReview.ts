@@ -116,11 +116,8 @@ export function useAnomalyReview() {
         onSuccess: () => {
           if (copy?.recordChoice && choice) toast.success(`Saved: ${choice}`)
           else toast.success(dismiss ? 'Anomaly dismissed' : 'Anomaly reviewed')
-          setExpandedNoteId(null)
-          setNoteText('')
-        },
-        onError: () => {
-          toast.error('Failed to update anomaly review')
+          // Only the reviewed card's editor closes; another card's may be open by now.
+          setExpandedNoteId((current) => (current === anomalyId ? null : current))
         },
       },
     )

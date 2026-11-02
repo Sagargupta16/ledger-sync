@@ -86,6 +86,11 @@ type TileProps = Readonly<{
 /** One tile and its label. Geometry and fades are motion values, so moving never re-renders React. */
 function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered, revealed, onHover, onPress }: TileProps) {
   const [present, safeToRemove] = usePresence()
+  // A new callback arrives on every render; keeping it out of the exit effect's dependencies stops a re-render mid-exit restarting the tween.
+  const safeToRemoveRef = useRef(safeToRemove)
+  useEffect(() => {
+    safeToRemoveRef.current = safeToRemove
+  }, [safeToRemove])
   const { rect, origin, shown } = tile
   const visible = shown ? 1 : 0
   const from = entryRect(tile, still, entered)
@@ -119,7 +124,7 @@ function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered,
   useEffect(() => {
     if (present) return
     if (still) {
-      safeToRemove?.()
+      safeToRemoveRef.current?.()
       return
     }
     let cancelled = false
@@ -129,13 +134,13 @@ function Tile({ tile, label, active, dim, openable, gap, mobile, still, entered,
       animate(opacity, 0, FADE_OUT),
     ]
     void Promise.all(runs.map((run) => run.finished)).then(() => {
-      if (!cancelled) safeToRemove?.()
+      if (!cancelled) safeToRemoveRef.current?.()
     })
     return () => {
       cancelled = true
       for (const run of runs) run.stop()
     }
-  }, [present, still, safeToRemove, origin.x, origin.y, origin.width, origin.height, x, y, w, h, opacity])
+  }, [present, still, origin.x, origin.y, origin.width, origin.height, x, y, w, h, opacity])
 
   // A label fades in once its tile is near full size and out at once, so text never overhangs a shrinking tile.
   useEffect(() => {

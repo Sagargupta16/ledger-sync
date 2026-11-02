@@ -3,12 +3,13 @@ import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
 
 import { Button, Card } from '@/components/ui'
 
-import type { UploadConflict, UploadFailure, UploadSuccess } from '../useUploadSync'
+import type { BackupSuccess } from '../useMoneyManagerImport'
+import type { UploadConflict, UploadFailure } from '../useUploadSync'
 
 interface UploadFeedbackProps {
   readonly conflict: UploadConflict | null
   readonly failure: UploadFailure | null
-  readonly success: UploadSuccess | null
+  readonly success: BackupSuccess | null
   readonly isBusy: boolean
   readonly onForceReupload: () => void
   readonly onRetryUpload: () => Promise<void>
@@ -42,6 +43,12 @@ export default function UploadFeedback({
               {': '}
               {success.summary}
             </p>
+            {success.planningMessage && (
+              <div className="mt-3 flex items-start gap-2 border-t border-app-yellow/30 pt-3">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-text" aria-hidden="true" />
+                <p className="text-sm text-warning-text">{success.planningMessage}</p>
+              </div>
+            )}
             {success.analyticsStatus === 'ready' ? (
               <p className="mt-2 text-sm text-foreground">Insights are up to date.</p>
             ) : (

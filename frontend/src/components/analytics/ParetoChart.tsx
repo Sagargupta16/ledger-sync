@@ -46,6 +46,8 @@ interface ParetoChartProps {
   readonly itemNoun?: string
   /** Plural of `itemNoun`. Default `${itemNoun}s`, overridable for irregulars. */
   readonly itemNounPlural?: string
+  /** Shown in place of the chart when there is nothing to chart. */
+  readonly emptyMessage?: string
 }
 
 const SERIES: readonly SeriesSpec[] = [{ key: 'amount' }, { key: 'cumulativePct', axis: 'right' }]
@@ -86,6 +88,7 @@ export default function ParetoChart({
   title = 'Pareto Analysis',
   itemNoun = 'category',
   itemNounPlural,
+  emptyMessage = 'No spending in this range. Try a wider date range or upload more statements.',
 }: ParetoChartProps) {
   const isMobile = useIsMobile()
   const animate = useMotionStore((state) => state.mode !== 'reduced')
@@ -129,7 +132,7 @@ export default function ParetoChart({
         )}
       </div>
       {rows.length === 0 ? (
-        <ChartEmptyState height={height} message="No spending in this range. Try a wider date range or upload more statements." />
+        <ChartEmptyState height={height} message={emptyMessage} />
       ) : (
         <>
           <ChartSeriesLegend items={[

@@ -95,7 +95,6 @@ export default function SubscriptionTrackerPage() {
     if (guardDemoAction('Creating recurring items')) return
     createMutation.mutate(data, {
       onSuccess: () => { toast.success(`Added ${data.name}`); setShowForm(false); setSuggestion(undefined) },
-      onError: () => toast.error('Could not add this recurring item'),
     })
   }, [createMutation, guardDemoAction])
 
@@ -103,7 +102,6 @@ export default function SubscriptionTrackerPage() {
     if (guardDemoAction('Editing recurring items')) return
     updateMutation.mutate({ id, ...patch }, {
       onSuccess: () => toast.success('Updated'),
-      onError: () => toast.error('Could not update this recurring item'),
     })
   }, [updateMutation, guardDemoAction])
 
@@ -111,7 +109,6 @@ export default function SubscriptionTrackerPage() {
     if (guardDemoAction('Deleting recurring items')) return
     deleteMutation.mutate(id, {
       onSuccess: () => toast.success(`Removed ${name}`),
-      onError: () => toast.error('Could not remove this recurring item'),
     })
   }, [deleteMutation, guardDemoAction])
 

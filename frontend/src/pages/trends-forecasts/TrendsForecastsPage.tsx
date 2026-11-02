@@ -51,7 +51,7 @@ export default function TrendsForecastsPage() {
       )}
 
       <TrendSummaryGrid metrics={trends.metrics} isLoading={trends.isLoading} />
-      {!trends.isLoading && trends.averageMonthCount > 0 && (
+      {!trends.isLoading && trends.monthlyTrendWithAvg.length > 0 && (
         <p className="max-w-3xl text-sm leading-relaxed text-text-tertiary">
           Averages: {trends.earningsPeriodLabel}.{' '}
           {trends.earningStart.source === 'unknown' ? 'Employment start unconfirmed.' : `Employment start ${trends.earningStart.date} (${trends.earningStart.source}).`}{' '}

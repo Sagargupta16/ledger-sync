@@ -11,7 +11,7 @@ import { MS_PER_DAY } from '@/lib/dateUtils'
  * backend/src/ledger_sync/config/instrument_rates.json.
  */
 const FALLBACK_RATES: InstrumentRates = {
-  updated_at: '2026-05-13',
+  updated_at: '2026-11-01',
   epf: {
     rate_pct: 8.25,
     effective_from: '2024-04-01',
@@ -21,8 +21,8 @@ const FALLBACK_RATES: InstrumentRates = {
   ppf: {
     rate_pct: 7.1,
     effective_from: '2025-04-01',
-    effective_until: '2026-06-30',
-    source_url: 'https://dea.gov.in/small-savings-scheme',
+    effective_until: '2026-12-31',
+    source_url: 'https://www.nsiindia.gov.in/InternalPage.aspx?Id_Pk=178',
   },
   nps: {
     default_allocation_pct: { equity: 50, corp_bond: 30, govt_bond: 20 },

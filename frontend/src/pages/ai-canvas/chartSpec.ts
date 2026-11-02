@@ -133,7 +133,9 @@ function checkWaterfall(series: readonly RawSeries[]): void {
   const { values } = series[0]
   if (values.length < 2) return
   const before = values.slice(0, -1).reduce((sum, value) => sum + value, 0)
-  if (Math.abs((values.at(-1) ?? 0) - before) < 1) {
+  // Absorbs rounding noise: up to 1 for rupee-sized totals, less for small values (percent points, counts).
+  const tolerance = Math.min(1, Math.max(Math.abs(before) * 0.005, 1e-9))
+  if (Math.abs((values.at(-1) ?? 0) - before) <= tolerance) {
     fail('the last step equals the running total (a savings, net or closing figure); drop it, the waterfall adds the Net bar itself')
   }
 }
@@ -173,7 +175,7 @@ function common(input: Record<string, unknown>) {
     xKey: X_KEY,
     xLabel: optionalText(input.x_label, 'x_label', CHART_LIMITS.label) ?? 'Label',
     valueFormat: input.value_format === undefined ? 'currency' : oneOf(input.value_format, VALUE_FORMATS, 'value_format'),
-    source: input.source === undefined ? 'ledger' : oneOf(input.source, CHART_SOURCES, 'source'),
+    source: input.source === undefined ? 'calculated' : oneOf(input.source, CHART_SOURCES, 'source'),
     ...(sourceNote ? { sourceNote } : {}),
   } as const
 }

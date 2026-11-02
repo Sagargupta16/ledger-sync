@@ -70,7 +70,7 @@ export function useIncomeExpenseFlow() {
     [preferences],
   )
 
-  const { dateRange, currentFY, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
+  const { dateRange, currentFY, partialPeriod, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
 
   // Drill path and zoom; a period switch resets both to the overview.
   const { drillPath, drillDirection, zoomOrigin, drillInto, drillTo, drillBack } = useDrillNavigation(
@@ -131,7 +131,8 @@ export function useIncomeExpenseFlow() {
     // losses are extra outflows here, so this is the from-net route: the shared
     // module recovers the combined outflow rather than being handed one piece.
     const netSavings = totalIncome - totalExpense - totalTax - capitalLosses
-    const savingsRate = savingsRatePercentFromNet(netSavings, totalIncome) ?? 0
+    // Null with no income: "no income recorded" is not "saved nothing".
+    const savingsRate = savingsRatePercentFromNet(netSavings, totalIncome)
 
     // Top-N + "Other" so every visible flow reconciles with the totals (and
     // therefore the KPI cards). A raw slice(0,10) silently dropped categories
@@ -185,8 +186,8 @@ export function useIncomeExpenseFlow() {
       .map(([name, amount]) => ({
         name,
         amount,
-        drill: (subBuckets.expense.get(name)?.size ?? 0) >= 2
-          ? { label: name, view: 'category' as const, flow: 'expense' as const }
+        drill: (subBuckets.tax.get(name)?.size ?? 0) >= 2
+          ? { label: name, view: 'category' as const, flow: 'expense' as const, tax: true }
           : null,
       }))
     if (tdsAtSource > 0) {
@@ -266,6 +267,7 @@ export function useIncomeExpenseFlow() {
     hasTransactions: allTransactions.length > 0,
     isMobile,
     currentFY,
+    partialPeriod,
     timeFilterProps,
     view,
     drillPath,

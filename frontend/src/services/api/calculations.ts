@@ -32,16 +32,6 @@ export interface MonthlyAggregation {
   }
 }
 
-export interface YearlyAggregation {
-  [year: string]: {
-    income: number
-    expense: number
-    net_savings: number
-    transactions: number
-    months: number[]
-  }
-}
-
 export interface CategoryBreakdown {
   categories: Record<
     string,
@@ -153,9 +143,6 @@ export const calculationsApi = {
 
   getMonthlyAggregation: (params?: DateRangeParams) =>
     apiClient.get<MonthlyAggregation>('/api/calculations/monthly-aggregation', { params }),
-
-  getYearlyAggregation: (params?: DateRangeParams) =>
-    apiClient.get<YearlyAggregation>('/api/calculations/yearly-aggregation', { params }),
 
   getCategoryBreakdown: (params?: DateRangeParams & { transaction_type?: 'income' | 'expense' }) =>
     apiClient.get<CategoryBreakdown>('/api/calculations/category-breakdown', { params }),

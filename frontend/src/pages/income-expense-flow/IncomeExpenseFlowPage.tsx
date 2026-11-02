@@ -2,6 +2,7 @@ import { Upload } from 'lucide-react'
 
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
+import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
@@ -54,6 +55,15 @@ const IncomeExpenseFlowPage = () => {
       <StickyToolbar label="Time range">
         <AnalyticsTimeFilter {...m.timeFilterProps} />
       </StickyToolbar>
+
+      {m.partialPeriod && (
+        <PartialPeriodNotice
+          label={m.partialPeriod.label}
+          daysElapsed={m.partialPeriod.daysElapsed}
+          daysTotal={m.partialPeriod.daysTotal}
+          treatment="The flow covers the days so far, so income not yet received can make this month look like a deficit."
+        />
+      )}
 
       <FlowSummaryCards
         totalIncome={m.totalIncome}

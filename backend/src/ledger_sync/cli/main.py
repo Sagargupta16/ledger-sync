@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ledger_sync import __version__
-from ledger_sync.core.sync_engine import SyncEngine
+from ledger_sync.core.sync_engine import AlreadyImportedError, SyncEngine
 from ledger_sync.db.session import SessionLocal, init_db
 from ledger_sync.ingest.validator import ValidationError
 from ledger_sync.utils.logging import logger, setup_logging
@@ -51,6 +51,12 @@ def import_file(
         dir_okay=False,
         readable=True,
     ),
+    user_id: int = typer.Option(
+        ...,
+        "--user-id",
+        min=1,
+        help="ID of the user whose ledger receives the import",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -83,7 +89,7 @@ def import_file(
 
         try:
             # Create sync engine and import
-            engine = SyncEngine(session)
+            engine = SyncEngine(session, user_id=user_id)
 
             console.print(f"[bold blue]Importing {file_path}...[/bold blue]")
             stats = engine.import_file(file_path, force=force)
@@ -112,12 +118,12 @@ def import_file(
         logger.error(f"Validation error: {e}")
         raise typer.Exit(code=1) from None
 
-    except ValueError as e:
+    except AlreadyImportedError as e:
         console.print(f"[bold yellow]Warning:[/bold yellow] {e}")
         logger.warning(str(e))
         raise typer.Exit(code=0) from None  # Not an error, just already imported
 
-    except (OSError, RuntimeError) as e:
+    except (ValueError, OSError, RuntimeError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         logger.exception("Unexpected error during import")
         raise typer.Exit(code=1) from None
@@ -151,6 +157,12 @@ def import_command(
         dir_okay=False,
         readable=True,
     ),
+    user_id: int = typer.Option(
+        ...,
+        "--user-id",
+        min=1,
+        help="ID of the user whose ledger receives the import",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -164,7 +176,7 @@ def import_command(
     ),
 ) -> None:
     """Import Excel file (alias for import-file command)."""
-    import_file(file_path, force, verbose)
+    import_file(file_path, user_id, force, verbose)
 
 
 if __name__ == "__main__":

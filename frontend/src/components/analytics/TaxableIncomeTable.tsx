@@ -12,6 +12,12 @@ interface IncomeGroup {
   transactions: Transaction[]
 }
 
+/** Taxable share of a group's inflow: the EPF group total already applies the user's fraction. */
+function taxableShare(data: IncomeGroup): number {
+  const inflow = data.transactions.reduce((sum, tx) => sum + tx.amount, 0)
+  return inflow === 0 ? 0 : data.total / inflow
+}
+
 interface TaxableIncomeTableProps {
   selectedFY: string
   incomeGroups: Record<string, IncomeGroup> | undefined
@@ -150,12 +156,12 @@ export default function TaxableIncomeTable({
                               {group === 'EPF' ? (
                                 <div>
                                   <Money
-                                    value={tx.amount / 2}
+                                    value={tx.amount * taxableShare(data)}
                                     bold
                                     className="text-app-green"
                                   />
                                   <div className="text-xs text-muted-foreground">
-                                    (50% of{' '}
+                                    ({formatPercent(taxableShare(data) * 100, false, 0)} of{' '}
                                     <Money
                                       value={tx.amount}
                                       className="inline font-normal text-muted-foreground"

@@ -37,6 +37,9 @@ from ledger_sync.db.base import Base
 if TYPE_CHECKING:
     from ledger_sync.db._models.user import User
 
+#: Width of ``RecurringTransaction.pattern_name``; a longer note must be cut to it.
+PATTERN_NAME_MAX_LENGTH = 255
+
 
 class RecurringTransaction(Base):
     """Detected recurring transactions (subscriptions, bills, salary, etc.)."""
@@ -51,7 +54,7 @@ class RecurringTransaction(Base):
     )
 
     # Pattern identification
-    pattern_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    pattern_name: Mapped[str] = mapped_column(String(PATTERN_NAME_MAX_LENGTH), nullable=False)
     category: Mapped[str] = mapped_column(String(255), nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String(255), nullable=True)
     account: Mapped[str] = mapped_column(String(255), nullable=False)

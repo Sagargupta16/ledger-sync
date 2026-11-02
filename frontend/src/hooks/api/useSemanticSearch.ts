@@ -18,6 +18,7 @@ import {
 import { isAxiosError } from 'axios'
 
 import type { FilterValues } from '@/components/transactions/TransactionFilters'
+import { followLedgerWrites } from '@/hooks/api/semanticSearchLedgerSync'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
@@ -41,45 +42,8 @@ const MIN_BATCH_INTERVAL_MS = 2_100
 const RESULT_LIMIT = 50
 /** Dates and amounts change while typing; only a settled value costs a metered search. */
 const FILTER_SETTLE_MS = 300
-/** Signals that the shown rows changed arrive in bursts; one refetch per burst. */
-const SIGNAL_WINDOW_MS = 50
 /** 400, 429 and 503 mean smart search cannot run now (settings, budget, server), not that the query failed. */
 const STEP_ASIDE_STATUSES = new Set([400, 429, 503])
-
-const followed = new WeakSet<QueryClient>()
-
-/**
- * Smart results are metered (each fetch embeds the query), so they stay cached
- * until something changes the rows they show. Two signals say so, and neither
- * needs every writer's key list repeated here: `['transactions-page']` being
- * invalidated (an excluded account, a rule run, an upload, a tag edit made on
- * the page), and a finished tag write itself (so results shown without that
- * query never keep old tags). One burst of signals becomes one refetch.
- */
-function followLedgerWrites(client: QueryClient) {
-  if (followed.has(client)) return
-  followed.add(client)
-  let scheduled = false
-  const refresh = () => {
-    if (scheduled) return
-    scheduled = true
-    // A write signals twice, a few promise ticks apart (its onSuccess, then its success event).
-    setTimeout(() => {
-      scheduled = false
-      void client.invalidateQueries({ queryKey: SEMANTIC_SEARCH_KEY })
-    }, SIGNAL_WINDOW_MS)
-  }
-  client.getQueryCache().subscribe((event) => {
-    if (event.type !== 'updated' || event.action.type !== 'invalidate') return
-    const [family] = event.query.queryKey as readonly unknown[]
-    if (family === 'transactions-page') refresh()
-  })
-  client.getMutationCache().subscribe((event) => {
-    if (event.type !== 'updated' || event.action.type !== 'success') return
-    const key: readonly unknown[] | undefined = event.mutation.options.mutationKey
-    if (key?.[0] === 'transactions' && key[1] === 'tags') refresh()
-  })
-}
 
 function useSemanticSearchStatus(enabled: boolean) {
   return useQuery({
@@ -146,7 +110,7 @@ export interface ActiveSmartSearch {
  */
 export function useSmartSearchMode(enabled: boolean, filters: FilterValues) {
   const queryClient = useQueryClient()
-  useEffect(() => followLedgerWrites(queryClient), [queryClient])
+  useEffect(() => followLedgerWrites(queryClient, SEMANTIC_SEARCH_KEY), [queryClient])
 
   const statusQuery = useSemanticSearchStatus(enabled)
   const [pausedFor, setPausedFor] = useState<string | null>(null)

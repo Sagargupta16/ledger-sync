@@ -131,6 +131,11 @@ def test_missing_aws_auth_returns_503_with_helpful_message(
     monkeypatch.delenv("AWS_BEARER_TOKEN_BEDROCK", raising=False)
     monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
     monkeypatch.delenv("AWS_PROFILE", raising=False)
+    # The pre-flight also asks boto3's default chain (roles, shared files), so
+    # empty it too: a developer machine may have ~/.aws credentials.
+    monkeypatch.setattr(
+        "boto3.Session", lambda *args, **kwargs: SimpleNamespace(get_credentials=lambda: None)
+    )
     app, session, user = _make_app()
     _make_ai_settings(session, user)
     client = TestClient(app)
@@ -640,6 +645,7 @@ def test_normal_bedrock_use_rewraps_key_after_dedicated_key_transition(
 
 def test_key_reveal_rewraps_and_sets_no_store(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi import Response
+    from starlette.requests import Request
 
     _app, session, user = _make_app()
     monkeypatch.setattr(settings, "encryption_key", "")
@@ -648,8 +654,19 @@ def test_key_reveal_rewraps_and_sets_no_store(monkeypatch: pytest.MonkeyPatch) -
     )
     monkeypatch.setattr(settings, "encryption_key", "synthetic-new-dedicated-material")
     response = Response()
+    # The route is rate limited, so slowapi needs the request it keys on.
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/ai-config/key",
+            "headers": [],
+            "query_string": b"",
+            "client": ("127.0.0.1", 50000),
+        }
+    )
 
-    result = get_ai_key(user, session, response)
+    result = get_ai_key(request, user, session, response)
 
     assert result == {"api_key": "synthetic-personal-bearer"}
     assert "no-store" in response.headers["Cache-Control"]

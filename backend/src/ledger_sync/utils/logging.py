@@ -25,7 +25,7 @@ def setup_logging(log_level: str | None = None) -> logging.Logger:
         Configured logger instance
 
     """
-    level = log_level or settings.log_level
+    level = (log_level or settings.log_level).upper()
 
     # Main app logger
     main_logger = logging.getLogger("ledger_sync")

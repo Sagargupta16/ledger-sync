@@ -4,6 +4,7 @@
 
 import { Tags } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
+import { isEssentialExpense } from '@/lib/finance/metricRules'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { Section } from '../sectionPrimitives'
 import { normalizeArray } from '../helpers'
@@ -78,7 +79,9 @@ export default function ExpenseCategoriesSection({
           {/* Category grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
             {allExpenseCategories.map((cat) => {
-              const isEssential = localPrefs.essential_categories.includes(cat)
+              const isEssential = isEssentialExpense(cat, null, localPrefs.essential_categories)
+              // A built-in Needs keyword counts whatever the saved list says.
+              const isBuiltIn = isEssential && !localPrefs.essential_categories.includes(cat)
               const isFixed = fixedCategories.includes(cat)
 
               return (
@@ -91,9 +94,10 @@ export default function ExpenseCategoriesSection({
                     <button
                       id={`essential-category-${encodeURIComponent(cat)}`}
                       type="button"
-                      title="Essential"
+                      title={isBuiltIn ? 'Essential by default' : 'Essential'}
                       aria-label={`Mark ${cat} as essential`}
                       aria-pressed={isEssential}
+                      disabled={isBuiltIn}
                       onClick={() => toggleEssentialCategory(cat)}
                       className="flex min-h-11 min-w-11 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
@@ -134,7 +138,9 @@ export default function ExpenseCategoriesSection({
 
           {/* Summary */}
           <div className="flex flex-wrap gap-4 pt-2 text-xs text-muted-foreground">
-            <span>{localPrefs.essential_categories.length} essential</span>
+            <span>
+              {allExpenseCategories.filter((cat) => isEssentialExpense(cat, null, localPrefs.essential_categories)).length} essential
+            </span>
             <span>{fixedCategories.length} fixed</span>
           </div>
         </div>

@@ -8,13 +8,15 @@ export interface DateSpan {
 interface AlignedSpans {
   readonly a: DateSpan
   readonly b: DateSpan
-  /** Set when B was still in progress and both spans were truncated to match. */
+  /** Set when a span was still in progress and both spans were truncated to match. */
   readonly partial: { readonly daysElapsed: number; readonly daysTotal: number } | null
+  /** The running span `partial` describes (the one with fewer elapsed days when both run). */
+  readonly runningSide: 'a' | 'b' | null
 }
 
 /**
- * Truncate two comparison spans to the same number of elapsed days when the
- * later one is still in progress.
+ * Truncate two comparison spans to the same number of elapsed days when either
+ * one is still in progress.
  *
  * Without this, every comparison against a current period is a calendar
  * artifact rather than a behavioural signal: 26 days of July against 31 days of
@@ -31,20 +33,27 @@ export function alignToElapsed(
   rangeB: DateSpan,
   today: string = getTodayKey(),
 ): AlignedSpans {
-  // B already finished, or has not begun -- nothing to align either way.
-  if (rangeB.end <= today || rangeB.start > today) {
-    return { a: rangeA, b: rangeB, partial: null }
+  const inProgress = (span: DateSpan) => span.end > today && span.start <= today
+  const elapsed = (span: DateSpan) => inclusiveDaySpan(span.start, today)
+  const runningA = inProgress(rangeA)
+  const runningB = inProgress(rangeB)
+  // Both finished, or either not begun -- nothing to align either way.
+  if ((!runningA && !runningB) || rangeA.start > today || rangeB.start > today) {
+    return { a: rangeA, b: rangeB, partial: null, runningSide: null }
   }
 
-  const daysElapsed = inclusiveDaySpan(rangeB.start, today)
-  const daysTotal = inclusiveDaySpan(rangeB.start, rangeB.end)
+  // When both run, the smaller elapsed count is the one both can supply.
+  let side: 'a' | 'b' = 'b'
+  if (runningA && (!runningB || elapsed(rangeA) < elapsed(rangeB))) side = 'a'
+  const lead = side === 'a' ? rangeA : rangeB
+  const daysElapsed = elapsed(lead)
+  const daysTotal = inclusiveDaySpan(lead.start, lead.end)
 
-  // Same day-of-period in A. Clamp so a shorter A (a 28-day February against a
-  // 31-day month, or a partial first FY) is never extended past its own end.
-  const alignedAEnd = addDaysToKey(rangeA.start, daysElapsed - 1)
-  return {
-    a: { start: rangeA.start, end: alignedAEnd < rangeA.end ? alignedAEnd : rangeA.end },
-    b: { start: rangeB.start, end: today },
-    partial: { daysElapsed, daysTotal },
+  // Same day-of-period in each span. Clamp so a shorter span (a 28-day February
+  // against a 31-day month, or a partial first FY) is never extended past its own end.
+  const cut = (span: DateSpan): DateSpan => {
+    const end = addDaysToKey(span.start, daysElapsed - 1)
+    return { start: span.start, end: end < span.end ? end : span.end }
   }
+  return { a: cut(rangeA), b: cut(rangeB), partial: { daysElapsed, daysTotal }, runningSide: side }
 }

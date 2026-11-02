@@ -33,7 +33,6 @@ from ledger_sync.schemas.rsu_tax_reports import (
     SplitResponse,
 )
 
-_ZERO = Decimal(0)
 _PRICE_STEP = Decimal("0.0001")
 
 
@@ -102,7 +101,7 @@ def event_response(
 
 def lot_response(lot: Lot, currency: str | None) -> LotResponse:
     value, factor = lot.value, lot.current_factor
-    remaining = max(_ZERO, lot.held_quantity - lot.sold_vest_shares)
+    remaining = lot.remaining_vest_shares
     return LotResponse.model_validate(
         {
             "lot_id": lot.lot_id,

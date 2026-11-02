@@ -80,7 +80,11 @@ const toPaise = (value: number) => Math.round(value * 100) / 100
 
 export function budgetTotals(active: readonly Budget[]): BudgetTotals {
   const limit = toPaise(active.reduce((sum, budget) => sum + budget.monthly_limit, 0))
-  const spent = toPaise(active.reduce((sum, budget) => sum + budget.current_spent, 0))
+  // The API measures every budget against its whole category, so budgets that
+  // share a category share one spend figure and it counts once.
+  const spentByCategory = new Map<string, number>()
+  for (const budget of active) spentByCategory.set(budget.category, budget.current_spent)
+  const spent = toPaise([...spentByCategory.values()].reduce((sum, value) => sum + value, 0))
   const statuses = active.map(budgetStatus)
   return {
     limit,

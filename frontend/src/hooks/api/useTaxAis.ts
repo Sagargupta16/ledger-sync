@@ -14,6 +14,9 @@ const TAX_AIS_KEY = ['tax-ais'] as const
 const listKey = [...TAX_AIS_KEY, 'list'] as const
 const yearKey = (taxYear: string) => [...TAX_AIS_KEY, 'year', taxYear] as const
 
+// The page toasts its own failure message; an onError here opts out of the global fallback toast.
+const callerReportsErrors = () => undefined
+
 function publish(
   queryClient: QueryClient,
   signal: AbortSignal | undefined,
@@ -56,6 +59,7 @@ export function useSaveTaxAisSummary() {
     },
     onMutate: () => sessionSignal,
     onSuccess: (saved, { taxYear }, signal) => publish(queryClient, signal, taxYear, saved),
+    onError: callerReportsErrors,
   })
 }
 
@@ -71,5 +75,6 @@ export function useDeleteTaxAisSummary() {
     },
     onMutate: () => sessionSignal,
     onSuccess: (_data, taxYear, signal) => publish(queryClient, signal, taxYear, null),
+    onError: callerReportsErrors,
   })
 }

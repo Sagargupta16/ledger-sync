@@ -4,6 +4,7 @@ import { useLocation, useOutlet } from 'react-router'
 import { motion, AnimatePresence, useIsPresent } from 'motion/react'
 
 import CommandPalette from '@/components/shared/CommandPalette'
+import { ChunkErrorBoundary } from '@/components/shared/ChunkErrorBoundary'
 import ChatWidget from '@/components/chat/ChatWidget'
 import { DemoBanner } from '@/components/shared/DemoBanner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -40,10 +41,22 @@ export default function AppLayout({ pendingTitle }: Readonly<{ pendingTitle?: st
   // Keep each route's content inside its own wrapper until its exit completes.
   const outlet = useOutlet()
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
-  const pageTitle = PAGE_TITLES[location.pathname] ?? 'Page not found'
+  // The router matches paths case-insensitively and ignores one trailing slash.
+  const routePath = location.pathname.toLowerCase().replace(/\/$/, '')
+  const pageTitle = PAGE_TITLES[routePath] ?? 'Page not found'
 
   // Fetch exchange rate when display currency changes (pushes to store for formatters)
   useExchangeRate()
+
+  // Public pages set no title of their own, so hand the tab its original one
+  // back when the workspace unmounts (sign-out). Declared before the effect
+  // below so it captures the title before that effect overwrites it.
+  useEffect(() => {
+    const originalTitle = document.title
+    return () => {
+      document.title = originalTitle
+    }
+  }, [])
 
   // Dynamic page title + scroll reset on navigation
   useEffect(() => {
@@ -88,7 +101,9 @@ export default function AppLayout({ pendingTitle }: Readonly<{ pendingTitle?: st
               <AnimatePresence initial={false} mode="sync">
                 <RouteFrame key={location.pathname}>
                   <ErrorBoundary key={location.pathname}>
-                    {outlet}
+                    <ChunkErrorBoundary>
+                      {outlet}
+                    </ChunkErrorBoundary>
                   </ErrorBoundary>
                 </RouteFrame>
               </AnimatePresence>

@@ -204,13 +204,12 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     stmt = ledger_scope(user, select(Transaction))
 
     if query:
-        like = f"%{query}%"
         stmt = stmt.where(
             or_(
-                Transaction.note.ilike(like),
-                Transaction.category.ilike(like),
-                Transaction.subcategory.ilike(like),
-                Transaction.account.ilike(like),
+                Transaction.note.icontains(query, autoescape=True),
+                Transaction.category.icontains(query, autoescape=True),
+                Transaction.subcategory.icontains(query, autoescape=True),
+                Transaction.account.icontains(query, autoescape=True),
             )
         )
     if category:
@@ -219,9 +218,9 @@ def _exec_search_transactions(user: User, db: Session, args: dict[str, Any]) -> 
     if account:
         stmt = stmt.where(
             or_(
-                Transaction.account.ilike(f"%{account}%"),
-                Transaction.from_account.ilike(f"%{account}%"),
-                Transaction.to_account.ilike(f"%{account}%"),
+                Transaction.account.icontains(account, autoescape=True),
+                Transaction.from_account.icontains(account, autoescape=True),
+                Transaction.to_account.icontains(account, autoescape=True),
             )
         )
     if txn_type:

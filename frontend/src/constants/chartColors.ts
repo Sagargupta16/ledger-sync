@@ -27,11 +27,6 @@ const buildChartColorsWarm = () => {
   ]
 }
 
-const buildIncomeColors = () => {
-  const c = rawColors.app
-  return [c.green, c.teal, c.blue, c.purple, c.pink, c.orange]
-}
-
 // Mutable arrays (stable identity for importers) rebuilt in place on theme
 // toggle. Spread-fill is via refreshChartConstants() -> rebuildPalette().
 // Primary chart color palette
@@ -39,9 +34,6 @@ export const CHART_COLORS: string[] = buildChartColors()
 
 // Alternative palette with warmer tones
 export const CHART_COLORS_WARM: string[] = buildChartColorsWarm()
-
-// Income-focused palette
-const INCOME_COLORS: string[] = buildIncomeColors()
 
 // Semantic colors for charts. Values resolve from rawColors at module load and
 // are rebuilt in place by refreshChartConstants() on theme toggle, so the keys
@@ -110,7 +102,6 @@ function rebuildPalette(target: string[], next: string[]): void {
 function refreshChartConstants(): void {
   rebuildPalette(CHART_COLORS, buildChartColors())
   rebuildPalette(CHART_COLORS_WARM, buildChartColorsWarm())
-  rebuildPalette(INCOME_COLORS, buildIncomeColors())
 
   SEMANTIC_COLORS.income = rawColors.financial.income
   SEMANTIC_COLORS.expense = rawColors.financial.expense

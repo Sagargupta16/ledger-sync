@@ -5,6 +5,7 @@ import { Save, X } from 'lucide-react'
 
 import { Button, Input, Select } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
+import { BASE_CURRENCY } from '@/constants/currencies'
 import type { FinancialGoal } from '@/hooks/api/useAnalyticsV2'
 
 import { GOAL_TYPE_OPTIONS, goalTypeLabel } from '../constants'
@@ -90,7 +91,7 @@ export default function EditGoalForm({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
                 id={`edit-amount-${goal.id}`}
-                label="Target amount"
+                label={`Target amount (${BASE_CURRENCY})`}
                 type="number"
                 inputMode="decimal"
                 min="0.01"

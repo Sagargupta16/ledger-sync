@@ -163,7 +163,7 @@ export default function CategorizationRulesSection({
         </Button>
         <FieldHint>
           Rules also run automatically on every import. Applying now rewrites matching past
-          transactions.
+          transactions using the saved rules, so save your changes first.
         </FieldHint>
       </div>
     </Section>

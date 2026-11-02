@@ -51,6 +51,10 @@ function useRerunDetection() {
       if (!signal || !isCurrentSession(signal)) return
       await invalidatePreferenceDependents(queryClient, false, false)
     },
+    // Its own onError replaces the global toast: this one also says the save held.
+    onError: () => {
+      toast.error('Settings saved, but detection did not re-run. Retry it from Data Health.')
+    },
   })
 }
 
@@ -91,16 +95,15 @@ export function useAnomalyDetectionSettings() {
         auto_dismiss_recurring_anomalies: localPrefs.auto_dismiss_recurring_anomalies,
       })
     } catch {
-      toast.error('Failed to save anomaly settings')
       return
     }
     setEdits({})
     try {
       await rerun.mutateAsync()
-      toast.success('Anomaly settings saved and detection re-run')
     } catch {
-      toast.error('Settings saved, but detection did not re-run. Retry it from Data Health.')
+      return
     }
+    toast.success('Anomaly settings saved and detection re-run')
   }
 
   return {

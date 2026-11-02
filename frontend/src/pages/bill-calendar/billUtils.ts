@@ -4,7 +4,7 @@ import { getTodayKey } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { getBillDaysForMonth, getDaysInMonth } from './billDays'
-import { CATEGORY_COLORS, type PlacedBill } from './types'
+import type { PlacedBill } from './types'
 
 // Calendar expansion (which days a bill falls on) lives in `./billDays`.
 // Re-exported here so existing importers keep working.
@@ -41,10 +41,6 @@ export function isSameDay(
 export function capitalize(str: string | null): string {
   if (!str) return 'Unknown'
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
-}
-
-function getCategoryColor(category: string): string {
-  return CATEGORY_COLORS[category] ?? rawColors.app.blue
 }
 
 export function buildBillMap(
@@ -88,7 +84,8 @@ export function getBillDotColor(bill: PlacedBill): string {
   }
   if (bill.source === 'confirmed') return rawColors.app.green
   if (bill.source === 'tax') return rawColors.app.orange
-  return getCategoryColor(bill.category)
+  // The legend names this colour "Detected"; a category hue would reuse the status greens, purples and oranges.
+  return rawColors.app.blue
 }
 
 /** Find the first bill still to pay from a given start day through end of month */
@@ -104,26 +101,46 @@ function findFirstBillFromDay(
   return null
 }
 
-/** Find the next upcoming bill in the viewed month relative to today */
+/** How far past the viewed month the next-bill search reads (quarterly and yearly bills). */
+const NEXT_BILL_LOOKAHEAD_MONTHS = 12
+
+export interface UpcomingBill {
+  bill: PlacedBill
+  year: number
+  /** 0-indexed, like `Date`. */
+  month: number
+}
+
+/**
+ * Find the next upcoming bill relative to today. The viewed month is searched
+ * first; when it holds none, `billMapForMonth` is read for the months after it.
+ */
 export function findNextUpcomingBill(
   billMap: Map<number, PlacedBill[]>,
   viewYear: number,
   viewMonth: number,
   now: Date,
-): PlacedBill | null {
+  billMapForMonth?: (year: number, month: number) => Map<number, PlacedBill[]>,
+): UpcomingBill | null {
   const todayDate = now.getDate()
   const todayMonth = now.getMonth()
   const todayYear = now.getFullYear()
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
 
-  if (viewYear === todayYear && viewMonth === todayMonth) {
-    return findFirstBillFromDay(billMap, todayDate, daysInMonth)
-  }
-
+  const isCurrentMonth = viewYear === todayYear && viewMonth === todayMonth
   const isFutureMonth = viewYear > todayYear || (viewYear === todayYear && viewMonth > todayMonth)
-  if (isFutureMonth) {
-    return findFirstBillFromDay(billMap, 1, daysInMonth)
-  }
+  if (!isCurrentMonth && !isFutureMonth) return null
 
+  const inViewedMonth = findFirstBillFromDay(billMap, isCurrentMonth ? todayDate : 1, daysInMonth)
+  if (inViewedMonth) return { bill: inViewedMonth, year: viewYear, month: viewMonth }
+  if (!billMapForMonth) return null
+
+  for (let ahead = 1; ahead <= NEXT_BILL_LOOKAHEAD_MONTHS; ahead++) {
+    const monthIndex = viewMonth + ahead
+    const year = viewYear + Math.floor(monthIndex / 12)
+    const month = monthIndex % 12
+    const bill = findFirstBillFromDay(billMapForMonth(year, month), 1, getDaysInMonth(year, month))
+    if (bill) return { bill, year, month }
+  }
   return null
 }

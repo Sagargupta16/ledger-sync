@@ -91,16 +91,6 @@ function readOAuthAttempt(): OAuthAttempt | null {
 }
 
 /**
- * Refresh access token using refresh token
- */
-export const refreshToken = async (refreshToken: string): Promise<AuthTokens> => {
-  const response = await apiClient.post<AuthTokens>(`${AUTH_BASE}/refresh`, {
-    refresh_token: refreshToken,
-  })
-  return response.data
-}
-
-/**
  * Get current user profile
  */
 export const getMe = async (accessToken?: string): Promise<User> => {
@@ -123,7 +113,7 @@ export const logout = async (): Promise<void> => {
   try {
     await apiClient.post(`${AUTH_BASE}/logout`)
   } catch (e) {
-    console.warn('[logout] Server logout failed:', e)
+    console.warn('[logout] Server logout failed:', axios.isAxiosError(e) ? e.message : 'unknown error')
   }
 }
 

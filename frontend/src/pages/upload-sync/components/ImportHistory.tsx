@@ -13,9 +13,11 @@ import { History } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
 import Spinner from '@/components/ui/Spinner'
-import { formatDate, getActiveLocale } from '@/lib/formatters'
+import { formatDate } from '@/lib/formatters'
 import { isDemoMode } from '@/store/demoStore'
 import { uploadService, type ImportHistoryEntry } from '@/services/api/upload'
+
+import { formatCount } from '../moneyManagerUtils'
 
 const HISTORY_LIMIT = 10
 
@@ -37,14 +39,12 @@ function formatImportedAt(iso: string): string {
   })
 }
 
-/** Row counts group like every other number in the active display locale. */
-const formatCount = (value: number) => value.toLocaleString(getActiveLocale())
-
 const columns: DataTableColumn<ImportHistoryEntry>[] = [
   {
     key: 'imported_at',
     header: 'Imported',
     cell: (row) => formatImportedAt(row.imported_at),
+    sortable: true,
     sortValue: (row) => row.imported_at,
     mobilePrimary: true,
   },
@@ -56,12 +56,15 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
         {row.file_name}
       </span>
     ),
+    sortable: true,
+    sortType: 'text',
     sortValue: (row) => row.file_name,
   },
   {
     key: 'rows_processed',
     header: 'Processed',
     cell: (row) => formatCount(row.rows_processed),
+    sortable: true,
     sortValue: (row) => row.rows_processed,
     align: 'right',
   },
@@ -69,6 +72,7 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
     key: 'rows_inserted',
     header: 'New',
     cell: (row) => formatCount(row.rows_inserted),
+    sortable: true,
     sortValue: (row) => row.rows_inserted,
     align: 'right',
   },
@@ -76,6 +80,7 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
     key: 'rows_updated',
     header: 'Updated',
     cell: (row) => formatCount(row.rows_updated),
+    sortable: true,
     sortValue: (row) => row.rows_updated,
     align: 'right',
   },
@@ -83,6 +88,7 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
     key: 'rows_skipped',
     header: 'Already present',
     cell: (row) => formatCount(row.rows_skipped),
+    sortable: true,
     sortValue: (row) => row.rows_skipped,
     align: 'right',
   },

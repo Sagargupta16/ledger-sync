@@ -56,14 +56,16 @@ if _is_sqlite:
 else:
     _stmt_timeout_ms = settings.db_statement_timeout_seconds * 1000
     _idle_tx_timeout_ms = settings.db_idle_transaction_timeout_seconds * 1000
+    # set_config(..., true) is SET LOCAL; one statement sets both timeouts.
+    _set_timeouts_sql = (
+        f"SELECT set_config('statement_timeout', '{_stmt_timeout_ms}', true), "
+        f"set_config('idle_in_transaction_session_timeout', '{_idle_tx_timeout_ms}', true)"
+    )
 
     @event.listens_for(engine, "begin")
     def _set_pg_timeout(connection: Connection) -> None:
         """Apply timeouts to each transaction assigned by the Neon pooler."""
-        connection.exec_driver_sql(f"SET LOCAL statement_timeout = {_stmt_timeout_ms}")
-        connection.exec_driver_sql(
-            f"SET LOCAL idle_in_transaction_session_timeout = {_idle_tx_timeout_ms}"
-        )
+        connection.exec_driver_sql(_set_timeouts_sql)
 
 
 # Create session factory

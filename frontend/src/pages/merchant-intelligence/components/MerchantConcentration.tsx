@@ -57,6 +57,7 @@ export default function MerchantConcentration({
           const share =
             stats.trackedSpend > 0 ? (row.total_spent / stats.trackedSpend) * 100 : 0
           const isNote = toLabelKind(row.label_kind) === 'descriptor'
+          const monthsActive = row.months_active ?? 1
           return (
             <li key={`${row.merchant}-${row.label_kind ?? 'unclassified'}`}>
               <div className="flex min-w-0 items-baseline justify-between gap-3">
@@ -79,7 +80,7 @@ export default function MerchantConcentration({
                       index < stats.vitalFewCount ? colors.app.orange : colors.text.tertiary
                     }
                     height={6}
-                    ariaLabel={`${row.merchant} share of tracked spend`}
+                    ariaLabel={`${row.merchant} spend relative to the largest payee`}
                   />
                 </div>
                 <span className="w-14 shrink-0 text-right text-xs tabular-nums text-text-tertiary">
@@ -87,7 +88,8 @@ export default function MerchantConcentration({
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-text-tertiary">
-                {row.transaction_count} payments across {row.months_active ?? 1} months
+                {row.transaction_count} {row.transaction_count === 1 ? 'payment' : 'payments'} across{' '}
+                {monthsActive} {monthsActive === 1 ? 'month' : 'months'}
               </p>
             </li>
           )

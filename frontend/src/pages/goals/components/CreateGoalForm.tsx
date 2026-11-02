@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import { Button, Input, Select } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
+import { BASE_CURRENCY } from '@/constants/currencies'
 
 import { GOAL_TYPE_OPTIONS } from '../constants'
 
@@ -60,7 +61,7 @@ export default function CreateGoalForm({
               />
               <Input
                 id="create-goal-amount"
-                label="Target amount"
+                label={`Target amount (${BASE_CURRENCY})`}
                 type="number"
                 inputMode="decimal"
                 min="0.01"

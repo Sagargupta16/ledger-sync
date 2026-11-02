@@ -41,7 +41,10 @@ export default function AnomalyDetectionSubsection({
             step="0.5"
             value={localPrefs.anomaly_expense_threshold}
             onChange={(e) =>
-              updateLocalPref('anomaly_expense_threshold', Number(e.target.value))
+              updateLocalPref(
+                'anomaly_expense_threshold',
+                Math.min(10, Math.max(1, Number(e.target.value))),
+              )
             }
             className={inputClass}
           />

@@ -203,7 +203,10 @@ export function useChat(
       const usageLogs: Promise<void>[] = []
 
       const userMsg: ChatMessage = { role: 'user', content }
-      const conversation: ChatMessage[] = [...messages, userMsg]
+      // A question whose reply failed or was stopped and is asked again (Try again) replaces its copy.
+      const last = messages.at(-1)
+      const history = last?.role === 'user' && !last.internal && last.content === content ? messages.slice(0, -1) : messages
+      const conversation: ChatMessage[] = [...history, userMsg]
       // Optimistic empty assistant turn so the UI shows "processing..."
       setMessages([...conversation, { role: 'assistant', content: '' }])
 
@@ -215,6 +218,9 @@ export function useChat(
           contextRef.current = await buildFinancialContext()
           contextTimestamp.current = now
         }
+        // The system prompt promises ledger tools, so a list that never loaded is fetched here rather than sent without.
+        const serverTools =
+          tools ?? (await queryClient.fetchQuery<ToolSpec[]>({ queryKey: ['ai-tools'], queryFn: fetchTools, staleTime: Infinity }))
         controller.signal.throwIfAborted()
 
         const { clientTools = [], systemNote, onToolStart, onToolEnd } = optionsRef.current ?? {}
@@ -232,7 +238,7 @@ export function useChat(
           apiKey: resolved.apiKey,
           systemPrompt: systemNote ? `${contextRef.current}\n\n${systemNote}` : contextRef.current,
           conversation,
-          tools: [...(tools ?? []), ...clientTools.map((tool) => tool.spec)],
+          tools: [...serverTools, ...clientTools.map((tool) => tool.spec)],
           runTool,
           signal: controller.signal,
           usageLogs,
@@ -245,10 +251,15 @@ export function useChat(
             if (text.trim()) {
               setMessages((prev) => [...withoutPendingReply(prev), ...kept, { role: 'assistant', content: text }])
             } else {
-              // A run whose tools did the work (a chart drawn) needs no reply;
-              // with no tools at all, say so instead of a bubble that looks like it is loading.
+              // A run whose client tool did the work (a chart drawn) needs no reply;
+              // otherwise say so instead of leaving the question looking ignored.
               setMessages((prev) => [...withoutPendingReply(prev), ...kept])
-              if (kept.length === 0) setError(EMPTY_REPLY_MESSAGE)
+              const drew = kept.some((message) =>
+                message.blocks?.some(
+                  (block) => block.type === 'tool_use' && clientTools.some((tool) => tool.spec.name === block.name),
+                ),
+              )
+              if (!drew) setError(EMPTY_REPLY_MESSAGE)
             }
           },
           // Show transient "Checking..." while tools execute
@@ -347,11 +358,9 @@ async function runToolLoop(params: LoopParams): Promise<void> {
   // the last assistant turn instead of reading `convo.at(-1)`, which never
   // matched and left the bubble showing the last status line.
   const lastAssistant = convo.findLast((message) => message.role === 'assistant')
-  params.onFinalText(
-    (lastAssistant?.blocks ? textFromBlocks(lastAssistant.blocks) : '') ||
-      `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`,
-    convo.slice(params.conversation.length),
-  )
+  const leadIn = lastAssistant?.blocks ? textFromBlocks(lastAssistant.blocks) : ''
+  const notice = `(Tool-calling stopped after ${MAX_TOOL_ROUNDS} rounds without a final answer.)`
+  params.onFinalText(leadIn ? `${leadIn}\n\n${notice}` : notice, convo.slice(params.conversation.length))
 }
 
 /**

@@ -47,6 +47,8 @@ export interface MoneyManagerImportResponse {
   analytics_message: string | null
   /** Null when there is nothing to compare; absent from a server that predates it. */
   planning?: BackupPlanning | null
+  /** Set when repeat rules and budgets could not be compared or saved; the ledger part is unaffected. */
+  planning_message?: string | null
 }
 
 export interface MoneyManagerImportParams {

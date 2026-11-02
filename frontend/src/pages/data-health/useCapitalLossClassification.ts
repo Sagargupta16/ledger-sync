@@ -20,6 +20,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
   invalidatePreferenceDependents,
+  refreshPreferences,
   usePreferences,
   useUpdateCapitalLossCategories,
 } from '@/hooks/api/usePreferences'
@@ -32,8 +33,8 @@ import { uploadService } from '@/services/api/upload'
 /** `pendingKey` while only the rebuild is re-running; matches no real key. */
 const REFRESH_ONLY = '\u0000refresh'
 
-/** Which half of a classification change failed, for honest copy. */
-export type ClassificationFailure = 'save' | 'refresh'
+/** Which step failed, for honest copy: reading the saved set, saving it, or the rebuild. */
+export type ClassificationFailure = 'load' | 'save' | 'refresh'
 
 /** One saved key, split for display. */
 export interface ClassifiedLossKey {
@@ -82,6 +83,8 @@ function useRefreshAfterClassification() {
 }
 
 export function useCapitalLossClassification(candidates: readonly CapitalLossCandidate[]) {
+  const queryClient = useQueryClient()
+  const sessionSignal = getSessionSignal()
   const preferencesQuery = usePreferences()
   const save = useUpdateCapitalLossCategories()
   const refresh = useRefreshAfterClassification()
@@ -92,6 +95,7 @@ export function useCapitalLossClassification(candidates: readonly CapitalLossCan
   // Every save REPLACES the whole set, so acting before the current set loads
   // (or after its read failed) would silently drop the keys already saved.
   const canEdit = preferencesQuery.data !== undefined
+  const loadFailed = preferencesQuery.isError && !canEdit
   const saved = preferencesQuery.data?.capital_loss_categories ?? []
   const classified = saved.map(splitKey)
   // The server already filters classified taxonomies out of the candidates;
@@ -110,12 +114,14 @@ export function useCapitalLossClassification(candidates: readonly CapitalLossCan
     }
   }
 
-  const apply = async (next: string[], key: string) => {
+  const apply = async (build: (current: string[]) => string[], key: string) => {
     if (!canEdit || guardDemoAction('Classifying realised losses')) return
     setPendingKey(key)
     setFailure(null)
     try {
-      await save.mutateAsync({ capital_loss_categories: next })
+      // The cached set can predate a save from another device, and a save replaces the set.
+      const latest = await refreshPreferences(queryClient, sessionSignal)
+      await save.mutateAsync({ capital_loss_categories: build(latest.capital_loss_categories) })
       await runRefresh()
     } catch {
       setFailure('save')
@@ -130,20 +136,25 @@ export function useCapitalLossClassification(candidates: readonly CapitalLossCan
     canEdit,
     isBusy: pendingKey !== null,
     pendingKey,
-    failure,
+    failure: failure ?? (loadFailed ? 'load' : null),
     classify: (candidate: CapitalLossCandidate) => {
-      if (savedKeys.has(classificationKey(candidate.category, candidate.subcategory))) return
-      void apply([...saved, candidate.key], candidate.key)
+      const candidateKey = classificationKey(candidate.category, candidate.subcategory)
+      if (savedKeys.has(candidateKey)) return
+      void apply(
+        (current) => (capitalLossKeySet(current).has(candidateKey) ? current : [...current, candidate.key]),
+        candidate.key,
+      )
     },
     unclassify: (key: string) => {
       const target = normalisedKey(key)
-      void apply(
-        saved.filter((entry) => normalisedKey(entry) !== target),
-        key,
-      )
+      void apply((current) => current.filter((entry) => normalisedKey(entry) !== target), key)
     },
-    /** The keys saved but the rebuild failed: retry only the rebuild. */
+    /** Re-read the saved set when it failed to load; otherwise retry only the rebuild. */
     retryRefresh: () => {
+      if (loadFailed) {
+        void preferencesQuery.refetch()
+        return
+      }
       setPendingKey(REFRESH_ONLY)
       setFailure(null)
       void runRefresh().finally(() => setPendingKey(null))

@@ -8,7 +8,8 @@ repeat of the same backup is reported as unchanged instead of refused.
 
 Repeat rules and budgets do not decide whether the ledger imports: they are
 written in a savepoint, and a database, number or value error there leaves
-them as they were and reports ``planning`` as None.
+them as they were, reports ``planning`` as None and says so in
+``planning_message``.
 """
 
 from __future__ import annotations
@@ -73,7 +74,7 @@ def import_money_manager_backup(
     engine = SyncEngine(db, user_id=user_id)
     if not upload.force and engine.check_already_imported(backup.database_hash) is not None:
         return _response("unchanged", upload, _unchanged(backup), summary, "skipped")
-    planned: list[PlanningSummary | None] = []
+    planned: list[tuple[PlanningSummary | None, bool]] = []
 
     def before_commit() -> None:
         apply_account_settings(db, user_id, backup.accounts)
@@ -94,29 +95,29 @@ def import_money_manager_backup(
         raise
     if upload.dry_run:
         # The ledger part rolled back; this comparison only reads.
-        planning = _sync_planning(db, user_id, backup.planning, apply=False)
+        planning, failed = _sync_planning(db, user_id, backup.planning, apply=False)
         db.rollback()
-        return _response("preview", upload, stats, summary, "skipped", planning)
+        return _response("preview", upload, stats, summary, "skipped", planning, failed)
     analytics_status = _refresh_insights(db, user_id, upload.file_name)
-    planning = planned[0] if planned else None
-    return _response("imported", upload, stats, summary, analytics_status, planning)
+    planning, failed = planned[0] if planned else (None, False)
+    return _response("imported", upload, stats, summary, analytics_status, planning, failed)
 
 
 def _sync_planning(
     db: Session, user_id: int, planning: BackupPlanning, *, apply: bool
-) -> PlanningSummary | None:
-    """Repeat rules and budgets, or None when they could not be compared or stored."""
+) -> tuple[PlanningSummary | None, bool]:
+    """Repeat rules and budgets, and True when they could not be compared or stored."""
     try:
         if not apply:
-            return sync_planning(db, user_id, planning, apply=False)
+            return sync_planning(db, user_id, planning, apply=False), False
         # A savepoint, so a failed write is undone without undoing the ledger.
         with db.begin_nested():
-            return sync_planning(db, user_id, planning, apply=True)
+            return sync_planning(db, user_id, planning, apply=True), False
     except _PLANNING_ERRORS as exc:
         logger.warning(
             "Repeat rules and budgets skipped for user_id=%s (%s)", user_id, type(exc).__name__
         )
-        return None
+        return None, True
 
 
 def _refresh_insights(db: Session, user_id: int, file_name: str) -> Literal["ready", "failed"]:
@@ -219,6 +220,7 @@ def _response(
     summary: BackupSummary,
     analytics_status: Literal["ready", "failed", "skipped"],
     planning: PlanningSummary | None = None,
+    planning_failed: bool = False,
 ) -> MoneyManagerUploadResponse:
     return MoneyManagerUploadResponse(
         status=status,
@@ -238,4 +240,11 @@ def _response(
             else None
         ),
         planning=planning,
+        planning_message=_planning_message(status) if planning_failed else None,
     )
+
+
+def _planning_message(status: Literal["imported", "unchanged", "preview"]) -> str:
+    if status == "preview":
+        return "Repeat rules and budgets could not be compared, so this preview leaves them out."
+    return "Your ledger is saved. Repeat rules and budgets could not be saved."

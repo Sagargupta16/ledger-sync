@@ -804,9 +804,6 @@ Zustand stores:
 | --- | --- |
 | `authStore` | Token persistence and current auth state |
 | `preferencesStore` | Normalized user preferences |
-| `accountStore` | Account metadata |
-| `investmentAccountStore` | Local investment-account set |
-| `budgetStore` | Budget client state |
 | `demoStore` | Demo mode activation |
 | `themeStore` | Light or dark mode plus the resolved theme; new users start from the OS preference |
 | `motionStore` | Device-local Full or Reduced motion preference, applied without remounting page state |

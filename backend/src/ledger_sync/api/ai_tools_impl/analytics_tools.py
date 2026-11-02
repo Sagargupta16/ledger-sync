@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.ledger_clock import ledger_today
 from ledger_sync.db.models import (
     Anomaly,
     FYSummary,
@@ -215,11 +216,16 @@ register(
 )
 
 
+def _month_number(period_key: str) -> int:
+    return int(period_key[:4]) * 12 + int(period_key[5:7])
+
+
 def _exec_get_cash_flow(user: User, db: Session, args: dict[str, Any]) -> Any:
     """Return a monthly income/expense/savings time series.
 
     Equivalent of what the Cash Flow page shows, but tabular for the LLM.
-    Defaults to the last 12 months.
+    Defaults to the last 12 months. ``averages`` cover complete months only,
+    over ``average_months`` calendar months.
     """
     limit = max(1, min(int(args.get("months", 12)), 60))
     rows = (
@@ -267,20 +273,31 @@ def _exec_get_cash_flow(user: User, db: Session, args: dict[str, Any]) -> Any:
         "capital_losses": total_losses,
         "net": total_net,
     }
-    avg = {
-        "income": total_income / n if n else 0,
-        "expenses": total_expenses / n if n else 0,
-        "capital_losses": total_losses / n if n else 0,
-        "net": total_net / n if n else 0,
+    # The month in progress would count as a whole month, and a month with no
+    # activity has no row, so the divisor is the calendar span of complete months.
+    current_month = ledger_today().strftime("%Y-%m")
+    complete = [s for s in series if s["period"] < current_month]
+    span = (
+        _month_number(complete[-1]["period"]) - _month_number(complete[0]["period"]) + 1
+        if complete
+        else 0
+    )
+    avg = {key: sum(s[key] for s in complete) / span if span else 0 for key in totals}
+    return {
+        "series": series,
+        "totals": totals,
+        "averages": avg,
+        "months": n,
+        "average_months": span,
     }
-    return {"series": series, "totals": totals, "averages": avg, "months": n}
 
 
 register(
     ToolSpec(
         name="get_cash_flow",
         description=(
-            "Monthly income vs expense time series (oldest -> newest). Use for "
+            "Monthly income vs expense time series (oldest -> newest). Averages "
+            "skip the month in progress and count empty months as zero. Use for "
             "'show cash flow', 'how has saving changed', 'trend of expenses'."
         ),
         arguments_model=CashFlowArguments,

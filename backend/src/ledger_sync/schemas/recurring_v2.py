@@ -2,9 +2,22 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
+from typing import Annotated
+
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 
 from ledger_sync.schemas.transactions import PositiveAmount
+
+
+def _no_nul(value: str) -> str:
+    if "\x00" in value:
+        msg = "Text cannot contain a NUL character."
+        raise ValueError(msg)
+    return value
+
+
+# The pattern_name and category columns are 255 characters.
+ColumnText = Annotated[str, Field(max_length=255), AfterValidator(_no_nul)]
 
 
 class RecurringTransactionUpdate(BaseModel):
@@ -17,7 +30,7 @@ class RecurringTransactionUpdate(BaseModel):
     unconfirmed rows, so an amount cannot come with ``is_confirmed=false``.
     """
 
-    pattern_name: str | None = None
+    pattern_name: ColumnText | None = None
     frequency: str | None = None
     expected_amount: PositiveAmount | None = None
     reset_amount: bool = False
@@ -41,9 +54,9 @@ class RecurringTransactionUpdate(BaseModel):
 class RecurringTransactionCreate(BaseModel):
     """Create a user-defined recurring transaction."""
 
-    name: str
+    name: ColumnText
     type: str  # "Income" or "Expense"
     frequency: str
     amount: PositiveAmount
-    category: str | None = None
+    category: ColumnText | None = None
     expected_day: int | None = Field(default=None, ge=1, le=31)

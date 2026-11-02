@@ -26,11 +26,15 @@ type Part = 'tds' | 'sft' | 'payment' | 'other'
 
 const LEVEL_ORDER: readonly AisLevel[] = ['l2', 'l1', 'element']
 
-/** The level with the most rows passing `has`; a tie keeps the earlier level. */
+/** A row the statement marks Inactive was replaced by an Active one; counting both would add the amount twice. */
+const isInactive = (row: AisRow) =>
+  Object.entries(row.fields).some(([label, value]) => /\bstatus\b/i.test(label) && /^\s*in-?active\s*$/i.test(value))
+
+/** The level with the most active rows passing `has`; a tie keeps the earlier level. */
 export function bestLevel(rows: readonly AisRow[], has: (row: AisRow) => boolean): AisRow[] {
   let best: AisRow[] = []
   for (const level of LEVEL_ORDER) {
-    const candidate = rows.filter((row) => row.level === level && has(row))
+    const candidate = rows.filter((row) => row.level === level && !isInactive(row) && has(row))
     if (candidate.length > best.length) best = candidate
   }
   return best

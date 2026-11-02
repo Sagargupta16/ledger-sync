@@ -33,7 +33,7 @@ export default function SpendingMetricGrid({
       className="grid grid-cols-1 gap-x-6 gap-y-5 border-b border-border pb-6 min-[360px]:grid-cols-2 xl:grid-cols-[1.2fr_1.1fr_1fr_0.8fr]"
       aria-label="Spending summary"
     >
-      <div className="min-w-0">
+      <div className="min-w-0 min-[360px]:col-span-2 sm:col-span-1">
         <dt className="ledger-meta text-app-red">Total Spending</dt>
         <dd className="mt-2 break-words font-mono text-2xl font-semibold tracking-tight tabular-nums text-foreground sm:text-3xl">
           {formatCurrency(totalSpending)}

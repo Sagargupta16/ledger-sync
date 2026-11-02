@@ -38,12 +38,17 @@ export type BackupNotice =
       readonly retry: BackupReview | null
     }
 
+/** A saved backup; `planningMessage` is set when its repeat rules and budgets were not saved. */
+export interface BackupSuccess extends UploadSuccess {
+  readonly planningMessage?: string | null
+}
+
 /** State the backup flow shares with the spreadsheet flow in `useUploadSync`. */
 interface SharedUploadState {
   readonly busyRef: RefObject<boolean>
   readonly setPhase: (phase: UploadPhase) => void
   readonly setSelectedFileName: (fileName: string | null) => void
-  readonly setSuccess: (success: UploadSuccess | null) => void
+  readonly setSuccess: (success: BackupSuccess | null) => void
 }
 
 const reuse = (backup: Blob) => () => Promise.resolve(backup)
@@ -97,6 +102,7 @@ export function useMoneyManagerImport({
       summary,
       analyticsStatus: toUploadAnalyticsStatus(result),
       analyticsMessage: result.analytics_message,
+      planningMessage: result.planning_message ?? null,
     })
     toast.success('Ledger saved', { description: summary, duration: 5000 })
   }

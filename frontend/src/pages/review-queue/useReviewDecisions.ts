@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
@@ -32,6 +32,10 @@ export function useReviewDecisions({ current, take, giveBack, countChange }: Dec
   const [deckMotion, setDeckMotion] = useState<DeckMotion>({ exitTo: 1, enterFrom: 0 })
   const [pickerOpen, setPickerOpen] = useState(false)
   const demoNotice = useRef({ shown: false })
+  const topRef = useRef(current)
+  useEffect(() => {
+    topRef.current = current
+  }, [current])
 
   const putBack = useCallback(
     (step: ReviewStep) => {
@@ -45,6 +49,8 @@ export function useReviewDecisions({ current, take, giveBack, countChange }: Dec
 
   const decide = useCallback(
     (step: ReviewStep) => {
+      // The picker sheet fading out keeps the closure of the card it opened for, which is already decided.
+      if (topRef.current?.transaction_id !== step.item.transaction_id) return
       setDeckMotion({ exitTo: step.decision === 'keep' ? 1 : -1, enterFrom: 0 })
       take(step.item)
       setHistory((steps) => [...steps, step])

@@ -6,6 +6,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
 import * as authApi from '@/services/api/auth'
@@ -17,8 +18,6 @@ import { DEMO_USER, DEMO_TOKENS } from '@/lib/demo/enterDemoMode'
 import {
   assertCurrentSession, clearSessionData, endSession, getSessionGeneration, getSessionSignal, isCurrentSession,
 } from '@/lib/session'
-
-const AUTH_QUERY_KEY = ['auth', 'user']
 
 /**
  * Hook for logout
@@ -75,8 +74,13 @@ export const useAuthInit = () => {
         setLoading(false)
         prefetchCoreData()
         return user
-      } catch {
-        if (isCurrentSession(signal)) endSession(queryClient)
+      } catch (error) {
+        if (!isCurrentSession(signal)) return null
+        // Offline or a 5xx says nothing about the credential: keep the stored
+        // session and let each page show its own error state.
+        const status = isAxiosError(error) ? error.response?.status : undefined
+        if (status === 401 || status === 403) endSession(queryClient)
+        else setLoading(false)
         return null
       }
     },
@@ -91,7 +95,6 @@ export const useAuthInit = () => {
  * Hook for updating user profile
  */
 export const useUpdateProfile = () => {
-  const queryClient = useQueryClient()
   const updateUser = useAuthStore((state) => state.updateUser)
   const sessionSignal = getSessionSignal()
 
@@ -105,10 +108,6 @@ export const useUpdateProfile = () => {
     onSuccess: (user, _variables, signal) => {
       if (!signal || !isCurrentSession(signal)) return
       updateUser(user)
-      // Fire-and-forget: invalidateQueries resolves even when the refetch
-      // fails (query-core catches internally), and the profile-update failure
-      // itself is toasted by the global MutationCache onError.
-      void queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY })
     },
   })
 }

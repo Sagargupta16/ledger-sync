@@ -38,9 +38,13 @@ def transaction_facets(db: Session, user: User) -> TransactionFacetsResponse:
     categories = [row[0] for row in category_rows if row[0] and not row.transfer_only]
     transfer_categories = [row[0] for row in category_rows if row[0] and row.transfer_only]
 
-    accounts = [
-        row[0] for row in base.with_entities(Transaction.account).distinct().all() if row[0]
-    ]
+    # The account filter matches the transfer endpoints too, so list them as well.
+    accounts = {
+        row[0]
+        for column in (Transaction.account, Transaction.from_account, Transaction.to_account)
+        for row in base.with_entities(column).distinct().all()
+        if row[0]
+    }
 
     count_rows = base.with_entities(Transaction.type, func.count()).group_by(Transaction.type).all()
     counts: dict[TransactionType, int] = {row[0]: row[1] for row in count_rows}

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 
 import { computeFIRE, computeRetirementCorpus, type FIREInputDefaults } from '@/lib/fireCalculator'
 
+import { useMonteCarloSeed } from './useMonteCarloSeed'
+
 /**
  * The deterministic FIRE and Retirement tabs: their slider state and results.
  * Called by the page rather than the panels, so the values survive a tab switch.
@@ -13,17 +15,21 @@ export function useFireAssumptions(autoValues: FIREInputDefaults) {
   // Barista FIRE: expected part-time / passion-work MONTHLY income after
   // leaving full-time work. Default 0 = no assumed side income (pure FIRE).
   const [baristaMonthlyIncome, setBaristaMonthlyIncome] = useState(0)
+  // Years to FIRE starts from today's net worth, the same figure the Monte Carlo
+  // tab starts from; it stays zero until the balances load or when they fail.
+  const { netWorth } = useMonteCarloSeed().seed
 
   const result = useMemo(() => computeFIRE({
     annualExpenses: autoValues.annualExpenses,
     essentialAnnualExpenses: autoValues.essentialAnnualExpenses,
     annualSavings: autoValues.annualSavings,
     annualIncome: autoValues.annualIncome,
+    currentPortfolio: Math.max(0, netWorth),
     swr: swr / 100,
     realReturn: realReturn / 100,
     yearsToRetire,
     baristaAnnualIncome: baristaMonthlyIncome * 12,
-  }), [autoValues, swr, realReturn, yearsToRetire, baristaMonthlyIncome])
+  }), [autoValues, netWorth, swr, realReturn, yearsToRetire, baristaMonthlyIncome])
 
   return {
     swr, setSwr, realReturn, setRealReturn, yearsToRetire, setYearsToRetire,

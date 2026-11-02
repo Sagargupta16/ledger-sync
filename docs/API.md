@@ -1,15 +1,16 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.31.0.
+Human-readable reference for Ledger Sync API version 2.35.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
 verified against that document on 2026-09-09; the 2.31.0 additions were checked
-against the code and the OpenAPI path list on 2026-10-27.
+against the code and the OpenAPI path list on 2026-10-27, and the inventory below
+was recounted from the 2.35.0 OpenAPI document on 2026-11-01.
 
 Current OpenAPI inventory:
 
-- 141 paths
-- 171 HTTP operations
+- 142 paths
+- 172 HTTP operations
 - Swagger UI at `/docs`
 - ReDoc at `/redoc`
 - Raw schema at `/openapi.json`
@@ -1451,7 +1452,7 @@ name, a file name or a full email:
     "daily": [{"date": "2026-09-29", "calls": 0, "cost_usd": 0.0}]
   },
   "app": {
-    "version": "2.34.1", "database": "postgresql", "revision": "feature_domains_2026",
+    "version": "2.35.0", "database": "postgresql", "revision": "feature_domains_2026",
     "features": {
       "cas_holdings": 1, "push_subscriptions": 0, "active_upload_tokens": 1,
       "bank_alerts": 0, "saved_views": 2, "byok_ai": 0

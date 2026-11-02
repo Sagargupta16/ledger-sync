@@ -6,6 +6,9 @@ in its own short transaction right after that device's sends, so a run that is
 cut off keeps everything it already delivered and the next run carries on from
 there. A 404 or 410 from a push service deletes the device.
 
+Devices are sent to side by side, so a device that hangs until the send timeout
+holds up only itself, not the ones behind it.
+
 A call must end inside the platform's duration limit, so sending stops once
 ``SEND_BUDGET_SECONDS`` have passed since the run began. What is left stays
 unsent and unrecorded, which makes it new again on the next run.
@@ -17,6 +20,7 @@ keeps the keys of what it was told, and only new keys send anything.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from time import monotonic
@@ -43,6 +47,7 @@ TEST_MESSAGE = PushMessage(
 # own terms. A slow database wake-up eats into the budget, and a request already
 # under way can still run on past it.
 SEND_BUDGET_SECONDS = 8.0
+_SEND_WORKERS = 8
 # The rows were read before the sends; nothing in the session needs syncing.
 _BULK = {"synchronize_session": False}
 
@@ -118,6 +123,14 @@ def _send(
     return _Outcome(plan, delivered=bool(delivered), keys=frozenset(keys))
 
 
+def _send_apart(
+    plan: _Plan, vapid: VapidKeys, app_url: str, deadline: float
+) -> tuple[_Outcome, DeliveryReport]:
+    """``_send`` with its own counts, which the caller adds up (threads share no counters)."""
+    counts = DeliveryReport()
+    return _send(plan, vapid, app_url, counts, deadline), counts
+
+
 def _record(db: Session, outcome: _Outcome) -> None:
     target = outcome.plan.target
     owned = (PushSubscription.id == target.id, PushSubscription.user_id == target.user_id)
@@ -144,9 +157,14 @@ def _deliver_all(
 ) -> DeliveryReport:
     db.rollback()  # the reads are done: no transaction stays open during the sends
     report.devices = len(plans)
-    for plan in plans:
-        _record(db, _send(plan, vapid, app_url, report, deadline))
-        db.commit()  # this device is saved even if the run is cut off after it
+    with ThreadPoolExecutor(max_workers=_SEND_WORKERS) as pool:
+        sends = [pool.submit(_send_apart, plan, vapid, app_url, deadline) for plan in plans]
+        for done in as_completed(sends):
+            outcome, counts = done.result()
+            for name in ("sent", "failed", "removed", "deferred"):
+                setattr(report, name, getattr(report, name) + getattr(counts, name))
+            _record(db, outcome)
+            db.commit()  # this device is saved even if the run is cut off after it
     return report
 
 

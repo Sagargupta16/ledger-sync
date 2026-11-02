@@ -133,7 +133,6 @@ const incomeFacetsOptions = () =>
 // ─── Hook Wrappers ───────────────────────────────────────────────────────────
 
 export const useKPIs = (params?: { time_range?: TimeRange }) => useQuery(kpisOptions(params))
-export const useRecentTransactions = (limit: number = 5) => useQuery(recentTransactionsOptions(limit))
 export const useOverview = (timeRange: TimeRange = 'all_time') => useQuery(overviewOptions(timeRange))
 export const useBehavior = (timeRange: TimeRange = 'all_time') => useQuery(behaviorOptions(timeRange))
 export const useTrends = (timeRange: TimeRange = 'all_time') => useQuery(trendsOptions(timeRange))

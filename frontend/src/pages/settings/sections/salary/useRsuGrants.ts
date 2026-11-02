@@ -5,6 +5,22 @@ import type { RsuGrant, RsuVesting } from '@/types/salary'
 import { sortVestings } from '@/lib/rsuVesting'
 import { useRsuPrices } from './useRsuPrices'
 
+/**
+ * A symbol key, not a field: it survives the spreads that copy a vesting on
+ * every edit, and JSON drops it, so it is never sent to the server.
+ */
+const CLIENT_KEY = Symbol('vestingClientKey')
+type KeyedVesting = RsuVesting & { [CLIENT_KEY]?: string }
+
+/** Row identity for a vesting that has no storage ID yet, stable across sorts and edits. */
+export const vestingClientKey = (vesting: RsuVesting): string | undefined =>
+  (vesting as KeyedVesting)[CLIENT_KEY]
+
+function newVesting(): RsuVesting {
+  const vesting: KeyedVesting = { date: '', quantity: 0, [CLIENT_KEY]: crypto.randomUUID() }
+  return vesting
+}
+
 /** RSU grant/vesting edits and explicit price actions for salary settings. */
 export function useRsuGrants(
   localRsuGrants: RsuGrant[],
@@ -42,7 +58,7 @@ export function useRsuGrants(
       updateGrant(grantId, {
         vestings: [
           ...(localRsuGrants.find((g) => g.id === grantId)?.vestings ?? []),
-          { date: '', quantity: 0 },
+          newVesting(),
         ],
       })
     },

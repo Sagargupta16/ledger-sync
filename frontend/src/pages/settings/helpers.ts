@@ -35,22 +35,6 @@ export const DASHBOARD_WIDGETS = [
   { key: 'total_transfers', label: 'Total Internal Transfers' },
 ] as const
 
-/**
- * Widgets shown by default on first visit. The Dashboard has 14 possible
- * Quick Insight widgets in total, but showing them all makes the page feel
- * cluttered and none of them feel important. These six are the ones an
- * advisor would actually look at first; the rest are available via Settings
- * > Dashboard Widgets for power users who want more.
- */
-const DEFAULT_VISIBLE_WIDGETS: readonly string[] = [
-  'savings_rate',
-  'top_spending',
-  'top_income',
-  'burn_rate',
-  'daily_spending',
-  'biggest_transaction',
-] as const
-
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
@@ -392,9 +376,9 @@ export function getStoredWidgets(): string[] {
   } catch {
     // localStorage unavailable or corrupted
   }
-  // First-time users see a focused 6-widget set instead of all 14. Power users
-  // can turn on the rest via Settings > Dashboard Widgets.
-  return [...DEFAULT_VISIBLE_WIDGETS]
+  // Nothing stored: the Dashboard shows every widget (`getVisibleWidgetKeys`
+  // returns null), so every box is ticked here too.
+  return DASHBOARD_WIDGETS.map((w) => w.key)
 }
 
 /** Build a deep-cloned LocalPrefs from server preferences data */

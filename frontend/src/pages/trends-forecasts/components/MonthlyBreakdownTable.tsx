@@ -57,13 +57,14 @@ const COLUMNS: DataTableColumn<MonthlyTrendRow>[] = [
     header: 'Savings Rate',
     align: 'right',
     sortable: true,
+    sortValue: (row) => row.rawSavingsRate ?? Number.MIN_SAFE_INTEGER,
     cell: (row) => (
       <span
         className={`ledger-figure ${
-          row.rawSavingsRate >= 0 ? 'text-foreground' : 'text-app-red'
+          row.rawSavingsRate !== null && row.rawSavingsRate < 0 ? 'text-app-red' : 'text-foreground'
           }`}
       >
-        {formatPercent(row.rawSavingsRate)}
+        {row.rawSavingsRate === null ? '--' : formatPercent(row.rawSavingsRate)}
       </span>
     ),
   },

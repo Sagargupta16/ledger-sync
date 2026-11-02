@@ -12,16 +12,16 @@ import {
 } from '@/lib/dateUtils'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 import { percentChange } from '@/lib/formatters'
-import { savingsRatePercentFromNet, savingsRatePercentOr } from '@/lib/savingsRate'
+import { savingsRatePercent, savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { analysisPeriodLabel, fillAnalysisMonths, resolveAnalysisPeriod, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { getTrendDirection } from './trendsUtils'
-import type { TrendMetrics } from './types'
+import type { TrendDirection, TrendMetrics } from './types'
 
 const DEFAULT_METRICS: TrendMetrics = {
   current: 0,
   previous: 0,
   change: 0,
-  changePercent: 0,
+  changePercent: null,
   direction: 'stable',
   average: 0,
   highest: 0,
@@ -35,6 +35,10 @@ const DEFAULT_METRICS: TrendMetrics = {
  */
 const mean = (values: readonly number[]): number =>
   values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : 0
+
+/** No percent change (zero base, or no previous month) reads as stable, never as a measured 0%. */
+const directionOf = (percent: number | null): TrendDirection =>
+  percent === null ? 'stable' : getTrendDirection(percent)
 
 export function useTrendsForecasts() {
   const preferencesQuery = usePreferences()
@@ -74,7 +78,7 @@ export function useTrendsForecasts() {
 
     return trendsData.monthly_trends.filter((t) => {
       const monthStart = `${t.month}-01`
-      if (dateRange.start_date && monthStart < dateRange.start_date.substring(0, 10)) return false
+      if (dateRange.start_date && t.month < dateRange.start_date.substring(0, 7)) return false
       if (dateRange.end_date && monthStart > dateRange.end_date.substring(0, 10)) return false
       return true
     })
@@ -133,18 +137,19 @@ export function useTrendsForecasts() {
       return { spending: DEFAULT_METRICS, income: DEFAULT_METRICS, savings: DEFAULT_METRICS }
     }
     const previous = trends.length > 1 ? (trends.at(-2) ?? latest) : latest
+    const hasPrevious = trends.length > 1
 
     const expenses = trends.map((t) => t.expenses)
     const spendingChange = latest.expenses - previous.expenses
-    const spendingChangePercent = percentChange(latest.expenses, previous.expenses) ?? 0
+    const spendingChangePercent = hasPrevious ? percentChange(latest.expenses, previous.expenses) : null
 
     const incomes = trends.map((t) => t.income)
     const incomeChange = latest.income - previous.income
-    const incomeChangePercent = percentChange(latest.income, previous.income) ?? 0
+    const incomeChangePercent = hasPrevious ? percentChange(latest.income, previous.income) : null
 
     const surpluses = trends.map((t) => t.surplus)
     const savingsChange = latest.surplus - previous.surplus
-    const savingsChangePercent = percentChange(latest.surplus, previous.surplus) ?? 0
+    const savingsChangePercent = hasPrevious ? percentChange(latest.surplus, previous.surplus) : null
 
     return {
       spending: {
@@ -152,7 +157,7 @@ export function useTrendsForecasts() {
         previous: previous.expenses,
         change: spendingChange,
         changePercent: spendingChangePercent,
-        direction: getTrendDirection(spendingChangePercent),
+        direction: directionOf(spendingChangePercent),
         average: mean(expenses),
         highest: Math.max(...expenses),
         lowest: Math.min(...expenses),
@@ -162,7 +167,7 @@ export function useTrendsForecasts() {
         previous: previous.income,
         change: incomeChange,
         changePercent: incomeChangePercent,
-        direction: getTrendDirection(incomeChangePercent),
+        direction: directionOf(incomeChangePercent),
         average: mean(incomes),
         highest: Math.max(...incomes),
         lowest: Math.min(...incomes),
@@ -172,7 +177,7 @@ export function useTrendsForecasts() {
         previous: previous.surplus,
         change: savingsChange,
         changePercent: savingsChangePercent,
-        direction: getTrendDirection(savingsChangePercent),
+        direction: directionOf(savingsChangePercent),
         average: mean(surpluses),
         highest: Math.max(...surpluses),
         lowest: Math.min(...surpluses),
@@ -190,18 +195,12 @@ export function useTrendsForecasts() {
   const chartData = useMemo(() => {
     if (!completeMonthlyTrends.length) return []
 
-    return completeMonthlyTrends.map((t, index, arr) => {
-      const prev = index > 0 ? arr[index - 1] : t
+    return completeMonthlyTrends.map((t) => {
       // `surplus` is the net figure, so this is the from-net re-expression of the
       // one shared definition. The breakdown table renders it unclamped, which is
       // why a deficit month shows red rather than 0.
-      const rawSavingsRate = savingsRatePercentFromNet(t.surplus, t.income) ?? 0
-      return {
-        ...t,
-        spendingChange: index > 0 ? (percentChange(t.expenses, prev.expenses) ?? 0) : 0,
-        incomeChange: index > 0 ? (percentChange(t.income, prev.income) ?? 0) : 0,
-        rawSavingsRate,
-      }
+      const rawSavingsRate = savingsRatePercentFromNet(t.surplus, t.income)
+      return { ...t, rawSavingsRate }
     })
   }, [completeMonthlyTrends])
 
@@ -252,11 +251,12 @@ export function useTrendsForecasts() {
     let cumIncome = 0
     let cumExpense = 0
 
-    return sortedDays.map(({ date, income, expense }) => {
+    // Days before any income have no rate (not applicable), so they are not plotted as 0%.
+    return sortedDays.flatMap(({ date, income, expense }) => {
       cumIncome += income
       cumExpense += expense
-      const savingsRate = savingsRatePercentOr({ income: cumIncome, expense: cumExpense })
-      return { date, savingsRate }
+      const savingsRate = savingsRatePercent({ income: cumIncome, expense: cumExpense })
+      return savingsRate === null ? [] : [{ date, savingsRate }]
     })
   }, [filteredDays])
 
@@ -264,7 +264,6 @@ export function useTrendsForecasts() {
     if (!completeMonthlyTrends.length) return []
     return completeMonthlyTrends.map((t) => ({
       month: t.month,
-      label: formatMonthKey(t.month, { month: 'short', year: '2-digit' }),
       income: t.income,
       expenses: t.expenses,
       savings: t.surplus,
@@ -296,7 +295,7 @@ export function useTrendsForecasts() {
         return {
           ...d,
           incomeAvg: earningWindow ? mean(earningWindow.map((w) => w.income)) : undefined,
-          expensesAvg: window ? mean(window.map((w) => w.expenses)) : undefined,
+          expensesAvg: earningWindow ? mean(earningWindow.map((w) => w.expenses)) : undefined,
           savingsAvg: earningWindow ? mean(earningWindow.map((w) => w.savings)) : undefined,
         }
       }),

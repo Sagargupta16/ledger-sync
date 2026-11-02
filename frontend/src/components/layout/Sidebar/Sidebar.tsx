@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, LogOut, Menu, Search, X } from 'lucide-react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 
 import ProfileModal from '@/components/shared/ProfileModal'
 import { getProfileInitials } from '@/components/shared/profileModalUtils'
@@ -16,7 +16,9 @@ import {
   useRecurringTransactions,
 } from '@/hooks/api/useAnalyticsV2'
 import { cn } from '@/lib/cn'
+import { getDateKey, getTodayKey, inclusiveDaySpan } from '@/lib/dateUtils'
 import { exitDemoMode } from '@/lib/demo'
+import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useLogout } from '@/hooks/api/useAuth'
@@ -42,7 +44,7 @@ function countAlertBadges(
   anomalyCount: number,
   budgets: readonly Budget[],
   recurring: readonly RecurringTransaction[],
-  now: Date,
+  todayKey: string,
 ): Record<string, number> {
   const counts: Record<string, number> = {}
 
@@ -53,12 +55,12 @@ function countAlertBadges(
   ).length
   if (budgetCount > 0) counts[ROUTES.BUDGETS] = budgetCount
 
+  // The Bill Calendar plots accepted Expense commitments only, on ledger (IST) days.
   const billCount = recurring.filter((item) => {
+    if (item.type !== 'Expense' || !isAcceptedRecurringCommitment(item, todayKey)) return false
     if (!item.next_expected) return false
-    const days = Math.ceil(
-      (new Date(item.next_expected).getTime() - now.getTime()) / 86_400_000,
-    )
-    return days >= 0 && days <= 7
+    const dueKey = getDateKey(item.next_expected)
+    return dueKey >= todayKey && inclusiveDaySpan(todayKey, dueKey) - 1 <= 7
   }).length
   if (billCount > 0) counts[ROUTES.BILL_CALENDAR] = billCount
 
@@ -68,6 +70,14 @@ function countAlertBadges(
 export default function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const { pathname } = useLocation()
+  const [drawerPathname, setDrawerPathname] = useState(pathname)
+  if (drawerPathname !== pathname) {
+    // Navigation from the search palette or Back leaves the drawer's own links
+    // untouched, so a route change is the signal to close it.
+    setDrawerPathname(pathname)
+    setIsMobileOpen(false)
+  }
   const mobileToggleRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
@@ -87,9 +97,10 @@ export default function Sidebar() {
   // Bill Calendar; omitting it applies the backend default of 50).
   const { data: recurring = [] } = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
 
+  const todayKey = getTodayKey()
   const badgeCounts = useMemo(
-    () => countAlertBadges(anomalyCount, budgets, recurring, new Date()),
-    [anomalyCount, budgets, recurring],
+    () => countAlertBadges(anomalyCount, budgets, recurring, todayKey),
+    [anomalyCount, budgets, recurring, todayKey],
   )
   const isAdmin = useIsAdmin()
   const sections = useMemo(() => visibleSections(isAdmin), [isAdmin])
@@ -148,8 +159,10 @@ export default function Sidebar() {
           // The drawer grows by the left inset and pads it, so a landscape
           // iPhone keeps the nav clear of the notch; pb-safe lifts the profile
           // row above the home indicator. Both insets are 0 on desktop.
-          'fixed top-0 z-40 h-dvh w-[calc(15rem+env(safe-area-inset-left,0px))] border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pl-safe transition-transform duration-200 ease-out lg:sticky lg:h-full',
-          isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          'fixed top-0 z-40 h-dvh w-[calc(15rem+env(safe-area-inset-left,0px))] border-r border-[var(--hairline-2)] bg-[var(--sidebar-bg)] pl-safe transition-[transform,translate,visibility] duration-200 ease-out lg:sticky lg:h-full',
+          // `invisible` (not only the off-screen translate) keeps the closed
+          // drawer's links out of the tab order and accessibility tree below lg.
+          isMobileOpen ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible lg:translate-x-0',
         )}
       >
         <div className="flex h-full flex-col pt-safe pb-safe">

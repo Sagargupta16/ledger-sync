@@ -53,10 +53,12 @@ export default function SalaryStructureSection({
       ),
     [localSalaryStructure],
   )
-  const [selectedFY, setSelectedFY] = useState(() => {
-    const cur = currentFYLabel(fyStartMonth)
-    return fyKeys.includes(cur) ? cur : fyKeys[0] ?? cur
-  })
+  // The structure arrives after mount on a revisit (the draft seeds in an
+  // effect), so only an explicit pick is stored and the default is derived.
+  const [pickedFY, setPickedFY] = useState<string | null>(null)
+  const currentFY = currentFYLabel(fyStartMonth)
+  const defaultFY = fyKeys.includes(currentFY) ? currentFY : fyKeys[0] ?? currentFY
+  const selectedFY = pickedFY !== null && fyKeys.includes(pickedFY) ? pickedFY : defaultFY
 
   const currentSalary = useMemo<SalaryComponents>(
     () => localSalaryStructure[selectedFY] ?? { ...DEFAULT_SALARY_COMPONENTS },
@@ -68,7 +70,7 @@ export default function SalaryStructureSection({
       const value = raw === '' ? 0 : Number(raw)
       if (Number.isNaN(value)) return
       const updated = { ...localSalaryStructure }
-      const isNullableField = field === 'hra_annual' || field === 'nps_monthly'
+      const isNullableField = field === 'hra_annual'
       const fieldValue = isNullableField && raw === '' ? null : value
       updated[selectedFY] = {
         ...(updated[selectedFY] ?? { ...DEFAULT_SALARY_COMPONENTS }),
@@ -88,17 +90,17 @@ export default function SalaryStructureSection({
       ...localSalaryStructure,
       [next]: lastSalary ? { ...lastSalary } : { ...DEFAULT_SALARY_COMPONENTS },
     })
-    setSelectedFY(next)
+    setPickedFY(next)
   }, [fyKeys, fyStartMonth, localSalaryStructure, updateSalaryStructure])
 
   const goNext = useCallback(() => {
     const idx = fyKeys.indexOf(selectedFY)
-    if (idx < fyKeys.length - 1) setSelectedFY(fyKeys[idx + 1])
+    if (idx < fyKeys.length - 1) setPickedFY(fyKeys[idx + 1])
   }, [fyKeys, selectedFY])
 
   const goPrev = useCallback(() => {
     const idx = fyKeys.indexOf(selectedFY)
-    if (idx > 0) setSelectedFY(fyKeys[idx - 1])
+    if (idx > 0) setPickedFY(fyKeys[idx - 1])
   }, [fyKeys, selectedFY])
 
   const cashEarnings = useMemo(() => salaryCashEarnings(currentSalary), [currentSalary])
@@ -132,6 +134,8 @@ export default function SalaryStructureSection({
       } else {
         value = raw === '' ? 0 : Number(raw)
         if (Number.isNaN(value)) return
+        // The API accepts a whole number of years from 1 to 5.
+        if (field === 'projection_years') value = Math.min(5, Math.max(0, Math.trunc(value)))
       }
       updateGrowthAssumptions({ ...localGrowthAssumptions, [field]: value })
     },

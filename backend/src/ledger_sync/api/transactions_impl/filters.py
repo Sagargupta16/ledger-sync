@@ -134,13 +134,12 @@ def _apply_field_filters(
         else:
             tx_query = tx_query.filter(literal(False))  # Invalid type returns empty
     if filters.query:
-        search_term = f"%{filters.query}%"
         tx_query = tx_query.filter(
             or_(
-                Transaction.note.ilike(search_term),
-                Transaction.category.ilike(search_term),
-                Transaction.account.ilike(search_term),
-                Transaction.subcategory.ilike(search_term),
+                Transaction.note.icontains(filters.query, autoescape=True),
+                Transaction.category.icontains(filters.query, autoescape=True),
+                Transaction.account.icontains(filters.query, autoescape=True),
+                Transaction.subcategory.icontains(filters.query, autoescape=True),
             )
         )
     return tx_query

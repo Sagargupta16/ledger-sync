@@ -61,7 +61,13 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
   }
 
   const handleClose = useCallback(() => onClose(), [onClose])
-  const closeFromKeyboard = useEffectEvent(handleClose)
+  // Dismissing mid-request would unmount the hooks, and TanStack then skips the
+  // per-call callbacks that show the toast and reload. Only the callbacks
+  // themselves close the dialog while a request is in flight.
+  const dismiss = () => {
+    if (!isBusy) handleClose()
+  }
+  const closeFromKeyboard = useEffectEvent(dismiss)
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -178,7 +184,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
       exit={{ opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-3 sm:p-6"
-      onClick={(event) => { if (event.target === event.currentTarget) handleClose() }}
+      onClick={(event) => { if (event.target === event.currentTarget) dismiss() }}
     >
       <motion.div
         ref={modalRef}
@@ -194,7 +200,7 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
         transition={{ duration: reduceMotion ? 0 : DURATION.quick, ease: EASING.cinematic }}
         className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown text-foreground shadow-[var(--glass-shadow-strong)] sm:max-h-[calc(100dvh-3rem)]"
       >
-        <ProfileHeader onClose={handleClose} />
+        <ProfileHeader onClose={dismiss} />
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           <ProfileIdentity

@@ -8,7 +8,7 @@ export function changeBadgeClass(change: number, isGood: boolean): string {
 }
 
 export const pctChange = (curr: number, prev: number): number =>
-  percentChange(curr, prev) ?? (curr === 0 ? 0 : 100)
+  percentChange(curr, prev) ?? Math.sign(curr) * 100
 
 export const getMonthOptions = (transactions: Array<{ date: string }>) => {
   const months = new Set<string>()

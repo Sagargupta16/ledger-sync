@@ -39,9 +39,12 @@ export interface UploadSuccess {
   readonly analyticsMessage: string | null
 }
 
-function getUploadErrorMessage(error: unknown): string {
+function getUploadErrorMessage(error: unknown, ledgerSaved = false): string {
   const axiosError = error as AxiosError
   if (axiosError.code === 'ECONNABORTED') {
+    if (ledgerSaved) {
+      return 'The insights refresh timed out. Your ledger is saved; try refreshing insights again.'
+    }
     return 'The request timed out. Check import history before retrying; the server may have saved your ledger.'
   }
   if (axiosError.code === 'ERR_NETWORK') {
@@ -222,7 +225,7 @@ export function useUploadSync() {
       setSuccess({
         ...success,
         analyticsStatus: 'failed',
-        analyticsMessage: getUploadErrorMessage(error),
+        analyticsMessage: getUploadErrorMessage(error, true),
       })
     } finally {
       busy.current = false

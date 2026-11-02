@@ -4,11 +4,11 @@ import { getVisibleWidgetKeys } from '../quickInsightsData'
 
 /**
  * The widget-visibility reader shares the 'ledger-sync-visible-widgets' key
- * with settings/helpers.ts getStoredWidgets, but the two have DIFFERENT
- * empty-storage defaults on purpose: this one returns null ("no filter, show
- * all"), while getStoredWidgets returns the 6-key DEFAULT_VISIBLE_WIDGETS set.
- * They must not be consolidated. These cases pin the corruption handling that
- * the unknown-narrowing had to leave untouched.
+ * with settings/helpers.ts getStoredWidgets. With nothing stored, both show
+ * every widget: this one returns null ("no filter, show all"), while
+ * getStoredWidgets returns every widget key so Settings ticks them all. These
+ * cases pin the corruption handling that the unknown-narrowing had to leave
+ * untouched.
  */
 describe('getVisibleWidgetKeys', () => {
   beforeEach(() => {

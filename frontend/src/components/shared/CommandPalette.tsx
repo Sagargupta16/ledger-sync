@@ -67,10 +67,13 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
-    if (isOpen) {
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-      })
+    if (!isOpen) return
+    const opener = document.activeElement
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+    })
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
     }
   }, [isOpen])
 
@@ -113,13 +116,17 @@ export default function CommandPalette() {
   // debounce (same pattern as TransactionFilters) bounds it to ~1 per pause.
   const debouncedQuery = useDebounce(deferredQuery, 300)
   const q = debouncedQuery.trim()
+  // Pages are filtered locally, so they follow every keystroke; only the server
+  // search waits on the debounce. Otherwise Enter right after typing would open
+  // the previous query's first page.
+  const liveQuery = query.trim()
 
   // Transaction matches come from the server-side search endpoint (note /
   // category / account, top 5) instead of filtering the full ledger in the
   // browser. Only runs while the palette is open with a non-empty query.
   // keepPreviousData holds the previous matches on screen while the next
   // fetch resolves, so the Transactions section doesn't flicker empty.
-  const { data: txMatches = [] } = useQuery({
+  const { data: txMatches = [], isError: txSearchError } = useQuery({
     queryKey: ['command-palette-search', q],
     queryFn: () => transactionsService.getTransactions({ query: q, limit: 5 }),
     enabled: isOpen && q.length > 0,
@@ -130,7 +137,7 @@ export default function CommandPalette() {
   const results: PaletteResult[] = useMemo(() => {
     const items: PaletteResult[] = []
 
-    if (!q) {
+    if (!liveQuery) {
       for (const entry of PAGE_ENTRIES) {
         items.push({ kind: 'page', entry })
       }
@@ -138,8 +145,8 @@ export default function CommandPalette() {
     }
 
     for (const entry of PAGE_ENTRIES) {
-      const matchesLabel = fuzzyMatch(entry.label, q)
-      const matchesKeyword = entry.keywords.some((kw) => fuzzyMatch(kw, q))
+      const matchesLabel = fuzzyMatch(entry.label, liveQuery)
+      const matchesKeyword = entry.keywords.some((kw) => fuzzyMatch(kw, liveQuery))
       if (matchesLabel || matchesKeyword) {
         items.push({ kind: 'page', entry })
       }
@@ -150,7 +157,10 @@ export default function CommandPalette() {
     }
 
     return items
-  }, [q, txMatches])
+  }, [liveQuery, txMatches])
+
+  // The error belongs to the query on screen only once the debounce has caught up.
+  const showTxSearchError = txSearchError && q === liveQuery
 
   const executeResult = useCallback(
     (result: PaletteResult) => {
@@ -168,7 +178,7 @@ export default function CommandPalette() {
   )
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowDown': {
           e.preventDefault()
@@ -181,6 +191,8 @@ export default function CommandPalette() {
           break
         }
         case 'Enter': {
+          // A focused result button already opens itself on Enter.
+          if (document.activeElement instanceof HTMLButtonElement) break
           e.preventDefault()
           if (results[selectedIndex]) {
             executeResult(results[selectedIndex])
@@ -196,6 +208,12 @@ export default function CommandPalette() {
     },
     [results, selectedIndex, executeResult, close],
   )
+
+  useEffect(() => {
+    if (!isOpen) return
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, handleKeyDown])
 
   useEffect(() => {
     if (!listRef.current) return
@@ -244,7 +262,6 @@ export default function CommandPalette() {
                   setQuery(e.target.value)
                   setSelectedIndex(0)
                 }}
-                onKeyDown={handleKeyDown}
                 placeholder="Search pages, transactions..."
                 className="min-h-11 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-text-quaternary"
                 aria-label="Search pages and transactions"
@@ -256,14 +273,22 @@ export default function CommandPalette() {
               </kbd>
             </div>
 
+            {/* A failed search is not "no results": blank the query so the list
+                shows no empty-state text and say what failed instead. */}
             <PaletteResults
               results={results}
-              query={query}
+              query={showTxSearchError ? '' : query}
               selectedIndex={selectedIndex}
               setSelectedIndex={setSelectedIndex}
               executeResult={executeResult}
               listRef={listRef}
             />
+
+            {showTxSearchError && (
+              <p role="alert" className="border-t border-[var(--hairline-2)] px-5 py-3 text-xs text-app-red">
+                Transaction search failed, so only pages are listed. Try again in a moment.
+              </p>
+            )}
 
             <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--hairline-2)] bg-[var(--overlay-2)]">
               <div className="flex items-center gap-3">

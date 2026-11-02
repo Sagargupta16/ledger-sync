@@ -19,8 +19,12 @@ def _consecutive_years(value: str) -> str:
     return value
 
 
-# "2025-26": April 2025 to March 2026, the year an AIS covers.
-TaxYear = Annotated[str, Field(pattern=r"^20\d{2}-\d{2}$"), AfterValidator(_consecutive_years)]
+# "2025-26": April 2025 to March 2026, the year an AIS covers. [0-9], not \d:
+# Pydantic's regex engine matches any Unicode digit for \d, which would store
+# look-alike year keys.
+TaxYear = Annotated[
+    str, Field(pattern=r"^20[0-9]{2}-[0-9]{2}$"), AfterValidator(_consecutive_years)
+]
 
 
 class TaxAisSummaryUpdate(BaseModel):

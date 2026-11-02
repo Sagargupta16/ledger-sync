@@ -28,12 +28,13 @@ _TAIL = re.compile(
 )
 _REFERENCES = (
     re.compile(
-        r"\bupi[\s:/-]*(?:ref(?:erence)?\.?\s*(?:no\b\.?|number|id)?\s*[:\-]?\s*)?(\d{12})\b", _I
+        r"\bupi[\s:/-]*+(?:ref(?:erence)?\.?\s*+(?:no\b\.?|number|id)?\s*+[:\-]?\s*+)?(\d{12})\b",
+        _I,
     ),
     re.compile(r"\bupi/p2[am]/(\d{6,})", _I),
     re.compile(
         r"\b(?:ref(?:erence)?|refno|rrn|utr|txn\s*id|transaction\s*id)\b\.?"
-        r"\s*(?:no\b\.?|number|id|#)?\s*[:\-]?\s*((?=[a-z]*\d)[a-z0-9]{6,24})\b",
+        r"\s*+(?:no\b\.?|number|id|#)?\s*+[:\-]?\s*+((?=[a-z]*\d)[a-z0-9]{6,24})\b",
         _I,
     ),
 )

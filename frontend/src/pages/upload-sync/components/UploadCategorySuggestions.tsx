@@ -9,6 +9,8 @@ import {
   type CategorySuggestionStatus,
 } from '@/services/api/categorySuggestions'
 
+import { formatCount } from '../moneyManagerUtils'
+
 import UploadSuggestionList from './UploadSuggestionList'
 import { useUploadCategorySuggestions } from './useUploadCategorySuggestions'
 
@@ -18,7 +20,7 @@ interface UploadCategorySuggestionsProps {
 }
 
 function rowCount(count: number): string {
-  return `${count.toLocaleString()} ${count === 1 ? 'row' : 'rows'}`
+  return `${formatCount(count)} ${count === 1 ? 'row' : 'rows'}`
 }
 
 function gateNotice(status: CategorySuggestionStatus): ReactNode {
@@ -27,7 +29,7 @@ function gateNotice(status: CategorySuggestionStatus): ReactNode {
       <p>Suggestions start once your saved ledger has:</p>
       <ul className="list-disc space-y-0.5 pl-5">
         <li>
-          {status.min_training_rows} categorized rows (now {status.training_rows.toLocaleString()})
+          {status.min_training_rows} categorized rows (now {formatCount(status.training_rows)})
         </li>
         <li>
           {status.min_categories} expense categories, or {status.min_categories} income categories
@@ -41,7 +43,7 @@ function gateNotice(status: CategorySuggestionStatus): ReactNode {
 /** What happened to the file's placeholder rows, as one or two sentences. */
 function summary(targetCount: number, suggestedCount: number, ruleMatched: number): string[] {
   const checked = targetCount > MAX_SUGGESTION_ROWS
-    ? ` (the first ${MAX_SUGGESTION_ROWS.toLocaleString()} were checked)`
+    ? ` (the first ${formatCount(MAX_SUGGESTION_ROWS)} were checked)`
     : ''
   const lines: string[] = []
   if (ruleMatched > 0) {
@@ -49,7 +51,7 @@ function summary(targetCount: number, suggestedCount: number, ruleMatched: numbe
   }
   if (suggestedCount > 0) {
     const verb = suggestedCount === 1 ? 'matches' : 'match'
-    lines.push(`${suggestedCount.toLocaleString()} of them ${verb} your categorized history${checked}.`)
+    lines.push(`${formatCount(suggestedCount)} of them ${verb} your categorized history${checked}.`)
   } else if (ruleMatched < Math.min(targetCount, MAX_SUGGESTION_ROWS)) {
     const rest = ruleMatched > 0 ? 'the rest' : 'them'
     lines.push(`None of ${rest} has enough in common with your categorized history to suggest a category${checked}.`)
@@ -94,7 +96,7 @@ export default function UploadCategorySuggestions({ rows, fileHash }: UploadCate
       title={`${rowCount(targets.length)} with a placeholder category`}
       icon={Sparkles}
       defaultExpanded={false}
-      badge={suggested.length > 0 ? `${suggested.length.toLocaleString()} suggested` : undefined}
+      badge={suggested.length > 0 ? `${formatCount(suggested.length)} suggested` : undefined}
     >
       <div className="space-y-3">{body}</div>
     </CollapsibleSection>

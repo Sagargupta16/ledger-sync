@@ -44,11 +44,6 @@ html[data-motion='reduced'] *::after {
   transition: none !important;
 }
 
-html[data-motion='reduced'] .animate-fade-up {
-  opacity: 1 !important;
-  transform: none !important;
-}
-
 /* ===== PRINT STYLESHEET ===== */
 
 @media print {

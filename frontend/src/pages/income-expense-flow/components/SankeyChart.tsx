@@ -47,7 +47,6 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
     totalExpense,
     totalTax,
     netSavings,
-    currentFY,
   } = props
 
   const depth = drillPath.length
@@ -124,12 +123,12 @@ export function SankeyChart(props: Readonly<SankeyChartProps>) {
             <p className="text-muted-foreground text-lg">
               {depth > 0
                 ? 'No breakdown available for this selection'
-                : `No transaction data available for ${currentFY}`}
+                : 'No transaction data available for this period'}
             </p>
             <p className="text-text-tertiary text-sm mt-2">
               {depth > 0
                 ? 'Go back to the full cash flow view'
-                : 'Select a different financial year or upload transaction data'}
+                : 'Select a different period or upload transaction data'}
             </p>
           </div>
         </div>

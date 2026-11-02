@@ -318,7 +318,17 @@ export default function QuickInsights({
       Flame, Layers, Receipt, ArrowLeftRight, Scale, CalendarRange,
     },
     formatCurrency,
-  )
+  ).map((fact) => {
+    // Without income there is no ratio, and without spending no peak day; zero
+    // would read as "well below income" and as a Sunday.
+    if (fact.title === 'Income vs Expense' && totalIncome <= 0) {
+      return { ...fact, value: 'N/A', subtitle: 'No income in this period' }
+    }
+    if (fact.title === 'Peak Spending Day' && peakDay.total <= 0) {
+      return { ...fact, value: 'N/A', subtitle: 'No spending in this period' }
+    }
+    return fact
+  })
 
   // Keep the semantic groups stable when a user hides a configurable metric.
   const visibleKeys = useMemo(() => getVisibleWidgetKeys(), [])

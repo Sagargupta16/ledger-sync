@@ -1,6 +1,5 @@
 import {
   addFractionalMonthsToKey,
-  addMonthsToKey,
   MONTHS_PER_YEAR,
   parseLocalDate,
   toLocalDateKey,
@@ -38,18 +37,24 @@ export interface GoalProjectionResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Whole calendar months from `fromKey` to `toKey` (`YYYY-MM-DD`, from <= to).
+ * Whole calendar months from `from` to `to` (from <= to, compared by calendar
+ * day).
  *
- * The final month only counts once its day-of-month is reached, and the check
- * walks the calendar with `addMonthsToKey` so a month-end anchor clamps instead
- * of overflowing: 31 Jan -> 28 Feb is 1 month, not 0.
+ * The final month only counts once its day-of-month is reached, and a month-end
+ * anchor clamps to the target month's last day instead of overflowing: 31 Jan ->
+ * 28 Feb is 1 month, not 0. Works on numeric Date components rather than date-key
+ * strings, which stop sorting correctly once the year passes 9999.
  */
-function wholeMonthsBetween(fromKey: string, toKey: string): number {
+function wholeMonthsBetween(from: Date, to: Date): number {
   const monthSpan =
-    (Number(toKey.slice(0, 4)) - Number(fromKey.slice(0, 4))) * MONTHS_PER_YEAR +
-    (Number(toKey.slice(5, 7)) - Number(fromKey.slice(5, 7)))
-  return addMonthsToKey(fromKey, monthSpan) > toKey ? monthSpan - 1 : monthSpan
+    (to.getFullYear() - from.getFullYear()) * MONTHS_PER_YEAR + (to.getMonth() - from.getMonth())
+  const lastDayOfTargetMonth = new Date(to.getFullYear(), to.getMonth() + 1, 0).getDate()
+  return to.getDate() < Math.min(from.getDate(), lastDayOfTargetMonth) ? monthSpan - 1 : monthSpan
 }
+
+/** Calendar day of a Date as a sortable number, from its local components. */
+const dayOrdinal = (date: Date): number =>
+  date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
 
 /**
  * Whole calendar months between two dates, signed (negative when `later`
@@ -61,11 +66,9 @@ function wholeMonthsBetween(fromKey: string, toKey: string): number {
  * nine). Sub-month distances are 0 here; callers handle that as a due-now state.
  */
 export function differenceInMonths(later: Date, earlier: Date): number {
-  const laterKey = toLocalDateKey(later)
-  const earlierKey = toLocalDateKey(earlier)
-  if (laterKey >= earlierKey) return wholeMonthsBetween(earlierKey, laterKey)
+  if (dayOrdinal(later) >= dayOrdinal(earlier)) return wholeMonthsBetween(earlier, later)
   // Negating a 0 span would hand callers -0, which renders as "-0 months".
-  const backwardSpan = wholeMonthsBetween(laterKey, earlierKey)
+  const backwardSpan = wholeMonthsBetween(later, earlier)
   return backwardSpan === 0 ? 0 : -backwardSpan
 }
 
@@ -118,8 +121,9 @@ function resolveTrackingStatus(
   const projectedMonths = differenceInMonths(projected, now)
   const monthsDelta = monthsRemaining - projectedMonths // positive = ahead
 
-  // No deadline -> nothing to be behind on.
-  if (!target || projected <= target) {
+  // No deadline -> nothing to be ahead of or behind, so no month delta either.
+  if (!target) return { status: 'on_track', monthsDelta: null }
+  if (projected <= target) {
     return { status: 'on_track', monthsDelta }
   }
   const monthsBehind = differenceInMonths(projected, target)
@@ -140,10 +144,13 @@ export function computeGoalProjection(
   // is no time pressure, so treat months-remaining as 0 (the required-savings
   // branch below guards against divide-by-zero).
   const targetDate = goal.target_date ? parseLocalDate(goal.target_date) : null
+  // The ledger's own day (IST), so the month count does not shift with the
+  // viewer's timezone; resolveDeadlineState reads the same day.
+  const today = parseLocalDate(getTodayKey(now))
   // WHOLE months only: "how much must I save each month" has no answer for a
   // deadline that is days away, so those collapse to 0 and are reported as
   // due_soon / past_due instead of a per-month figure divided by a fraction.
-  const monthsRemaining = targetDate ? Math.max(0, differenceInMonths(targetDate, now)) : 0
+  const monthsRemaining = targetDate ? Math.max(0, differenceInMonths(targetDate, today)) : 0
   const deadlineState = resolveDeadlineState(targetDate, monthsRemaining, now)
 
   if (currentAmount >= goal.target_amount) {
@@ -174,8 +181,8 @@ export function computeGoalProjection(
   }
 
   const monthsToComplete = amountRemaining / avgMonthlySavings
-  const projectedDate = addMonths(now, monthsToComplete)
-  const tracking = resolveTrackingStatus(projectedDate, targetDate, monthsRemaining, now)
+  const projectedDate = addMonths(today, monthsToComplete)
+  const tracking = resolveTrackingStatus(projectedDate, targetDate, monthsRemaining, today)
 
   return { monthsRemaining, deadlineState, requiredMonthlySavings, projectedDate, monthsToComplete, ...tracking }
 }

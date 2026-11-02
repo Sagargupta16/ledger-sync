@@ -1,5 +1,6 @@
 import type { InvestmentHolding, TransferFlow } from '@/services/api/analyticsV2'
 import type { LabelKind, MerchantRow } from '@/pages/merchant-intelligence/types'
+import { medianOf } from '@/lib/distribution'
 import type { Transaction } from '@/types'
 
 import { isExpense, isTransfer } from './demoHelpers'
@@ -90,9 +91,14 @@ export function generateDemoMerchantIntelligence(
       // new array, source untouched, and Array#sort is stable per ES2019.
       const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date))
       const total = rows.reduce((s, t) => s + t.amount, 0)
-      const months = new Set(rows.map((t) => t.date.slice(0, 7))).size
       const first = sorted[0].date
       const last = sorted.at(-1)?.date ?? first
+      // First-to-last span in months, as the backend counts it (not distinct months).
+      const months =
+        (Number(last.slice(0, 4)) - Number(first.slice(0, 4))) * 12 +
+        (Number(last.slice(5, 7)) - Number(first.slice(5, 7))) + 1
+      const dayOf = (date: string) => new Date(date).getTime() / 86_400_000
+      const medianGapDays = medianOf(sorted.slice(1).map((t, i) => dayOf(t.date) - dayOf(sorted[i].date)))
       const spanDays =
         (new Date(last).getTime() - new Date(first).getTime()) / 86_400_000
       return {
@@ -107,7 +113,7 @@ export function generateDemoMerchantIntelligence(
         last_transaction: last,
         months_active: months,
         avg_days_between: rows.length > 1 ? spanDays / (rows.length - 1) : null,
-        is_recurring: months >= 6 && rows.length >= 6,
+        is_recurring: rows.length >= 3 && medianGapDays > 0 && medianGapDays < 45,
       }
     })
     .filter((row) => params.recurring_only !== true || row.is_recurring)

@@ -176,11 +176,21 @@ def _gunzip(body: bytes) -> bytes:
     return data
 
 
+def _is_macos_sidecar(name: str) -> bool:
+    """Finder adds ``__MACOSX/._<file>`` resource forks that look like a second backup."""
+    parts = name.split("/")
+    return parts[0] == "__MACOSX" or parts[-1].startswith("._")
+
+
 def _unzip(body: bytes) -> bytes:
     """Read the one backup file inside a zip archive."""
     try:
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
-            files = [entry for entry in archive.infolist() if not entry.is_dir()]
+            files = [
+                entry
+                for entry in archive.infolist()
+                if not entry.is_dir() and not _is_macos_sidecar(entry.filename)
+            ]
             named = [
                 entry
                 for entry in files
@@ -194,7 +204,7 @@ def _unzip(body: bytes) -> bytes:
                 raise MoneyManagerBackupError(_too_large())
             with archive.open(entry) as handle:
                 data = handle.read(MAX_DATABASE_BYTES + 1)
-    except (zipfile.BadZipFile, RuntimeError, EOFError) as error:
+    except (zipfile.BadZipFile, RuntimeError, EOFError, zlib.error, NotImplementedError) as error:
         raise MoneyManagerBackupError("The zip file could not be read.") from error
     if len(data) > MAX_DATABASE_BYTES:
         raise MoneyManagerBackupError(_too_large())
@@ -282,7 +292,10 @@ def _row_from_record(record: tuple[Any, ...]) -> tuple[dict[str, Any] | None, st
         return None, "in a currency other than INR"
     if not clean_text(account):
         return None, "without an account"
-    base = _base_row(uid, day, stamp, amount, note, updated)
+    try:
+        base = _base_row(uid, day, stamp, amount, note, updated)
+    except ArithmeticError, ValueError, OSError:
+        return None, "with an amount or date that cannot be read"
     if kind in (_INCOME, _EXPENSE):
         category, subcategory = category_labels(name, parent)
         return {
@@ -313,7 +326,7 @@ def _base_row(
     date_text = clean_text(day) or (occurred.date().isoformat() if occurred else "")
     return {
         "date": date_text,
-        "amount": abs(Decimal(str(amount))) if amount is not None else None,
+        "amount": _amount(amount),
         "currency": "INR",
         "note": clean_text(note) or None,
         "_source_system": SOURCE_SYSTEM,
@@ -321,6 +334,17 @@ def _base_row(
         "_source_updated_at": _epoch_millis(updated),
         "_occurred_at": occurred,
     }
+
+
+def _amount(value: object) -> Decimal | None:
+    """The absolute amount; raises ArithmeticError or ValueError for text, NaN or infinity."""
+    if value is None:
+        return None
+    amount = abs(Decimal(str(value)))
+    if not amount.is_finite():
+        msg = "amount is not finite"
+        raise ValueError(msg)
+    return amount
 
 
 def _read_accounts(connection: sqlite3.Connection) -> list[BackupAccount]:

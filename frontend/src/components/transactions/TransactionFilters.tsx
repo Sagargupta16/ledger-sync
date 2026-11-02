@@ -3,8 +3,8 @@ import { Search, Filter, X, Calendar, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button, Input, Select } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
+import { BASE_CURRENCY, getCurrencyMeta } from '@/constants/currencies'
 import { useDebounce } from '@/hooks/useDebounce'
-import { usePreferencesStore } from '@/store/preferencesStore'
 import type { TagFacet } from '@/services/api/transactions'
 
 import SmartSearchToggle from './SmartSearchToggle'
@@ -47,6 +47,12 @@ export interface FilterValues {
 
 const TRANSACTION_TYPES = ['Income', 'Expense', 'Transfer']
 
+// The API compares amounts against the stored base-currency value, not the
+// converted display currency, so the amount fields are labelled in base currency.
+const BASE_CURRENCY_SYMBOL = getCurrencyMeta(BASE_CURRENCY).symbol
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
 export default function TransactionFilters({
   onFilterChange,
   categories,
@@ -62,7 +68,6 @@ export default function TransactionFilters({
   const [searchQuery, setSearchQuery] = useState(initialValues?.query ?? '')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const isFirstRender = useRef(true)
-  const currencySymbol = usePreferencesStore((state) => state.displayPreferences.currencySymbol)
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
@@ -95,10 +100,16 @@ export default function TransactionFilters({
       setSearchQuery(value as string || '')
       return
     }
-    const newFilters = { ...filters, [key]: value || undefined }
+    const newFilters = { ...filters, [key]: value === '' ? undefined : value }
     setFilters(newFilters)
     onFilterChange(newFilters)
   }, [filters, onFilterChange])
+
+  // A fifth year digit makes a date the API rejects with a 422; ignoring it
+  // leaves the field on its last valid date.
+  const handleDateChange = (key: 'start_date' | 'end_date', value: string) => {
+    if (value === '' || ISO_DATE.test(value)) handleFilterChange(key, value)
+  }
 
   const clearFilters = useCallback(() => {
     setFilters({})
@@ -279,7 +290,7 @@ export default function TransactionFilters({
                   id="filter-start-date"
                   type="date"
                   value={filters.start_date || ''}
-                  onChange={(e) => handleFilterChange('start_date', e.target.value)}
+                  onChange={(e) => handleDateChange('start_date', e.target.value)}
                 />
               </div>
 
@@ -293,32 +304,32 @@ export default function TransactionFilters({
                   id="filter-end-date"
                   type="date"
                   value={filters.end_date || ''}
-                  onChange={(e) => handleFilterChange('end_date', e.target.value)}
+                  onChange={(e) => handleDateChange('end_date', e.target.value)}
                 />
               </div>
 
               {/* Min Amount */}
               <div className="space-y-2">
-                <label htmlFor="filter-min-amount" className="text-sm font-medium text-muted-foreground">Min Amount ({currencySymbol})</label>
+                <label htmlFor="filter-min-amount" className="text-sm font-medium text-muted-foreground">Min Amount ({BASE_CURRENCY_SYMBOL})</label>
                 <Input
                   id="filter-min-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
-                  value={filters.min_amount || ''}
+                  value={filters.min_amount ?? ''}
                   onChange={(e) => handleFilterChange('min_amount', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>
 
               {/* Max Amount */}
               <div className="space-y-2">
-                <label htmlFor="filter-max-amount" className="text-sm font-medium text-muted-foreground">Max Amount ({currencySymbol})</label>
+                <label htmlFor="filter-max-amount" className="text-sm font-medium text-muted-foreground">Max Amount ({BASE_CURRENCY_SYMBOL})</label>
                 <Input
                   id="filter-max-amount"
                   type="number"
                   inputMode="decimal"
                   placeholder="∞"
-                  value={filters.max_amount || ''}
+                  value={filters.max_amount ?? ''}
                   onChange={(e) => handleFilterChange('max_amount', e.target.value ? Number(e.target.value) : undefined)}
                 />
               </div>

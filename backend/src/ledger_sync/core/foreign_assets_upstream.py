@@ -38,6 +38,8 @@ _RETRY_DELAY_SECONDS = 0.5
 # that year's first days have a prior quote and rate.
 _LEAD_DAYS = 10
 _TTL_SECONDS = 6 * 3600
+# A failed fetch is remembered this long, so a down upstream costs one wait, not one per request.
+_FAILURE_TTL_SECONDS = 60
 _CACHE_LIMIT = 32
 
 
@@ -52,6 +54,7 @@ class SymbolHistory:
 
 _history_cache: dict[str, tuple[float, SymbolHistory]] = {}
 _rates_cache: dict[str, tuple[float, tuple[date, RateSeries]]] = {}
+_failures: dict[str, tuple[float, bool]] = {}
 
 
 def history_start(day: date) -> date:
@@ -69,6 +72,11 @@ def _remember[V](cache: dict[str, tuple[float, V]], key: str, value: V) -> None:
         del cache[min(cache, key=lambda item: cache[item][0])]
 
 
+def _recently_failed(key: str) -> bool:
+    found = _failures.get(key)
+    return found is not None and time.monotonic() - found[0] < _FAILURE_TTL_SECONDS
+
+
 def _epoch(day: date) -> int:
     return int(datetime.combine(day, datetime.min.time(), tzinfo=UTC).timestamp())
 
@@ -80,6 +88,8 @@ async def fetch_history(
     cached = _fresh(_history_cache, symbol)
     if cached is not None and cached.start <= start:
         return cached
+    if _recently_failed(f"history:{symbol}"):
+        return None
     params: dict[str, str | int] = {
         "interval": "1d",
         "period1": _epoch(start),
@@ -97,6 +107,7 @@ async def fetch_history(
         currency, name, quotes, splits = parse_chart(response.json())
     except httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError:
         logger.warning("Daily quotes unavailable for %r", symbol, exc_info=True)
+        _remember(_failures, f"history:{symbol}", True)
         return None
     found = SymbolHistory(start, currency, name or symbol, tuple(quotes), tuple(splits))
     _remember(_history_cache, symbol, found)
@@ -118,6 +129,8 @@ async def fetch_rates(client: httpx.AsyncClient, currency: str, start: date) -> 
     cached = _fresh(_rates_cache, currency)
     if cached is not None and cached[0] <= start:
         return cached[1]
+    if _recently_failed(f"rates:{currency}"):
+        return None
     url = _FRANKFURTER_SERIES_URL.format(start=start.isoformat(), end=ledger_today().isoformat())
     for attempt in range(_RATE_ATTEMPTS):
         try:
@@ -127,6 +140,7 @@ async def fetch_rates(client: httpx.AsyncClient, currency: str, start: date) -> 
             response.raise_for_status()
             series = _parse_rates(response.json())
         except httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError:
+            _remember(_failures, f"rates:{currency}", True)
             if attempt < _RATE_ATTEMPTS - 1:
                 await anyio.sleep(_RETRY_DELAY_SECONDS)
             continue

@@ -79,13 +79,21 @@ export default function BudgetRuleAnalysis({
   const basis = savings > 0 ? 'income' : 'spending'
   const copy = BASIS[basis]
   const total = spendingChartData.reduce((sum, item) => sum + item.value, 0)
-  const shareOf = (value: number) => formatPercent(total > 0 ? (value / total) * 100 : 0)
+  // Slices sum to income minus classified losses, so on the income basis the
+  // shares come from the cards' own share of income to keep both in agreement.
+  const incomeShares: Record<string, number | undefined> = {
+    Needs: budgetRuleMetrics?.essentialPercent,
+    Wants: budgetRuleMetrics?.discretionaryPercent,
+    Savings: budgetRuleMetrics?.savingsPercent,
+  }
+  const shareOf = (item: SpendingChartDatum) =>
+    formatPercent((basis === 'income' ? incomeShares[item.name] : undefined) ?? (total > 0 ? (item.value / total) * 100 : 0))
   const active = spendingChartData.find((item) => item.name === activeName)
   const center = (
     <>
       <span className="max-w-full truncate text-sm font-semibold text-text-primary">{active?.name ?? copy.title}</span>
       <span className="mt-1 text-xs text-text-tertiary">
-        {active ? `${shareOf(active.value)} of ${basis}` : `of ${basis}`}
+        {active ? `${shareOf(active)} of ${basis}` : `of ${basis}`}
       </span>
     </>
   )
@@ -162,7 +170,7 @@ export default function BudgetRuleAnalysis({
               [
                 { header: 'Allocation', rowHeader: true, value: (row) => row.name },
                 { header: 'Amount', value: (row) => formatCurrency(row.value) },
-                { header: `Share of ${basis}`, value: (row) => shareOf(row.value) },
+                { header: `Share of ${basis}`, value: (row) => shareOf(row) },
               ],
               copy.caption,
               (row) => row.name,

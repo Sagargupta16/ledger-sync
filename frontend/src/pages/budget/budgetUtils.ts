@@ -1,4 +1,4 @@
-import { toLocalDateKey } from '@/lib/dateUtils'
+import { getTodayKey, toLocalDateKey } from '@/lib/dateUtils'
 import type { PresetPeriod } from './components/PeriodPicker'
 
 /**
@@ -33,7 +33,9 @@ export function toPeriodRange(
     maxDate?: string
   },
 ): { start: string; end: string } {
-  const now = new Date()
+  // Today on the ledger (IST) calendar, so a viewer in another zone gets the same window.
+  const [todayYear, todayMonth, todayDay] = getTodayKey().split('-').map(Number)
+  const now = new Date(todayYear, todayMonth - 1, todayDay)
   // Last day of the current month, in local time. Day 0 of the next month.
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   let start: Date

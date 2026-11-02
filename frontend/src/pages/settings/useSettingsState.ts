@@ -6,7 +6,7 @@
  * save's write steps in `settingsSaveWrites`.
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAccountBalances, useIncomeFacets, useMasterCategories } from '@/hooks/api/useAnalytics'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
@@ -33,6 +33,18 @@ import { useSettingsDraft } from './useSettingsDraft'
 import { useSeedSettingsDraft } from './useSeedSettingsDraft'
 
 const RULES_KEY = ['categorization-rules'] as const
+const NO_CLOSED_ACCOUNTS: string[] = []
+
+/** The draft fields that differ from the snapshot taken when the draft was seeded. */
+function changedPrefs(current: LocalPrefs, baseline: LocalPrefs | null): Partial<LocalPrefs> {
+  if (!baseline) return current
+  const before = baseline as Record<string, unknown>
+  const changed: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(current)) {
+    if (JSON.stringify(value) !== JSON.stringify(before[key])) changed[key] = value
+  }
+  return changed
+}
 
 export function useSettingsState() {
   // Data hooks
@@ -62,11 +74,12 @@ export function useSettingsState() {
     refetch: refetchBalances,
   } = useAccountBalances()
   const {
-    data: closedAccounts = [],
+    data: closedAccountsData,
     isLoading: closedAccountsLoading,
     isError: closedAccountsError,
     refetch: refetchClosedAccounts,
   } = useClosedAccounts()
+  const closedAccounts = closedAccountsData ?? NO_CLOSED_ACCOUNTS
   const {
     data: incomeFacetsData,
     isLoading: incomeFacetsLoading,
@@ -78,11 +91,12 @@ export function useSettingsState() {
   // Local state
   const draft = useSettingsDraft()
   const {
-    classifications, localPrefs, setLocalPrefs, setHasChanges,
+    classifications, localPrefs, setLocalPrefs, hasChanges, setHasChanges,
     localSalaryStructure, setLocalSalaryStructure, localRsuGrants, setLocalRsuGrants,
     localGrowthAssumptions, setLocalGrowthAssumptions, rules, setRules,
   } = draft
   const saveInProgress = useRef(false)
+  const baselinePrefs = useRef<LocalPrefs | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -108,6 +122,12 @@ export function useSettingsState() {
     isSaving,
   })
 
+  // The draft as seeded (refreshed after each save). Save sends only what was
+  // edited here, so a preference changed elsewhere meanwhile is not reverted.
+  useEffect(() => {
+    if (localPrefs && !baselinePrefs.current) baselinePrefs.current = localPrefs
+  }, [localPrefs])
+
   const retrySettings = useCallback(async () => {
     await Promise.all([
       refetchPreferences(),
@@ -123,6 +143,10 @@ export function useSettingsState() {
   const handleApplyRules = useCallback(async () => {
     if (saveInProgress.current || applyingRules) return
     if (guardDemoAction('Applying rules')) return
+    if (hasChanges) {
+      toast.error('Save your changes first. Apply runs the rules saved on the server.')
+      return
+    }
     const signal = getSessionSignal()
     setApplyingRules(true)
     try {
@@ -135,7 +159,7 @@ export function useSettingsState() {
     } finally {
       setApplyingRules(false)
     }
-  }, [guardDemoAction, queryClient, applyingRules])
+  }, [guardDemoAction, queryClient, applyingRules, hasChanges])
 
   /**
    * Apply every keyword suggestion the audit produced in one go.
@@ -186,10 +210,14 @@ export function useSettingsState() {
       // The existing endpoint accepts all of these fields in one transaction.
       // Publish to the cache only after classifications and rules also settle.
       await preferencesService.updatePreferences({
-        ...localPrefs,
+        ...changedPrefs(localPrefs, baselinePrefs.current),
         salary_structure: localSalaryStructure,
         rsu_grants: localRsuGrants,
-        growth_assumptions: localGrowthAssumptions,
+        growth_assumptions: {
+          ...localGrowthAssumptions,
+          projection_years:
+            localGrowthAssumptions.projection_years || DEFAULT_GROWTH_ASSUMPTIONS.projection_years,
+        },
       })
       assertCurrentSession(signal)
 
@@ -201,7 +229,9 @@ export function useSettingsState() {
       assertCurrentSession(signal)
       queryClient.setQueryData(RULES_KEY, refreshed)
       queryClient.setQueryData(['account-classifications', 'all'], classifications)
-      setLocalPrefs(buildInitialLocalPrefs(savedPreferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
+      const savedLocalPrefs = buildInitialLocalPrefs(savedPreferences as unknown as Record<string, unknown>) as unknown as LocalPrefs
+      baselinePrefs.current = savedLocalPrefs
+      setLocalPrefs(savedLocalPrefs)
       setLocalSalaryStructure(savedPreferences.salary_structure)
       setLocalRsuGrants(savedPreferences.rsu_grants.map((grant) => ({
         ...grant, vestings: sortVestings(grant.vestings),
@@ -243,6 +273,7 @@ export function useSettingsState() {
       await resetPreferences.mutateAsync()
       assertCurrentSession(signal)
       setLocalPrefs(null)
+      baselinePrefs.current = null
       setHasChanges(false)
       setSavedAt(new Date())
       toast.success('Settings reset to defaults')
@@ -269,7 +300,7 @@ export function useSettingsState() {
     (preferencesError && !preferences) ||
     (categoriesError && !masterCategories) ||
     (balancesError && !balanceData) ||
-    (closedAccountsError && closedAccounts.length === 0 && !localPrefs) ||
+    (closedAccountsError && !closedAccountsData) ||
     (incomeFacetsError && !incomeFacetsData) ||
     (classificationsQuery.isError && !classificationsQuery.data) ||
     (rulesQuery.isError && !rulesQuery.data)

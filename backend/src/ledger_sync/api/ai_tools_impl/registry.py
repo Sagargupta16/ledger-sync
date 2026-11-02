@@ -92,7 +92,7 @@ def matching_categories(
     Returns ``(names, exact)``.
     """
     stmt = ledger_scope(user, select(Transaction.category).distinct()).where(
-        Transaction.category.ilike(f"%{category}%")
+        Transaction.category.icontains(category, autoescape=True)
     )
     if txn_type is not None:
         stmt = stmt.where(Transaction.type == txn_type)

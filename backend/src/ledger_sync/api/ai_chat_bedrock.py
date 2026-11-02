@@ -160,10 +160,23 @@ def _resolve_user_bearer(ai_settings: UserAISettings, session: DatabaseSession) 
     return candidate
 
 
+def _has_sigv4_credentials() -> bool:
+    if os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE"):
+        return True
+    import boto3
+    from botocore.exceptions import BotoCoreError  # type: ignore[import-untyped]
+
+    try:
+        # The default chain also finds IAM role, container and web-identity
+        # credentials and shared config files, which no single variable names.
+        return boto3.Session().get_credentials() is not None
+    except BotoCoreError:
+        return False
+
+
 def _check_server_credential_path() -> None:
     has_bearer = bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
-    has_sigv4 = bool(os.environ.get("AWS_ACCESS_KEY_ID")) or bool(os.environ.get("AWS_PROFILE"))
-    if not has_bearer and not has_sigv4:
+    if not has_bearer and not _has_sigv4_credentials():
         raise HTTPException(
             status_code=503,
             detail=(
@@ -211,8 +224,10 @@ def _call_bedrock(
     user_bearer: str | None,
     converse_kwargs: dict[str, Any],
 ) -> dict[str, Any]:
-    from botocore.exceptions import (  # type: ignore[import-untyped]
+    from botocore.exceptions import (
         ClientError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
         NoCredentialsError,
         ParamValidationError,
         PartialCredentialsError,
@@ -250,12 +265,19 @@ def _call_bedrock(
             "ThrottlingException",
             "ServiceQuotaExceededException",
             "ModelNotReadyException",
+            "ServiceUnavailableException",
         }
         logger.warning("Bedrock invocation failed with provider code %s", code)
         raise BedrockInvocationError(
             "Bedrock rejected the request. Check the configured key, model, and region "
             "or retry after the model is ready or provider throttling clears.",
             billable=not not_invoked,
+        ) from exc
+    except (ConnectTimeoutError, EndpointConnectionError) as exc:
+        # The connection never opened, so the request never reached the provider.
+        raise BedrockInvocationError(
+            "Bedrock could not be reached. Try again shortly.",
+            billable=False,
         ) from exc
     except Exception as exc:
         raise BedrockInvocationError(

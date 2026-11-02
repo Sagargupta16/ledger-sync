@@ -216,12 +216,15 @@ describe('demo mode interceptor vs seeds', () => {
     expect(unreviewed.every((row) => !row.is_reviewed)).toBe(true)
   })
 
-  it('returns nothing for the routes only the seed can answer', async () => {
+  it('returns nothing for the route only the seed can answer', async () => {
     useDemoStore.getState().enterDemo()
-    // Proves the two assertions above are not tautological: the interceptor has
-    // no entry for these, which is why seedDemoCache must keep seeding them.
+    // Proves the preferences assertion above is not tautological: the
+    // interceptor has no entry for it, which is why seedDemoCache must seed it.
     await expect(preferencesService.getPreferences()).resolves.toEqual([])
-    await expect(calculationsApi.getMasterCategories()).resolves.toMatchObject({ data: [] })
+    // Master categories have a DEMO_ROUTES entry, so an evicted seed refetches
+    // demo data instead of an empty list.
+    const master = await calculationsApi.getMasterCategories()
+    expect(master.data).not.toEqual([])
   })
 
   it('serves the seeded budgets/goals keys without a pending first render', () => {

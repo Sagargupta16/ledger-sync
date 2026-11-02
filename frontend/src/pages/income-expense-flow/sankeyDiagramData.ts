@@ -99,12 +99,13 @@ function drillIds(view: SankeyView, crumb: DrillCrumb, depth: number): string[] 
 
 /**
  * The overview's Tax node drills either into its own "other" breakdown or, with one entry, straight into
- * that tax category; both open from the Tax node. Tax-named categories never reach the expense entries
- * (they are split off as tax), so at depth 1 a tax-named category crumb can only have come from there.
+ * that tax category; both open from the Tax node. A category crumb says which branch opened it
+ * (`tax`); without that, a tax-named category can only have come from the Tax node, because
+ * tax-named categories never reach the expense entries (they are split off as tax).
  */
 function parentId(crumb: DrillCrumb, depth: number): string {
   const fromTax = depth === 1 && crumb.flow === 'expense'
-    && (crumb.view === 'other' ? crumb.label === TAX_CRUMB_LABEL : isTaxCategory(crumb.label))
+    && (crumb.view === 'other' ? crumb.label === TAX_CRUMB_LABEL : (crumb.tax ?? isTaxCategory(crumb.label)))
   return fromTax ? OVERVIEW_NODE.tax : `${crumb.flow}:${crumb.label}`
 }
 

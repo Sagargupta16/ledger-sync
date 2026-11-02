@@ -8,8 +8,8 @@
  */
 
 import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
-import { MS_PER_DAY, parseLocalDate } from '@/lib/dateUtils'
-import { normalizeFrequency } from '@/lib/recurrenceFrequency'
+import { parseLocalDate } from '@/lib/dateUtils'
+import { normalizeFrequency, recurrenceCadence } from '@/lib/recurrenceFrequency'
 
 const MONTHS_IN_YEAR = 12
 
@@ -25,7 +25,7 @@ function clampDay(d: number, daysInMonth: number): number {
 
 /**
  * Collect recurring days within a month by walking from a reference date
- * at a given interval (in days).
+ * at a given interval (in calendar days, so a DST change cannot move a bill).
  */
 function getRecurringDaysInMonth(
   nextExpected: string,
@@ -38,17 +38,18 @@ function getRecurringDaysInMonth(
   const days: number[] = []
   const monthStart = new Date(year, month, 1)
   const monthEnd = new Date(year, month, daysInMonth)
-  const intervalMs = intervalDays * MS_PER_DAY
+  const shiftDays = (date: Date, offset: number): Date =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset)
 
   let current = new Date(nextDate)
   while (current > monthStart) {
-    current = new Date(current.getTime() - intervalMs)
+    current = shiftDays(current, -intervalDays)
   }
   while (current <= monthEnd) {
     if (current >= monthStart && current <= monthEnd) {
       days.push(current.getDate())
     }
-    current = new Date(current.getTime() + intervalMs)
+    current = shiftDays(current, intervalDays)
   }
   return days
 }
@@ -65,14 +66,15 @@ export function getDailyDays(daysInMonth: number): number[] {
   return Array.from({ length: daysInMonth }, (_, index) => index + 1)
 }
 
-function getWeeklyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
+function getEveryNthDayDays(
+  tx: RecurringTransaction,
+  year: number,
+  month: number,
+  daysInMonth: number,
+  strideDays: number,
+): number[] {
   if (!tx.next_expected) return []
-  return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 7)
-}
-
-function getFortnightlyDays(tx: RecurringTransaction, year: number, month: number, daysInMonth: number): number[] {
-  if (!tx.next_expected) return []
-  return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, 14)
+  return getRecurringDaysInMonth(tx.next_expected, year, month, daysInMonth, strideDays)
 }
 
 function getMonthlyDays(tx: RecurringTransaction, daysInMonth: number): number[] {
@@ -99,10 +101,6 @@ function getEveryNthMonthDays(
   const diff = (((month - nextMonth) % MONTHS_IN_YEAR) + MONTHS_IN_YEAR) % MONTHS_IN_YEAR
   if (diff % strideMonths === 0) return [clampDay(tx.expected_day, daysInMonth)]
   return []
-}
-
-function getQuarterlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
-  return getEveryNthMonthDays(tx, month, daysInMonth, 3)
 }
 
 function getYearlyDays(tx: RecurringTransaction, month: number, daysInMonth: number): number[] {
@@ -140,24 +138,22 @@ export function getBillDaysForMonth(
 ): number[] {
   const daysInMonth = getDaysInMonth(year, month)
   const frequency = normalizeFrequency(tx.frequency)
+  const cadence = recurrenceCadence(tx.frequency)
 
-  if (!frequency) return []
+  if (!frequency || !cadence) return []
 
   switch (frequency) {
     case 'daily':
       return getDailyDays(daysInMonth)
     case 'weekly':
-      return getWeeklyDays(tx, year, month, daysInMonth)
     case 'biweekly':
-      return getFortnightlyDays(tx, year, month, daysInMonth)
+      return getEveryNthDayDays(tx, year, month, daysInMonth, cadence.stride)
     case 'monthly':
       return getMonthlyDays(tx, daysInMonth)
     case 'bimonthly':
-      return getEveryNthMonthDays(tx, month, daysInMonth, 2)
     case 'quarterly':
-      return getQuarterlyDays(tx, month, daysInMonth)
     case 'semiannual':
-      return getEveryNthMonthDays(tx, month, daysInMonth, 6)
+      return getEveryNthMonthDays(tx, month, daysInMonth, cadence.stride)
     case 'yearly':
       return getYearlyDays(tx, month, daysInMonth)
     default:

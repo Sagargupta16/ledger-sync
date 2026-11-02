@@ -107,7 +107,5 @@ describe('theme control contrast', () => {
     expect(reducedBlock).toContain('animation: none !important')
     expect(reducedBlock).toContain('scroll-behavior: auto !important')
     expect(reducedBlock).toContain('transition: none !important')
-    expect(reducedBlock).toContain('opacity: 1 !important')
-    expect(reducedBlock).toContain('transform: none !important')
   })
 })

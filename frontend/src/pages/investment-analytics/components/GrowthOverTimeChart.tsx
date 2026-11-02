@@ -89,7 +89,8 @@ export function GrowthOverTimeChart({
   const firstPoint = filteredGrowthData[0]
   const lastPoint = filteredGrowthData.at(-1)
   const latestBalance = lastPoint ? rowTotal(lastPoint) : 0
-  const openingBalance = firstPoint ? rowTotal(firstPoint) : 0
+  // The hook stamps the balance carried into the window on the first row.
+  const openingBalance = Number(firstPoint?.openingBalance ?? (firstPoint ? rowTotal(firstPoint) : 0))
   const balanceChange = latestBalance - openingBalance
   const spansYears = String(firstPoint?.date).slice(0, 4) !== String(lastPoint?.date).slice(0, 4)
   const zoomable = filteredGrowthData.length > 6

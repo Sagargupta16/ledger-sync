@@ -53,13 +53,16 @@ function getCellClass(columnId: string): string {
 
 type TransactionRow = Row<TransactionTableFeatures, Transaction>
 
-function groupRowsByDate(rows: TransactionRow[]): Record<string, TransactionRow[]> {
-  return rows.reduce<Record<string, TransactionRow[]>>((groups, row) => {
+/** Consecutive rows with the same date share a group, so a non-date order (Smart search rank, amount sort) is kept. */
+function groupRowsByDate(rows: TransactionRow[]): Array<{ dateKey: string; rows: TransactionRow[] }> {
+  const groups: Array<{ dateKey: string; rows: TransactionRow[] }> = []
+  for (const row of rows) {
     const dateKey = row.original.date.substring(0, 10)
-    groups[dateKey] ??= []
-    groups[dateKey].push(row)
-    return groups
-  }, {})
+    const last = groups.at(-1)
+    if (last?.dateKey === dateKey) last.rows.push(row)
+    else groups.push({ dateKey, rows: [row] })
+  }
+  return groups
 }
 
 export default function TransactionTable({
@@ -87,11 +90,15 @@ export default function TransactionTable({
     features: transactionTableFeatures,
     data: transactions,
     columns: transactionColumns,
+    getRowId: (row) => row.id,
     state: {
       sorting,
     },
     onSortingChange: handleSortingChange,
     manualSorting: true,
+    // Clicks alternate between ascending and descending; removing the sort
+    // would show an unsorted state that looks like newest-first.
+    enableSortingRemoval: false,
     meta: tableMeta,
   })
 
@@ -243,7 +250,7 @@ export default function TransactionTable({
         className="m-0 list-none p-0 md:hidden"
         aria-label="Transactions grouped by date"
       >
-        {Object.entries(groupedRows).map(([dateKey, dayRows]) => {
+        {groupedRows.map(({ dateKey, rows: dayRows }) => {
             const dayTotal = dayRows.reduce((sum, r) => {
               if (r.original.type === 'Expense') return sum - r.original.amount
               if (r.original.type === 'Income') return sum + r.original.amount
@@ -257,7 +264,7 @@ export default function TransactionTable({
             })
 
             return (
-              <li key={dateKey} aria-label={dayLabel}>
+              <li key={`${dateKey}-${dayRows[0].id}`} aria-label={dayLabel}>
                 {/* Day header */}
                 {/* Sticks below the page's StickyToolbar, which publishes its
                     height on the scroll container. */}
@@ -270,7 +277,7 @@ export default function TransactionTable({
                     formatter={(value) =>
                       `${dayTotal >= 0 ? '+' : '-'}${formatCurrency(value)}`
                     }
-                    ariaLabel={`Net total ${formatCurrency(dayTotal)}`}
+                    ariaLabel={`Net of the transactions listed for this day ${formatCurrency(dayTotal)}`}
                     className={`text-xs ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}
                   />
                 </div>

@@ -93,16 +93,27 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
               const tx = (result as TransactionResult).transaction
               const isSelected = index === selectedIndex
               const isIncome = tx.type === 'Income'
+              const isTransfer = tx.type === 'Transfer'
 
               let iconBgClass = 'bg-[var(--overlay-3)]'
               if (isSelected) {
-                iconBgClass = isIncome ? 'bg-app-green/12' : 'bg-app-red/12'
+                if (isTransfer) iconBgClass = 'bg-app-teal/12'
+                else iconBgClass = isIncome ? 'bg-app-green/12' : 'bg-app-red/12'
               }
 
               let iconClass = 'text-text-secondary'
               if (isSelected) {
-                iconClass = isIncome ? 'text-app-green' : 'text-app-red'
+                if (isTransfer) iconClass = 'text-app-teal'
+                else iconClass = isIncome ? 'text-app-green' : 'text-app-red'
               }
+
+              let amountClass = 'text-app-red'
+              if (isTransfer) amountClass = 'text-app-teal'
+              else if (isIncome) amountClass = 'text-app-green'
+
+              let amountPrefix = '-'
+              if (isTransfer) amountPrefix = ''
+              else if (isIncome) amountPrefix = '+'
 
               return (
                 <li key={tx.id} data-index={index}>
@@ -131,12 +142,8 @@ export function PaletteResults(props: Readonly<PaletteResultsProps>) {
                         {tx.account ? ` · ${tx.account}` : ''}
                       </p>
                     </div>
-                    <span
-                      className={`text-sm font-semibold flex-shrink-0 ${
-                        isIncome ? 'text-app-green' : 'text-app-red'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'}
+                    <span className={`text-sm font-semibold flex-shrink-0 ${amountClass}`}>
+                      {amountPrefix}
                       {formatCurrency(Math.abs(tx.amount))}
                     </span>
                   </button>

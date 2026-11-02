@@ -53,6 +53,14 @@ export interface DataHealth {
   earliest_date: string | null
   /** Newest transaction date (`YYYY-MM-DD`), null on an empty ledger. */
   latest_date: string | null
+  /**
+   * Newest transaction date (`YYYY-MM-DD`) on or before today in IST, null when
+   * there is none. Differs from `latest_date` only when a row is future-dated.
+   *
+   * Optional because the Pages frontend and the Vercel backend deploy
+   * separately; an older backend omits it.
+   */
+  latest_past_date?: string | null
   /** Rows dated after today -- accepted by the importer without a flag. */
   future_dated_count: number
   /** Rows whose note is a placeholder such as the literal "Unknown". */

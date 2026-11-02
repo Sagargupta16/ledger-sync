@@ -24,7 +24,7 @@ _SPENDABLE_TYPES = frozenset({"Cash", "Bank Accounts", "Other Wallets"})
 # JavaScript's ``\s``. The frontend patterns carry no ``u`` flag, so their ``\b``
 # and case folding are ASCII-only, which ``re.ASCII`` reproduces.
 _JS_SPACE = r"[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]"
-_PARKED_DEPOSITS = tuple(
+PARKED_DEPOSITS = tuple(
     re.compile(pattern.replace(r"\s", _JS_SPACE), re.IGNORECASE | re.ASCII)
     for pattern in (
         r"\bsecurity\s+deposits?\b",
@@ -40,7 +40,7 @@ def is_spendable(name: str, classifications: Mapping[str, str]) -> bool:
     """Cash, bank and wallet accounts, minus deposits a third party holds."""
     if classifications.get(name) not in _SPENDABLE_TYPES:
         return False
-    return not any(pattern.search(name) for pattern in _PARKED_DEPOSITS)
+    return not any(pattern.search(name) for pattern in PARKED_DEPOSITS)
 
 
 def net_liquid(balances: Mapping[str, float], classifications: Mapping[str, str]) -> float:

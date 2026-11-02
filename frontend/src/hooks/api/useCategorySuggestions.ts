@@ -11,7 +11,9 @@ import type { ParsedTransaction } from '@/lib/fileParser'
 import { categorySuggestionsService, MAX_SUGGESTION_ROWS } from '@/services/api/categorySuggestions'
 import { useDemoStore } from '@/store/demoStore'
 
-const CATEGORY_SUGGESTIONS_KEY = ['category-suggestions'] as const
+// Under the rules family so saving or applying a rule (`invalidatePreferenceDependents`)
+// marks these stale: the server returns no suggestion for a row a rule will set.
+const CATEGORY_SUGGESTIONS_KEY = ['categorization-rules', 'suggestions'] as const
 
 export function useCategorySuggestionStatus() {
   return useQuery({

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics.refresh import lock_analytics_user, mark_ledger_changed
 from ledger_sync.core.category_overrides import fixed_transaction_ids
+from ledger_sync.core.import_labels import canonicalize_categories
 from ledger_sync.db.models import CategorizationRule, Transaction, TransactionType
 from ledger_sync.services.ledger_dimensions import sync_transactions_dimensions
 from ledger_sync.utils.logging import logger
@@ -68,6 +69,11 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
     if not rules:
         session.commit()
         return (0, 0)
+    spellings = [{"category": rule.category} for rule in rules]
+    canonicalize_categories(session, user_id, spellings)
+    categories = {
+        rule.id: spelling["category"] for rule, spelling in zip(rules, spellings, strict=True)
+    }
     fixed = fixed_transaction_ids(session, user_id)
     rows = list(
         session.scalars(
@@ -90,9 +96,10 @@ def apply_rules_retroactively(session: Session, user_id: int) -> tuple[int, int]
             matched += 1
             if row.transaction_id in fixed:
                 continue  # a review-queue fix wins over rules, as it does at import
-            if row.category == rule.category and row.subcategory == rule.subcategory:
+            category = categories[rule.id]
+            if row.category == category and row.subcategory == rule.subcategory:
                 continue
-            row.category = rule.category
+            row.category = category
             row.subcategory = rule.subcategory
             changed.append(row)
         if changed:

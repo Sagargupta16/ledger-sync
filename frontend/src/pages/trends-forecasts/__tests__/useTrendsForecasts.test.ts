@@ -292,7 +292,7 @@ describe('useTrendsForecasts -- monthly average divisors', () => {
     for (const metric of [metrics.income, metrics.spending, metrics.savings]) {
       expect(Number.isFinite(metric.average)).toBe(true)
       expect(metric.average).toBe(0)
-      expect(Number.isFinite(metric.changePercent)).toBe(true)
+      expect(metric.changePercent).toBeNull()
     }
     expect(result.current.monthlyTrendWithAvg).toEqual([])
     expect(result.current.recentChartData).toEqual([])

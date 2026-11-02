@@ -3,10 +3,10 @@
 An account's role comes only from the user's own classification, never from
 its name: Cash, Bank Accounts and Other Wallets hold spendable money, Credit
 Cards hold debt, and everything else (investments, loans, unclassified) is left
-out. One narrow lexical rule matches ``PARKED_DEPOSIT_PATTERNS`` in
-``frontend/src/lib/ageOfMoneyCalculator.ts``: a security or rent deposit filed
-under a spendable type is money a third party holds. Change both together, or
-Days of Buffering and safe-to-spend disagree about the same pool.
+out. One narrow lexical rule, ``PARKED_DEPOSITS`` (shared with
+``dashboard_metrics_pulse``, which ports ``PARKED_DEPOSIT_PATTERNS`` in
+``frontend/src/lib/ageOfMoneyCalculator.ts``): a security or rent deposit filed
+under a spendable type is money a third party holds.
 
 A closed account has nothing left to spend and takes no new flows, but what it
 still owes stays owed: a negative balance on a closed card or bank account is
@@ -17,7 +17,6 @@ filter, so it still counts that positive balance.
 from __future__ import annotations
 
 import calendar
-import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -29,6 +28,7 @@ from typing import Literal
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ledger_sync.core.dashboard_metrics_pulse import PARKED_DEPOSITS
 from ledger_sync.core.expense_class import without_capital_losses
 from ledger_sync.core.query_helpers import (
     build_transaction_query,
@@ -44,16 +44,6 @@ Role = Literal["spendable", "card", "other", "unclassified", "closed"]
 
 _SPENDABLE_TYPES = frozenset(
     {AccountType.CASH.value, AccountType.BANK_ACCOUNTS.value, AccountType.OTHER_WALLETS.value}
-)
-_PARKED_DEPOSIT = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"\bsecurity\s+deposits?\b",
-        r"\brent(?:al)?\s+deposits?\b",
-        r"\bcaution\s+(?:money|deposits?)\b",
-        r"\bescrow\b",
-        r"^\s*deposits?\s*$",
-    )
 )
 _ZERO = Decimal(0)
 
@@ -78,7 +68,7 @@ class AccountPool:
             return "unclassified"
         if kind == AccountType.CREDIT_CARDS.value:
             return "card"
-        if kind in _SPENDABLE_TYPES and not any(p.search(account) for p in _PARKED_DEPOSIT):
+        if kind in _SPENDABLE_TYPES and not any(p.search(account) for p in PARKED_DEPOSITS):
             return "spendable"
         return "other"
 

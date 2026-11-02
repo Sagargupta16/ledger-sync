@@ -20,11 +20,16 @@ export function filterDemoTransactions(
       (t) =>
         t.note?.toLowerCase().includes(q) ||
         t.category.toLowerCase().includes(q) ||
+        t.subcategory?.toLowerCase().includes(q) ||
         t.account.toLowerCase().includes(q),
     )
   }
   if (params.category) rows = rows.filter((t) => t.category === params.category)
-  if (params.account) rows = rows.filter((t) => t.account === params.account)
+  if (params.account) {
+    rows = rows.filter(
+      (t) => t.account === params.account || t.from_account === params.account || t.to_account === params.account,
+    )
+  }
   if (params.type) rows = rows.filter((t) => t.type === params.type)
   if (params.tag) rows = rows.filter((t) => (t.tags ?? []).includes(params.tag as string))
   if (params.start_date) rows = rows.filter((t) => t.date >= (params.start_date as string))

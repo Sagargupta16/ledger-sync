@@ -47,11 +47,13 @@ export function useSeedSettingsDraft({
   } = draft
   const classificationsInitialized = useRef(false)
   const rulesInitialized = useRef(false)
+  const investmentsChecked = useRef(false)
 
   // Initialize local prefs from server data
   useEffect(() => {
     if (!preferences || localPrefs) return
     setLocalPrefs(buildInitialLocalPrefs(preferences as unknown as Record<string, unknown>) as unknown as LocalPrefs)
+    investmentsChecked.current = false
     if (preferences.salary_structure) setLocalSalaryStructure(preferences.salary_structure)
     if (preferences.rsu_grants) {
       // Grants saved before vesting sort-on-blur existed may hold rows in
@@ -90,13 +92,14 @@ export function useSeedSettingsDraft({
     setHasChanges(true)
   }, [localPrefs, allIncomeCategories, setLocalPrefs, setHasChanges])
 
-  // Auto-map unmapped investment accounts using keyword matching
+  // Auto-map investment accounts using keyword matching, once per draft and only
+  // while nothing is mapped: after that, Unassigned is the user's choice and stays.
   useEffect(() => {
-    if (!localPrefs || investmentAccounts.length === 0) return
-    const unmapped = investmentAccounts.filter((acc) => !localPrefs.investment_account_mappings[acc])
-    if (unmapped.length === 0) return
+    if (!localPrefs || investmentAccounts.length === 0 || investmentsChecked.current) return
+    investmentsChecked.current = true
+    if (Object.keys(localPrefs.investment_account_mappings).length > 0) return
 
-    const defaults = getDefaultInvestmentMappings(unmapped)
+    const defaults = getDefaultInvestmentMappings(investmentAccounts)
     setLocalPrefs((prev) => prev ? {
       ...prev,
       investment_account_mappings: { ...prev.investment_account_mappings, ...defaults },

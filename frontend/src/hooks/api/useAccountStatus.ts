@@ -36,7 +36,7 @@ export function useSetAccountStatus() {
     onMutate: () => sessionSignal,
     onSuccess: (_data, _variables, signal) => {
       if (signal && isCurrentSession(signal)) {
-        void invalidatePreferenceDependents(queryClient, false)
+        void invalidatePreferenceDependents(queryClient, false, false)
       }
     },
   })

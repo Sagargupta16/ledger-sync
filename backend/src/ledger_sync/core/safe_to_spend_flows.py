@@ -85,15 +85,21 @@ def _signed(amount: Decimal, tx_type: TransactionType) -> Decimal:
     raise ValueError(msg)
 
 
-def _recurring_dates(record: RecurringTransaction, start: date, end: date) -> list[date]:
+def _recurring_dates(
+    record: RecurringTransaction, today: date, start: date, end: date
+) -> list[date]:
     frequency = record.frequency
     if frequency is None:
         return []
     if record.last_occurrence is not None:
         anchor = record.last_occurrence.date()
-        return expand_dates(
+        dates = expand_dates(
             anchor, frequency, record.expected_day, start, end, include_anchor=False
         )
+        # Balances stop at today, so a row already dated ahead is still money to come.
+        if today < anchor <= end:
+            dates.insert(0, anchor)
+        return dates
     # A commitment added by hand has no history: daily runs every day, and a
     # monthly one with a due day starts this month, as the API's next_expected does.
     if frequency == RecurrenceFrequency.DAILY:
@@ -162,7 +168,7 @@ def load_commitment_flows(
         amount = _signed(effective_expected_amount(record), record.transaction_type)
         flows.extend(
             Flow(record.pattern_name, record.account, on, amount, "recurring")
-            for on in _recurring_dates(record, start, end)
+            for on in _recurring_dates(record, today, start, end)
         )
     flows.sort(key=lambda flow: (flow.on, flow.amount))
     return CommitmentFlows(flows, frozenset(expense_keys))

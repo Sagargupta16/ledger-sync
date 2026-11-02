@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import Any
 
 from ledger_sync.core.ledger_math import compute_account_balances as compute_account_balances
+from ledger_sync.db._models.planning import PATTERN_NAME_MAX_LENGTH
 from ledger_sync.db.models import RecurrenceFrequency, Transaction, TransactionType
 
 # Default values (used if no preferences in DB)
@@ -69,7 +70,7 @@ def resolve_pattern_display(
         pattern_name = f"{most_recent.category} - {most_recent.subcategory}"
 
     return {
-        "pattern_name": pattern_name,
+        "pattern_name": pattern_name[:PATTERN_NAME_MAX_LENGTH],
         "category": most_recent.category,
         "subcategory": most_recent.subcategory,
         "account": most_recent.account,

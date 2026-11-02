@@ -5,7 +5,9 @@ Routes only. The running balances, statuses and month coverage come from
 ``core.balance_check_writes``. Every query is scoped to the signed-in user.
 """
 
-from fastapi import APIRouter, HTTPException, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Path, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -27,6 +29,7 @@ from ledger_sync.schemas.balance_checks import (
 )
 
 router = APIRouter(prefix="/api/balance-checks", tags=["balance-checks"])
+CheckId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
 
 def _entry(check: BalanceCheck) -> BalanceCheckEntry:
@@ -80,7 +83,7 @@ def post_balance_check(
     },
 )
 def put_balance_check(
-    check_id: int, payload: BalanceCheckUpdate, current_user: CurrentUser, db: DatabaseSession
+    check_id: CheckId, payload: BalanceCheckUpdate, current_user: CurrentUser, db: DatabaseSession
 ) -> BalanceCheckEntry:
     """Correct a check's day or amount. The account stays the same."""
     try:
@@ -99,7 +102,9 @@ def put_balance_check(
 
 
 @router.delete("/{check_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_balance_check(check_id: int, current_user: CurrentUser, db: DatabaseSession) -> Response:
+def delete_balance_check(
+    check_id: CheckId, current_user: CurrentUser, db: DatabaseSession
+) -> Response:
     """Remove a check. Idempotent: an id that is already gone is also a 204."""
     delete_check(db, current_user.id, check_id)
     db.commit()

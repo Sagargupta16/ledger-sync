@@ -43,7 +43,7 @@ function ActionButton({ actionLabel, actionHref, onAction, isCompact }: Readonly
   isCompact: boolean
 }>) {
   const sizeClass = getSizeClass(isCompact, 'text-xs', 'text-sm')
-  const baseClass = `inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-app-blue/40 bg-app-blue px-4 py-2 font-medium text-primary-foreground shadow-[var(--ledger-control-shadow)] transition-colors duration-150 hover:border-app-blue/60 hover:bg-app-blue-vibrant active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:min-h-0 sm:min-w-0 ${sizeClass}`
+  const baseClass = `inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-app-blue/40 bg-app-blue px-4 py-2 font-medium text-primary-foreground shadow-[var(--ledger-control-shadow)] transition-colors duration-150 hover:border-app-blue/60 hover:bg-app-blue-vibrant active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-0 lg:pointer-fine:min-w-0 ${sizeClass}`
 
   if (actionHref) {
     return (

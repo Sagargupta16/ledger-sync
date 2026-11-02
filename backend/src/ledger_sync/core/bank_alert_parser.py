@@ -80,7 +80,7 @@ class ParsedAlert:
 def _clean(text: str) -> str:
     # A tag cannot contain "<", so each attempt stops at the next one: linear on "<<<<".
     text = html.unescape(re.sub(r"<[^<>]*>", " ", text)).replace("\r\n", "\n")
-    return re.sub(r"[ \t\r\f\v\u00a0]+", " ", text)[:_MAX_CHARS]
+    return re.sub(r"[ \t\r\f\v\u00a0\x00]+", " ", text)[:_MAX_CHARS]
 
 
 def _without_addresses(text: str) -> str:

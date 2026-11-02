@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class BackupSummary(BaseModel):
@@ -49,7 +49,8 @@ class MoneyManagerUploadResponse(BaseModel):
     automation can test for. ``planning`` is ``None`` when the backup has no
     repeat-rule or budget tables, for an ``unchanged`` backup, until the
     ``external_refs`` migration has run, and when they could not be compared
-    or stored (the ledger imports regardless).
+    or stored (the ledger imports regardless). ``planning_message`` is set only
+    in that last case, and says what is missing.
     """
 
     status: Literal["imported", "unchanged", "preview"]
@@ -59,12 +60,21 @@ class MoneyManagerUploadResponse(BaseModel):
     analytics_status: Literal["ready", "failed", "skipped"]
     analytics_message: str | None = None
     planning: PlanningSummary | None = None
+    planning_message: str | None = None
 
 
 class UploadTokenCreate(BaseModel):
     """Name a new upload token so it can be told apart and revoked later."""
 
     name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("name")
+    @classmethod
+    def _no_nul(cls, value: str) -> str:
+        if "\x00" in value:
+            msg = "Text cannot contain a NUL character."
+            raise ValueError(msg)
+        return value
 
 
 class UploadTokenEntry(BaseModel):

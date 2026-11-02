@@ -52,16 +52,20 @@ export function heatmapValueNoun(mode: HeatmapMode, value: number): string {
   return value < 0 ? 'net deficit' : 'net surplus'
 }
 
-/** Get monthly value for a given mode */
+/**
+ * Get monthly value for a given mode. `monthlyNet` is each month's net after
+ * classified realised losses; without it net falls back to income minus expense.
+ */
 export function getMonthlyValue(
   mode: HeatmapMode,
   monthlyExpense: number[],
   monthlyIncome: number[],
   index: number,
+  monthlyNet?: readonly number[],
 ): number {
   if (mode === 'expense') return monthlyExpense[index]
   if (mode === 'income') return monthlyIncome[index]
-  return monthlyIncome[index] - monthlyExpense[index]
+  return monthlyNet?.[index] ?? monthlyIncome[index] - monthlyExpense[index]
 }
 
 /**
@@ -73,6 +77,7 @@ export function getMonthlyMaxBySign(
   mode: HeatmapMode,
   monthlyExpense: number[],
   monthlyIncome: number[],
+  monthlyNet?: readonly number[],
 ): { surplus: number; deficit: number } {
   if (mode === 'expense') return { surplus: Math.max(...monthlyExpense), deficit: 0 }
   if (mode === 'income') return { surplus: Math.max(...monthlyIncome), deficit: 0 }
@@ -80,7 +85,7 @@ export function getMonthlyMaxBySign(
   let surplus = 0
   let deficit = 0
   for (const [idx, inc] of monthlyIncome.entries()) {
-    const net = inc - monthlyExpense[idx]
+    const net = monthlyNet?.[idx] ?? inc - monthlyExpense[idx]
     if (net > surplus) surplus = net
     else if (-net > deficit) deficit = -net
   }
@@ -99,8 +104,9 @@ export function getMonthlyMax(
   mode: HeatmapMode,
   monthlyExpense: number[],
   monthlyIncome: number[],
+  monthlyNet?: readonly number[],
 ): number {
-  const { surplus, deficit } = getMonthlyMaxBySign(mode, monthlyExpense, monthlyIncome)
+  const { surplus, deficit } = getMonthlyMaxBySign(mode, monthlyExpense, monthlyIncome, monthlyNet)
   return Math.max(surplus, deficit)
 }
 
@@ -166,7 +172,8 @@ export function buildDayCells(
     // Local-component key so it matches this cell's getDay()/getMonth() and the
     // YYYY-MM-DD transaction keys; toISOString() would shift a day in IST.
     const dateStr = toLocalDateKey(current)
-    const dayOffset = Math.floor((current.getTime() - startDate.getTime()) / MS_PER_DAY)
+    // Rounded: a local day is 23 or 25 hours across a DST change.
+    const dayOffset = Math.round((current.getTime() - startDate.getTime()) / MS_PER_DAY)
     const weekIndex = Math.floor((dayOffset + startDow) / 7)
     const exp = dayExpenses[dateStr] || 0
     const inc = dayIncomes[dateStr] || 0
@@ -220,102 +227,5 @@ export function deriveMonthLabels(cells: DayCell[]) {
   return labels
 }
 
-/**
- * Calendar-month indices (0-11) in display order: Jan..Dec for a calendar
- * year, FY start..FY end for a fiscal year.
- *
- * `accumulateStats` buckets by calendar month (`cell.month`), so an FY view
- * has to reorder BEFORE it slices off future months. Slicing calendar order
- * directly showed Jan-Jun for an Apr-Mar FY in September: three future zero
- * months charted, and Jul-Sep (real spending) dropped.
- */
-export function periodMonthOrder(isFYMode: boolean, fiscalYearStartMonth: number): number[] {
-  return Array.from({ length: 12 }, (_, i) => (isFYMode ? (fiscalYearStartMonth - 1 + i) % 12 : i))
-}
-
-/**
- * Calendar-month indices of the lowest- and highest-spend months, or -1.
- *
- * `excludeMonth` is the in-progress month: a month a few days old has barely
- * any spend yet, so it always "won" best month. Best only considers months
- * with spending (an empty month is no data, not frugality); ties keep the
- * earliest index, matching the previous `indexOf` behaviour.
- */
-export function bestWorstMonths(
-  monthlyExpense: readonly number[],
-  excludeMonth: number | null,
-): { best: number; worst: number } {
-  let best = -1
-  let worst = -1
-  for (const [i, value] of monthlyExpense.entries()) {
-    if (i === excludeMonth) continue
-    if (value > 0 && (best < 0 || value < monthlyExpense[best])) best = i
-    if (worst < 0 || value > monthlyExpense[worst]) worst = i
-  }
-  return { best, worst }
-}
-
-function laterPeak(
-  current: { date: string; amount: number },
-  date: string,
-  amount: number,
-): { date: string; amount: number } {
-  return amount > current.amount ? { date, amount } : current
-}
-
-/** Accumulate summary statistics from grid cells. */
-export function accumulateStats(grid: DayCell[]) {
-  // Days that have actually happened in the period. The grid spans the whole
-  // calendar/fiscal year, so for the current year its tail is future-dated and
-  // would inflate any "X of N days" denominator. Cap N at today.
-  const todayStr = getTodayKey()
-  let totalExpense = 0
-  let totalIncome = 0
-  // Sum of each day's net, which (from the rollups) already subtracts
-  // classified realised losses -- so it is NOT totalIncome - totalExpense.
-  let totalNet = 0
-  let daysWithExpense = 0
-  let elapsedDays = 0
-  let biggestExpenseDay = { date: '', amount: 0 }
-  let biggestIncomeDay = { date: '', amount: 0 }
-  let streak = 0
-  let maxStreak = 0
-  const monthlyExpense: number[] = Array.from({ length: 12 }, () => 0)
-  const monthlyIncome: number[] = Array.from({ length: 12 }, () => 0)
-  const monthlyNet: number[] = Array.from({ length: 12 }, () => 0)
-
-  for (const cell of grid) {
-    if (cell.date <= todayStr) elapsedDays++
-    totalExpense += cell.expense
-    totalIncome += cell.income
-    totalNet += cell.net
-    monthlyExpense[cell.month] += cell.expense
-    monthlyIncome[cell.month] += cell.income
-    monthlyNet[cell.month] += cell.net
-
-    if (cell.expense > 0) daysWithExpense++
-    biggestExpenseDay = laterPeak(biggestExpenseDay, cell.date, cell.expense)
-    biggestIncomeDay = laterPeak(biggestIncomeDay, cell.date, cell.income)
-
-    if (cell.expense === 0 && cell.hasTx) {
-      streak++
-      if (streak > maxStreak) maxStreak = streak
-    } else if (cell.expense > 0) {
-      streak = 0
-    }
-  }
-
-  return {
-    totalExpense,
-    totalIncome,
-    totalNet,
-    daysWithExpense,
-    elapsedDays,
-    biggestExpenseDay,
-    biggestIncomeDay,
-    maxStreak,
-    monthlyExpense,
-    monthlyIncome,
-    monthlyNet,
-  }
-}
+// Moved to heatmapStats.ts; re-exported so existing imports keep working.
+export { accumulateStats, bestWorstMonths, periodMonthOrder } from './heatmapStats'

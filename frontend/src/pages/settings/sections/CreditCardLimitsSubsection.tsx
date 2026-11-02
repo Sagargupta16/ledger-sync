@@ -3,7 +3,6 @@
  */
 
 import { CreditCard } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
 import type { LocalPrefs, LocalPrefKey } from '../types'
 import { FieldHint } from '../sectionPrimitives'
 
@@ -44,8 +43,18 @@ export default function CreditCardLimitsSubsection({
                   aria-label={`Credit limit for ${card.replace(' Credit Card', '')}`}
                   min="0"
                   step="10000"
-                  value={localPrefs.credit_card_limits[card] ?? 100000}
+                  value={localPrefs.credit_card_limits[card] ?? ''}
+                  placeholder="Not set"
                   onChange={(e) => {
+                    if (e.target.value === '') {
+                      updateLocalPref(
+                        'credit_card_limits',
+                        Object.fromEntries(
+                          Object.entries(localPrefs.credit_card_limits).filter(([name]) => name !== card),
+                        ),
+                      )
+                      return
+                    }
                     const n = Number(e.target.value)
                     updateLocalPref('credit_card_limits', {
                       ...localPrefs.credit_card_limits,
@@ -57,7 +66,7 @@ export default function CreditCardLimitsSubsection({
               </div>
             </div>
           ))}
-          <FieldHint>Default: {formatCurrency(100000)} per card</FieldHint>
+          <FieldHint>Leave blank for no limit. Utilization stays hidden until a limit is set.</FieldHint>
         </div>
       )}
     </div>

@@ -31,7 +31,7 @@ export function AddRecurringForm({
     event.preventDefault()
     if (!name.trim()) { toast.error('Name is required'); return }
     const amt = Number(amount)
-    if (Number.isNaN(amt) || amt <= 0) { toast.error('Enter a valid amount'); return }
+    if (Number.isNaN(amt) || amt < 0.005) { toast.error('Enter a valid amount'); return }
     onSave({ name: name.trim(), type, frequency, amount: amt, category: category.trim() || undefined })
   }
 
@@ -56,6 +56,7 @@ export function AddRecurringForm({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. House Rent"
+                maxLength={255}
                 autoFocus
               />
             </div>
@@ -93,6 +94,7 @@ export function AddRecurringForm({
               value={category}
               onChange={(event) => setCategory(event.target.value)}
               placeholder="e.g. Housing"
+              maxLength={255}
             />
           </div>
           <div className="flex gap-2">

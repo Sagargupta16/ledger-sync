@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode, RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { animate as animateValue, motion, useMotionValue, useTransform } from 'motion/react'
 
 import { SPRING } from '@/constants/animations'
@@ -85,9 +86,13 @@ export default function PieChart({
       {centerLabel !== undefined && (
         <div style={hole} className="@container flex size-(--pie-hole) flex-col items-center justify-center text-center">{centerLabel}</div>
       )}
-      <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {current ? `${current.label}: ${formatValue(current.value)} (${formatPercent(current.share * 100)})` : ''}
-      </p>
+      {/* Portalled out of the frame: its role="img" hides every descendant from assistive tech. */}
+      {createPortal(
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {current ? `${current.label}: ${formatValue(current.value)} (${formatPercent(current.share * 100)})` : ''}
+        </p>,
+        document.body,
+      )}
     </div>
   )
 

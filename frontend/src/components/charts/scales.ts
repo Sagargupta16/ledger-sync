@@ -47,6 +47,9 @@ export function linearScale(
   { nice = true, tickCount = 5 }: { nice?: boolean; tickCount?: number } = {},
 ): LinearScale {
   const [d0, d1] = nice ? niceDomain(domain, tickCount) : safeDomain(domain)
+  // The step is read from the domain as given: re-deriving it from the widened domain can pick a coarser
+  // step (0..15 widens to 0..16 at step 2, then re-derives 5) and leave the axis top without a tick.
+  const [s0, s1] = safeDomain(domain)
   const [r0, r1] = range
   const ratio = (r1 - r0) / (d1 - d0)
   const scale = ((value: number) => r0 + (value - d0) * ratio) as LinearScale
@@ -55,9 +58,10 @@ export function linearScale(
     range: [r0, r1] as const,
     invert: (pixel: number) => d0 + (pixel - r0) / ratio,
     ticks: (count = tickCount) => {
-      const step = tickStep(d0, d1, count)
-      const first = Math.ceil(d0 / step)
-      const last = Math.floor(d1 / step)
+      const step = tickStep(s0, s1, count)
+      // The epsilon keeps a domain end like 3 * 0.1 = 0.30000000000000004 from dropping its own tick.
+      const first = Math.ceil(d0 / step - 1e-9)
+      const last = Math.floor(d1 / step + 1e-9)
       // Rounding to the step's precision keeps 0.30000000000000004 off the axis.
       const digits = Math.max(0, -Math.floor(Math.log10(step)))
       return Array.from({ length: last - first + 1 }, (_, index) =>

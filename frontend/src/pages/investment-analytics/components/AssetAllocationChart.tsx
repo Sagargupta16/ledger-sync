@@ -48,7 +48,7 @@ export function AssetAllocationChart({
             height={300}
             innerRadius="72%"
             outerRadius="90%"
-            centerLabel="Book value"
+            centerLabel="Shown book value"
             centerValue={formatCurrency(total)}
             maxSlices={0}
             tooltipFormatter={(value) => formatCurrency(value)}

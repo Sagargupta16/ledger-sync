@@ -34,6 +34,8 @@ function shade(value: number, min: number, max: number, props: Props): { color: 
 function Cells(props: Props) {
   const { spec, format, ticks } = props
   const { width, isMobile, animate, entered } = useChartFrame()
+  // A percent cell keeps the tooltip's precision; the compact tick form rounds 12.5 to 13.
+  const cellText = spec.valueFormat === 'percent' ? format : ticks
   const rowHeight = isMobile ? ROW.mobile : ROW.desktop
   const font = tickFont(isMobile)
   const longest = Math.max(...spec.data.map((row) => String(row[spec.xKey]).length))
@@ -42,6 +44,8 @@ function Cells(props: Props) {
   const values = spec.data.flatMap((row) => spec.series.map((entry) => Number(row[entry.key])))
   const [min, max] = [Math.min(...values), Math.max(...values)]
   const count = values.length
+  // Mono glyphs run about 0.6 em wide; a header longer than its column is cut to fit.
+  const headerChars = Math.max(3, Math.floor((cellWidth - 4) / (font * 0.6)))
   return (
     <>
       {spec.series.map((entry, column) => (
@@ -53,7 +57,7 @@ function Cells(props: Props) {
           fontSize={font}
           className="fill-(--chart-text-subtle) font-mono"
         >
-          {entry.label.length > 10 && cellWidth < 70 ? `${entry.label.slice(0, 9)}…` : entry.label}
+          {entry.label.length > headerChars ? `${entry.label.slice(0, headerChars - 1)}…` : entry.label}
         </text>
       ))}
       {spec.data.map((row, rowIndex) => {
@@ -97,7 +101,7 @@ function Cells(props: Props) {
                       fontSize={font}
                       className="pointer-events-none fill-(--chart-text-primary) font-mono"
                     >
-                      {ticks(value)}
+                      {cellText(value)}
                     </text>
                   )}
                 </g>

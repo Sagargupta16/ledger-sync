@@ -32,6 +32,9 @@ const PREFERENCE_DEPENDENTS = new Set([
   'category-daily-series',
   'categorization-rules',
   'earning-start-evidence',
+  'rsu-tax',
+  'ais-ledger-income',
+  'ais-ledger-year',
 ])
 
 /**

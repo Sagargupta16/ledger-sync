@@ -1,4 +1,4 @@
-import { Download, Globe, Settings2 } from 'lucide-react'
+import { Download, Globe, RefreshCw, Settings2 } from 'lucide-react'
 import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
@@ -32,9 +32,14 @@ const settingsLink = (
 
 export default function ForeignAssetsPage() {
   const model = useForeignAssets()
-  const { lots, schedule } = model
+  const { lots, schedule, fastDs } = model
+  const refreshing = lots.isFetching || schedule.isFetching || fastDs.isFetching
+  // Market data is cached for the session, so a partial report stays partial until refetched.
+  const refreshMarketData = () => {
+    void Promise.all([lots.refetch(), schedule.refetch(), fastDs.refetch()])
+  }
 
-  if (lots.isError) {
+  if (lots.isError && !lots.data) {
     return (
       <PageErrorState
         title={TITLE}
@@ -67,6 +72,15 @@ export default function ForeignAssetsPage() {
             onClick={() => report && downloadScheduleFaCsv(report)}
           >
             Export CSV
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<RefreshCw className="size-4" aria-hidden="true" />}
+            isLoading={refreshing}
+            onClick={refreshMarketData}
+          >
+            Refresh market data
           </Button>
         </StickyToolbar>
       )}

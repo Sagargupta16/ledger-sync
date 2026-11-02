@@ -10,6 +10,7 @@ read this result.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -31,6 +32,8 @@ _DEBT_WORDS = (
     "car loan",
     "home loan",
 )
+# A debt word counts from the start of a word ("emi" is not in "premium"); ASCII like JS ``\w``.
+_DEBT_PATTERN = re.compile(r"\b(?:" + "|".join(map(re.escape, _DEBT_WORDS)) + ")", re.ASCII)
 _INVESTMENT_NOTE_WORDS = ("sip", "mutual fund", "investment", "ppf", "nps", "elss", "epf")
 
 
@@ -80,7 +83,7 @@ def _classify(row: LedgerRow, bucket: MonthBucket, rules: HealthRules) -> None:
     ):
         category = row.category or "Other"
         bucket.expense += amount
-        if _mentions(category, _DEBT_WORDS):
+        if _DEBT_PATTERN.search(category.lower()):
             bucket.debt += amount
         fixed = bool(rules.fixed) and (
             category.lower() in rules.fixed

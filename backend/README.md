@@ -172,7 +172,7 @@ Environment variables use their full `LEDGER_SYNC_` names, except `CRON_SECRET`,
 
 See [.env.example](../.env.example) for the complete template.
 
-Two optional features read their own settings classes (`config/push_settings.py` and `config/embedding_settings.py`). Set these as real environment variables, never in `.env`: `Settings` rejects a key it does not declare, so one in that file stops the backend at start-up, and the error echoes the value.
+Two optional features read their own settings classes (`config/push_settings.py` and `config/embedding_settings.py`). Set them as environment variables or in `backend/.env`: each class reads only its own keys, `Settings` ignores keys it does not declare, and no settings error echoes a value.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

@@ -79,17 +79,19 @@ def _ledger_monthly(user: User, db: Session, first: str) -> list[dict[str, Any]]
 def _exec_get_net_worth_history(user: User, db: Session, args: dict[str, Any]) -> Any:
     first = _window_start(args["months"])
     since = datetime.fromisoformat(f"{first}-01")
-    snapshots = list(
+    rows = list(
         db.scalars(
             select(NetWorthSnapshot)
             .where(NetWorthSnapshot.user_id == user.id, NetWorthSnapshot.snapshot_date >= since)
             .order_by(NetWorthSnapshot.snapshot_date.desc())
-            .limit(MAX_SNAPSHOTS)
+            .limit(MAX_SNAPSHOTS + 1)
         )
     )
+    snapshots = rows[:MAX_SNAPSHOTS]
     snapshots.reverse()
     return {
         "from_month": first,
+        "truncated": len(rows) > MAX_SNAPSHOTS,
         "snapshots": [
             {
                 "date": snap.snapshot_date.date().isoformat(),
@@ -101,7 +103,8 @@ def _exec_get_net_worth_history(user: User, db: Session, args: dict[str, Any]) -
         ],
         "ledger_monthly": _ledger_monthly(user, db, first),
         "note": (
-            "snapshots are stored when the ledger is imported, so they can be sparse. "
+            "snapshots are stored when the ledger is imported, so they can be sparse, and when "
+            "truncated is true only the newest ones are listed. "
             "ledger_monthly has every month: net_flow is income minus expenses that month and "
             "book_balance their running total since the first transaction (book value: market "
             "gains are not included)."

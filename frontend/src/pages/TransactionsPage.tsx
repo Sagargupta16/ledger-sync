@@ -22,6 +22,19 @@ import { getActiveLocale } from '@/lib/formatters'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 import { isMotionReduced } from '@/store/motionStore'
 
+const URL_FILTER_KEYS = ['query', 'category', 'account', 'type', 'tag', 'start_date', 'end_date'] as const
+
+/** Seed the filters from the query string, e.g. /transactions?type=Income&category=Salary. */
+function filtersFromUrl(): FilterValues {
+  const params = new URLSearchParams(globalThis.location.search)
+  const filters: FilterValues = {}
+  for (const key of URL_FILTER_KEYS) {
+    const value = params.get(key)
+    if (value) filters[key] = value
+  }
+  return filters
+}
+
 /** Map component filter + sorting state to API query params */
 function buildServerFilters(
   filters: FilterValues,
@@ -33,7 +46,7 @@ function buildServerFilters(
   const sortOrder: 'asc' | 'desc' = (sorting[0]?.desc ?? true) ? 'desc' : 'asc'
 
   return {
-    query: filters.query || undefined,
+    query: filters.query?.trim() || undefined,
     category: filters.category || undefined,
     account: filters.account || undefined,
     type: filters.type || undefined,
@@ -50,7 +63,7 @@ function buildServerFilters(
 }
 
 export default function TransactionsPage() {
-  const [filters, setFilters] = useState<FilterValues>({})
+  const [filters, setFilters] = useState<FilterValues>(filtersFromUrl)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }])
@@ -95,6 +108,10 @@ export default function TransactionsPage() {
   const filteredTransactions = page?.data ?? []
   const total = page?.total ?? facets?.total_count ?? 0
   const unfilteredTotal = facets?.total_count ?? 0
+  // A refetch can shrink the filtered total under the current page; step back
+  // to the last page instead of showing an empty one.
+  const lastPage = Math.max(1, Math.ceil(total / itemsPerPage))
+  if (page && currentPage > lastPage) setCurrentPage(lastPage)
   // When filters narrow the result set, show "X of Y" so the card doesn't
   // contradict the filtered count shown in pagination.
   const isFiltered = total !== unfilteredTotal
@@ -131,7 +148,10 @@ export default function TransactionsPage() {
     setIsExporting(true)
     try {
       const blob = await transactionsService.exportToCSV({
-        ...filters, sort: serverFilters.sort, sort_order: serverFilters.sort_order,
+        ...filters,
+        query: filters.query?.trim() || undefined,
+        sort: serverFilters.sort,
+        sort_order: serverFilters.sort_order,
       })
       const url = globalThis.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -156,6 +176,25 @@ export default function TransactionsPage() {
     }
   }
 
+  // Pinned once scrolled to, so search, saved views and the advanced filters
+  // stay reachable over the whole table, and over a page-level error.
+  const filterBar = (
+    <StickyToolbar label="Transaction filters">
+      <TransactionFilters
+        key={filtersVersion}
+        onFilterChange={handleFilterChange}
+        categories={categories}
+        transferCategories={transferCategories}
+        accounts={accounts}
+        initialValues={filters}
+        tagOptions={facets?.tags ?? []}
+        savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
+        smartSearch={smartSearchOn}
+        onSmartSearchChange={setSmartSearchOn}
+      />
+    </StickyToolbar>
+  )
+
   if (facetsQuery.isLoading || pageQuery.isLoading) return <PageSkeleton />
 
   if (facetsQuery.isError || pageQuery.isError) {
@@ -168,7 +207,9 @@ export default function TransactionsPage() {
         title="Transactions"
         subtitle="Search, filter, and export every reconciled ledger entry."
         onRetry={retryTransactions}
-      />
+      >
+        {filterBar}
+      </PageErrorState>
     )
   }
 
@@ -179,20 +220,25 @@ export default function TransactionsPage() {
           title="Transactions"
           subtitle="Search, filter, and export every reconciled ledger entry."
           action={
-            <Button
-              // handleExportCSV wraps its body in try/catch with an
-              // "Export failed" toast, so it never rejects; `void` adapts the
-              // async handler to the void-returning onClick prop.
-              onClick={() => void handleExportCSV()}
-              disabled={isExporting || filteredTransactions.length === 0 || smartActive}
-              aria-disabled={isExporting || filteredTransactions.length === 0 || smartActive}
-              title={exportTitle}
-              variant="outline"
-              size="md"
-              icon={<Download className={`size-4 ${isExporting ? 'animate-pulse' : ''}`} />}
-            >
-              {isExporting ? 'Exporting...' : 'Export CSV'}
-            </Button>
+            <>
+              <Button
+                // handleExportCSV wraps its body in try/catch with an
+                // "Export failed" toast, so it never rejects; `void` adapts the
+                // async handler to the void-returning onClick prop.
+                onClick={() => void handleExportCSV()}
+                disabled={isExporting || filteredTransactions.length === 0 || smartActive}
+                aria-disabled={isExporting || filteredTransactions.length === 0 || smartActive}
+                aria-describedby={exportTitle ? 'export-note' : undefined}
+                variant="outline"
+                size="md"
+                icon={<Download className={`size-4 ${isExporting ? 'animate-pulse' : ''}`} />}
+              >
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+              {exportTitle && (
+                <span id="export-note" className="text-xs text-muted-foreground">{exportTitle}</span>
+              )}
+            </>
           }
         />
 
@@ -247,22 +293,8 @@ export default function TransactionsPage() {
           )}
         </section>
 
-        {/* Filters -- pinned once scrolled to, so search, saved views and
-            the advanced filters stay reachable over the whole table. */}
-        <StickyToolbar label="Transaction filters">
-          <TransactionFilters
-            key={filtersVersion}
-            onFilterChange={handleFilterChange}
-            categories={categories}
-            transferCategories={transferCategories}
-            accounts={accounts}
-            initialValues={filters}
-            tagOptions={facets?.tags ?? []}
-            savedViewsSlot={<SavedViewsMenu currentFilters={filters} onApply={handleApplyView} />}
-            smartSearch={smartSearchOn}
-            onSmartSearchChange={setSmartSearchOn}
-          />
-        </StickyToolbar>
+        {/* Filters */}
+        {filterBar}
 
         {smartSearchOn && <SmartSearchIndexCard statusQuery={smart.statusQuery} />}
         {smart.pausedFor && (

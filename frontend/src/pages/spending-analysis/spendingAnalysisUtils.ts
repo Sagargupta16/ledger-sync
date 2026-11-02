@@ -54,12 +54,11 @@ export function splitEssentialSpend(
  */
 export function buildSpendingChartData(
   spendingBreakdown: SpendingBreakdown,
-  totalIncome: number,
   savings: number,
   spendingColors: { essential: string; discretionary: string } = SPENDING_TYPE_COLORS,
   semanticColors: { savings: string } = SEMANTIC_COLORS,
 ) {
-  if (!spendingBreakdown || totalIncome <= 0) return []
+  if (!spendingBreakdown) return []
   return [
     { name: 'Needs', value: spendingBreakdown.essential, fill: spendingColors.essential },
     { name: 'Wants', value: spendingBreakdown.discretionary, fill: spendingColors.discretionary },

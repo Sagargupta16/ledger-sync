@@ -83,7 +83,7 @@ export default function FirePanel({ fire }: Readonly<{ fire: FireAssumptions }>)
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 sm:gap-6">
           <SliderInput id="fire-swr" label="Safe Withdrawal Rate" value={swr} min={2} max={5} step={0.5} unit="%" valueText={`${swr} percent`} onChange={fire.setSwr} />
           <SliderInput id="fire-return" label="Real Return (post-inflation)" value={realReturn} min={2} max={12} step={0.5} unit="%" valueText={`${realReturn} percent`} onChange={fire.setRealReturn} />
-          <SliderInput id="fire-years" label="Years to FIRE" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" valueText={`${yearsToRetire} years`} onChange={fire.setYearsToRetire} />
+          <SliderInput id="fire-years" label="Years to retirement (Coast FIRE)" value={yearsToRetire} min={5} max={40} step={1} unit=" yrs" valueText={`${yearsToRetire} years`} onChange={fire.setYearsToRetire} />
           <SliderInput
             id="fire-barista"
             label="Barista / Part-time income"
@@ -92,6 +92,7 @@ export default function FirePanel({ fire }: Readonly<{ fire: FireAssumptions }>)
             max={200_000}
             step={5_000}
             unit="/mo"
+            displayText={`${formatCurrencyShort(baristaMonthlyIncome)}/mo`}
             valueText={`${formatCurrency(baristaMonthlyIncome)} per month`}
             onChange={fire.setBaristaMonthlyIncome}
           />

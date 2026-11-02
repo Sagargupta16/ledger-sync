@@ -63,30 +63,51 @@ jobs:
           import { setTimeout } from 'node:timers/promises'
 
           const expectedVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
+          // Publish only against the matching backend. A newer live backend means a later
+          // commit is deploying, and its own run publishes the matching frontend.
+          const compareVersions = (live, wanted) => {
+            const [a, b] = [live, wanted].map((version) => String(version).split('.').map(Number))
+            for (let i = 0; i < Math.max(a.length, b.length); i++) {
+              const diff = (a[i] ?? 0) - (b[i] ?? 0)
+              if (diff !== 0) return Math.sign(diff)
+            }
+            return 0
+          }
           const apiBase = process.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
           if (!apiBase) throw new Error('VITE_API_BASE_URL must be configured before deployment.')
           const deadline = Date.now() + 10 * 60 * 1000
           let ready = false
+          let superseded = false
+          let seen = 'no response yet'
           while (Date.now() < deadline) {
             try {
               const responses = await Promise.all(['/health', '/health/db'].map((path) =>
                 fetch(`${apiBase}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' })))
               if (responses.every((response) => response.ok)) {
                 const [health, database] = await Promise.all(responses.map((response) => response.json()))
-                if (health.status === 'healthy' && health.version === expectedVersion
-                  && database.database === 'connected') {
+                seen = `${health.status} ${health.version}, database ${database.database}`
+                const order = compareVersions(health.version, expectedVersion)
+                if (order > 0) {
+                  superseded = true
+                  break
+                }
+                if (health.status === 'healthy' && order === 0 && database.database === 'connected') {
                   ready = true
                   break
                 }
+              } else {
+                seen = `HTTP ${responses.map((response) => response.status).join(' and ')}`
               }
-            } catch {
+            } catch (error) {
               // A backend rollout can briefly interrupt health requests.
+              seen = `request failed: ${error.message}`
             }
-            console.log(`Waiting for healthy backend ${expectedVersion} before publishing Pages.`)
+            console.log(`Waiting for healthy backend ${expectedVersion} before publishing Pages; last saw ${seen}.`)
             await setTimeout(10000)
           }
-          if (!ready) throw new Error('Backend rollout is not ready. The existing Pages deployment remains active.')
-          console.log(`Backend ${expectedVersion} and its database are ready.`)
+          if (superseded) throw new Error(`Backend is already newer than ${expectedVersion} (saw ${seen}). A later run publishes the matching frontend, so this run publishes nothing.`)
+          if (!ready) throw new Error(`Backend rollout is not ready (last saw ${seen}). The existing Pages deployment remains active.`)
+          console.log(`Backend ready (${seen}) for frontend ${expectedVersion}.`)
           NODE
 
       - name: Upload artifact

@@ -8,11 +8,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal, Self
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import update
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
+from ledger_sync.api.rate_limit import user_limiter
 from ledger_sync.core.encryption import DecryptionError, decrypt_api_key, encrypt_api_key
 from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.services.ai_settings import (
@@ -237,9 +238,12 @@ def update_ai_limits(
     responses={
         404: {"description": "No AI key configured"},
         400: {"description": "Failed to decrypt the stored API key"},
+        429: {"description": "Too many key requests"},
     },
 )
+@user_limiter.limit("30/minute")
 def get_ai_key(
+    request: Request,  # required by slowapi
     current_user: CurrentUser,
     session: DatabaseSession,
     response: Response,

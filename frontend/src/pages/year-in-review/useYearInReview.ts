@@ -6,18 +6,12 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { parseFYLabelStartYear } from '@/lib/dateRanges'
-import { getCurrentFY, getCurrentMonth, getCurrentYear, MONTHS_PER_YEAR, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { getCurrentMonth, getFYFromDate, getTodayKey, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { analyticsV2Service } from '@/services/api/analyticsV2'
 import type { DayCell } from './components/DayOfWeekChart'
-import {
-  accumulateStats,
-  aggregateFromDailySummaries,
-  bestWorstMonths,
-  buildDayCells,
-  deriveMonthLabels,
-  periodMonthOrder,
-} from './heatmapUtils'
+import { accumulateStats, bestWorstMonths, buildMonthlyBarData } from './heatmapStats'
+import { aggregateFromDailySummaries, buildDayCells, deriveMonthLabels } from './heatmapUtils'
 import { MONTHS_SHORT, type HeatmapMode } from './types'
 
 /** Largest page `/analytics/v2/daily-summaries` accepts (`Query(le=3000)`). */
@@ -50,9 +44,11 @@ export function useYearInReview() {
 
   const prefMode = defaultTimeRange as AnalyticsViewMode
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(prefMode === 'fy' ? 'fy' : 'yearly')
-  const [currentYear, setCurrentYear] = useState(getCurrentYear())
+  // The ledger's IST calendar, not the browser's: a viewer in another timezone
+  // would otherwise open on a different year or month than the data's.
+  const [currentYear, setCurrentYear] = useState(Number(getTodayKey().slice(0, 4)))
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
-  const [currentFY, setCurrentFY] = useState(getCurrentFY(fiscalYearStartMonth))
+  const [currentFY, setCurrentFY] = useState(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
 
   // currentFY is seeded once from the default start month (4) before
   // /api/preferences resolves, and useState initializers never re-run, so a
@@ -63,7 +59,7 @@ export function useYearInReview() {
   const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
   if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
     setSyncedFsm(fiscalYearStartMonth)
-    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    setCurrentFY(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
   }
   const markInteracted = <T,>(setter: (v: T) => void) => (v: T) => {
     setUserInteracted(true)
@@ -194,37 +190,10 @@ export function useYearInReview() {
     }
   }, [grid])
 
-  const monthlyBarData = useMemo(() => {
-    const now = new Date()
-    const nowYear = now.getFullYear()
-    const nowMonth = now.getMonth()
-    let cutoff = MONTHS_PER_YEAR
-    if (shown.isFYMode) {
-      const fyStartYear = shown.selectedYear
-      const fyEndYear = shown.selectedYear + 1
-      const isCurrentFY =
-        (nowYear === fyStartYear && nowMonth >= fiscalYearStartMonth - 1) ||
-        (nowYear === fyEndYear && nowMonth < fiscalYearStartMonth - 1)
-      if (isCurrentFY) {
-        cutoff = ((nowMonth - (fiscalYearStartMonth - 1) + MONTHS_PER_YEAR) % MONTHS_PER_YEAR) + 1
-      }
-    } else if (shown.selectedYear === nowYear) {
-      cutoff = nowMonth + 1
-    }
-    return periodMonthOrder(shown.isFYMode, fiscalYearStartMonth).slice(0, cutoff).map((monthIndex) => {
-      const spending = stats.monthlyExpense[monthIndex]
-      const earning = stats.monthlyIncome[monthIndex]
-      return {
-        name: MONTHS_SHORT[monthIndex],
-        Spending: spending,
-        Earning: earning,
-        // Net cash flow per month (positive = saved, negative = overspent),
-        // after classified realised losses. Drives the overlay line on the
-        // Monthly Breakdown chart so savings months stand out.
-        Net: stats.monthlyNet[monthIndex],
-      }
-    })
-  }, [stats, shown.isFYMode, shown.selectedYear, fiscalYearStartMonth])
+  const monthlyBarData = useMemo(
+    () => buildMonthlyBarData(stats, shown.isFYMode, shown.selectedYear, fiscalYearStartMonth),
+    [stats, shown.isFYMode, shown.selectedYear, fiscalYearStartMonth],
+  )
 
   const retry = () => {
     const retries: Array<Promise<unknown>> = []

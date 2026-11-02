@@ -13,10 +13,10 @@ import MerchantConcentration from './components/MerchantConcentration'
 import MerchantFilters from './components/MerchantFilters'
 import MerchantKpiGrid from './components/MerchantKpiGrid'
 import MerchantTable from './components/MerchantTable'
-import { useMerchantIntel } from './useMerchantIntel'
+import { ROW_LIMIT, useMerchantIntel } from './useMerchantIntel'
 
 const PAGE_TITLE = 'Merchant Intelligence'
-const PAGE_SUBTITLE = 'Who you actually pay, from transaction notes rather than the 12 categories'
+const PAGE_SUBTITLE = 'Who you actually pay, from transaction notes rather than your categories'
 
 export default function MerchantIntelligencePage() {
   const {
@@ -108,6 +108,7 @@ export default function MerchantIntelligencePage() {
           threshold={threshold}
           title="Which payees drive the spend"
           itemNoun="payee"
+          emptyMessage="No payees match these filters. Clear the filters to see the full payee list."
         />
       </motion.div>
 
@@ -130,7 +131,8 @@ export default function MerchantIntelligencePage() {
         <p>
           Payees come from expense notes only. Transfers and income are excluded, and any expense
           whose note is blank or a placeholder such as &quot;Unknown&quot; is dropped -- so tracked
-          spend here is deliberately less than total expenses.
+          spend here is deliberately less than total expenses. A payee paid only once is not rolled up,
+          so Biggest Payee is the largest repeat payee.
         </p>
         <p>
           A label tagged &quot;brand&quot; is a recognised payee. A label tagged &quot;note&quot; is
@@ -145,7 +147,7 @@ export default function MerchantIntelligencePage() {
         )}
         {atRowLimit && (
           <p>
-            Showing the top 200 payees by spend, which is the endpoint&apos;s maximum. A longer tail
+            Showing the top {ROW_LIMIT} payees by spend, which is the endpoint&apos;s maximum. A longer tail
             exists beyond that.
           </p>
         )}

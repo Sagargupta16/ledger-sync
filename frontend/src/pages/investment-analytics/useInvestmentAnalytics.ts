@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 
-import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
@@ -26,7 +25,6 @@ import {
 } from './investmentUtils'
 
 export function useInvestmentAnalytics() {
-  const balancesQuery = useAccountBalances()
   const transactionsQuery = useTransactions()
   const preferencesQuery = usePreferences()
   const transactions = useMemo(
@@ -52,16 +50,9 @@ export function useInvestmentAnalytics() {
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
   const isInvestment = useMemo(() => investmentAccountTest(investmentAccounts), [investmentAccounts])
 
-  const isLoading =
-    balancesQuery.isLoading ||
-    transactionsQuery.isLoading ||
-    preferencesQuery.isLoading
-  const isError =
-    balancesQuery.isError ||
-    transactionsQuery.isError ||
-    preferencesQuery.isError
+  const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
+  const isError = transactionsQuery.isError || preferencesQuery.isError
   const retry = () => {
-    void balancesQuery.refetch()
     void transactionsQuery.refetch()
     void preferencesQuery.refetch()
   }
@@ -105,6 +96,15 @@ export function useInvestmentAnalytics() {
       )
     })
 
+    // Paise precision: float accumulation leaves ~1e-11 on a fully redeemed
+    // account, which would pass the `> 0` checks below and list a 0.00 row.
+    for (const account of Object.keys(byAccount)) {
+      byAccount[account] = Math.round(byAccount[account] * 100) / 100
+    }
+    for (const category of INVESTMENT_CATEGORIES) {
+      byCategory[category] = Math.round(byCategory[category] * 100) / 100
+    }
+
     const total = Object.values(byCategory).reduce((sum, val) => sum + val, 0)
     return { byAccount, byCategory, total }
   }, [pastTransactions, investmentAccounts, isInvestment, accountToCategory])
@@ -138,8 +138,8 @@ export function useInvestmentAnalytics() {
     [preferences],
   )
   const netInvestmentPL = useMemo(
-    () => computeNetInvestmentPL(transactions, returnRules),
-    [transactions, returnRules],
+    () => computeNetInvestmentPL(pastTransactions, returnRules),
+    [pastTransactions, returnRules],
   )
   const plPercent = totalInvestmentValue > 0 ? (netInvestmentPL / totalInvestmentValue) * 100 : 0
 
@@ -163,18 +163,19 @@ export function useInvestmentAnalytics() {
   const categoryColors = usePaletteSnapshot(CATEGORY_COLORS)
   const investmentTypeBreakdown = useMemo(() => {
     const breakdown = filteredInvestmentTotals.byCategory
-    return INVESTMENT_CATEGORIES.filter((cat) => breakdown[cat] > 0)
+    const shown = INVESTMENT_CATEGORIES.filter((cat) => breakdown[cat] > 0)
+    // Shares are of the classes drawn: an overdrawn class cannot be a slice, and
+    // its negative balance in the denominator pushed the slices past 100%.
+    const shownTotal = shown.reduce((sum, cat) => sum + breakdown[cat], 0)
+    return shown
       .map((name) => ({
         name,
         value: breakdown[name],
         color: categoryColors[name],
-        percentage:
-          totalInvestmentValue > 0
-            ? ((breakdown[name] / totalInvestmentValue) * 100).toFixed(1)
-            : '0',
+        percentage: shownTotal > 0 ? ((breakdown[name] / shownTotal) * 100).toFixed(1) : '0',
       }))
       .sort((a, b) => b.value - a.value)
-  }, [filteredInvestmentTotals, totalInvestmentValue, categoryColors])
+  }, [filteredInvestmentTotals, categoryColors])
 
   // Total accounts with a positive balance, before the top-8 cap below. Lets the
   // table surface a "+N more accounts" note when some are hidden.
@@ -184,8 +185,13 @@ export function useInvestmentAnalytics() {
   )
 
   const portfolioData = useMemo(() => {
-    return Object.entries(filteredInvestmentTotals.byAccount)
-      .filter(([, value]) => value > 0)
+    const positive = Object.entries(filteredInvestmentTotals.byAccount).filter(
+      ([, value]) => value > 0,
+    )
+    // Share of the accounts with a positive balance, so overdrawn accounts
+    // cannot push the listed shares past 100%.
+    const positiveTotal = positive.reduce((sum, [, value]) => sum + value, 0)
+    return positive
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([name, value]) => ({
@@ -193,16 +199,15 @@ export function useInvestmentAnalytics() {
         value,
         balance: value,
         investmentType: accountToCategory[name] || 'Mutual Funds',
-        percentage:
-          totalInvestmentValue > 0 ? ((value / totalInvestmentValue) * 100).toFixed(1) : '0',
+        percentage: positiveTotal > 0 ? ((value / positiveTotal) * 100).toFixed(1) : '0',
       }))
-  }, [filteredInvestmentTotals, accountToCategory, totalInvestmentValue])
+  }, [filteredInvestmentTotals, accountToCategory])
 
   // HISTORICAL series, so it stops at today. The all-time view has no end date
   // to clip it, and a forward-dated accrual otherwise drew a point in the future.
   const dailyGrowthData = useMemo(
     () => capSeriesToToday(
-      buildDailyGrowthSeries(transactions, investmentAccounts, accountToCategory),
+      buildDailyGrowthSeries(transactions, investmentAccounts, accountToCategory, getTodayKey()),
       'fullDate',
     ),
     [transactions, investmentAccounts, accountToCategory],
@@ -215,23 +220,38 @@ export function useInvestmentAnalytics() {
   const filteredGrowthData = useMemo(() => {
     const startDate = dateRange.start_date
     const endDate = dateRange.end_date
+    // Each bound applies on its own: the all-time view with an earning start
+    // set has a start and no end.
     const ranged =
-      !startDate || !endDate
+      !startDate && !endDate
         ? dailyGrowthData
         : dailyGrowthData.filter((item) => {
             const d = item.fullDate as string
-            return d >= startDate && d <= endDate
+            return (!startDate || d >= startDate) && (!endDate || d <= endDate)
           })
     // Long ranges collapse to month-end points: the forward-filled daily
     // series feeds 4 stacked SVG areas, and an all-time view was painting
     // ~2,700 points per area (sluggish first paint + hover). Month-end
     // sampling preserves the shape; short windows keep daily fidelity.
-    if (ranged.length <= 366) return ranged
-    const byMonth = new Map<string, (typeof ranged)[number]>()
-    for (const item of ranged) {
-      byMonth.set((item.fullDate as string).substring(0, 7), item)
+    let plotted = ranged
+    if (ranged.length > 366) {
+      const byMonth = new Map<string, (typeof ranged)[number]>()
+      for (const item of ranged) {
+        byMonth.set((item.fullDate as string).substring(0, 7), item)
+      }
+      plotted = [...byMonth.values()]
     }
-    return [...byMonth.values()]
+    if (plotted.length === 0) return plotted
+    // The balance carried into the window, stamped on the first row: the chart
+    // measures its change from here, not from the first plotted close, which
+    // would drop that day (or, once sampled, that whole month).
+    const before = startDate
+      ? dailyGrowthData.filter((item) => (item.fullDate as string) < startDate).at(-1)
+      : undefined
+    const openingBalance = before
+      ? INVESTMENT_CATEGORIES.reduce((sum, category) => sum + Number(before[category] ?? 0), 0)
+      : 0
+    return [{ ...plotted[0], openingBalance }, ...plotted.slice(1)]
   }, [dailyGrowthData, dateRange])
 
   return {

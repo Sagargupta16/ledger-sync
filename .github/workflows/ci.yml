@@ -47,6 +47,17 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
+      # deploy-frontend.yml waits for the live backend to report this version, so a
+      # missed __init__.py bump has to fail here, before migrate touches production.
+      - name: Frontend and backend versions agree
+        run: |
+          frontend=$(node -p "require('./package.json').version")
+          backend=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' ../backend/src/ledger_sync/__init__.py | tr -d '\r')
+          if [ "$frontend" != "$backend" ]; then
+            echo "::error::frontend/package.json is $frontend but ledger_sync.__version__ is ${backend:-missing}."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
@@ -60,8 +71,8 @@ jobs:
         run: cp dist/index.html dist/404.html
 
   # Backend: real gating (ruff + mypy + pytest). The shared python-ci workflow
-  # swallows failures with `|| true`, so we run an inline job that actually
-  # fails the build on lint/type/test errors.
+  # has no mypy step, so we run an inline job that fails the build on
+  # lint/type/test errors.
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -83,8 +94,8 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        # --group dev pulls ruff/mypy/pytest (declared in [dependency-groups],
-        # PEP 735) -- they are not extras, so --all-extras alone misses them.
+        # ruff/mypy/pytest live in [dependency-groups] (PEP 735), not extras.
+        # uv syncs the dev group by default; --group dev keeps that explicit.
         run: uv sync --locked --no-build --no-install-project --all-extras --group dev
 
       # Lint the whole backend dir, matching `pnpm run lint:backend`, so CI can

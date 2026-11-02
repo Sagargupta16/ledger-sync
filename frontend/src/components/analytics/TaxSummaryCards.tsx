@@ -16,15 +16,20 @@ interface TaxSummaryCardsProps {
   prevTotalTax?: number | null
 }
 
-function YoyBadge({ current, previous }: Readonly<{ current: number; previous: number | null | undefined }>) {
+function YoyBadge({
+  current,
+  previous,
+  higherIsBetter = true,
+}: Readonly<{ current: number; previous: number | null | undefined; higherIsBetter?: boolean }>) {
   if (previous == null || previous === 0) return null
   const pct = percentChange(current, previous)
   if (pct === null || !Number.isFinite(pct)) return null
 
   const isUp = pct >= 0
   const Icon = isUp ? TrendingUp : TrendingDown
-  const color = isUp ? 'text-app-green' : 'text-app-red'
-  const bg = isUp ? 'bg-app-green/10' : 'bg-app-red/10'
+  const isGood = pct === 0 || isUp === higherIsBetter
+  const color = isGood ? 'text-app-green' : 'text-app-red'
+  const bg = isGood ? 'bg-app-green/10' : 'bg-app-red/10'
 
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-overline font-medium ${color} ${bg}`}>
@@ -41,6 +46,7 @@ function TaxSummaryTile({
   label,
   value,
   previous,
+  higherIsBetter,
   note,
   delay,
   isLoading,
@@ -52,6 +58,7 @@ function TaxSummaryTile({
   label: ReactNode
   value: number
   previous: number | null | undefined
+  higherIsBetter?: boolean
   note: ReactNode
   delay: number
   isLoading: boolean
@@ -74,7 +81,7 @@ function TaxSummaryTile({
             <p className="ledger-figure text-kpi-hero font-semibold">
               {isLoading ? '...' : <Money value={value} compactBelowSm bold className="whitespace-normal text-left" />}
             </p>
-            {!isLoading && <YoyBadge current={value} previous={previous} />}
+            {!isLoading && <YoyBadge current={value} previous={previous} higherIsBetter={higherIsBetter} />}
           </div>
           <p className="text-xs text-muted-foreground mt-1">{note}</p>
         </div>
@@ -125,10 +132,11 @@ export default function TaxSummaryCards({
         label={isProjecting ? 'Estimated annual tax liability' : 'Tax on recorded income'}
         value={totalTax}
         previous={prevTotalTax}
+        higherIsBetter={false}
         note={isProjecting ? 'Full-year employment and other recorded taxable income' : 'Liability if no further taxable income is received this FY'}
         delay={0.3}
         isLoading={isLoading}
-        className="col-span-2 sm:col-span-1"
+        className="col-span-2 lg:col-span-1"
       />
     </div>
   )

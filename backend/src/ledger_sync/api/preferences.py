@@ -66,11 +66,13 @@ def update_preferences(
 ) -> UserPreferencesResponse:
     """Update user preferences (partial update supported)."""
     # JSON mode, like the section endpoints: nested models keep their explicit
-    # nulls, and omitted top-level fields are left unchanged.
+    # nulls, and omitted top-level fields are left unchanged. The earning start
+    # date is the one nullable column, so a null the client sent clears it.
     values = {
         field: value
         for field, value in updates.model_dump(mode="json").items()
         if value is not None
+        or (field == "earning_start_date" and field in updates.model_fields_set)
     }
     prefs = _apply_preference_updates(session, current_user, values)
     return _model_to_response(prefs, session)

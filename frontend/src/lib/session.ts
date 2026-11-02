@@ -4,9 +4,6 @@ import { clearDismissedNotifications } from '@/components/shared/notificationDat
 import { useAuthStore, type AuthState } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { usePreferencesStore } from '@/store/preferencesStore'
-import { useBudgetStore } from '@/store/budgetStore'
-import { useAccountStore } from '@/store/accountStore'
-import { useInvestmentAccountStore } from '@/store/investmentAccountStore'
 import { queryClient } from './queryClient'
 
 let sessionController = new AbortController()
@@ -39,9 +36,6 @@ export function clearSessionData(client: QueryClient = queryClient, resetStores 
   }
 
   if (resetStores) {
-    useBudgetStore.getState().clearBudgets()
-    useAccountStore.getState().reset()
-    useInvestmentAccountStore.getState().reset()
     usePreferencesStore.getState().reset()
     clearDismissedNotifications()
   }

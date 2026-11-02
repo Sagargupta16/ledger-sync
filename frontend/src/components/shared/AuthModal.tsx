@@ -113,6 +113,7 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus()
+      setSignInError(null)
     }
   }, [isOpen])
 

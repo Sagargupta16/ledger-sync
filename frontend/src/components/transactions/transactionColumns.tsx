@@ -42,6 +42,8 @@ function sortIcon(column: Column<TransactionTableFeatures, Transaction, unknown>
 export const transactionColumns: ColumnDef<TransactionTableFeatures, Transaction>[] = [
   {
     accessorKey: 'date',
+    // The page opens sorted by date descending; without this the first click removes that sort and nothing visibly changes.
+    sortDescFirst: true,
     header: ({ column }) => (
       <Button
         type="button"

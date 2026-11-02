@@ -2,6 +2,7 @@ import { isVested } from '@/lib/rsuVesting'
 
 import VestingCard from './VestingCard'
 import VestingRow from './VestingRow'
+import { vestingClientKey } from './useRsuGrants'
 import type { IndexedVesting, VestingTableProps } from './vestingTableTypes'
 
 function GroupDividerRow({ label, count }: Readonly<{ label: string; count: number }>) {
@@ -14,6 +15,16 @@ function GroupDividerRow({ label, count }: Readonly<{ label: string; count: numb
       </td>
     </tr>
   )
+}
+
+/**
+ * Saved vestings keep their storage ID as the key, so a sort or a date edit
+ * moves a row with its inputs instead of handing them to another vesting. A
+ * new row has no ID until saved and keeps the client key it was added with.
+ */
+function entryKey(prefix: string, entry: IndexedVesting): string {
+  const { vesting, stateIdx } = entry
+  return `${prefix}-${vesting.id ?? vestingClientKey(vesting) ?? `new-${stateIdx}`}`
 }
 
 /** Vesting schedule for one grant, grouped into vested and upcoming entries. */
@@ -40,7 +51,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
             <div className="space-y-2">
               {vestedRows.map((entry) => (
                 <VestingCard
-                  key={`${grant.id}-mobile-vesting-${entry.stateIdx}`}
+                  key={entryKey(`${grant.id}-mobile-vesting`, entry)}
                   {...props}
                   entry={entry}
                   vested
@@ -58,7 +69,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
             <div className="space-y-2">
               {upcomingRows.map((entry) => (
                 <VestingCard
-                  key={`${grant.id}-mobile-vesting-${entry.stateIdx}`}
+                  key={entryKey(`${grant.id}-mobile-vesting`, entry)}
                   {...props}
                   entry={entry}
                   vested={false}
@@ -105,7 +116,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
             )}
             {vestedRows.map((entry) => (
               <VestingRow
-                key={`${grant.id}-vesting-${entry.stateIdx}`}
+                key={entryKey(`${grant.id}-vesting`, entry)}
                 {...props}
                 entry={entry}
                 vested
@@ -116,7 +127,7 @@ export function VestingTable(props: Readonly<VestingTableProps>) {
             )}
             {upcomingRows.map((entry) => (
               <VestingRow
-                key={`${grant.id}-vesting-${entry.stateIdx}`}
+                key={entryKey(`${grant.id}-vesting`, entry)}
                 {...props}
                 entry={entry}
                 vested={false}

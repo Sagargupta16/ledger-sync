@@ -75,7 +75,10 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
   const currentBalanceDisplay = formatCurrency(currentBalance)
   const monthlySipDisplay = formatCurrency(detectedMonthlySIP)
   const totalInvestedDisplay = formatCurrency(totalHistoricalInvested)
-  const durationMonths = Math.round(investmentDurationYears * 12)
+  const durationMonths =
+    totalHistoricalInvested > 0
+      ? Math.max(1, Math.round(investmentDurationYears * 12))
+      : Math.round(investmentDurationYears * 12)
   const avgPerMonth = durationMonths > 0 ? totalHistoricalInvested / durationMonths : 0
 
   return (

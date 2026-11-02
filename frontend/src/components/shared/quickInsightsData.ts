@@ -21,8 +21,8 @@ const TITLE_TO_WIDGET_KEY: Record<string, string> = {
   'Peak Spending Day': 'peak_day',
   'Monthly Burn Rate': 'burn_rate',
   'Spending Diversity': 'spending_diversity',
-  'Avg Transaction Amount': 'avg_transaction',
-  'Total Internal Transfers': 'total_transfers',
+  'Avg Transaction': 'avg_transaction',
+  'Internal Transfers': 'total_transfers',
   // New insights - always visible (not in legacy widget settings)
   'Total Income': 'total_income',
   'Total Expenses': 'total_expenses',

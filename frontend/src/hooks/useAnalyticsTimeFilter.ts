@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import {
-  getCurrentYear,
   getCurrentMonth,
-  getCurrentFY,
+  getFYFromDate,
+  getTodayKey,
   getAnalyticsDateRange,
   resolvePartialPeriod,
   toCompleteMonthsRange,
@@ -109,9 +109,10 @@ export function useAnalyticsTimeFilter(
   )
 
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(defaultMode)
-  const [currentYear, setCurrentYear] = useState(getCurrentYear)
+  // The ledger's IST calendar for all three seeds, not the browser's.
+  const [currentYear, setCurrentYear] = useState(() => Number(getTodayKey().slice(0, 4)))
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
-  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
+  const [currentFY, setCurrentFY] = useState(() => getFYFromDate(getTodayKey(), fiscalYearStartMonth))
 
   // The state above is seeded ONCE from defaults (fiscalYearStartMonth falls
   // back to 4) before /api/preferences resolves. useState initializers never
@@ -125,9 +126,11 @@ export function useAnalyticsTimeFilter(
   const [syncedFsm, setSyncedFsm] = useState<number | null>(null)
   if (preferences && !userInteracted && syncedFsm !== fiscalYearStartMonth) {
     setSyncedFsm(fiscalYearStartMonth)
-    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
-    if (!options?.defaultViewMode && defaultTimeRange) {
-      setViewMode(allowedMode(defaultTimeRange as AnalyticsViewMode, options?.availableModes))
+    setCurrentFY(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
+    // From the query data, not the store: the store hydrates in an effect after
+    // this render and may still hold the previous session's range.
+    if (!options?.defaultViewMode && preferences.default_time_range) {
+      setViewMode(allowedMode(preferences.default_time_range as AnalyticsViewMode, options?.availableModes))
     }
   }
 
@@ -248,20 +251,11 @@ export function useAnalyticsTimeFilter(
   }
 
   return {
-    viewMode,
-    setViewMode,
-    currentYear,
-    setCurrentYear,
-    currentMonth,
-    setCurrentMonth,
     currentFY,
-    setCurrentFY,
-    fiscalYearStartMonth,
     dateRange,
     comparableDateRange,
     partialPeriod,
     isRangePartialOnly,
-    dataDateRange,
     timeFilterProps,
   }
 }

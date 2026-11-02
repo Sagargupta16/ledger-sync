@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 
 import { CollapsibleSection } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'
+import { getTaxConfig, isAct2025Year } from '@/lib/tax-config'
 
 import type { TaxPlanningModel } from '../useTaxPlanning'
 import TaxTip from './TaxTip'
@@ -11,7 +12,17 @@ interface Props {
   planning: TaxPlanningModel
 }
 
+const lakh = (amount: number) => `${amount / 100_000}L`
+
 export default function TaxSavingSuggestions({ planning }: Readonly<Props>) {
+  const { newRegime } = getTaxConfig(planning.fyYear)
+  const { maxIncome, maxRebate } = newRegime.rebate87A
+  const rebateTitle = isAct2025Year(planning.fyYear) ? 's.156 (old 87A) Rebate' : 'Section 87A Rebate'
+  const rebateDescription =
+    newRegime.standardDeduction > 0
+      ? `Income up to ${lakh(maxIncome)}: Full tax rebate (zero tax up to ${lakh(maxIncome + newRegime.standardDeduction)} after standard deduction).`
+      : `Income up to ${lakh(maxIncome)}: Full tax rebate.`
+
   return (
     <motion.div variants={fadeUpItem}>
       <CollapsibleSection title="Tax Saving Suggestions" icon={Lightbulb} defaultExpanded={false}>
@@ -44,15 +55,7 @@ export default function TaxSavingSuggestions({ planning }: Readonly<Props>) {
                 amount={null}
                 description="Section 80CCH: Full deduction for contributions to the Agniveer scheme."
               />
-              <TaxTip
-                title="Section 87A Rebate"
-                amount={planning.fyYear >= 2025 ? 60000 : 25000}
-                description={
-                  planning.fyYear >= 2025
-                    ? 'Income up to 12L: Full tax rebate (zero tax up to 12.75L after standard deduction).'
-                    : 'Income up to 7L: Full tax rebate (zero tax up to 7.75L after standard deduction).'
-                }
-              />
+              <TaxTip title={rebateTitle} amount={maxRebate} description={rebateDescription} />
               <TaxTip
                 title="Consider Old Regime?"
                 amount={null}
