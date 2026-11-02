@@ -252,6 +252,8 @@ describe('financial mutation session boundaries', () => {
     await waitFor(() => expect(mutation.state.status).toBe('success'))
 
     expect(uploadService.refreshAnalytics).toHaveBeenCalledOnce()
-    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ['analyticsV2'] })
+    expect(invalidate).toHaveBeenCalledTimes(2)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['analyticsV2'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['calculations'] })
   })
 })

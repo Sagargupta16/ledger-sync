@@ -115,6 +115,7 @@ describe('useUploadSync with a Money Manager backup', () => {
     expect(result.current.phase).toBeNull()
     expect(result.current.success).toEqual({
       fileName: BACKUP_NAME, summary: CHANGE_SUMMARY, analyticsStatus: 'ready', analyticsMessage: null,
+      planningMessage: null,
     })
   })
 

@@ -53,7 +53,7 @@ Moved verbatim from the repo `CLAUDE.md` on 2026-10-31; repo-wide rules stay the
 
 - **Order**: React, third-party libs, `@/components`, `@/hooks`, `@/lib`, `@/types`, `@/constants`, relative imports.
 - **Path alias**: Always use `@/` for non-relative imports. Never `../../`.
-- **No barrel files at page level**: Don't create `index.ts` that re-exports in `pages/`. Four barrels remain (`components/{shared,ui,analytics}/index.ts`, `services/api/index.ts`), trimmed to what is imported through them. Don't add new ones; delete a barrel line once nothing imports that name through it.
+- **No barrel files at page level**: Don't create `index.ts` that re-exports in `pages/`. Three barrels remain (`components/{shared,ui,analytics}/index.ts`), trimmed to what is imported through them. Don't add new ones; delete a barrel line once nothing imports that name through it.
 - **Page imports in router**: `App.tsx` lazy-imports each page's main file directly, e.g. `import('@/pages/bill-calendar/BillCalendarPage')` -- never `import('@/pages/bill-calendar')` (no barrel).
 
 ## Performance Rules
