@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 import { Tag, Plus } from 'lucide-react'
-import { toast } from 'sonner'
 
 import { useUpdateTransactionTags } from '@/hooks/api/useTags'
 import { useDismissable } from '@/hooks/useDismissable'
@@ -9,6 +8,24 @@ import { Button, Input } from '@/components/ui'
 
 const MAX_TAGS = 10
 const MAX_TAG_LENGTH = 50
+/** Room the popover needs under its trigger (px) before it opens upward. */
+const POPOVER_ROOM = 340
+
+/** Viewport-fixed offsets, so the table's scroll container cannot clip the popover. */
+interface PopoverAnchor {
+  right: number
+  top?: number
+  bottom?: number
+}
+
+function popoverAnchor(trigger: DOMRect): PopoverAnchor {
+  const right = document.documentElement.clientWidth - trigger.right
+  const below = window.innerHeight - trigger.bottom
+  if (below < POPOVER_ROOM && trigger.top > below) {
+    return { right, bottom: window.innerHeight - trigger.top + 4 }
+  }
+  return { right, top: trigger.bottom + 4 }
+}
 
 interface TagEditorProps {
   transactionId: string
@@ -22,6 +39,7 @@ interface TagEditorProps {
  */
 export default function TagEditor({ transactionId, tags, availableTags }: Readonly<TagEditorProps>) {
   const [open, setOpen] = useState(false)
+  const [anchor, setAnchor] = useState<PopoverAnchor>({ right: 0, top: 0 })
   const [draft, setDraft] = useState<string[]>(tags)
   const [newTag, setNewTag] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -30,6 +48,9 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
 
   // Re-seed the draft each time the popover opens (discard stale edits)
   const handleOpen = () => {
+    const trigger = ref.current?.getBoundingClientRect()
+    if (!trigger) return
+    setAnchor(popoverAnchor(trigger))
     setDraft(tags)
     setNewTag('')
     setOpen(true)
@@ -37,6 +58,22 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
 
   // Closing by outside click / Escape discards the draft
   useDismissable(open, ref, () => setOpen(false))
+
+  // A fixed popover would drift from its trigger on scroll or resize, so close
+  // it; scrolling the tag list inside the popover is left alone.
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (e.target instanceof Node && ref.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
 
   const toggleTag = (tag: string) => {
     setDraft((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
@@ -53,10 +90,7 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
   const handleApply = () => {
     updateTags.mutate(
       { transactionId, tags: draft },
-      {
-        onSuccess: () => setOpen(false),
-        onError: () => toast.error('Failed to update tags'),
-      },
+      { onSuccess: () => setOpen(false) },
     )
   }
 
@@ -81,7 +115,10 @@ export default function TagEditor({ transactionId, tags, availableTags }: Readon
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-64 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
+        <div
+          style={anchor}
+          className="fixed z-50 w-64 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]"
+        >
           {options.length > 0 ? (
             <ul className="space-y-0.5 max-h-48 overflow-y-auto">
               {options.map((tag) => (

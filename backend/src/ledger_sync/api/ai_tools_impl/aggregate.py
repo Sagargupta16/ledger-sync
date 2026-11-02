@@ -138,6 +138,7 @@ def _time_series(user: User, db: Session, args: dict[str, Any]) -> dict[str, Any
     ranked = sorted(totals, key=lambda name: -abs(totals[name]))
     # An "Other" of one series only hides its name, so keep it.
     keep = ranked if len(ranked) <= args["series_limit"] + 1 else ranked[: args["series_limit"]]
+    other_name = OTHER if OTHER not in keep else f"{OTHER} (remaining)"
     keys = sorted(periods)
     shown = keys[-args["limit"] :]
     rows = []
@@ -149,7 +150,7 @@ def _time_series(user: User, db: Session, args: dict[str, Any]) -> dict[str, Any
         values = {name: round(bucket.get(name, 0.0), 2) for name in keep}
         other = sum(v for name, v in bucket.items() if name not in keep)
         if len(totals) > len(keep):
-            values[OTHER] = round(float(other), 2)
+            values[other_name] = round(float(other), 2)
         rows.append(
             {"period": key, "values": values, "total": round(float(sum(bucket.values())), 2)}
         )
@@ -159,7 +160,7 @@ def _time_series(user: User, db: Session, args: dict[str, Any]) -> dict[str, Any
         "matched_categories": matched,
     }
     if split is not None:
-        result["series"] = keep + ([OTHER] if len(totals) > len(keep) else [])
+        result["series"] = keep + ([other_name] if len(totals) > len(keep) else [])
     if len(keys) > len(shown):
         result["earlier_periods_left_out"] = len(keys) - len(shown)
     return result

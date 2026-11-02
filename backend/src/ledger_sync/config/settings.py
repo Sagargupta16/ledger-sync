@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        # The .env file also holds the push and embedding settings; a key this
+        # class does not declare must not abort startup or echo its value.
+        extra="ignore",
+        hide_input_in_errors=True,
     )
 
     # Environment
@@ -42,8 +46,7 @@ class Settings(BaseSettings):
     # Application settings
     log_level: str = "INFO"
     # Unread by the app. Kept only because .env.example still sets
-    # LEDGER_SYNC_DATA_DIR and settings reject unknown keys from a .env file,
-    # so dropping the field would stop every local backend that copied it.
+    # LEDGER_SYNC_DATA_DIR.
     data_dir: Path = Path("./data")
 
     # JWT Authentication settings
@@ -179,6 +182,21 @@ class Settings(BaseSettings):
                     "CRITICAL: SQLite is not suitable for production. "
                     "Use PostgreSQL: set LEDGER_SYNC_DATABASE_URL."
                 )
+            if not self.encryption_key:
+                issues.append(
+                    "WARNING: encryption_key is not set, so BYOK ciphertexts fall back to "
+                    "jwt_secret_key. Set LEDGER_SYNC_ENCRYPTION_KEY."
+                )
+
+        if self.environment not in ("development", "staging", "production"):
+            issues.append(
+                f"WARNING: environment {self.environment!r} is not development, staging or "
+                "production. Check LEDGER_SYNC_ENVIRONMENT."
+            )
+
+        for name in ("jwt_secret_key", "encryption_key"):
+            if getattr(self, name).lower().startswith("replace-with"):
+                issues.append(f"WARNING: {name} is still the README placeholder.")
 
         return issues
 
@@ -191,6 +209,16 @@ class Settings(BaseSettings):
             warnings.warn(
                 "Using auto-generated JWT secret! Set LEDGER_SYNC_JWT_SECRET_KEY "
                 "environment variable for production.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if self.environment == "development" and os.environ.get("VERCEL_ENV") in (
+            "production",
+            "preview",
+        ):
+            warnings.warn(
+                "Running on Vercel with LEDGER_SYNC_ENVIRONMENT unset or 'development'. "
+                "Set LEDGER_SYNC_ENVIRONMENT=production.",
                 UserWarning,
                 stacklevel=2,
             )

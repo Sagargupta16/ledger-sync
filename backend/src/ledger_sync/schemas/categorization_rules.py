@@ -1,6 +1,6 @@
 """Pydantic schemas for categorization rule API requests and responses."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CategorizationRuleCreateRequest(BaseModel):
@@ -29,7 +29,17 @@ class CategorizationRuleCreateRequest(BaseModel):
         description="Subcategory to set on match (null clears it)",
     )
     is_active: bool = Field(True, description="Whether the rule participates in matching")
-    sort_order: int = Field(0, ge=0, description="Evaluation order (lower runs first)")
+    sort_order: int = Field(
+        0, ge=0, le=2_147_483_647, description="Evaluation order (lower runs first)"
+    )
+
+    @field_validator("pattern", "category", "subcategory")
+    @classmethod
+    def _no_nul(cls, value: str | None) -> str | None:
+        if value is not None and "\x00" in value:
+            msg = "Text cannot contain a NUL character."
+            raise ValueError(msg)
+        return value
 
 
 class CategorizationRuleUpdateRequest(CategorizationRuleCreateRequest):

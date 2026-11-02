@@ -90,7 +90,7 @@ export default function TrendCard({
           >
             {getDirectionIcon(metrics.direction)}
             <span className="font-mono text-sm font-semibold tabular-nums">
-              {formatPercent(metrics.changePercent)}
+              {metrics.changePercent === null ? '--' : formatPercent(metrics.changePercent)}
             </span>
             <span className="text-text-tertiary text-sm">vs previous month</span>
           </div>

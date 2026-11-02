@@ -23,11 +23,16 @@ _COUNTED = ("reserved", "completed")
 
 
 def mask_email(email: str) -> str:
-    """``sg85207@gmail.com`` -> ``sg8***@gmail.com``; a short local part keeps one character."""
+    """``sg85207@gmail.com`` -> ``sg8***@gmail.com``; a short local part keeps one character.
+
+    A one-character local part keeps none, so the whole address is never shown.
+    """
     local, at, domain = email.partition("@")
     if not at or not domain:
         return "***"
     keep = local[:3] if len(local) > 3 else local[:1]
+    if len(keep) == len(local):
+        keep = ""
     return f"{keep}***@{domain}"
 
 
@@ -85,7 +90,8 @@ def _providers(providers: Iterable[str | None]) -> dict[str, int]:
 
 
 def _account_list(db: Session, users: list[Any], now: datetime) -> list[dict[str, Any]]:
-    since = now - timedelta(days=30)
+    # The AI card's window (admin_stats._ai): 30 UTC days ending today, from UTC midnight.
+    since = datetime(now.year, now.month, now.day, tzinfo=UTC) - timedelta(days=29)
     live = _per_user(
         db,
         select(Transaction.user_id, func.count())

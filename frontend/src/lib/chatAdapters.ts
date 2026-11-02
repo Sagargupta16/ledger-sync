@@ -13,6 +13,8 @@
  */
 
 import { API_BASE_URL } from '@/constants'
+import { getMe } from '@/services/api/auth'
+import { useAuthStore } from '@/store/authStore'
 
 // --- Public types ------------------------------------------------------------
 
@@ -233,7 +235,8 @@ function toOpenAIMessages(system: string, messages: ChatMessage[]): OpenAIMessag
           })
         }
       }
-      continue
+      // A question merged into this turn still goes out, after its results.
+      if (!blocks.some((b) => b.type === 'text')) continue
     }
     // Plain text
     const text = blocks
@@ -450,15 +453,23 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
   }
   // MUST be absolute against the backend host: a relative /api path resolves
   // to GitHub Pages in production, whose static host answers POST with 405.
-  const res = await fetch(`${API_BASE_URL}/api/ai/bedrock/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${params.apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: params.signal,
-  })
+  const post = () =>
+    fetch(`${API_BASE_URL}/api/ai/bedrock/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Read at send time: the key resolved when the chat started may predate a token refresh.
+        Authorization: `Bearer ${useAuthStore.getState().accessToken ?? params.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: params.signal,
+    })
+  let res = await post()
+  if (res.status === 401) {
+    // Expired access token: an API call through the client refreshes it (or ends the session), then send once more.
+    await getMe()
+    res = await post()
+  }
   if (!res.ok) throw await responseError(res, 'Bedrock')
   const data = (await res.json()) as {
     blocks?: BedrockWireBlock[]

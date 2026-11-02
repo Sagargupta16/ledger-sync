@@ -48,7 +48,7 @@ describe('parseChartArgs', () => {
         { label: '2026-05', s1: 118000, s2: 91000.5 },
       ],
       valueFormat: 'currency',
-      source: 'ledger',
+      source: 'calculated',
     })
   })
 

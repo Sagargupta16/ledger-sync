@@ -20,9 +20,11 @@ interface MilestonesTableProps {
 /** "3mo" / "1y 2mo" / "2y" */
 function formatMonthsAway(monthsAway: number): string {
   if (monthsAway < 1) return 'this month'
-  if (monthsAway < 12) return `${Math.round(monthsAway)}mo`
-  const years = Math.floor(monthsAway / 12)
-  const rem = Math.round(monthsAway - years * 12)
+  // Round once, so 11.6 months reads 1y and 23.7 reads 2y rather than 12mo and 1y 12mo.
+  const months = Math.round(monthsAway)
+  if (months < 12) return `${months}mo`
+  const years = Math.floor(months / 12)
+  const rem = months % 12
   return rem > 0 ? `${years}y ${rem}mo` : `${years}y`
 }
 

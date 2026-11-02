@@ -39,6 +39,36 @@ function SeverityDot({ severity }: Readonly<{ severity: Notification['severity']
 }
 
 // ---------------------------------------------------------------------------
+// Empty panel
+// ---------------------------------------------------------------------------
+
+/** A failed or unfinished fetch reads as empty lists, which must not show the all-clear. */
+function emptyView(failed: boolean, loading: boolean) {
+  if (failed) {
+    return {
+      title: "Couldn't load notifications",
+      hint: 'Budgets, anomalies or bills did not load.',
+      bgClass: 'bg-app-red/10',
+      colorClass: 'text-app-red',
+    }
+  }
+  if (loading) {
+    return {
+      title: 'Loading notifications',
+      hint: 'Checking budgets, anomalies and bills',
+      bgClass: 'bg-[var(--overlay-2)]',
+      colorClass: 'text-muted-foreground',
+    }
+  }
+  return {
+    title: 'All caught up!',
+    hint: 'No new notifications',
+    bgClass: 'bg-app-green/10',
+    colorClass: 'text-app-green',
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -51,16 +81,21 @@ export default function NotificationCenter() {
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch data
-  const { data: budgets = [] } = useBudgets({ active_only: true })
-  const { data: anomalies = [] } = useAnomalies({ include_reviewed: false })
+  const budgetsQuery = useBudgets({ active_only: true })
+  const anomaliesQuery = useAnomalies({ include_reviewed: false })
   // The envelope count, not the row list: rows stop at the handler's limit
   // (50), so a badge counting them under-reports -- the Sidebar reads the same.
-  const anomalyCount = useAnomalyCounts({ include_reviewed: false }).data?.count ?? 0
+  const anomalyCountQuery = useAnomalyCounts({ include_reviewed: false })
   // "Upcoming Payment" only makes sense for something owed on a date, so
   // habit rows are excluded -- nobody needs a reminder that lunch is due. The
   // shared params (min_confidence 0) are the Dashboard's and Sidebar's cache
   // entry; omitting min_confidence applied the backend default of 50.
-  const { data: recurring = [] } = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
+  const recurringQuery = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
+  const { data: budgets = [] } = budgetsQuery
+  const { data: anomalies = [] } = anomaliesQuery
+  const anomalyCount = anomalyCountQuery.data?.count ?? 0
+  const { data: recurring = [] } = recurringQuery
+  const queries = [budgetsQuery, anomaliesQuery, anomalyCountQuery, recurringQuery]
 
   // Build notifications
   const notifications = useMemo(() => {
@@ -138,6 +173,10 @@ export default function NotificationCenter() {
   }, [isOpen])
 
   const unreadSuffix = totalCount > 0 ? ` (${totalCount} unread)` : ''
+  const empty = emptyView(
+    queries.some((query) => query.isError),
+    queries.some((query) => query.isPending),
+  )
 
   return (
     <div className="relative">
@@ -223,12 +262,12 @@ export default function NotificationCenter() {
             <ul className="m-0 max-h-[calc(70vh-48px)] list-none overflow-y-auto p-0 scrollbar-none">
               {totalCount === 0 ? (
                 <li className="flex flex-col items-center justify-center py-12 px-4">
-                  <div className="mb-3 rounded-lg bg-app-green/10 p-3">
-                    <Bell size={24} className="text-app-green" />
+                  <div className={cn('mb-3 rounded-lg p-3', empty.bgClass)}>
+                    <Bell size={24} className={empty.colorClass} />
                   </div>
-                  <p className="text-sm font-medium text-foreground">All caught up!</p>
+                  <p className="text-sm font-medium text-foreground">{empty.title}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    No new notifications
+                    {empty.hint}
                   </p>
                 </li>
               ) : (
@@ -274,9 +313,11 @@ export default function NotificationCenter() {
                                 <p className="text-xs font-medium text-foreground leading-snug">
                                   {item.message}
                                 </p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {relativeTime(item.timestamp)}
-                                </p>
+                                {item.timestamp && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    {relativeTime(item.timestamp)}
+                                  </p>
+                                )}
                               </div>
                               <Button
                                 type="button"

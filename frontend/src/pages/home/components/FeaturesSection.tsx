@@ -73,7 +73,7 @@ const FEATURES: readonly Feature[] = [
     icon: MessageSquareText,
     title: 'AI assistant',
     description:
-      'Ask about your money in plain language. Fifteen read-only tools answer from your own ledger.',
+      'Ask about your money in plain language. Nineteen read-only tools answer from your own ledger.',
     route: null,
     page: 'workspace',
     iconClass: 'text-app-blue',
@@ -94,7 +94,7 @@ export function FeaturesSection({ isAuthenticated, onOpenFeature }: Readonly<Fea
   const reduce = useMotionStore((state) => state.mode === 'reduced')
 
   return (
-    <section id="features" className="scroll-mt-20 py-16 sm:py-20">
+    <section id="features" className="scroll-mt-20 py-16 sm:py-20 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-4 pb-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
           <div>

@@ -460,10 +460,12 @@ What each reset clears:
 | `external_refs` | `repeat_rule` links cleared with their schedules; `budget` links kept | Cleared |
 | `category_overrides`, `transaction_embeddings` | Cleared with the transactions (cascade) | Cleared |
 | `push_subscriptions` | Kept | Kept |
+| `upload_tokens` | Kept | Kept |
 | `mf_nav_prices` | Not user data | Not user data |
 
 Deleting the account runs the full reset path and then removes the user, so
-the user foreign keys cascade through the rest, `push_subscriptions` included.
+the user foreign keys cascade through the rest, `push_subscriptions` and
+`upload_tokens` included.
 Reset and delete skip a table whose migration has not run yet, so they keep
 working on a database that predates `feature_domains_2026`.
 

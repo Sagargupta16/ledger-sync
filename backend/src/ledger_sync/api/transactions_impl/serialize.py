@@ -39,6 +39,18 @@ _EXPORT_HEADER = [
     "tags",
 ]
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_text(value: str | None) -> str:
+    """A free-text cell that Excel and Sheets read as text, never as a formula.
+
+    A cell opening with ``=``, ``+``, ``-``, ``@``, a tab or a carriage return is
+    evaluated as a formula, so such a cell gets a leading apostrophe.
+    """
+    text = value or ""
+    return f"'{text}" if text.startswith(_FORMULA_PREFIXES) else text
+
 
 def _tags_for_transactions(
     db: Session,
@@ -226,13 +238,13 @@ def _export_csv_chunks(
                     float(row.amount),
                     row.currency,
                     row.type.value,
-                    row.category,
-                    row.subcategory or "",
-                    row.account,
-                    row.from_account,
-                    row.to_account,
-                    row.note or "",
-                    row.source_file,
+                    _csv_text(row.category),
+                    _csv_text(row.subcategory),
+                    _csv_text(row.account),
+                    _csv_text(row.from_account),
+                    _csv_text(row.to_account),
+                    _csv_text(row.note),
+                    _csv_text(row.source_file),
                     row.last_seen_at.isoformat(),
                     # Same JSON array the API serves for this field
                     # (``TransactionResponse.tags``), so the column round-trips

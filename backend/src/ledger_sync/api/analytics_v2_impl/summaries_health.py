@@ -103,8 +103,19 @@ def _rollup_freshness(db: Session, user_id: int) -> dict[str, Any]:
         .filter(MonthlySummary.user_id == user_id)
         .scalar()
     )
+    # An import that inserted, updated and deleted nothing marks no change, so
+    # the refresh skips it and the rollups can never catch up to its timestamp.
     imported_at = (
-        db.query(func.max(ImportLog.imported_at)).filter(ImportLog.user_id == user_id).scalar()
+        db.query(func.max(ImportLog.imported_at))
+        .filter(
+            ImportLog.user_id == user_id,
+            or_(
+                ImportLog.rows_inserted > 0,
+                ImportLog.rows_updated > 0,
+                ImportLog.rows_deleted > 0,
+            ),
+        )
+        .scalar()
     )
 
     # Stale means "an import happened that the rollups have not absorbed". No
@@ -152,6 +163,7 @@ def _ledger_quality(db: Session, user_id: int) -> dict[str, Any]:
     ).one()
 
     future_dated_count = base.filter(day > today).count()
+    latest_past = base.filter(day <= today).with_entities(func.max(day)).scalar()
     placeholder_note_count = base.filter(
         func.lower(func.trim(Transaction.note)).in_(sorted(PLACEHOLDER_NOTES))
     ).count()
@@ -167,6 +179,7 @@ def _ledger_quality(db: Session, user_id: int) -> dict[str, Any]:
         "transaction_count": count,
         "earliest_date": earliest,
         "latest_date": latest,
+        "latest_past_date": latest_past,
         "future_dated_count": future_dated_count,
         "placeholder_note_count": placeholder_note_count,
         "uncategorized_count": uncategorized_count,
@@ -258,7 +271,9 @@ def get_data_health(
       land leaves every page serving the PREVIOUS import's numbers, and that is
       otherwise invisible (see ``_rollup_freshness``).
     * Coverage -- ``transaction_count`` plus the ``earliest_date`` /
-      ``latest_date`` span.
+      ``latest_date`` span, and ``latest_past_date``: the newest row on or
+      before today in IST, which is what freshness is measured from when
+      ``latest_date`` itself is future-dated.
     * Quality -- ``future_dated_count`` (dated after today in IST, which skews
       any "current month" total), ``placeholder_note_count`` (the note is one of
       the canonical placeholders -- "Unknown", "N/A", "-", "misc" -- so

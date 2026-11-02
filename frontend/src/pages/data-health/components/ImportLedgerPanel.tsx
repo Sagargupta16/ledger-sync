@@ -60,6 +60,16 @@ function buildColumns(locale: string): readonly DataTableColumn<ImportLedgerRow>
   ]
 }
 
+/**
+ * `importedAt` is a naive UTC timestamp, so it is read as UTC and the day shown
+ * is the viewer's. Its leading `YYYY-MM-DD` is the UTC day, which is the previous
+ * day for an IST import before 05:30.
+ */
+function formatImportedDay(iso: string): string {
+  const date = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`)
+  return Number.isNaN(date.getTime()) ? iso : formatDate(date)
+}
+
 export default function ImportLedgerPanel({ rows, fileName, importedAt }: ImportLedgerPanelProps) {
   const locale = getActiveLocale()
 
@@ -72,9 +82,11 @@ export default function ImportLedgerPanel({ rows, fileName, importedAt }: Import
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <FileClock className="size-4 shrink-0 self-center text-app-blue" aria-hidden />
         <h2 className="text-sm font-semibold text-foreground">Last import</h2>
-        <span className="min-w-0 truncate text-xs text-text-tertiary" title={fileName ?? undefined}>
-          {fileName ?? 'No file on record'}
-          {importedAt ? ` -- ${formatDate(importedAt)}` : ''}
+        <span className="flex min-w-0 max-w-full items-baseline gap-x-1 text-xs text-text-tertiary">
+          <span className="min-w-0 truncate" title={fileName ?? undefined}>
+            {fileName ?? 'No file on record'}
+          </span>
+          {importedAt && <span className="shrink-0">{`-- ${formatImportedDay(importedAt)}`}</span>}
         </span>
       </div>
 

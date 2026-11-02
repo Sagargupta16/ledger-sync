@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   getDataHealth: vi.fn(),
   refreshAnalytics: vi.fn(),
   updateCapitalLossCategories: vi.fn(),
+  // A classify or unclassify re-reads preferences before it saves.
+  getPreferences: vi.fn(),
   // The balance-check panel runs its own query. An empty summary keeps it off
   // the network and out of these assertions.
   getBalanceCheckSummary: vi.fn(() =>
@@ -54,6 +56,7 @@ vi.mock('@/services/api/preferences', async (importOriginal) => {
     ...actual,
     preferencesService: {
       ...actual.preferencesService,
+      getPreferences: mocks.getPreferences,
       updateCapitalLossCategories: mocks.updateCapitalLossCategories,
     },
   }
@@ -290,9 +293,11 @@ describe('DataHealthPage realised-loss classification', () => {
     mocks.getDataHealth.mockReset()
     mocks.refreshAnalytics.mockReset()
     mocks.updateCapitalLossCategories.mockReset()
+    mocks.getPreferences.mockReset()
   })
 
   it('suggests the candidate and classifies it in one click, then rebuilds', async () => {
+    mocks.getPreferences.mockResolvedValue(prefs(['Crypto::Realized Loss']))
     mocks.getDataHealth.mockResolvedValue(WITH_CANDIDATE)
     mocks.updateCapitalLossCategories.mockResolvedValue(
       prefs(['Crypto::Realized Loss', CANDIDATE.key]),
@@ -317,6 +322,7 @@ describe('DataHealthPage realised-loss classification', () => {
   })
 
   it('un-classifies exactly the chosen key', async () => {
+    mocks.getPreferences.mockResolvedValue(prefs(['Crypto::Realized Loss', CANDIDATE.key]))
     mocks.getDataHealth.mockResolvedValue(STALE)
     mocks.updateCapitalLossCategories.mockResolvedValue(prefs(['Crypto::Realized Loss']))
     mocks.refreshAnalytics.mockResolvedValue(undefined)
@@ -336,6 +342,7 @@ describe('DataHealthPage realised-loss classification', () => {
   })
 
   it('says a failed save changed nothing and does not rebuild', async () => {
+    mocks.getPreferences.mockResolvedValue(prefs([]))
     mocks.getDataHealth.mockResolvedValue(WITH_CANDIDATE)
     mocks.updateCapitalLossCategories.mockRejectedValue(new Error('boom'))
     renderPage(prefs([]))

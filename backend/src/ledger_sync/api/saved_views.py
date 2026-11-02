@@ -15,7 +15,7 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,11 @@ from ledger_sync.core.watch_tile_pins import (
     unpin_view,
 )
 from ledger_sync.db.models import SavedFilterView
-from ledger_sync.schemas.saved_views import SavedViewCreateRequest, SavedViewResponse
+from ledger_sync.schemas.saved_views import (
+    MAX_SAVED_VIEWS,
+    SavedViewCreateRequest,
+    SavedViewResponse,
+)
 from ledger_sync.schemas.watch_tiles import (
     WatchCategoryPinRequest,
     WatchCategoryPinResponse,
@@ -74,7 +78,7 @@ def list_saved_views(
     return [_to_view_response(view) for view in views]
 
 
-@router.post("")
+@router.post("", responses={409: {"description": "Saved-view limit reached"}})
 def save_view(
     payload: SavedViewCreateRequest,
     current_user: CurrentUser,
@@ -101,6 +105,16 @@ def save_view(
         view.filters = filters
         db.commit()
     else:
+        saved = db.scalar(
+            select(func.count())
+            .select_from(SavedFilterView)
+            .where(SavedFilterView.user_id == user_id)
+        )
+        if (saved or 0) >= MAX_SAVED_VIEWS:
+            raise HTTPException(
+                status_code=409,
+                detail=f"You can keep up to {MAX_SAVED_VIEWS} saved views. Delete one first.",
+            )
         view = SavedFilterView(user_id=user_id, name=payload.name, filters=filters)
         db.add(view)
         try:

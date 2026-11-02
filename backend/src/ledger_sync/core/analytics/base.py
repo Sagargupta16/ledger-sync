@@ -349,9 +349,12 @@ class AnalyticsEngineBase:
 
     @property
     def _currency_symbol(self) -> str:
-        """Get currency symbol from preferences (default ₹)."""
-        if self._preferences and hasattr(self._preferences, "currency_symbol"):
-            return self._preferences.currency_symbol or "₹"
+        """Symbol for the amounts printed in stored alert text.
+
+        Amounts are stored in INR whatever the user's display currency is, so the
+        stored sentence always says rupees; the display symbol would put a dollar
+        sign on a rupee figure.
+        """
         return "₹"
 
     @property

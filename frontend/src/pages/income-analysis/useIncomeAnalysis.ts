@@ -199,7 +199,8 @@ export function useIncomeAnalysis() {
     // The income read counts only until the first snapshot commits; after that
     // a period change settles in place instead of swapping in the skeleton.
     isLoading: !isError && (
-      preferencesQuery.isPending || dateRangeQuery.isPending || stable.isInitialLoad ||
+      preferencesQuery.isPending || dateRangeQuery.isPending || incomeQuery.isPending ||
+      stable.isInitialLoad ||
       (needsEarningEvidence && earningEvidenceQuery.isPending)
     ),
     isSettling: stable.isSettling,

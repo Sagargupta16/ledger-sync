@@ -14,7 +14,7 @@ interface PortfolioMetricsProps {
    * Largest single holding by amount invested. Allocation mix is a cost-basis
    * fact the statements DO support, unlike any rate of return.
    */
-  topHolding: { name: string; value: number } | null
+  topHolding: { name: string; value: number; percentage?: string } | null
   monthlyInvestmentTarget: number
   currentMonthInvestment: number
   targetProgress: number
@@ -34,8 +34,14 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
     isLoading,
   } = props
 
-  const topHoldingShare =
-    topHolding && totalInvestmentValue > 0 ? (topHolding.value / totalInvestmentValue) * 100 : 0
+  // Prefer the share the hook computed over the positive-balance accounts; the
+  // net total can be smaller than the sum of the listed accounts.
+  let topHoldingShare = 0
+  if (topHolding?.percentage !== undefined) {
+    topHoldingShare = Number.parseFloat(topHolding.percentage)
+  } else if (topHolding && totalInvestmentValue > 0) {
+    topHoldingShare = (topHolding.value / totalInvestmentValue) * 100
+  }
   const targetScale = Math.min(Math.max(targetProgress, 0), 100) / 100
   const targetSemanticValue = Math.min(Math.max(Math.round(targetProgress), 0), 100)
 

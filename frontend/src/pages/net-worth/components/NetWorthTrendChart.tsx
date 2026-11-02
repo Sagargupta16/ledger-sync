@@ -143,7 +143,7 @@ export function NetWorthTrendChart(props: Readonly<NetWorthTrendChartProps>) {
               <p className="max-w-prose">
                   {showProjectionLine
                     ? projectionNote(monthlyGrowth, savingsGrowth)
-                    : 'The trend starts at zero and accumulates recorded income less expenses. Account balance totals above can differ.'}
+                    : 'The trend accumulates recorded income less expenses since your first transaction, so a shorter range starts from the balance already built up. Account balance totals above can differ.'}
                   {effectiveStacked && ' Category bands use current account proportions.'}
               </p>
             </div>

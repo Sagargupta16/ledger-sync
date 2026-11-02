@@ -100,9 +100,10 @@ async def _fetch_rates(
             resp = await client.get(url, params={"from": base}, timeout=10.0, follow_redirects=True)
             resp.raise_for_status()
             data = resp.json()
-            rates = data.get("rates", {})
-            if not isinstance(rates, dict):
-                return {}, ""
+            rates = data.get("rates") if isinstance(data, dict) else None
+            if not isinstance(rates, dict) or not rates:
+                msg = "exchange rate reply has no rates"
+                raise ValueError(msg)
             return dict(rates), str(data.get("date", ""))
         except (httpx.HTTPError, ValueError) as err:
             last_err = err

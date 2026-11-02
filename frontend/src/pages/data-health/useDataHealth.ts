@@ -33,8 +33,9 @@ import {
  * its analytics refresh fails. Either entry point retries only the rollups,
  * preserving the already committed ledger.
  *
- * Invalidates all of `analyticsV2Keys.all` on success: every page reads these
- * rollups, so the numbers they hold in cache are exactly what just changed.
+ * Invalidates all of `analyticsV2Keys.all` and the `calculations` family on
+ * success: every page reads these rollups, so the numbers they hold in cache
+ * are exactly what just changed.
  */
 function useRecomputeAnalytics() {
   const queryClient = useQueryClient()
@@ -48,7 +49,10 @@ function useRecomputeAnalytics() {
     onMutate: () => sessionSignal,
     onSuccess: async (_data, _variables, signal) => {
       if (!signal || !isCurrentSession(signal)) return
-      await queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: analyticsV2Keys.all }),
+        queryClient.invalidateQueries({ queryKey: ['calculations'] }),
+      ])
     },
   })
 }

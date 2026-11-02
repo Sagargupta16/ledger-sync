@@ -96,8 +96,11 @@ class DataNormalizer(NormalizeRowsMixin):
 
     # Regex patterns for text cleaning
     MULTI_SPACE_PATTERN = re.compile(r"\s+")
-    CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+    CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0e-\x1f\x7f-\x9f]")
     URL_PATTERN = re.compile(r"https?://\S+|www\.\S+")
+    ISO_DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?")
+    # The letter str.title() capitalises after an apostrophe ("Kid'S").
+    POSSESSIVE_CAP_PATTERN = re.compile(r"(?<=[A-Za-z]['\u2019])[A-Z]")
 
     def _clean_text(self, text: str) -> str:
         """Clean text by removing problematic characters and normalizing whitespace.
@@ -188,7 +191,7 @@ class DataNormalizer(NormalizeRowsMixin):
         # Lowercase-only input gets title-cased; everything else (all-caps
         # acronyms, mixed case) is the user's intent and stays verbatim.
         if category.islower():
-            return category.title()
+            return self.POSSESSIVE_CAP_PATTERN.sub(lambda m: m.group(0).lower(), category.title())
 
         return category
 
@@ -285,6 +288,11 @@ class DataNormalizer(NormalizeRowsMixin):
             if isinstance(value, (int, float, bool)):
                 msg = "Date must be a calendar date, not a numeric timestamp"
                 raise NormalizationError(msg)
+            if isinstance(value, str) and self.ISO_DATE_PATTERN.fullmatch(value):
+                try:
+                    return datetime.fromisoformat(value)
+                except ValueError:
+                    pass  # pandas below raises the same error as before
             if isinstance(value, str) and re.fullmatch(r"\d{1,2}[/-]\d{1,2}[/-]\d{4}", value):
                 result = pd.to_datetime(value.replace("/", "-"), format="%d-%m-%Y")
             else:

@@ -47,7 +47,10 @@ export default function BudgetDefaultsSubsection({
             step="any"
             value={localPrefs.default_budget_alert_threshold}
             onChange={(e) =>
-              updateLocalPref('default_budget_alert_threshold', Number(e.target.value))
+              updateLocalPref(
+                'default_budget_alert_threshold',
+                Math.min(100, Math.max(0, Number(e.target.value))),
+              )
             }
             className={inputClass}
           />

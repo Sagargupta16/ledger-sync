@@ -32,7 +32,24 @@ const RSU_NOTE = 'Missing RSU actuals use a 31.2% withholding estimate (30% tax 
 
 /** The year's imported AIS TDS against the combined estimate, or the link to import it. */
 function AisActualTds({ taxYear, estimatedTds }: Readonly<{ taxYear: string; estimatedTds: number }>) {
-  const ais = useTaxAisSummary(taxYear).data ?? null
+  const query = useTaxAisSummary(taxYear)
+  const ais = query.data ?? null
+  if (query.isPending) {
+    return (
+      <p>
+        Actual payroll TDS: <span aria-label="Actual payroll TDS loading">--</span>. Checking for an imported AIS.
+      </p>
+    )
+  }
+  if (query.isError) {
+    return (
+      <p>
+        Actual payroll TDS: <span aria-label="Actual payroll TDS not recorded">--</span>.
+        {' '}Your imported AIS did not load.
+        {' '}<button type="button" onClick={() => { void query.refetch() }} className={linkClass}>Try again</button>
+      </p>
+    )
+  }
   if (!ais) {
     return (
       <p>

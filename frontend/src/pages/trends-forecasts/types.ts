@@ -4,7 +4,7 @@ export interface TrendMetrics {
   current: number
   previous: number
   change: number
-  changePercent: number
+  changePercent: number | null
   direction: TrendDirection
   average: number
   highest: number
@@ -16,5 +16,5 @@ export interface MonthlyTrendRow {
   income: number
   expenses: number
   surplus: number
-  rawSavingsRate: number
+  rawSavingsRate: number | null
 }

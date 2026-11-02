@@ -28,13 +28,14 @@ export interface GoalCardActionsProps {
   onSaveDetails: (goalId: number, updates: GoalDetails) => void
   onCancelEdit: () => void
   onDelete: (goalId: number) => Promise<boolean>
+  onDeleteClose?: () => void
 }
 
 export default function GoalCardActions({
   goal, effectiveAmount, isEditing, isEditingDetails,
   isBusy = false, isSaving = false, isDeleting = false, isDemoMode = false,
   updateError, deleteError, onStartEdit, onStartEditDetails,
-  onSaveAllocation, onSaveDetails, onCancelEdit, onDelete,
+  onSaveAllocation, onSaveDetails, onCancelEdit, onDelete, onDeleteClose,
 }: Readonly<GoalCardActionsProps>) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const progressRef = useRef<HTMLButtonElement>(null)
@@ -118,7 +119,10 @@ export default function GoalCardActions({
         isPending={isDeleting}
         isDemoMode={isDemoMode}
         error={deleteError}
-        onClose={() => setConfirmDelete(false)}
+        onClose={() => {
+          setConfirmDelete(false)
+          onDeleteClose?.()
+        }}
         onConfirm={() => onDelete(goal.id)}
       />
     </>

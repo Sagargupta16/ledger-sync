@@ -6,6 +6,7 @@ same body with an upload token. The backup is read and reconciled on the
 server; see services/money_manager_import.py.
 """
 
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -79,7 +80,9 @@ async def upload_money_manager_backup(
         logger.warning("Backup upload held back: %d deletions", e.deleted)
         raise HTTPException(status_code=409, detail=str(e)) from e
     except (OSError, RuntimeError, SQLAlchemyError) as e:
-        logger.error("Backup upload failed (%s)", type(e).__name__)
+        error_id = secrets.token_hex(8)
+        logger.error("Backup upload failed [%s]: %s", error_id, type(e).__name__, exc_info=e)
         raise HTTPException(
-            status_code=500, detail="Failed to process the backup. Please try again."
+            status_code=500,
+            detail=f"Failed to process the backup. Please try again. (error id {error_id})",
         ) from e

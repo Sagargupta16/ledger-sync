@@ -8,6 +8,7 @@ stays in ``main`` because it mirrors the app's CORS allowlist.
 from __future__ import annotations
 
 import math
+import time
 from typing import Any
 
 from fastapi import Request, Response
@@ -32,16 +33,21 @@ def _json_safe(value: Any) -> Any:
 
 
 def rate_limit_error_handler(request: Request, exc: Exception) -> Response:
-    """429 with slowapi's rate-limit headers and the app's ``detail`` error shape."""
+    """429 with Retry-After, rate-limit headers and the app's ``detail`` error shape."""
     if not isinstance(exc, RateLimitExceeded):
         raise exc
     message = f"Rate limit exceeded: {exc.detail}"
     # ``error`` is slowapi's original key, kept for existing clients.
     response = JSONResponse(status_code=429, content={"detail": message, "error": message})
-    injected: Response = request.app.state.limiter._inject_headers(
-        response, request.state.view_rate_limit
-    )
-    return injected
+    # Written here, not by slowapi: its ``headers_enabled`` makes every limited
+    # endpoint that returns a plain dict fail unless it also takes ``response``.
+    item, identifiers = request.state.view_rate_limit
+    reset_at, remaining = request.app.state.limiter.limiter.get_window_stats(item, *identifiers)
+    response.headers["Retry-After"] = str(max(1, math.ceil(reset_at - time.time())))
+    response.headers["X-RateLimit-Limit"] = str(item.amount)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(math.ceil(reset_at))
+    return response
 
 
 def validation_error_handler(_request: Request, exc: Exception) -> JSONResponse:
@@ -62,7 +68,15 @@ def database_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Handle database errors with structured response."""
     if not isinstance(exc, OperationalError):
         raise exc
-    logger.error("Database error: %s", type(exc).__name__)
+    # The wrapper is always OperationalError; the driver error underneath says
+    # whether it was a refused connection, a statement timeout, a lock wait or a
+    # deadlock. Class and SQLSTATE only: the message can carry the host.
+    cause = exc.orig
+    logger.error(
+        "Database error: %s (sqlstate=%s)",
+        type(cause).__name__,
+        getattr(cause, "sqlstate", None),
+    )
     return JSONResponse(
         status_code=503,
         content={

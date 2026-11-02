@@ -34,7 +34,7 @@ export function WhatIsSection() {
   const reduce = useMotionStore((state) => state.mode === 'reduced')
 
   return (
-    <section className="border-b border-border py-16 sm:py-20">
+    <section className="border-b border-border py-16 sm:py-20 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-20">
           <div>

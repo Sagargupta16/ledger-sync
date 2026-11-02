@@ -373,8 +373,8 @@ export function useSpendingAnalysis() {
   const spendingColors = usePaletteSnapshot(SPENDING_TYPE_COLORS)
   const semanticColors = usePaletteSnapshot(SEMANTIC_COLORS)
   const spendingChartData = useMemo(
-    () => buildSpendingChartData(spendingBreakdown, totalIncome, savings, spendingColors, semanticColors),
-    [spendingBreakdown, savings, totalIncome, spendingColors, semanticColors],
+    () => buildSpendingChartData(spendingBreakdown, savings, spendingColors, semanticColors),
+    [spendingBreakdown, savings, spendingColors, semanticColors],
   )
 
   // Spending rule targets from preferences (configurable Needs/Wants).

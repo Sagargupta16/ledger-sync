@@ -230,17 +230,21 @@ export function generateMonthlyTransfers(ctx: MonthCtx, salary: number): void {
       currency: 'INR',
     },
   )
-
-  generateCCBillPayments(ctx)
 }
 
-function generateCCBillPayments(ctx: MonthCtx): void {
+/**
+ * Pays each card's month once all of that month's charges exist. Charges dated
+ * after `todayKey` are not billed yet, and a bill never lands after today.
+ */
+export function generateCCBillPayments(ctx: MonthCtx, todayKey: string): void {
   const { txs, year, month } = ctx
   const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
   const ccAccounts = [ACCOUNTS.swiggyCC, ACCOUNTS.amazonCC, ACCOUNTS.axisCC]
 
   for (const cc of ccAccounts) {
-    const monthlyOnCC = txs.filter((t) => t.account === cc && t.date.startsWith(monthPrefix))
+    const monthlyOnCC = txs.filter(
+      (t) => t.account === cc && t.date.startsWith(monthPrefix) && t.date <= todayKey,
+    )
     const ccExpenses = monthlyOnCC
       .filter((t) => t.type === 'Expense')
       .reduce((s, t) => s + t.amount, 0)
@@ -250,9 +254,10 @@ function generateCCBillPayments(ctx: MonthCtx): void {
     const ccBillAmount = ccExpenses - ccRefunds
 
     if (ccBillAmount > 0) {
+      const dueKey = toLocalDateKey(new Date(year, month, 25))
       txs.push({
         id: txId(ctx.idx++),
-        date: toLocalDateKey(new Date(year, month, 25)),
+        date: dueKey < todayKey ? dueKey : todayKey,
         amount: ccBillAmount,
         type: 'Transfer',
         category: 'Transfer',

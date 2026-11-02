@@ -25,12 +25,14 @@ export default function CartesianCanvasChart({ spec, colors, format, ticks, aria
         height={CANVAS_CHART_HEIGHT}
         showLegend={showLegend}
         tooltipFormatter={format}
+        yTickFormatter={ticks}
         ariaLabel={ariaLabel}
       />
     )
   }
 
   const isRanking = chartType === 'horizontal_bar'
+  const height = isRanking ? Math.max(CANVAS_CHART_HEIGHT, spec.data.length * 32) : CANVAS_CHART_HEIGHT
   return (
     <StandardBarChart
       data={spec.data}
@@ -39,7 +41,8 @@ export default function CartesianCanvasChart({ spec, colors, format, ticks, aria
       yCategoryKey={isRanking ? spec.xKey : undefined}
       bars={spec.series.map((entry, index) => ({ key: entry.key, label: entry.label, color: colors[index] }))}
       stacked={chartType === 'stacked_bar'}
-      height={isRanking ? Math.max(CANVAS_CHART_HEIGHT, spec.data.length * 32) : CANVAS_CHART_HEIGHT}
+      height={height}
+      mobileHeight={isRanking ? height : undefined}
       showLegend={showLegend}
       tooltipFormatter={format}
       xTickFormatter={isRanking ? ticks : undefined}

@@ -4,6 +4,7 @@ import { ArrowRight, FileSpreadsheet } from 'lucide-react'
 import { DataTable, Money, type DataTableColumn } from '@/components/ui'
 import { getSemanticBadgeClass } from '@/constants/chartColors'
 import { cn } from '@/lib/cn'
+import { formatInr } from '@/lib/rsuTaxFx'
 
 interface SampleTransaction {
   readonly date: string
@@ -69,7 +70,7 @@ const COLUMNS: readonly DataTableColumn<SampleTransaction>[] = [
     key: 'amount',
     header: 'Amount',
     align: 'right',
-    cell: (row) => <Money value={row.amount} />,
+    cell: (row) => <Money value={row.amount} formatter={formatInr} />,
   },
   {
     key: 'note',

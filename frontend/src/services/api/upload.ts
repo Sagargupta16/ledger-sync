@@ -1,3 +1,5 @@
+import { isAxiosError } from 'axios'
+
 import type { UploadResponse } from '@/types'
 import type { ParsedTransaction } from '@/lib/fileParser'
 import { FileParseError, MAX_UPLOAD_SIZE_BYTES } from '@/lib/fileParser'
@@ -13,6 +15,13 @@ interface UploadPayload {
 
 // Uploads and the synchronous analytics rebuild can take a while on large files.
 const UPLOAD_TIMEOUT_MS = 120_000
+// Vercel refuses a larger body before the API runs. Its reply has no detail and
+// no CORS headers, so a browser reports it as a bare network error.
+const PLATFORM_BODY_LIMIT_BYTES = 4_500_000
+
+function isBodyRefused(error: unknown): boolean {
+  return isAxiosError(error) && (error.response?.status === 413 || (!error.response && error.code === 'ERR_NETWORK'))
+}
 
 /** One past import from `GET /api/upload/history`. */
 export interface ImportHistoryEntry {
@@ -46,11 +55,19 @@ export const uploadService = {
       rows,
       force,
     }
-    if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > MAX_UPLOAD_SIZE_BYTES) {
+    const bodyBytes = new TextEncoder().encode(JSON.stringify(payload)).byteLength
+    if (bodyBytes > MAX_UPLOAD_SIZE_BYTES) {
       throw new FileParseError('Parsed upload exceeds the 50 MB limit. Reduce long notes and try again.')
     }
     const response = await apiClient.post<UploadResponse>('/api/upload', payload, {
       timeout: UPLOAD_TIMEOUT_MS,
+    }).catch((error: unknown) => {
+      if (bodyBytes > PLATFORM_BODY_LIMIT_BYTES && isBodyRefused(error)) {
+        throw new FileParseError(
+          `The server refused this upload: it is ${(bodyBytes / 1_000_000).toFixed(1)} MB as JSON and the hosted server accepts up to 4.5 MB (about 22,000 rows). Shorten long notes, or import a Money Manager backup, which is sent compressed.`,
+        )
+      }
+      throw error
     })
 
     if (!response.data.success) {

@@ -1,6 +1,6 @@
 {
   "$comment": "Source of truth for EPF/PPF/NPS rates. No reliable public JSON API exists; update this file when a new rate is notified. Served by GET /api/rates/instruments.",
-  "updated_at": "2026-05-13",
+  "updated_at": "2026-11-01",
   "epf": {
     "rate_pct": 8.25,
     "effective_from": "2024-04-01",
@@ -11,8 +11,8 @@
   "ppf": {
     "rate_pct": 7.1,
     "effective_from": "2025-04-01",
-    "effective_until": "2026-06-30",
-    "source_url": "https://dea.gov.in/small-savings-scheme",
+    "effective_until": "2026-12-31",
+    "source_url": "https://www.nsiindia.gov.in/InternalPage.aspx?Id_Pk=178",
     "notes": "Small savings rate, notified quarterly by Ministry of Finance (DEA). Has been unchanged at 7.1% since Q1 FY 2020-21."
   },
   "nps": {

@@ -17,8 +17,9 @@ export const TABS: { key: Instrument; label: string }[] = [
 
 export function findAccountBalance(data: AccountBalances | undefined, pattern: string): number {
   if (!data?.accounts) return 0
-  const key = Object.keys(data.accounts).find((k) => k.toLowerCase().includes(pattern))
-  return key ? Math.max(0, data.accounts[key].balance) : 0
+  return Object.entries(data.accounts)
+    .filter(([name]) => name.toLowerCase().includes(pattern))
+    .reduce((sum, [, account]) => sum + Math.max(0, account.balance), 0)
 }
 
 export function toChartData(data: ProjectionResult) {

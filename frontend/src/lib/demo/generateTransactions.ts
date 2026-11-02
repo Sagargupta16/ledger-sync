@@ -1,9 +1,10 @@
+import { getTodayKey } from '@/lib/dateUtils'
 import type { Transaction } from '@/types'
 
 import { generateMonthlyExpenses } from './demoExpenses'
 import { generateMonthlyIncome } from './demoIncome'
 import { generateLifeEvents } from './demoLifeEvents'
-import { generateMonthlyTransfers } from './demoTransfers'
+import { generateCCBillPayments, generateMonthlyTransfers } from './demoTransfers'
 import {
   DEMO_MONTHS,
   createRng,
@@ -26,8 +27,9 @@ export function generateDemoTransactions(): Transaction[] {
   const rng = createRng(42)
   const txs: Transaction[] = []
 
-  const now = new Date()
-  const startDate = new Date(now.getFullYear(), now.getMonth() - (DEMO_MONTHS - 1), 1)
+  const todayKey = getTodayKey()
+  const [todayYear, todayMonth] = todayKey.split('-').map(Number)
+  const startDate = new Date(todayYear, todayMonth - 1 - (DEMO_MONTHS - 1), 1)
 
   // Month indices (0-based from start) that are Aprils -- hikes land there.
   const aprilIndices: number[] = []
@@ -61,9 +63,11 @@ export function generateDemoTransactions(): Transaction[] {
     generateMonthlyExpenses(ctx)
     generateMonthlyTransfers(ctx, salary)
     generateLifeEvents(ctx)
+    generateCCBillPayments(ctx, todayKey)
   }
 
   txs.sort((a, b) => b.date.localeCompare(a.date))
 
-  return txs
+  // The current month is generated whole; what falls after today has not happened yet.
+  return txs.filter((t) => t.date <= todayKey)
 }

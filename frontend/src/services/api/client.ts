@@ -9,6 +9,7 @@ import {
   generateDemoMonthlyAggregation,
   generateDemoAccountBalances,
   generateDemoCategoryBreakdown,
+  generateDemoMasterCategories,
   generateDemoKPIs,
   generateDemoOverview,
   generateDemoBehavior,
@@ -27,29 +28,7 @@ import {
   generateDemoQuickInsights,
   generateDemoSearch,
 } from '@/lib/demo/demoComputedReads'
-import {
-  generateDemoCategoryDailySeries,
-  generateDemoCategoryMonthlyHistory,
-  generateDemoCohortSpending,
-  generateDemoDailyNetWorth,
-  generateDemoDailySummaries,
-} from '@/lib/demo/demoDailyReads'
-import {
-  generateDemoInvestmentHoldings,
-  generateDemoMerchantIntelligence,
-  generateDemoTransferFlows,
-} from '@/lib/demo/demoFlowReads'
-import { generateDemoSpendingRule } from '@/lib/demo/demoSpendingRule'
-import {
-  generateDemoAccountClassifications,
-  generateDemoAccountsByType,
-  generateDemoSavedViews,
-} from '@/lib/demo/demoAccountReads'
-import { generateDemoAiConfig, generateDemoAiUsage } from '@/lib/demo/demoAiUsage'
-import { generateDemoExportBlob } from '@/lib/demo/demoExport'
-import { generateDemoIncomeAnalysis } from '@/lib/demo/demoIncomeAnalysis'
 import { resolveDemoBudgets } from '@/lib/demo/demoBudgets'
-import { resolveDemoRecurring } from '@/lib/demo/demoRecurring'
 import type { AuthTokens, Transaction } from '@/types'
 
 /** V2 list endpoints are wrapped as { data, count }. */
@@ -83,10 +62,10 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // The rollup panels read `usage.today.total_tokens` and
   // `limits.app_daily_messages` directly, so the catch-all's `[]` rendered
   // "NaN / 10 left" and threw in the BYOK panel. Full shape or nothing.
-  ['/api/ai/usage', () => generateDemoAiUsage()],
+  ['/api/ai/usage', lazyDemo(() => import('@/lib/demo/demoAiUsage'), (m) => () => m.generateDemoAiUsage())],
   // Settings, the chat widget and the header read `mode` / `has_key` off this;
   // the catch-all's `[]` was cached as an AIConfig with every field undefined.
-  ['/api/preferences/ai-config', () => generateDemoAiConfig()],
+  ['/api/preferences/ai-config', lazyDemo(() => import('@/lib/demo/demoAiUsage'), (m) => m.generateDemoAiConfig)],
   // Calculations
   ['/calculations/totals', (txs, params) => generateDemoTotals(txs, params)],
   ['/calculations/monthly-aggregation', (txs, params) => generateDemoMonthlyAggregation(txs, params)],
@@ -94,24 +73,37 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   ['/calculations/category-breakdown', (txs, params) => generateDemoCategoryBreakdown(txs, params)],
   ['/calculations/quick-insights', (txs, params) => generateDemoQuickInsights(txs, params)],
   ['/calculations/data-date-range', (txs) => generateDemoDataDateRange(txs)],
-  ['/calculations/daily-net-worth', (txs, params) => generateDemoDailyNetWorth(txs, params)],
-  ['/calculations/income-analysis', (txs, params) => generateDemoIncomeAnalysis(txs, params)],
+  [
+    '/calculations/daily-net-worth',
+    lazyDemo(() => import('@/lib/demo/demoDailyReads'), (m) => m.generateDemoDailyNetWorth),
+  ],
+  [
+    '/calculations/income-analysis',
+    lazyDemo(() => import('@/lib/demo/demoIncomeAnalysis'), (m) => m.generateDemoIncomeAnalysis),
+  ],
   ['/calculations/income-facets', (txs) => generateDemoIncomeFacets(txs)],
   [
     '/calculations/category-monthly-history',
-    (txs, params) =>
-      generateDemoCategoryMonthlyHistory(
-        txs,
-        // `calculations.getCategoryMonthlyHistory` sends `months.join(',')`, so
-        // the param is a comma-joined STRING here -- axios only expands arrays
-        // on the wire, and the demo adapter reads `config.params` before that.
-        // An `Array.isArray` test never matched, so every sparkline and every
-        // "/mo avg" on the demo Category Breakdown came back empty.
-        typeof params.months === 'string' ? params.months.split(',') : [],
-        params.transaction_type === 'income' ? 'income' : 'expense',
-      ),
+    lazyDemo(
+      () => import('@/lib/demo/demoDailyReads'),
+      (m) => (txs, params) =>
+        m.generateDemoCategoryMonthlyHistory(
+          txs,
+          // `calculations.getCategoryMonthlyHistory` sends `months.join(',')`, so
+          // the param is a comma-joined STRING here -- axios only expands arrays
+          // on the wire, and the demo adapter reads `config.params` before that.
+          // An `Array.isArray` test never matched, so every sparkline and every
+          // "/mo avg" on the demo Category Breakdown came back empty.
+          typeof params.months === 'string' ? params.months.split(',') : [],
+          params.transaction_type === 'income' ? 'income' : 'expense',
+        ),
+    ),
   ],
-  ['/calculations/category-daily-series', (txs, params) => generateDemoCategoryDailySeries(txs, params)],
+  [
+    '/calculations/category-daily-series',
+    lazyDemo(() => import('@/lib/demo/demoDailyReads'), (m) => m.generateDemoCategoryDailySeries),
+  ],
+  ['/calculations/categories/master', (txs) => generateDemoMasterCategories(txs)],
   // Dashboard row-level metrics, worked out over the demo ledger.
   [
     '/dashboard-metrics/pulse',
@@ -145,18 +137,48 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // Analytics V1
   ['/analytics/kpis', (txs) => generateDemoKPIs(txs)],
   // Analytics V2 -- specific endpoints first, generic {data: []} last.
-  ['/analytics/v2/spending-rule', (txs, params) => generateDemoSpendingRule(txs, params)],
-  ['/analytics/v2/cohort-spending', (txs) => ({ data: generateDemoCohortSpending(txs) })],
-  ['/analytics/v2/daily-summaries', (txs, params) => wrap(generateDemoDailySummaries(txs, params))],
-  ['/analytics/v2/transfer-flows', (txs) => wrap(generateDemoTransferFlows(txs))],
+  [
+    '/analytics/v2/spending-rule',
+    lazyDemo(() => import('@/lib/demo/demoSpendingRule'), (m) => m.generateDemoSpendingRule),
+  ],
+  [
+    '/analytics/v2/cohort-spending',
+    lazyDemo(
+      () => import('@/lib/demo/demoDailyReads'),
+      (m) => (txs) => ({ data: m.generateDemoCohortSpending(txs) }),
+    ),
+  ],
+  [
+    '/analytics/v2/daily-summaries',
+    lazyDemo(
+      () => import('@/lib/demo/demoDailyReads'),
+      (m) => (txs, params) => wrap(m.generateDemoDailySummaries(txs, params)),
+    ),
+  ],
+  [
+    '/analytics/v2/transfer-flows',
+    lazyDemo(() => import('@/lib/demo/demoFlowReads'), (m) => (txs) => wrap(m.generateDemoTransferFlows(txs))),
+  ],
   [
     '/analytics/v2/merchant-intelligence',
-    (txs, params) => wrap(generateDemoMerchantIntelligence(txs, params)),
+    lazyDemo(
+      () => import('@/lib/demo/demoFlowReads'),
+      (m) => (txs, params) => wrap(m.generateDemoMerchantIntelligence(txs, params)),
+    ),
   ],
-  ['/analytics/v2/investment-holdings', (txs) => wrap(generateDemoInvestmentHoldings(txs))],
+  [
+    '/analytics/v2/investment-holdings',
+    lazyDemo(
+      () => import('@/lib/demo/demoFlowReads'),
+      (m) => (txs) => wrap(m.generateDemoInvestmentHoldings(txs)),
+    ),
+  ],
   ['/analytics/v2/monthly-summaries', (txs) => wrap(generateDemoMonthlySummaries(txs))],
   ['/analytics/v2/category-trends', (txs) => wrap(generateDemoCategoryTrends(txs))],
-  ['/analytics/v2/recurring-transactions', (txs, params) => resolveDemoRecurring(txs, params)],
+  [
+    '/analytics/v2/recurring-transactions',
+    lazyDemo(() => import('@/lib/demo/demoRecurring'), (m) => m.resolveDemoRecurring),
+  ],
   ['/analytics/v2/net-worth', (txs) => wrap(generateDemoNetWorth(txs))],
   ['/analytics/v2/fy-summaries', (txs) => wrap(generateDemoFYSummaries(txs))],
   // Detected from the demo ledger with the server's rules, filtered like
@@ -179,21 +201,27 @@ const DEMO_ROUTES: ReadonlyArray<readonly [string, DemoResolver]> = [
   // CSV export answers a Blob, not JSON, and MUST stay above '/transactions':
   // the generic route returns an array, `URL.createObjectURL` rejects it, and
   // the page toasts "Export failed".
-  ['/transactions/export', (txs, params) => generateDemoExportBlob(txs, params)],
+  ['/transactions/export', lazyDemo(() => import('@/lib/demo/demoExport'), (m) => m.generateDemoExportBlob)],
   ['/transactions/search', (txs, params) => generateDemoSearch(txs, params)],
   // Watch tiles answer a different shape from the views list, so they precede it.
   ['/saved-views/tiles', lazyDemo(() => import('@/lib/demo/demoWatchTiles'), (m) => m.generateDemoWatchTiles)],
-  ['/saved-views', () => generateDemoSavedViews()],
+  ['/saved-views', lazyDemo(() => import('@/lib/demo/demoAccountReads'), (m) => m.generateDemoSavedViews)],
   // Closed-accounts list must precede the generic prefix match below.
   ['/account-classifications/closed', () => []],
   // Same ordering requirement: `/type/{type}` returns `{ accounts: [...] }`, a
   // different shape from the name -> classification map the generic route serves.
   [
     '/account-classifications/type/',
-    (_txs, _params, url) =>
-      generateDemoAccountsByType(decodeURIComponent(url.split('/account-classifications/type/')[1] ?? '')),
+    lazyDemo(
+      () => import('@/lib/demo/demoAccountReads'),
+      (m) => (_txs, _params, url) =>
+        m.generateDemoAccountsByType(decodeURIComponent(url.split('/account-classifications/type/')[1] ?? '')),
+    ),
   ],
-  ['/account-classifications', () => generateDemoAccountClassifications()],
+  [
+    '/account-classifications',
+    lazyDemo(() => import('@/lib/demo/demoAccountReads'), (m) => m.generateDemoAccountClassifications),
+  ],
   ['/transactions', (txs, params) => txs.slice(0, (params.limit as number) || txs.length)],
 ]
 
@@ -202,8 +230,13 @@ function resolveDemoData(url: string, params: Record<string, unknown>, txs: Tran
   return route ? route[1](txs, params, url) : []
 }
 
+// Slower calls (imports, uploads) set their own timeout.
+const REQUEST_TIMEOUT_MS = 60_000
+const REFRESH_TIMEOUT_MS = 20_000
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -218,6 +251,20 @@ function isOAuthRequest(url: string = ''): boolean {
   return url.split('?')[0].startsWith('/api/auth/oauth/')
 }
 
+// `AbortSignal.any` is missing before iOS 17.4, so bridge the two signals by hand there.
+function anySignal(first: AbortSignal, second: AbortSignal): AbortSignal {
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([first, second])
+  const controller = new AbortController()
+  for (const source of [first, second]) {
+    if (source.aborted) {
+      controller.abort(source.reason)
+      break
+    }
+    source.addEventListener('abort', () => controller.abort(source.reason), { once: true })
+  }
+  return controller.signal
+}
+
 // Capture the session synchronously, before the caller can log out or switch
 // identities. Retries keep the original signal and cannot borrow a new login.
 apiClient.interceptors.request.use(
@@ -226,7 +273,7 @@ apiClient.interceptors.request.use(
     request._sessionSignal ??= getSessionSignal()
     assertCurrentSession(request._sessionSignal)
     request.signal = config.signal
-      ? AbortSignal.any([config.signal as AbortSignal, request._sessionSignal])
+      ? anySignal(config.signal as AbortSignal, request._sessionSignal)
       : request._sessionSignal
 
     const oauthRequest = isOAuthRequest(config.url)
@@ -274,6 +321,14 @@ function withBearer(headers: AxiosRequestConfig['headers'], token: string): Axio
   return AxiosHeaders.from(headers as never).set('Authorization', `Bearer ${token}`)
 }
 
+// Only the server rejecting the refresh token proves the session is over. A dropped
+// connection, timeout, 5xx or 429 leaves the stored tokens valid for the next attempt.
+function isRefreshRejected(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return true
+  const status = error.response?.status
+  return status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429
+}
+
 // Concurrent 401s share one refresh within their original session only.
 let pendingRefresh: { signal: AbortSignal; promise: Promise<string> } | null = null
 
@@ -290,9 +345,9 @@ function refreshAccessToken(signal: AbortSignal): Promise<string> {
   }
 
   const promise = axios.post<AuthTokens>(
-    `${API_BASE_URL}/api/auth/refresh`,
+    '/api/auth/refresh',
     { refresh_token: refreshToken },
-    { signal },
+    { baseURL: API_BASE_URL, signal, timeout: REFRESH_TIMEOUT_MS },
   ).then(({ data }) => {
     assertCurrentSession(signal)
     if (!data.access_token || !data.refresh_token) {
@@ -302,7 +357,7 @@ function refreshAccessToken(signal: AbortSignal): Promise<string> {
     return data.access_token
   }).catch((error: unknown) => {
     // A late refresh failure must never log out a newer session.
-    if (isCurrentSession(signal)) endSession()
+    if (isCurrentSession(signal) && isRefreshRejected(error)) endSession()
     throw error
   }).finally(() => {
     if (pendingRefresh?.signal === signal) pendingRefresh = null
@@ -339,5 +394,3 @@ apiClient.interceptors.response.use(
     return apiClient(request)
   }
 )
-
-export default apiClient

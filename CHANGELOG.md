@@ -6,6 +6,38 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.35.0 - 2026-11-02
+
+A whole-repo bug hunt: 524 raw findings, merged to 487 distinct ones, were each checked by three independent refuters. 386 held up, and 363 are fixed here; 21 wait on a decision. No new migration (two old revisions now refuse to downgrade, like the rest), and the API only gains optional fields.
+
+### Fixed
+
+- **Offline no longer reads as "no data".** A page opened without a connection showed its empty state ("No transactions yet", zero totals) because the request paused instead of failing. Requests now fail like any network error, pages show their retry state, and they reload by themselves when the connection returns.
+- **Sessions survive a flaky start.** A network error or server error on the startup profile check or on a token refresh signed you out; now only a 401 or 403 does. Requests time out after 60 seconds (20 for a refresh) instead of hanging, and every list request works again on iOS 16.4 to 17.3, which lacks `AbortSignal.any`.
+- **Uploads:** a UTF-8 CSV without a byte-order mark keeps its non-ASCII text (the rupee sign, accented names), an Excel workbook on the 1904 date system keeps its dates, a body over the hosted 4.5 MB limit gets a message naming it, and an anonymous upload is refused before its body is read.
+- **Figures:** the assistant's cash-flow averages use complete months; Year in Review savings subtract classified realised losses; GST leaves out classified losses and future rows; Comparison keeps categories outside each period's top 8, names the real biggest mover and aligns whichever period is still running; the net-worth period change counts its first day; investment shares never pass 100%; mutual fund projections use the accounts you mapped and count redemptions; years to FIRE start from your current net worth.
+- **Tax and AIS:** superseded (Inactive) AIS rows are skipped, detail rows take the payer from the summary level, a cut-short AIS download gets its own message, EPF rows show the taxable share the total uses, only taxed slabs are highlighted, and a rise in tax shows red.
+- **Settings:** an excluded account stays in the picker so it can be un-excluded; Save sends only what changed, so a currency switched in the sidebar is no longer reverted; Apply rules waits until edits are saved; a cleared earning-start date and a cleared NPS amount now save; inputs are held to the server's limits.
+- **Notifications and badges:** the bell shows a load error instead of "All caught up", the Bill Calendar badge counts only accepted expense bills on the IST day, an exceeded budget alert has its own dismissal, and ages of server timestamps are read as UTC.
+- **Security and robustness:** CSV exports neutralise formula cells; `%` and `_` in a search match literally; two bank-alert regexes and three merchant regexes run in linear time (an alert padded with 800 newlines took about 3 seconds to parse); NUL characters and oversize values get a 422 instead of a 500; settings errors never echo a value, and an undeclared key in `backend/.env` no longer stops start-up; 429 responses carry `Retry-After` and the rate-limit headers.
+- **Demo:** no row is dated after today, table sorting works, card bills cover trips and gadgets, commitments roll to their real due dates, and the net-worth chart starts from the opening balance.
+- Many smaller fixes on Transactions, Budgets, Goals, Bill Calendar, Merchants, Foreign Assets, Review Queue, the AI Canvas and the chat.
+
+### Added
+
+- Transactions opens filtered from its link (`/transactions?type=Income&category=X`), so clicking an income source lands on its rows.
+- Foreign Assets has a "Refresh market data" button.
+- Optional response fields: `stale` on each `GET /api/rates/instruments` rate once its window ends, `latest_past_date` on `GET /api/analytics/v2/data-health`, and `planning_message` on a Money Manager import whose repeat rules and budgets were not saved.
+- CI fails when the frontend and backend versions differ, before anything deploys.
+
+### Changed
+
+- `pnpm run setup` installs the backend's optional extras, so CAS import works on a local install.
+- The Pages deploy accepts a backend at the expected version or newer, and logs what it saw on each poll.
+- The CLI `import` and `import-file` commands take a required `--user-id`; any error other than an already-imported file exits 1.
+- Assistant cost estimates use current Opus 4.5 and later and GPT-4.1 prices, and price the Bedrock Nova, Llama and DeepSeek models.
+- `GET /health/db` is limited to 30 requests a minute.
+
 ## 2.34.1 - 2026-10-31
 
 The working agreement for finance math is written down where every agent reads it. No app, API or schema change.
@@ -14,7 +46,7 @@ The working agreement for finance math is written down where every agent reads i
 
 - `docs/CALCULATIONS.md` "Changing a calculation" opens with the rule: any change to tax, TDS, bonus, RSU, salary or projection math starts with the formulas in plain text and one worked example, signed off before code, and salaried income actually received is never recomputed.
 - `CLAUDE.md` points to `docs/CALCULATIONS.md` as the owner of every finance formula, with the same rule. Tax, TDS and RSU math had been re-derived in six sessions across three coding agents before this.
-- `CLAUDE.md` goes from 54,870 to 11,718 characters (234 to 136 lines). Area detail moved verbatim, all 183 original non-empty lines kept, into six path-scoped rules under `.claude/rules/` that Claude Code loads only when a matching file is read or edited: `backend.md` (13,027 characters), `frontend.md` (13,049), `frontend-ui.md` (5,211), `shared-patterns.md` (6,156), `ai-chat.md` (7,284) and `deployment.md` (4,437). A one-word `claude -p` in the repo (Haiku 5.5, the maintainer's setup) now starts at 58,814 input tokens instead of 75,934. `.gitignore` tracks `.claude/rules/` and still ignores the rest of `.claude/`.
+- `CLAUDE.md` goes from 54,280 to 11,718 characters (233 to 136 lines). Area detail moved verbatim, all 183 original non-empty lines kept, into six path-scoped rules under `.claude/rules/` that Claude Code loads only when a matching file is read or edited: `backend.md` (13,027 characters), `frontend.md` (13,049), `frontend-ui.md` (5,211), `shared-patterns.md` (6,156), `ai-chat.md` (7,284) and `deployment.md` (4,437). A one-word `claude -p` in the repo (Haiku 5.5, the maintainer's setup) now starts at 58,814 input tokens instead of 75,934. `.gitignore` tracks `.claude/rules/` and still ignores the rest of `.claude/`.
 
 ## 2.34.0 - 2026-10-28
 

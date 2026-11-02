@@ -22,7 +22,9 @@ export function NetWorthChartSummary({
   const firstPoint = filteredNetWorthData[0]
   const lastPoint = filteredNetWorthData.at(-1)
   const latestValue = typeof lastPoint?.netWorth === 'number' ? lastPoint.netWorth : 0
-  const openingValue = typeof firstPoint?.netWorth === 'number' ? firstPoint.netWorth : 0
+  // A point's netWorth already includes that day's flow, so the period opens one flow earlier.
+  const firstFlow = typeof firstPoint?.dailyFlow === 'number' ? firstPoint.dailyFlow : 0
+  const openingValue = (typeof firstPoint?.netWorth === 'number' ? firstPoint.netWorth : 0) - firstFlow
   const periodChange = latestValue - openingValue
   const nextMilestone = milestoneRows?.find((row) => row.status === 'upcoming')
   let changeColor = 'text-foreground'

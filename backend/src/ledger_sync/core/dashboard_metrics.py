@@ -24,7 +24,7 @@ and the health read 1.3 s and 75 MB (75 ms and 110 ms at 9,000 rows).
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from sqlalchemy.orm import InstrumentedAttribute, Session
@@ -113,11 +113,10 @@ def _ledger(db: Session, user: User) -> list[LedgerRow]:
     ]
 
 
-def _balances(db: Session, user: User) -> dict[str, float]:
-    """``/api/calculations/account-balances`` with no window, as name to balance."""
-    return {
-        name: entry["balance"] for name, entry in account_balances(db, user, None, None).items()
-    }
+def _balances(db: Session, user: User, through: date | None = None) -> dict[str, float]:
+    """``/api/calculations/account-balances`` as name to balance, through *through* when given."""
+    end = datetime.combine(through, time()) if through else None
+    return {name: entry["balance"] for name, entry in account_balances(db, user, None, end).items()}
 
 
 def _strings(raw: object) -> list[str]:
@@ -160,7 +159,7 @@ def dashboard_pulse(
     if not rows:
         return {"age_of_money": None, "days_of_buffering": None, "investment_transfers": transfers}
     classifications = get_classification_map(db, user.id)
-    liquid = net_liquid(_balances(db, user), classifications)
+    liquid = net_liquid(_balances(db, user, today), classifications)
     return {
         "age_of_money": age_of_money(rows, classifications),
         "days_of_buffering": days_of_buffering(liquid, rows, today),

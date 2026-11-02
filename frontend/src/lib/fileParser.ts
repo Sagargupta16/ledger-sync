@@ -34,6 +34,8 @@ export class FileParseError extends Error {
 
 // Excel's day-0 epoch (1899-12-30 UTC); serial date numbers count days from here.
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
+// Workbooks saved with the 1904 date system count days from 1904-01-01 instead.
+const EXCEL_EPOCH_1904 = Date.UTC(1904, 0, 1)
 export const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024
 const MAX_UPLOAD_ROWS = 100_000
 const MAX_AMOUNT = 9_999_999_999_999.99
@@ -122,14 +124,14 @@ function isValidIsoTime(value: string): boolean {
  * MM/DD assumption for ambiguous numeric dates -- this app is India-first, so
  * slash/dash numeric dates are read as DD/MM/YYYY.
  */
-export function parseDate(value: unknown, rowIndex: number): string {
+export function parseDate(value: unknown, rowIndex: number, date1904 = false): string {
   if (value == null || value === '') {
     throw new FileParseError(`Row ${rowIndex}: Date is missing`)
   }
 
   if (typeof value === 'number') {
     // SheetJS Excel serial date number (UTC epoch -> UTC components).
-    const date = new Date(EXCEL_EPOCH + value * MS_PER_DAY)
+    const date = new Date((date1904 ? EXCEL_EPOCH_1904 : EXCEL_EPOCH) + value * MS_PER_DAY)
     return calendarDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), rowIndex)
   }
 
@@ -217,8 +219,9 @@ function parseRow(
   raw: Record<string, unknown>,
   columnMapping: Record<string, string>,
   rowNum: number,
+  date1904: boolean,
 ): ParsedTransaction {
-  const date = parseDate(raw[columnMapping.date], rowNum)
+  const date = parseDate(raw[columnMapping.date], rowNum, date1904)
   const amount = parseAmount(raw[columnMapping.amount], rowNum)
   const type = parseType(raw[columnMapping.type], rowNum)
   const account = stringify(raw[columnMapping.account]).trim()
@@ -260,6 +263,7 @@ function parseRow(
 function parseRows(
   rawRows: Record<string, unknown>[],
   columnMapping: Record<string, string>,
+  date1904: boolean,
 ): ParsedTransaction[] {
   if (rawRows.length === 0) {
     throw new FileParseError('File contains no data rows')
@@ -274,10 +278,20 @@ function parseRows(
     const raw = rawRows[i]
     // SheetJS preserves the worksheet row index even when blank rows are skipped.
     const rowNum = typeof raw.__rowNum__ === 'number' ? raw.__rowNum__ + 1 : i + 2
-    rows.push(parseRow(raw, columnMapping, rowNum))
+    rows.push(parseRow(raw, columnMapping, rowNum, date1904))
   }
 
   return rows
+}
+
+// SheetJS decodes CSV bytes as Windows-1252 unless a BOM is present, so decode here: UTF-8 first,
+// Windows-1252 only for files that are not valid UTF-8.
+function decodeCsv(buffer: ArrayBuffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+  } catch {
+    return new TextDecoder('windows-1252').decode(buffer)
+  }
 }
 
 export async function parseFile(file: File): Promise<ParseResult> {
@@ -303,8 +317,12 @@ export async function parseFile(file: File): Promise<ParseResult> {
   }
 
   let rawRows: Record<string, unknown>[]
+  let date1904: boolean
   try {
-    const workbook = XLSX.read(buffer, { type: 'array', raw: true })
+    const workbook = /\.csv$/i.test(file.name)
+      ? XLSX.read(decodeCsv(buffer), { type: 'string', raw: true })
+      : XLSX.read(buffer, { type: 'array', raw: true })
+    date1904 = workbook.Workbook?.WBProps?.date1904 === true
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
     const range: unknown = firstSheet['!ref']
     if (typeof range === 'string') {
@@ -327,7 +345,7 @@ export async function parseFile(file: File): Promise<ParseResult> {
 
   const headers = Object.keys(rawRows[0])
   const columnMapping = resolveColumnMapping(headers)
-  const rows = parseRows(rawRows, columnMapping)
+  const rows = parseRows(rawRows, columnMapping, date1904)
   const fileHash = await computeFileHash(buffer)
 
   return { rows, fileName: file.name, fileHash }

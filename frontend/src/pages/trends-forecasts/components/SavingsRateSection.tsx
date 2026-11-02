@@ -56,6 +56,20 @@ export default function SavingsRateSection({
   const extraValues = useMemo(() => [0, savingsGoalPercent], [savingsGoalPercent])
   const brushValues = useMemo(() => data.map((row) => row.savingsRate), [data])
   const { blue } = usePaletteSnapshot(rawColors.app)
+  // One row per day: build it once per dataset, not on every brush-drag render.
+  const dataTable = useMemo(
+    () =>
+      chartDataTable(
+        data,
+        [
+          { header: 'Date', rowHeader: true, value: (row) => longDate(row.date) },
+          { header: 'Cumulative savings rate', value: (row) => `${formatPercent(row.savingsRate)}${row.savingsRate < 0 ? ' (deficit)' : ''}` },
+        ],
+        'Cumulative savings rate by date',
+        (row) => row.date,
+      ),
+    [data],
+  )
 
   return (
     <motion.section
@@ -137,15 +151,7 @@ export default function SavingsRateSection({
             <ReferenceLine value={savingsGoalPercent} variant="goal" />
           </CartesianChart>
           {data.length > 6 && <ChartBrush range={range} values={brushValues} ariaLabel="Savings rate zoom" />}
-          {chartDataTable(
-            data,
-            [
-              { header: 'Date', rowHeader: true, value: (row) => longDate(row.date) },
-              { header: 'Cumulative savings rate', value: (row) => `${formatPercent(row.savingsRate)}${row.savingsRate < 0 ? ' (deficit)' : ''}` },
-            ],
-            'Cumulative savings rate by date',
-            (row) => row.date,
-          )}
+          {dataTable}
         </>
       )}
       {!isLoading && data.length === 0 && <ChartEmptyState height={250} />}

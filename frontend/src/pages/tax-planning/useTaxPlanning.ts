@@ -24,7 +24,7 @@ import {
   computePrevFYDisplay,
   groupTransactionsByFY,
 } from '@/lib/finance/taxHistory'
-import { computeAnnualTaxPlanning, computeTaxForFY } from '@/lib/finance/taxPlanning'
+import { computeAnnualTaxPlanning, computeTaxForFY, resolveSelectedRegime } from '@/lib/finance/taxPlanning'
 import type { TaxRegimeOverride } from './types'
 
 export function useTaxPlanning() {
@@ -200,10 +200,16 @@ export function useTaxPlanning() {
   const multiYearProjections = useMemo<ProjectedFYBreakdown[]>(() => {
     if (!hasSalaryData) return []
     return projectMultipleYears(salaryStructure, rsuGrants, growthAssumptions, fiscalYearStartMonth)
-      .map((projection) => applyProjectionTaxRegime(projection, taxComputation.selectedRegime).projection)
+      .map((projection) => {
+        // Each year's own regime: the viewed year's is forced to old before FY 2020-21.
+        const regime = resolveSelectedRegime(
+          parseFYStartYear(projection.fy) >= 2020, regimeOverride, preferredRegime,
+        )
+        return applyProjectionTaxRegime(projection, regime).projection
+      })
   }, [
     hasSalaryData, salaryStructure, rsuGrants, growthAssumptions,
-    fiscalYearStartMonth, taxComputation.selectedRegime,
+    fiscalYearStartMonth, regimeOverride, preferredRegime,
   ])
 
   const display = taxPlanningDisplay(taxComputation, selectedProjection, income, annualTaxComputation)

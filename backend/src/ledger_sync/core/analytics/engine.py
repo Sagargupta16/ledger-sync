@@ -115,7 +115,7 @@ class AnalyticsEngine(
     def _run_analytics(self, source_file: str | None, *, force_full: bool) -> dict[str, Any]:
         self.logger.info("=" * 60)
         self.logger.info("ANALYTICS CALCULATION STARTED")
-        self.logger.info("Source: %s", source_file or "manual trigger")
+        self.logger.info("Source: %s", repr(source_file) if source_file else "manual trigger")
         self.logger.info("Timestamp: %s", datetime.now(UTC).isoformat())
         self.logger.info("=" * 60)
 
@@ -293,7 +293,7 @@ class AnalyticsEngine(
             self.logger.info("=" * 60)
 
         except Exception as e:
-            log_error("Analytics calculation failed", e, {"source_file": source_file})
+            log_error("Analytics calculation failed", e, {"source_file": repr(source_file)})
             self.db.rollback()
             raise
 

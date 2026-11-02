@@ -11,6 +11,8 @@ interface Props {
   mode: HeatmapMode
   monthlyExpense: number[]
   monthlyIncome: number[]
+  /** Net after classified realised losses; income minus expense when omitted. */
+  monthlyNet?: number[]
   selectedMonth: number | null
   onSelectMonth: (monthIndex: number) => void
 }
@@ -19,16 +21,17 @@ export default function MobileMonthlySummary({
   mode,
   monthlyExpense,
   monthlyIncome,
+  monthlyNet,
   selectedMonth,
   onSelectMonth,
 }: Readonly<Props>) {
-  const maxVal = getMonthlyMax(mode, monthlyExpense, monthlyIncome)
+  const maxVal = getMonthlyMax(mode, monthlyExpense, monthlyIncome, monthlyNet)
   return (
     <div className="grid grid-cols-3 gap-2 lg:hidden">
       {MONTHS_SHORT.map((m, i) => {
         // Signed value: the tile's hue comes from the sign, its intensity from
         // the magnitude, and the label names the direction.
-        const val = getMonthlyValue(mode, monthlyExpense, monthlyIncome, i)
+        const val = getMonthlyValue(mode, monthlyExpense, monthlyIncome, i, monthlyNet)
         const { color } = getHeatmapSwatch(mode, val, maxVal)
         const amount = formatCurrencyCompact(Math.abs(val))
         // Signed on screen so a deficit month is not read as a surplus one.

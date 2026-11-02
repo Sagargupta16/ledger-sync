@@ -33,6 +33,14 @@ function AnomalyIcon({ icon: Icon, className }: Readonly<{ icon: LucideIcon; cla
   return <Icon className={className} />
 }
 
+/** `detected_at` is a naive UTC stamp: read it as UTC so the day shown is the viewer's own. */
+function detectedOn(value: string): string | Date {
+  if (!value.includes('T')) return value
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/i.test(value)
+  const date = new Date(hasZone ? value : `${value}Z`)
+  return Number.isNaN(date.getTime()) ? value : date
+}
+
 interface Props {
   anomaly: Anomaly
   isExpanded: boolean
@@ -63,8 +71,8 @@ export default function AnomalyCard({
     <motion.div
       layout="position"
       initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`ledger-panel p-4 sm:p-5 ${anomaly.is_reviewed ? 'opacity-60' : ''}`}
+      animate={{ opacity: anomaly.is_reviewed ? 0.6 : 1, y: 0 }}
+      className="ledger-panel p-4 sm:p-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-start gap-3">
@@ -97,7 +105,7 @@ export default function AnomalyCard({
           </div>
         </div>
         <span className="self-end whitespace-nowrap text-xs text-text-tertiary sm:self-auto">
-          {formatDate(anomaly.detected_at, DETECTED_AT_OPTIONS)}
+          {formatDate(detectedOn(anomaly.detected_at), DETECTED_AT_OPTIONS)}
         </span>
       </div>
 

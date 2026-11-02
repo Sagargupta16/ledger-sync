@@ -30,6 +30,7 @@ export interface NetWorthTrendChartProps {
 export function getNetWorthChartView({
   chartData,
   filteredNetWorthData,
+  allCategories,
   showStacked,
   showProjection,
 }: Readonly<NetWorthTrendChartProps>) {
@@ -38,7 +39,8 @@ export function getNetWorthChartView({
   // zero line (meaningless). Disable the stacked toggle for windows that dip
   // negative and fall back to the total view.
   const hasNegativeNetWorth = chartData.some((d) => typeof d.netWorth === 'number' && d.netWorth < 0)
-  const stackedAllowed = !hasNegativeNetWorth
+  // No asset categories means no bands to stack: the plot would be empty.
+  const stackedAllowed = !hasNegativeNetWorth && allCategories.length > 0
   const effectiveStacked = showStacked && stackedAllowed
   // Projection rows contain totals only. A category view must use the original
   // historical rows, otherwise enabling both controls erases every category.

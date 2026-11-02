@@ -154,7 +154,13 @@ export function tierFromScore(score: number): FinHealthTier {
 
 export function matchesCategoryList(category: string, list: string[]): boolean {
   const lower = category.toLowerCase()
-  return list.some((c) => lower.includes(c.toLowerCase()))
+  return list.some((c) => {
+    const needle = c.toLowerCase()
+    for (let at = lower.indexOf(needle); at !== -1; at = lower.indexOf(needle, at + 1)) {
+      if (at === 0 || !/\w/.test(lower.charAt(at - 1))) return true
+    }
+    return false
+  })
 }
 
 export function matchesPatterns(value: string, patterns: string[]): boolean {

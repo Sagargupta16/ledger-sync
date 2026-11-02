@@ -41,7 +41,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
   const initial = reduce ? false : 'hidden'
 
   return (
-    <section className="overflow-hidden border-b border-border">
+    <section className="overflow-hidden border-b border-border pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-9 sm:px-6 sm:pb-14 sm:pt-16 lg:px-8 lg:pt-18">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:items-center lg:gap-14">
           <motion.div variants={heroCopy} initial={initial} animate="shown">
@@ -111,7 +111,7 @@ export function Hero({ isAuthenticated, onGetStarted, onTryDemo }: Readonly<Hero
           {HIGHLIGHTS.map((item) => (
             <div
               key={item}
-              className="flex min-h-12 items-center gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:[&:nth-child(-n+2)]:border-t-0 lg:[&:nth-child(-n+3)]:border-t-0"
+              className="flex min-h-12 items-center gap-2 border-t border-border px-4 py-3 text-sm text-muted-foreground first:border-t-0 sm:[&:nth-child(-n+2)]:border-t-0 lg:[&:nth-child(-n+3)]:border-t-0"
             >
               <Check className="size-4 shrink-0 text-income" aria-hidden="true" />
               <span>{item}</span>

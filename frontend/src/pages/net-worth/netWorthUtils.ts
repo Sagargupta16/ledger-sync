@@ -73,24 +73,13 @@ export const CATEGORY_CONFIG = buildCategoryConfig()
 
 onRawColorsRefresh(() => Object.assign(CATEGORY_CONFIG, buildCategoryConfig()))
 
-/** Classify an account based on classifications map, investment mappings, or name heuristics. */
+/** Classify an account for the table grouping: always the same category the totals use. */
 export function resolveAccountType(
   accountName: string,
   classifications: Record<string, string>,
   investmentMappings: Record<string, unknown>,
 ): string {
-  if (classifications[accountName]) {
-    if (classifications[accountName] === 'Investments') return 'Investments'
-    if (classifications[accountName] === 'Cash' || classifications[accountName] === 'Other Wallets')
-      return 'Cash & Wallets'
-    return classifications[accountName]
-  }
-  if (investmentMappings[accountName]) return 'Investments'
-  const name = accountName.toLowerCase()
-  if (name.includes('credit') || name.includes('card')) return 'Credit Cards'
-  if (name.includes('bank')) return 'Bank Accounts'
-  if (name.includes('cash') || name.includes('wallet')) return 'Cash & Wallets'
-  return 'Other'
+  return resolveAccountCategory(accountName, classifications, investmentMappings)
 }
 
 /** Classify an account into a display category for grouping. */

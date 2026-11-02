@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 
@@ -21,6 +22,7 @@ import type { ChartDataPoint, MutualFundAccount } from './types'
 
 export function useMutualFundProjection() {
   const balancesQuery = useAccountBalances()
+  const preferencesQuery = usePreferences()
   const transactionsQuery = useTransactions()
   const balanceData = balancesQuery.data
   const transactions = useMemo(
@@ -43,18 +45,27 @@ export function useMutualFundProjection() {
     staleTime: Infinity,
   })
   const investmentAccountNames = investmentAccountsQuery.data?.accounts
+  const investmentMappings = preferencesQuery.data?.investment_account_mappings
+  const mappedMutualFunds = useMemo(
+    () => Object.entries(investmentMappings ?? {})
+      .filter(([, type]) => type === 'mutual_funds')
+      .map(([name]) => name),
+    [investmentMappings],
+  )
   const mutualFundAccounts = useMemo<MutualFundAccount[]>(
     () => buildMutualFundAccounts(
       balanceData as Record<string, unknown> | undefined,
       investmentAccountNames ?? [],
+      mappedMutualFunds,
     ),
-    [balanceData, investmentAccountNames],
+    [balanceData, investmentAccountNames, mappedMutualFunds],
   )
 
   const retry = () => {
     void balancesQuery.refetch()
     void transactionsQuery.refetch()
     void investmentAccountsQuery.refetch()
+    void preferencesQuery.refetch()
   }
 
   const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
@@ -62,10 +73,7 @@ export function useMutualFundProjection() {
 
   const sipTransfers = useMemo(() => {
     if (!primaryAccount) return []
-    return filterSipTransfers(transactions, primaryAccount.name).map((tx) => ({
-      ...tx,
-      amount: Math.abs(tx.amount),
-    }))
+    return filterSipTransfers(transactions, primaryAccount.name)
   }, [transactions, primaryAccount])
 
   const detectedMonthlySIP = useMemo(() => detectMonthlySIPAmount(sipTransfers), [sipTransfers])
@@ -145,7 +153,8 @@ export function useMutualFundProjection() {
   const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
 
   return {
-    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading || investmentAccountsQuery.isLoading,
+    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading || investmentAccountsQuery.isLoading
+      || preferencesQuery.isLoading,
     isError: balancesQuery.isError || transactionsQuery.isError || investmentAccountsQuery.isError,
     retry,
     primaryAccount,

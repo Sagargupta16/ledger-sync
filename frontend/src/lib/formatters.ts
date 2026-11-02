@@ -135,15 +135,13 @@ export const formatCurrencyShort = (value: number): string => {
   const meta = getActiveCurrencyMeta()
   const converted = convertAmount(value)
   const absValue = Math.abs(converted)
-  const sign = converted < 0 ? '-' : ''
 
-  let formatted = `${Math.round(absValue)}`
-  for (const unit of meta.shortUnits) {
-    if (absValue >= unit.threshold) {
-      formatted = `${(absValue / unit.divisor).toFixed(1)}${unit.suffix}`
-      break
-    }
-  }
+  const unitFor = (magnitude: number) => meta.shortUnits.find((candidate) => magnitude >= candidate.threshold)
+  // Choose the unit from the rounded figure so 99,950 reads "1.0L", not "100.0K".
+  const first = unitFor(absValue)
+  const unit = unitFor(first ? Number((absValue / first.divisor).toFixed(1)) * first.divisor : Math.round(absValue))
+  const formatted = unit ? `${(absValue / unit.divisor).toFixed(1)}${unit.suffix}` : `${Math.round(absValue)}`
+  const sign = converted < 0 && formatted !== '0' ? '-' : ''
 
   return meta.symbolPosition === 'before'
     ? `${sign}${meta.symbol}${formatted}`

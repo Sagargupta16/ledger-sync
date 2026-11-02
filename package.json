@@ -1,11 +1,11 @@
 {
   "name": "ledger-sync",
-  "version": "2.34.1",
+  "version": "2.35.0",
   "packageManager": "pnpm@11.28.10",
   "description": "Personal finance dashboard -- import bank statements, track spending, and view analytics in any currency",
   "scripts": {
     "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",
-    "setup:backend": "cd backend && uv sync --group dev",
+    "setup:backend": "cd backend && uv sync --group dev --all-extras",
     "setup:frontend": "cd frontend && pnpm install",
     "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
     "dev:backend": "cd backend && uv run python -m uvicorn ledger_sync.api.main:app --reload --reload-dir src --reload-include \"*.py\" --port 8000",

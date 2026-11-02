@@ -1,5 +1,11 @@
 import { calculateXIRR } from '@/lib/xirr'
-import { addMonthsToKey, formatMonthKey, getDateKey, MS_PER_YEAR } from '@/lib/dateUtils'
+import {
+  addMonthsToKey,
+  formatMonthKey,
+  getCurrentMonth,
+  getDateKey,
+  MS_PER_YEAR,
+} from '@/lib/dateUtils'
 import {
   allocateHistoricalSIPValue,
   calculateSIPBenchmarkValue,
@@ -153,6 +159,7 @@ export function detectMonthlySIPAmount(
   if (sipTransfers.length === 0) return 0
 
   const monthlySIPs = sipTransfers.filter((tx) => {
+    if (tx.amount <= 0) return false
     const note = (tx.note ?? '').toLowerCase()
     return note.includes('monthly') || (!note.includes('lumpsum') && note.includes('sip'))
   })
@@ -162,17 +169,27 @@ export function detectMonthlySIPAmount(
   return monthlySIPs.at(-1)?.amount ?? 0
 }
 
-/** Mutual fund accounts from balance data and the user's Investments accounts. */
+/**
+ * Mutual fund accounts from balance data. The accounts the user mapped to mutual
+ * funds win; the name heuristic over the Investments accounts applies only while
+ * none is mapped.
+ */
 export function buildMutualFundAccounts(
   balanceData: Record<string, unknown> | null | undefined,
   investmentAccounts: readonly string[],
+  mappedMutualFunds: readonly string[] = [],
 ): MutualFundAccount[] {
   const accountsByName = (balanceData as { accounts?: Record<string, { balance: number }> })
     ?.accounts ?? {}
+  const mapped = new Set(mappedMutualFunds.map((name) => name.toLowerCase()))
+  const isMutualFund = (name: string) => {
+    const lower = name.toLowerCase()
+    if (mapped.size > 0) return mapped.has(lower)
+    return investmentAccounts.includes(name) && (lower.includes('mutual') || lower.includes('fund'))
+  }
 
   return Object.entries(accountsByName)
-    .filter(([name]) => investmentAccounts.includes(name))
-    .filter(([name]) => name.toLowerCase().includes('mutual') || name.toLowerCase().includes('fund'))
+    .filter(([name]) => isMutualFund(name))
     .map(([name, data]) => ({
       name,
       balance: Math.abs(data.balance),
@@ -217,9 +234,13 @@ export function buildCombinedChartData(
   if (!lastHistorical) return historicalData
   const lastSipTransfer = sipTransfers.at(-1)
   if (!lastSipTransfer) return historicalData
+  // The start value is today's balance, so a SIP paused for months must not date
+  // the horizon from its last transfer: month 1 is at the earliest this month.
+  const lastSipKey = lastSipTransfer.date.slice(0, 10)
+  const previousMonthKey = addMonthsToKey(`${getCurrentMonth()}-01`, -1)
   const projectionData = buildProjectionChartData(
     lastHistorical,
-    lastSipTransfer.date.slice(0, 10),
+    lastSipKey > previousMonthKey ? lastSipKey : previousMonthKey,
     activeMonthlySIP,
     expectedReturn,
     projectionYears,
@@ -254,14 +275,23 @@ export function computeInvestmentDuration(sipTransfers: Array<{ date: string }>)
   return (now.getTime() - firstDate.getTime()) / MS_PER_YEAR
 }
 
-/** Filter SIP transfer transactions for a given primary account. */
+/**
+ * Transfers into the primary account as positive contributions and transfers out
+ * of it (redemptions) as negative ones, oldest first.
+ */
 export function filterSipTransfers(
   transactions: Transaction[],
   primaryAccountName: string,
 ): Transaction[] {
   const lowerName = primaryAccountName.toLowerCase()
   return transactions
-    .filter((tx) => tx.type === 'Transfer' && tx.to_account?.toLowerCase() === lowerName)
+    .flatMap((tx) => {
+      if (tx.type !== 'Transfer') return []
+      const into = tx.to_account?.toLowerCase() === lowerName
+      const outOf = tx.from_account?.toLowerCase() === lowerName
+      if (into === outOf) return []
+      return [{ ...tx, amount: into ? Math.abs(tx.amount) : -Math.abs(tx.amount) }]
+    })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 }
 

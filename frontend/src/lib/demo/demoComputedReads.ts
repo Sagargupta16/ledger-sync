@@ -3,6 +3,7 @@ import type { CapitalLossCandidate } from '@/services/api/analyticsV2DataHealth'
 import type { IncomeFacetsData, QuickInsightsData } from '@/services/api/calculations'
 import type { TransactionFacets } from '@/services/api/transactions'
 import { getTodayKey } from '@/lib/dateUtils'
+import { medianOf } from '@/lib/distribution'
 import { looksLikeCapitalLoss } from '@/lib/expenseClassification'
 import type { Transaction } from '@/types'
 
@@ -47,6 +48,30 @@ export function generateDemoFacets(txs: Transaction[]): TransactionFacets {
   }
 }
 
+const DEMO_SORT_VALUES: Record<string, (t: Transaction) => string | number> = {
+  date: (t) => t.date,
+  amount: (t) => t.amount,
+  category: (t) => t.category,
+  account: (t) => t.account,
+}
+
+/**
+ * Mirrors `_apply_sorting`: the `sort_by` column (date by default, newest
+ * first), tie-broken by id so the order is total.
+ */
+export function sortDemoTransactions(
+  rows: Transaction[],
+  params: Record<string, unknown>,
+): Transaction[] {
+  const value = DEMO_SORT_VALUES[String(params.sort_by)] ?? DEMO_SORT_VALUES.date
+  const direction = params.sort_order === 'asc' ? 1 : -1
+  const compare = (a: string | number, b: string | number) => {
+    if (a < b) return -1
+    return a > b ? 1 : 0
+  }
+  return [...rows].sort((a, b) => direction * (compare(value(a), value(b)) || compare(a.id, b.id)))
+}
+
 /**
  * Mirrors /api/transactions/search filtering closely enough for the demo.
  *
@@ -58,7 +83,7 @@ export function generateDemoSearch(
   txs: Transaction[],
   params: Record<string, unknown>,
 ): { data: Transaction[]; total: number; limit: number; offset: number; has_more: boolean } {
-  const rows = filterDemoTransactions(txs, params)
+  const rows = sortDemoTransactions(filterDemoTransactions(txs, params), params)
 
   const limit = Number(params.limit) || 100
   const offset = Number(params.offset) || 0
@@ -243,7 +268,7 @@ export function generateDemoQuickInsights(
     max_date: txs[0]?.date ?? null,
     net_cashback: cashbacks.reduce((s, t) => s + t.amount, 0) - sharedCashback,
     cashback_count: cashbacks.length,
-    median_expense: amounts.length ? amounts[Math.floor(amounts.length / 2)] : 0,
+    median_expense: medianOf(amounts),
     biggest_expense: biggest,
     avg_expense: amounts.length ? totalSpending / amounts.length : 0,
     total_spending: totalSpending,

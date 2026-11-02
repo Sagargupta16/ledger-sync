@@ -65,6 +65,14 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     () => Object.keys(categoryData?.categories ?? {}).sort((a, b) => a.localeCompare(b)),
     [categoryData],
   )
+  // The opening default or a deep link can be missing from the selected window.
+  // Follow the dropdown to that window's largest category so the select, the
+  // query and the chart name the same one.
+  const activeCategory = useMemo(() => {
+    const entries = Object.entries(categoryData?.categories ?? {})
+    if (entries.length === 0 || entries.some(([name]) => name === selectedCategory)) return selectedCategory
+    return entries.reduce((top, entry) => (entry[1].total > top[1].total ? entry : top))[0]
+  }, [categoryData, selectedCategory])
 
   // Daily per-subcategory sums for the selected category, aggregated
   // server-side (date range + category filter in SQL). Client keeps its own
@@ -77,8 +85,8 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   } = useQuery({
     // Shared with the Expense Analysis page, which reads the opening category
     // for a newly selected window before handing that window down.
-    ...expenseCategoryDailySeriesOptions(selectedCategory, dateRange),
-    enabled: Boolean(selectedCategory),
+    ...expenseCategoryDailySeriesOptions(activeCategory, dateRange),
+    enabled: Boolean(activeCategory),
   })
 
   // Process subcategory data for selected category
@@ -116,7 +124,8 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     const topSubcats = rankedSubcats.slice(0, SUBCAT_TOP_N).map(([name]) => name)
     const hasOther = rankedSubcats.length > SUBCAT_TOP_N
     const topSet = new Set(topSubcats)
-    const subcategoryNames = hasOther ? [...topSubcats, 'Other'] : topSubcats
+    // A real subcategory named Other that ranks in the top set is the bucket the rest fold into.
+    const subcategoryNames = hasOther && !topSet.has('Other') ? [...topSubcats, 'Other'] : topSubcats
 
     const allPeriods = Object.keys(groupedData).sort((a, b) => a.localeCompare(b))
 
@@ -149,7 +158,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
   }, [chartData])
 
   const handleExport = () => {
-    exportChartAsCsv(`subcategory-analysis-${selectedCategory}.csv`, subcategories, chartData)
+    exportChartAsCsv(`subcategory-analysis-${activeCategory}.csv`, subcategories, chartData)
   }
 
   if (isCategoriesLoading) return <ChartSkeleton height="h-80" />
@@ -171,14 +180,14 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
       seriesKeys={subcategories}
       colors={[...COLORS]}
       legendFormatter={(value) => value.length > 20 ? `${value.substring(0, 17)}...` : value}
-      emptyMessage={`No data available for ${selectedCategory}`}
-      ariaLabel={`Line chart of subcategory spending over time within ${selectedCategory}`}
+      emptyMessage={`No data available for ${activeCategory}`}
+      ariaLabel={`Line chart of subcategory spending over time within ${activeCategory}`}
     />
   )
   if (isSeriesLoading) {
     chart = (
       <output aria-busy="true" className="block">
-        <span className="sr-only">Loading {selectedCategory} subcategory trend</span>
+        <span className="sr-only">Loading {activeCategory} subcategory trend</span>
         <LoadingSkeleton className="h-100 w-full" />
       </output>
     )
@@ -186,7 +195,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
     chart = (
       <ErrorState
         variant="compact"
-        title={`Unable to load ${selectedCategory}`}
+        title={`Unable to load ${activeCategory}`}
         message="This category's daily spending couldn't be loaded. Try again or pick another category."
         onRetry={() => { void refetchSeries() }}
       />
@@ -227,7 +236,7 @@ export default function EnhancedSubcategoryAnalysis({ dateRange, categoryFilter 
           <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
             {/* Category Dropdown */}
             <Select
-              value={selectedCategory}
+              value={activeCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               options={categories.map((category) => ({ value: category, label: category }))}
               className="min-w-0 sm:min-w-50"

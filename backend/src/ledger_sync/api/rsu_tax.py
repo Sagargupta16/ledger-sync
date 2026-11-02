@@ -38,6 +38,7 @@ from ledger_sync.schemas.rsu_tax import (
 
 router = APIRouter(prefix="/api/rsu-tax", tags=["rsu-tax"])
 VestingId = Annotated[str, Path(min_length=1, max_length=64)]
+EventId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 _ERRORS: dict[int | str, dict[str, Any]] = {
     404: {"description": "No such vest or record for this user"},
     409: {"description": "The record changed while saving"},
@@ -106,7 +107,10 @@ def create_event(
 
 @router.patch("/events/{event_id}", responses=_ERRORS)
 def link_event(
-    event_id: int, payload: ForeignAssetEventLink, current_user: CurrentUser, db: DatabaseSession
+    event_id: EventId,
+    payload: ForeignAssetEventLink,
+    current_user: CurrentUser,
+    db: DatabaseSession,
 ) -> ForeignAssetEventResponse:
     """Point a sale at the vest it came from, or a dividend at the stock that paid it."""
     try:
@@ -117,7 +121,7 @@ def link_event(
 
 
 @router.delete("/events/{event_id}", status_code=204)
-def delete_event(event_id: int, current_user: CurrentUser, db: DatabaseSession) -> None:
+def delete_event(event_id: EventId, current_user: CurrentUser, db: DatabaseSession) -> None:
     """Remove one sale or dividend. Idempotent."""
     store.delete_event(db, current_user.id, event_id)
 

@@ -17,7 +17,6 @@ import {
   monthlyAggregationOptions,
   quickInsightsOptions,
   totalsOptions,
-  useRecentTransactions,
 } from '@/hooks/api/useAnalytics'
 import { dashboardHealthOptions, dashboardPulseOptions } from '@/hooks/api/useDashboardMetricsApi'
 import { usePreferences } from '@/hooks/api/usePreferences'
@@ -27,9 +26,9 @@ import { usePreferencesStore, resolveIncomeClassification } from '@/store/prefer
 import {
   type AnalyticsViewMode,
   getAnalyticsDateRange,
-  getCurrentYear,
   getCurrentMonth,
-  getCurrentFY,
+  getFYFromDate,
+  getTodayKey,
 } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
@@ -94,8 +93,6 @@ interface DashboardMetrics {
    * savings definition every page shows.
    */
   filteredTotals: TotalsData | undefined
-  /** Same as `isSummaryLoading`: no read is left outside the window snapshot. */
-  isLoading: boolean
   /** The window's first snapshot (the pulse included, when read) is still loading. */
   isSummaryLoading: boolean
   isError: boolean
@@ -128,10 +125,6 @@ interface DashboardMetrics {
 
   // Expense breakdown by category
   expenseChartData: ChartDatum[]
-
-  // Sparklines
-  incomeSparkline: number[]
-  expenseSparkline: number[]
 
   // Income-vs-spending bars, complete months only
   monthlyFlow: MonthlyFlowDatum[]
@@ -183,9 +176,10 @@ export function useDashboardMetrics(
   const [viewMode, setViewMode] = useState<AnalyticsViewMode>(
     (defaultTimeRange as AnalyticsViewMode) || 'all_time',
   )
-  const [currentYear, setCurrentYear] = useState(getCurrentYear)
+  // The ledger's IST calendar for all three seeds, not the browser's.
+  const [currentYear, setCurrentYear] = useState(() => Number(getTodayKey().slice(0, 4)))
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth)
-  const [currentFY, setCurrentFY] = useState(() => getCurrentFY(fiscalYearStartMonth))
+  const [currentFY, setCurrentFY] = useState(() => getFYFromDate(getTodayKey(), fiscalYearStartMonth))
 
   // viewMode and currentFY are seeded ONCE, before /api/preferences resolves:
   // the FY from the default start month (4) and the view from whatever the
@@ -203,7 +197,7 @@ export function useDashboardMetrics(
   const prefsSyncKey = `${fiscalYearStartMonth}|${savedTimeRange ?? ''}`
   if (preferences && !userInteracted && syncedPrefs !== prefsSyncKey) {
     setSyncedPrefs(prefsSyncKey)
-    setCurrentFY(getCurrentFY(fiscalYearStartMonth))
+    setCurrentFY(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
     if (savedTimeRange) setViewMode(savedTimeRange as AnalyticsViewMode)
   }
 
@@ -240,7 +234,6 @@ export function useDashboardMetrics(
   // whose reads ALL resolved. A period change therefore never swaps the page
   // for its skeleton (which threw a scrolled reader back to the top) and never
   // shows two windows at once (a cached read resolving beside a pending one).
-  useRecentTransactions(5) // keep prefetch warm for other pages
   // Current health keys on no window. Requested with the page's other reads so
   // the lazy FinancialHealthScore finds it cached on mount instead of starting
   // it after first paint; `notifyOnChangeProps: []` keeps this hook from
@@ -417,17 +410,6 @@ export function useDashboardMetrics(
       .map((d, i) => ({ ...d, color: chartColors[i % chartColors.length] }))
   }, [expenseBreakdown, chartColors])
 
-  // ------ Sparklines ------
-  const incomeSparkline = useMemo(() => {
-    if (!monthlyData) return []
-    return Object.values(monthlyData).map((m: { income?: number }) => m.income ?? 0)
-  }, [monthlyData])
-
-  const expenseSparkline = useMemo(() => {
-    if (!monthlyData) return []
-    return Object.values(monthlyData).map((m: { expense?: number }) => Math.abs(m.expense ?? 0))
-  }, [monthlyData])
-
   // ------ Income-vs-spending bars ------
   //
   // Complete months only, via the same `completeMonthKeys` the MoM deltas use --
@@ -491,7 +473,6 @@ export function useDashboardMetrics(
     dateRange: committedDateRange,
     isSettling: stable.isSettling,
     filteredTotals,
-    isLoading: isSummaryLoading,
     isSummaryLoading,
     isError,
     retry,
@@ -502,8 +483,6 @@ export function useDashboardMetrics(
     cashbacksTotal,
     incomeChartData,
     expenseChartData,
-    incomeSparkline,
-    expenseSparkline,
     monthlyFlow,
     partialMonthLabel,
     momChanges,

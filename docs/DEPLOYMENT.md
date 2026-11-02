@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.31.0.
+Current for Ledger Sync 2.35.0.
 
 ## Production Topology
 
@@ -103,11 +103,11 @@ without checking the database connection limit.
 
 Release 2.31.0 adds no required setting. Its two optional features below read
 their own settings classes (`config/embedding_settings.py` and
-`config/push_settings.py`). Set their values as real environment variables: the
-Vercel project for production, the shell for a local run. Never put them in
-`backend/.env`: `Settings` forbids any key it does not declare, so an
-undeclared `LEDGER_SYNC_*` key, or `CRON_SECRET`, in that file stops the backend
-at start-up, and the validation error echoes the value.
+`config/push_settings.py`). Set their values in the Vercel project for
+production, and in the shell or `backend/.env` for a local run. Each settings
+class reads only its own keys from that file; since 2.35.0 `Settings` ignores a
+key it does not declare instead of stopping at start-up, and no settings
+validation error echoes a value.
 
 ### Optional semantic search
 

@@ -2,7 +2,7 @@ import { AlertTriangle, Settings2 } from 'lucide-react'
 import { Link } from 'react-router'
 
 import EmptyState from '@/components/shared/EmptyState'
-import PageErrorState from '@/components/shared/PageErrorState'
+import ErrorState from '@/components/shared/ErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
@@ -27,20 +27,10 @@ export default function AnomalyReviewPage() {
   )
 
   // The tuning link and detection panel do not depend on the failed queries,
-  // so they stay usable on error.
-  if (!review.isLoading && review.isError) {
-    return (
-      <PageErrorState
-        title="Anomaly Review"
-        subtitle="Review and manage detected financial anomalies"
-        action={tuneDetectionLink}
-        message="We couldn't load your anomaly review data. Try again before reviewing financial activity."
-        onRetry={review.retry}
-      >
-        <AnomalyDetectionPanel />
-      </PageErrorState>
-    )
-  }
+  // so they stay usable on error. One root tree for every state keeps the
+  // panel mounted, with its unsaved edits, across loading, error and loaded.
+  const hasError = !review.isLoading && review.isError
+  const filtered = Boolean(review.typeFilter || review.severityFilter) && review.summary.total > 0
 
   return (
     <PageContainer>
@@ -54,7 +44,17 @@ export default function AnomalyReviewPage() {
 
       {review.isLoading && <PageSkeleton />}
 
-      {!review.isLoading && (
+      {hasError && (
+        <ErrorState
+          title="Unable to load Anomaly Review"
+          message="We couldn't load your anomaly review data. Try again before reviewing financial activity."
+          onRetry={review.retry}
+          errorType="network"
+          variant="card"
+        />
+      )}
+
+      {!review.isLoading && !hasError && (
         <>
           <AnomalySummary summary={review.summary} />
           {/* Stays above the list it filters and pins once scrolled to. */}
@@ -72,8 +72,12 @@ export default function AnomalyReviewPage() {
           {review.sortedAnomalies.length === 0 ? (
             <EmptyState
               icon={AlertTriangle}
-              title="No anomalies detected"
-              description="Your financial data looks normal. Anomalies will appear here when unusual patterns are detected."
+              title={filtered ? 'No anomalies match these filters' : 'No anomalies detected'}
+              description={
+                filtered
+                  ? 'Clear the type or severity filter to see the other anomalies.'
+                  : 'Your financial data looks normal. Anomalies will appear here when unusual patterns are detected.'
+              }
             />
           ) : (
             <AnomalyList

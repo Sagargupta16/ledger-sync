@@ -13,6 +13,7 @@ from sqlalchemy import delete
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.analytics.merchant_extract import extract_merchant
+from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.db.models import MerchantIntelligence, Transaction, TransactionType
 
 #: Cap on stored alias variations per merchant, so a descriptor merchant with
@@ -49,7 +50,12 @@ class MerchantsMixin(AnalyticsEngineBase):
             },
         )
 
+        # A classified realised loss is not spending, so it must not count toward
+        # a merchant's spend or visit count (same rule as the cohort rollup).
+        loss_keys = self.capital_loss_keys
         for txn in expenses or []:
+            if is_capital_loss(txn.category, txn.subcategory, loss_keys):
+                continue
             extracted = extract_merchant(txn.note, txn.category)
             if not extracted:
                 continue

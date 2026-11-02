@@ -114,7 +114,7 @@ export default function HomePage() {
         <WhatIsSection />
         <FeaturesSection isAuthenticated={isAuthenticated} onOpenFeature={handleOpenFeature} />
 
-        <section className="border-t border-border bg-[var(--color-surface-2)] py-14 sm:py-18">
+        <section className="border-t border-border bg-[var(--color-surface-2)] py-14 sm:py-18 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
             <div className="max-w-2xl">
               <p className="ledger-meta mb-3 text-muted-foreground">
@@ -154,7 +154,7 @@ export default function HomePage() {
         </section>
 
         <footer
-          className="border-t border-border pt-8 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]"
+          className="border-t border-border pt-8 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)]"
         >
           <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <p className="inline-flex items-center justify-center gap-1.5 text-sm text-text-tertiary">

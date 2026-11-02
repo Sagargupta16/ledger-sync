@@ -4,6 +4,8 @@
 const FORMULA_TRIGGERS = new Set(['=', '+', '-', '@', '\t', '\r'])
 
 function escapeCsvValue(val: string | number): string {
+  // A number cannot carry a formula, and 12 significant digits drop float noise (147.89999999999998).
+  if (typeof val === 'number') return String(Number(val.toPrecision(12)))
   let str = String(val)
   if (str.length > 0 && FORMULA_TRIGGERS.has(str[0])) {
     // Prefix with a single quote so Excel/Sheets treat it as text, and force

@@ -99,7 +99,7 @@ export default function ChatPanel({
       transition={{ duration: 0.2 }}
       role="dialog"
       aria-label="AI Assistant chat"
-      className="absolute bottom-16 right-0 flex max-h-[70dvh] w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)] sm:max-h-[500px]"
+      className="absolute bottom-16 right-0 flex max-h-[70dvh] w-[calc(100vw-2rem)] max-w-[min(380px,calc(100vw-3rem))] flex-col overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown shadow-[var(--glass-shadow-strong)] sm:max-h-[min(500px,70dvh)]"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
@@ -133,7 +133,7 @@ export default function ChatPanel({
         </div>
       </div>
 
-      <div ref={scrollRef} aria-live="polite" aria-atomic="false" className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
+      <div ref={scrollRef} aria-live="polite" aria-atomic="false" className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[min(200px,25dvh)]">
         {messages.length === 0 && (
           <div className="flex h-full flex-col justify-between py-2">
             {/* Centered mark on a faint grid, echoing the workspace texture */}
@@ -276,12 +276,14 @@ function UsageBadge() {
   if (today === 0 && daily === null) return null
 
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`)
-  const label = daily ? `${fmt(today)} / ${fmt(daily)}` : fmt(today)
-  const pct = daily && daily > 0 ? today / daily : 0
+  const label = daily === null ? fmt(today) : `${fmt(today)} / ${fmt(daily)}`
+  let pct = 0
+  if (daily !== null) pct = daily > 0 ? today / daily : Infinity
   const todayStr = today.toLocaleString()
-  const tooltip = daily
-    ? `Today: ${todayStr} tokens of ${daily.toLocaleString()} daily limit`
-    : `Today: ${todayStr} tokens`
+  const tooltip =
+    daily === null
+      ? `Today: ${todayStr} tokens`
+      : `Today: ${todayStr} tokens of ${daily.toLocaleString()} daily limit`
 
   return (
     <span

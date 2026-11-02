@@ -34,6 +34,7 @@ import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useIsAdmin } from '@/hooks/api/useAdminStats'
+import { useAnomalyCounts, useBudgets } from '@/hooks/api/useAnalyticsV2'
 import { useLogout } from '@/hooks/api/useAuth'
 
 interface MoreItem {
@@ -131,18 +132,34 @@ function sectionsFor(isAdmin: boolean): readonly MoreSection[] {
   return SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => !item.adminOnly) }))
 }
 
-function MoreTile({ item }: Readonly<{ item: MoreItem }>) {
+// The panel sits inside the link because the shared hover lift and border rule
+// targets `a:hover .ledger-panel`; hover utilities on the panel itself lose to its
+// unlayered border and background.
+function MoreTile({ item, badge = 0 }: Readonly<{ item: MoreItem; badge?: number }>) {
   return (
     <Link
       to={item.to}
-      className="ledger-panel flex min-h-24 flex-col items-center justify-center gap-2 p-3 transition-colors hover:border-[var(--hairline-3)] hover:bg-[var(--overlay-1)] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] md:min-h-16 md:flex-row md:justify-start"
+      className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
     >
-      <div className="flex size-10 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
-        <item.icon className={`size-5 ${item.color}`} aria-hidden="true" />
+      <div className="ledger-panel relative flex h-full min-h-24 flex-col items-center justify-center gap-2 p-3 transition-colors active:scale-[0.98] md:min-h-16 md:flex-row md:justify-start">
+        <div className="flex size-10 items-center justify-center rounded-md border border-[var(--hairline-1)] bg-[var(--overlay-2)]">
+          <item.icon className={`size-5 ${item.color}`} aria-hidden="true" />
+        </div>
+        <span className="min-w-0 text-center text-xs leading-tight text-foreground md:text-left">
+          {item.label}
+        </span>
+        {badge > 0 && (
+          <>
+            <span
+              className="absolute right-1.5 top-1.5 h-4 min-w-[16px] rounded-full bg-app-red px-1 text-center text-[10px] font-semibold leading-4 text-destructive-foreground tabular-nums"
+              aria-hidden="true"
+            >
+              {badge > 9 ? '9+' : badge}
+            </span>
+            <span className="sr-only">{badge} items need attention</span>
+          </>
+        )}
       </div>
-      <span className="min-w-0 text-center text-xs leading-tight text-foreground md:text-left">
-        {item.label}
-      </span>
     </Link>
   )
 }
@@ -151,11 +168,18 @@ export default function MorePage() {
   const logout = useLogout()
   const navigate = useNavigate()
   const isAdmin = useIsAdmin()
+  // The two counts the More tab badge adds up, shown on the tiles that own them.
+  const anomalyCount = useAnomalyCounts({ include_reviewed: false }).data?.count ?? 0
+  const { data: budgets = [] } = useBudgets({ active_only: true })
+  const badges: Record<string, number> = {
+    [ROUTES.ANOMALIES]: anomalyCount,
+    [ROUTES.BUDGETS]: budgets.filter((b) => b.usage_pct >= b.alert_threshold).length,
+  }
 
   const handleSignOut = () => {
     // Block body + `void`: the mutate callback must return void, and navigate
     // is typed `void | Promise<void>` (returns undefined under BrowserRouter).
-    // A failed logout still clears client state via useLogout's own onError,
+    // A failed logout still clears client state via useLogout's onSettled,
     // so nothing is silenced here.
     logout.mutate(undefined, { onSuccess: () => { void navigate('/') } })
   }
@@ -177,7 +201,7 @@ export default function MorePage() {
           </h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {section.items.map((item) => (
-              <MoreTile key={item.to} item={item} />
+              <MoreTile key={item.to} item={item} badge={badges[item.to]} />
             ))}
           </div>
         </motion.section>

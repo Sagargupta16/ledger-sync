@@ -208,6 +208,14 @@ export default function RegimeComparison({
       </div>
 
       <div className="rounded-lg border border-border bg-[var(--overlay-2)] px-4 py-3" aria-live="polite">
+        {deductions.isError && (
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 text-xs text-app-orange">
+            <span>Saved deductions could not be loaded, so this comparison leaves them out.</span>
+            <Button type="button" variant="ghost" size="sm" onClick={deductions.retry}>
+              Retry
+            </Button>
+          </div>
+        )}
         <ComparisonVerdict comparison={comparison} />
       </div>
     </div>

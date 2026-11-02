@@ -5,8 +5,8 @@ import { transactionsService } from '@/services/api/transactions'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 
 /**
- * Replace the full tag list on a transaction. Errors surface at call sites
- * via mutation state (sonner toast).
+ * Replace the full tag list on a transaction. A failed write toasts through
+ * the global MutationCache, so callers add no toast of their own.
  */
 export function useUpdateTransactionTags() {
   const queryClient = useQueryClient()

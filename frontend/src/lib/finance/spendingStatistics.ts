@@ -1,4 +1,4 @@
-import { daysInMonth, monthKeysBetween, MS_PER_DAY, parseLocalDate, getTodayKey } from '@/lib/dateUtils'
+import { daysInMonth, monthKeysBetween, MS_PER_DAY, getTodayKey } from '@/lib/dateUtils'
 import { medianOf } from '@/lib/distribution'
 
 import { completeMonthAverage, completeMonthSpine, totalsByMonth } from './monthlyAverage'
@@ -96,7 +96,8 @@ export function computeSpendingPace(
     ? completeMonthAverage(
       totalsByMonth(Object.entries(monthly), ([key]) => key, ([, month]) => Math.abs(month.expense ?? 0)),
       { start: spanRange.start_date, end: spanRange.end_date },
-      parseLocalDate(today),
+      // Noon IST on the ledger day `today`, so the month logic reads that same day in any viewer timezone.
+      new Date(`${today}T12:00:00+05:30`),
     )
     : null
   if (complete) {

@@ -52,6 +52,8 @@ interface StandardBarChartProps {
   readonly dataKey?: string
   readonly bars: BarConfig[]
   readonly height?: number
+  /** Height on phones; by default `height` is capped there. A ranking sized to its rows sets it. */
+  readonly mobileHeight?: number
   /** `vertical` is a ranking: categories down the left (`yCategoryKey`), values along the bottom. */
   readonly layout?: 'horizontal' | 'vertical'
   readonly showLegend?: boolean
@@ -113,6 +115,7 @@ export default function StandardBarChart({
   dataKey = 'displayPeriod',
   bars,
   height = 400,
+  mobileHeight,
   layout = 'horizontal',
   showLegend = true,
   emptyMessage,
@@ -184,6 +187,7 @@ export default function StandardBarChart({
         visibleRange={zoom}
         margin={{ left: yWidth ?? AXIS_WIDTH[layout][isMobile ? 1 : 0], ...margin }}
         height={height}
+        mobileHeight={mobileHeight}
         ariaLabel={ariaLabel}
         tooltip={
           <CartesianTooltip

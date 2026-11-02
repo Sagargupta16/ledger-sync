@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { motion } from 'motion/react'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router'
 
@@ -34,7 +34,9 @@ interface MetricCardProps {
 }
 
 function getChangePresentation(change: number | undefined, invertChange?: boolean) {
-  const isPositive = (change ?? 0) >= 0
+  if (!change) return { changeColor: rawColors.text.secondary, ChangeIcon: Minus }
+
+  const isPositive = change > 0
   const isGood = invertChange ? !isPositive : isPositive
 
   return {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { getTodayKey } from '@/lib/dateUtils'
 import { generateDemoTransactions } from '../generateTransactions'
 import { DEMO_MONTHS } from '../demoTxHelpers'
 
@@ -44,7 +45,10 @@ describe('generateDemoTransactions', () => {
     const rents = txs
       .filter((t) => t.subcategory === 'Rent')
       .sort((a, b) => a.date.localeCompare(b.date))
-    expect(rents).toHaveLength(DEMO_MONTHS)
+    // No row is dated after today, so this month's rent (due on the 5th) is
+    // there only once that day has come.
+    const rentDue = Number(getTodayKey().slice(8, 10)) >= 5
+    expect(rents).toHaveLength(rentDue ? DEMO_MONTHS : DEMO_MONTHS - 1)
     const distinct = [...new Set(rents.map((r) => r.amount))]
     // 48 months / 11-month leases => 4-5 distinct rent levels, ascending.
     expect(distinct.length).toBeGreaterThanOrEqual(4)

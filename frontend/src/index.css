@@ -670,35 +670,6 @@ body {
   animation: none;
 }
 
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-up {
-  animation: fade-up var(--duration-slow) var(--ease-cinematic) both;
-}
-
-/* ===== PAGE TRANSITION ===== */
-
-.page-enter {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.page-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 200ms ease-out, transform 200ms ease-out;
-}
-
 /* ===== COMPONENT PATTERNS ===== */
 
 /* ===== RESPONSIVE TYPOGRAPHY ===== */
@@ -709,21 +680,6 @@ body {
   line-height: 1.15;
   letter-spacing: -0.035em;
   text-wrap: balance;
-}
-
-.text-section-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.text-stat-value {
-  font-size: 1.5rem;
-  font-weight: 650;
-  line-height: 1.1;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1, 'zero' 1;
 }
 
 .ledger-figure,
@@ -768,11 +724,16 @@ output {
   }
 }
 
-.ledger-panel {
-  border: 1px solid var(--glass-border);
-  border-radius: 0.5rem;
-  background: var(--color-surface-1);
-  box-shadow: var(--glass-shadow);
+/* Layered like .ledger-control so a card's own `border-*`, `bg-*` and `ring-*`
+   utilities win over the defaults of .ledger-panel, .ledger-band and
+   .ledger-cell. */
+@layer components {
+  .ledger-panel {
+    border: 1px solid var(--glass-border);
+    border-radius: 0.5rem;
+    background: var(--color-surface-1);
+    box-shadow: var(--glass-shadow);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -819,13 +780,15 @@ output {
   }
 }
 
-.ledger-band {
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--glass-border);
-  border-radius: 0.5rem;
-  background: var(--ledger-grid-line);
-  gap: 1px;
+@layer components {
+  .ledger-band {
+    display: grid;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    border-radius: 0.5rem;
+    background: var(--ledger-grid-line);
+    gap: 1px;
+  }
 }
 
 .ledger-flow-grid {
@@ -850,30 +813,10 @@ output {
   }
 }
 
-.ledger-cell {
-  min-width: 0;
-  background: var(--color-surface-1);
-}
-
-.quick-insight-card {
-  container-type: inline-size;
-}
-
-.insight-value {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-}
-
-@container (max-width: 165px) {
-  .quick-insight-card {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .insight-value {
-    font-size: 0.75rem;
-    line-height: 1rem;
+@layer components {
+  .ledger-cell {
+    min-width: 0;
+    background: var(--color-surface-1);
   }
 }
 
@@ -949,18 +892,14 @@ option {
 /* ===== SAFE AREA SUPPORT (iOS notch / home indicator) =====
    With `viewport-fit=cover` the PWA extends to the screen edges, so the notch
    (left/right in landscape) and the home indicator report insets. These
-   utilities let layout components inset their padding/margin by them. There is
+   utilities let layout components inset their padding by them; `@utility`
+   (not a plain class) so variants such as `lg:pb-safe` emit CSS. There is
    no `apple-mobile-web-app-status-bar-style`: on webkit.org/b/317153
    `black-translucent` is called deprecated, with advice to drop the key so the
    status bar takes the page colour. */
-.pt-safe { padding-top: env(safe-area-inset-top); }
-.pr-safe { padding-right: env(safe-area-inset-right); }
-.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-.pl-safe { padding-left: env(safe-area-inset-left); }
-.top-safe { top: env(safe-area-inset-top); }
-.bottom-safe { bottom: env(safe-area-inset-bottom); }
-.left-safe { left: env(safe-area-inset-left); }
-.right-safe { right: env(safe-area-inset-right); }
+@utility pt-safe { padding-top: env(safe-area-inset-top); }
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+@utility pl-safe { padding-left: env(safe-area-inset-left); }
 
 /* ===== DATATABLE MOBILE SCROLL =====
    Smooth momentum scroll on iOS + a visible thin scrollbar so users

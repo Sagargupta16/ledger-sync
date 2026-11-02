@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from ledger_sync.api.deps import CurrentUser
+from ledger_sync.core.ledger_clock import ledger_today_iso
 
 router = APIRouter(prefix="/api/rates", tags=["rates"])
 
@@ -31,14 +32,28 @@ def _load_rates() -> dict[str, Any]:
     return data
 
 
+def _mark_stale(rates: dict[str, Any], today: str) -> dict[str, Any]:
+    """Copy of the rates with ``stale`` on each instrument whose window has ended."""
+    marked = dict(rates)
+    for name, entry in rates.items():
+        if isinstance(entry, dict):
+            until = entry.get("effective_until")
+            marked[name] = {**entry, "stale": isinstance(until, str) and until < today}
+    return marked
+
+
 @router.get(
     "/instruments",
     responses={503: {"description": "Instrument rates config unavailable"}},
 )
 def get_instrument_rates(_current_user: CurrentUser) -> dict[str, Any]:
-    """Return EPF/PPF/NPS rates with effective_from and source_url metadata."""
+    """Return EPF/PPF/NPS rates with effective_from and source_url metadata.
+
+    An instrument whose ``effective_until`` is before today's IST date carries
+    ``stale: true``; the config needs a new notified rate.
+    """
     try:
-        return _load_rates()
+        return _mark_stale(_load_rates(), ledger_today_iso())
     except (OSError, json.JSONDecodeError) as e:
         raise HTTPException(
             status_code=503,

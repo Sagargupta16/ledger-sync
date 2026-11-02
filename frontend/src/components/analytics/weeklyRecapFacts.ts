@@ -3,9 +3,11 @@
  * Explain button sends. Both use the same formatters, so the AI narrative
  * quotes exactly the figures on screen, in the user's display currency.
  *
- * The facts are totals, dates, and category and commitment names. A flag goes
- * as its type, severity and day only: its description can quote an account, a
- * note and an amount in the detection-time currency, so it stays on the card.
+ * The facts are totals, dates, and category names. A flag goes as its type,
+ * severity and day only: its description can quote an account, a note and an
+ * amount in the detection-time currency, so it stays on the card. A bill goes
+ * by its category, never its name: a detected commitment is named after the
+ * raw note of its latest entry.
  */
 
 import { formatMonthKey } from '@/lib/dateUtils'
@@ -46,8 +48,8 @@ function billLabel(bill: BillDue): string {
   const amount = formatCurrency(bill.amount)
   const day = recapDay(bill.due_date)
   return bill.occurrences > 1
-    ? `${bill.name} ${amount} x${bill.occurrences} from ${day}`
-    : `${bill.name} ${amount} on ${day}`
+    ? `${bill.category} ${amount} x${bill.occurrences} from ${day}`
+    : `${bill.category} ${amount} on ${day}`
 }
 
 /** "high expense, high severity, on Tue, Oct 21": structured fields, never the description. */
@@ -80,8 +82,8 @@ function netWorthFact(netWorth: RecapNetWorth): string {
 }
 
 /**
- * The recap as plain fact lines: totals, dates, and category and commitment
- * names. Never a ledger row, a note, an account or an anomaly description.
+ * The recap as plain fact lines: totals, dates, and category names. Never a
+ * ledger row, a note, an account or an anomaly description.
  */
 export function buildRecapFacts(recap: WeeklyRecap): string {
   const { week, bills, payday } = recap

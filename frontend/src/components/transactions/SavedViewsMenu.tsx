@@ -30,7 +30,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
   const pinNoteId = useId()
   const queryClient = useQueryClient()
 
-  const { data: views } = useSavedViews()
+  const { data: views, isError: viewsError } = useSavedViews()
   const saveView = useSaveView()
   const deleteView = useDeleteView()
   const pins = useSavedViewPins(open)
@@ -54,9 +54,8 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
         // Saving over a pinned view's name changes what its tile sums.
         refreshWatchTiles(queryClient, signal)
       },
-      () => {
-        if (isCurrentSession(signal)) toast.error('Failed to save view')
-      },
+      // A failed save toasts through the global MutationCache.
+      () => undefined,
     )
   }
 
@@ -65,14 +64,19 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
     // Deleting a pinned view drops its pin, so its tile goes too.
     void deleteView.mutateAsync(id).then(
       () => refreshWatchTiles(queryClient, signal),
-      () => {
-        if (isCurrentSession(signal)) toast.error('Failed to delete view')
-      },
+      // A failed delete toasts through the global MutationCache.
+      () => undefined,
     )
   }
 
+  let emptyNote = 'Loading saved views...'
+  if (viewsError) emptyNote = 'Could not load saved views'
+  else if (views) emptyNote = 'No saved views yet'
+
   return (
-    <div ref={ref} className="relative">
+    // Below sm the wrapper is not the containing block, so the panel spans the
+    // filter bar instead of hanging off a button that may have wrapped to the row start.
+    <div ref={ref} className="sm:relative">
       <Button
         type="button"
         variant="secondary"
@@ -91,7 +95,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-72 max-sm:left-0 max-sm:top-auto max-sm:w-auto space-y-3 rounded-lg border border-border bg-surface-dropdown p-3 shadow-[var(--glass-shadow-strong)]">
           {pins.note && views && views.length > 0 && (
             <p id={pinNoteId} className="px-1 text-xs leading-5 text-muted-foreground">
               {pins.note}
@@ -151,7 +155,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
               })}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground px-1 py-2">No saved views yet</p>
+            <p className="text-sm text-muted-foreground px-1 py-2">{emptyNote}</p>
           )}
 
           <div className="border-t border-border" />
@@ -176,7 +180,7 @@ export default function SavedViewsMenu({ currentFilters, onApply }: Readonly<Sav
               variant="ghost"
               size="md"
               onClick={handleSave}
-              disabled={!name.trim() || saveView.isPending}
+              disabled={!name.trim() || saveView.isPending || !views}
               className="shrink-0 bg-primary/15 px-3 text-primary hover:bg-primary/25 hover:text-primary"
             >
               {saveView.isPending ? 'Saving...' : 'Save'}

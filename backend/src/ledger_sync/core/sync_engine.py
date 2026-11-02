@@ -289,7 +289,7 @@ class SyncEngine:
             ValueError: If file was already imported and force=False.
 
         """
-        logger.info("Starting JSON import of %s (%d rows)", file_name, len(rows))
+        logger.info("Starting JSON import of %r (%d rows)", file_name, len(rows))
         if not rows or len(rows) > MAX_UPLOAD_ROWS:
             msg = f"Snapshot must contain between 1 and {MAX_UPLOAD_ROWS:,} rows"
             raise NormalizationError(msg)

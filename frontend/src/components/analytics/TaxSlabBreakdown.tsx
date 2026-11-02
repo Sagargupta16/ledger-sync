@@ -97,7 +97,7 @@ export default function TaxSlabBreakdown({
             {taxSlabs.map((slab) => {
               const breakdown = slabBreakdown.find((b) => b.slab === slab)
               const taxAmount = breakdown?.taxAmount ?? 0
-              const isApplicable = grossTaxableIncome > slab.lower
+              const isApplicable = breakdown !== undefined
 
               return (
                 <tr
@@ -134,9 +134,10 @@ export default function TaxSlabBreakdown({
               )
             })}
             <tr className="border-t border-border">
+              <td className="hidden sm:table-cell" />
               <th
                 scope="row"
-                colSpan={3}
+                colSpan={2}
                 className="py-3 px-2 sm:px-4 text-right font-semibold text-foreground"
               >
                 Tax on Base:
@@ -147,9 +148,10 @@ export default function TaxSlabBreakdown({
             </tr>
             {rebate87A > 0 && (
               <tr className="border-b border-border">
+                <td className="hidden sm:table-cell" />
                 <th
                   scope="row"
-                  colSpan={3}
+                  colSpan={2}
                   className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-app-green"
                 >
                   - Section 87A Rebate:
@@ -165,9 +167,10 @@ export default function TaxSlabBreakdown({
             )}
             {surcharge > 0 && (
               <tr className="border-b border-border">
+                <td className="hidden sm:table-cell" />
                 <th
                   scope="row"
-                  colSpan={3}
+                  colSpan={2}
                   className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
                 >
                   + Surcharge:
@@ -178,9 +181,10 @@ export default function TaxSlabBreakdown({
               </tr>
             )}
             <tr className="border-b border-border">
+              <td className="hidden sm:table-cell" />
               <th
                 scope="row"
-                colSpan={3}
+                colSpan={2}
                 className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
               >
                 + Health & Education Cess (4%):
@@ -190,9 +194,10 @@ export default function TaxSlabBreakdown({
               </td>
             </tr>
             <tr className="border-b border-border">
+              <td className="hidden sm:table-cell" />
               <th
                 scope="row"
-                colSpan={3}
+                colSpan={2}
                 className="py-3 px-2 sm:px-4 text-right text-sm font-normal text-muted-foreground"
               >
                 + Professional Tax:
@@ -202,9 +207,10 @@ export default function TaxSlabBreakdown({
               </td>
             </tr>
             <tr className="border-t-2 border-primary/30">
+              <td className="hidden sm:table-cell" />
               <th
                 scope="row"
-                colSpan={3}
+                colSpan={2}
                 className="py-4 px-2 sm:px-4 text-right text-base font-bold text-foreground"
               >
                 {isProjecting ? 'Total Estimated Tax:' : 'Total Tax Liability:'}

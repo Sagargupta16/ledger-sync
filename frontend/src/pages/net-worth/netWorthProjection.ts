@@ -43,7 +43,7 @@ export type MilestoneRow = Milestone & NetWorthMilestoneProgress
 export function formatMilestoneLabel(value: number): string {
   if (value >= 10_000_000) {
     const cr = value / 10_000_000
-    return `₹${Number.isInteger(cr) ? cr : Number(cr.toFixed(1))}Cr`
+    return `₹${Number.isInteger(cr) ? cr : Number(cr.toFixed(2))}Cr`
   }
   // Below ₹1L, thousands read more naturally than a fractional lakh (₹50k, not ₹0.5L).
   if (value < 100_000) {

@@ -170,6 +170,9 @@ export function cadenceLabel(row: MerchantRow): string {
   if (gap === null || gap <= 0 || row.transaction_count < 2) return 'One-off pattern'
   if (gap <= 2) return 'Almost daily'
   if (gap <= 10) return `Every ~${Math.round(gap)} days`
-  if (gap <= 45) return `Every ~${Math.round(gap / 7)} weeks`
+  if (gap <= 45) {
+    const weeks = Math.round(gap / 7)
+    return `Every ~${weeks} ${weeks === 1 ? 'week' : 'weeks'}`
+  }
   return `Every ~${Math.round(gap / 30)} months`
 }

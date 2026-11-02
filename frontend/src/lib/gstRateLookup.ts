@@ -134,6 +134,9 @@ function containsSequence(haystack: string[], needle: string[]): boolean {
   return false
 }
 
+/** Catch-all subcategory labels say nothing about the item bought. */
+const GENERIC_SUBCATEGORIES = new Set(['other', 'general', 'miscellaneous', 'misc'])
+
 /**
  * Get the GST rate for a transaction.
  * Tries subcategory first (more specific), then category, then default.
@@ -149,14 +152,16 @@ export function getGSTRate(
 ): number {
   const rates = customRates ?? (forDate ? getRateTableForDate(forDate).rates : DEFAULT_GST_RATES)
 
-  // Try subcategory first (e.g. "Rent" under "Housing" → 0%)
-  if (subcategory) {
+  const catRate = matchRate(category, rates)
+
+  // Try subcategory first (e.g. "Rent" under "Housing" → 0%), unless it is a
+  // catch-all ("Other") that would outrank the category's own rate.
+  if (subcategory && !(catRate !== null && GENERIC_SUBCATEGORIES.has(wordTokens(subcategory).join(' ')))) {
     const subRate = matchRate(subcategory, rates)
     if (subRate !== null) return subRate
   }
 
   // Fall back to category
-  const catRate = matchRate(category, rates)
   if (catRate !== null) return catRate
 
   return DEFAULT_UNMAPPED_RATE

@@ -5,6 +5,7 @@ import { Save, X } from 'lucide-react'
 
 import { Button, Input } from '@/components/ui'
 import { DISCLOSURE_TRANSITION } from '@/constants/animations'
+import { BASE_CURRENCY } from '@/constants/currencies'
 import { formatCurrencyCompact } from '@/lib/formatters'
 
 export default function UpdateProgressForm({
@@ -61,7 +62,7 @@ export default function UpdateProgressForm({
             <div className="flex-1">
               <Input
                 id={`allocation-${goalId}`}
-                label="Allocated amount"
+                label={`Allocated amount (${BASE_CURRENCY})`}
                 type="number"
                 inputMode="decimal"
                 min={0}

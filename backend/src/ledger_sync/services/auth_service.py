@@ -8,7 +8,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.admin_access import is_admin_email
@@ -28,6 +28,11 @@ from ledger_sync.services.auth_account_data import AccountDataMixin
 from ledger_sync.services.auth_refresh import RefreshRotationMixin
 
 logger = logging.getLogger("ledger_sync.auth")
+
+
+def _utc_iso(value: datetime) -> str:
+    """ISO 8601 with an explicit UTC offset; the timestamp columns store naive UTC."""
+    return value.replace(tzinfo=UTC).isoformat() if value.tzinfo is None else value.isoformat()
 
 
 class AuthService(RefreshRotationMixin, AccountDataMixin):
@@ -176,7 +181,7 @@ class AuthService(RefreshRotationMixin, AccountDataMixin):
         else:
             # New user — create account (OAuth-only, no password)
             user = User(
-                email=email,
+                email=email.lower(),
                 full_name=full_name,
                 is_verified=True,
                 auth_provider=provider,
@@ -223,8 +228,8 @@ class AuthService(RefreshRotationMixin, AccountDataMixin):
             is_active=user.is_active,
             is_verified=user.is_verified,
             auth_provider=user.auth_provider,
-            created_at=user.created_at.isoformat(),
-            last_login=user.last_login.isoformat() if user.last_login else None,
+            created_at=_utc_iso(user.created_at),
+            last_login=_utc_iso(user.last_login) if user.last_login else None,
             is_admin=is_admin_email(user.email),
         )
 
@@ -247,7 +252,15 @@ class AuthService(RefreshRotationMixin, AccountDataMixin):
 
     def _get_user_by_email(self, email: str) -> User | None:
         """Get user by email address."""
-        return self.session.execute(select(User).where(User.email == email)).scalar_one_or_none()
+        # Case-insensitive, oldest first: legacy rows may already hold the same
+        # address in two cases.
+        return (
+            self.session.execute(
+                select(User).where(func.lower(User.email) == email.lower()).order_by(User.id)
+            )
+            .scalars()
+            .first()
+        )
 
     def _resolve_oauth_user(self, email: str, provider: str, provider_id: str) -> User | None:
         """Find the provider identity or an unbound legacy account with the verified email."""

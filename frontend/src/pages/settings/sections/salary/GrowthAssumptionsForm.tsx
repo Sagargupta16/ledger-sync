@@ -58,7 +58,7 @@ export function GrowthAssumptionsForm({
             type="number"
             inputMode="decimal"
             min="1"
-            max="30"
+            max="5"
             step="1"
             value={growth.projection_years || ''}
             onChange={(e) => onUpdate('projection_years', e.target.value)}

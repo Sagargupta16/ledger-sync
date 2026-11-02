@@ -35,7 +35,6 @@ import {
   useMasterCategories,
   useMonthlyAggregation,
   useOverview,
-  useRecentTransactions,
   useTotals,
   useTrends,
 } from '@/hooks/api/useAnalytics'
@@ -66,7 +65,6 @@ interface Reader {
 const SEEDED_HOOKS: readonly string[] = [
   'usePreferences',
   'useTransactions',
-  'useRecentTransactions',
   'useTotals',
   'useMonthlyAggregation',
   'useAccountBalances',
@@ -104,8 +102,6 @@ const READERS: readonly Reader[] = [
   // `useTransactions()` with no filters -- the pages that still analyse the
   // whole ledger in the browser (the Dashboard reads /api/dashboard-metrics).
   { form: 'useTransactions()', use: () => useTransactions().data },
-  // useDashboardMetrics.ts keeps this warm for other pages.
-  { form: 'useRecentTransactions(5)', use: () => useRecentTransactions(5).data },
   // FIRECalculatorPage / useGoalsState call these with no args.
   { form: 'useTotals()', use: () => useTotals().data },
   { form: 'useMonthlyAggregation()', use: () => useMonthlyAggregation().data },

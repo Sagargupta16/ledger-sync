@@ -74,8 +74,6 @@ export const pushService = {
 
   /**
    * Drop this browser's row by its endpoint; an unknown endpoint is not an error.
-   * An axios timeout rather than an AbortSignal: the client merges a passed
-   * signal with `AbortSignal.any`, which iOS 16.4 to 17.3 lack.
    */
   forgetEndpoint: async (endpoint: string): Promise<void> => {
     await apiClient.post('/api/push/subscriptions/unsubscribe', { endpoint }, { timeout: FORGET_TIMEOUT_MS })

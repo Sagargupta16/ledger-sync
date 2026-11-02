@@ -12,7 +12,7 @@
 
 import { taxYearKey } from '@/lib/tax-config/taxYear'
 
-import { maskAisValue, maskPans, parseAisDate } from './aisFields'
+import { maskAisValue, maskPans, parseAisDate, sourceNameOf } from './aisFields'
 
 export type AisLevel = 'l1' | 'l2' | 'element'
 
@@ -126,6 +126,35 @@ function yearFromDates(rows: readonly AisRow[]): string | null {
   return best === null ? null : taxYearKey(best)
 }
 
+/** The one value a level's rows agree on; undefined when it has none or several, since a row cannot be matched to one payer. */
+function soleValue(values: Iterable<string | undefined>): string | undefined {
+  const found = new Set<string>()
+  for (const value of values) if (value) found.add(value)
+  return found.size === 1 ? [...found][0] : undefined
+}
+
+/**
+ * Only one table level carries the Information Source and code; the element's
+ * l1Src/l2Src is a source-system label, not the payer. A row without its own
+ * takes the other level's, so the payer rule and the TDS/TCS split see them.
+ */
+function inheritSource(rows: AisRow[]): void {
+  const named = new Map<AisLevel, { source?: string; code?: string }>()
+  for (const level of ['l1', 'l2'] as const) {
+    const ofLevel = rows.filter((row) => row.level === level)
+    named.set(level, {
+      source: soleValue(ofLevel.map((row) => sourceNameOf(row.fields))),
+      code: soleValue(ofLevel.map((row) => row.code)),
+    })
+  }
+  for (const row of rows) {
+    if (row.level === 'element') continue
+    const other = named.get(row.level === 'l1' ? 'l2' : 'l1')
+    if (other?.source && sourceNameOf(row.fields) === undefined) row.source = other.source
+    if (other?.code && row.code === undefined) row.code = other.code
+  }
+}
+
 /** Every row of one element, across its l1, l2 and element-level tables. Titles and codes are PAN-masked like cells. */
 function elementRows(sectionTitle: string, element: Record<string, unknown>, index: number): AisRow[] {
   const elementTitle = maskPans(cellText(element.title))
@@ -147,6 +176,7 @@ function elementRows(sectionTitle: string, element: Record<string, unknown>, ind
       })
     }
   }
+  inheritSource(out)
   return out
 }
 

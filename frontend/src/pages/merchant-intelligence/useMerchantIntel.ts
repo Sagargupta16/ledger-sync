@@ -56,10 +56,19 @@ interface UseMerchantIntelResult {
  * alternative -- re-requesting per filter -- would burn a round trip per toggle
  * for a payload this small, and `label_kind` is not even wired through the
  * shared query-key factory, so a server-side kind filter would collide in cache.
+ * "Recurring only" is the exception: the endpoint applies it before its limit,
+ * so a recurring payee outside the top 200 by spend only shows up in its own
+ * request (fetched alongside, so toggling never swaps the page for a skeleton).
  */
 export function useMerchantIntel(): UseMerchantIntelResult {
   const { data, isPending, isError, refetch } = useMerchantIntelligence({
     min_transactions: MIN_TRANSACTIONS,
+    limit: ROW_LIMIT,
+  })
+
+  const { data: recurringData } = useMerchantIntelligence({
+    min_transactions: MIN_TRANSACTIONS,
+    recurring_only: true,
     limit: ROW_LIMIT,
   })
 
@@ -70,16 +79,18 @@ export function useMerchantIntel(): UseMerchantIntelResult {
   const returned = useMemo<readonly MerchantRow[]>(() => data ?? [], [data])
   const usable = useMemo(() => usableMerchants(returned), [returned])
   const kindCounts = useMemo(() => countKinds(usable), [usable])
+  const recurringUsable = useMemo(() => usableMerchants(recurringData ?? []), [recurringData])
 
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return filterByKind(usable, kindFilter).filter((row) => {
+    const pool = recurringOnly && recurringData ? recurringUsable : usable
+    return filterByKind(pool, kindFilter).filter((row) => {
       if (recurringOnly && !row.is_recurring) return false
       if (needle.length === 0) return true
       if (row.merchant.toLowerCase().includes(needle)) return true
       return row.category.toLowerCase().includes(needle)
     })
-  }, [usable, kindFilter, recurringOnly, search])
+  }, [usable, recurringUsable, recurringData, kindFilter, recurringOnly, search])
 
   const stats = useMemo(() => computeStats(rows, PARETO_THRESHOLD), [rows])
   const spendByLabel = useMemo(() => toSpendByLabel(rows), [rows])
@@ -107,6 +118,6 @@ export function useMerchantIntel(): UseMerchantIntelResult {
     threshold: PARETO_THRESHOLD,
     unclassifiedCount: kindCounts.unclassified,
     returnedCount: returned.length,
-    atRowLimit: returned.length >= ROW_LIMIT,
+    atRowLimit: (recurringOnly && recurringData ? recurringData : returned).length >= ROW_LIMIT,
   }
 }

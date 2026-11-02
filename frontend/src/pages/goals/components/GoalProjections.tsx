@@ -56,7 +56,7 @@ export default function GoalProjections({
           {projection.deadlineState === 'due_soon' && (
             <span className="text-text-tertiary"> (due within a month)</span>
           )}
-          {projection.deadlineState === 'past_due' && (
+          {projection.deadlineState === 'past_due' && projection.status !== 'achieved' && (
             <span className="text-app-red"> (past due)</span>
           )}
         </span>
@@ -81,7 +81,7 @@ export default function GoalProjections({
         <span className="font-medium" style={{ color: projection.statusColor }}>
           {projection.statusLabel}
         </span>
-        {projection.monthsDelta != null && projection.monthsDelta !== 0 && projection.status !== 'achieved' && projection.status !== 'no_data' && (
+        {projection.deadlineState === 'scheduled' && projection.monthsDelta != null && projection.monthsDelta !== 0 && projection.status !== 'achieved' && projection.status !== 'no_data' && (
           <span className="text-text-tertiary">
             {projection.monthsDelta > 0
               ? `-- ${Math.round(projection.monthsDelta)} months ahead`

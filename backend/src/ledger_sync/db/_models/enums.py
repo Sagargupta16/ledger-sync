@@ -1,9 +1,10 @@
 """Enumeration types stored as string values in the database.
 
-NOTE: Enum string values here are stored directly in the database.
-Renaming any value requires a data migration. The mixed casing
-(PascalCase for TransactionType, snake_case for AnomalyType, etc.)
-is intentional legacy and must be preserved for backwards compatibility.
+NOTE: The database stores each member NAME (EXPENSE, HIGH_EXPENSE), not its
+string value, so renaming a member requires a data migration. The values are
+what the API and imports read and write; their mixed casing (PascalCase for
+TransactionType, snake_case for AnomalyType, etc.) is intentional legacy and
+must be preserved for backwards compatibility.
 """
 
 from enum import StrEnum as PyEnum

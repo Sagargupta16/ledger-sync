@@ -12,8 +12,10 @@ import ChartSeriesLegend from '@/components/ui/ChartSeriesLegend'
 import { chartDataTable } from '@/components/ui/chartDataTable'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import type { FanRow } from '@/lib/finance/monteCarlo'
-import { formatCurrencyShort, formatPercent } from '@/lib/formatters'
+import { formatCurrencyShort } from '@/lib/formatters'
 import { colors, rawColors } from '@/constants/colors'
+
+import { formatRunShare } from '../monteCarloFormat'
 
 interface MonteCarloFanChartProps {
   readonly fan: readonly FanRow[]
@@ -23,7 +25,6 @@ interface MonteCarloFanChartProps {
 /** Every plotted key, so the value axis spans the whole fan. */
 const SERIES: readonly SeriesSpec[] = [{ key: 'p10' }, { key: 'p25' }, { key: 'p50' }, { key: 'p75' }, { key: 'p90' }]
 
-const share = (value: number) => formatPercent(value * 100)
 const ageTick = (key: string) => key
 
 /** Percentile fan of the portfolio by age: the 10th to 90th and 25th to 75th bands with the median run. */
@@ -61,7 +62,7 @@ export default function MonteCarloFanChart({ fan, retireAge }: MonteCarloFanChar
             series={tooltip}
             formatLabel={(label) => `Age ${label}`}
             formatValue={formatCurrencyShort}
-            footer={(row) => `Out of money before this age: ${share(Number(row.depleted))}`}
+            footer={(row) => `Out of money before this age: ${formatRunShare(Number(row.depleted))}`}
           />
         )}
       >
@@ -90,7 +91,7 @@ export default function MonteCarloFanChart({ fan, retireAge }: MonteCarloFanChar
           { header: 'Median', value: (row) => formatCurrencyShort(row.p50) },
           { header: '75th percentile', value: (row) => formatCurrencyShort(row.p75) },
           { header: '90th percentile', value: (row) => formatCurrencyShort(row.p90) },
-          { header: 'Out of money before this age', value: (row) => share(row.depleted) },
+          { header: 'Out of money before this age', value: (row) => formatRunShare(row.depleted) },
         ],
         "Simulated portfolio by age in today's money. Estimates from assumptions, not a forecast.",
         (row) => String(row.age),

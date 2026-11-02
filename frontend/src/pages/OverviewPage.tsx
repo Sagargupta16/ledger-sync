@@ -25,6 +25,7 @@ import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { useBudgets, useGoals } from '@/hooks/api/useAnalyticsV2'
+import { budgetLabel } from '@/pages/budget/categoryBudgetUtils'
 
 /**
  * Overview -- the single "whole picture" page (IA audit item F).
@@ -41,8 +42,8 @@ export default function OverviewPage() {
   // so `void navigate(...)` below is an honest fire-and-forget, not a swallowed
   // rejection.
   const navigate = useNavigate()
-  // `isSummaryLoading`, not `isLoading`: nothing on this page reads the full
-  // ledger, so waiting for its ~2.9 MB download only delayed the first paint.
+  // `isSummaryLoading`: nothing on this page reads the full ledger, so it waits
+  // only for the summary reads, not the ~2.9 MB transactions download.
   const {
     filteredTotals, isSummaryLoading, isSettling, isError, retry,
     incomeChartData, expenseChartData,
@@ -205,14 +206,14 @@ export default function OverviewPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Where money goes / comes from */}
-          <section className="ledger-panel p-4 sm:p-5">
+          <section className="@container ledger-panel p-4 sm:p-5">
             <div className="mb-4">
               <h2 className="text-base font-semibold text-foreground">Category leaders</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 The largest income and spending sources in this period.
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
+            <div className="grid grid-cols-1 gap-5 @lg:grid-cols-2 @lg:gap-6">
               <div>
                 <h3 className="text-sm font-medium text-app-green mb-2">Top Income</h3>
                 <ul className="space-y-1.5">
@@ -260,21 +261,25 @@ export default function OverviewPage() {
             {atRiskBudgets.length > 0 ? (
               <div className="space-y-3">
                 {atRiskBudgets.map((b) => (
-                  <div key={b.category}>
+                  <div key={b.id}>
                     <div className="flex items-center justify-between gap-2 text-sm mb-1">
-                      <span className="truncate" title={b.category}>{b.category}</span>
+                      <span className="truncate" title={budgetLabel(b)}>{budgetLabel(b)}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">{formatPercent(b.usage_pct)}</span>
                     </div>
                     <ProgressBar
                       value={b.usage_pct} max={100}
                       color={b.usage_pct >= 100 ? colors.app.red : colors.app.orange}
-                      ariaLabel={`${b.category} budget ${formatPercent(b.usage_pct)} used`}
+                      ariaLabel={`${budgetLabel(b)} budget ${formatPercent(b.usage_pct)} used`}
                     />
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-text-tertiary">All budgets are on track.</p>
+              <p className="text-sm text-text-tertiary">
+                {budgets.length === 0
+                  ? 'No active budgets -- set one to start tracking.'
+                  : 'All budgets are on track.'}
+              </p>
             )}
           </button>
         </div>
@@ -301,7 +306,7 @@ export default function OverviewPage() {
           {activeGoals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {activeGoals.map((g) => (
-                <div key={g.name}>
+                <div key={g.id}>
                   <div className="mb-1 flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                     <span className="truncate" title={g.name}>{g.name}</span>
                     <span className="break-words text-xs tabular-nums text-muted-foreground sm:shrink-0 sm:text-sm">

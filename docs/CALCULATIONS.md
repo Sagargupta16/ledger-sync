@@ -1315,6 +1315,9 @@ When MAD is zero, the detector uses Tukey's upper fence:
 Q3 + 1.5 * IQR
 ```
 
+The month must also beat the median by at least 2 percent of it, so a negligible
+rise over a flat history is not flagged.
+
 ### Large individual expenses
 
 Each expense is compared with the median of earlier transactions in the same

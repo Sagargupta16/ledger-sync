@@ -28,7 +28,7 @@ function generateSavingsRateInsight(periodA: PeriodSummary, periodB: PeriodSumma
 
 function generateCategorySwingInsight(expenseDeltas: CategoryDelta[]): string | null {
   if (expenseDeltas.length === 0) return null
-  const biggest = expenseDeltas[0]
+  const biggest = expenseDeltas.reduce((top, d) => (Math.abs(d.changeAbs) > Math.abs(top.changeAbs) ? d : top))
   if (Math.abs(biggest.changeAbs) === 0) return null
   const direction = biggest.changeAbs > 0 ? 'increased' : 'decreased'
   return `"${biggest.category}" ${direction} the most: ${formatCurrency(Math.abs(biggest.changeAbs))} (${formatPercent(biggest.change, true)}).`

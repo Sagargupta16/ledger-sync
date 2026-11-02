@@ -21,7 +21,7 @@ _PRICING: dict[str, dict[str, tuple[float, float]]] = {
     "openai": {
         "o3": (2.00, 8.00),
         "o4-mini": (1.10, 4.40),
-        "gpt-4.1": (3.00, 12.00),
+        "gpt-4.1": (2.00, 8.00),
         "gpt-4.1-mini": (0.40, 1.60),
         "gpt-4.1-nano": (0.10, 0.40),
         "gpt-4o": (2.50, 10.00),
@@ -31,7 +31,10 @@ _PRICING: dict[str, dict[str, tuple[float, float]]] = {
         "claude-fable-5": (10.00, 50.00),
         "claude-opus-5-5": (4.00, 20.00),
         "claude-opus-5": (5.00, 25.00),
-        "claude-opus-4-7": (15.00, 75.00),
+        "claude-opus-4-8": (5.00, 25.00),
+        "claude-opus-4-7": (5.00, 25.00),
+        "claude-opus-4-6": (5.00, 25.00),
+        "claude-opus-4-5": (5.00, 25.00),
         "claude-opus-4": (15.00, 75.00),
         "claude-sonnet-5": (2.00, 10.00),
         "claude-sonnet-4": (3.00, 15.00),
@@ -62,6 +65,13 @@ _PRICING: dict[str, dict[str, tuple[float, float]]] = {
         "global.anthropic.claude-sonnet-4": (3.00, 15.00),
         "global.anthropic.claude-haiku-5": (0.10, 0.50),
         "global.anthropic.claude-haiku-4": (1.00, 5.00),
+        # Non-Anthropic picker models: AWS Price List (AmazonBedrock, us-east-1,
+        # on-demand, 2026-10-30). Their us. profiles carry no premium.
+        "us.amazon.nova-micro": (0.035, 0.14),
+        "us.amazon.nova-lite": (0.06, 0.24),
+        "us.amazon.nova-pro": (0.80, 3.20),
+        "us.meta.llama3-3-70b": (0.72, 0.72),
+        "us.deepseek.r1": (1.35, 5.40),
     },
 }
 

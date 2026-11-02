@@ -8,6 +8,8 @@ import {
 
 export { computeInvestmentMetrics } from '@/lib/finance/investmentReturns'
 
+const toPaise = (value: number) => Math.round(value * 100) / 100
+
 /** Format the shared monthly P&L series for the chart. */
 export function groupTransactionsByMonth(
   transactions: readonly (InvestmentReturnTransaction & { date: string })[],
@@ -15,9 +17,9 @@ export function groupTransactionsByMonth(
 ): Array<{ month: string; income: number; expenses: number; net: number; cumulative: number }> {
   return groupInvestmentReturnsByMonth(transactions, rules).map((row) => ({
     month: formatMonthKey(row.month, { month: 'short', year: '2-digit' }),
-    income: Math.round(row.income),
-    expenses: Math.round(row.expenses),
-    net: Math.round(row.net),
-    cumulative: Math.round(row.cumulative),
+    income: toPaise(row.income),
+    expenses: toPaise(row.expenses),
+    net: toPaise(row.net),
+    cumulative: toPaise(row.cumulative),
   }))
 }

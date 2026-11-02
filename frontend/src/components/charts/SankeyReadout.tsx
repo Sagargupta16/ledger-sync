@@ -21,7 +21,8 @@ import { FALLBACK, PAD, textSize, useSankeyModel, type SankeyFocus, type SankeyM
 const GAP = 10
 const INSET = 4
 const GLIDE = { visualDuration: CHART_MOTION.hover, bounce: 0.15 }
-const LAYER = 'pointer-events-none absolute left-0 top-0 z-20 w-max max-w-[min(280px,calc(100%_-_8px))]'
+// `chart-tooltip` is the print stylesheet's hook (overrides.css hides it on paper).
+const LAYER = 'chart-tooltip pointer-events-none absolute left-0 top-0 z-20 w-max max-w-[min(280px,calc(100%_-_8px))]'
 const BOX = 'rounded-[12px] border border-[var(--chart-tooltip-border)] bg-[var(--chart-tooltip-bg)] px-3.5 py-3 text-xs leading-normal tabular-nums text-[color:var(--chart-text-primary)] shadow-[0_4px_8px_-4px_rgba(0,0,0,0.4),0_16px_32px_-12px_rgba(0,0,0,0.4)]'
 
 export interface SankeyReadoutProps extends SankeyModelOptions {

@@ -38,19 +38,6 @@ export interface Transaction {
   tags?: string[]
 }
 
-/**
- * Local account-type slugs, re-exported from their single declaration in
- * `@/constants/accountTypes`. This file used to declare a competing, narrower
- * union, which made the two nominally incompatible.
- *
- * Note this is the CLIENT-side slug vocabulary, not the wire vocabulary. Backend
- * `AccountType` enum VALUES ('Cash', 'Bank Accounts', 'Credit Cards', ...) live
- * in `ACCOUNT_TYPE_VALUES` / `AccountTypeValue` in
- * `@/services/api/accountClassifications`. Use that one for anything that
- * compares against, or sends, an API value.
- */
-export type { AccountType } from '@/constants/accountTypes'
-
 // Time range for analytics
 // Values must match backend TimeRange enum (ledger_sync.core.time_filter)
 export type TimeRange =

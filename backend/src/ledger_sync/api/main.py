@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -75,28 +75,15 @@ APP_VERSION = __version__
 setup_logging(settings.log_level)
 
 
-async def _buffer_upload_body(receive: Receive, limit: int) -> tuple[list[Message], int] | None:
-    """Buffer a bounded upload, returning None if the client disconnects."""
-    messages: list[Message] = []
-    size = 0
-    while True:
-        message = await receive()
-        if message["type"] == "http.disconnect":
-            return None
-        size += len(message.get("body", b""))
-        if size > limit:
-            break
-        messages.append(message)
-        if not message.get("more_body", False):
-            break
-    return messages, size
-
-
 _BOUNDED_UPLOAD_PATHS = frozenset({"/api/upload", "/api/upload/money-manager"})
 
 
 class UploadSizeLimitMiddleware:
-    """Bound upload bodies, including chunked requests, before JSON or backup parsing."""
+    """Bound upload bodies, including chunked requests, as the route reads them.
+
+    Nothing is read here. The routes read the body only after they authenticate
+    the caller, so an anonymous request costs no body read and no parse.
+    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -111,36 +98,31 @@ class UploadSizeLimitMiddleware:
             return
 
         limit = settings.max_upload_size_bytes
-        messages: list[Message] = []
-        size = 0
+        too_large = f"Upload exceeds the {limit // (1024 * 1024)} MB size limit."
         for name, value in scope.get("headers", []):
             if name.lower() == b"content-length":
                 try:
-                    size = int(value)
+                    declared = int(value)
                 except ValueError:
                     response = JSONResponse(
                         status_code=400, content={"detail": "Invalid body size"}
                     )
                     await response(scope, receive, send)
                     return
-        if size <= limit:
-            body = await _buffer_upload_body(receive, limit)
-            if body is None:
-                return
-            messages, size = body
-        if size > limit:
-            response = JSONResponse(
-                status_code=413,
-                content={"detail": f"Upload exceeds the {limit // (1024 * 1024)} MB size limit."},
-            )
-            await response(scope, receive, send)
-            return
+                if declared > limit:
+                    response = JSONResponse(status_code=413, content={"detail": too_large})
+                    await response(scope, receive, send)
+                    return
 
-        buffered = iter(messages)
+        received = 0
 
         async def bounded_receive() -> Message:
-            message = next(buffered, None)
-            return message if message is not None else await receive()
+            nonlocal received
+            message = await receive()
+            received += len(message.get("body", b""))
+            if received > limit:
+                raise HTTPException(status_code=413, detail=too_large)
+            return message
 
         await self.app(scope, bounded_receive, send)
 
@@ -384,8 +366,9 @@ async def health() -> HealthResponse:
 
 
 @app.get("/health/db", response_model=None)
-def health_db() -> dict[str, str] | JSONResponse:
-    """Database connectivity check."""
+@limiter.limit("30/minute")
+def health_db(request: Request) -> dict[str, str] | JSONResponse:  # request: required by slowapi
+    """Database connectivity check; unauthenticated for the deploy wait and keepalive."""
     from sqlalchemy import text
 
     try:

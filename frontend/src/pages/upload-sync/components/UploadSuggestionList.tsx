@@ -2,6 +2,8 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui'
 
+import { formatCount } from '../moneyManagerUtils'
+
 import UploadSuggestionRow from './UploadSuggestionRow'
 import type { SuggestedRow } from './useUploadCategorySuggestions'
 
@@ -27,7 +29,7 @@ export default function UploadSuggestionList({ suggested }: UploadSuggestionList
       </ul>
       {remaining > 0 && (
         <Button variant="ghost" size="sm" onClick={() => setVisible((count) => count + PAGE)}>
-          Show {Math.min(PAGE, remaining)} more ({remaining.toLocaleString()} left)
+          Show {Math.min(PAGE, remaining)} more ({formatCount(remaining)} left)
         </Button>
       )}
       <p className="text-xs leading-5 text-muted-foreground">

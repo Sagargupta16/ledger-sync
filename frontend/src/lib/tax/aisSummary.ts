@@ -53,7 +53,7 @@ const NOT_INCOME_SECTIONS = new Set(['194N'])
 export function payerKey(name: string): string {
   return name
     .toUpperCase()
-    .replaceAll(/\([^)]*\)/g, ' ')
+    .replaceAll(/\([^()]*\)/g, ' ')
     .replaceAll(/\b[A-Z]{4}\d{5}[A-Z]\b/g, ' ')
     .replaceAll(/[^A-Z0-9 ]/g, ' ')
     .replaceAll(/\b(LIMITED|LTD|PVT|PRIVATE|THE|CO|COMPANY|INC)\b/g, ' ')

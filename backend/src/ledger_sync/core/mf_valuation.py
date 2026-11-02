@@ -184,21 +184,47 @@ def _folio_base(folio: str | None) -> str:
     return "".join((folio or "").split()).split("/")[0]
 
 
+def _is_newer(candidate: Position, other: Position) -> bool:
+    """The candidate's statement is dated later than the other's and shows other units."""
+    return (
+        candidate.units != other.units
+        and candidate.statement_nav_date is not None
+        and other.statement_nav_date is not None
+        and candidate.statement_nav_date > other.statement_nav_date
+    )
+
+
 def drop_duplicates(positions: Sequence[Position]) -> list[Position]:
-    """Drop a depository row that repeats a CAMS/KFintech folio and ISIN.
+    """Drop one of two rows that repeat a CAMS/KFintech folio and ISIN.
 
     An NSDL or CDSL CAS also lists folios held with the registrars, so importing
     both kinds of statement would count those units twice. The registrar's row
-    wins: it carries the transactions.
+    wins: it carries the transactions. Only a depository statement dated later
+    than the registrar's, with different units, wins instead: valuing the scheme
+    with the older units would misstate it.
     """
     registrar = {
-        (_folio_base(p.folio), p.isin) for p in positions if p.source in RTA_SOURCES and p.isin
+        (_folio_base(p.folio), p.isin): p for p in positions if p.source in RTA_SOURCES and p.isin
     }
-    return [
-        p
+    depository = {
+        (_folio_base(p.folio), p.isin): p
         for p in positions
-        if p.source in RTA_SOURCES or not p.folio or (_folio_base(p.folio), p.isin) not in registrar
-    ]
+        if p.source not in RTA_SOURCES and p.folio and p.isin
+    }
+
+    def keep(p: Position) -> bool:
+        if not p.isin:
+            return True
+        key = (_folio_base(p.folio), p.isin)
+        if p.source in RTA_SOURCES:
+            newer = depository.get(key)
+            return newer is None or not _is_newer(newer, p)
+        if not p.folio:
+            return True
+        older = registrar.get(key)
+        return older is None or _is_newer(p, older)
+
+    return [p for p in positions if keep(p)]
 
 
 def summarise(valuations: Sequence[Valuation]) -> Summary:

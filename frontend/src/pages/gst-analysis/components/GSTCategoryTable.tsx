@@ -44,7 +44,7 @@ export default function GSTCategoryTable({ data }: Readonly<Props>) {
       <DataTable<GSTCategoryBreakdown>
         columns={columns}
         rows={data.categoryBreakdown}
-        rowKey={(category) => category.category}
+        rowKey={(category) => `${category.parentCategory}/${category.category}`}
         initialSort={{ key: 'gstAmount', dir: 'desc' }}
         ariaLabel="GST estimated per category"
         mobileCards
@@ -133,8 +133,6 @@ function buildColumns(maxSpending: number): DataTableColumn<GSTCategoryBreakdown
       header: 'Txns',
       align: 'right',
       sortable: true,
-      widthClass: 'hidden sm:table-cell',
-      cellClassName: () => 'hidden sm:table-cell',
       cell: (category) => (
         <span className="text-muted-foreground">{category.transactionCount}</span>
       ),

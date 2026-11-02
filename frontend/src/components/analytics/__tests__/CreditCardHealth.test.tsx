@@ -13,6 +13,7 @@ import CreditCardHealth from '../CreditCardHealth'
 vi.mock('@/services/api/accountClassifications', () => ({
   accountClassificationsService: {
     getAllClassifications: () => Promise.resolve({}),
+    getClosedAccounts: () => Promise.resolve([]),
   },
 }))
 
@@ -71,7 +72,8 @@ async function renderCard(
   usePreferencesStore.setState({ creditCardLimits: limits })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   qc.setQueryData(['calculations', 'account-balances', undefined], balancePayload(balances))
-  qc.setQueryData(['account-classifications'], classify(balances))
+  qc.setQueryData(['account-classifications', 'all'], classify(balances))
+  qc.setQueryData(['account-classifications', 'closed'], [])
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
@@ -132,7 +134,8 @@ describe('CreditCardHealth denominator', () => {
       .spyOn(calculationsApi, 'getAccountBalances')
       .mockRejectedValue(new Error('balances unavailable'))
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    qc.setQueryData(['account-classifications'], classify(NET_BALANCES))
+    qc.setQueryData(['account-classifications', 'all'], classify(NET_BALANCES))
+    qc.setQueryData(['account-classifications', 'closed'], [])
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>

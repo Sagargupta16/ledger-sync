@@ -16,8 +16,10 @@ type Props = CanvasChartProps & { readonly spec: ChartSpec }
 /** Bars print their change only while wide enough for it. */
 const LABEL_MIN_BAND = 30
 
-function WaterfallBars({ spec, semantic, palette, ticks }: Props) {
+function WaterfallBars({ spec, semantic, palette, format, ticks }: Props) {
   const { width, height, isMobile, animate, entered } = useChartFrame()
+  // A percent change keeps its decimals; the compact tick form rounds 12.5 to 13.
+  const changeText = spec.valueFormat === 'percent' ? format : ticks
   const steps = waterfallSteps(spec)
   const margin = { top: 18, right: 12, bottom: 30, left: isMobile ? 48 : 60 }
   const levels = steps.flatMap((step) => [step.start, step.end])
@@ -59,7 +61,7 @@ function WaterfallBars({ spec, semantic, palette, ticks }: Props) {
               animate={entered ? { y: top, height: barHeight } : { y: y(step.start), height: 0 }}
               transition={chartTransition('bar', animate, staggerDelay(index, steps.length))}
             >
-              <title>{`${step.label}: ${signed(step, ticks(step.change))}`}</title>
+              <title>{`${step.label}: ${signed(step, changeText(step.change))}`}</title>
             </motion.rect>
             {x.bandwidth >= LABEL_MIN_BAND && (
               <text
@@ -69,7 +71,7 @@ function WaterfallBars({ spec, semantic, palette, ticks }: Props) {
                 fontSize={font}
                 className="fill-(--chart-text-secondary) font-mono"
               >
-                {signed(step, ticks(step.change))}
+                {signed(step, changeText(step.change))}
               </text>
             )}
           </g>

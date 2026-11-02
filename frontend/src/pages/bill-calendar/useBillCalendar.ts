@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { useCardCycles } from '@/hooks/api/useCardCycles'
-import { getTodayKey, MS_PER_DAY } from '@/lib/dateUtils'
+import { getTodayKey, MS_PER_DAY, parseLocalDate } from '@/lib/dateUtils'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { buildBillMap, findNextUpcomingBill, getBillDaysForMonth, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
 import { appendBills, buildCardBillMap } from './cardBills'
@@ -36,7 +36,9 @@ export function useBillCalendar() {
   // Only a calendar with no bill yet waits for cards, so it never flashes empty.
   const isLoading = recurringQuery.isLoading || (cardQuery.isLoading && acceptedBills.length === 0)
 
-  const now = useMemo(() => new Date(), [])
+  // The ledger day (IST) at local midnight, so the today ring, countdowns and the
+  // Today button use the same day as `asOfDateKey` in any browser timezone.
+  const now = useMemo(() => parseLocalDate(asOfDateKey), [asOfDateKey])
   const [viewYear, setViewYear] = useState(() => now.getFullYear())
   const [viewMonth, setViewMonth] = useState(() => now.getMonth())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
@@ -62,23 +64,27 @@ export function useBillCalendar() {
   }
 
   const goToToday = () => {
-    // Read a fresh date at click time -- `now` is captured at mount and would
-    // be stale if the tab has been open across a day boundary.
-    const today = new Date()
+    // Read the ledger day at click time -- `now` only moves on a rerender and
+    // would be stale if the tab has been open across a day boundary.
+    const today = parseLocalDate(getTodayKey())
     setSelectedDay(null)
     setViewYear(today.getFullYear())
     setViewMonth(today.getMonth())
   }
 
-  const billMap = useMemo(
-    () => appendBills(
+  const billMapForMonth = useCallback(
+    (year: number, month: number) => appendBills(
       appendBills(
-        buildBillMap(acceptedBills, viewYear, viewMonth, asOfDateKey),
-        buildCardBillMap(cards ?? [], viewYear, viewMonth),
+        buildBillMap(acceptedBills, year, month, asOfDateKey),
+        buildCardBillMap(cards ?? [], year, month),
       ),
-      buildAdvanceTaxMap(viewYear, viewMonth),
+      buildAdvanceTaxMap(year, month),
     ),
-    [acceptedBills, cards, viewYear, viewMonth, asOfDateKey],
+    [acceptedBills, cards, asOfDateKey],
+  )
+  const billMap = useMemo(
+    () => billMapForMonth(viewYear, viewMonth),
+    [billMapForMonth, viewYear, viewMonth],
   )
   const unscheduledBills = useMemo(
     () => acceptedBills.filter((item) => !Array.from({ length: 12 }, (_, month) => month)
@@ -144,19 +150,20 @@ export function useBillCalendar() {
     // larger than every recurring bill draws at the largest size. In a month with
     // no recurring bill, card entries scale among themselves.
     const maxBillAmount = maxRecurring > 0 ? maxRecurring : maxCard
-    const nextBill = findNextUpcomingBill(billMap, viewYear, viewMonth, now)
+    const upcoming = findNextUpcomingBill(billMap, viewYear, viewMonth, now, billMapForMonth)
+    const nextBill = upcoming?.bill ?? null
 
     // Whole-day countdown to the next bill, measured at local midnight so
     // partial days don't skew "in N days". Null when nothing is upcoming.
     let nextBillDaysUntil: number | null = null
-    if (nextBill) {
+    if (upcoming) {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const due = new Date(viewYear, viewMonth, nextBill.day)
+      const due = new Date(upcoming.year, upcoming.month, upcoming.bill.day)
       nextBillDaysUntil = Math.round((due.getTime() - today.getTime()) / MS_PER_DAY)
     }
 
     return { totalDue, billCount, nextBill, nextBillDaysUntil, maxBillAmount }
-  }, [billMap, viewYear, viewMonth, now])
+  }, [billMap, billMapForMonth, viewYear, viewMonth, now])
 
   const selectedDayBills = useMemo<PlacedBill[]>(() => {
     if (selectedDay === null) return []

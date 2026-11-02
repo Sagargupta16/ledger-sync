@@ -15,7 +15,8 @@ export interface Notification {
   type: NotificationType
   title: string
   message: string
-  timestamp: string
+  /** Absent when the item has no event time (a live budget reading, a due date). */
+  timestamp?: string
   severity: 'low' | 'medium' | 'high'
   meta?: Record<string, unknown>
 }
@@ -99,7 +100,6 @@ function getSeverityFromPct(pct: number): Notification['severity'] {
 function getAnomalyLabel(anomalyType: string, amount: string): string {
   if (anomalyType === 'high_expense') return `Unusual ${amount} expense`
   if (anomalyType === 'large_transfer') return `Large ${amount} transfer detected`
-  if (anomalyType === 'budget_exceeded') return 'Budget exceeded'
   return 'Unusual activity'
 }
 
@@ -122,8 +122,14 @@ export function getSeverityColor(severity: Notification['severity']): string {
   return colors.app.yellow
 }
 
+/** The API sends naive UTC stamps; without a zone suffix `new Date` reads them as local time. */
+function parseApiTimestamp(value: string): Date {
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/i.test(value)
+  return new Date(value.includes('T') && !hasZone ? `${value}Z` : value)
+}
+
 export function relativeTime(dateStr: string): string {
-  const date = new Date(dateStr)
+  const date = parseApiTimestamp(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMin = Math.floor(diffMs / 60_000)
@@ -149,15 +155,16 @@ export function budgetNotifications(budgets: Budget[], todayKey: string = getTod
     .map((b) => {
       const pct = Math.round(b.usage_pct)
       const severity: Notification['severity'] = getSeverityFromPct(pct)
+      const exceeded = pct >= BUDGET_EXCEEDED_PCT
       return {
-        id: `budget-${b.id}-${period}`,
+        // The level in the ID keeps dismissing the warning from hiding the
+        // exceeded alert that follows it in the same month.
+        id: `budget-${b.id}-${period}${exceeded ? '-exceeded' : ''}`,
         type: 'budget',
         title: 'Budget Alert',
-        message:
-          pct >= BUDGET_EXCEEDED_PCT
-            ? `${b.category} budget exceeded (${pct}% used)`
-            : `${b.category} budget ${pct}% used`,
-        timestamp: new Date().toISOString(),
+        message: exceeded
+          ? `${b.category} budget exceeded (${pct}% used)`
+          : `${b.category} budget ${pct}% used`,
         severity,
         meta: {
           category: b.category,
@@ -171,7 +178,9 @@ export function budgetNotifications(budgets: Budget[], todayKey: string = getTod
 
 export function anomalyNotifications(anomalies: Anomaly[]): Notification[] {
   return anomalies
-    .filter((a) => !a.is_dismissed && !a.is_reviewed)
+    // Every over-limit budget is already a budget alert (thresholds top out at
+    // 100), so its budget_exceeded anomaly would list and count it twice.
+    .filter((a) => !a.is_dismissed && !a.is_reviewed && a.anomaly_type !== 'budget_exceeded')
     .map((a) => {
       const amount = a.actual_value
         ? formatCurrencyCompact(a.actual_value)
@@ -203,7 +212,6 @@ export function upcomingNotifications(
       type: 'upcoming',
       title: 'Upcoming Payment',
       message: getDueMessage(r.name, amount, days),
-      timestamp: r.next_expected ?? '',
       severity: getSeverityFromDays(days),
       meta: { category: r.category, amount: r.expected_amount },
     })

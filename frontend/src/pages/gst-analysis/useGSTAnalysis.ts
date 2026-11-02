@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { getDateKey, getTodayKey } from '@/lib/dateUtils'
+import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { computeGSTAnalysis, getExpenseFYs } from '@/lib/gstCalculator'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 
@@ -12,18 +14,30 @@ export function useGSTAnalysis() {
     preferencesQuery.data?.fiscal_year_start_month ?? FY_START_MONTH
   const [selectedFY, setSelectedFY] = useState<string | null>(null)
 
+  const lossCategories = preferencesQuery.data?.capital_loss_categories
+  const lossConfig = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
+  // GST is paid on purchases that have happened: a classified realised loss bought
+  // nothing, and a row dated after today is not spending yet.
+  const purchases = useMemo(() => {
+    if (!transactionsQuery.data) return undefined
+    const today = getTodayKey()
+    return transactionsQuery.data.filter(
+      (tx) => tx.type !== 'Expense' || (getDateKey(tx.date) <= today && !isCapitalLoss(tx, lossConfig)),
+    )
+  }, [transactionsQuery.data, lossConfig])
+
   const allFYs = useMemo(
-    () => getExpenseFYs(transactionsQuery.data ?? [], fiscalYearStartMonth),
-    [transactionsQuery.data, fiscalYearStartMonth],
+    () => getExpenseFYs(purchases ?? [], fiscalYearStartMonth),
+    [purchases, fiscalYearStartMonth],
   )
   const effectiveFY = selectedFY ?? allFYs[0] ?? ''
 
   const gstData = useMemo(
     () =>
-      transactionsQuery.data && effectiveFY
-        ? computeGSTAnalysis(transactionsQuery.data, effectiveFY, fiscalYearStartMonth)
+      purchases && effectiveFY
+        ? computeGSTAnalysis(purchases, effectiveFY, fiscalYearStartMonth)
         : null,
-    [transactionsQuery.data, effectiveFY, fiscalYearStartMonth],
+    [purchases, effectiveFY, fiscalYearStartMonth],
   )
 
   const taxableSlabs = useMemo(

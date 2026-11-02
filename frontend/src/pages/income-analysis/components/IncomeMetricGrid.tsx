@@ -37,6 +37,10 @@ export default function IncomeMetricGrid({
   let growthColor: 'green' | 'red' | 'blue' = 'blue'
   if (growthRate !== undefined && growthRate > 0) growthColor = 'green'
   else if (growthRate !== undefined && growthRate < 0) growthColor = 'red'
+  // With two or more months the rate is only absent when the first month earned nothing.
+  const growthUnavailableNote = incomeSeries.length >= 2
+    ? 'First month had no income to compare against'
+    : 'Needs two completed months'
 
   return (
     <motion.dl
@@ -64,7 +68,7 @@ export default function IncomeMetricGrid({
           {growthRate === undefined ? '--' : formatPercent(growthRate, true)}
         </dd>
         <dd className="mt-2 text-xs text-muted-foreground">
-          {growthRate === undefined ? 'Needs two completed months' : 'First vs latest month'}
+          {growthRate === undefined ? growthUnavailableNote : 'First vs latest month'}
         </dd>
         {growthRate !== undefined && incomeSeries.length >= 2 && (
           <dd className="mt-2 max-w-40">

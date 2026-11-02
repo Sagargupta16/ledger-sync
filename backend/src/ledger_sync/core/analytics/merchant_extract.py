@@ -32,14 +32,18 @@ _XL_ARTIFACT = re.compile(r"_x000d_", re.IGNORECASE)
 # deliberately in the character class -- dropping it would stop stripping the
 # quantity prefix on those notes -- so RUF001's homoglyph warning is expected.
 _QTY_PREFIX = re.compile(r"^\d+\s*[*x×]\s*", re.IGNORECASE)  # noqa: RUF001
-# Trailing month/year tokens so "Rent Mar 2026" and "Rent Apr 2026" merge.
+# Trailing month/year tokens so "Rent Mar 2026" and "Rent Apr 2026" merge. The
+# month must be a whole word ("D-Mart", "Decathlon" and "Supermarket" keep their
+# names). The trailers do not start with a separator run, which backtracks
+# quadratically on a note of separators; clean_note trims what they leave behind.
 _MONTH_TRAILER = re.compile(
-    r"[\s\-,]*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*"
+    r"(?<![a-z0-9])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?"
+    r"|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
     r"[\s\-,']*(\d{2,4})?$",
     re.IGNORECASE,
 )
-_DATE_TRAILER = re.compile(r"[\s\-,]*\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$")
-_FY_TRAILER = re.compile(r"[\s\-,]*(fy\s?\d{2,4}(-\d{2,4})?|q[1-4]\s*fy\s?\d{2,4})$", re.IGNORECASE)
+_DATE_TRAILER = re.compile(r"\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$")
+_FY_TRAILER = re.compile(r"(fy\s?\d{2,4}(-\d{2,4})?|q[1-4]\s*fy\s?\d{2,4})$", re.IGNORECASE)
 
 #: Notes that are placeholders, not merchants. These must never become a
 #: merchant row -- the real ledger has 408 rows literally reading "Unknown",
@@ -178,7 +182,7 @@ def clean_note(note: str | None) -> str | None:
     text = " ".join(text.split())
     text = _QTY_PREFIX.sub("", text)
     for trailer in (_FY_TRAILER, _MONTH_TRAILER, _DATE_TRAILER):
-        text = trailer.sub("", text)
+        text = trailer.sub("", text).rstrip(" -,")
     text = text.strip(" -,;:/|")
     return text or None
 

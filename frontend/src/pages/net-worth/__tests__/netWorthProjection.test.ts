@@ -244,7 +244,7 @@ describe('formatMilestoneLabel', () => {
     expect(formatMilestoneLabel(500_000)).toBe('₹5L')
     expect(formatMilestoneLabel(2_500_000)).toBe('₹25L')
     expect(formatMilestoneLabel(10_000_000)).toBe('₹1Cr')
-    expect(formatMilestoneLabel(12_500_000)).toBe('₹1.3Cr')
+    expect(formatMilestoneLabel(12_500_000)).toBe('₹1.25Cr')
     expect(formatMilestoneLabel(100_000_000)).toBe('₹10Cr')
   })
 })

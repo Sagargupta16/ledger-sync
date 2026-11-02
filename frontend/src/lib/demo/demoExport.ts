@@ -1,5 +1,6 @@
 import type { Transaction } from '@/types'
 
+import { sortDemoTransactions } from './demoComputedReads'
 import { filterDemoTransactions } from './demoTxFilters'
 
 /**
@@ -57,7 +58,7 @@ function generateDemoExportCsv(
   txs: Transaction[],
   params: Record<string, unknown> = {},
 ): string {
-  const rows = filterDemoTransactions(txs, params)
+  const rows = sortDemoTransactions(filterDemoTransactions(txs, params), params)
   const lines = [csvRow(DEMO_EXPORT_COLUMNS)]
   for (const t of rows) {
     // The backend column is a DateTime, so `isoformat()` carries a time part.

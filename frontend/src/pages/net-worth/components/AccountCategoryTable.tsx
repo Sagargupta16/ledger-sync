@@ -105,6 +105,15 @@ export function AccountCategoryTable({
 
   const hasAccounts = Object.keys(accounts).some((name) => filterFn(accounts[name].balance))
 
+  // Sorting by balance orders the categories by their total and the accounts
+  // within each, so a category's rows stay together under a single header.
+  const categoryBalance: Record<string, number> = {}
+  for (const [name, { balance }] of Object.entries(accounts)) {
+    if (!filterFn(balance) || Math.abs(balance) < 0.01) continue
+    const category = getAccountType(name)
+    categoryBalance[category] = (categoryBalance[category] ?? 0) + Math.abs(balance)
+  }
+
   if (!hasAccounts) {
     return (
       <EmptyState
@@ -175,12 +184,17 @@ export function AccountCategoryTable({
                   filterFn(accountData.balance) && Math.abs(accountData.balance) >= 0.01,
               )
               .sort((a, b) => {
+                const catA = getAccountType(a[0])
+                const catB = getAccountType(b[0])
                 if (sortKey === 'balance') {
+                  if (catA !== catB) {
+                    const catCmp = categoryBalance[catA] - categoryBalance[catB]
+                    if (catCmp === 0) return catA.localeCompare(catB)
+                    return sortDir === 'asc' ? catCmp : -catCmp
+                  }
                   const cmp = Math.abs(a[1].balance) - Math.abs(b[1].balance)
                   return sortDir === 'asc' ? cmp : -cmp
                 }
-                const catA = getAccountType(a[0])
-                const catB = getAccountType(b[0])
                 if (catA !== catB) return catA.localeCompare(catB)
                 return Math.abs(b[1].balance) - Math.abs(a[1].balance)
               })

@@ -10,9 +10,9 @@ function calendarYears(firstYear: number | null, currentYear: number): number[] 
 }
 
 /**
- * Page state for Foreign Assets: the lot ledger loads first (database only),
- * then Schedule FA for the chosen calendar year and the FAST-DS valuation,
- * which both wait on market data.
+ * Page state for Foreign Assets: the lot ledger and the FAST-DS valuation load
+ * together (each reads the holdings itself and waits on market data), then
+ * Schedule FA for the chosen calendar year, which needs the ledger's years.
  */
 export function useForeignAssets() {
   const isDemoMode = useDemoStore((state) => state.isDemoMode)
@@ -28,7 +28,7 @@ export function useForeignAssets() {
   const year = pickedYear != null && years.includes(pickedYear) ? pickedYear : defaultYear
   const hasLots = (lots.data?.lots.length ?? 0) > 0
   const schedule = useScheduleFa(hasLots ? year : null)
-  const fastDs = useFastDs(hasLots)
+  const fastDs = useFastDs()
 
   return { isDemoMode, lots, years, year, setYear, hasLots, schedule, fastDs }
 }

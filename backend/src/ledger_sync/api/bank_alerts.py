@@ -16,7 +16,7 @@ would delete a hand-added row, so the unused quick-add route
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession, require_token_scope
 from ledger_sync.api.rate_limit import _upload_key_func, limiter
@@ -42,6 +42,7 @@ router = APIRouter(prefix="/api/bank-alerts", tags=["bank-alerts"])
 ingest_router = APIRouter(prefix="/api/ingest", tags=["bank-alerts"])
 
 IngestUser = Annotated[User, Depends(require_token_scope("alerts:ingest"))]
+AlertId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
 _NOT_AN_ALERT = (
     "This text does not read as a completed debit or credit with an INR amount and an "
@@ -140,7 +141,7 @@ def get_bank_alerts(
 
 @router.patch("/{alert_id}", responses={404: {"description": "No such alert"}})
 def patch_bank_alert(
-    alert_id: int,
+    alert_id: AlertId,
     payload: BankAlertUpdate,
     current_user: CurrentUser,
     db: DatabaseSession,

@@ -23,7 +23,7 @@ import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
  * looking at a wrong total has no reason to go looking for a diagnostics page.
  */
 export default function StaleAnalyticsAlert() {
-  const { data } = useDataHealthQuery()
+  const { data, isError } = useDataHealthQuery()
   const [dismissed, setDismissed] = useState(false)
   const location = useLocation()
 
@@ -36,9 +36,12 @@ export default function StaleAnalyticsAlert() {
   // reported", which must not render a warning about a condition nobody checked.
   const isStale = data?.rollups_stale === true
 
+  // A failed check says nothing about freshness, so it gets its own warning instead of silence.
+  const checkFailed = isError && !isStale
+
   return (
     <AnimatePresence>
-      {isStale && !dismissed && !onDataHealthPage && (
+      {(isStale || checkFailed) && !dismissed && !onDataHealthPage && (
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -49,8 +52,19 @@ export default function StaleAnalyticsAlert() {
         >
           <TriangleAlert className="size-4 shrink-0 text-app-red" aria-hidden />
           <p className="min-w-0 flex-1 text-xs leading-5 text-foreground">
-            <span className="font-medium">These figures are out of date.</span> Your last import did
-            not finish recomputing, so every page is showing the previous import&apos;s numbers.
+            {isStale ? (
+              <>
+                <span className="font-medium">These figures are out of date.</span> Your last import
+                did not finish recomputing, so every page is showing the previous import&apos;s
+                numbers.
+              </>
+            ) : (
+              <>
+                <span className="font-medium">Could not check whether these figures are current.</span>{' '}
+                The data health request failed, so the numbers on screen may be from a previous
+                import.
+              </>
+            )}
           </p>
           <Link
             to={ROUTES.DATA_HEALTH}
@@ -62,7 +76,7 @@ export default function StaleAnalyticsAlert() {
             */
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-app-red/50 px-2.5 text-xs font-medium text-app-red transition-colors duration-150 hover:bg-app-red/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8"
           >
-            Fix this
+            {isStale ? 'Fix this' : 'Check'}
           </Link>
           {/*
             Dismiss is component-local state, not persisted. The condition is

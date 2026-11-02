@@ -1,3 +1,3 @@
 """Ledger Sync - Production-ready Excel ingestion and reconciliation engine."""
 
-__version__ = "2.34.1"
+__version__ = "2.35.0"

@@ -280,6 +280,8 @@ interface DailyCashFlow {
   date: string
   income: number
   expense: number
+  /** The server's running total, seeded with the window's opening balance. */
+  net_worth?: number
 }
 
 /**
@@ -289,18 +291,21 @@ interface DailyCashFlow {
  *
  * `days` is the all-time `/daily-net-worth` series: one entry per day with any
  * row (transfers included at zero), every Expense row counted, excluded
- * accounts already removed, so the running total starts from zero.
+ * accounts already removed. The running total starts from the opening balance
+ * the first day's `net_worth` carries (zero for an all-time request and for
+ * rows without that field).
  */
 export function computeNetWorthTimeSeries(
   days: readonly DailyCashFlow[],
   allCategories: readonly string[],
   categoryProportions: Readonly<Record<string, number>>,
 ): Array<Record<string, number | string>> {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date))
+  const first = sorted[0]
   let cumulativeIncome = 0
   let cumulativeExpenses = 0
-  let netWorth = 0
-  return [...days]
-    .sort((a, b) => a.date.localeCompare(b.date))
+  let netWorth = first?.net_worth === undefined ? 0 : first.net_worth - (first.income - first.expense)
+  return sorted
     .map(({ date, income, expense }) => {
       cumulativeIncome += income
       cumulativeExpenses += expense

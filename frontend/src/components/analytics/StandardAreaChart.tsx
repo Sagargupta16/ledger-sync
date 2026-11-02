@@ -68,6 +68,8 @@ interface StandardAreaChartProps {
   readonly tooltipFormatter?: (value: number) => string
   readonly tooltipLabelFormatter?: (label: string) => string
   readonly xTickFormatter?: (value: string) => string
+  /** Value-axis labels (default compact currency). */
+  readonly yTickFormatter?: (value: number) => string
   readonly xAngle?: number
   readonly referenceLines?: ReferenceLineConfig[]
   readonly stacked?: boolean
@@ -96,6 +98,7 @@ export default function StandardAreaChart({
   tooltipFormatter,
   tooltipLabelFormatter,
   xTickFormatter,
+  yTickFormatter,
   xAngle,
   referenceLines,
   stacked = false,
@@ -190,7 +193,7 @@ export default function StandardAreaChart({
         <Grid />
         <Crosshair />
         {/* A caller's own y=0 line replaces the axis' automatic zero line. */}
-        <ValueAxis zeroLine={!referenceLines?.some((ref) => ref.y === 0)} />
+        <ValueAxis tickFormatter={yTickFormatter} zeroLine={!referenceLines?.some((ref) => ref.y === 0)} />
         <CategoryAxis tickFormatter={formatTick} angle={xAngle} interval="preserveStartEnd" />
         {/* Each series keeps its index, so its entrance timing never shifts with what is hidden. */}
         {areas.map((area, index) => (hidden.has(area.key) ? null : (

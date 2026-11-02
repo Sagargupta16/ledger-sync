@@ -63,6 +63,10 @@ _LARGE_TXN_MATERIALITY_FRACTION = 0.01
 # Rolling month window for the high-expense-month baseline.
 _MONTH_BASELINE_WINDOW = 12
 
+# With a zero MAD the Tukey fence can sit on the median itself, so a month must
+# also beat the median by this share of it before it counts as a spike.
+_MONTH_MATERIALITY = 0.02
+
 # Minimum months of history before a month can be judged (matches
 # _LARGE_TXN_MIN_HISTORY so both detectors share the same warmup notion).
 _MONTH_BASELINE_MIN_HISTORY = 5
@@ -173,7 +177,7 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
     ) -> str | None:
         """Return "high" / "medium" if the month is anomalous, else None."""
         if use_iqr:
-            if iqr_fence is None or total <= iqr_fence:
+            if iqr_fence is None or total <= max(iqr_fence, med * (1 + _MONTH_MATERIALITY)):
                 return None
             return "high" if total > med * 2.5 else "medium"
         m_z = _MZ_CONSTANT * (total - med) / mad

@@ -13,6 +13,7 @@ export function generateDemoCohortSpending(txs: Transaction[]): CohortSpendingDa
   const build = (
     keyOf: (d: Date) => number,
     domain: number[],
+    occurrenceOf: (date: string) => string = (date) => date,
   ): { bucket: number; total: number; occurrences: number; avg: number }[] => {
     const totals = new Map<number, number>()
     const days = new Map<number, Set<string>>()
@@ -21,7 +22,7 @@ export function generateDemoCohortSpending(txs: Transaction[]): CohortSpendingDa
       const k = keyOf(d)
       totals.set(k, (totals.get(k) ?? 0) + t.amount)
       if (!days.has(k)) days.set(k, new Set())
-      days.get(k)?.add(t.date)
+      days.get(k)?.add(occurrenceOf(t.date))
     }
     return domain
       .filter((b) => totals.has(b))
@@ -40,6 +41,7 @@ export function generateDemoCohortSpending(txs: Transaction[]): CohortSpendingDa
     month_of_year: build(
       (d) => d.getMonth() + 1,
       Array.from({ length: 12 }, (_, i) => i + 1),
+      (date) => date.slice(0, 4),
     ),
   }
 }

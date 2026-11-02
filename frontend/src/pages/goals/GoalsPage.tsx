@@ -209,6 +209,7 @@ function GoalsContent() {
               onSaveDetails={state.handleSaveDetails}
               onCancelEdit={state.handleCancelEdit}
               onDelete={state.handleDeleteGoal}
+              onDeleteClose={state.clearDeleteError}
             />
           ))}
         </div>

@@ -82,6 +82,9 @@ export const useAuthStore = create<AuthState>()(
 
       // Logout action
       logout: () => {
+        // Persisting the logged-out state overwrites the shared entry, so put
+        // back a different account's sign-in that another tab stored meanwhile.
+        const otherAccount = otherAccountEntry(get().user)
         set({
           user: null,
           accessToken: null,
@@ -89,6 +92,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         })
+        if (otherAccount) localStorage.setItem(AUTH_STORAGE_KEY, otherAccount)
       },
 
       // Update user
@@ -131,6 +135,17 @@ function tokenExpiry(token: string | null | undefined): number {
     return typeof exp === 'number' ? exp : 0
   } catch {
     return 0
+  }
+}
+
+/** The raw stored entry when it holds a signed-in account other than `user`. */
+function otherAccountEntry(user: User | null): string | null {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    const persisted = (JSON.parse(raw ?? 'null') as { state?: PersistedAuth } | null)?.state
+    return raw && persisted?.accessToken && persisted.user && persisted.user.id !== user?.id ? raw : null
+  } catch {
+    return null
   }
 }
 

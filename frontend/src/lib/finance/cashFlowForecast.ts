@@ -1,4 +1,4 @@
-import { addMonthsToMonthKey, dropPartialMonth } from '@/lib/dateUtils'
+import { addMonthsToMonthKey, dropPartialMonth, getCurrentMonth } from '@/lib/dateUtils'
 
 export interface MonthlyCashFlow {
   readonly income: number
@@ -182,7 +182,14 @@ export function buildCashFlowForecast(
   const months = Object.entries(monthlyData)
     .map(([month, data]) => observedMonth(month, data))
     .sort((a, b) => a.month.localeCompare(b.month))
-  const completeMonths = dropPartialMonth(months, 'month', now)
+  // dropPartialMonth keeps a future month (it reports it not partial), which would
+  // then be the "last complete" month the projection starts after.
+  const currentMonth = getCurrentMonth(now)
+  const completeMonths = dropPartialMonth(
+    months.filter((month) => month.month.slice(0, 7) <= currentMonth),
+    'month',
+    now,
+  )
   if (completeMonths.length < CASH_FLOW_FORECAST_ASSUMPTIONS.minimumCompleteMonths) return null
   const lastComplete = completeMonths.at(-1)
   if (!lastComplete) return null

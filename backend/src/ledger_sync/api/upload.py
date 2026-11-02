@@ -8,10 +8,13 @@ stay in sync with the raw transactions. The explicit POST
 /api/analytics/v2/refresh endpoint remains available for manual re-syncs.
 """
 
+import secrets
 from datetime import UTC
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import desc, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
@@ -32,12 +35,41 @@ from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
 
+# The body is validated by hand once the caller is authenticated (FastAPI reads and
+# parses a declared body before it checks credentials), so FastAPI cannot document it.
+_UPLOAD_BODY_SCHEMA_REF = (
+    "#/paths/~1api~1upload/post/requestBody/content/application~1json/schema/$defs/{model}"
+)
+_UPLOAD_BODY = {
+    "required": True,
+    "content": {
+        "application/json": {
+            "schema": TransactionUploadRequest.model_json_schema(
+                ref_template=_UPLOAD_BODY_SCHEMA_REF
+            )
+        }
+    },
+}
+
+
+def _read_snapshot(body: bytes) -> TransactionUploadRequest:
+    """Validate the JSON body, failing with the 422 shape FastAPI gives a declared body."""
+    try:
+        return TransactionUploadRequest.model_validate_json(body)
+    except ValidationError as e:
+        errors = [
+            {**error, "loc": ("body", *error["loc"])} for error in e.errors(include_url=False)
+        ]
+        raise RequestValidationError(errors) from e
+
+
 # Register both bounds on the same limiter so SlowAPI checks both keys.
 # The wider IP limit accommodates accounts sharing a carrier or office network.
 
 
 @router.post(
     "/api/upload",
+    openapi_extra={"requestBody": _UPLOAD_BODY},
     responses={
         400: {"description": "Data format issue"},
         409: {"description": "File already imported"},
@@ -50,8 +82,7 @@ router = APIRouter(prefix="", tags=["upload"])
 @limiter.limit("10/minute", key_func=_user_key_func)
 @limiter.limit("50/minute")
 async def upload_transactions(
-    request: Request,  # required by slowapi
-    payload: TransactionUploadRequest,
+    request: Request,  # required by slowapi; carries the JSON body
     current_user: CurrentUser,
     db: DatabaseSession,
 ) -> UploadResponse:
@@ -65,7 +96,7 @@ async def upload_transactions(
     succeeds and the user can re-run POST /api/analytics/v2/refresh.
 
     Args:
-        payload: JSON body with file_name, file_hash, rows, and force flag.
+        request: Request whose JSON body holds file_name, file_hash, rows, and force flag.
         current_user: Authenticated user.
         db: Database session.
 
@@ -76,6 +107,7 @@ async def upload_transactions(
         HTTPException: If upload fails.
 
     """
+    payload = _read_snapshot(await request.body())
     try:
         return await run_in_threadpool(process_upload, db, current_user.id, payload)
 
@@ -91,10 +123,11 @@ async def upload_transactions(
         ) from e
 
     except (OSError, RuntimeError, SQLAlchemyError) as e:
-        logger.error("Upload processing failed (%s)", type(e).__name__)
+        error_id = secrets.token_hex(8)
+        logger.error("Upload processing failed [%s]: %s", error_id, type(e).__name__, exc_info=e)
         raise HTTPException(
             status_code=500,
-            detail="Failed to process data. Please try again.",
+            detail=f"Failed to process data. Please try again. (error id {error_id})",
         ) from e
 
 

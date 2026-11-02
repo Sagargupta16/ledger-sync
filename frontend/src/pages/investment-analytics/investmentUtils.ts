@@ -126,8 +126,9 @@ function categoryTotalsFor(
 
 /**
  * Build the forward-filled daily investment-value series for the stacked
- * growth chart: one point per calendar day between the first and last
- * investment transaction, each carrying a per-category total.
+ * growth chart: one point per calendar day from the first investment
+ * transaction to the last, or to `through` when that is later (balances carry
+ * forward), each carrying a per-category total.
  *
  * Extracted from `useInvestmentAnalytics` so the running-balance rules are
  * testable without mounting the hook's three queries. The per-account half of
@@ -138,6 +139,7 @@ export function buildDailyGrowthSeries(
   transactions: readonly GrowthTransaction[],
   investmentAccounts: readonly string[],
   accountToCategory: Record<string, InvestmentCategory>,
+  through?: string,
 ): GrowthPoint[] {
   const isInvestment = investmentAccountTest(investmentAccounts)
   const investmentTransactions = selectInvestmentTransactions(transactions, isInvestment)
@@ -152,7 +154,8 @@ export function buildDailyGrowthSeries(
 
   const days = [...snapshotMap.keys()]
   const firstDay = days[0]
-  const lastDay = days.at(-1) as string
+  const lastSnapshotDay = days.at(-1) as string
+  const lastDay = through && through > lastSnapshotDay ? through : lastSnapshotDay
 
   const lastKnown: Record<string, number> = {}
   for (const acc of investmentAccounts) lastKnown[acc] = 0

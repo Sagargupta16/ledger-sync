@@ -40,9 +40,12 @@ class MarketData:
     warnings: list[str] = field(default_factory=list)
 
     def currency(self, symbol: str) -> str:
-        """The quote currency, assumed USD when the prices could not be loaded."""
+        """The quote currency, or "" when the prices could not be loaded.
+
+        Never guessed: a rupee-quoted stock would be converted at a dollar rate.
+        """
         found = self.history.get(symbol)
-        return found.currency if found else "USD"
+        return found.currency if found else ""
 
     def name(self, symbol: str) -> str:
         found = self.history.get(symbol)
@@ -75,7 +78,7 @@ def _tickers(starts: Mapping[str, date], warnings: list[str]) -> dict[str, date]
 
 
 def _foreign(market: MarketData, symbols: Iterable[str]) -> list[str]:
-    return sorted({market.currency(symbol) for symbol in symbols} - {"INR"})
+    return sorted({market.currency(symbol) for symbol in symbols} - {"INR", ""})
 
 
 async def _gather(

@@ -47,16 +47,24 @@ class PushKeys(BaseModel):
         return value.rstrip("=")
 
 
+def _no_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("Text cannot contain a NUL character.")
+    return value
+
+
 class PushSubscriptionCreate(BaseModel):
     endpoint: str = Field(min_length=1, max_length=ENDPOINT_MAX_LENGTH)
     keys: PushKeys
     # Shown in the device list, e.g. "iPhone app" or "Chrome on Android".
     label: str = Field(min_length=1, max_length=60)
 
+    _endpoint_has_no_nul = field_validator("endpoint")(_no_nul)
+
     @field_validator("label")
     @classmethod
     def _single_line(cls, value: str) -> str:
-        label = " ".join(value.split())
+        label = " ".join(_no_nul(value).split())
         if not label:
             raise ValueError("label must not be blank")
         return label
@@ -64,6 +72,8 @@ class PushSubscriptionCreate(BaseModel):
 
 class PushEndpoint(BaseModel):
     endpoint: str = Field(min_length=1, max_length=ENDPOINT_MAX_LENGTH)
+
+    _endpoint_has_no_nul = field_validator("endpoint")(_no_nul)
 
 
 class PushTestRequest(BaseModel):

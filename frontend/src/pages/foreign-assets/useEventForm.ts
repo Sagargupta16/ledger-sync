@@ -44,13 +44,14 @@ function amount(raw: string, allowZero = false): number | null | undefined {
 }
 
 function findProblem(fields: EventFields, values: Array<number | null | undefined>, rateDate: string): string | null {
-  const [quantity, gross, withheld] = values
+  const [quantity, gross, withheld, rate] = values
   const isSale = fields.kind === 'sale'
   if (!fields.date) return 'Enter the date.'
   if (fields.date > getTodayKey()) return 'The date cannot be in the future.'
   if (isSale && !fields.lotId) return 'Pick the vest the shares came from.'
   if (!isSale && !fields.symbol) return 'Pick the stock that paid the dividend.'
-  if (values.includes(undefined)) return 'Amounts must be positive numbers.'
+  const shown = isSale ? [quantity, gross, rate] : [gross, withheld, rate]
+  if (shown.includes(undefined)) return 'Amounts must be positive numbers.'
   if (isSale && quantity == null) return 'Enter the number of shares sold.'
   if (gross == null) return isSale ? 'Enter the sale proceeds.' : 'Enter the gross dividend.'
   if (!isSale && withheld != null && withheld > gross) return 'Tax withheld cannot exceed the gross dividend.'

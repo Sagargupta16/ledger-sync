@@ -56,9 +56,7 @@ export default function YearHeatmapSection({
         label: MONTHS_SHORT[selectedMonth],
         expense: review.stats.monthlyExpense[selectedMonth] ?? 0,
         income: review.stats.monthlyIncome[selectedMonth] ?? 0,
-        net:
-          (review.stats.monthlyIncome[selectedMonth] ?? 0) -
-          (review.stats.monthlyExpense[selectedMonth] ?? 0),
+        net: review.stats.monthlyNet[selectedMonth] ?? 0,
       }
 
   return (
@@ -155,6 +153,7 @@ export default function YearHeatmapSection({
         mode={review.mode}
         monthlyExpense={review.stats.monthlyExpense}
         monthlyIncome={review.stats.monthlyIncome}
+        monthlyNet={review.stats.monthlyNet}
         selectedMonth={selectedMonth}
         onSelectMonth={controls.selectMonth}
       />

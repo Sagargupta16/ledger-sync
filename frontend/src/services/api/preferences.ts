@@ -123,81 +123,17 @@ export interface UserPreferences {
 // Partial update type
 export type UserPreferencesUpdate = Partial<Omit<UserPreferences, 'id' | 'created_at' | 'updated_at'>>
 
-// Section-specific update types
-export interface FiscalYearConfig {
-  fiscal_year_start_month: number
-}
-
-export interface EssentialCategoriesConfig {
-  essential_categories: string[]
-}
-
-export interface InvestmentMappingsConfig {
-  investment_account_mappings: Record<string, string>
-}
-
-export interface IncomeSourcesConfig {
-  taxable_income_categories: string[]
-  investment_returns_categories: string[]
-  non_taxable_income_categories: string[]
-  other_income_categories: string[]
-}
-
+// Section-specific update types. Settings saves every section through
+// `updatePreferences`; only the sections with their own mutation hook keep a body type.
 /** Body of `PUT /api/preferences/capital-loss-categories` (backend `CapitalLossConfig`). */
 export interface CapitalLossConfig {
   capital_loss_categories: string[]
-}
-
-export interface BudgetDefaultsConfig {
-  default_budget_alert_threshold: number
-  auto_create_budgets: boolean
-  budget_rollover_enabled: boolean
-}
-
-export interface DisplayPreferencesConfig {
-  number_format: 'indian' | 'international'
-  currency_symbol: string
-  currency_symbol_position: 'before' | 'after'
-  default_time_range: string
-  display_currency: string
 }
 
 export interface AnomalySettingsConfig {
   anomaly_expense_threshold: number
   anomaly_types_enabled: string[]
   auto_dismiss_recurring_anomalies: boolean
-}
-
-export interface RecurringSettingsConfig {
-  recurring_min_confidence: number
-  recurring_auto_confirm_occurrences: number
-}
-
-export interface SpendingRuleConfig {
-  needs_target_percent: number
-  wants_target_percent: number
-  savings_target_percent: number
-}
-
-export interface CreditCardLimitsConfig {
-  credit_card_limits: Record<string, number>
-}
-
-export interface EarningStartDateConfig {
-  earning_start_date: string | null
-  use_earning_start_date: boolean
-}
-
-export interface SalaryStructureConfig {
-  salary_structure: Record<string, SalaryComponents>
-}
-
-export interface RsuGrantsConfig {
-  rsu_grants: RsuGrant[]
-}
-
-export interface GrowthAssumptionsConfig {
-  growth_assumptions: GrowthAssumptions
 }
 
 /**
@@ -269,22 +205,9 @@ export const preferencesService = {
   },
 
   // Section-specific endpoints for granular updates
-  updateFiscalYear: createSectionUpdater<FiscalYearConfig>('fiscal-year'),
-  updateEssentialCategories: createSectionUpdater<EssentialCategoriesConfig>('essential-categories'),
-  updateInvestmentMappings: createSectionUpdater<InvestmentMappingsConfig>('investment-mappings'),
-  updateIncomeSources: createSectionUpdater<IncomeSourcesConfig>('income-sources'),
   /** Replaces the whole classified set; send every key that should stay classified. */
   updateCapitalLossCategories: createSectionUpdater<CapitalLossConfig>('capital-loss-categories'),
-  updateBudgetDefaults: createSectionUpdater<BudgetDefaultsConfig>('budget-defaults'),
-  updateDisplayPreferences: createSectionUpdater<DisplayPreferencesConfig>('display'),
   updateAnomalySettings: createSectionUpdater<AnomalySettingsConfig>('anomaly-settings'),
-  updateRecurringSettings: createSectionUpdater<RecurringSettingsConfig>('recurring-settings'),
-  updateSpendingRule: createSectionUpdater<SpendingRuleConfig>('spending-rule'),
-  updateCreditCardLimits: createSectionUpdater<CreditCardLimitsConfig>('credit-card-limits'),
-  updateEarningStartDate: createSectionUpdater<EarningStartDateConfig>('earning-start-date'),
-  updateSalaryStructure: createSectionUpdater<SalaryStructureConfig>('salary-structure'),
-  updateRsuGrants: createSectionUpdater<RsuGrantsConfig>('rsu-grants'),
-  updateGrowthAssumptions: createSectionUpdater<GrowthAssumptionsConfig>('growth-assumptions'),
 
   async getStockPrice(
     symbol: string,

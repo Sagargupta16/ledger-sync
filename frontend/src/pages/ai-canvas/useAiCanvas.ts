@@ -58,13 +58,14 @@ export function useAiCanvas(): AiCanvas {
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
 
   // Same query and key as ChatWidget, so the two share one cached config.
-  const { data: aiConfig } = useQuery({
+  const { data: aiConfig, refetch: refetchConfig } = useQuery({
     queryKey: ['ai-config'],
     queryFn: () => aiConfigService.getConfig(),
     enabled: !!accessToken && !isDemoMode,
     staleTime: Infinity,
   })
   const mode = aiConfig?.mode ?? 'app_bedrock'
+  const [configMissing, setConfigMissing] = useState(false)
 
   // The authenticated layout is keyed by identity, so the key cannot change under this page.
   const storageKey = canvasStorageKey(userId)
@@ -122,6 +123,9 @@ export function useAiCanvas(): AiCanvas {
     chatOptions,
   )
 
+  // Leaving the page ends the request instead of letting its remaining rounds run unseen.
+  useEffect(() => stop, [stop])
+
   const { begin, finish } = progress
   useEffect(() => {
     if (!isStreaming) finish()
@@ -131,11 +135,18 @@ export function useAiCanvas(): AiCanvas {
     (prompt: string) => {
       if (isStreaming) return
       promptRef.current = prompt
+      // An unknown mode would send a BYOK user's request to the app-funded model.
+      if (!aiConfig) {
+        setConfigMissing(true)
+        void refetchConfig()
+        return
+      }
+      setConfigMissing(false)
       sourcesRef.current = []
       begin()
       send(prompt)
     },
-    [isStreaming, send, begin],
+    [isStreaming, aiConfig, refetchConfig, send, begin],
   )
   const retry = useCallback(() => {
     if (promptRef.current) ask(promptRef.current)
@@ -154,7 +165,7 @@ export function useAiCanvas(): AiCanvas {
     charts,
     messages,
     isStreaming,
-    error,
+    error: error ?? (configMissing ? 'Your AI settings have not loaded, so nothing was sent. Try again.' : null),
     steps: progress.steps,
     startedAt: progress.startedAt,
     ask,

@@ -9,6 +9,11 @@ import {
   tierFromScore,
 } from './healthScoreTypes'
 
+// The tier comes from the rounded score the card shows, so a shown 80 is never "coping".
+function displayScore(score: number): number {
+  return Math.round(clamp(score, 0, 100))
+}
+
 // SPEND 1: Spend less than income
 export function scoreSpendLessThanIncome(
   data: AnalysisResult,
@@ -24,9 +29,9 @@ export function scoreSpendLessThanIncome(
 
   return {
     name: 'Spend Less Than Income',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'spend',
     description: rate >= 0 ? `${formatPercent(rate)} savings rate` : `${formatPercent(Math.abs(rate))} deficit`,
     target: `>= ${target}%`,
@@ -52,9 +57,9 @@ export function scoreEssentialRatio(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Essential Expense Ratio',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'spend',
     description: `${formatPercent(ratio, false, 0)} of income on essentials`,
     target: `<= ${target}%`,
@@ -85,9 +90,9 @@ export function scoreEmergencyFund(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Emergency Fund',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'save',
     description: `${months.toFixed(1)} months of expenses (liquid)`,
     target: `>= ${target} months`,
@@ -121,9 +126,9 @@ export function scoreInvestment(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Investment Regularity',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'save',
     description: ratio >= 0 ? `${formatPercent(ratio)} of income invested` : 'Net withdrawal',
     target: `>= ${target}%`,
@@ -155,9 +160,9 @@ export function scoreDebtToIncome(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Debt-to-Income',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'borrow',
     description: desc,
     target: `<= ${maxDti}%`,
@@ -177,7 +182,8 @@ export function scoreDebtTrend(data: AnalysisResult): HealthMetric {
   let score: number
   if (trend <= -20) score = 95
   else if (trend <= -5) score = 80 + ((Math.abs(trend) - 5) / 15) * 15
-  else if (trend <= 5) score = 70 + ((5 - Math.abs(trend)) / 5) * 9
+  else if (trend <= 0) score = 79 + Math.abs(trend) / 5
+  else if (trend <= 5) score = 70 + ((5 - trend) / 5) * 9
   else if (trend <= 20) score = 40 + ((20 - trend) / 15) * 29
   else score = clamp(40 - (trend - 20) * 1.5, 0, 39)
 
@@ -191,9 +197,9 @@ export function scoreDebtTrend(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Debt Trend',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'borrow',
     description: desc,
     target: 'Declining or zero',
@@ -217,9 +223,9 @@ export function scoreSavingsConsistency(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Savings Consistency',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'plan',
     description: `${Math.round(ratio * 100)}% months with positive savings`,
     target: `>= ${HEALTH_SCORE_RUBRIC.savingsConsistencyPct}% months`,
@@ -261,9 +267,9 @@ export function scoreIncomeStability(data: AnalysisResult): HealthMetric {
 
   return {
     name: 'Income Stability',
-    score: Math.round(clamp(score, 0, 100)),
+    score: displayScore(score),
     weight: 12.5,
-    status: tierFromScore(score),
+    status: tierFromScore(displayScore(score)),
     pillar: 'plan',
     description: desc,
     target: `CV <= ${stableMax}%`,

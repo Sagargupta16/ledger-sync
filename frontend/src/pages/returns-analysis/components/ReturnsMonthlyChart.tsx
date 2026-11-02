@@ -94,6 +94,8 @@ export default function ReturnsMonthlyChart({
   )
   const latest = data.at(-1)
   const periodNet = latest?.cumulative ?? 0
+  // The grouping makes a row for every month with any transaction, so rows alone do not mean activity.
+  const isEmpty = data.every((row) => row.income === 0 && row.expenses === 0)
 
   return (
     <ChartSection
@@ -103,7 +105,7 @@ export default function ReturnsMonthlyChart({
       description="Monthly profit and loss, with the running total for your selected period."
       descriptionClassName="text-pretty"
     >
-      {data.length === 0 ? (
+      {isEmpty ? (
         <ChartEmptyState
           height={280}
           message="No realised investment activity in the selected period"

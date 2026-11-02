@@ -86,13 +86,18 @@ export default function MobileFlowView({
     )
   }
 
-  const incomeMax = incomeByCategory[0]?.amount ?? 0
-  const expenseMax = expenseByCategory[0]?.amount ?? 0
+  // The folded Other bucket is the last entry and can outgrow the first.
+  const incomeMax = incomeByCategory.reduce((m, e) => Math.max(m, e.amount), 0)
+  const expenseMax = expenseByCategory.reduce((m, e) => Math.max(m, e.amount), 0)
   const savingsShare = totalIncome > 0 ? Math.max(netSavings, 0) / totalIncome : 0
   const expenseShare = totalIncome > 0 ? totalExpense / totalIncome : 0
-  const taxDrill = view.meta[view.nodes.findLastIndex((node) => node.name === 'Tax')]?.drill
+  // The expense categories are the trailing nodes; looking for the Tax and Realised
+  // losses branches before them keeps a category of the same name from winning.
+  const branchNodes = view.nodes.slice(0, view.nodes.length - expenseByCategory.length)
+  const branchMeta = (name: string) => view.meta[branchNodes.findLastIndex((node) => node.name === name)]
+  const taxDrill = branchMeta('Tax')?.drill
   // Same branch as the desktop Sankey, so the phone allocation reconciles too.
-  const capitalLosses = view.meta[view.nodes.findLastIndex((node) => node.name === 'Realised losses')]?.value ?? 0
+  const capitalLosses = branchMeta('Realised losses')?.value ?? 0
 
   return (
     <motion.div

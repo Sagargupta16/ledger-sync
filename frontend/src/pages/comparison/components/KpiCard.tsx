@@ -1,6 +1,6 @@
-import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { pctChange } from '../utils'
+import { ChangeIcon } from './ChangeIcon'
 
 interface KpiCardProps {
   title: string
@@ -29,12 +29,6 @@ export function KpiCard({
   }
   const fmtVal = (v: number) => (isPercent ? formatPercent(v) : formatCurrency(v))
 
-  const changeIndicator = (() => {
-    if (isFlat) return <Minus className="w-3.5 h-3.5 text-muted-foreground" />
-    if (isPositive) return <ArrowUpRight className="w-3.5 h-3.5" />
-    return <ArrowDownRight className="w-3.5 h-3.5" />
-  })()
-
   return (
     <div className="min-w-0">
       <p className="ledger-meta mb-2" style={{ color }}>{title}</p>
@@ -51,7 +45,7 @@ export function KpiCard({
         <span>{labelA}:</span> <span className="font-mono tabular-nums">{fmtVal(valueA)}</span>
       </div>
       <div className={`flex items-center gap-1 font-mono text-sm font-medium tabular-nums ${changeColorClass}`}>
-        {changeIndicator}
+        <ChangeIcon change={change} />
         <span>
           {change > 0 ? '+' : ''}{change.toFixed(1)}{isPercent ? ' pts' : '%'}
         </span>

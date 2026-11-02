@@ -89,6 +89,8 @@ export default function ProgressBar({
   // The first fill grows over CHART_MOTION.bar; once it has, value changes tween quickly.
   const [grown, setGrown] = useState(false)
   const moving = !reduced && !printing
+  // A caller-set width (`w-16`) replaces the full-width default; both classes would tie on specificity.
+  const widthClass = /(^|\s)w-/.test(className) ? '' : 'w-full '
   const shown = !moving || inView || !HAS_OBSERVER
 
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0
@@ -116,7 +118,7 @@ export default function ProgressBar({
       <div
         ref={ref}
         aria-hidden
-        className={`relative w-full rounded-full overflow-hidden bg-[var(--overlay-3)] ${className}`}
+        className={`relative ${widthClass}rounded-full overflow-hidden bg-[var(--overlay-3)] ${className}`}
         style={{ height }}
       >
         {/* Qualitative bands (bullet graph background); a new scale glides them with the fill. */}

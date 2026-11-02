@@ -21,7 +21,7 @@ export default function CurrencySwitcher() {
   const setDisplayCurrency = usePreferencesStore((s) => s.setDisplayCurrency)
   const updatePreferences = useUpdatePreferences()
   // Shares AppLayout's query (same key), so this adds no request.
-  const { ratedCodes, isLoading: ratesLoading } = useExchangeRate()
+  const { ratedCodes, isLoading: ratesLoading, isFallback, isStale } = useExchangeRate()
 
   // Offer only what the served rates can actually price, plus the base currency.
   // Listing the whole `CURRENCIES` catalogue is what let a user pick AED, which
@@ -74,6 +74,16 @@ export default function CurrencySwitcher() {
     return `${hours}h ago`
   }, [exchangeRateUpdatedAt, currentTime])
 
+  // The feed is down: `fallback` is the built-in table, `stale` the last cached
+  // payload. Either way the rate is not live, so the pill must not read as live.
+  let rateNote: string | null = null
+  if (isFallback) rateNote = 'approx.'
+  else if (isStale) rateNote = 'stale'
+  let rateTitle = timeAgo ? `Rate updated ${timeAgo}` : 'Exchange rate'
+  if (rateNote) {
+    rateTitle = `Live rates are unavailable; this ${rateNote} rate is dated ${exchangeRateUpdatedAt?.slice(0, 10) ?? 'unknown'}`
+  }
+
   // Inverse rate for display (e.g., "1 USD = 92.68 INR")
   const inverseRate = exchangeRate && exchangeRate > 0 ? (1 / exchangeRate).toFixed(2) : null
 
@@ -123,13 +133,17 @@ export default function CurrencySwitcher() {
       {/* Rate indicator pill */}
       {isConverted && exchangeRate && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full bg-app-blue/10 text-[10px] text-app-blue whitespace-nowrap"
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-full text-[10px] whitespace-nowrap',
+            rateNote ? 'bg-warning/10 text-warning' : 'bg-app-blue/10 text-app-blue',
+          )}
           // The age shows only in this tooltip, so read the clock when the
           // pointer arrives instead of re-rendering the switcher every minute.
           onPointerEnter={() => setCurrentTime(Date.now())}
-          title={timeAgo ? `Rate updated ${timeAgo}` : 'Exchange rate'}
+          title={rateTitle}
         >
           1 {displayCurrency} = {BASE_CURRENCY} {inverseRate}
+          {rateNote && ` (${rateNote})`}
         </div>
       )}
 

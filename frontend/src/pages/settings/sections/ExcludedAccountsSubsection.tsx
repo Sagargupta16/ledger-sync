@@ -24,6 +24,12 @@ export default function ExcludedAccountsSubsection({
     )
   }
 
+  // The balances endpoint omits excluded accounts, so a saved exclusion drops out
+  // of `accounts`; union it in or the account could never be re-included.
+  const allNames = [...new Set([...accounts, ...excludedAccounts])].sort((a, b) =>
+    a.localeCompare(b),
+  )
+
   return (
     <div className="pt-4 border-t border-border space-y-3">
       <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -38,11 +44,11 @@ export default function ExcludedAccountsSubsection({
       <p className="text-xs text-muted-foreground">
         Excluded accounts are hidden from analytics and reporting.
       </p>
-      {accounts.length === 0 ? (
+      {allNames.length === 0 ? (
         <p className="text-sm text-muted-foreground">No accounts found.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-           {accounts.map((account) => {
+           {allNames.map((account) => {
              const isExcluded = excludedAccounts.includes(account)
              const controlId = `excluded-account-${encodeURIComponent(account)}`
              return (

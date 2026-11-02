@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   buildCombinedChartData,
@@ -59,10 +59,14 @@ describe('SIP summary and chart adapters', () => {
   })
 
   it('retains historical rounding before seeding the forward chart', () => {
+    // An active SIP: the last transfer is recent, so month 1 follows it.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-02-10T06:00:00Z'))
     const chart = buildCombinedChartData(
       [{ date: '2026-01-31', amount: 800.49 }],
       1_000.49, 100.25, 12, 1 / 12, 0,
     )
+    vi.useRealTimers()
     expect(chart).toEqual([
       { month: 'Jan 26', invested: 800, value: 1_000, expectedValue: 800, isHistorical: true },
       { month: 'Feb 26', invested: 900, value: 1_111, isHistorical: false },

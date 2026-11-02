@@ -13,10 +13,11 @@ import { useMemo } from 'react'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
-import { getDateKey } from '@/lib/dateUtils'
+import { getDateKey, getTodayKey } from '@/lib/dateUtils'
 import { investmentAccountTest } from '@/lib/finance/investmentFlows'
 import { investmentReturnRules } from '@/lib/finance/investmentReturns'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
+import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { resolveIncomeClassification } from '@/store/preferencesStore'
 
 import {
@@ -36,24 +37,25 @@ export function useReturnsAnalysis() {
   // A closing balance includes contributions before the selected P&L window.
   const dateParams = { end_date: dateRange.end_date ?? undefined }
   const balancesQuery = useAccountBalances(dateParams)
-  const {
-    data: balanceData,
-    isLoading: balancesLoading,
-    isError: balancesError,
-  } = balancesQuery
+  const { isError: balancesError } = balancesQuery
+  // A window whose balances are not cached yet keeps the last window's balances
+  // on screen, so the pinned time filter and the scroll position survive the switch.
+  const stableBalances = useStablePeriodData(dateParams.end_date ?? null, [balancesQuery])
+  const [balanceData] = stableBalances.data
   // The monthly-aggregation query that used to be fetched here fed only the
   // removed CAGR/ROI pair, so nothing reads it now and the request is gone.
   // Include the transactions query: the P&L metrics derive from `transactions`,
   // so omitting it flashed zeros as if loaded before transactions arrived.
-  const isLoading = transactionsLoading || balancesLoading || preferencesQuery.isLoading
+  const isLoading = transactionsLoading || stableBalances.isInitialLoad || preferencesQuery.isLoading
   const isError = transactionsError || balancesError || preferencesQuery.isError
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date
-    if (!startDate) return allTransactions
+    // All time has no end date; forward-dated rows are not realised yet.
+    const endDate = dateRange.end_date ?? getTodayKey()
     return allTransactions.filter(tx => {
       const txDate = getDateKey(tx.date)
-      return txDate >= startDate && (!dateRange.end_date || txDate <= dateRange.end_date)
+      return (!startDate || txDate >= startDate) && txDate <= endDate
     })
   }, [allTransactions, dateRange])
 

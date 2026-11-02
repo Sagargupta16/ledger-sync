@@ -3,19 +3,30 @@ import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft, TrendingUp } from 'lucide-
 
 import { ProgressBar } from '@/components/shared'
 import { colors } from '@/constants/colors'
+import { usePreferences } from '@/hooks/api/usePreferences'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
-const SAVINGS_RATE_BENCHMARK = 20
+const DEFAULT_SAVINGS_GOAL = 20
 
 interface FlowSummaryCardsProps {
   totalIncome: number
   totalExpense: number
   netSavings: number
-  savingsRate: number
+  /** Null when the period has no income, so no rate exists. */
+  savingsRate: number | null
 }
 
 export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
   const { totalIncome, totalExpense, netSavings, savingsRate } = props
+  const savingsGoal = usePreferences().data?.savings_goal_percent ?? DEFAULT_SAVINGS_GOAL
+  const metGoal = savingsRate !== null && savingsRate >= savingsGoal
+  const rateText = savingsRate === null ? 'n/a' : formatPercent(savingsRate)
+  let iconTone = metGoal ? 'text-income' : 'text-app-yellow'
+  let rateTone = metGoal ? 'text-app-green' : 'text-app-yellow'
+  if (savingsRate === null) {
+    iconTone = 'text-muted-foreground'
+    rateTone = 'text-muted-foreground'
+  }
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -66,30 +77,21 @@ export function FlowSummaryCards(props: Readonly<FlowSummaryCardsProps>) {
       <div className="min-w-0 p-4 sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">Savings Rate</p>
-          <TrendingUp
-            className={`size-4 ${savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-income' : 'text-app-yellow'}`}
-            aria-hidden="true"
-          />
+          <TrendingUp className={`size-4 ${iconTone}`} aria-hidden="true" />
         </div>
-        <p
-          className={`ledger-figure text-xl font-semibold tracking-tight sm:text-2xl ${
-            savingsRate >= SAVINGS_RATE_BENCHMARK ? 'text-app-green' : 'text-app-yellow'
-          }`}
-        >
-          {formatPercent(savingsRate)}
+        <p className={`ledger-figure text-xl font-semibold tracking-tight sm:text-2xl ${rateTone}`}>
+          {rateText}
         </p>
         <ProgressBar
-          value={Math.max(savingsRate, 0)}
-          target={SAVINGS_RATE_BENCHMARK}
-          color={
-            savingsRate >= SAVINGS_RATE_BENCHMARK ? colors.app.green : colors.app.yellow
-          }
+          value={Math.max(savingsRate ?? 0, 0)}
+          target={savingsGoal}
+          color={metGoal ? colors.app.green : colors.app.yellow}
           height={4}
           className="mt-3"
-          ariaLabel={`Savings rate ${formatPercent(savingsRate)} against ${SAVINGS_RATE_BENCHMARK}% benchmark`}
+          ariaLabel={`Savings rate ${rateText} against ${savingsGoal}% goal`}
         />
         <p className="mt-2 text-xs text-muted-foreground">
-          {SAVINGS_RATE_BENCHMARK}% benchmark
+          {savingsGoal}% goal
         </p>
       </div>
     </motion.div>

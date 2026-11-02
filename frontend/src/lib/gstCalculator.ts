@@ -84,9 +84,11 @@ export function computeGSTAnalysis(
   // spanning the 2025-09-22 GST 2.0 cutover has transactions under two
   // different slab tables, and collapsing them to one rate mis-states the FY
   // total (measured ~3.8% understatement on real data).
+  // Keyed by parent plus label: the same subcategory name under two parents
+  // is two rows, each with its own parent and rate.
   const categoryMap = new Map<
     string,
-    { spending: number; count: number; gst: number; parent: string }
+    { label: string; spending: number; count: number; gst: number; parent: string }
   >()
   const monthMap = new Map<string, { spending: number; gst: number }>()
 
@@ -99,11 +101,12 @@ export function computeGSTAnalysis(
     const rate = getGSTRate(cat, sub, customRates, tx.date)
     const txGst = calculateGSTFromInclusive(tx.amount, rate)
 
-    const existing = categoryMap.get(label) ?? { spending: 0, count: 0, gst: 0, parent: cat }
+    const rowKey = `${cat}\u0000${label}`
+    const existing = categoryMap.get(rowKey) ?? { label, spending: 0, count: 0, gst: 0, parent: cat }
     existing.spending += tx.amount
     existing.count += 1
     existing.gst += txGst
-    categoryMap.set(label, existing)
+    categoryMap.set(rowKey, existing)
 
     // Monthly aggregation
     const monthKey = tx.date.substring(0, 7) // "YYYY-MM"
@@ -118,7 +121,7 @@ export function computeGSTAnalysis(
   let totalSpending = 0
   let totalGST = 0
 
-  for (const [category, data] of categoryMap) {
+  for (const data of categoryMap.values()) {
     // Effective inclusive rate implied by the exact per-transaction GST:
     // gst = spending * r / (100 + r)  =>  r = 100 * gst / (spending - gst).
     // For a category entirely within one slab table this recovers the slab
@@ -131,7 +134,7 @@ export function computeGSTAnalysis(
       ? Math.round(effectiveRate)
       : Math.round(effectiveRate * 10) / 10
     categoryBreakdown.push({
-      category,
+      category: data.label,
       parentCategory: data.parent,
       spending: data.spending,
       gstRate: snapped,

@@ -36,6 +36,18 @@ function FailureNotice({
   readonly onRetryRefresh: () => void
   readonly isBusy: boolean
 }) {
+  if (failure === 'load') {
+    return (
+      <div className="flex flex-wrap items-center gap-2" role="alert">
+        <p className="min-w-0 flex-1 text-xs text-app-red">
+          Your saved classifications did not load, so classifying is paused. Nothing has changed.
+        </p>
+        <button type="button" onClick={onRetryRefresh} disabled={isBusy} className={BUTTON_CLASS}>
+          Try again
+        </button>
+      </div>
+    )
+  }
   if (failure === 'save') {
     return (
       <p className="text-xs text-app-red" role="alert">
@@ -75,7 +87,7 @@ export default function CapitalLossPanel({
   onUnclassify,
   onRetryRefresh,
 }: CapitalLossPanelProps) {
-  if (candidates.length === 0 && classified.length === 0) return null
+  if (candidates.length === 0 && classified.length === 0 && !failure) return null
   const locale = getActiveLocale()
   const actionsDisabled = isBusy || !canEdit
 

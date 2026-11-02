@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 
+import { getTodayKey } from '@/lib/dateUtils'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import { watchTilesService, type WatchPin, type WatchTilesResponse } from '@/services/api/watchTiles'
 
@@ -16,6 +17,12 @@ import { watchTilesService, type WatchPin, type WatchTilesResponse } from '@/ser
  * deleting a view refreshes it through `refreshWatchTiles`.
  */
 export const WATCH_TILES_KEY = ['calculations', 'watch-tiles'] as const
+/**
+ * The query's own key: the prefix plus the ledger day. A tile is month-to-date as
+ * of today, so yesterday's entry must not answer after midnight. Invalidation
+ * and cache writes go through the prefix.
+ */
+const watchTilesKey = () => [...WATCH_TILES_KEY, getTodayKey()] as const
 const SAVED_VIEWS_KEY = ['saved-views'] as const
 
 /** Refetch, unless the session that started the write has ended. */
@@ -46,7 +53,7 @@ function withOrder(data: WatchTilesResponse, viewIds: readonly number[]): WatchT
 /** `enabled: false` lets a menu wait until it opens before asking for the tiles. */
 export function useWatchTiles({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: WATCH_TILES_KEY,
+    queryKey: watchTilesKey(),
     queryFn: ({ signal }) => watchTilesService.getTiles(signal),
     staleTime: Infinity,
     enabled,
@@ -86,7 +93,7 @@ export function useUnpinView() {
     onSuccess: (_data, viewId, signal) => {
       if (!signal || !isCurrentSession(signal)) return
       // Drop the tile at once; the refetch below brings suggestions if it was the last.
-      queryClient.setQueryData<WatchTilesResponse>(WATCH_TILES_KEY, (data) =>
+      queryClient.setQueriesData<WatchTilesResponse>({ queryKey: WATCH_TILES_KEY }, (data) =>
         data && { ...data, tiles: data.tiles.filter((tile) => tile.view_id !== viewId) })
     },
     onSettled: (_data, _error, _viewId, signal) => refresh(queryClient, signal),
@@ -106,14 +113,14 @@ export function useReorderWatchTiles() {
     },
     onMutate: (viewIds) => {
       if (isCurrentSession(sessionSignal)) {
-        queryClient.setQueryData<WatchTilesResponse>(WATCH_TILES_KEY, (data) => data && withOrder(data, viewIds))
+        queryClient.setQueriesData<WatchTilesResponse>({ queryKey: WATCH_TILES_KEY }, (data) => data && withOrder(data, viewIds))
       }
       return sessionSignal
     },
     onSuccess: (pins: WatchPin[], _viewIds, signal) => {
       if (!signal || !isCurrentSession(signal)) return
       const order = pins.map((pin) => pin.view_id)
-      queryClient.setQueryData<WatchTilesResponse>(WATCH_TILES_KEY, (data) => data && withOrder(data, order))
+      queryClient.setQueriesData<WatchTilesResponse>({ queryKey: WATCH_TILES_KEY }, (data) => data && withOrder(data, order))
     },
     onSettled: (_pins, error, _viewIds, signal) => {
       if (error) refresh(queryClient, signal)

@@ -129,7 +129,7 @@ describe('shared goal projection', () => {
     })
   })
 
-  it('keeps an open-ended projection on track with its signed month delta', () => {
+  it('keeps an open-ended projection on track with no deadline delta', () => {
     const projection = computeDomainProjection(
       { target_amount: TARGET_AMOUNT, target_date: null },
       0,
@@ -144,7 +144,7 @@ describe('shared goal projection', () => {
       projectedDate: new Date(2026, 2, 31),
       monthsToComplete: 2,
       status: 'on_track',
-      monthsDelta: -2,
+      monthsDelta: null,
     })
   })
 })

@@ -137,7 +137,7 @@ class NormalizeRowsMixin:
             column_mapping: Mapping of standard names to actual column names
             raw_type: Lowercased raw type string
             account: Standardized account name
-            category: Standardized category name
+            category: Counter-account label from the category column (not category-corrected)
             tx_type: Normalized transaction type
             currency: Currency string
             subcategory: Optional subcategory
@@ -212,9 +212,11 @@ class NormalizeRowsMixin:
             account = self._standardize_account(
                 self.normalize_string_preserve_case(row[column_mapping["account"]])
             )
-            category = self._standardize_category(
-                self.normalize_string_preserve_case(row[column_mapping["category"]])
-            )
+            category = self.normalize_string_preserve_case(row[column_mapping["category"]])
+            if not is_transfer:
+                # A transfer's category cell names the counter account, so category
+                # corrections (Health -> Healthcare) must not rename it.
+                category = self._standardize_category(category)
             if not account or not category:
                 msg = "Account and category are required"
                 raise NormalizationError(msg)
@@ -282,9 +284,11 @@ class NormalizeRowsMixin:
             amount = self.normalize_amount(row["amount"])
             currency = self._clean_text(str(row.get("currency", "INR"))).upper() or "INR"
             account = self._standardize_account(self.normalize_string_preserve_case(row["account"]))
-            category = self._standardize_category(
-                self.normalize_string_preserve_case(row["category"])
-            )
+            category = self.normalize_string_preserve_case(row["category"])
+            raw_type = str(row["type"]).strip().lower()
+            is_transfer = "transfer" in raw_type
+            if not is_transfer:
+                category = self._standardize_category(category)
             if not account or not category:
                 msg = "Account and category are required"
                 raise NormalizationError(msg)
@@ -293,9 +297,6 @@ class NormalizeRowsMixin:
                 self._clean_text(str(row["subcategory"])) if row.get("subcategory") else None
             )
             note = self._clean_note(str(row["note"])) if row.get("note") else None
-
-            raw_type = str(row["type"]).strip().lower()
-            is_transfer = "transfer" in raw_type
 
             if is_transfer:
                 if TRANSFER_IN_HYPHEN in raw_type or TRANSFER_IN in raw_type:

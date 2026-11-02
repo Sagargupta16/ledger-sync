@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { Calendar } from 'lucide-react'
@@ -62,6 +63,8 @@ export function PeriodPicker({
   maxDate,
 }: Props) {
   const [showCustom, setShowCustom] = useState(false)
+  const [draftStart, setDraftStart] = useState(customStart)
+  const [draftEnd, setDraftEnd] = useState(customEnd)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const startInputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -100,7 +103,12 @@ export function PeriodPicker({
 
   const minAttr = minDate ? minDate.slice(0, 10) : undefined
   const maxAttr = maxDate ? maxDate.slice(0, 10) : undefined
-  const canApply = customStart && customEnd && customStart <= customEnd
+  const canApply = draftStart && draftEnd && draftStart <= draftEnd
+  const openCustom = () => {
+    setDraftStart(customStart)
+    setDraftEnd(customEnd)
+    setShowCustom(true)
+  }
 
   return (
     <>
@@ -140,7 +148,7 @@ export function PeriodPicker({
             aria-pressed={value === 'custom'}
             aria-haspopup="dialog"
             aria-expanded={showCustom}
-            onClick={() => setShowCustom(true)}
+            onClick={openCustom}
             className={`relative flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5 ${
               value === 'custom'
                 ? 'text-foreground'
@@ -162,84 +170,88 @@ export function PeriodPicker({
         </fieldset>
       </div>
 
-      <AnimatePresence>
-        {showCustom && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
-            onClick={handleClose}
-          >
+      {createPortal(
+        <AnimatePresence>
+          {showCustom && (
             <motion.div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="custom-range-title"
-              aria-describedby="custom-range-description"
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="w-full max-w-md rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-4 shadow-[var(--glass-shadow-strong)] sm:p-6"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--modal-backdrop)] p-4"
+              onClick={handleClose}
             >
-              <h3
-                id="custom-range-title"
-                className="text-lg font-semibold text-foreground mb-1"
+              <motion.div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="custom-range-title"
+                aria-describedby="custom-range-description"
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-4 shadow-[var(--glass-shadow-strong)] sm:p-6"
+                onClick={(e) => e.stopPropagation()}
               >
-                Custom date range
-              </h3>
-              <p id="custom-range-description" className="mb-5 text-sm text-muted-foreground">
-                Pick any start and end date. Bounds are set from your earliest
-                and latest transactions.
-              </p>
-
-              <div className="space-y-4">
-                <Input
-                  ref={startInputRef}
-                  id="budget-custom-start"
-                  label="From"
-                  type="date"
-                  value={customStart}
-                  min={minAttr}
-                  max={customEnd || maxAttr}
-                  onChange={(e) => onCustomChange(e.target.value, customEnd)}
-                />
-                <Input
-                  id="budget-custom-end"
-                  label="To"
-                  type="date"
-                  value={customEnd}
-                  min={customStart || minAttr}
-                  max={maxAttr}
-                  onChange={(e) => onCustomChange(customStart, e.target.value)}
-                />
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  onClick={handleClose}
-                  variant="secondary"
+                <h3
+                  id="custom-range-title"
+                  className="text-lg font-semibold text-foreground mb-1"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  disabled={!canApply}
-                  onClick={() => {
-                    onChange('custom')
-                    handleClose()
-                  }}
-                >
-                  Apply
-                </Button>
-              </div>
+                  Custom date range
+                </h3>
+                <p id="custom-range-description" className="mb-5 text-sm text-muted-foreground">
+                  Pick any start and end date. Bounds are set from your earliest
+                  and latest transactions.
+                </p>
+
+                <div className="space-y-4">
+                  <Input
+                    ref={startInputRef}
+                    id="budget-custom-start"
+                    label="From"
+                    type="date"
+                    value={draftStart}
+                    min={minAttr}
+                    max={draftEnd || maxAttr}
+                    onChange={(e) => setDraftStart(e.target.value)}
+                  />
+                  <Input
+                    id="budget-custom-end"
+                    label="To"
+                    type="date"
+                    value={draftEnd}
+                    min={draftStart || minAttr}
+                    max={maxAttr}
+                    onChange={(e) => setDraftEnd(e.target.value)}
+                  />
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleClose}
+                    variant="secondary"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!canApply}
+                    onClick={() => {
+                      onCustomChange(draftStart, draftEnd)
+                      onChange('custom')
+                      handleClose()
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   )
 }

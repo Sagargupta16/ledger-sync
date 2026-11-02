@@ -34,7 +34,7 @@ export function RecurringEditForm({
       toast.error('Name is required')
       return
     }
-    if (Number.isNaN(amt) || amt <= 0) {
+    if (Number.isNaN(amt) || amt < 0.005) {
       toast.error('Enter a valid amount')
       return
     }
@@ -57,6 +57,7 @@ export function RecurringEditForm({
             type="text"
             value={editName}
             onChange={(event) => setEditName(event.target.value)}
+            maxLength={255}
             autoFocus
           />
         </div>

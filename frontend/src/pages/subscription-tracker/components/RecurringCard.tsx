@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import {
   Trash2,
   Pencil,
@@ -12,8 +13,9 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui'
+import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { getRecurringFreshness } from '@/lib/recurringCalculations'
-import type { RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
+import { useUpdateRecurringTransaction, type RecurringTransaction } from '@/hooks/api/useAnalyticsV2'
 
 import { formatDate } from '../helpers'
 import { RecurringAmount } from './RecurringAmount'
@@ -41,6 +43,8 @@ export function RecurringCard({
   onDelete: () => void
 }>) {
   const [editing, setEditing] = useState(false)
+  const updateMutation = useUpdateRecurringTransaction()
+  const { guardDemoAction } = useDemoGuard()
 
   const isIncome = item.type === 'Income'
   const isHabit = item.pattern_kind === 'habit'
@@ -51,8 +55,18 @@ export function RecurringCard({
       <RecurringEditForm
         item={item}
         onSave={(patch) => {
-          onUpdate(patch)
-          setEditing(false)
+          if (guardDemoAction('Editing recurring items')) return
+          // Close only once the save lands, so a failed one keeps the typed values.
+          // A failure toasts through the global MutationCache with the server's reason.
+          updateMutation.mutate(
+            { id: item.id, ...patch },
+            {
+              onSuccess: () => {
+                toast.success('Updated')
+                setEditing(false)
+              },
+            },
+          )
         }}
         onCancel={() => setEditing(false)}
       />

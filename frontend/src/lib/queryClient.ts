@@ -1,5 +1,7 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query'
+import { isCancel } from 'axios'
 import { toast } from 'sonner'
+import { getApiErrorMessage } from '@/lib/errorUtils'
 
 /**
  * Default error message for a mutation that doesn't surface its own. Many
@@ -7,13 +9,7 @@ import { toast } from 'sonner'
  * so a failed save/delete reverted silently and the user thought it worked.
  */
 function mutationErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const resp = (error as { response?: { data?: { detail?: unknown } } }).response
-    if (typeof resp?.data?.detail === 'string') return resp.data.detail
-    const msg = (error as { message?: unknown }).message
-    if (typeof msg === 'string' && msg) return msg
-  }
-  return 'Something went wrong. Please try again.'
+  return getApiErrorMessage(error, 'Something went wrong. Please try again.')
 }
 
 export const queryClient = new QueryClient({
@@ -23,6 +19,8 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _vars, _ctx, mutation) => {
       if (mutation.options.onError) return // mutation handles its own errors
+      // A sign-out or account switch cancels queued work; that is not a failure.
+      if (isCancel(error)) return
       toast.error(mutationErrorMessage(error))
     },
   }),
@@ -33,6 +31,13 @@ export const queryClient = new QueryClient({
       staleTime: Infinity,
       gcTime: 1000 * 60 * 60, // 1 hour -- keep unused data in memory longer
       retry: 1,
+      // Fetch even when the browser reports offline. In the default 'online'
+      // mode a first fetch pauses, so it is neither loading nor an error and
+      // pages fell through to their empty states. Offline now fails like any
+      // network error and pages show their error state. 'always' turns
+      // reconnect refetching off by default, so it is switched back on.
+      networkMode: 'always',
+      refetchOnReconnect: true,
       refetchOnWindowFocus: false,
       // refetchOnMount defaults to true: refetch stale queries on component mount.
       // With staleTime: Infinity, queries are only stale after explicit invalidation

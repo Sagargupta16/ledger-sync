@@ -4,6 +4,7 @@ import { AlertTriangle, FileCheck2 } from 'lucide-react'
 
 import { Button, Card } from '@/components/ui'
 
+import { formatCount } from '../moneyManagerUtils'
 import type { UploadReview as UploadReviewState } from '../useUploadSync'
 import UploadCategorySuggestions from './UploadCategorySuggestions'
 
@@ -59,16 +60,16 @@ export default function UploadReview({ review, isBusy, onConfirm, onCancel }: Up
         </div>
 
         <dl className="grid grid-cols-2 gap-4 border-y border-border py-4 sm:grid-cols-4">
-          {[
+          {([
             ['Source rows', parsed.rows.length],
             ['Income rows', summary.income],
             ['Expense rows', summary.expenses],
             ['Transfer rows', summary.transfers],
-          ].map(([label, count]) => (
+          ] as const).map(([label, count]) => (
             <div key={label} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{label}</dt>
               <dd className="mt-1 font-mono text-xl font-semibold tabular-nums text-foreground">
-                {count.toLocaleString()}
+                {formatCount(count)}
               </dd>
             </div>
           ))}
