@@ -13,6 +13,8 @@ import { useAuthStore } from '@/store/authStore'
 /** Hard cap on tool-calling rounds per user message -- stops runaway loops. */
 const MAX_TOOL_ROUNDS = 6
 
+const BYOK_INCOMPLETE_MESSAGE = 'Choose an AI provider and model in Settings > AI Assistant first. Nothing was sent.'
+
 const EMPTY_REPLY_MESSAGE = 'The assistant returned an empty reply. Try rephrasing your question.'
 
 /** Drop the in-flight assistant placeholder, which is always the trailing turn. */
@@ -168,6 +170,8 @@ export function useChat(
   const [error, setError] = useState<string | null>(null)
   // Set only while a send is in flight; `stop` uses it to know a placeholder exists.
   const abortRef = useRef<AbortController | null>(null)
+  // True from the moment a send is accepted until it settles, stops or is cleared.
+  const inFlightRef = useRef(false)
   // Bumped by every send, stop and clear so a superseded run publishes nothing.
   const runRef = useRef(0)
   const contextRef = useRef<string | null>(null)
@@ -186,10 +190,15 @@ export function useChat(
 
   const sendAsync = useCallback(
     async (content: string) => {
-      if (isStreaming) return
+      // A ref, set synchronously: two sends in one tick both see the same render's isStreaming.
+      if (inFlightRef.current) return
       // BYOK requires a configured provider+model; app mode provides its own.
-      if (mode === 'byok' && (!provider || !model)) return
+      if (mode === 'byok' && (!provider || !model)) {
+        setError(BYOK_INCOMPLETE_MESSAGE)
+        return
+      }
 
+      inFlightRef.current = true
       setError(null)
       setIsStreaming(true)
 
@@ -277,13 +286,14 @@ export function useChat(
       } finally {
         if (isCurrent()) {
           abortRef.current = null
+          inFlightRef.current = false
           setIsStreaming(false)
         }
         // A stopped or failed send can still have used quota, so refresh either way.
         refreshUsage(queryClient, sessionSignal, usageLogs)
       }
     },
-    [mode, provider, model, region, isStreaming, messages, tools, queryClient],
+    [mode, provider, model, region, messages, tools, queryClient],
   )
 
   // The public `send` is declared void-returning (ChatPanel's onSend prop), so
@@ -298,6 +308,7 @@ export function useChat(
     if (!controller) return
     runRef.current += 1
     abortRef.current = null
+    inFlightRef.current = false
     controller.abort()
     // A half-finished reply (or its "Looking up..." status) is not an answer.
     setMessages(withoutPendingReply)
@@ -307,6 +318,7 @@ export function useChat(
     runRef.current += 1
     abortRef.current?.abort()
     abortRef.current = null
+    inFlightRef.current = false
     setMessages([])
     setError(null)
     setIsStreaming(false)

@@ -4,6 +4,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
@@ -36,6 +37,7 @@ export default function InvestmentAnalyticsPage() {
           title="Investment Analytics"
           subtitle="Review cost-basis contributions, allocation, and investment activity"
         />
+        {m.refreshFailed && <RefreshFailedNotice onRetry={m.retry} />}
         <section className="ledger-panel" aria-label="Investment analytics setup">
           <EmptyState
             icon={TrendingUp}
@@ -62,6 +64,8 @@ export default function InvestmentAnalyticsPage() {
           <AnalyticsTimeFilter {...m.timeFilterProps} />
         </div>
       </StickyToolbar>
+
+      {m.refreshFailed && <RefreshFailedNotice onRetry={m.retry} />}
 
       {/* portfolioData is already sorted by amount invested, descending. */}
       <PortfolioMetrics

@@ -6,6 +6,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import IncomeCategorySection from './components/IncomeCategorySection'
@@ -20,6 +21,7 @@ export default function IncomeAnalysisPage() {
     isLoading,
     isSettling,
     isError,
+    refreshFailed,
     retry,
     categoryFilter,
     clearCategoryFilter,
@@ -68,6 +70,8 @@ export default function IncomeAnalysisPage() {
         <AnalyticsTimeFilter {...timeFilterProps} />
         <PeriodSettlingBar active={isSettling} />
       </StickyToolbar>
+
+      {refreshFailed && <RefreshFailedNotice onRetry={retry} />}
 
       <FilterBanner value={categoryFilter} label="Source" onClear={clearCategoryFilter} />
       <PeriodSettlingContent settling={isSettling} className="space-y-6">

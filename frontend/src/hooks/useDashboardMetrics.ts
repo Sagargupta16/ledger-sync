@@ -32,6 +32,7 @@ import {
 } from '@/lib/dateUtils'
 import { formatDate } from '@/lib/formatters'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { completeMonthKeys } from '@/lib/savingsRate'
 import { computeMonthlyChanges, type MonthlyChanges } from '@/lib/finance/dashboardMetrics'
 import { resolveEarningStart } from '@/lib/finance/analysisPeriod'
@@ -95,7 +96,10 @@ interface DashboardMetrics {
   filteredTotals: TotalsData | undefined
   /** The window's first snapshot (the pulse included, when read) is still loading. */
   isSummaryLoading: boolean
+  /** A read failed with nothing to show. */
   isError: boolean
+  /** A read failed but kept its last figures: show them with a notice. */
+  refreshFailed: boolean
   retry: () => void
 
   /** The selected window holds at least one transaction (any type). */
@@ -314,15 +318,20 @@ export function useDashboardMetrics(
   // Expense row once a loss was classified, so the pie total and the KPI
   // disagreed by exactly `capital_losses` for the users who had classified one.
 
-  const isError =
-    totalsQuery.isError ||
-    monthlyQuery.isError ||
-    dateRangeQuery.isError ||
-    pulseQuery.isError ||
-    preferencesQuery.isError ||
-    incomeQuery.isError ||
-    expenseCategoryQuery.isError ||
-    earningEvidenceQuery.isError
+  const statusReads = [
+    totalsQuery,
+    monthlyQuery,
+    dateRangeQuery,
+    pulseQuery,
+    preferencesQuery,
+    incomeQuery,
+    expenseCategoryQuery,
+    earningEvidenceQuery,
+  ]
+  // A read that failed and has nothing to show blocks the page; one that failed
+  // but kept its data only raises `refreshFailed`.
+  const isError = blockingError(statusReads)
+  const refreshHasFailed = refreshFailed(statusReads)
   // The window reads count only until the first snapshot commits; after that a
   // period change settles in place. Never loading once a read has failed: a
   // window read waiting on failed preferences would otherwise hold the
@@ -334,16 +343,7 @@ export function useDashboardMetrics(
       preferencesQuery.isLoading ||
       earningEvidenceQuery.isLoading)
   const retry = () => {
-    void Promise.all([
-      totalsQuery.refetch(),
-      monthlyQuery.refetch(),
-      dateRangeQuery.refetch(),
-      preferencesQuery.refetch(),
-      incomeQuery.refetch(),
-      expenseCategoryQuery.refetch(),
-      ...(includeQuickInsights ? [pulseQuery.refetch()] : []),
-      ...(needsEarningEvidence ? [earningEvidenceQuery.refetch()] : []),
-    ])
+    void retryFailed(statusReads)
   }
 
   // ------ Date boundaries for AnalyticsTimeFilter ------
@@ -475,6 +475,7 @@ export function useDashboardMetrics(
     filteredTotals,
     isSummaryLoading,
     isError,
+    refreshFailed: refreshHasFailed,
     retry,
     hasTransactionsInRange,
     ageOfMoney: pulse?.ageOfMoney ?? null,

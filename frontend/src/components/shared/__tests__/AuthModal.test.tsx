@@ -117,4 +117,38 @@ describe('AuthModal', () => {
     fireEvent.click(google)
     await waitFor(() => expect(authApi.beginOAuthLogin).toHaveBeenCalledTimes(2))
   })
+
+  it('keeps sign-in disabled after redirecting and re-enables on a bfcache restore', async () => {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...globalThis.location, assign })
+    try {
+      vi.mocked(authApi.getOAuthProviders).mockResolvedValue(PROVIDERS)
+      vi.mocked(authApi.beginOAuthLogin).mockResolvedValue('https://accounts.google.com/auth?x=1')
+      render(<AuthModalHarness />)
+      fireEvent.click(screen.getByRole('button', { name: 'Open sign in' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }))
+
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/auth?x=1'))
+      const opening = screen.getByRole('button', { name: 'Opening Google...' })
+      expect(opening).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Continue with GitHub' })).toBeDisabled()
+
+      // A non-bfcache pageshow (fresh load) must not release the lock.
+      const fresh = new Event('pageshow')
+      Object.defineProperty(fresh, 'persisted', { value: false })
+      fireEvent(globalThis as unknown as Window, fresh)
+      expect(screen.getByRole('button', { name: 'Opening Google...' })).toBeDisabled()
+
+      const restored = new Event('pageshow')
+      Object.defineProperty(restored, 'persisted', { value: true })
+      fireEvent(globalThis as unknown as Window, restored)
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled(),
+      )
+      expect(screen.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

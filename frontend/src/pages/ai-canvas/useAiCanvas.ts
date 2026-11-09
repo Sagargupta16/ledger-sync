@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 
 import { useChat, type ClientTool, type ToolEvent, type UseChatOptions } from '@/components/chat/useChat'
+import { isAiReady, useAiAvailability, type AiAvailability } from '@/hooks/api/useAiAvailability'
 import type { ChatMessage } from '@/lib/chatAdapters'
-import { aiConfigService } from '@/services/api/aiConfig'
 import { useAuthStore } from '@/store/authStore'
-import { useDemoStore } from '@/store/demoStore'
 
 import { CALCULATE_TOOL } from './calculatorTool'
 import { CANVAS_SYSTEM_NOTE } from './canvasPrompt'
@@ -25,11 +23,27 @@ function sourcesFor(current: readonly string[], source: CanvasChart['spec']['sou
   return source === 'estimate' ? [] : ['Used results already in this conversation']
 }
 
-/** `demo`: AI is off in demo mode. `needs-key`: BYOK without a stored key. */
-export type CanvasAvailability = 'ready' | 'demo' | 'needs-key'
+/**
+ * `loading` and `error`: the AI settings are not known yet, so nothing may be sent.
+ * `demo`: AI is off in demo mode. `needs-key`: BYOK without a stored key.
+ * `incomplete`: BYOK with a key but no provider or model.
+ */
+export type CanvasAvailability = 'loading' | 'error' | 'ready' | 'demo' | 'needs-key' | 'incomplete'
+
+const CANVAS_AVAILABILITY: Record<AiAvailability['kind'], CanvasAvailability> = {
+  loading: 'loading',
+  error: 'error',
+  demo: 'demo',
+  app: 'ready',
+  byok_needs_key: 'needs-key',
+  byok_incomplete: 'incomplete',
+  byok_ready: 'ready',
+}
 
 export interface AiCanvas {
   availability: CanvasAvailability
+  /** Refetches the AI settings after they failed to load; null otherwise. */
+  retryConfig: (() => void) | null
   charts: readonly CanvasChart[]
   messages: ChatMessage[]
   isStreaming: boolean
@@ -53,19 +67,11 @@ export interface AiCanvas {
  * the latest MAX_CANVAS_CHARTS.
  */
 export function useAiCanvas(): AiCanvas {
-  const accessToken = useAuthStore((s) => s.accessToken)
   const userId = useAuthStore((s) => s.user?.id ?? null)
-  const isDemoMode = useDemoStore((s) => s.isDemoMode)
 
-  // Same query and key as ChatWidget, so the two share one cached config.
-  const { data: aiConfig, refetch: refetchConfig } = useQuery({
-    queryKey: ['ai-config'],
-    queryFn: () => aiConfigService.getConfig(),
-    enabled: !!accessToken && !isDemoMode,
-    staleTime: Infinity,
-  })
-  const mode = aiConfig?.mode ?? 'app_bedrock'
-  const [configMissing, setConfigMissing] = useState(false)
+  // The one availability derivation, shared with ChatWidget: an unknown config never means app mode.
+  const aiAvailability = useAiAvailability()
+  const byok = aiAvailability.kind === 'byok_ready' ? aiAvailability : null
 
   // The authenticated layout is keyed by identity, so the key cannot change under this page.
   const storageKey = canvasStorageKey(userId)
@@ -116,10 +122,10 @@ export function useAiCanvas(): AiCanvas {
   )
 
   const { messages, isStreaming, error, send, stop, clear } = useChat(
-    mode,
-    aiConfig?.provider ?? null,
-    aiConfig?.model ?? null,
-    aiConfig?.region ?? null,
+    byok ? 'byok' : 'app_bedrock',
+    byok?.provider ?? null,
+    byok?.model ?? null,
+    byok?.region ?? null,
     chatOptions,
   )
 
@@ -135,18 +141,13 @@ export function useAiCanvas(): AiCanvas {
     (prompt: string) => {
       if (isStreaming) return
       promptRef.current = prompt
-      // An unknown mode would send a BYOK user's request to the app-funded model.
-      if (!aiConfig) {
-        setConfigMissing(true)
-        void refetchConfig()
-        return
-      }
-      setConfigMissing(false)
+      // Only a known, usable config may send; the page shows the other states instead of a composer.
+      if (!isAiReady(aiAvailability)) return
       sourcesRef.current = []
       begin()
       send(prompt)
     },
-    [isStreaming, aiConfig, refetchConfig, send, begin],
+    [isStreaming, aiAvailability, send, begin],
   )
   const retry = useCallback(() => {
     if (promptRef.current) ask(promptRef.current)
@@ -156,16 +157,15 @@ export function useAiCanvas(): AiCanvas {
   }, [])
   const clearCanvas = useCallback(() => setCharts([]), [])
 
-  let availability: CanvasAvailability = 'ready'
-  if (isDemoMode) availability = 'demo'
-  else if (mode === 'byok' && aiConfig?.has_key !== true) availability = 'needs-key'
+  const availability = CANVAS_AVAILABILITY[aiAvailability.kind]
 
   return {
     availability,
+    retryConfig: aiAvailability.kind === 'error' ? aiAvailability.retry : null,
     charts,
     messages,
     isStreaming,
-    error: error ?? (configMissing ? 'Your AI settings have not loaded, so nothing was sent. Try again.' : null),
+    error,
     steps: progress.steps,
     startedAt: progress.startedAt,
     ask,

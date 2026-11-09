@@ -3,7 +3,7 @@ import type { NavigateFunction } from 'react-router'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { useDemoStore } from '@/store/demoStore'
-import { useAuthStore } from '@/store/authStore'
+import { DEMO_ACCESS_TOKEN, useAuthStore } from '@/store/authStore'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { ROUTES } from '@/constants'
 import { clearSessionData } from '@/lib/session'
@@ -23,7 +23,7 @@ export const DEMO_USER = {
 } as const
 
 export const DEMO_TOKENS = {
-  access_token: 'demo-token',
+  access_token: DEMO_ACCESS_TOKEN,
   refresh_token: 'demo-refresh',
   token_type: 'bearer',
 } as const

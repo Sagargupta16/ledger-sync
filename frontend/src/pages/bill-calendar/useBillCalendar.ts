@@ -3,6 +3,7 @@ import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsPa
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
 import { useCardCycles } from '@/hooks/api/useCardCycles'
 import { getTodayKey, MS_PER_DAY, parseLocalDate } from '@/lib/dateUtils'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import { isAcceptedRecurringCommitment } from '@/lib/recurringCalculations'
 import { buildBillMap, findNextUpcomingBill, getBillDaysForMonth, getDaysInMonth, getFirstDayOfWeek } from './billUtils'
 import { appendBills, buildCardBillMap } from './cardBills'
@@ -20,7 +21,7 @@ export function useBillCalendar() {
   // A bill calendar plots things that are owed on a date. Habit rows repeat but
   // are not owed, so plotting them filled the grid with lunch purchases.
   const recurringQuery = useRecurringTransactions(RECURRING_COMMITMENTS_PARAMS)
-  const { data: recurringTransactions, isError } = recurringQuery
+  const { data: recurringTransactions } = recurringQuery
   // Card due dates are their own source. A failed card read leaves the
   // recurring bills on screen; the Card statements panel reports that error.
   const cardQuery = useCardCycles()
@@ -34,7 +35,8 @@ export function useBillCalendar() {
   )
   // Recurring bills paint as soon as they load and card dots join when ready.
   // Only a calendar with no bill yet waits for cards, so it never flashes empty.
-  const isLoading = recurringQuery.isLoading || (cardQuery.isLoading && acceptedBills.length === 0)
+  const status = pageStatus([recurringQuery], cardQuery.isLoading && acceptedBills.length === 0)
+  const isLoading = status.kind === 'loading'
 
   // The ledger day (IST) at local midnight, so the today ring, countdowns and the
   // Today button use the same day as `asOfDateKey` in any browser timezone.
@@ -172,9 +174,7 @@ export function useBillCalendar() {
 
   const hasAnyData = acceptedBills.length > 0 || (cards?.length ?? 0) > 0
   const isCurrentViewToday = viewYear === now.getFullYear() && viewMonth === now.getMonth()
-  const retry = () => {
-    void recurringQuery.refetch()
-  }
+  const retry = () => void retryFailed([recurringQuery])
 
   return {
     now,
@@ -190,7 +190,8 @@ export function useBillCalendar() {
     summary,
     selectedDayBills,
     isLoading,
-    isError,
+    isError: status.kind === 'error',
+    refreshFailed: status.kind === 'ready' && status.refreshFailed,
     retry,
     hasAnyData,
     unscheduledBills,

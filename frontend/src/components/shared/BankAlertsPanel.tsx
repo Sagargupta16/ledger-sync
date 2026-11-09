@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { BellRing, ChevronDown } from 'lucide-react'
 
 import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { Button } from '@/components/ui'
 import { useBankAlerts, useSetBankAlertIgnored } from '@/hooks/api/useBankAlerts'
 import { formatDate } from '@/lib/formatters'
@@ -135,8 +136,10 @@ export default function BankAlertsPanel() {
   if (query.isPending) return <PanelSkeleton blocks={2} blockClassName="h-12" />
   return (
     <Shell>
-      {query.isError && <LoadError onRetry={() => void query.refetch()} />}
-      {query.isSuccess && (query.data.alerts.length === 0 ? <BankAlertsSetup /> : <AlertList data={query.data} />)}
+      {/* A failed refetch keeps the alerts it had; only a read with nothing is an error. */}
+      {query.isError && query.data !== undefined && <RefreshFailedNotice onRetry={() => void query.refetch()} />}
+      {query.isError && query.data === undefined && <LoadError onRetry={() => void query.refetch()} />}
+      {query.data !== undefined && (query.data.alerts.length === 0 ? <BankAlertsSetup /> : <AlertList data={query.data} />)}
     </Shell>
   )
 }

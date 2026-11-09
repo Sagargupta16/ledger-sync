@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'react-router'
-import { aiConfigService } from '@/services/api/aiConfig'
+import { aiUnavailableReason, isAiReady, useAiAvailability } from '@/hooks/api/useAiAvailability'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { ROUTES } from '@/constants'
@@ -16,19 +15,15 @@ export default function ChatWidget() {
   const accessToken = useAuthStore((s) => s.accessToken)
   const isDemoMode = useDemoStore((s) => s.isDemoMode)
 
-  const { data: aiConfig } = useQuery({
-    queryKey: ['ai-config'],
-    queryFn: () => aiConfigService.getConfig(),
-    enabled: !!accessToken && !isDemoMode,
-    staleTime: Infinity,
-  })
-
-  const mode = aiConfig?.mode ?? 'app_bedrock'
-  const provider = aiConfig?.provider ?? null
-  const model = aiConfig?.model ?? null
-  const region = aiConfig?.region ?? null
-  // App mode is always ready (no key required); BYOK needs a stored key.
-  const isConfigured = mode === 'app_bedrock' ? true : aiConfig?.has_key === true
+  // Loading or failed config is never treated as app mode: nothing opens until the mode is known.
+  const availability = useAiAvailability()
+  const isConfigured = isAiReady(availability)
+  const unavailableReason = aiUnavailableReason(availability)
+  const byok = availability.kind === 'byok_ready' ? availability : null
+  const mode = byok ? 'byok' : 'app_bedrock'
+  const provider = byok?.provider ?? null
+  const model = byok?.model ?? null
+  const region = byok?.region ?? null
 
   const { messages, isStreaming, error, send, stop, clear } = useChat(
     mode,
@@ -38,9 +33,12 @@ export default function ChatWidget() {
   )
 
   const handleToggle = useCallback(() => {
-    if (!isConfigured) return
+    if (!isConfigured) {
+      if (availability.kind === 'error') availability.retry()
+      return
+    }
     setIsOpen((prev) => !prev)
-  }, [isConfigured])
+  }, [isConfigured, availability])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -91,8 +89,9 @@ export default function ChatWidget() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleToggle}
-          title={isConfigured ? 'AI Assistant' : 'Configure AI key in Settings'}
-          aria-label={isConfigured ? 'Open AI Assistant' : 'AI Assistant -- configure API key in Settings'}
+          title={isConfigured ? 'AI Assistant' : `${unavailableReason ?? 'AI Assistant unavailable'}${availability.kind === 'error' ? ' (tap to retry)' : ''}`}
+          aria-label={isConfigured ? 'Open AI Assistant' : `AI Assistant unavailable -- ${unavailableReason ?? 'not ready'}`}
+          aria-disabled={!isConfigured}
           aria-expanded={isOpen}
           className={`flex size-11 items-center justify-center rounded-lg border shadow-sm transition-colors lg:hidden ${
             isConfigured

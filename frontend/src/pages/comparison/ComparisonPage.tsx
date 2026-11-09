@@ -6,6 +6,7 @@ import { colors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import LoadingSkeleton, { CardGridSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useComparisonData } from './useComparisonData'
@@ -49,7 +50,7 @@ function handleModeKeyDown(
 
 export default function ComparisonPage() {
   const {
-    isLoading, isError, retry, transactions,
+    isLoading, isError, refreshFailed, retry, transactions,
     mode, setMode,
     monthOptions, yearOptions, fyOptions,
     effectiveMonthA, effectiveMonthB,
@@ -168,6 +169,8 @@ export default function ComparisonPage() {
           </motion.div>
         </div>
       </StickyToolbar>
+
+      {refreshFailed && <RefreshFailedNotice onRetry={retry} />}
 
       {partialPeriod && (
         <PartialPeriodNotice

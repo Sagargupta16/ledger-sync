@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { dataHealthKeys } from '@/hooks/api/useDataHealthQuery'
 import { PREFERENCES_KEY } from '@/hooks/api/usePreferences'
 import { generateDemoPreferences } from '@/lib/demo/generateDerivedData'
 import type { DataHealth } from '@/services/api/analyticsV2'
@@ -97,13 +98,16 @@ function renderPage(preferences?: UserPreferences) {
   // The saved classification set comes from the preferences cache; seeding it
   // stands in for the signed-in fetch.
   if (preferences) client.setQueryData(PREFERENCES_KEY, preferences)
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <DataHealthPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <DataHealthPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    ),
+  }
 }
 
 /**
@@ -163,6 +167,18 @@ describe('DataHealthPage', () => {
     expect(await screen.findByRole('button', { name: /retry/i })).toBeInTheDocument()
     expect(screen.queryByText('Data quality')).not.toBeInTheDocument()
     expect(screen.queryByText(/no issues detected/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps the report and shows a notice when a refetch fails with data on screen', async () => {
+    mocks.getDataHealth.mockResolvedValue(STALE)
+    const { client } = renderPage()
+    expect(await screen.findByText('Data quality')).toBeInTheDocument()
+
+    mocks.getDataHealth.mockRejectedValue(new Error('boom'))
+    await act(() => client.invalidateQueries({ queryKey: dataHealthKeys.all }))
+
+    expect(await screen.findByText(/Could not refresh/)).toBeInTheDocument()
+    expect(screen.getByText('Data quality')).toBeInTheDocument()
   })
 
   it('does not nag when the ledger is current', async () => {

@@ -10,7 +10,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ImportHistoryResponse } from '@/services/api/upload'
@@ -63,11 +63,14 @@ const HISTORY: ImportHistoryResponse = {
 
 function renderPanel() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
-      <ImportHistory />
-    </QueryClientProvider>,
-  )
+  return {
+    client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <ImportHistory />
+      </QueryClientProvider>,
+    ),
+  }
 }
 
 describe('ImportHistory', () => {
@@ -121,6 +124,18 @@ describe('ImportHistory', () => {
 
     expect(await screen.findByText(/Could not load import history/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('keeps the imports and shows a notice when a refetch fails', async () => {
+    const { client } = renderPanel()
+    await screen.findByText('newest.xlsx')
+
+    getImportHistory.mockRejectedValue(new Error('network'))
+    await act(() => client.invalidateQueries({ queryKey: ['import-history'] }))
+
+    expect(await screen.findByText(/Could not refresh import history/)).toBeInTheDocument()
+    expect(screen.getByText('newest.xlsx')).toBeInTheDocument()
+    expect(screen.queryByText(/Could not load import history/)).not.toBeInTheDocument()
   })
 
   it('is hidden in demo mode, and makes no request', async () => {

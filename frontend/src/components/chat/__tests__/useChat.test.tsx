@@ -139,4 +139,39 @@ describe('useChat', () => {
     expect(result.current.messages).toEqual([{ role: 'user', content: 'hello' }])
     expect(result.current.error).toMatch(/empty reply/)
   })
+
+  it('ignores a second send in the same tick and keeps Stop able to abort the first run', async () => {
+    let aborted = false
+    fetchMock.mockImplementation(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            aborted = true
+            reject(new DOMException('Aborted', 'AbortError'))
+          })
+        }),
+    )
+    const { result } = renderChat()
+
+    act(() => {
+      result.current.send('first')
+      result.current.send('second')
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    act(() => result.current.stop())
+
+    expect(aborted).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result.current.messages).toEqual([{ role: 'user', content: 'first' }])
+  })
+
+  it('sets an error instead of silently dropping a BYOK send with no provider or model', () => {
+    const { result } = renderHook(() => useChat('byok', null, null, null), { wrapper })
+
+    act(() => result.current.send('hello'))
+
+    expect(result.current.error).toMatch(/provider and model/)
+    expect(result.current.isStreaming).toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

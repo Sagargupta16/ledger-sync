@@ -17,7 +17,7 @@
 import { sendChat, type Block } from '@/lib/chatAdapters'
 import { useAuthStore } from '@/store/authStore'
 
-import { aiConfigService, type AIConfig } from './aiConfig'
+import { aiConfigService } from './aiConfig'
 import { aiUsageService } from './aiUsage'
 import type { AnomalyTypeValue } from './analyticsV2Anomalies'
 import { apiClient } from './client'
@@ -134,18 +134,23 @@ interface ExplainRoute {
   apiKey: string
 }
 
+/**
+ * A resolved AI target, as `useAiAvailability` reports it: the app-funded model,
+ * or the user's own ready provider and model. Anything unresolved never gets here.
+ */
+export type ExplainTarget =
+  | { kind: 'app' }
+  | { kind: 'byok_ready'; provider: string; model: string; region: string | null }
+
 /** The chat widget's credential rule (`useChat` resolveCredentials). */
-async function explainRoute(config: AIConfig | undefined): Promise<ExplainRoute> {
+async function explainRoute(target: ExplainTarget): Promise<ExplainRoute> {
   const accessToken = useAuthStore.getState().accessToken ?? ''
-  if (!config || config.mode === 'app_bedrock') {
+  if (target.kind === 'app') {
     // App mode: the backend ignores the model and uses its configured default.
     return { provider: 'bedrock', model: 'app-default', apiKey: accessToken }
   }
-  if (!config.provider || !config.model) {
-    throw new Error('Choose an AI provider and model in Settings > AI Assistant first.')
-  }
-  const apiKey = config.provider === 'bedrock' ? accessToken : await aiConfigService.getKey()
-  return { provider: config.provider, model: config.model, region: config.region ?? undefined, apiKey }
+  const apiKey = target.provider === 'bedrock' ? accessToken : await aiConfigService.getKey()
+  return { provider: target.provider, model: target.model, region: target.region ?? undefined, apiKey }
 }
 
 function replyText(blocks: Block[]): string {
@@ -163,8 +168,8 @@ export const weeklyRecapService = {
   },
 
   /** One model call, no tools, over the recap facts only. */
-  async explain(facts: string, config: AIConfig | undefined, signal: AbortSignal): Promise<string> {
-    const route = await explainRoute(config)
+  async explain(facts: string, target: ExplainTarget, signal: AbortSignal): Promise<string> {
+    const route = await explainRoute(target)
     const response = await sendChat(route.provider, {
       model: route.model,
       systemPrompt: EXPLAIN_SYSTEM_PROMPT,

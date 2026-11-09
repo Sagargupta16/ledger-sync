@@ -1,6 +1,7 @@
 import { InstrumentProjections } from '@/components/analytics'
 import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader } from '@/components/ui'
 
@@ -33,6 +34,8 @@ export default function MutualFundProjectionPage() {
         title="Projections"
         subtitle="Model SIP contributions and instrument maturities"
       />
+
+      {m.refreshFailed && <RefreshFailedNotice onRetry={m.retry} />}
 
       <OverviewCards
         isLoading={m.isLoading}

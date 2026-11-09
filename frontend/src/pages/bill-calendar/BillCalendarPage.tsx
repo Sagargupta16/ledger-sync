@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import CardCyclesPanel from '@/components/analytics/CardCyclesPanel'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import BillCalendarGrid from './components/BillCalendarGrid'
@@ -40,6 +41,7 @@ export default function BillCalendarPage() {
           onToday={calendar.goToToday}
         />
       </StickyToolbar>
+      {calendar.refreshFailed && <RefreshFailedNotice onRetry={calendar.retry} />}
       <BillSummaryGrid summary={calendar.summary} isLoading={calendar.isLoading} />
       {calendar.unscheduledBills.length > 0 && (
         <p className="text-sm text-muted-foreground">

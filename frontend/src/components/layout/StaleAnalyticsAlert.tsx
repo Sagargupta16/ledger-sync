@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'motion/react'
 import { ROUTES } from '@/constants'
 import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
 
+type AlertKind = 'stale' | 'checkFailed'
+
 /**
  * App-wide warning that the numbers on screen are from a previous import.
  *
@@ -24,7 +26,7 @@ import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
  */
 export default function StaleAnalyticsAlert() {
   const { data, isError } = useDataHealthQuery()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissedKind, setDismissedKind] = useState<AlertKind | null>(null)
   const location = useLocation()
 
   // Data Health carries its own, richer version of this warning plus the fix
@@ -39,9 +41,17 @@ export default function StaleAnalyticsAlert() {
   // A failed check says nothing about freshness, so it gets its own warning instead of silence.
   const checkFailed = isError && !isStale
 
+  let kind: AlertKind | null = null
+  if (isStale) kind = 'stale'
+  else if (checkFailed) kind = 'checkFailed'
+
+  // The dismissal belongs to one kind of episode. Once the condition clears, forget
+  // it so a later episode shows again; a different kind never matches it.
+  if (kind === null && dismissedKind !== null) setDismissedKind(null)
+
   return (
     <AnimatePresence>
-      {(isStale || checkFailed) && !dismissed && !onDataHealthPage && (
+      {kind !== null && kind !== dismissedKind && !onDataHealthPage && (
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -52,7 +62,7 @@ export default function StaleAnalyticsAlert() {
         >
           <TriangleAlert className="size-4 shrink-0 text-app-red" aria-hidden />
           <p className="min-w-0 flex-1 text-xs leading-5 text-foreground">
-            {isStale ? (
+            {kind === 'stale' ? (
               <>
                 <span className="font-medium">These figures are out of date.</span> Your last import
                 did not finish recomputing, so every page is showing the previous import&apos;s
@@ -61,8 +71,7 @@ export default function StaleAnalyticsAlert() {
             ) : (
               <>
                 <span className="font-medium">Could not check whether these figures are current.</span>{' '}
-                The data health request failed, so the numbers on screen may be from a previous
-                import.
+                The freshness check could not run, for example while offline. Nothing says the figures are old.
               </>
             )}
           </p>
@@ -76,7 +85,7 @@ export default function StaleAnalyticsAlert() {
             */
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-app-red/50 px-2.5 text-xs font-medium text-app-red transition-colors duration-150 hover:bg-app-red/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:pointer-fine:min-h-8"
           >
-            {isStale ? 'Fix this' : 'Check'}
+            {kind === 'stale' ? 'Fix this' : 'Check'}
           </Link>
           {/*
             Dismiss is component-local state, not persisted. The condition is
@@ -87,7 +96,7 @@ export default function StaleAnalyticsAlert() {
           */}
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={() => setDismissedKind(kind)}
             aria-label="Dismiss out-of-date warning"
             className="inline-flex size-11 shrink-0 items-center lg:size-8 justify-center rounded-lg text-text-tertiary transition-colors duration-150 hover:bg-[var(--overlay-2)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >

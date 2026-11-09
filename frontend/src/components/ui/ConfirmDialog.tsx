@@ -11,12 +11,21 @@
  * arrives as a `cancel` event. The dialog element is a transparent full-screen
  * shell so the backdrop and panel keep their motion fade/scale in both
  * directions; focus returns to the opener once the exit animation finishes.
+ *
+ * Confirming is a small state machine: idle -> pending -> closed, or
+ * pending -> failed -> pending again. While pending the confirm button spins
+ * and Cancel, Escape and the backdrop are inert, so the dialog cannot vanish
+ * while its action still runs. A rejecting `onConfirm` keeps the dialog open
+ * with the reason, so the user can retry or cancel with the context in view;
+ * pass the action's promise (`mutateAsync`) and let it reject.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { DURATION, EASING } from '@/constants/animations'
+import { getApiErrorMessage } from '@/lib/errorUtils'
+import { markErrorReported } from '@/lib/queryClient'
 
 import Button from './Button'
 
@@ -33,6 +42,11 @@ interface ConfirmDialogProps {
 
 /** The mounted dialog's props: `open` only decides whether it is mounted. */
 type ConfirmDialogContentProps = Omit<ConfirmDialogProps, 'open'>
+
+type ConfirmPhase =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'pending' }
+  | { readonly kind: 'failed'; readonly message: string }
 
 export default function ConfirmDialog({ open, ...contentProps }: ConfirmDialogProps) {
   return (
@@ -52,25 +66,30 @@ function ConfirmDialogContent({
   onConfirm,
 }: ConfirmDialogContentProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+  const descriptionId = useId()
+  const [phase, setPhase] = useState<ConfirmPhase>({ kind: 'idle' })
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange])
 
-  // onConfirm may be async and the dialog must stay open until it settles, so
-  // the await-then-close sequence is unchanged. `void` at the call site only
-  // adapts it to the void-returning onClick prop -- no catch is attached, so a
-  // rejecting onConfirm behaves exactly as before. Every current caller already
-  // handles its own errors (Settings reset toasts; goals and subscriptions pass
-  // synchronous handlers).
-  // A second click while onConfirm is pending (or during the exit animation)
-  // is ignored; a rejection re-arms the button so the user can retry.
+  // Set synchronously, so a second click in the same tick (or one during the
+  // exit animation) is ignored before the pending render lands. A rejection
+  // re-arms it so the user can retry.
   const confirmingRef = useRef(false)
+  const dismiss = useCallback(() => {
+    if (!confirmingRef.current) handleClose()
+  }, [handleClose])
   const handleConfirm = useCallback(async () => {
     if (confirmingRef.current) return
     confirmingRef.current = true
+    setPhase({ kind: 'pending' })
     try {
       await onConfirm()
     } catch (error) {
+      // Shown here, so the global mutation toast stays quiet.
+      markErrorReported(error)
       confirmingRef.current = false
-      throw error
+      setPhase({ kind: 'failed', message: getApiErrorMessage(error, 'That did not go through. Try again.') })
+      return
     }
     handleClose()
   }, [onConfirm, handleClose])
@@ -97,11 +116,12 @@ function ConfirmDialogContent({
     <dialog
       ref={dialogRef}
       role="alertdialog"
-      aria-labelledby="confirm-dialog-title"
-      aria-describedby="confirm-dialog-desc"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      aria-busy={phase.kind === 'pending' || undefined}
       onCancel={(e) => {
         e.preventDefault()
-        handleClose()
+        dismiss()
       }}
       className="fixed inset-0 z-50 m-0 size-full max-h-none max-w-none items-center justify-center border-0 bg-transparent p-4 text-foreground backdrop:bg-transparent open:flex"
     >
@@ -112,7 +132,7 @@ function ConfirmDialogContent({
         exit={{ opacity: 0 }}
         transition={{ duration: DURATION.quick, ease: EASING.cinematic }}
         className="absolute inset-0 bg-[var(--modal-backdrop)]"
-        onClick={handleClose}
+        onClick={dismiss}
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -121,13 +141,19 @@ function ConfirmDialogContent({
         transition={{ duration: DURATION.quick, ease: EASING.cinematic }}
         className="relative w-full max-w-md rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-6 shadow-[var(--glass-shadow-strong)]"
       >
-        <h3 id="confirm-dialog-title" className="text-lg font-semibold text-foreground mb-2">{title}</h3>
-        <p id="confirm-dialog-desc" className="text-sm text-muted-foreground mb-6">{description}</p>
+        <h3 id={titleId} className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+        <p id={descriptionId} className="text-sm text-muted-foreground mb-6">{description}</p>
+        {phase.kind === 'failed' && (
+          <p role="alert" className="-mt-3 mb-6 text-sm text-error">
+            {phase.message}
+          </p>
+        )}
         <div className="flex justify-end gap-3">
           <Button
             variant="secondary"
             size="lg"
-            onClick={handleClose}
+            onClick={dismiss}
+            disabled={phase.kind === 'pending'}
           >
             {cancelLabel}
           </Button>
@@ -135,6 +161,7 @@ function ConfirmDialogContent({
             variant={variant === 'danger' ? 'danger' : 'primary'}
             size="lg"
             onClick={() => void handleConfirm()}
+            isLoading={phase.kind === 'pending'}
             className={warningClasses}
           >
             {confirmLabel}

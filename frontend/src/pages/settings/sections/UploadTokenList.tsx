@@ -23,7 +23,6 @@ interface Props {
   onRetry: () => void
   /** The token being revoked; other revokes wait until it settles. */
   revokingId: number | undefined
-  revokeError: { id: number; message: string } | null
   onRevoke: (token: UploadToken) => void
 }
 
@@ -59,7 +58,7 @@ function PurposeBadge({ token }: Readonly<{ token: UploadToken }>) {
 }
 
 export default function UploadTokenList(props: Readonly<Props>) {
-  const { tokens, isLoading, isError, onRetry, revokingId, revokeError, onRevoke } = props
+  const { tokens, isLoading, isError, onRetry, revokingId, onRevoke } = props
   const headingId = useId()
 
   let body: ReactNode
@@ -115,11 +114,6 @@ export default function UploadTokenList(props: Readonly<Props>) {
               />
               <TokenDate label="Expires" value={formatTimestamp(token.expires_at, DATE)} />
             </dl>
-            {revokeError?.id === token.id && (
-              <p role="alert" className="mt-2 text-sm text-app-red">
-                Could not revoke this token. {revokeError.message}
-              </p>
-            )}
           </li>
         ))}
       </ul>

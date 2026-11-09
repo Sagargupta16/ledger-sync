@@ -61,6 +61,35 @@ export default function AiCanvasPage() {
         />
       )}
 
+      {canvas.availability === 'incomplete' && (
+        <EmptyState
+          icon={KeyRound}
+          title="Choose a provider and model"
+          description="Your AI Assistant is set to your own key, but no provider or model is chosen. Pick them in Settings > AI Assistant, or switch to the app's shared model."
+          actionLabel="Open Settings"
+          actionHref={ROUTES.SETTINGS}
+          variant="card"
+        />
+      )}
+      {canvas.availability === 'loading' && (
+        <EmptyState
+          icon={Sparkles}
+          title="Loading your AI settings"
+          description="The canvas opens once your AI settings are known."
+          variant="card"
+        />
+      )}
+      {canvas.availability === 'error' && (
+        <EmptyState
+          icon={Sparkles}
+          title="Could not load AI settings"
+          description="Nothing was sent. Check your connection and try again."
+          actionLabel="Try again"
+          onAction={canvas.retryConfig ?? undefined}
+          variant="card"
+        />
+      )}
+
       {canvas.availability === 'ready' && (
         <div className="grid gap-4 xl:grid-cols-[24rem_minmax(0,1fr)] xl:items-start xl:gap-6">
           {/* 15rem is the app header, the page header and the page padding above and below. */}

@@ -277,11 +277,10 @@ export function useSettingsState() {
       setHasChanges(false)
       setSavedAt(new Date())
       toast.success('Settings reset to defaults')
-    } catch {
-      if (isCurrentSession(signal)) {
-        setSaveError('Could not reset settings. Your current edits are kept here.')
-        toast.error('Failed to reset settings')
-      }
+    } catch (error) {
+      // The confirm dialog shows the failure and keeps itself open for a retry,
+      // so rethrow instead of toasting or setting the page banner as well.
+      if (isCurrentSession(signal)) throw error
     } finally {
       saveInProgress.current = false
       setIsResetting(false)

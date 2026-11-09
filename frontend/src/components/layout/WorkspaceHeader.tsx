@@ -2,11 +2,10 @@ import { Landmark, Search, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { Button } from '@/components/ui'
-import { useQuery } from '@tanstack/react-query'
 
 import NotificationCenter from '@/components/shared/NotificationCenter'
 import { DURATION, EASING } from '@/constants/animations'
-import { aiConfigService } from '@/services/api/aiConfig'
+import { aiUnavailableReason, isAiReady, useAiAvailability } from '@/hooks/api/useAiAvailability'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { useMotionStore } from '@/store/motionStore'
@@ -23,22 +22,24 @@ export default function WorkspaceHeader({
   const accessToken = useAuthStore((state) => state.accessToken)
   const isDemoMode = useDemoStore((state) => state.isDemoMode)
   const reduceMotion = useMotionStore((state) => state.mode === 'reduced')
-  const { data: aiConfig } = useQuery({
-    queryKey: ['ai-config'],
-    queryFn: () => aiConfigService.getConfig(),
-    enabled: Boolean(accessToken) && !isDemoMode,
-    staleTime: Infinity,
-  })
-  const isAssistantReady =
-    (aiConfig?.mode ?? 'app_bedrock') === 'app_bedrock' ||
-    aiConfig?.has_key === true
+  const availability = useAiAvailability()
+  const isAssistantReady = isAiReady(availability)
+  const unavailableReason = aiUnavailableReason(availability)
+  // A key or model still to choose is set up in Settings, not here, so the
+  // button stays hidden as before; loading shows it disabled, an error retries.
+  const showAssistant =
+    isAssistantReady || availability.kind === 'loading' || availability.kind === 'error'
 
   const openSearch = () => {
     document.dispatchEvent(new CustomEvent('open-command-palette'))
   }
 
   const openAssistant = () => {
-    document.dispatchEvent(new CustomEvent('open-ai-assistant'))
+    if (availability.kind === 'error') {
+      availability.retry()
+      return
+    }
+    if (isAssistantReady) document.dispatchEvent(new CustomEvent('open-ai-assistant'))
   }
 
   return (
@@ -74,14 +75,16 @@ export default function WorkspaceHeader({
           </kbd>
         </Button>
 
-        {accessToken && !isDemoMode && isAssistantReady && (
+        {accessToken && !isDemoMode && showAssistant && (
           <Button
             type="button"
             variant="secondary"
             size="sm"
             onClick={openAssistant}
+            disabled={availability.kind === 'loading'}
+            title={unavailableReason ? `${unavailableReason}${availability.kind === 'error' ? ' (click to retry)' : ''}` : undefined}
             className="hidden px-3 text-xs sm:inline-flex"
-            aria-label="Open AI Assistant"
+            aria-label={isAssistantReady ? 'Open AI Assistant' : `AI Assistant unavailable -- ${unavailableReason ?? 'not ready'}`}
           >
             <Sparkles className="size-3.5" />
             <span>Ask AI</span>

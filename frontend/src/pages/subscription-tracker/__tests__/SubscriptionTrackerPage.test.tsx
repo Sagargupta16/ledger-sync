@@ -13,18 +13,19 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   setAmount: vi.fn(),
   refetch: vi.fn(),
+  isError: false,
 }))
 
 vi.mock('@/hooks/api/useAnalyticsV2', () => ({
   useRecurringTransactions: () => ({
     data: mocks.items,
     isPending: false,
-    isError: false,
+    isError: mocks.isError,
     refetch: mocks.refetch,
   }),
   useCreateRecurringTransaction: () => ({ mutate: mocks.create, isPending: false }),
   useUpdateRecurringTransaction: () => ({ mutate: mocks.update, isPending: false }),
-  useDeleteRecurringTransaction: () => ({ mutate: mocks.remove, isPending: false }),
+  useDeleteRecurringTransaction: () => ({ mutateAsync: mocks.remove, isPending: false }),
 }))
 
 // Each card owns its amount mutation (inline edit and reset).
@@ -67,6 +68,7 @@ function renderPage() {
 describe('recurring freshness presentation', () => {
   beforeEach(() => {
     mocks.items = []
+    mocks.isError = false
     vi.clearAllMocks()
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2032, 3, 1, 12))
@@ -96,6 +98,17 @@ describe('recurring freshness presentation', () => {
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.remove).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
+  })
+
+  it('keeps the items and shows a notice when a refetch fails with cached data', () => {
+    mocks.items = [item(1, { name: 'Cached commitment' })]
+    mocks.isError = true
+    renderPage()
+
+    expect(screen.getByText('Cached commitment')).toBeInTheDocument()
+    expect(screen.getByText(/Could not refresh/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /retry|try again/i }))
+    expect(mocks.refetch).toHaveBeenCalledOnce()
   })
 
   it('keeps the summary and recurring mix visible when every active item needs review', () => {

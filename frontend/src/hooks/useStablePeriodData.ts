@@ -17,9 +17,13 @@ import { hashKey } from '@tanstack/react-query'
  * ANY read is placeholder data or has no data yet, it returns the previously
  * committed `period` and `data` (all from one range) with `isSettling` set;
  * once every read holds real data for the selection, it commits the new pair
- * in the same render, so all values switch together. A read that errored
- * counts as settled -- its data is `undefined` and the page's own error state
- * takes over -- so a failed request never pins the page on stale figures.
+ * in the same render, so all values switch together. A read that failed with
+ * no data hands back the current reads so the page's own error state takes
+ * over -- a failed request never pins the page on stale figures --
+ * but it is never committed: TanStack sends a failed read with no data back
+ * to pending on retry, and a committed `undefined` snapshot would then show
+ * as zeros or "no transactions" while the retry runs. A read that failed but
+ * kept its data commits that data like any settled read.
  * Pass `null` for a read the current selection does not use (a disabled
  * query); it neither blocks nor contributes data.
  *
@@ -66,8 +70,11 @@ interface Snapshot<P, D> {
 
 function isSettled(read: PeriodRead | null): boolean {
   if (read === null) return true
-  if (read.isError) return true
   return read.data !== undefined && !read.isPlaceholderData
+}
+
+function failedWithoutData(read: PeriodRead | null): boolean {
+  return read?.isError === true && read.data === undefined
 }
 
 export function useStablePeriodData<P, const R extends readonly (PeriodRead | null)[]>(
@@ -76,6 +83,8 @@ export function useStablePeriodData<P, const R extends readonly (PeriodRead | nu
 ): StablePeriodData<P, PeriodReadData<R>> {
   const [committed, setCommitted] = useState<Snapshot<P, PeriodReadData<R>> | null>(null)
   const data = reads.map((read) => read?.data) as PeriodReadData<R>
+
+  if (reads.some(failedWithoutData)) return { period, data, isSettling: false, isInitialLoad: false }
 
   if (reads.every(isSettled)) {
     const signature = hashKey([period, reads.map((read) => read?.dataUpdatedAt ?? null)])

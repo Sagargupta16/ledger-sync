@@ -16,7 +16,8 @@ interface Props {
   readonly isError: boolean
   readonly isDemoMode: boolean
   readonly isRemoving: boolean
-  readonly onRemove: (taxYear: string) => void
+  /** Rejects on failure, so the confirm dialog stays open and reports it. */
+  readonly onRemove: (taxYear: string) => Promise<void>
   readonly onRetry: () => void
 }
 
@@ -73,9 +74,8 @@ export default function SavedAisYears({ summaries, isLoading, isError, isDemoMod
         description={pending ? `/tax stops showing actual TDS for ${taxYearLabel(pending)} until you import its AIS again.` : ''}
         confirmLabel="Remove"
         variant="danger"
-        onConfirm={() => {
-          if (pending) onRemove(pending)
-          setPending(null)
+        onConfirm={async () => {
+          if (pending) await onRemove(pending)
         }}
       />
     </section>

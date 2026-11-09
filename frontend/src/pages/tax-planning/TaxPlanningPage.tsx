@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
@@ -35,7 +36,7 @@ export default function TaxPlanningPage() {
     </Link>
   )
 
-  if (!planning.isLoading && planning.isError) {
+  if (planning.isError) {
     return (
       <PageErrorState
         title="Income Tax"
@@ -80,6 +81,8 @@ export default function TaxPlanningPage() {
           />
         </StickyToolbar>
       )}
+
+      {hasResolvedData && planning.refreshFailed && <RefreshFailedNotice onRetry={planning.retry} />}
 
       {planning.isLoading && <PageSkeleton />}
 

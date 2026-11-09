@@ -89,6 +89,44 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('cannot be dismissed while its action is still running', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <ConfirmDialog
+        {...defaultProps}
+        onConfirm={() => new Promise<void>(() => undefined)}
+        onOpenChange={onOpenChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+
+    fireEvent(dialog, new Event('cancel', { cancelable: true }))
+    fireEvent.click(dialog.firstElementChild as HTMLElement)
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('stays open with the reason when the action fails, and can retry', async () => {
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('The budget was not deleted.'))
+      .mockResolvedValueOnce(undefined)
+    const onOpenChange = vi.fn()
+    render(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} onOpenChange={onOpenChange} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The budget was not deleted.')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+  })
+
   it('opens as a native modal, focuses the safe action, and restores focus on close', async () => {
     function Harness() {
       const [open, setOpen] = useState(false)

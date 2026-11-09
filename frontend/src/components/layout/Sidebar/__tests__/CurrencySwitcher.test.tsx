@@ -153,6 +153,19 @@ describe('CurrencySwitcher unpriced-selection state', () => {
     expect(status).toHaveTextContent('INR')
   })
 
+  it('says the rates could not be loaded, not that the currency has no rate, when the fetch fails', async () => {
+    getExchangeRates.mockRejectedValue(new Error('upstream down'))
+    usePreferencesStore.setState({ displayCurrency: 'USD', exchangeRate: null })
+    renderSwitcher()
+
+    expect(
+      await screen.findByRole('button', { name: /rates could not be loaded, showing INR/i }),
+    ).toBeInTheDocument()
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('Rates could not be loaded')
+    expect(status).not.toHaveTextContent('No USD rate')
+  })
+
   it('shows the rate pill and no warning when conversion really is in effect', async () => {
     usePreferencesStore.setState({ displayCurrency: 'USD', exchangeRate: 0.01036 })
     renderSwitcher()

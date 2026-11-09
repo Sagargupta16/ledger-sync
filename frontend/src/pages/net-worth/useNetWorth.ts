@@ -32,6 +32,7 @@ export function useNetWorth() {
   const {
     isLoading,
     isError,
+    refreshFailed,
     retry,
     accounts,
     dailyCashFlow,
@@ -210,6 +211,7 @@ export function useNetWorth() {
   return {
     isLoading,
     isError,
+    refreshFailed,
     retry,
     accounts,
     totalAssets,

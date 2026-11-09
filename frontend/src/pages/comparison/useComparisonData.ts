@@ -15,6 +15,7 @@ import {
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import type { CompareMode, PartialPeriod, PeriodSummary, CategoryDelta } from './types'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { pctChange, getMonthOptions, getYearOptions } from './utils'
 import { alignToElapsed, type DateSpan } from './periodAlign'
 import { generateAllInsights } from './insights'
@@ -30,11 +31,13 @@ export function useComparisonData() {
   // The user's classified realised-loss keys -- the set `/totals` reads.
   const lossCategories = preferences?.capital_loss_categories
   const lossConfig = useMemo(() => capitalLossConfig(lossCategories), [lossCategories])
-  const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
-  const isError = transactionsQuery.isError || preferencesQuery.isError
+  const statusReads = [transactionsQuery, preferencesQuery]
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`. Loading and error are exclusive.
+  const isError = blockingError(statusReads)
+  const isLoading = !isError && (transactionsQuery.isLoading || preferencesQuery.isLoading)
   const retry = () => {
-    void transactionsQuery.refetch()
-    void preferencesQuery.refetch()
+    void retryFailed(statusReads)
   }
   const fiscalYearStartMonth = preferences?.fiscal_year_start_month || 4
 
@@ -272,6 +275,7 @@ export function useComparisonData() {
   return {
     isLoading,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
     transactions,
     mode, setMode,

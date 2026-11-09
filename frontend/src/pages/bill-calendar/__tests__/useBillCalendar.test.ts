@@ -32,6 +32,19 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 describe('useBillCalendar', () => {
+  it('keeps the calendar and flags a failed refresh when the failed read kept its bills', () => {
+    const refetch = vi.fn()
+    mocks.useRecurringTransactions.mockReturnValue({
+      data: [bill()], isLoading: false, isError: true, refetch,
+    })
+    const { result } = renderHook(() => useBillCalendar())
+    expect(result.current.isError).toBe(false)
+    expect(result.current.refreshFailed).toBe(true)
+    expect(result.current.summary.totalDue).toBe(100)
+    result.current.retry()
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps manual bills visible when their due date cannot be scheduled', () => {
     mocks.useRecurringTransactions.mockReturnValue({
       data: [

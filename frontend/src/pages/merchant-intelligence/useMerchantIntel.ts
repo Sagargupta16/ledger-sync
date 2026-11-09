@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { useMerchantIntelligence } from '@/hooks/api/useAnalyticsV2'
+import { pageStatus } from '@/lib/queryStatus'
 
 import {
   PARETO_THRESHOLD,
@@ -26,6 +27,8 @@ export const ROW_LIMIT = 200
 interface UseMerchantIntelResult {
   readonly isLoading: boolean
   readonly isError: boolean
+  /** A refresh failed but the last good rollup is still shown. */
+  readonly refreshFailed: boolean
   readonly retry: () => void
   /** True when the rollup itself is empty (no notes, or analytics never built). */
   readonly isEmpty: boolean
@@ -61,10 +64,12 @@ interface UseMerchantIntelResult {
  * request (fetched alongside, so toggling never swaps the page for a skeleton).
  */
 export function useMerchantIntel(): UseMerchantIntelResult {
-  const { data, isPending, isError, refetch } = useMerchantIntelligence({
+  const rollupQuery = useMerchantIntelligence({
     min_transactions: MIN_TRANSACTIONS,
     limit: ROW_LIMIT,
   })
+  const { data, isPending } = rollupQuery
+  const status = pageStatus([rollupQuery], isPending)
 
   const { data: recurringData } = useMerchantIntelligence({
     min_transactions: MIN_TRANSACTIONS,
@@ -95,13 +100,15 @@ export function useMerchantIntel(): UseMerchantIntelResult {
   const stats = useMemo(() => computeStats(rows, PARETO_THRESHOLD), [rows])
   const spendByLabel = useMemo(() => toSpendByLabel(rows), [rows])
 
+  const { refetch } = rollupQuery
   const retry = useCallback(() => {
     void refetch()
   }, [refetch])
 
   return {
-    isLoading: isPending,
-    isError,
+    isLoading: status.kind === 'loading',
+    isError: status.kind === 'error',
+    refreshFailed: status.kind === 'ready' && status.refreshFailed,
     retry,
     isEmpty: !isPending && usable.length === 0,
     isFilteredEmpty: usable.length > 0 && rows.length === 0,

@@ -39,13 +39,14 @@ function renderAlert(path = '/dashboard') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <StaleAnalyticsAlert />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return { ...view, client }
 }
 
 /**
@@ -111,5 +112,55 @@ describe('StaleAnalyticsAlert', () => {
     unmount()
     renderAlert()
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('says the check could not run, not that the figures are old, when the request fails', async () => {
+    mocks.getDataHealth.mockRejectedValue(new Error('offline'))
+    renderAlert()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/freshness check could not run/i)
+    expect(screen.queryByText(/out of date/i)).not.toBeInTheDocument()
+  })
+
+  it('shows again when the kind changes after a dismissal', async () => {
+    mocks.getDataHealth.mockRejectedValueOnce(new Error('offline'))
+    const { client } = renderAlert()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/freshness check could not run/i)
+    fireEvent.click(screen.getByRole('button', { name: /dismiss out-of-date warning/i }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+
+    mocks.getDataHealth.mockResolvedValue(HEALTH)
+    await client.refetchQueries()
+    expect(await screen.findByText(/These figures are out of date\./)).toBeInTheDocument()
+  })
+
+  it('shows again for a later stale episode after the condition cleared', async () => {
+    mocks.getDataHealth.mockResolvedValue(HEALTH)
+    const { client } = renderAlert()
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /dismiss out-of-date warning/i }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+
+    mocks.getDataHealth.mockResolvedValue({ ...HEALTH, rollups_stale: false })
+    await client.refetchQueries()
+    await waitFor(() => expect(mocks.getDataHealth).toHaveBeenCalledTimes(2))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    mocks.getDataHealth.mockResolvedValue(HEALTH)
+    await client.refetchQueries()
+    expect(await screen.findByText(/These figures are out of date\./)).toBeInTheDocument()
+  })
+
+  it('keeps reporting stale when a refetch fails but the data still says stale', async () => {
+    mocks.getDataHealth.mockResolvedValueOnce(HEALTH)
+    const { client } = renderAlert()
+    expect(await screen.findByText(/These figures are out of date\./)).toBeInTheDocument()
+
+    mocks.getDataHealth.mockRejectedValue(new Error('offline'))
+    await client.refetchQueries()
+    await waitFor(() => expect(mocks.getDataHealth).toHaveBeenCalledTimes(2))
+    expect(screen.getByText(/These figures are out of date\./)).toBeInTheDocument()
   })
 })

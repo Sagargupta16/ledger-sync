@@ -176,6 +176,24 @@ describe('tax planning income and deduction integration', () => {
     expect(result.current.annualTaxComputation?.totalTax).toBe(478_200)
   })
 
+  it('keeps the page and flags a failed refresh when the failed read still has data', () => {
+    const refetch = vi.fn()
+    mocks.transactions.mockReturnValue({ ...ready, data: [], isError: true, refetch })
+    const { result } = renderHook(() => useTaxPlanning())
+    expect(result.current.isError).toBe(false)
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.refreshFailed).toBe(true)
+    result.current.retry()
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('blocks the page only when the failed read has no data', () => {
+    mocks.transactions.mockReturnValue({ ...ready, data: undefined, isError: true })
+    const { result } = renderHook(() => useTaxPlanning())
+    expect(result.current.isError).toBe(true)
+    expect(result.current.refreshFailed).toBe(false)
+  })
+
   it('updates the known deduction when the explicit salary settings change', async () => {
     mocks.transactions.mockReturnValue({
       ...ready,

@@ -6,6 +6,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.36.0 - 2026-11-09
+
+Every lifecycle in the app with more than two states is now written down in [docs/STATE_MACHINES.md](docs/STATE_MACHINES.md): about 130 of them, from an audit of the whole repo, each with its states, the file that owns it and any known gap. The contradictions it found came from a few repeated shapes, so most fixes below are one shared piece used everywhere rather than many local patches. No migration, and the API shape is unchanged.
+
+### Fixed
+
+- **The "figures are out of date" banner after a successful recompute.** An import that emptied the latest month deleted that month's rollup, and with no later month nothing was restamped, so Data Health compared an old stamp with the new import and reported stale. Freshness now also counts the last successful publication; a recompute that really failed still reports stale.
+- **A failed background refresh no longer wipes the page.** When a read that already had data failed to refresh (often right after an upload, a save or a recompute), about 30 pages and panels swapped everything, the period toolbar included, for an error screen. They now keep the figures and say "Could not refresh" with a Retry that refetches only what failed. The error screen is for a read with nothing to show.
+- **A retry no longer shows "No transactions" or zeros.** The period pages (Dashboard, Overview, Spending, Income, Year in Review, Returns) stored a failed read as if it were the period's data, so the next Retry displayed it as empty figures while it ran. They now keep the last good period on screen until the new one arrives.
+- **Delete and reset confirmations wait for the result.** The dialog used to close the moment you confirmed, before the delete or reset finished, so a failure only flashed by as a toast. It now shows that it is working, cannot be dismissed half way, and stays open with the reason if the action fails, so you can retry or cancel.
+- **One message per failure.** Several saves and deletes showed two error toasts (their own and a generic one), and a failed budget edit showed its inline error plus a toast. Each failure now reports in one place.
+- **A save made offline no longer spins forever.** Saves paused while the browser reported offline; they now fail with a network error, like page loads already did.
+- **The AI assistant waits until it knows how it is paid for.** While your AI settings were loading, or after they failed to load, the chat button, the header's Ask AI, the weekly recap's Explain and the AI Canvas all assumed the app-funded model, so a personal-key user could spend the shared quota. They now wait, offer a retry on a failed load, and say what is missing when a personal setup has no provider or model.
+- **Chat:** two quick sends no longer start two runs (the second could not be stopped), and a send with an incomplete personal setup now says nothing was sent instead of silently clearing your message.
+- **A demo tab can no longer sign out a real one.** Entering the demo on reload wrote the demo session over a real sign-in another tab had stored, and that tab signed out on its next reload. The demo session is no longer stored where other tabs read it.
+- **The stale banner comes back when it should.** Dismissing it hid every later warning for the rest of the visit; the dismissal now applies to that one warning and clears when the figures are current again. When the check itself cannot run (offline), it says so instead of implying the figures are old.
+- **Sign-in:** after you choose Google or GitHub, the buttons stay disabled until the provider's page opens, so a second click can no longer start a second sign-in that breaks the first.
+- **Currency switcher:** a failed exchange-rate fetch now says the rates could not be loaded, instead of claiming your currency has no rate.
+
+### Added
+
+- [docs/STATE_MACHINES.md](docs/STATE_MACHINES.md), with the conventions new code follows and the gaps held for a decision (recording why a commitment is paused, goal pause and cancel, AI funding after a key is removed).
+- Shared pieces for those conventions: `pageStatus` and `RefreshFailedNotice` for loading, error and refresh-failed states, `markErrorReported` for one message per failure, and `useAiAvailability` for whether the assistant can run.
+
+### Changed
+
+- The Settings reset dialog now shows its own failure instead of a banner on the page, and an access token's failed revoke shows in the dialog instead of under the row.
+
 ## 2.35.1 - 2026-11-02
 
 ### Fixed

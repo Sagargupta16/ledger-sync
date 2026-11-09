@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { Button, ConfirmDialog, PageContainer, PageHeader } from '@/components/ui'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { getTodayKey } from '@/lib/dateUtils'
@@ -33,12 +34,11 @@ const byMonthlyCostDesc = (a: RecurringTransaction, b: RecurringTransaction) =>
   toMonthlyAmount(a.expected_amount, a.frequency)
 
 export default function SubscriptionTrackerPage() {
-  const {
-    data: items = [],
-    isPending: isLoading,
-    isError,
-    refetch,
-  } = useRecurringTransactions({ active_only: false, min_confidence: 0 })
+  const recurringQuery = useRecurringTransactions({ active_only: false, min_confidence: 0 })
+  const { data: items = [], isPending: isLoading, isError, refetch } = recurringQuery
+  // A failed refetch keeps the items it had; only a read with nothing blocks.
+  const loadFailed = isError && recurringQuery.data === undefined
+  const refreshFailed = isError && recurringQuery.data !== undefined
   const createMutation = useCreateRecurringTransaction()
   const updateMutation = useUpdateRecurringTransaction()
   const deleteMutation = useDeleteRecurringTransaction()
@@ -105,11 +105,12 @@ export default function SubscriptionTrackerPage() {
     })
   }, [updateMutation, guardDemoAction])
 
-  const handleDelete = useCallback((id: number, name: string) => {
+  // Returns the delete's promise so ConfirmDialog stays open and pending until it
+  // settles, and shows the failure itself (it rejects, so the dialog reports it).
+  const handleDelete = useCallback(async (id: number, name: string) => {
     if (guardDemoAction('Deleting recurring items')) return
-    deleteMutation.mutate(id, {
-      onSuccess: () => toast.success(`Removed ${name}`),
-    })
+    await deleteMutation.mutateAsync(id)
+    toast.success(`Removed ${name}`)
   }, [deleteMutation, guardDemoAction])
 
   const openWithSuggestion = (s: Suggestion) => {
@@ -117,7 +118,7 @@ export default function SubscriptionTrackerPage() {
     setShowForm(true)
   }
 
-  if (isError) {
+  if (loadFailed) {
     return (
       <PageErrorState
         title="Recurring"
@@ -146,6 +147,8 @@ export default function SubscriptionTrackerPage() {
           </Button>
         }
       />
+
+      {refreshFailed && <RefreshFailedNotice onRetry={() => { void refetch() }} />}
 
       <RecurringSummarySection
         isLoading={isLoading}
@@ -242,7 +245,7 @@ export default function SubscriptionTrackerPage() {
         description={`Remove "${deleteTarget?.name ?? ''}"? This stops it from appearing in projected cash flow.`}
         confirmLabel="Delete"
         variant="danger"
-        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id, deleteTarget.name) }}
+        onConfirm={() => (deleteTarget ? handleDelete(deleteTarget.id, deleteTarget.name) : undefined)}
       />
     </PageContainer>
   )

@@ -4,6 +4,7 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { getLedgerTodayKey } from '@/lib/dateUtils'
+import { blockingError, retryFailed } from '@/lib/queryStatus'
 
 import { seedPotsFromAccounts, type PotSeed } from './monteCarloSeed'
 
@@ -27,7 +28,9 @@ export function useMonteCarloSeed() {
     { label: 'account types', query: classificationsQuery },
     { label: 'investment account mappings', query: preferencesQuery },
   ] as const
-  const failed = sources.filter(({ query }) => query.isError).map(({ label }) => label)
+  // A source that failed on a background refetch but kept its data still seeds
+  // the pots from that data; only one with nothing to show counts as failed.
+  const failed = sources.filter(({ query }) => blockingError([query])).map(({ label }) => label)
   const isLoading = sources.some(({ query }) => query.isLoading)
   const ready = failed.length === 0 && !isLoading
   const accounts = balancesQuery.data?.accounts
@@ -45,7 +48,7 @@ export function useMonteCarloSeed() {
     /** The sources that did not load, in reading order; empty when none failed. */
     failed,
     retry: () => {
-      for (const { query } of sources) void query.refetch()
+      void retryFailed(sources.map(({ query }) => query))
     },
   }
 }

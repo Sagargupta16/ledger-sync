@@ -12,6 +12,7 @@ import { History } from 'lucide-react'
 
 import { DataTable, type DataTableColumn } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import Spinner from '@/components/ui/Spinner'
 import { formatDate } from '@/lib/formatters'
 import { isDemoMode } from '@/store/demoStore'
@@ -129,7 +130,15 @@ export default function ImportHistory() {
 
       {query.isLoading && <Spinner />}
 
-      {query.isError && (
+      {/* A failed refetch (right after an import) keeps the rows it had. */}
+      {query.isError && query.data !== undefined && (
+        <RefreshFailedNotice
+          onRetry={() => void query.refetch()}
+          message="Could not refresh import history. These are the imports from the last successful load."
+        />
+      )}
+
+      {query.isError && query.data === undefined && (
         <p className="text-sm text-muted-foreground">
           Could not load import history.{' '}
           <button
@@ -142,7 +151,7 @@ export default function ImportHistory() {
         </p>
       )}
 
-      {!query.isLoading && !query.isError && (
+      {!query.isLoading && !(query.isError && query.data === undefined) && (
         imports.length > 0 ? (
           <DataTable
             columns={columns}

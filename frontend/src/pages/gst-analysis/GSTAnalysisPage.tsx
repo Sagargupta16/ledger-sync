@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import EmptyState from '@/components/shared/EmptyState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { staggerContainer } from '@/constants/animations'
@@ -85,7 +86,7 @@ export default function GSTAnalysisPage() {
     </details>
   )
 
-  if (!analysis.isLoading && analysis.isError) {
+  if (analysis.isError) {
     return (
       <PageErrorState
         title="Indirect Tax (GST)"
@@ -112,6 +113,8 @@ export default function GSTAnalysisPage() {
       />
 
       {fyNavigator && <StickyToolbar label="Fiscal year">{fyNavigator}</StickyToolbar>}
+
+      {analysis.refreshFailed && <RefreshFailedNotice onRetry={analysis.retry} />}
 
       {disclaimer}
 

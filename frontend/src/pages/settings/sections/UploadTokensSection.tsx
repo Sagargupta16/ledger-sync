@@ -49,9 +49,6 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
   const atLimit = (tokensQuery.data?.filter((token) => token.scope === scope).length ?? 0) >= MAX_UPLOAD_TOKENS
   const trimmedName = name.trim()
   const canCreate = !isDemoMode && !atLimit && trimmedName.length > 0
-  const revokeError = revokeToken.isError && revokeToken.variables !== undefined
-    ? { id: revokeToken.variables, message: getApiErrorMessage(revokeToken.error, 'Please try again.') }
-    : null
 
   const handlePurpose = (next: TokenScope) => {
     // Swap the suggested name along with the purpose, but keep one the user typed.
@@ -75,10 +72,11 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
     })
   }
 
-  const handleRevoke = () => {
+  // Returned to ConfirmDialog, which stays open with the error when this rejects.
+  const handleRevoke = async () => {
     if (!revokeTarget) return
     const { id, name: tokenName } = revokeTarget
-    revokeToken.mutate(id, {
+    await revokeToken.mutateAsync(id, {
       onSuccess: (_data, _id, signal) => {
         if (signal && isCurrentSession(signal)) toast.success(`Revoked ${tokenName}`)
       },
@@ -156,7 +154,6 @@ export default function UploadTokensSection({ index }: Readonly<Props>) {
             isError={tokensQuery.isError}
             onRetry={() => void tokensQuery.refetch()}
             revokingId={revokeToken.isPending ? revokeToken.variables : undefined}
-            revokeError={revokeError}
             onRevoke={(token) => {
               revokeToken.reset()
               setRevokeTarget(token)

@@ -9,6 +9,7 @@ import { getDateKey } from '@/lib/dateUtils'
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import { computePaidTax, groupTransactionsByFY, reconcileTaxWithholding } from '@/lib/finance/taxHistory'
 import {
   selectGrowthAssumptions, selectRsuGrants, selectSalaryStructure, usePreferencesStore,
@@ -42,12 +43,12 @@ export function useIncomeExpenseFlow() {
   const salaryStructure = usePreferencesStore(selectSalaryStructure)
   const rsuGrants = usePreferencesStore(selectRsuGrants)
   const growthAssumptions = usePreferencesStore(selectGrowthAssumptions)
-  const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
-  const isError = transactionsQuery.isError || preferencesQuery.isError
-  const retry = () => {
-    void transactionsQuery.refetch()
-    void preferencesQuery.refetch()
-  }
+  const reads = [transactionsQuery, preferencesQuery]
+  const status = pageStatus(reads)
+  const isLoading = status.kind === 'loading'
+  const isError = status.kind === 'error'
+  const hasRefreshFailed = status.kind === 'ready' && status.refreshFailed
+  const retry = () => void retryFailed(reads)
   // Gate the horizontal Sankey to lg+ (>=1024px): four labelled columns need
   // the width, so phones and tablets get the vertical MobileFlowView.
   const isMobile = useIsMobile(1024)
@@ -263,6 +264,7 @@ export function useIncomeExpenseFlow() {
     ...computed,
     isLoading,
     isError,
+    refreshFailed: hasRefreshFailed,
     retry,
     hasTransactions: allTransactions.length > 0,
     isMobile,

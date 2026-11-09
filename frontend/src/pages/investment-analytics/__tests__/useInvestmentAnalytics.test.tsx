@@ -6,13 +6,14 @@ import { useInvestmentAnalytics } from '../useInvestmentAnalytics'
 vi.mock('@/hooks/api/useAnalytics', () => ({
   useAccountBalances: () => ({ data: { accounts: {} }, isLoading: false, isError: false }),
 }))
+const preferencesState = vi.hoisted(() => ({ isError: false }))
 vi.mock('@/hooks/api/usePreferences', () => ({
   usePreferences: () => ({
     data: {
       investment_account_mappings: { 'Fund A': 'mutual_funds', 'Fund B': 'stocks' },
       monthly_investment_target: 10000,
     },
-    isLoading: false, isError: false,
+    isLoading: false, isError: preferencesState.isError, refetch: vi.fn(),
   }),
 }))
 vi.mock('@/hooks/api/useTransactions', () => ({
@@ -46,4 +47,16 @@ it('reconciles monthly progress, account balances and recorded P&L', () => {
   expect(result.current.filteredGrowthData.at(-1)?.Stocks).toBe(6000)
   expect(result.current.filteredGrowthData.at(-1)?.['Mutual Funds']).toBe(0)
   expect(result.current.netInvestmentPL).toBe(100)
+})
+
+it('keeps the page when a refetch fails but the read kept its data', () => {
+  preferencesState.isError = true
+  try {
+    const { result } = renderHook(() => useInvestmentAnalytics())
+    expect(result.current.isError).toBe(false)
+    expect(result.current.refreshFailed).toBe(true)
+    expect(result.current.totalInvestmentValue).toBe(6000)
+  } finally {
+    preferencesState.isError = false
+  }
 })

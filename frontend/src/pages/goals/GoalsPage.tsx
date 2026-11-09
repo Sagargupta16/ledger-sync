@@ -5,6 +5,7 @@ import { colors } from '@/constants/colors'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 
@@ -37,8 +38,6 @@ export default function GoalsPage() {
 function GoalsContent() {
   const state = useGoalsState()
 
-  if (state.isLoading) return <PageSkeleton />
-
   if (state.isError) {
     return (
       <PageErrorState
@@ -48,6 +47,8 @@ function GoalsContent() {
       />
     )
   }
+
+  if (state.isLoading) return <PageSkeleton />
 
   return (
     <PageContainer>
@@ -73,6 +74,8 @@ function GoalsContent() {
           </Button>
         }
       />
+
+      {state.refreshFailed && <RefreshFailedNotice onRetry={state.retry} />}
 
       {state.isDemoMode && (
         <output

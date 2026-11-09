@@ -5,7 +5,7 @@ import { useDeleteGoal, useUpdateGoal } from '@/hooks/api/useAnalyticsV2'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { assertCurrentSession, getSessionSignal, isCurrentSession } from '@/lib/session'
 import type { FinancialGoal } from '@/services/api/analyticsV2'
-import { useAuthStore } from '@/store/authStore'
+import { DEMO_ACCESS_TOKEN, useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 
 import {
@@ -29,7 +29,7 @@ const SUCCESS_MESSAGES: Record<RecoveryAction, string> = {
 export default function useLegacyGoalRecovery(query: UseQueryResult<FinancialGoal[], Error>) {
   const userId = useAuthStore((state) => state.user?.id)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated
-    && !!state.accessToken && state.accessToken !== 'demo-token')
+    && !!state.accessToken && state.accessToken !== DEMO_ACCESS_TOKEN)
   const isDemoMode = useDemoStore((state) => state.isDemoMode)
   const enabled = userId != null && isAuthenticated && !isDemoMode
   const [stored, setStored] = useState(() => enabled ? readLegacyGoalData() : null)

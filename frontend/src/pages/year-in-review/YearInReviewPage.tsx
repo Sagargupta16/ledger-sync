@@ -4,6 +4,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useChartDimensions } from '@/hooks/useChartDimensions'
 
@@ -61,6 +62,7 @@ export default function YearInReviewPage() {
         <YearReviewControls review={review} />
         <PeriodSettlingBar active={review.isSettling} />
       </StickyToolbar>
+      {review.refreshFailed && <RefreshFailedNotice onRetry={review.retry} />}
       <PeriodSettlingContent settling={review.isSettling}>
         <YearStatsGrid stats={review.stats} />
         <MonthlyBreakdownChart monthlyBarData={review.monthlyBarData} dims={dims} />

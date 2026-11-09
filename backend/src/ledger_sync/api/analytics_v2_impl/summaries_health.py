@@ -23,6 +23,7 @@ from ledger_sync.core.expense_class import (
 from ledger_sync.core.ledger_clock import ledger_today_iso
 from ledger_sync.core.query_helpers import fmt_date
 from ledger_sync.db.models import (
+    AnalyticsState,
     ImportLog,
     MonthlySummary,
     Transaction,
@@ -92,17 +93,29 @@ def _rollup_freshness(db: Session, user_id: int) -> dict[str, Any]:
     ``upload.py`` deliberately does not fail an upload when the refresh blows up
     (the raw rows are already committed, and a Neon statement timeout must not
     reject good data), and the frontend's explicit ``/refresh`` pass can miss the
-    same way. Neither leaves a mark the user can see. Comparing the newest
-    ``last_calculated`` against the newest ``imported_at`` turns that silent
-    divergence into a fact the client can render and act on.
+    same way. Neither leaves a mark the user can see. Comparing when the
+    rollups were last brought up to date against the newest ``imported_at``
+    turns that silent divergence into a fact the client can render and act on.
 
-    Both columns are naive UTC audit timestamps, so they compare directly.
+    "Up to date" is the later of the newest monthly ``last_calculated`` and the
+    last successful publication (``AnalyticsState.published_at``). The monthly
+    stamp alone misses a refresh that only removed the trailing month: the
+    emptied month's row is deleted and no later month exists to restamp, so
+    every surviving stamp predates the import that the refresh fully absorbed.
+    A refresh that fails rolls back both, so neither can mask a real failure.
+
+    All three columns are naive UTC audit timestamps, so they compare directly.
     """
-    rollups_at = (
+    calculated_at = (
         db.query(func.max(MonthlySummary.last_calculated))
         .filter(MonthlySummary.user_id == user_id)
         .scalar()
     )
+    published_at = (
+        db.query(AnalyticsState.published_at).filter(AnalyticsState.user_id == user_id).scalar()
+    )
+    stamps = [stamp for stamp in (calculated_at, published_at) if stamp is not None]
+    rollups_at = max(stamps) if stamps else None
     # An import that inserted, updated and deleted nothing marks no change, so
     # the refresh skips it and the rollups can never catch up to its timestamp.
     imported_at = (
