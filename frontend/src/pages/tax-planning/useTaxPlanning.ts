@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import {
   FY_START_MONTH,
   parseFYStartYear,
@@ -258,13 +259,14 @@ export function useTaxPlanning() {
     if (canGoForward) setSelectedFY(fyList[currentIndex - 1])
   }
 
-  const retry = () => {
-    void Promise.all([transactionsQuery.refetch(), preferencesQuery.refetch()])
-  }
+  const reads = [transactionsQuery, preferencesQuery]
+  const status = pageStatus(reads)
+  const retry = () => void retryFailed(reads)
 
   return {
-    isLoading: transactionsQuery.isLoading || preferencesQuery.isLoading,
-    isError: transactionsQuery.isError || preferencesQuery.isError,
+    isLoading: status.kind === 'loading',
+    isError: status.kind === 'error',
+    refreshFailed: status.kind === 'ready' && status.refreshFailed,
     retry,
     preferredRegime,
     salaryIsNetOfTds,

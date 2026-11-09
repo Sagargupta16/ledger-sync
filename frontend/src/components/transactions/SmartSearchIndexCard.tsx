@@ -67,7 +67,9 @@ function RemoveIndexButton() {
         description="This deletes the stored embeddings of your transactions. Smart search stays off until you build the index again, which sends the text to Bedrock again."
         confirmLabel="Remove index"
         variant="danger"
-        onConfirm={() => remove.mutate()}
+        onConfirm={async () => {
+          await remove.mutateAsync()
+        }}
       />
     </>
   )

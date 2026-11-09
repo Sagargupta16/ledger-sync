@@ -12,6 +12,20 @@ function mutationErrorMessage(error: unknown): string {
   return getApiErrorMessage(error, 'Something went wrong. Please try again.')
 }
 
+/** Errors a call site or an inline surface (ConfirmDialog) already reported. */
+const reportedErrors = new WeakSet<object>()
+
+/**
+ * Report a mutation failure in exactly one place: a caller that shows the
+ * error itself (a per-call `onError` toast, an inline message, a dialog) marks
+ * it, and the global fallback toast below then stays quiet. TanStack only
+ * exposes the hook-level `onError` to the cache, so a per-call one cannot be
+ * detected any other way.
+ */
+export function markErrorReported(error: unknown): void {
+  if (typeof error === 'object' && error !== null) reportedErrors.add(error)
+}
+
 export const queryClient = new QueryClient({
   // Global fallback so a mutation failure is never silent. A mutation can still
   // pass its own onError (e.g. to set inline form state); this only fires when
@@ -21,7 +35,12 @@ export const queryClient = new QueryClient({
       if (mutation.options.onError) return // mutation handles its own errors
       // A sign-out or account switch cancels queued work; that is not a failure.
       if (isCancel(error)) return
-      toast.error(mutationErrorMessage(error))
+      // Per-call callbacks and the awaiting caller run after this hook within
+      // the same task, so wait one task before deciding nobody reported it.
+      setTimeout(() => {
+        if (typeof error === 'object' && error !== null && reportedErrors.has(error)) return
+        toast.error(mutationErrorMessage(error))
+      }, 0)
     },
   }),
   defaultOptions: {
@@ -42,6 +61,12 @@ export const queryClient = new QueryClient({
       // refetchOnMount defaults to true: refetch stale queries on component mount.
       // With staleTime: Infinity, queries are only stale after explicit invalidation
       // (e.g. after upload), so page navigations stay instant until data changes.
+    },
+    mutations: {
+      // Same reason as queries: in 'online' mode a save made offline pauses,
+      // so its button spins as pending forever with no error. Offline now
+      // fails like any network error and reaches the toast above.
+      networkMode: 'always',
     },
   },
 })

@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
+import { blockingError, refreshFailed } from '@/lib/queryStatus'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import type { CapitalLossCandidate } from '@/services/api/analyticsV2DataHealth'
 import { uploadService } from '@/services/api/upload'
@@ -87,7 +88,9 @@ export function useDataHealth() {
     }),
     capitalLosses,
     isLoading: query.isPending,
-    isError: query.isError,
+    // A failed refetch keeps the report it had: only a read with nothing blocks.
+    isError: blockingError([query]),
+    refreshFailed: refreshFailed([query]),
     isRefetching: query.isRefetching,
     retry: () => {
       void query.refetch()

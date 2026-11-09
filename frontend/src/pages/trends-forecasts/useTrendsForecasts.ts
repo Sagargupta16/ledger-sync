@@ -12,6 +12,7 @@ import {
 } from '@/lib/dateUtils'
 import { ROLLING_AVG_MONTHS, countRollingAvgPoints } from '@/lib/chartUtils'
 import { percentChange } from '@/lib/formatters'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import { savingsRatePercent, savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { analysisPeriodLabel, fillAnalysisMonths, resolveAnalysisPeriod, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { getTrendDirection } from './trendsUtils'
@@ -53,18 +54,21 @@ export function useTrendsForecasts() {
   // The saved employment start, else the first salary-like income day.
   const needsEarningEvidence = resolveEarningStart(preferences?.earning_start_date, []).source !== 'saved'
   const earningEvidenceQuery = useEarningStartEvidence(preferencesQuery.isSuccess && needsEarningEvidence)
-  const isLoading =
-    preferencesQuery.isPending ||
-    trendsQuery.isPending ||
-    dailyQuery.isPending ||
-    dateRangeQuery.isLoading ||
-    earningEvidenceQuery.isLoading
-  const isError =
-    preferencesQuery.isError ||
-    trendsQuery.isError ||
-    dailyQuery.isError ||
-    dateRangeQuery.isError ||
-    earningEvidenceQuery.isError
+  // `useDataDateRange` unwraps its query, so present bounds stand in for "has data".
+  const dateRangeRead = {
+    data: dateRangeQuery.minDate === undefined ? undefined : dateRangeQuery,
+    isError: dateRangeQuery.isError,
+    isLoading: dateRangeQuery.isLoading,
+    refetch: dateRangeQuery.refetch,
+  }
+  const reads = [preferencesQuery, trendsQuery, dailyQuery, dateRangeRead, earningEvidenceQuery]
+  const status = pageStatus(
+    reads,
+    preferencesQuery.isPending || trendsQuery.isPending || dailyQuery.isPending,
+  )
+  const isLoading = status.kind === 'loading'
+  const isError = status.kind === 'error'
+  const hasRefreshFailed = status.kind === 'ready' && status.refreshFailed
 
   const { minDate, maxDate } = dateRangeQuery
   const dateBounds = useMemo(() => ({ minDate, maxDate }), [minDate, maxDate])
@@ -333,20 +337,13 @@ export function useTrendsForecasts() {
 
   const recentChartData = useMemo(() => chartData.slice(-8), [chartData])
 
-  const retry = () => {
-    const retries: Array<Promise<unknown>> = []
-    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
-    if (trendsQuery.isError) retries.push(trendsQuery.refetch())
-    if (dailyQuery.isError) retries.push(dailyQuery.refetch())
-    if (dateRangeQuery.isError) retries.push(dateRangeQuery.refetch())
-    if (earningEvidenceQuery.isError) retries.push(earningEvidenceQuery.refetch())
-    void Promise.all(retries)
-  }
+  const retry = () => void retryFailed(reads)
 
   return {
     savingsGoalPercent,
     isLoading,
     isError,
+    refreshFailed: hasRefreshFailed,
     retry,
     timeFilterProps,
     metrics,

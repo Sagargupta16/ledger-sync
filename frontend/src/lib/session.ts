@@ -1,7 +1,7 @@
 import { CanceledError } from 'axios'
 import type { QueryClient } from '@tanstack/react-query'
 import { clearDismissedNotifications } from '@/components/shared/notificationData'
-import { useAuthStore, type AuthState } from '@/store/authStore'
+import { DEMO_ACCESS_TOKEN, useAuthStore, type AuthState } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { queryClient } from './queryClient'
@@ -50,7 +50,7 @@ export function endSession(client: QueryClient = queryClient): void {
 /** Stable per-account (or `demo` / `anonymous`) identity for session-scoped storage. */
 export function sessionIdentity(state: AuthState): string {
   if (!state.accessToken) return 'anonymous'
-  if (state.accessToken === 'demo-token') return 'demo'
+  if (state.accessToken === DEMO_ACCESS_TOKEN) return 'demo'
   return `${state.user?.auth_provider ?? ''}:${state.user?.id ?? 'pending'}`
 }
 

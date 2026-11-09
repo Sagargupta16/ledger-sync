@@ -2,6 +2,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import CostBasisOnlyNotice from '@/components/shared/CostBasisOnlyNotice'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
 import ReturnsBreakdown from './components/ReturnsBreakdown'
@@ -14,6 +15,7 @@ export default function ReturnsAnalysisPage() {
   const {
     isLoading,
     isError,
+    refreshFailed,
     retry,
     timeFilterProps,
     investmentAccounts,
@@ -54,6 +56,8 @@ export default function ReturnsAnalysisPage() {
           <AnalyticsTimeFilter {...timeFilterProps} />
         </div>
       </StickyToolbar>
+
+      {refreshFailed && <RefreshFailedNotice onRetry={retry} />}
 
       <ReturnsSummary
         netProfitLoss={netProfitLoss}

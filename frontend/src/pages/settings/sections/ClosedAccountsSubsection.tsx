@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 
 import { useSetAccountStatus } from '@/hooks/api/useAccountStatus'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import { markErrorReported } from '@/lib/queryClient'
 import { Toggle } from '../sectionPrimitives'
 
 interface Props {
@@ -42,7 +43,10 @@ export default function ClosedAccountsSubsection({
         onSuccess: () => {
           toast.success(isClosed ? `${account} marked closed` : `${account} reopened`)
         },
-        onError: () => toast.error('Failed to update account status'),
+        onError: (error) => {
+          markErrorReported(error)
+          toast.error('Failed to update account status')
+        },
       },
     )
   }

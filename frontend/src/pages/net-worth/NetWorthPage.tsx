@@ -9,6 +9,8 @@ import { colors, rawColors } from '@/constants/colors'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { useClosedAccounts } from '@/hooks/api/useAccountStatus'
 
@@ -36,11 +38,14 @@ export default function NetWorthPage() {
     ? `${formatPercent(leveragePct)} of assets · ${m.liabilityAccountCount} ${accountLabel(m.liabilityAccountCount)}`
     : 'Debt-free'
 
-  if (m.isError || closedAccountsQuery.isError) {
-    const retryNetWorth = () => {
-      m.retry()
-      void closedAccountsQuery.refetch()
-    }
+  const blocked = m.isError || blockingError([closedAccountsQuery])
+  const showRefreshNotice = m.refreshFailed || refreshFailed([closedAccountsQuery])
+  const retryNetWorth = () => {
+    m.retry()
+    void retryFailed([closedAccountsQuery])
+  }
+
+  if (blocked) {
     return (
       <PageErrorState
         title="Net Worth"
@@ -64,6 +69,8 @@ export default function NetWorthPage() {
           <AnalyticsTimeFilter {...m.timeFilterProps} />
         </div>
       </StickyToolbar>
+
+      {showRefreshNotice && <RefreshFailedNotice onRetry={retryNetWorth} />}
 
       {m.partialPeriod && (
         <PartialPeriodNotice

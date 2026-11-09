@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { useGoals, useMonthlySummaries } from '@/hooks/api/useAnalyticsV2'
 import { useTotals } from '@/hooks/api/useAnalytics'
 import { parseLocalDate } from '@/lib/dateUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { generateDemoGoals } from '@/lib/demo/generateDerivedData'
 import { averageMonthlySavings, totalsByMonth } from '@/lib/finance/monthlyAverage'
 import { useDemoStore } from '@/store/demoStore'
@@ -30,18 +31,18 @@ export default function useGoalsState() {
     () => monthlySummariesQuery.data ?? [],
     [monthlySummariesQuery.data],
   )
+  // Demo goals live in local state, so the goals read does not count there.
+  const statusReads = [isDemoMode ? null : goalsQuery, totalsQuery, monthlySummariesQuery]
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`. Loading and error are exclusive.
+  const isError = blockingError(statusReads)
   const isLoading =
-    (!isDemoMode && goalsQuery.isLoading) ||
-    totalsQuery.isLoading ||
-    monthlySummariesQuery.isLoading
-  const isError =
-    (!isDemoMode && goalsQuery.isError) ||
-    totalsQuery.isError ||
-    monthlySummariesQuery.isError
+    !isError &&
+    ((!isDemoMode && goalsQuery.isLoading) ||
+      totalsQuery.isLoading ||
+      monthlySummariesQuery.isLoading)
   const retry = () => {
-    void goalsQuery.refetch()
-    void totalsQuery.refetch()
-    void monthlySummariesQuery.refetch()
+    void retryFailed(statusReads)
   }
 
   const effectiveAmounts = useMemo(() => {
@@ -113,6 +114,7 @@ export default function useGoalsState() {
     totalsLoading: totalsQuery.isLoading,
     isLoading,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
   }
 }

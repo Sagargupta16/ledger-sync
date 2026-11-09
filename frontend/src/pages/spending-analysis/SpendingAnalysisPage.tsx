@@ -13,6 +13,7 @@ import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { SCROLL_FADE_UP } from '@/constants/animations'
@@ -25,7 +26,7 @@ import { useSpendingAnalysis } from './useSpendingAnalysis'
 export default function SpendingAnalysisPage() {
   const {
     categoryFilter, selectedCategoryFilter, clearCategoryFilter,
-    timeFilterProps, dateRangeCompat, partialPeriod, noCompleteMonthBasis, isLoading, isSettling, isError, retry,
+    timeFilterProps, dateRangeCompat, partialPeriod, noCompleteMonthBasis, isLoading, isSettling, isError, refreshFailed, retry,
     totalSpending, monthlyAvgSpending, monthlyAvgSubtitle, monthlyAvgLineLabel, savings,
     categoryBreakdown, categoriesCount, subcategoriesCount,
     topCategory, topCategoryAmount,
@@ -60,6 +61,8 @@ export default function SpendingAnalysisPage() {
         <AnalyticsTimeFilter {...timeFilterProps} />
         <PeriodSettlingBar active={isSettling} />
       </StickyToolbar>
+
+      {refreshFailed && <RefreshFailedNotice onRetry={retry} />}
 
       <FilterBanner value={selectedCategoryFilter} label="Category" onClear={clearCategoryFilter} />
 

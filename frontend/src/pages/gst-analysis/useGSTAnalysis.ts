@@ -5,6 +5,7 @@ import { useTransactions } from '@/hooks/api/useTransactions'
 import { getDateKey, getTodayKey } from '@/lib/dateUtils'
 import { capitalLossConfig, isCapitalLoss } from '@/lib/expenseClassification'
 import { computeGSTAnalysis, getExpenseFYs } from '@/lib/gstCalculator'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import { FY_START_MONTH } from '@/lib/taxCalculator'
 
 export function useGSTAnalysis() {
@@ -45,9 +46,9 @@ export function useGSTAnalysis() {
     [gstData],
   )
 
-  const retry = () => {
-    void Promise.all([transactionsQuery.refetch(), preferencesQuery.refetch()])
-  }
+  const reads = [transactionsQuery, preferencesQuery]
+  const status = pageStatus(reads)
+  const retry = () => void retryFailed(reads)
 
   return {
     allFYs,
@@ -56,8 +57,9 @@ export function useGSTAnalysis() {
     gstData,
     taxableSlabs,
     hasData: Boolean(gstData && gstData.totalSpending > 0),
-    isLoading: transactionsQuery.isLoading || preferencesQuery.isLoading,
-    isError: transactionsQuery.isError || preferencesQuery.isError,
+    isLoading: status.kind === 'loading',
+    isError: status.kind === 'error',
+    refreshFailed: status.kind === 'ready' && status.refreshFailed,
     retry,
   }
 }

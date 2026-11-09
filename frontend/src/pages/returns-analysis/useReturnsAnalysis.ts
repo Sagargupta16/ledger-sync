@@ -14,6 +14,7 @@ import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { useTransactions } from '@/hooks/api/useTransactions'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { getDateKey, getTodayKey } from '@/lib/dateUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { investmentAccountTest } from '@/lib/finance/investmentFlows'
 import { investmentReturnRules } from '@/lib/finance/investmentReturns'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
@@ -30,14 +31,12 @@ export function useReturnsAnalysis() {
   const {
     data: allTransactions = [],
     isLoading: transactionsLoading,
-    isError: transactionsError,
   } = transactionsQuery
   const preferencesQuery = usePreferences()
   const { dateRange, timeFilterProps } = useAnalyticsTimeFilter(allTransactions)
   // A closing balance includes contributions before the selected P&L window.
   const dateParams = { end_date: dateRange.end_date ?? undefined }
   const balancesQuery = useAccountBalances(dateParams)
-  const { isError: balancesError } = balancesQuery
   // A window whose balances are not cached yet keeps the last window's balances
   // on screen, so the pinned time filter and the scroll position survive the switch.
   const stableBalances = useStablePeriodData(dateParams.end_date ?? null, [balancesQuery])
@@ -47,7 +46,10 @@ export function useReturnsAnalysis() {
   // Include the transactions query: the P&L metrics derive from `transactions`,
   // so omitting it flashed zeros as if loaded before transactions arrived.
   const isLoading = transactionsLoading || stableBalances.isInitialLoad || preferencesQuery.isLoading
-  const isError = transactionsError || balancesError || preferencesQuery.isError
+  const statusReads = [transactionsQuery, balancesQuery, preferencesQuery]
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`.
+  const isError = blockingError(statusReads)
 
   const transactions = useMemo(() => {
     const startDate = dateRange.start_date
@@ -108,16 +110,13 @@ export function useReturnsAnalysis() {
   }, [monthlyComboData])
 
   const retry = () => {
-    const retries: Array<Promise<unknown>> = []
-    if (transactionsQuery.isError) retries.push(transactionsQuery.refetch())
-    if (balancesQuery.isError) retries.push(balancesQuery.refetch())
-    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
-    void Promise.all(retries)
+    void retryFailed(statusReads)
   }
 
   return {
     isLoading,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
     timeFilterProps,
     investmentAccounts,

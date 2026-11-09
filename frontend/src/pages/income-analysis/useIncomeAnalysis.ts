@@ -22,6 +22,7 @@ import { dropPartialMonth } from '@/lib/dateUtils'
 import { analysisPeriodLabel, resolveEarningStart } from '@/lib/finance/analysisPeriod'
 import { computeIncomeMetrics } from '@/lib/finance/incomeMetrics'
 import { INCOME_CATEGORY_COLORS } from '@/lib/preferencesUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { resolveIncomeClassification } from '@/store/preferencesStore'
 
 export interface IncomeCategoryDatum {
@@ -183,17 +184,19 @@ export function useIncomeAnalysis() {
     setSearchParams(next, { replace: true })
   }
 
+  const statusReads = [
+    preferencesQuery,
+    dateRangeQuery,
+    incomeQuery,
+    needsEarningEvidence ? earningEvidenceQuery : null,
+  ]
   const retry = () => {
-    const retries: Array<Promise<unknown>> = []
-    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
-    if (dateRangeQuery.isError) retries.push(dateRangeQuery.refetch())
-    if (incomeQuery.isError) retries.push(incomeQuery.refetch())
-    if (needsEarningEvidence && earningEvidenceQuery.isError) retries.push(earningEvidenceQuery.refetch())
-    void Promise.all(retries)
+    void retryFailed(statusReads)
   }
 
-  const isError = preferencesQuery.isError || dateRangeQuery.isError || incomeQuery.isError ||
-    (needsEarningEvidence && earningEvidenceQuery.isError)
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`.
+  const isError = blockingError(statusReads)
 
   return {
     // The income read counts only until the first snapshot commits; after that
@@ -205,6 +208,7 @@ export function useIncomeAnalysis() {
     ),
     isSettling: stable.isSettling,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
     /** The source in the URL, for the filter banner (a control, so live). */
     categoryFilter,

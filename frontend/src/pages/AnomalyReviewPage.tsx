@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import EmptyState from '@/components/shared/EmptyState'
 import ErrorState from '@/components/shared/ErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 
@@ -29,7 +30,7 @@ export default function AnomalyReviewPage() {
   // The tuning link and detection panel do not depend on the failed queries,
   // so they stay usable on error. One root tree for every state keeps the
   // panel mounted, with its unsaved edits, across loading, error and loaded.
-  const hasError = !review.isLoading && review.isError
+  const { status } = review
   const filtered = Boolean(review.typeFilter || review.severityFilter) && review.summary.total > 0
 
   return (
@@ -42,20 +43,21 @@ export default function AnomalyReviewPage() {
 
       <AnomalyDetectionPanel />
 
-      {review.isLoading && <PageSkeleton />}
+      {status.kind === 'loading' && <PageSkeleton />}
 
-      {hasError && (
+      {status.kind === 'error' && (
         <ErrorState
           title="Unable to load Anomaly Review"
           message="We couldn't load your anomaly review data. Try again before reviewing financial activity."
-          onRetry={review.retry}
+          onRetry={status.retry}
           errorType="network"
           variant="card"
         />
       )}
 
-      {!review.isLoading && !hasError && (
+      {status.kind === 'ready' && (
         <>
+          {status.refreshFailed && <RefreshFailedNotice onRetry={status.retry} />}
           <AnomalySummary summary={review.summary} />
           {/* Stays above the list it filters and pins once scrolled to. */}
           <StickyToolbar label="Anomaly filters">

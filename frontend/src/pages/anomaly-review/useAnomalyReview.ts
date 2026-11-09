@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { useAnomalies, useAnomalyCounts, useReviewAnomaly } from '@/hooks/api/useAnalyticsV2'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
+import { pageStatus } from '@/lib/queryStatus'
 import type { Anomaly } from '@/services/api/analyticsV2Anomalies'
 
 import { ANOMALY_TYPE_ORDER, reviewCopy, typeRank } from './typeCopy'
@@ -128,9 +129,10 @@ export function useAnomalyReview() {
     setNoteText('')
   }
 
-  const retry = () => {
-    void Promise.all([anomaliesQuery.refetch(), summaryQuery.refetch(), scopeQuery.refetch()])
-  }
+  // The per-type chips come from `scopeQuery`; counting it here keeps a failed
+  // tally from silently dropping the chips while the list renders. A read that
+  // fails on a refetch keeps its rows, so only a read with nothing blocks.
+  const status = pageStatus([anomaliesQuery, summaryQuery, scopeQuery])
 
   return {
     typeFilter,
@@ -144,12 +146,8 @@ export function useAnomalyReview() {
     setNoteText,
     summary,
     sortedAnomalies,
-    // The per-type chips come from `scopeQuery`; counting it here keeps a failed
-    // tally from silently dropping the chips while the list renders.
-    isLoading: anomaliesQuery.isLoading || summaryQuery.isLoading || scopeQuery.isLoading,
-    isError: anomaliesQuery.isError || summaryQuery.isError || scopeQuery.isError,
+    status,
     isReviewPending: reviewMutation.isPending,
-    retry,
     toggleNote,
     handleReview,
   }

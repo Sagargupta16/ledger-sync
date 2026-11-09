@@ -7,6 +7,7 @@ import { useDeleteTaxAisSummary, useSaveTaxAisSummary, useTaxAisSummaries } from
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { getTodayKey } from '@/lib/dateKeys'
 import { buildSampleAisDocument } from '@/lib/demo/demoTaxAis'
+import { markErrorReported } from '@/lib/queryClient'
 import { AisDecryptError, decryptAis } from '@/lib/tax/aisDecrypt'
 import { parseAisDocument } from '@/lib/tax/aisParser'
 import { reconcileAis } from '@/lib/tax/aisReconcile'
@@ -97,32 +98,43 @@ export function useAisImport() {
     setOpenError(null)
   }
 
-  function saveTotals() {
+  /**
+   * Saves the opened statement's totals. The default call toasts a failure and
+   * resolves; `strict` (the confirm dialog) rejects instead, so the dialog
+   * stays open and reports it.
+   */
+  async function saveTotals(strict = false): Promise<void> {
     // A layout nothing was read from gives zeros, and saving replaces the year.
     if (!statement?.recognised || guardDemoAction('Saving AIS totals')) return
     const { summary } = statement
-    save.mutate(
-      {
-        taxYear,
-        totals: {
-          tds_salary: summary.tdsSalary,
-          tds_other: summary.tdsOther,
-          interest: summary.interest,
-          dividends: summary.dividends,
-        },
+    const request = {
+      taxYear,
+      totals: {
+        tds_salary: summary.tdsSalary,
+        tds_other: summary.tdsOther,
+        interest: summary.interest,
+        dividends: summary.dividends,
       },
-      {
-        onSuccess: () => toast.success(`Saved the AIS totals for ${taxYearLabel(taxYear)}.`),
-        onError: () => toast.error('The totals were not saved. Your statement is still open; try again.'),
+    }
+    const onSuccess = () => toast.success(`Saved the AIS totals for ${taxYearLabel(taxYear)}.`)
+    if (strict) {
+      await save.mutateAsync(request, { onSuccess })
+      return
+    }
+    save.mutate(request, {
+      onSuccess,
+      onError: (error) => {
+        markErrorReported(error)
+        toast.error('The totals were not saved. Your statement is still open; try again.')
       },
-    )
+    })
   }
 
-  function removeYear(year: string) {
+  /** Rejects on failure: the only caller is a confirm dialog, which reports it. */
+  async function removeYear(year: string): Promise<void> {
     if (guardDemoAction('Removing AIS totals')) return
-    remove.mutate(year, {
+    await remove.mutateAsync(year, {
       onSuccess: () => toast.success(`Removed the AIS totals for ${taxYearLabel(year)}.`),
-      onError: () => toast.error('The totals were not removed. Try again.'),
     })
   }
 

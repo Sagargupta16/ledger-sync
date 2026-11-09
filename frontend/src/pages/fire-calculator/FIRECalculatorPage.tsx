@@ -8,6 +8,8 @@ import PageErrorState from '@/components/shared/PageErrorState'
 import { PageContainer, PageHeader } from '@/components/ui'
 import { useTotals, useMonthlyAggregation } from '@/hooks/api/useAnalytics'
 import { deriveFIREInputs } from '@/lib/fireCalculator'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { staggerContainer } from '@/constants/animations'
 
 import CalculatorTabs, { type CalculatorTab } from './components/CalculatorTabs'
@@ -27,7 +29,7 @@ export default function FIRECalculatorPage() {
   const totals = totalsQuery.data
   const queries = [monthlyQuery, totalsQuery] as const
   const isLoading = queries.some((query) => query.isLoading)
-  const hasError = queries.some((query) => query.isError)
+  const hasError = blockingError(queries)
   const [activeTab, setActiveTab] = useState<CalculatorTab>('fire')
 
   // FIRE inputs with defaults from transaction data. The distinct-month count
@@ -45,15 +47,13 @@ export default function FIRECalculatorPage() {
   const retirement = useRetirementAssumptions(autoValues, fire.swr)
   const monteCarlo = useMonteCarloSession()
 
-  if (isLoading) return <PageSkeleton />
-
-  if (hasError) {
-    const retryFire = () => {
-      void monthlyQuery.refetch()
-      void totalsQuery.refetch()
-    }
-    return <PageErrorState title={TITLE} subtitle={SUBTITLE} onRetry={retryFire} />
+  const retryFire = () => {
+    void retryFailed(queries)
   }
+
+  if (hasError) return <PageErrorState title={TITLE} subtitle={SUBTITLE} onRetry={retryFire} />
+
+  if (isLoading) return <PageSkeleton />
 
   const hasData = autoValues.annualExpenses > 0
   return (
@@ -65,6 +65,7 @@ export default function FIRECalculatorPage() {
         // shows an EmptyState instead, so aria-controls would dangle).
         action={hasData ? <CalculatorTabs active={activeTab} onChange={setActiveTab} /> : undefined}
       />
+      {refreshFailed(queries) && <RefreshFailedNotice onRetry={retryFire} />}
       <motion.div
         initial="hidden"
         animate="visible"

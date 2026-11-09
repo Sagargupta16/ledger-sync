@@ -4,6 +4,7 @@ import { useAccountBalances, useDataDateRange } from '@/hooks/api/useAnalytics'
 import { useDailyNetWorth } from '@/hooks/api/useCalculations'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAccountClassifications } from '@/hooks/api/useAccountClassifications'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 
 /**
  * The Net Worth page's five queries and their shared loading, error and retry
@@ -36,12 +37,19 @@ export function useNetWorthSources(ledgerToday: string) {
     [preferencesQuery.data?.investment_account_mappings],
   )
 
+  // `useDataDateRange` exposes the bounds, not the query's data: a ledger with
+  // rows has a min date, which is what "this read has something to show" means.
+  const dateRangeRead = { data: minDate ?? maxDate, isError: dateRangeQuery.isError, refetch: dateRangeQuery.refetch }
   const queries = [balancesQuery, dailyQuery, dateRangeQuery, preferencesQuery, classificationsQuery]
+  const statusReads = [balancesQuery, dailyQuery, dateRangeRead, preferencesQuery, classificationsQuery]
   return {
     isLoading: queries.some((query) => query.isLoading),
-    isError: queries.some((query) => query.isError),
+    // Only a read with nothing to show blocks the page; one that failed but
+    // kept its data raises `refreshFailed`.
+    isError: blockingError(statusReads),
+    refreshFailed: refreshFailed(statusReads),
     retry: () => {
-      for (const query of queries) void query.refetch()
+      void retryFailed(statusReads)
     },
     accounts,
     dailyCashFlow,

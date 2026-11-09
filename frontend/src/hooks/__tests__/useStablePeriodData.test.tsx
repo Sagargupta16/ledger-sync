@@ -250,6 +250,39 @@ describe('useStablePeriodData', () => {
     expectConsistent(frames)
   })
 
+  it('never commits a failed read, so a retry shows the last good period, not blanks', async () => {
+    const frames: Frame[] = []
+    const { result, rerender } = renderHook(({ period }) => usePage(period, frames), {
+      wrapper,
+      initialProps: { period: '2025' },
+    })
+    act(() => {
+      settle('totals:2025', 100)
+      settle('categories:2025', 7)
+    })
+    await waitFor(() => expect(result.current.stable.isInitialLoad).toBe(false))
+
+    rerender({ period: '2026' })
+    act(() => settle('totals:2026', 250))
+    act(() => pending.get('categories:2026')?.reject(new Error('offline')))
+    await waitFor(() => expect(result.current.categories.isError).toBe(true))
+
+    // Retry: TanStack puts the failed read back to pending with no data of its own.
+    act(() => void result.current.categories.refetch())
+    await waitFor(() => expect(result.current.categories.isFetching).toBe(true))
+    expect(result.current.stable.isSettling).toBe(true)
+    expect(result.current.stable.period).toBe('2025')
+    expect(result.current.stable.data).toEqual([
+      { period: '2025', value: 100 },
+      { period: '2025', value: 7 },
+    ])
+
+    act(() => settle('categories:2026', 9))
+    await waitFor(() => expect(result.current.stable.period).toBe('2026'))
+    expect(result.current.stable.isSettling).toBe(false)
+    expectConsistent(frames)
+  })
+
   it('does not wait on a read passed as null', () => {
     const read: PeriodRead<number> = { data: 4, isPlaceholderData: false }
     const { result } = renderHook(() => useStablePeriodData('2025', [read, null]))

@@ -21,7 +21,13 @@ export default function CurrencySwitcher() {
   const setDisplayCurrency = usePreferencesStore((s) => s.setDisplayCurrency)
   const updatePreferences = useUpdatePreferences()
   // Shares AppLayout's query (same key), so this adds no request.
-  const { ratedCodes, isLoading: ratesLoading, isFallback, isStale } = useExchangeRate()
+  const {
+    ratedCodes,
+    isLoading: ratesLoading,
+    error: ratesError,
+    isFallback,
+    isStale,
+  } = useExchangeRate()
 
   // Offer only what the served rates can actually price, plus the base currency.
   // Listing the whole `CURRENCIES` catalogue is what let a user pick AED, which
@@ -36,7 +42,11 @@ export default function CurrencySwitcher() {
   // A fetch still in flight is not evidence the currency is unsupported, so the
   // warning waits for the payload. The label meanwhile shows the base currency,
   // which is what the amounts genuinely are until a rate lands.
-  const isUnpriced = renderCurrency !== displayCurrency && !ratesLoading
+  const hasNoRate = renderCurrency !== displayCurrency && !ratesLoading
+  // A failed fetch is not evidence the feed lacks this currency: say the rates
+  // could not be loaded instead of blaming the selection.
+  const ratesFailed = hasNoRate && ratesError != null && ratedCodes.length === 0
+  const isUnpriced = hasNoRate && !ratesFailed
 
   // Close on outside click
   useEffect(() => {
@@ -99,14 +109,18 @@ export default function CurrencySwitcher() {
             : 'text-text-tertiary hover:text-foreground hover:bg-[var(--overlay-3)]',
         )}
         title={
-          isUnpriced
-            ? `No exchange rate for ${displayCurrency} -- showing amounts in ${BASE_CURRENCY}`
-            : `Display currency: ${displayCurrency}`
+          ratesFailed
+            ? `Exchange rates could not be loaded -- showing amounts in ${BASE_CURRENCY}`
+            : isUnpriced
+              ? `No exchange rate for ${displayCurrency} -- showing amounts in ${BASE_CURRENCY}`
+              : `Display currency: ${displayCurrency}`
         }
         aria-label={
-          isUnpriced
-            ? `Change display currency (no rate for ${displayCurrency}, showing ${BASE_CURRENCY})`
-            : `Change display currency (currently ${displayCurrency})`
+          ratesFailed
+            ? `Change display currency (rates could not be loaded, showing ${BASE_CURRENCY})`
+            : isUnpriced
+              ? `Change display currency (no rate for ${displayCurrency}, showing ${BASE_CURRENCY})`
+              : `Change display currency (currently ${displayCurrency})`
         }
         aria-expanded={open}
         aria-controls="display-currency-options"
@@ -120,6 +134,12 @@ export default function CurrencySwitcher() {
       {/* No rate for the stored selection: say so rather than let the fallback to
           base currency pass unexplained. Unlike the old silent behaviour, the
           amounts really are rupees now, so this only names what is on screen. */}
+      {ratesFailed && (
+        <output className="absolute left-1/2 mt-1 block -translate-x-1/2 whitespace-nowrap rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
+          Rates could not be loaded -- in {BASE_CURRENCY}
+        </output>
+      )}
+
       {isUnpriced && (
         // Native <output>, not role="status" (S6819) -- it carries the live-region
         // semantics itself, matching StaleDataBadge and PartialPeriodNotice. The

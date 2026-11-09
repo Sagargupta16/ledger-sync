@@ -18,7 +18,8 @@ interface Props {
   readonly recognised: boolean
   readonly isDemoMode: boolean
   readonly isSaving: boolean
-  readonly onSave: () => void
+  /** Toasts a failure and resolves; `strict` rejects instead, for the confirm dialog to report. */
+  readonly onSave: (strict?: boolean) => Promise<void>
 }
 
 const isAllZero = (totals: Readonly<Record<'tds_salary' | 'tds_other' | 'interest' | 'dividends', number>>) =>
@@ -80,7 +81,7 @@ export default function AisTotalsPanel({ summary, taxYear, savedForYear, recogni
           icon={<Save className="size-4" aria-hidden="true" />}
           isLoading={isSaving}
           disabled={isDemoMode || !recognised}
-          onClick={() => (wipesSaved ? setConfirming(true) : onSave())}
+          onClick={() => (wipesSaved ? setConfirming(true) : void onSave())}
         >
           Save totals
         </Button>
@@ -92,7 +93,7 @@ export default function AisTotalsPanel({ summary, taxYear, savedForYear, recogni
         description={savedForYear ? replaceNote(taxYear, savedForYear) : ''}
         confirmLabel="Replace with zeros"
         variant="warning"
-        onConfirm={onSave}
+        onConfirm={() => onSave(true)}
       />
     </section>
   )

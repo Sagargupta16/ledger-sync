@@ -124,14 +124,27 @@ export function AuthModal({ isOpen, onClose }: Readonly<AuthModalProps>) {
     setSignInError(null)
     try {
       const url = await authApi.beginOAuthLogin(provider)
+      // Stay pending after a successful assign: the page is unloading, and a
+      // second click now would overwrite the single-slot PKCE attempt.
       globalThis.location.assign(url)
     } catch (error) {
       setSignInError(getApiErrorMessage(error, 'Could not start sign-in. Please try again.'))
-    } finally {
       initiatingRef.current = false
       setPendingProvider(null)
     }
   }
+
+  // Back from the provider can restore this page from the back-forward cache
+  // with the pending state frozen in; release it so the buttons work again.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      initiatingRef.current = false
+      setPendingProvider(null)
+    }
+    globalThis.addEventListener('pageshow', onPageShow)
+    return () => globalThis.removeEventListener('pageshow', onPageShow)
+  }, [])
 
   const isLoadingProviders = providersState.status === 'loading'
   const loadFailed = providersState.status === 'failed'

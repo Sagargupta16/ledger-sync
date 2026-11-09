@@ -77,4 +77,17 @@ describe('useReturnsAnalysis investment contracts', () => {
     result.current.retry()
     expect(refetch).toHaveBeenCalledOnce()
   })
+
+  it('keeps the page when a refetch fails but the read kept its data', () => {
+    const refetch = vi.fn()
+    mocks.balances.mockReturnValue({
+      ...ready, data: { accounts: { 'Long term': { balance: 6000, transactions: 2 } } }, isError: true, refetch,
+    })
+    const { result } = renderHook(() => useReturnsAnalysis())
+    expect(result.current.isError).toBe(false)
+    expect(result.current.refreshFailed).toBe(true)
+    expect(result.current.netProfitLoss).toBe(100)
+    result.current.retry()
+    expect(refetch).toHaveBeenCalledOnce()
+  })
 })

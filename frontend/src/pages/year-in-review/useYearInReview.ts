@@ -7,6 +7,7 @@ import { useStablePeriodData } from '@/hooks/useStablePeriodData'
 import { usePreferencesStore } from '@/store/preferencesStore'
 import { parseFYLabelStartYear } from '@/lib/dateRanges'
 import { getCurrentMonth, getFYFromDate, getTodayKey, toLocalDateKey, type AnalyticsViewMode } from '@/lib/dateUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
 import { analyticsV2Service } from '@/services/api/analyticsV2'
 import type { DayCell } from './components/DayOfWeekChart'
@@ -131,11 +132,18 @@ export function useYearInReview() {
   const shown = stable.period
   const [dailySummaries] = stable.data
 
-  const isError =
-    dateRangeQuery.isError ||
-    historyQuery.isError ||
-    (needsPeriodQuery && periodQuery.isError) ||
-    preferencesQuery.isError
+  // `useDataDateRange` exposes the bounds, not the query's data: a ledger with
+  // rows has a min date, which is what "this read has something to show" means.
+  const dateRangeRead = { data: minDate ?? maxDate, isError: dateRangeQuery.isError, refetch: dateRangeQuery.refetch }
+  const statusReads = [
+    dateRangeRead,
+    historyQuery,
+    needsPeriodQuery ? periodQuery : null,
+    preferencesQuery,
+  ]
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`.
+  const isError = blockingError(statusReads)
   const isLoading =
     !isError &&
     (dateRangeQuery.isLoading || stable.isInitialLoad || preferencesQuery.isPending)
@@ -196,12 +204,7 @@ export function useYearInReview() {
   )
 
   const retry = () => {
-    const retries: Array<Promise<unknown>> = []
-    if (dateRangeQuery.isError) retries.push(dateRangeQuery.refetch())
-    if (historyQuery.isError) retries.push(historyQuery.refetch())
-    if (needsPeriodQuery && periodQuery.isError) retries.push(periodQuery.refetch())
-    if (preferencesQuery.isError) retries.push(preferencesQuery.refetch())
-    void Promise.all(retries)
+    void retryFailed(statusReads)
   }
 
   return {
@@ -210,6 +213,7 @@ export function useYearInReview() {
     isLoading,
     isSettling: stable.isSettling,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
     mode,
     setMode,

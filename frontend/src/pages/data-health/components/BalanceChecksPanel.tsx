@@ -1,6 +1,7 @@
 import { Scale } from 'lucide-react'
 
 import { PanelSkeleton } from '@/components/shared/LoadingSkeleton'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { Button } from '@/components/ui'
 import { useBalanceChecks } from '@/hooks/api/useBalanceChecks'
 import type { AccountBalanceHealth } from '@/services/api/balanceChecks'
@@ -61,7 +62,8 @@ export default function BalanceChecksPanel() {
 
   if (query.isPending) return <PanelSkeleton blocks={3} blockClassName="h-12" />
 
-  if (query.isError) {
+  // A failed refetch keeps the summary it had; the notice below says so.
+  if (query.isError && query.data === undefined) {
     return (
       <section className="ledger-panel space-y-3 p-4" aria-labelledby={HEADING_ID}>
         <Header />
@@ -78,10 +80,11 @@ export default function BalanceChecksPanel() {
   }
 
   const summary = query.data
-  if (summary.accounts.length === 0) return null
+  if (summary === undefined || summary.accounts.length === 0) return null
 
   return (
     <section className="ledger-panel space-y-4 p-4" aria-labelledby={HEADING_ID}>
+      {query.isError && <RefreshFailedNotice onRetry={() => void query.refetch()} />}
       <Header />
       <StatusTally accounts={summary.accounts} />
       <BalanceAccountList summary={summary} />

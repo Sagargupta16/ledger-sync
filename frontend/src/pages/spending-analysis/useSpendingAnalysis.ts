@@ -29,6 +29,7 @@ import { formatMonthKey } from '@/lib/dateUtils'
 import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
 import { computeBudgetRuleMetrics, monthlySpendShape, spanMonthKeys, spendingRuleSavings } from '@/lib/finance/spending'
 import { SPENDING_TYPE_COLORS } from '@/lib/preferencesUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { resolveEssentialCategories } from '@/store/preferencesStore'
 import { SEMANTIC_COLORS } from '@/constants/chartColors'
 
@@ -164,7 +165,15 @@ export function useSpendingAnalysis() {
     basisIncome,
     basisMonthly,
   ]
-  const isError = isPreferencesError || boundsQuery.isError || reads.some((read) => read.isError)
+  const preferencesRead = { data: preferences, isError: isPreferencesError, refetch: refetchPreferences }
+  // `useDataDateRange` exposes the bounds, not the query's data: a ledger with
+  // rows has a min date, which is what "this read has something to show" means.
+  const boundsRead = { data: minDate ?? maxDate, isError: boundsQuery.isError, refetch: boundsQuery.refetch }
+  const statusReads = [preferencesRead, boundsRead, ...reads]
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed` and the page keeps its figures.
+  const isError = blockingError(statusReads)
+  const refreshHasFailed = refreshFailed(statusReads)
 
   /**
    * Everything below renders from ONE window. While a newly selected period
@@ -205,11 +214,7 @@ export function useSpendingAnalysis() {
   const isLoading =
     !isError && (isPreferencesPending || boundsQuery.isLoading || stable.isInitialLoad)
   const retry = () => {
-    void Promise.all([
-      refetchPreferences(),
-      boundsQuery.refetch(),
-      ...reads.filter((read) => read.isError).map((read) => read.refetch()),
-    ])
+    void retryFailed(statusReads)
   }
 
   /**
@@ -423,6 +428,7 @@ export function useSpendingAnalysis() {
     isLoading,
     isSettling: stable.isSettling,
     isError,
+    refreshFailed: refreshHasFailed,
     retry,
     totalSpending, monthlyAvgSpending, monthlyAvgSubtitle, monthlyAvgLineLabel, savings,
     categoryBreakdown, categoriesCount, subcategoriesCount,

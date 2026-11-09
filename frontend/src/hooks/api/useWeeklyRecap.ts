@@ -7,9 +7,8 @@ import { useMutation, useMutationState, useQuery, useQueryClient } from '@tansta
 import { analyticsV2Keys } from '@/hooks/api/useAnalyticsV2'
 import { getTodayKey } from '@/lib/dateUtils'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
-import { aiConfigService } from '@/services/api/aiConfig'
+import { aiUnavailableReason, isAiReady, useAiAvailability } from '@/hooks/api/useAiAvailability'
 import { weeklyRecapService, type WeeklyRecap } from '@/services/api/weeklyRecap'
-import { useAuthStore } from '@/store/authStore'
 import { useDemoStore } from '@/store/demoStore'
 
 export const weeklyRecapKeys = {
@@ -50,18 +49,12 @@ interface ExplainRun {
 export function useExplainWeeklyRecap(facts: string) {
   const queryClient = useQueryClient()
   const sessionSignal = getSessionSignal()
-  const accessToken = useAuthStore((state) => state.accessToken)
   const isDemoMode = useDemoStore((state) => state.isDemoMode)
-  // The chat widget's key and options, so both read one cache entry. The
-  // server still applies the stored mode, so the config only picks the transport.
-  const { data: aiConfig, isLoading: isConfigLoading } = useQuery({
-    queryKey: ['ai-config'],
-    queryFn: () => aiConfigService.getConfig(),
-    enabled: !!accessToken && !isDemoMode,
-    staleTime: Infinity,
-  })
-  // The chat widget's rule: app mode needs no key, BYOK needs a stored one.
-  const isConfigured = (aiConfig?.mode ?? 'app_bedrock') === 'app_bedrock' || aiConfig?.has_key === true
+  // The chat widget's rule, from one derivation: an unknown or failed config
+  // never falls back to app mode, so a BYOK user's call cannot spend the shared quota.
+  const availability = useAiAvailability()
+  const isConfigured = isAiReady(availability)
+  const isConfigLoading = availability.kind === 'loading'
 
   // Any settled call may have used quota, so the usage badge refreshes either way.
   const refreshUsage = (signal: AbortSignal | undefined) => {
@@ -74,7 +67,10 @@ export function useExplainWeeklyRecap(facts: string) {
     gcTime: EXPLANATION_GC_MS,
     mutationFn: (text: string) => {
       assertCurrentSession(sessionSignal)
-      return weeklyRecapService.explain(text, aiConfig, sessionSignal)
+      if (availability.kind !== 'app' && availability.kind !== 'byok_ready') {
+        throw new Error(aiUnavailableReason(availability) ?? 'AI is not available')
+      }
+      return weeklyRecapService.explain(text, availability, sessionSignal)
     },
     onMutate: () => sessionSignal,
     onSuccess: (_text, _facts, signal) => refreshUsage(signal),
@@ -103,5 +99,11 @@ export function useExplainWeeklyRecap(facts: string) {
     isConfigLoading,
     isConfigured,
     isDemoMode,
+    /** Why Explain is unavailable (config loading, failed, or incomplete); null when ready. */
+    unavailableReason: aiUnavailableReason(availability),
+    /** Set only when the settings failed to load; call to refetch. */
+    retryConfig: availability.kind === 'error' ? availability.retry : null,
+    /** BYOK without a usable key or model, so Settings is the fix. */
+    needsSetup: availability.kind === 'byok_needs_key' || availability.kind === 'byok_incomplete',
   }
 }

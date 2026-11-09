@@ -15,6 +15,7 @@ import {
   useResetAccount,
   useUpdateProfile,
 } from '@/hooks/api/useAuth'
+import { markErrorReported } from '@/lib/queryClient'
 import { useAuthStore } from '@/store/authStore'
 import { useMotionStore } from '@/store/motionStore'
 import { DURATION, EASING } from '@/constants/animations'
@@ -123,7 +124,10 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
         toast.success('Name updated')
         setIsEditingName(false)
       },
-      onError: () => toast.error('Failed to update name'),
+      onError: (error) => {
+        markErrorReported(error)
+        toast.error('Failed to update name')
+      },
     })
   }
 
@@ -140,7 +144,10 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
         setConfirmText('')
         globalThis.location.reload()
       },
-      onError: () => toast.error('Failed to reset account.'),
+      onError: (error) => {
+        markErrorReported(error)
+        toast.error('Failed to reset account.')
+      },
     })
   }
 
@@ -162,7 +169,10 @@ function ProfileModalContent({ onClose }: Readonly<{ onClose: () => void }>) {
           },
         })
       },
-      onError: () => toast.error('Failed to delete account.'),
+      onError: (error) => {
+        markErrorReported(error)
+        toast.error('Failed to delete account.')
+      },
     })
   }
 

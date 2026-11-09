@@ -6,6 +6,7 @@ import { useAllBudgets, useDeleteBudget, useUpdateBudget } from '@/hooks/api/use
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useDemoGuard } from '@/hooks/useDemoGuard'
 import { getApiErrorMessage } from '@/lib/errorUtils'
+import { markErrorReported } from '@/lib/queryClient'
 import type { Budget } from '@/services/api/analyticsV2'
 import type { UpdateBudgetRequest } from '@/services/api/analyticsV2Planning'
 
@@ -66,7 +67,11 @@ export function useCategoryBudgets() {
         setEditingId(null)
         toast.success(`${budgetLabel(budget)} budget saved`)
       },
-      onError: (error) => setEditError(getApiErrorMessage(error, 'Could not save the budget. Please try again.')),
+      onError: (error) => {
+        // Shown inline under the row, so the global toast stays quiet.
+        markErrorReported(error)
+        setEditError(getApiErrorMessage(error, 'Could not save the budget. Please try again.'))
+      },
     })
   }
 
@@ -78,7 +83,10 @@ export function useCategoryBudgets() {
       onSuccess: () => toast.success(
         resume ? `${label} budget resumed` : `${label} budget paused. Its alerts stop until you resume it.`,
       ),
-      onError: (error) => toast.error(getApiErrorMessage(error, `Could not ${resume ? 'resume' : 'pause'} the budget.`)),
+      onError: (error) => {
+        markErrorReported(error)
+        toast.error(getApiErrorMessage(error, `Could not ${resume ? 'resume' : 'pause'} the budget.`))
+      },
     })
   }
 
@@ -87,17 +95,14 @@ export function useCategoryBudgets() {
     setPendingDelete(budget)
   }
 
-  // ConfirmDialog awaits this and then closes, so it must never reject.
+  // ConfirmDialog awaits this: it closes on success and, when this rejects,
+  // stays open with the reason so the user can retry.
   const confirmDelete = async () => {
     const budget = pendingDelete
     if (!budget || remove.isPending) return
-    try {
-      await remove.mutateAsync(budget.id)
-      if (editingId === budget.id) setEditingId(null)
-      toast.success(`${budgetLabel(budget)} budget deleted`)
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Could not delete the budget. Please try again.'))
-    }
+    await remove.mutateAsync(budget.id)
+    if (editingId === budget.id) setEditingId(null)
+    toast.success(`${budgetLabel(budget)} budget deleted`)
   }
 
   return {

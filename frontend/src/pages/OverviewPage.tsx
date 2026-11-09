@@ -20,6 +20,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { colors } from '@/constants/colors'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 import { savingsRatePercentFromNet } from '@/lib/savingsRate'
@@ -45,7 +47,7 @@ export default function OverviewPage() {
   // `isSummaryLoading`: nothing on this page reads the full ledger, so it waits
   // only for the summary reads, not the ~2.9 MB transactions download.
   const {
-    filteredTotals, isSummaryLoading, isSettling, isError, retry,
+    filteredTotals, isSummaryLoading, isSettling, isError, refreshFailed: metricsRefreshFailed, retry,
     incomeChartData, expenseChartData,
     momChanges,
     viewMode, setViewMode,
@@ -95,14 +97,19 @@ export default function OverviewPage() {
   const topIncome = useMemo(() => incomeChartData.slice(0, 3), [incomeChartData])
   const topExpense = useMemo(() => expenseChartData.slice(0, 3), [expenseChartData])
 
-  if (isSummaryLoading || budgetsQuery.isLoading || goalsQuery.isLoading) return <PageSkeleton />
+  const extraReads = [budgetsQuery, goalsQuery]
+  const blocked = isError || blockingError(extraReads)
+  const showRefreshNotice = metricsRefreshFailed || refreshFailed(extraReads)
+  const retryOverview = () => {
+    retry()
+    void retryFailed(extraReads)
+  }
 
-  if (isError || budgetsQuery.isError || goalsQuery.isError) {
-    const retryOverview = () => {
-      retry()
-      void budgetsQuery.refetch()
-      void goalsQuery.refetch()
-    }
+  if (!blocked && (isSummaryLoading || budgetsQuery.isLoading || goalsQuery.isLoading)) {
+    return <PageSkeleton />
+  }
+
+  if (blocked) {
     return (
       <PageErrorState
         title="Overview"
@@ -155,6 +162,7 @@ export default function OverviewPage() {
           subtitle="Your complete financial picture"
         />
         {periodSelector}
+        {showRefreshNotice && <RefreshFailedNotice onRetry={retryOverview} />}
         <EmptyState
           icon={Wallet}
           title="No transactions in this period"
@@ -171,6 +179,7 @@ export default function OverviewPage() {
         subtitle="Your complete financial picture"
       />
       {periodSelector}
+      {showRefreshNotice && <RefreshFailedNotice onRetry={retryOverview} />}
 
       <PeriodSettlingContent settling={isSettling}>
         {/* Headline KPIs.

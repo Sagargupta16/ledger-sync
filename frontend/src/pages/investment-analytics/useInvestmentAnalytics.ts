@@ -5,6 +5,7 @@ import { usePreferences } from '@/hooks/api/usePreferences'
 import { useAnalyticsTimeFilter } from '@/hooks/useAnalyticsTimeFilter'
 import { usePaletteSnapshot } from '@/hooks/usePaletteSnapshot'
 import { capSeriesToToday, getCurrentMonth, getTodayKey } from '@/lib/dateUtils'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { calculateXIRR, type CashFlow } from '@/lib/xirr'
 import {
   investmentAccountTest,
@@ -50,11 +51,13 @@ export function useInvestmentAnalytics() {
   const investmentAccounts = useMemo(() => Object.keys(investmentMappings), [investmentMappings])
   const isInvestment = useMemo(() => investmentAccountTest(investmentAccounts), [investmentAccounts])
 
+  const statusReads = [transactionsQuery, preferencesQuery]
   const isLoading = transactionsQuery.isLoading || preferencesQuery.isLoading
-  const isError = transactionsQuery.isError || preferencesQuery.isError
+  // Only a read with nothing to show blocks the page; one that failed but kept
+  // its data raises `refreshFailed`.
+  const isError = blockingError(statusReads)
   const retry = () => {
-    void transactionsQuery.refetch()
-    void preferencesQuery.refetch()
+    void retryFailed(statusReads)
   }
 
   const accountToCategory = useMemo(() => {
@@ -257,6 +260,7 @@ export function useInvestmentAnalytics() {
   return {
     isLoading,
     isError,
+    refreshFailed: refreshFailed(statusReads),
     retry,
     investmentAccounts,
     totalInvestmentValue,

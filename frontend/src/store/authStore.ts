@@ -8,8 +8,11 @@
  */
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
 import type { User, AuthTokens } from '@/types'
+
+/** The access token a demo session holds; it never reaches the backend. */
+export const DEMO_ACCESS_TOKEN = 'demo-token'
 
 export interface AuthState {
   // User state
@@ -31,6 +34,27 @@ export interface AuthState {
 }
 
 const AUTH_STORAGE_KEY = 'ledger-sync-auth'
+
+type PersistedAuth = Partial<Pick<AuthState, 'user' | 'accessToken' | 'refreshToken'>>
+
+/**
+ * localStorage, minus demo sessions. Every tab shares this one entry, and a
+ * demo session is rebuilt on reload from its own tab's sessionStorage flag
+ * (`useAuthInit`), so it has nothing to keep here. Writing it would replace a
+ * real sign-in another tab stored, and that tab's next reload would find the
+ * demo token without a demo flag and sign out.
+ */
+const authStorage: PersistStorage<PersistedAuth> = {
+  getItem: (name) => {
+    const raw = localStorage.getItem(name)
+    return raw === null ? null : (JSON.parse(raw) as StorageValue<PersistedAuth>)
+  },
+  setItem: (name, value) => {
+    if (value.state.accessToken === DEMO_ACCESS_TOKEN) return
+    localStorage.setItem(name, JSON.stringify(value))
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -107,6 +131,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: AUTH_STORAGE_KEY,
+      storage: authStorage,
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
@@ -122,8 +147,6 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
-
-type PersistedAuth = Partial<Pick<AuthState, 'user' | 'accessToken' | 'refreshToken'>>
 
 /** Unverified `exp` claim, used only to order two tokens this browser already holds. */
 function tokenExpiry(token: string | null | undefined): number {

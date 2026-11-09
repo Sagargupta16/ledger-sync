@@ -4,6 +4,7 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 
@@ -55,6 +56,8 @@ const IncomeExpenseFlowPage = () => {
       <StickyToolbar label="Time range">
         <AnalyticsTimeFilter {...m.timeFilterProps} />
       </StickyToolbar>
+
+      {m.refreshFailed && <RefreshFailedNotice onRetry={m.retry} />}
 
       {m.partialPeriod && (
         <PartialPeriodNotice

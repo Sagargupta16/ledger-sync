@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAccountBalances } from '@/hooks/api/useAnalytics'
 import { usePreferences } from '@/hooks/api/usePreferences'
 import { useTransactions } from '@/hooks/api/useTransactions'
+import { pageStatus, retryFailed } from '@/lib/queryStatus'
 import { accountClassificationsService } from '@/services/api/accountClassifications'
 
 import {
@@ -61,12 +62,9 @@ export function useMutualFundProjection() {
     [balanceData, investmentAccountNames, mappedMutualFunds],
   )
 
-  const retry = () => {
-    void balancesQuery.refetch()
-    void transactionsQuery.refetch()
-    void investmentAccountsQuery.refetch()
-    void preferencesQuery.refetch()
-  }
+  const reads = [balancesQuery, transactionsQuery, investmentAccountsQuery, preferencesQuery]
+  const status = pageStatus(reads)
+  const retry = () => void retryFailed(reads)
 
   const primaryAccount = useMemo(() => findPrimaryAccount(mutualFundAccounts), [mutualFundAccounts])
   const currentBalance = primaryAccount?.balance ?? 0
@@ -153,9 +151,9 @@ export function useMutualFundProjection() {
   const showAutoDetectedHint = detectedMonthlySIP > 0 && !userModifiedSIP
 
   return {
-    isLoading: balancesQuery.isLoading || transactionsQuery.isLoading || investmentAccountsQuery.isLoading
-      || preferencesQuery.isLoading,
-    isError: balancesQuery.isError || transactionsQuery.isError || investmentAccountsQuery.isError,
+    isLoading: status.kind === 'loading',
+    isError: status.kind === 'error',
+    refreshFailed: status.kind === 'ready' && status.refreshFailed,
     retry,
     primaryAccount,
     currentBalance,

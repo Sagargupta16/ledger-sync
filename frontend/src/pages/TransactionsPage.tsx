@@ -14,11 +14,13 @@ import SmartSearchResults from '@/components/transactions/SmartSearchResults'
 import Pagination from '@/components/transactions/Pagination'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PageSkeleton } from '@/components/shared/LoadingSkeleton'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { useSmartSearchMode } from '@/hooks/api/useSemanticSearch'
 import { useTransactionFacets } from '@/hooks/api/useTransactions'
 import { useTransactionPage } from '@/hooks/api/useTransactionPage'
 import { getTodayKey } from '@/lib/dateUtils'
 import { getActiveLocale } from '@/lib/formatters'
+import { pageStatus } from '@/lib/queryStatus'
 import { transactionsService, type TransactionFilters as ServiceFilters } from '@/services/api/transactions'
 import { isMotionReduced } from '@/store/motionStore'
 
@@ -195,18 +197,17 @@ export default function TransactionsPage() {
     </StickyToolbar>
   )
 
-  if (facetsQuery.isLoading || pageQuery.isLoading) return <PageSkeleton />
+  // A read that fails on a refetch keeps its rows; only one with nothing blocks.
+  const status = pageStatus([facetsQuery, pageQuery])
 
-  if (facetsQuery.isError || pageQuery.isError) {
-    const retryTransactions = () => {
-      void facetsQuery.refetch()
-      void pageQuery.refetch()
-    }
+  if (status.kind === 'loading') return <PageSkeleton />
+
+  if (status.kind === 'error') {
     return (
       <PageErrorState
         title="Transactions"
         subtitle="Search, filter, and export every reconciled ledger entry."
-        onRetry={retryTransactions}
+        onRetry={status.retry}
       >
         {filterBar}
       </PageErrorState>
@@ -295,6 +296,8 @@ export default function TransactionsPage() {
 
         {/* Filters */}
         {filterBar}
+
+        {status.refreshFailed && <RefreshFailedNotice onRetry={status.retry} />}
 
         {smartSearchOn && <SmartSearchIndexCard statusQuery={smart.statusQuery} />}
         {smart.pausedFor && (

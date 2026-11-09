@@ -15,6 +15,8 @@ from decimal import Decimal
 from hashlib import sha256
 from unittest.mock import patch
 
+from ledger_sync.core.analytics.engine import AnalyticsEngine
+from ledger_sync.core.analytics.refresh import mark_ledger_changed
 from ledger_sync.db.models import ImportLog, MonthlySummary, Transaction, TransactionType
 
 HEALTH_URL = "/api/analytics/v2/data-health"
@@ -139,6 +141,51 @@ def test_an_import_with_no_rollups_at_all_reports_stale(two_user_client) -> None
 
     assert body["rollups_calculated_at"] is None
     assert body["rollups_stale"] is True
+
+
+def test_a_refresh_that_only_removed_the_latest_month_is_not_stale(two_user_client) -> None:
+    """A successful refresh can leave every surviving month's stamp untouched.
+
+    An import that empties the trailing month deletes that month's rollup, and
+    with no later month there is no successor to restamp. The newest
+    ``last_calculated`` then predates the import although the publication
+    succeeded, and the banner told the user their import "did not finish
+    recomputing" when it had.
+    """
+    client, session, user_a, _, _ = two_user_client
+    june = _txn(user_a.id, "jun", datetime.fromisoformat("2024-06-04"))
+    september = _txn(user_a.id, "sep", datetime.fromisoformat("2024-09-05"))
+    session.add_all([june, september])
+    mark_ledger_changed(session, user_a.id)
+    session.commit()
+    AnalyticsEngine(session, user_a.id).refresh_analytics()
+
+    # The next snapshot no longer has the September row.
+    mark_ledger_changed(session, user_a.id, [september.date])
+    september.is_deleted = True
+    log = _import_log(user_a.id, days_ago=0, file_name="CASHBOOK-2.xlsx")
+    log.rows_inserted, log.rows_deleted = 0, 1
+    session.add(log)
+    session.commit()
+    AnalyticsEngine(session, user_a.id).refresh_analytics()
+
+    body = client.get(HEALTH_URL).json()
+    assert body["rollups_stale"] is False
+
+
+def test_a_refresh_that_failed_after_the_import_stays_stale(two_user_client) -> None:
+    """The last publication predates the import: the import was never absorbed."""
+    client, session, user_a, _, _ = two_user_client
+    session.add(_txn(user_a.id, "jun", datetime.fromisoformat("2024-06-04")))
+    mark_ledger_changed(session, user_a.id)
+    session.commit()
+    AnalyticsEngine(session, user_a.id).refresh_analytics()
+
+    session.add(_import_log(user_a.id, days_ago=0, file_name="CASHBOOK-2.xlsx"))
+    mark_ledger_changed(session, user_a.id)
+    session.commit()  # no refresh: it "did not land"
+
+    assert client.get(HEALTH_URL).json()["rollups_stale"] is True
 
 
 def test_rollup_freshness_is_user_scoped(two_user_client) -> None:

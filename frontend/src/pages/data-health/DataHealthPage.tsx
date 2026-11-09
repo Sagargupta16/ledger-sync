@@ -4,6 +4,7 @@ import BankAlertsPanel from '@/components/shared/BankAlertsPanel'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton, TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { ROUTES } from '@/constants'
 import { PageContainer, PageHeader } from '@/components/ui'
 
@@ -53,6 +54,7 @@ export default function DataHealthPage() {
     return (
       <PageContainer>
         <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
+        {state.refreshFailed && <RefreshFailedNotice onRetry={state.retry} />}
         <EmptyState
           icon={Database}
           title="Nothing imported yet"
@@ -68,6 +70,8 @@ export default function DataHealthPage() {
   return (
     <PageContainer>
       <PageHeader title={PAGE_TITLE} subtitle={PAGE_SUBTITLE} />
+
+      {state.refreshFailed && <RefreshFailedNotice onRetry={state.retry} />}
 
       <StalenessBanner freshness={freshness} />
 

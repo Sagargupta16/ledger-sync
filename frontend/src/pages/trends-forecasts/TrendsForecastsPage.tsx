@@ -1,6 +1,7 @@
 import { CashFlowForecast } from '@/components/analytics'
 import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import PartialPeriodNotice from '@/components/shared/PartialPeriodNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { rollingAvgCaption } from '@/lib/chartUtils'
@@ -40,6 +41,8 @@ export default function TrendsForecastsPage() {
           <AnalyticsTimeFilter {...trends.timeFilterProps} />
         </div>
       </StickyToolbar>
+
+      {trends.refreshFailed && <RefreshFailedNotice onRetry={trends.retry} />}
 
       {trends.partialMonth && (
         <PartialPeriodNotice

@@ -7,7 +7,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { useAuthStore } from '@/store/authStore'
+import { DEMO_ACCESS_TOKEN, useAuthStore } from '@/store/authStore'
 import { isDemoMode } from '@/store/demoStore'
 import * as authApi from '@/services/api/auth'
 import { prefetchCoreData } from '@/lib/prefetch'
@@ -61,7 +61,7 @@ export const useAuthInit = () => {
       }
 
       const { accessToken } = useAuthStore.getState()
-      if (!accessToken || accessToken === 'demo-token') {
+      if (!accessToken || accessToken === DEMO_ACCESS_TOKEN) {
         endSession(queryClient)
         return null
       }

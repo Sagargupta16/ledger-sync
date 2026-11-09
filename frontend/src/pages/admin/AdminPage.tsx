@@ -3,6 +3,7 @@ import { RefreshCw, ShieldCheck } from 'lucide-react'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton, ChartSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { Button, PageContainer, PageHeader } from '@/components/ui'
 import { isForbidden, useAdminStats, useIsAdmin } from '@/hooks/api/useAdminStats'
 import { useDemoStore } from '@/store/demoStore'
@@ -50,7 +51,8 @@ export default function AdminPage() {
   const { data, isPending, isError, error, refetch, isFetching } = useAdminStats()
 
   if (!isAdmin || (isError && isForbidden(error))) return <NotAvailable demo={isDemoMode} />
-  if (isError) {
+  // A failed refresh keeps the stats it had; only a read with nothing blocks.
+  if (isError && data === undefined) {
     return <PageErrorState title={TITLE} subtitle={SUBTITLE} onRetry={() => void refetch()} />
   }
 
@@ -67,7 +69,8 @@ export default function AdminPage() {
           </Button>
         }
       />
-      {isPending ? (
+      {isError && <RefreshFailedNotice onRetry={() => void refetch()} />}
+      {isPending || data === undefined ? (
         <>
           <CardGridSkeleton count={8} cols="grid-cols-2 lg:grid-cols-4" />
           <ChartSkeleton height="h-64" />

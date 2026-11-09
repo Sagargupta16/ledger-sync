@@ -5,6 +5,7 @@ import { ParetoChart } from '@/components/analytics'
 import EmptyState from '@/components/shared/EmptyState'
 import { CardGridSkeleton, ChartSkeleton, TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import PageErrorState from '@/components/shared/PageErrorState'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { ROUTES } from '@/constants'
 import { SCROLL_FADE_UP } from '@/constants/animations'
@@ -22,6 +23,7 @@ export default function MerchantIntelligencePage() {
   const {
     isLoading,
     isError,
+    refreshFailed,
     retry,
     isEmpty,
     isFilteredEmpty,
@@ -99,6 +101,8 @@ export default function MerchantIntelligencePage() {
           onSearchChange={setSearch}
         />
       </StickyToolbar>
+
+      {refreshFailed && <RefreshFailedNotice onRetry={retry} />}
 
       <MerchantKpiGrid stats={stats} isLoading={false} threshold={threshold} />
 

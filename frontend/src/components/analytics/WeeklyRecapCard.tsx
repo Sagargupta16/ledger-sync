@@ -72,8 +72,15 @@ type RecapExplain = ReturnType<typeof useExplainWeeklyRecap>
 /** The Explain button with what a click costs, or the way to set AI up. */
 function ExplainControl({ explain, onExplain }: Readonly<{ explain: RecapExplain; onExplain: () => void }>) {
   const costId = useId()
-  if (!explain.isConfigured && !explain.isDemoMode) {
+  if (explain.needsSetup && !explain.isDemoMode) {
     return <RecapLink to={ROUTES.SETTINGS}>Set up AI to explain</RecapLink>
+  }
+  if (explain.retryConfig && !explain.isDemoMode) {
+    return (
+      <Button variant="secondary" size="sm" onClick={explain.retryConfig} title="Could not load AI settings">
+        Retry AI settings
+      </Button>
+    )
   }
   return (
     <div className="flex flex-col items-end gap-0.5">

@@ -4,7 +4,6 @@ import { Link2, Plus, Trash2 } from 'lucide-react'
 
 import { Button, ConfirmDialog, DataTable, type DataTableColumn } from '@/components/ui'
 import { useDeleteForeignAssetEvent } from '@/hooks/api/useRsuTax'
-import { getApiErrorMessage } from '@/lib/errorUtils'
 import { formatDate } from '@/lib/formatters'
 import { formatInr, formatQuote } from '@/lib/rsuTaxFx'
 import type { ForeignAssetEvent, LotLedger } from '@/services/api/rsuTax'
@@ -104,7 +103,6 @@ export default function EventsPanel({ ledger, readOnly }: Readonly<EventsPanelPr
   const [adding, setAdding] = useState(false)
   const [linking, setLinking] = useState<ForeignAssetEvent | null>(null)
   const [pending, setPending] = useState<ForeignAssetEvent | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const remove = useDeleteForeignAssetEvent()
   const columns = eventColumns(ledger, readOnly ? null : { onDelete: setPending, onLink: setLinking })
 
@@ -125,7 +123,6 @@ export default function EventsPanel({ ledger, readOnly }: Readonly<EventsPanelPr
       </p>
       {adding && <EventForm ledger={ledger} onDone={() => setAdding(false)} />}
       {linking && <EventLinkForm key={linking.id} ledger={ledger} event={linking} onDone={() => setLinking(null)} />}
-      {error && <p role="alert" className="text-xs text-app-red">{error}</p>}
       <DataTable
         columns={columns}
         rows={ledger.events}
@@ -142,13 +139,8 @@ export default function EventsPanel({ ledger, readOnly }: Readonly<EventsPanelPr
         description="It leaves the lot ledger and the Schedule FA rows. This cannot be undone."
         confirmLabel="Delete"
         variant="danger"
-        onConfirm={() => {
-          if (!pending) return
-          setError(null)
-          remove.mutate(pending.id, {
-            onError: (failure) => setError(getApiErrorMessage(failure, 'Could not delete. Try again.')),
-          })
-          setPending(null)
+        onConfirm={async () => {
+          if (pending) await remove.mutateAsync(pending.id)
         }}
       />
     </section>

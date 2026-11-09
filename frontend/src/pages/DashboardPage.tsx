@@ -17,6 +17,8 @@ import AnalyticsTimeFilter from '@/components/shared/AnalyticsTimeFilter'
 import EmptyState from '@/components/shared/EmptyState'
 import PageErrorState from '@/components/shared/PageErrorState'
 import { PeriodSettlingBar, PeriodSettlingContent } from '@/components/shared/PeriodSettling'
+import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
+import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { getFYFromDate, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
@@ -81,7 +83,7 @@ export default function DashboardPage() {
     currentFY, setCurrentFY,
     fiscalYearStartMonth,
     dataDateRange, dateRange,
-    isSummaryLoading, hasTransactionsInRange, isError, retry,
+    isSummaryLoading, hasTransactionsInRange, isError, refreshFailed: metricsRefreshFailed, retry,
     ageOfMoney, daysOfBuffering,
     isSettling,
     incomeBreakdown, cashbacksTotal,
@@ -121,11 +123,12 @@ export default function DashboardPage() {
   // One snapshot gates the page: the rollups and `/api/dashboard-metrics/pulse`
   // (Age of Money, Days of Buffering, the investment-transfer split) settle
   // together, so nothing fills in after first paint.
-  const pageLoading = isSummaryLoading || recurringQuery.isLoading
-  const pageError = isError || recurringQuery.isError
+  const pageError = isError || blockingError([recurringQuery])
+  const pageLoading = !pageError && (isSummaryLoading || recurringQuery.isLoading)
+  const showRefreshNotice = metricsRefreshFailed || refreshFailed([recurringQuery])
   const retryDashboard = () => {
     retry()
-    void recurringQuery.refetch()
+    void retryFailed([recurringQuery])
   }
   const focusCurrentFY = () => {
     setCurrentFY(getFYFromDate(getTodayKey(), fiscalYearStartMonth))
@@ -177,6 +180,8 @@ export default function DashboardPage() {
       />
 
       {timeToolbar}
+
+      {showRefreshNotice && <RefreshFailedNotice onRetry={retryDashboard} />}
 
       {/* Today to payday, the last full week and this month so far: none follows
           the time range, so they sit outside the settling wrapper and never dim. */}
