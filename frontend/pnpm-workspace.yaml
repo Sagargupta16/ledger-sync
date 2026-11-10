@@ -11,8 +11,6 @@ overrides:
   "brace-expansion@>=2.0.0 <2.1.2": 5.0.12
   "brace-expansion@>=3.0.0 <5.0.7": 5.0.12
   "fast-uri@>=3.0.0 <4.1.2": 4.2.3
-  # minimatch globparts amplification DoS (affects >=7.0.0 <11.0.1; first patched 11.0.1)
-  "minimatch@>=7.0.0 <11.0.1": ">=11.0.1"
   sharp: 0.35.5
 
 onlyBuiltDependencies:
