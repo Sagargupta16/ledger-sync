@@ -239,13 +239,16 @@ def test_owner_ignores_binding(rls: Rls) -> None:
 
 
 def test_unbound_restricted_role_sees_all(rls: Rls) -> None:
+    # add_user_preferences seeds one ownerless default row, so count the owner's view.
+    with rls.owner.connect() as connection:
+        preferences = _count(connection, "user_preferences")
     with _bound(rls, rls.user_a) as session:
         assert _count(session, "transactions") == A_TRANSACTIONS
     # Same pooled connection: it now reads the setting as '' (not NULL).
     with _bound(rls, None) as session:
         assert _count(session, "transactions") == A_TRANSACTIONS + B_TRANSACTIONS
         assert _count(session, "users") == 2
-        assert _count(session, "user_preferences") == 2
+        assert _count(session, "user_preferences") == preferences
 
 
 def test_bound_restricted_role_sees_only_own_rows(rls: Rls) -> None:
@@ -312,7 +315,9 @@ def test_account_delete_cascades_under_rls(rls: Rls) -> None:
 
     with _bound(rls, None) as session:
         assert _count(session, "users") == 1
-        assert _count(session, "user_preferences") == 1
+        # None is the ownerless default row that add_user_preferences seeds.
+        preference_owners = set(session.execute(sa.select(UserPreferences.user_id)).scalars())
+        assert preference_owners - {None} == {rls.user_b}
         assert _count(session, "transactions") == B_TRANSACTIONS
         owners = set(session.execute(sa.select(Transaction.user_id)).scalars())
         assert owners == {rls.user_b}

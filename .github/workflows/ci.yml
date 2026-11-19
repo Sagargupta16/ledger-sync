@@ -237,6 +237,8 @@ jobs:
     steps:
       - name: Guard on the Neon secret
         id: guard
+        # Runs before checkout, so the job default `backend` does not exist yet.
+        working-directory: .
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
