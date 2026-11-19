@@ -83,6 +83,29 @@ export interface DataHealth {
   capital_loss_candidate_count?: number
   /** Summed amount across all candidates. */
   capital_loss_candidate_amount?: number
+  /**
+   * Whether the imported ledger agrees with the bank, from balance checks and
+   * the bank alert inbox (`core/import_reconciliation.py`).
+   *
+   * Optional because the Pages frontend and the Vercel backend deploy
+   * separately; an older backend omits it, which reads as "nothing to say".
+   */
+  reconciliation?: ReconciliationSummary
+}
+
+/** `attention` = a mismatch or a missing alert; `reconciled` = checks agree; else `unchecked`. */
+export type ReconciliationState = 'attention' | 'reconciled' | 'unchecked'
+
+export interface ReconciliationSummary {
+  state: ReconciliationState
+  accounts_matched: number
+  accounts_mismatched: number
+  /** Accounts with rows added after their latest matching check. */
+  accounts_changed: number
+  /** Bank alerts with no ledger row, not ignored. */
+  alerts_missing: number
+  /** matched / (matched + mismatched) as a whole percent, null when neither exists. */
+  score_pct: number | null
 }
 
 /** One suggested realised-loss taxonomy from the data-health signal. */

@@ -33,6 +33,7 @@ from ledger_sync.core.cas_records import ParsedCas
 from ledger_sync.core.mf_snapshot import load_snapshot, refresh_if_due
 from ledger_sync.core.mf_store import replace_holdings
 from ledger_sync.db import session as db_session
+from ledger_sync.db.row_security import bind_rls_user
 from ledger_sync.schemas.cas import CasImportResponse, MfHoldingsResponse
 from ledger_sync.utils.logging import logger
 
@@ -100,6 +101,7 @@ def _read_form(body: bytes, content_type: str) -> tuple[bytes, str]:
 
 def _replace(user_id: int, parsed: ParsedCas) -> int:
     with db_session.SessionLocal() as session:
+        bind_rls_user(session, user_id)
         return replace_holdings(session, user_id, parsed)
 
 

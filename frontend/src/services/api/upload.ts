@@ -11,6 +11,8 @@ interface UploadPayload {
   fileHash: string
   rows: ParsedTransaction[]
   force?: boolean
+  /** Same key on a retry returns the saved result instead of importing twice. */
+  idempotencyKey?: string
 }
 
 // Uploads and the synchronous analytics rebuild can take a while on large files.
@@ -48,6 +50,7 @@ export const uploadService = {
     fileHash,
     rows,
     force = false,
+    idempotencyKey,
   }: UploadPayload): Promise<UploadResponse> => {
     const payload = {
       file_name: fileName,
@@ -61,6 +64,7 @@ export const uploadService = {
     }
     const response = await apiClient.post<UploadResponse>('/api/upload', payload, {
       timeout: UPLOAD_TIMEOUT_MS,
+      ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
     }).catch((error: unknown) => {
       if (bodyBytes > PLATFORM_BODY_LIMIT_BYTES && isBodyRefused(error)) {
         throw new FileParseError(

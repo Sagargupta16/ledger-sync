@@ -58,6 +58,8 @@ export interface MoneyManagerImportParams {
   dryRun: boolean
   force: boolean
   allowLargeDelete: boolean
+  /** Sent only on a committing import, so a retry returns the saved result. */
+  idempotencyKey?: string
 }
 
 // The server parses the SQLite backup and rebuilds insights in the same request.
@@ -81,6 +83,7 @@ export const moneyManagerBackupService = {
     dryRun,
     force,
     allowLargeDelete,
+    idempotencyKey,
   }: MoneyManagerImportParams): Promise<MoneyManagerImportResponse> => {
     if (backup.size > MAX_BODY_BYTES) {
       throw new Error('This backup is over 4.5 MB even after compression, more than the server accepts.')
@@ -92,7 +95,10 @@ export const moneyManagerBackupService = {
         force,
         allow_large_delete: allowLargeDelete,
       },
-      headers: { 'Content-Type': 'application/gzip' },
+      headers: {
+        'Content-Type': 'application/gzip',
+        ...(idempotencyKey && !dryRun ? { 'Idempotency-Key': idempotencyKey } : {}),
+      },
       timeout: IMPORT_TIMEOUT_MS,
     })
     return response.data

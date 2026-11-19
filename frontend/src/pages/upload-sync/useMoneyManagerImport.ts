@@ -21,6 +21,8 @@ export interface BackupReview {
   readonly backup: Blob
   readonly preview: MoneyManagerImportResponse
   readonly force: boolean
+  /** Minted with the review; confirm and retry both send it so a retry returns the saved result. */
+  readonly idempotencyKey: string
 }
 
 export type BackupNotice =
@@ -80,7 +82,7 @@ export function useMoneyManagerImport({
     force: boolean,
   ) => {
     if (result.status === 'preview') {
-      setReview({ fileName, backup, preview: result, force })
+      setReview({ fileName, backup, preview: result, force, idempotencyKey: crypto.randomUUID() })
       setPhase('review')
       return
     }
@@ -135,6 +137,7 @@ export function useMoneyManagerImport({
         dryRun: !pending,
         force,
         allowLargeDelete: true,
+        ...(pending ? { idempotencyKey: pending.idempotencyKey } : {}),
       })
       if (isCurrentSession(sessionSignal)) publish(result, fileName, backup, force)
       else settle()

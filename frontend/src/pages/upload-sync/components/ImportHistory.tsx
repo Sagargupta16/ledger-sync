@@ -14,7 +14,9 @@ import { DataTable, type DataTableColumn } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
 import RefreshFailedNotice from '@/components/shared/RefreshFailedNotice'
 import Spinner from '@/components/ui/Spinner'
+import { useDataHealthQuery } from '@/hooks/api/useDataHealthQuery'
 import { formatDate } from '@/lib/formatters'
+import type { ReconciliationState } from '@/services/api/analyticsV2DataHealth'
 import { isDemoMode } from '@/store/demoStore'
 import { uploadService, type ImportHistoryEntry } from '@/services/api/upload'
 
@@ -40,11 +42,37 @@ function formatImportedAt(iso: string): string {
   })
 }
 
-const columns: DataTableColumn<ImportHistoryEntry>[] = [
+const RECONCILIATION_BADGE: Record<ReconciliationState, { label: string; tone: string }> = {
+  reconciled: { label: 'Reconciled', tone: 'border-app-green/40 text-app-green' },
+  attention: { label: 'Needs attention', tone: 'border-app-red/40 text-app-red' },
+  unchecked: { label: 'Not checked', tone: 'border-border text-text-tertiary' },
+}
+
+function ReconciliationBadge({ state }: { readonly state: ReconciliationState }) {
+  const badge = RECONCILIATION_BADGE[state]
+  return (
+    <span
+      className={`ml-2 inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${badge.tone}`}
+    >
+      {badge.label}
+    </span>
+  )
+}
+
+function buildColumns(
+  newestId: number | undefined,
+  reconciliation: ReconciliationState | undefined,
+): DataTableColumn<ImportHistoryEntry>[] {
+  return [
   {
     key: 'imported_at',
     header: 'Imported',
-    cell: (row) => formatImportedAt(row.imported_at),
+    cell: (row) => (
+      <>
+        {formatImportedAt(row.imported_at)}
+        {reconciliation && row.id === newestId && <ReconciliationBadge state={reconciliation} />}
+      </>
+    ),
     sortable: true,
     sortValue: (row) => row.imported_at,
     mobilePrimary: true,
@@ -93,7 +121,8 @@ const columns: DataTableColumn<ImportHistoryEntry>[] = [
     sortValue: (row) => row.rows_skipped,
     align: 'right',
   },
-]
+  ]
+}
 
 export default function ImportHistory() {
   // Demo mode has no server-side import log and its mutations are blocked, so
@@ -107,9 +136,13 @@ export default function ImportHistory() {
     staleTime: Infinity,
   })
 
+  // The state rides on the Data Health read the app already makes; no extra request.
+  const reconciliation = useDataHealthQuery().data?.reconciliation?.state
+
   if (demo) return null
 
   const imports = query.data?.imports ?? []
+  const columns = buildColumns(imports[0]?.id, reconciliation)
   const total = query.data?.total_count ?? 0
 
   return (

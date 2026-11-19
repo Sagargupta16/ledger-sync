@@ -14,6 +14,7 @@ them as they were, reports ``planning`` as None and says so in
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -23,6 +24,8 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.core.analytics import AnalyticsEngine
 from ledger_sync.core.analytics.refresh import mark_preferences_changed
+from ledger_sync.core.analytics.refresh_budget import apply_refresh_budget
+from ledger_sync.core.observability import report_exception
 from ledger_sync.core.reconciler_helpers import ReconciliationStats
 from ledger_sync.core.sync_engine import SnapshotOptions, SyncEngine
 from ledger_sync.db.models import LEDGER_ACCOUNTS, AccountType, LedgerAccount
@@ -35,6 +38,7 @@ from ledger_sync.schemas.money_manager import (
     PlanningSummary,
 )
 from ledger_sync.schemas.upload import MAX_LABEL_LENGTH
+from ledger_sync.services.idempotency import IdempotencyScope, run_once
 from ledger_sync.services.ledger_dimensions import ensure_account_ids
 from ledger_sync.services.money_manager_planning import sync_planning
 from ledger_sync.utils.logging import logger
@@ -53,6 +57,7 @@ _GROUP_TYPES = {
 }
 # What an odd backup can raise while its repeat rules and budgets are compared or stored.
 _PLANNING_ERRORS = (SQLAlchemyError, ArithmeticError, ValueError, NormalizationError)
+_INSIGHTS_FAILED = "Your ledger is saved. Insights could not be refreshed. Retry the refresh."
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,9 +71,18 @@ class BackupUpload:
 
 
 def import_money_manager_backup(
-    db: Session, user_id: int, body: bytes, upload: BackupUpload
+    db: Session,
+    user_id: int,
+    body: bytes,
+    upload: BackupUpload,
+    *,
+    on_ledger_saved: Callable[[MoneyManagerUploadResponse], None] | None = None,
 ) -> MoneyManagerUploadResponse:
-    """Read, reconcile and commit a backup, then refresh insights without undoing it."""
+    """Read, reconcile and commit a backup, then refresh insights without undoing it.
+
+    ``on_ledger_saved`` receives the response as it stands before the refresh,
+    inside the ledger's own transaction; dry runs and repeats never reach it.
+    """
     backup = read_backup(body)
     summary = _summary(backup)
     engine = SyncEngine(db, user_id=user_id)
@@ -80,10 +94,20 @@ def import_money_manager_backup(
         apply_account_settings(db, user_id, backup.accounts)
         planned.append(_sync_planning(db, user_id, backup.planning, apply=True))
 
+    record_outcome: Callable[[ReconciliationStats], None] | None = None
+    if on_ledger_saved is not None:
+        hook = on_ledger_saved
+
+        def save_provisional(stats: ReconciliationStats) -> None:
+            planning, failed = planned[0] if planned else (None, False)
+            hook(_response("imported", upload, stats, summary, "failed", planning, failed))
+
+        record_outcome = save_provisional
     options = SnapshotOptions(
         dry_run=upload.dry_run,
         guard_deletions=not upload.dry_run and not upload.allow_large_delete,
         before_commit=before_commit,
+        record_outcome=record_outcome,
     )
     try:
         # The repeat check above stands in for the engine's own refusal.
@@ -101,6 +125,33 @@ def import_money_manager_backup(
     analytics_status = _refresh_insights(db, user_id, upload.file_name)
     planning, failed = planned[0] if planned else (None, False)
     return _response("imported", upload, stats, summary, analytics_status, planning, failed)
+
+
+def import_money_manager_backup_once(
+    db: Session,
+    user_id: int,
+    body: bytes,
+    upload: BackupUpload,
+    scope: IdempotencyScope | None,
+) -> tuple[MoneyManagerUploadResponse, bool]:
+    """``import_money_manager_backup`` at most once per Idempotency-Key; True when replayed."""
+
+    def resume(stored: MoneyManagerUploadResponse) -> MoneyManagerUploadResponse:
+        status = _refresh_insights(db, user_id, stored.file_name)
+        return stored.model_copy(
+            update={
+                "analytics_status": status,
+                "analytics_message": _INSIGHTS_FAILED if status == "failed" else None,
+            }
+        )
+
+    return run_once(
+        db,
+        scope,
+        MoneyManagerUploadResponse,
+        lambda hook: import_money_manager_backup(db, user_id, body, upload, on_ledger_saved=hook),
+        resume,
+    )
 
 
 def _sync_planning(
@@ -123,11 +174,13 @@ def _sync_planning(
 def _refresh_insights(db: Session, user_id: int, file_name: str) -> Literal["ready", "failed"]:
     """Refresh analytics after the commit; a failure leaves the saved ledger alone."""
     try:
+        apply_refresh_budget(db)
         AnalyticsEngine(db, user_id=user_id).refresh_analytics(source_file=file_name)
     except Exception as exc:
         logger.warning(
             "Post-backup analytics failed for user_id=%s (%s)", user_id, type(exc).__name__
         )
+        report_exception(exc)
         db.rollback()
         return "failed"
     return "ready"
@@ -234,11 +287,7 @@ def _response(
         },
         summary=summary,
         analytics_status=analytics_status,
-        analytics_message=(
-            "Your ledger is saved. Insights could not be refreshed. Retry the refresh."
-            if analytics_status == "failed"
-            else None
-        ),
+        analytics_message=_INSIGHTS_FAILED if analytics_status == "failed" else None,
         planning=planning,
         planning_message=_planning_message(status) if planning_failed else None,
     )

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Current for Ledger Sync 2.36.0.
+Current for Ledger Sync 2.37.0.
 
 ## Production Topology
 
@@ -38,7 +38,9 @@ after migrations.
 | Database migration | `.github/workflows/migrate.yml` |
 | Scheduled health ping (disabled) | `.github/workflows/keepalive.yml` |
 | Runtime settings | `backend/src/ledger_sync/config/settings.py`, plus `push_settings.py` and `embedding_settings.py` beside it |
-| Scheduled push run | `crons` in `backend/vercel.json` |
+| Scheduled push run and analytics refresh | `crons` in `backend/vercel.json` |
+| Migration rehearsal on a Neon branch | job `migration-rehearsal` in `.github/workflows/ci.yml` |
+| Error tracking | `core/observability.py`, started from `api/main.py` |
 | Frontend base and proxy | `frontend/vite.config.ts` |
 
 ## Production Configuration
@@ -165,8 +167,9 @@ contact you read, redeploy, then delete the file:
 Remove-Item $env:USERPROFILE\ledger-sync-push-keys.txt
 ```
 
-`backend/vercel.json` registers one cron, `GET /api/push/run-due` at
-`0 3 * * *` (UTC). Vercel calls it on the production deployment only, with the
+`backend/vercel.json` registers two crons. The first, `GET /api/push/run-due`
+at `0 3 * * *` (UTC), is this one; the second is the
+[daily analytics refresh](#daily-analytics-refresh). Vercel calls it on the production deployment only, with the
 `CRON_SECRET` bearer header. On the Hobby plan Vercel may start it anywhere in
 03:00 to 03:59 UTC (08:30 to 09:29 IST), at most once a day. Delivery is best
 effort and can repeat, and Vercel does not retry a failed run. A repeated run
@@ -189,6 +192,69 @@ invalidates every stored subscription: each device taps Turn on again, which
 replaces its subscription. A device that is never reopened keeps failing, because
 only a 404 or 410 from the push service deletes its row; remove it from the
 device list in Settings > Notifications.
+
+### Daily analytics refresh
+
+An upload or a Money Manager backup saves the ledger first and refreshes the
+insights after it. If that refresh fails or times out, the user's analytics
+inputs stay behind the ledger and Data Health shows the "figures are out of
+date" banner until someone presses Recompute. The second cron in
+`backend/vercel.json`, `GET /api/analytics/v2/refresh-due` at `30 3 * * *` (UTC),
+settles those users without a click. It needs no new setting: it reads the same
+`CRON_SECRET` as the push run, sent by Vercel as `Authorization: Bearer`.
+`POST /api/analytics/v2/refresh-due` with the same header runs it by hand.
+
+- It answers 503 while `CRON_SECRET` is unset and 401 for a wrong secret.
+- It picks active users whose inputs are not current (a ledger, preference or
+  algorithm version ahead of the published one, a pending full rebuild, or no
+  analytics state at all), oldest publication first, at most 25 per run.
+- It starts no new user once 150 seconds have passed, so a run plus one
+  refresh's 120 second statement budget ends inside Vercel's 300 second limit.
+  A user it did not reach waits for the next run.
+- Each user refreshes in its own session, and one failure never stops the
+  rest. The body is `{due, refreshed, failed, deferred}`.
+- The recompute that follows an upload or a backup now uses the same 120 second
+  statement and 300 second idle-in-transaction budget on PostgreSQL as Data
+  Health's Recompute (`core/analytics/refresh_budget.py`), instead of the
+  default 30 and 60 seconds.
+
+After the first deploy, confirm `/api/analytics/v2/refresh-due` is listed under
+the project's Settings > Cron Jobs and trigger it once (the deployment summary
+can run a cron job); the function log should show `Analytics drain: ...` with
+the counts. As with the push run, Hobby may start it anywhere in the hour and
+Vercel does not retry a failed run.
+
+### Optional error tracking (Sentry)
+
+Vercel keeps runtime logs for an hour (Hobby) or a day (Pro), so a failed
+recompute's error was gone before anyone looked. Error tracking stays off until
+a DSN is set:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LEDGER_SYNC_SENTRY_DSN` | unset (off) | The Sentry project's DSN; read as a secret and never logged |
+| `LEDGER_SYNC_SENTRY_TRACES_SAMPLE_RATE` | `0` (0 to 1) | Share of requests traced; a value outside the range stops the backend at start-up |
+
+Owner console step: create a Sentry project, copy its DSN
+into the Vercel project (**Settings** > **Environment Variables**, Production)
+as `LEDGER_SYNC_SENTRY_DSN`, then redeploy. Events carry the release
+`ledger-sync@<version>` and `LEDGER_SYNC_ENVIRONMENT` as the environment.
+
+This is a personal finance app, so `core/observability.py` strips an event
+before it leaves, and sends no default personal data:
+
+- No request body, cookies or query string, and only the `user-agent`,
+  `content-type`, `content-length` and `accept` headers, so no credential
+  header.
+- No local variables, breadcrumbs or extras.
+- Exception messages are cut to nothing but the exception type (a database
+  error's detail can hold a failing row's amounts and notes), and a log event
+  keeps only its message template.
+- Trace spans lose their data and their query strings.
+
+Beyond unhandled errors, four handled failures are reported: the post-upload
+refresh, the post-backup refresh, a scheduled refresh for one user, and a Data
+Health reconciliation read. Do not paste a DSN into chat or Git.
 
 ### Required frontend value
 
@@ -259,6 +325,35 @@ Six simultaneous PostgreSQL connections also verify that only one worker can
 reserve the remaining daily message, daily token, or monthly token allowance.
 Use `uv run alembic heads` to identify the current revision rather than a
 hardcoded revision in a runbook.
+
+#### Migration rehearsal on a Neon branch
+
+On a pull request, the `migration-rehearsal` job in `ci.yml` runs the PR's
+migrations against a copy of production data before merge, which is what the
+rollout notes below ask for by hand. It cuts a Neon branch from the project's
+default (production) branch, named `ci-pr-<number>-<run id>`, asks the Neon API
+for that branch's direct (not pooled) connection URI, runs `alembic upgrade
+head` and `alembic check` against it, and always deletes the branch afterwards.
+The URI is fetched with the masked API key and masked before anything else
+runs, so it never crosses steps or reaches a log.
+
+- It runs only on pull requests from the same repository opened by a person. A
+  bot's pull request (Renovate, Dependabot) would run new dependency code with
+  the Neon key and a copy of production data, so those and fork PRs skip it.
+- It is not a dependency of `migrate` or the deploy, so a failure is a red check
+  on the PR, never a blocked release.
+- Until the owner adds the repository secret and variable below, a guard step
+  turns every later step off and the job passes without doing anything.
+
+| Where | Name | Purpose |
+| --- | --- | --- |
+| Actions secret | `NEON_API_KEY` | Neon API key for the project |
+| Actions variable | `NEON_PROJECT_ID` | The Neon project to branch from |
+| Actions variable (optional) | `NEON_DATABASE_NAME` | Database to rehearse on, default `neondb` |
+| Actions variable (optional) | `NEON_ROLE_NAME` | Role for the connection URI, default `neondb_owner` |
+
+The branch is copy-on-write. The job deletes it even when the migration fails,
+because the free plan allows 10 branches per project (`ci.yml` comment).
 
 `identity_constraints_2026` follows `ai_usage_reservations_2026`. It adds SQLite's
 missing OAuth uniqueness index, removes obsolete global uniqueness rules that
@@ -382,6 +477,139 @@ after it.
   added by `recurring_user_amount_2026` in 2.28.0; the backend now reads and
   writes it.
 
+### 2.37.0 rollout
+
+Two revisions follow `feature_domains_2026`, each reversible, and neither changes
+a result the running backend returns.
+
+- `idempotency_keys_2026`
+  ([20261119_1000_idempotency_keys.py](../backend/src/ledger_sync/db/migrations/versions/20261119_1000_idempotency_keys.py))
+  creates `idempotency_keys`. No older backend names it, so it is expand-only: it
+  sets a 10 s lock timeout, skips a table that already exists with the expected
+  columns and stops on any other shape. Vercel can serve the new backend before
+  the migrate job: a keyed upload then ignores its `Idempotency-Key` (logged at
+  info) and runs as it always did, and a ledger reset or account delete skips
+  the missing table. The downgrade drops the index and the table; the rows are a
+  24-hour replay cache, not user data.
+- `row_level_security_2026`
+  ([20261119_1100_row_level_security.py](../backend/src/ledger_sync/db/migrations/versions/20261119_1100_row_level_security.py))
+  enables row-level security with one policy on 48 tables (see
+  [Row-level security](#row-level-security)). It changes no result at release.
+  On PostgreSQL it sets a 5 s lock timeout, then takes `ACCESS EXCLUSIVE` on all
+  48 tables with one sorted `LOCK TABLE` before it changes any of them. The
+  pending revisions run in one transaction, so a busy moment fails the revision
+  at that statement with a lock timeout and nothing is changed: **run the
+  migrate job again**, it is safe to repeat. SQLite returns at once.
+
+The new crons, settings and CI job are in
+[Daily analytics refresh](#daily-analytics-refresh),
+[Optional error tracking](#optional-error-tracking-sentry) and
+[Migration rehearsal](#migration-rehearsal-on-a-neon-branch).
+
+### Row-level security
+
+`row_level_security_2026` is a second net under the `user_id` filters every
+query already has. Each user-owned table (46 with a `user_id` column, plus
+`users` on its `id`, and `idempotency_keys`, so 48 in all) carries one
+`PERMISSIVE` policy named `ledger_sync_user_isolation`: every row is visible
+while the session variable `app.user_id` is unset, and only rows owned by that
+user once it is set. `mf_nav_prices` (public AMFI data) and `column_mapping_logs`
+(no owner column) are exempt on purpose. The design and the binding rules are in
+[DATABASE.md](DATABASE.md#row-level-security).
+
+**At release it does nothing.** The policies are not forced, and the role the
+backend connects as today owns the tables, and a table owner bypasses its own
+policies. They take effect only after the console steps below swap the runtime
+connection to a role that does not own the tables and cannot bypass row
+security. Everything here is the owner's step; nothing runs it automatically.
+
+Do it on a Neon child branch of production first (`CREATE ROLE` and the swap
+are rehearsed there; child branches inherit roles), then on production. Run the
+SQL in the Neon SQL Editor connected as the migration owner, the role whose URL
+is the GitHub `LEDGER_SYNC_DATABASE_URL` secret. Replace `<owner>` and `<db>`.
+
+1. Check the starting point. Exactly one owner role, and the policy count equals
+   the covered tables (48 once the migration has run):
+
+   ```sql
+   SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public';
+   SELECT count(*) FROM pg_policies
+     WHERE schemaname = 'public' AND policyname = 'ledger_sync_user_isolation';
+   ```
+
+2. Generate a password locally and keep it out of chat (PowerShell, from the
+   repository root). It writes `ledger-sync-app-role.txt` in your home folder and
+   prints only the path:
+
+   ```powershell
+   uv run --directory backend python -c "import secrets; from pathlib import Path; f=Path.home()/'ledger-sync-app-role.txt'; f.write_text(secrets.token_urlsafe(32)); print('Wrote', f)"
+   ```
+
+3. Create the role with SQL, never in the Neon Console or API: roles made there
+   join `neon_superuser`, which carries `BYPASSRLS` and would make the policies
+   useless. Paste the password from the file where `<password>` stands:
+
+   ```sql
+   CREATE ROLE ledger_sync_app LOGIN PASSWORD '<password>'
+     NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+   GRANT CONNECT ON DATABASE <db> TO ledger_sync_app;
+   GRANT USAGE ON SCHEMA public TO ledger_sync_app;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ledger_sync_app;
+   REVOKE INSERT, UPDATE, DELETE ON public.alembic_version FROM ledger_sync_app;
+   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ledger_sync_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE <owner> IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ledger_sync_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE <owner> IN SCHEMA public
+     GRANT USAGE, SELECT ON SEQUENCES TO ledger_sync_app;
+   ```
+
+   The default privileges cover only tables the owner role creates later, which
+   is how every migration creates them.
+
+4. Check the role. The first query must return `f, f` and the second `f`:
+
+   ```sql
+   SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'ledger_sync_app';
+   SELECT pg_has_role('ledger_sync_app', 'neon_superuser', 'member');
+   ```
+
+5. Rehearse on the child branch: run the backend locally against the branch's
+   pooled URL for `ledger_sync_app`, sign in, and load Dashboard, Transactions,
+   Tax and `/admin` (the all-user counts must still show). Call
+   `POST /api/push/run-due` and `POST /api/analytics/v2/refresh-due` with the
+   cron secret: both must answer 200 (the push run answers 503 until the VAPID
+   values are set). Compare `EXPLAIN` for the Transactions
+   list query with the owner's plan, because a policy predicate that is not
+   marked leakproof runs after the row filter.
+6. Production: in Vercel (project `ledger-sync-api` > **Settings** >
+   **Environment Variables** > Production), set `LEDGER_SYNC_DATABASE_URL` to the
+   pooled URL for `ledger_sync_app`
+   (`postgresql://ledger_sync_app:<password>@<endpoint>-pooler.<region>.aws.neon.tech/<db>?sslmode=require`,
+   no `channel_binding`), then redeploy. **Do not change the GitHub Actions
+   secret of the same name**: migrations keep the owner and the direct endpoint.
+7. Repeat the checks from step 5 on production, then delete the password file:
+
+   ```powershell
+   Remove-Item $env:USERPROFILE\ledger-sync-app-role.txt
+   ```
+
+**Rollback:** put the previous Vercel `LEDGER_SYNC_DATABASE_URL` value back and
+redeploy. No schema change is needed. To remove the role afterwards, run
+`DROP OWNED BY ledger_sync_app; DROP ROLE ledger_sync_app;`.
+
+What to know after activation:
+
+- A deliberate cross-user read inside a signed-in request that the code search
+  missed would return fewer rows, never more. The admin statistics unbind
+  explicitly; cron, OAuth sign-in, token refresh and the CLI never bind. Step 5
+  is the gate for this.
+- A new user-owned table needs its own policy in its migration, or an entry in
+  the exempt set of `tests/integration/test_row_level_security.py`; the test
+  fails CI until it has one.
+- `audit_logs` and `user_preferences` can hold a row with no owner (OAuth state
+  rows, the defaults row). Those are visible only while unbound, which is where
+  their one reader (`api/oauth_state.py`) runs.
+
 ### AI configuration and encryption rollout
 
 Apply `ai_usage_reservations_2026` and subsequent revisions before promoting
@@ -414,8 +642,9 @@ The Vercel project root must be `backend`.
 - routes every request to `api/index.py`
 - sets `maxLambdaSize` to `50mb` on the legacy `builds` entry (see
   [Function size](#function-size))
-- schedules the daily push alert run in `crons` (see
-  [Optional phone alerts](#optional-phone-alerts-web-push))
+- schedules the daily push alert run and the daily analytics refresh in `crons`
+  (see [Optional phone alerts](#optional-phone-alerts-web-push) and
+  [Daily analytics refresh](#daily-analytics-refresh))
 
 `api/index.py` imports the FastAPI ASGI `app`. Vercel's Python runtime serves
 the ASGI app directly, so the application lifespan runs in production (the old
@@ -613,6 +842,22 @@ For 2.31.0, also:
 - Optionally create a `ledger:read` token, run the command from its dialog, and
   ask Claude Code for one number from the ledger.
 
+For 2.37.0, also:
+
+- Confirm the migrate job log shows `idempotency_keys_2026` and
+  `row_level_security_2026`. A lock timeout on the second means a busy moment:
+  run the job again.
+- Confirm the `/admin` page's app block (`GET /api/admin/stats`, `app.revision`)
+  reports `row_level_security_2026`.
+- Confirm `/api/analytics/v2/refresh-due` is listed under Settings > Cron Jobs
+  and trigger it once; the function log shows `Analytics drain: ...`.
+- Open Data Health signed in. The Reconciliation panel shows a state, or is
+  absent if the read could not run; the rest of the page loads either way.
+- If `LEDGER_SYNC_SENTRY_DSN` is set, open the first event Sentry receives and
+  confirm it carries no request body, query string or local variables.
+- The policies from `row_level_security_2026` change nothing until the
+  [Row-level security](#row-level-security) steps are run.
+
 ## Sign-In Incident Runbook
 
 The message "Couldn't reach the sign-in service" means the frontend did not
@@ -655,11 +900,18 @@ normal migration and Pages sequence. A code revert does not revert the database.
 
 Promote a known-good Vercel deployment or revert the application change through
 a new pull request. After `feature_domains_2026` the previous backend keeps
-working, because it names none of the new tables.
+working, because it names none of the new tables, and the same holds for
+`idempotency_keys`. After row-level security is activated, rolling the backend
+back is safe too, because the policies are permissive while no user is bound;
+to leave row-level security, restore the previous `LEDGER_SYNC_DATABASE_URL`
+value in Vercel (see [Row-level security](#row-level-security)).
 
 ### Database
 
-Unsupported historical downgrades raise an error. Alembic preflights the entire
+`row_level_security_2026` and `idempotency_keys_2026` have real downgrades (the
+first drops the policies and turns row security off, the second drops the
+table); no user data is touched. Unsupported historical downgrades raise an
+error. Alembic preflights the entire
 rollback plan before applying its first step, including when an earlier step
 would otherwise be reversible. The version marker is not moved to imply a
 recovery that did not happen.
@@ -680,8 +932,10 @@ Before every production release:
 - Keep CORS restricted to explicit origins.
 - Keep `LEDGER_SYNC_JWT_SECRET_KEY` and
   `LEDGER_SYNC_ENCRYPTION_KEY` separate.
-- Keep `LEDGER_SYNC_VAPID_PRIVATE_KEY`, `CRON_SECRET` and every `lsu_` token out
-  of Git, logs and chat, and delete `ledger-sync-push-keys.txt` once the values
-  are in Vercel.
+- Keep `LEDGER_SYNC_VAPID_PRIVATE_KEY`, `CRON_SECRET`, `LEDGER_SYNC_SENTRY_DSN`,
+  `NEON_API_KEY` and every `lsu_` token out of Git, logs and chat, and delete
+  `ledger-sync-push-keys.txt` once the values are in Vercel. Keep the
+  `ledger_sync_app` password out of them too and delete
+  `ledger-sync-app-role.txt` once the Vercel value is set.
 - Rotate a credential immediately if it appears in logs, Git history, or a
   public artifact.

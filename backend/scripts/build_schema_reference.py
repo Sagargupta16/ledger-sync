@@ -102,6 +102,7 @@ GROUPS = {
     "Ledger, imports and organization": [
         "transactions",
         "import_logs",
+        "idempotency_keys",
         "ledger_accounts",
         "ledger_account_aliases",
         "ledger_categories",
@@ -264,6 +265,17 @@ INFO = {
             "A forced re-import updates the existing record and counts. This is not an "
             "append-only attempt log. file_name/source_file are metadata, not stored spreadsheet "
             "binaries or a foreign key to transactions."
+        ),
+    ),
+    "idempotency_keys": (
+        "Retry-safe uploads: how far one keyed upload got, and its saved response.",
+        "One row per user, upload route and Idempotency-Key.",
+        "Import metadata",
+        (
+            "A 24-hour replay cache, not a record the user owns: the reaper, a ledger reset and "
+            "an account delete remove rows. state moves started -> ledger_saved -> completed "
+            "(services/idempotency.py owns every change, fenced on locked_at). Requests without "
+            "the header never touch it, and the routes run as before while the table is absent."
         ),
     ),
     "ledger_accounts": (
@@ -988,6 +1000,20 @@ MEANINGS = {
         "rows_updated": "Count updated during reconciliation.",
         "rows_deleted": "Count marked deleted by snapshot reconciliation.",
         "rows_skipped": "Count skipped by import processing.",
+    },
+    "idempotency_keys": {
+        "route": "upload or money_manager; the same key on two routes is two uploads.",
+        "idempotency_key": "The client's Idempotency-Key header, 8-128 of A-Z, a-z, 0-9, - or _.",
+        "request_hash": (
+            "SHA-256 hex of the route, its options and the raw body; a different upload under "
+            "the same key is refused with 422."
+        ),
+        "state": "started, ledger_saved or completed (CHECK constraint).",
+        "response_body": "The route's 200 response as JSON; NULL while started.",
+        "locked_at": (
+            "Naive UTC time the running request claimed the key, and the fence its writes match "
+            "on; NULL once completed. A lock older than six minutes may be taken over."
+        ),
     },
     "ledger_accounts": {
         "name": "First observed account spelling.",

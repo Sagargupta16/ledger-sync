@@ -5,7 +5,9 @@ and which of them still carry a known contradiction. Built 2026-11-09 from a
 read-only audit of the whole repo (eight lanes, about 150 findings, 130 after
 merging duplicates) for 2.36.0. Rows marked **fixed 2.36.0** were changed and
 tested in that release; rows marked **gap** are known and not yet changed, with
-the reason. Line numbers drift, so rows name files and functions.
+the reason. Rows added for 2.37.0 (the idempotency key, the reconciliation
+verdict, the scheduled drain and the row-security binding) are marked **added
+2.37.0**. Line numbers drift, so rows name files and functions.
 
 ## Conventions
 
@@ -50,7 +52,7 @@ another ignores.
 
 | Machine | States | Owner | Status |
 | --- | --- | --- | --- |
-| Analytics publication | missing, rebuild pending, dirty days, clock stale, current (derived from version pairs) | `core/analytics/refresh.py` (`mark_ledger_changed`, `mark_preferences_changed`, `publish_refresh`, `analytics_is_current`) | derived; gap: not exposed to clients, and a preference or budget edit leaves it pending until a client calls refresh |
+| Analytics publication | missing, rebuild pending, dirty days, clock stale, current (derived from version pairs) | `core/analytics/refresh.py` (`mark_ledger_changed`, `mark_preferences_changed`, `publish_refresh`, `analytics_is_current`) | derived; **2.37.0**: the daily drain below now finishes refreshes that a client never asked for, so a failed post-upload refresh and a preference or budget edit no longer wait for a click; gap: the state is still not exposed to clients except through Data Health's freshness |
 | Rollup freshness (`rollups_stale`) | fresh, stale | `api/analytics_v2_impl/summaries_health.py` `_rollup_freshness` | **fixed 2.36.0**: compares the newest change-bearing import with the later of the newest monthly stamp and `AnalyticsState.published_at`. A refresh that only removed the trailing month used to read stale after it had succeeded |
 | Spreadsheet import record (`ImportLog`) | no log, changed, no-op (from counters) | `core/sync_engine.py` `_record_import` | gap: "already imported" matches any past hash, so re-uploading an older file after another one replaced the ledger needs `force` |
 | Money Manager backup outcome | preview, unchanged, imported; analytics ready, failed, skipped; planning saved or failed | `services/money_manager_import.py` | explicit (response literals); gap: `unchanged` uses the same any-past-hash key |
@@ -60,6 +62,9 @@ another ignores.
 | CAS holdings and NAV freshness | none, RTA only, depository only, both; NAV fresh, stale, unlisted | `core/mf_store.py`, `core/mf_snapshot.py`, `core/amfi_nav.py` | derived; the AMFI backoff is per process |
 | Bank alert status | matched, missing, ignored | `core/bank_alert_inbox.py` `_status` | derived on read, explicit literal |
 | Category review decision | unreviewed (no row), keep, change | `core/category_override_reviews.py` | explicit (CHECK); gap: no endpoint lists past decisions to undo |
+| Idempotency key (`idempotency_keys`) | started, ledger_saved, completed; a keyed request derives to untracked, new, resume, replay, busy or mismatch | `services/idempotency.py` (`classify` derives the claim; `begin`, `mark_ledger_saved`, `complete` and `release` alone advance the row), `db/_models/idempotency_keys.py` | **added 2.37.0**: explicit (CHECK `ck_idempotency_keys_state`), every write fenced on the `locked_at` it claimed; a lock older than 6 minutes can be taken over, rows older than 24 hours are reaped; gap: a key whose refresh failed replays that `failed` status until it expires, so the explicit refresh or the drain is the recovery |
+| Reconciliation verdict | unchecked, reconciled, attention | `core/import_reconciliation.py` `reconciliation_state` | **added 2.37.0**: derived on every read from balance checks and the bank alert inbox, never stored; `attention` outranks `reconciled`; null when unreadable, so Data Health never fails because of it |
+| Scheduled analytics drain | per run: due, refreshed, failed, deferred | `core/analytics/drain.py` `refresh_due_users`, `api/analytics_v2.py` `/refresh-due`, `api/cron_auth.py` | **added 2.37.0**: stateless, selects active users whose analytics inputs are not current, oldest publication first, at most 25 a run, no new user after 150 s; one user's failure never stops the rest |
 | Per-user write serialization | locked, free | `core/analytics/refresh.py` `lock_analytics_user` | convention: every analytics input writer must take it and mark changes |
 
 ### Planning domain
@@ -89,6 +94,7 @@ another ignores.
 | AI usage reservation | reserved, completed, failed | `api/ai_usage.py` | explicit (CHECK); gap: a reservation whose worker died stays reserved and counts against the month |
 | AI allowance | unlimited, capped, blocked per funding source | `api/ai_usage.py`, `core/admin_access.py` | derived |
 | Chat tool loop | owned by the browser; the server is stateless per request | `api/ai_chat.py`, `api/ai_tools.py` | by design |
+| Row-security binding | unbound, bound to a user (per session, re-applied each transaction) | `db/row_security.py` (`bind_rls_user`, `unbind_rls_user`), `api/deps.py`, `api/admin.py` `require_admin` | **added 2.37.0**: explicit in `session.info`; signed-in routes, token routes and user-scoped worker sessions bind, admin statistics, cron, OAuth, token refresh and the CLI stay unbound; inert until the app connects as a non-owner role |
 | MCP protocol era, rate limits, schema readiness, admin role, reset mode | per request or per process | `api/mcp_protocol.py`, `api/rate_limit.py`, `core/admin_access.py`, `services/auth_account_data.py` | derived; rate limits are per serverless instance |
 
 ## Frontend
@@ -119,11 +125,11 @@ another ignores.
 
 | Machine | States | Owner | Status |
 | --- | --- | --- | --- |
-| Spreadsheet upload | idle, parsing, review, processing, conflict, failed, saved, analytics retry | `pages/upload-sync/useUploadSync.ts` (`UploadPhase`) | gap: no cancel while parsing or processing; shares its busy flag and setters with the backup flow |
-| Money Manager backup upload | idle, previewing, review, processing, notice, saved | `pages/upload-sync/useMoneyManagerImport.ts` | gap: no cancel while previewing or processing |
+| Spreadsheet upload | idle, parsing, review, processing, conflict, failed, saved, analytics retry | `pages/upload-sync/useUploadSync.ts` (`UploadPhase`) | **2.37.0**: each committing attempt gets one `Idempotency-Key`, kept on a failure so Retry reuses it; gap: no cancel while parsing or processing; shares its busy flag and setters with the backup flow |
+| Money Manager backup upload | idle, previewing, review, processing, notice, saved | `pages/upload-sync/useMoneyManagerImport.ts` | **2.37.0**: the key is minted when the preview becomes a review and reused by confirm and retry; dry runs send none; gap: no cancel while previewing or processing |
 | Post-import analytics | ready, failed, unknown, retrying | `pages/upload-sync/useUploadSync.ts` | ok |
 | Import history, balance checks, bank alerts panels | loading, error, empty, list, list with refresh failed | `pages/upload-sync/components/ImportHistory.tsx`, `pages/data-health/components/BalanceChecksPanel.tsx`, `components/shared/BankAlertsPanel.tsx` | **fixed 2.36.0**: a failed refetch keeps the list (`pageStatus`) |
-| Data Health page | loading, error, empty ledger, ready | `pages/data-health/DataHealthPage.tsx` | **fixed 2.36.0**: a failed refetch after Recompute keeps the page |
+| Data Health page | loading, error, empty ledger, ready | `pages/data-health/DataHealthPage.tsx` | **fixed 2.36.0**: a failed refetch after Recompute keeps the page; **2.37.0**: shows the reconciliation verdict when the backend sends one |
 | Stale-figures banner | hidden, stale, check failed, dismissed for a kind | `components/layout/StaleAnalyticsAlert.tsx` | **fixed 2.36.0**: dismissal is per kind and clears when the figures are fresh again; a failed check no longer claims the figures are old |
 | Recompute analytics | idle, running, failed | `pages/data-health/useDataHealth.ts` | gap: four places call the refresh endpoint without knowing about each other |
 | Balance check row | view, edit, confirm delete (explicit `Mode`) | `pages/data-health/components/BalanceCheckItem.tsx` | explicit |

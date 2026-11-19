@@ -10,7 +10,6 @@ by hand. Nothing here returns an endpoint URL, a private key or a secret.
 from __future__ import annotations
 
 import logging
-import secrets
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -18,6 +17,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
+from ledger_sync.api.cron_auth import require_cron_secret
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import _user_key_func, limiter
 from ledger_sync.config.push_settings import CRON_ENV, push_settings
@@ -176,17 +176,7 @@ def post_push_test(
 
 
 def _run_due(request: Request, db: DatabaseSession) -> PushRunReport:
-    secret = push_settings.cron_secret.get_secret_value().strip()
-    if not secret:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Daily alerts are off until {CRON_ENV} is set on the server.",
-        )
-    supplied = request.headers.get("authorization", "")
-    if not secrets.compare_digest(supplied.encode(), f"Bearer {secret}".encode()):
-        raise HTTPException(
-            status_code=401, detail="Not authorised", headers={"WWW-Authenticate": "Bearer"}
-        )
+    require_cron_secret(request)
     report = run_due_alerts(db, _vapid(), settings.frontend_url, ledger_now())
     logger.info(
         "Push run: %s users, %s devices, %s sent, %s failed, %s removed, %s up to date, "

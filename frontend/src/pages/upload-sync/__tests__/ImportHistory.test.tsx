@@ -28,6 +28,13 @@ vi.mock('@/services/api/upload', () => ({
   },
 }))
 
+// The badge reads the Data Health query the app already runs.
+const useDataHealthQuery = vi.fn<() => { data?: { reconciliation?: { state: string } } }>()
+
+vi.mock('@/hooks/api/useDataHealthQuery', () => ({
+  useDataHealthQuery: () => useDataHealthQuery(),
+}))
+
 vi.mock('@/store/demoStore', () => ({
   isDemoMode: () => isDemoMode(),
 }))
@@ -78,6 +85,25 @@ describe('ImportHistory', () => {
     vi.clearAllMocks()
     isDemoMode.mockReturnValue(false)
     getImportHistory.mockResolvedValue(HISTORY)
+    useDataHealthQuery.mockReturnValue({ data: undefined })
+  })
+
+  it('badges only the newest import with the reconciliation state', async () => {
+    useDataHealthQuery.mockReturnValue({ data: { reconciliation: { state: 'attention' } } })
+    renderPanel()
+    await screen.findByText('newest.xlsx')
+
+    expect(screen.getAllByText('Needs attention')).toHaveLength(1)
+  })
+
+  it('hides the badge when the backend does not report reconciliation', async () => {
+    useDataHealthQuery.mockReturnValue({ data: {} })
+    renderPanel()
+    await screen.findByText('newest.xlsx')
+
+    expect(screen.queryByText('Needs attention')).not.toBeInTheDocument()
+    expect(screen.queryByText('Reconciled')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not checked')).not.toBeInTheDocument()
   })
 
   it('lists each past import with its row counts', async () => {

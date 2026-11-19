@@ -1,6 +1,6 @@
 [project]
 name = "ledger-sync"
-version = "2.36.0"
+version = "2.37.0"
 description = "Personal finance dashboard backend -- Excel import, financial analytics, multi-currency exchange rates"
 authors = [{ name = "Sagar Gupta" }]
 readme = "README.md"
@@ -28,6 +28,7 @@ dependencies = [
     "pgvector>=0.5.1",
     # Imported directly by the embedding column type and the SQLite ranking.
     "numpy>=2.5.4",
+    "sentry-sdk[fastapi]>=2.75.0",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,6 @@
 # API Reference
 
-Human-readable reference for Ledger Sync API version 2.36.0.
+Human-readable reference for Ledger Sync API version 2.37.0.
 
 The generated OpenAPI document is the contract source of truth. This guide was
 verified against that document on 2026-09-09; the 2.31.0 additions were checked
@@ -65,8 +65,9 @@ require an authenticated user.
 Four paths take another credential. Three accept an `lsu_` access token that
 holds one scope: `POST /api/upload/money-manager` (`mmbak:upload`, which also
 accepts a signed-in access token), `POST /mcp` (`ledger:read`) and
-`POST /api/ingest/text` (`alerts:ingest`). `GET` and `POST /api/push/run-due`,
-the daily cron, take `Authorization: Bearer <CRON_SECRET>`. See
+`POST /api/ingest/text` (`alerts:ingest`). `GET` and `POST /api/push/run-due`
+and `GET` and `POST /api/analytics/v2/refresh-due`, the two daily crons, take
+`Authorization: Bearer <CRON_SECRET>`. See
 [Access tokens](#access-tokens), [MCP Server](#mcp-server),
 [Bank Alerts](#bank-alerts) and [Push Alerts](#push-alerts).
 
@@ -170,7 +171,7 @@ Common status codes:
 | 401 | Missing, expired, or revoked token |
 | 403 | Authenticated account is disabled |
 | 404 | Resource not found |
-| 409 | Import, identity, saved-key conflict, or required OAuth restart |
+| 409 | Import, identity, saved-key conflict, an upload whose `Idempotency-Key` is still running, or required OAuth restart |
 | 413 | Upload body exceeds the configured size limit |
 | 422 | Request validation failure |
 | 429 | Rate limit exceeded |
@@ -248,7 +249,7 @@ against intervening edits.
 | `GET`, `POST` | `/api/analytics/v2/recurring-transactions` | List or create recurring entries |
 | `PATCH`, `DELETE` | `/api/analytics/v2/recurring-transactions/{item_id}` | Update or delete a recurring entry; set or reset its amount |
 | `GET` | `/api/analytics/v2/merchant-intelligence` | Merchant aggregates |
-| `GET` | `/api/analytics/v2/data-health` | Ledger coverage, last-import row counts, and rollup freshness |
+| `GET` | `/api/analytics/v2/data-health` | Ledger coverage, last-import row counts, rollup freshness, and the reconciliation verdict (see [Data Health reconciliation](#data-health-reconciliation)) |
 | `GET` | `/api/analytics/v2/spending-rule` | Needs, wants, and savings analysis |
 | `GET` | `/api/analytics/v2/net-worth` | Net worth history |
 | `GET` | `/api/analytics/v2/fy-summaries` | Fiscal-year rollups |
@@ -259,6 +260,7 @@ against intervening edits.
 | `GET`, `POST` | `/api/analytics/v2/goals` | List or create financial goals |
 | `PATCH`, `DELETE` | `/api/analytics/v2/goals/{goal_id}` | Update saved goal details/progress or delete the current user's goal |
 | `POST` | `/api/analytics/v2/refresh` | Refresh invalidated analytics; `?force_full=true` forces a recovery rebuild |
+| `GET`, `POST` | `/api/analytics/v2/refresh-due` | The daily analytics drain (the cron uses `GET`), authenticated with `CRON_SECRET` (see [Scheduled refresh](#scheduled-refresh)) |
 
 ### Calculations
 
@@ -471,6 +473,54 @@ file name and hash, an explicit-UTC import timestamp, and processed, inserted,
 updated, deleted, and skipped counts; `total_count` reports the full unpaginated
 history size.
 
+### Idempotency keys
+
+`POST /api/upload` and `POST /api/upload/money-manager` accept an optional
+`Idempotency-Key` header, so a client that lost a response can retry without
+importing twice. A client that sends none (an iOS Shortcut, an older app) gets
+exactly the behavior above: a repeated file is 409 "already imported" on
+`/api/upload` and `unchanged` on a Money Manager backup.
+
+```http
+POST /api/upload
+Idempotency-Key: 2f6c0e1a-9b3d-4c57-8a64-5d1e7b9a0c42
+```
+
+- The key is 8 to 128 letters, digits, `-` or `_` (a `crypto.randomUUID()`
+  fits). A blank header counts as no header; any other value is rejected with
+  400 `Idempotency-Key must be 8-128 letters, digits, '-' or '_'.` after
+  authentication, so an unauthenticated request still gets 401.
+- A key belongs to one user and one route. The request is fingerprinted: for
+  `/api/upload` by the raw body (which carries `force` and `file_hash`), for a
+  backup by its `file_name`, `force` and `allow_large_delete` as the server
+  applies them, then the body.
+- **First use:** the import runs as usual and its result is stored.
+- **Retry with the same key and request:** 200 with the stored result and the
+  response header `Idempotent-Replayed: true`, not 409 "already imported" and
+  not `unchanged`. If the first request saved the ledger but was cut off before
+  its analytics refresh finished, the retry runs that refresh (never the import)
+  and returns the finished result.
+- **Same key while the first request is still running:** 409 with `Retry-After:
+  5` and the detail `An upload with this Idempotency-Key is still running. Retry
+  in a minute; if the first request was cut off, the key frees itself within six
+  minutes.` The message never says "already imported".
+- **Same key with a different file or options:** 422 `This Idempotency-Key was
+  used for a different upload. Send a new key for a new upload.` Nothing is
+  stored or changed.
+- A failed first attempt (400, 409 or 500 before the ledger was saved) releases
+  its key, so the same key can be used again once the cause is fixed.
+- A replay returns the stored 200 body as it was first produced, including its
+  `analytics_status`. Keys are kept 24 hours and a running claim expires after
+  6 minutes; a ledger reset or an account delete removes them. A Money Manager
+  dry run (`dry_run=true`) ignores the header and stores nothing. Until the
+  `idempotency_keys` migration has run, the header is ignored.
+- Browsers cannot read `Idempotent-Replayed`, because CORS exposes no response
+  headers; the web app does not need it.
+
+The web app sends one new key for each committing attempt and reuses it when
+the user presses Retry. A new file, a different option or a reload gets a new
+key. A shortcut can opt in by adding the header to its upload action.
+
 ### Money Manager backups
 
 A Money Manager (Realbyte) backup is read on the server, so the body is the
@@ -510,7 +560,11 @@ Authorization: Bearer <access_token or mmbak:upload access token>
   paying account. An account with no type takes the one its Money Manager group
   implies; a chosen type is never replaced.
 - 400 covers an unreadable file, non-INR transactions and rows without an
-  account; 413 a body over the upload limit.
+  account, and a malformed `Idempotency-Key`; 413 a body over the upload limit.
+  A keyed commit that is retried returns its first result (`imported`, with
+  `Idempotent-Replayed: true`), and an `Idempotency-Key` reused for a different
+  backup returns 422 (see [Idempotency keys](#idempotency-keys)). Token uploads
+  can send the header too.
 - A backup with repeat-rule or budget tables also returns `planning`:
   `{"repeat_rules": counts | null, "budgets": counts | null}`. `counts` is
   `{found, added, updated, unchanged, kept, removed, skipped}`, where `skipped`
@@ -998,6 +1052,55 @@ unpaid part of each of its cards' latest statements), `unbilled`,
 payment days come only from a Money Manager backup import. Rows dated after
 today are ignored.
 
+## Data Health Reconciliation
+
+`GET /api/analytics/v2/data-health` carries one extra, additive field,
+`reconciliation`: whether the imported ledger agrees with what the bank says. It
+is derived on every read from the account balance checks (see
+[Balance Checks](#balance-checks)) and the bank alert inbox (see
+[Bank Alerts](#bank-alerts), alerts of the last 60 days), and nothing is stored.
+
+```json
+"reconciliation": {
+  "state": "attention",
+  "accounts_matched": 4,
+  "accounts_mismatched": 1,
+  "accounts_changed": 2,
+  "alerts_missing": 3,
+  "score_pct": 80
+}
+```
+
+- `state` is `attention` when any account's newest check mismatches or any bank
+  alert has no ledger row (and is not ignored); otherwise `reconciled` when at
+  least one account matches; otherwise `unchecked`.
+- `accounts_matched`, `accounts_mismatched` and `accounts_changed` count
+  accounts by their balance-check `status` (`changed` means rows were added
+  after the newest check). `alerts_missing` is the inbox's missing count.
+- `score_pct` is `matched / (matched + mismatched)` as a whole percent, and
+  `null` when no account has a matching or mismatching check.
+- The whole object is `null` when it cannot be read, and Data Health answers
+  normally either way. An older backend omits the field, which the web app reads
+  as "nothing to say".
+
+## Scheduled Refresh
+
+`GET` and `POST /api/analytics/v2/refresh-due` refresh the users whose analytics
+inputs are not current, so a refresh that failed after an upload finishes
+without a click. Vercel's cron calls it with `GET` (`30 3 * * *` UTC in
+`backend/vercel.json`), and `POST` starts it by hand, both with
+`Authorization: Bearer <CRON_SECRET>`; it is the same secret as
+[`/api/push/run-due`](#push-alerts), through one shared check.
+
+- 503 while `CRON_SECRET` is unset (`Scheduled analytics refreshes are off until
+  CRON_SECRET is set on the server.`), 401 for a wrong secret.
+- It selects active users with a ledger, preference or algorithm version ahead of
+  the published one, a pending full rebuild or no analytics state, oldest
+  publication first, at most 25 per run. It starts no new user after 150
+  seconds, and one user's failure never stops the rest.
+- It returns `{due, refreshed, failed, deferred}`; `deferred` counts selected
+  users it did not reach before the 150 second mark.
+
 ## Balance Checks
 
 `POST /api/balance-checks` takes
@@ -1452,7 +1555,7 @@ name, a file name or a full email:
     "daily": [{"date": "2026-09-29", "calls": 0, "cost_usd": 0.0}]
   },
   "app": {
-    "version": "2.36.0", "database": "postgresql", "revision": "feature_domains_2026",
+    "version": "2.37.0", "database": "postgresql", "revision": "row_level_security_2026",
     "features": {
       "cas_holdings": 1, "push_subscriptions": 0, "active_upload_tokens": 1,
       "bank_alerts": 0, "saved_views": 2, "byok_ai": 0

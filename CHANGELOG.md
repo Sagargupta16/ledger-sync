@@ -6,6 +6,50 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.37.0 - 2026-11-19
+
+A study of how real systems handle retries, schedulers, tenant isolation and reconciliation (Stripe's and Brandur's idempotency keys, the AWS Builders' Library, the transactional outbox, Beancount's balance assertions, Postgres row-level security, OWASP API1 and Neon branching) turned into one fix and six additions. Two new migrations, both reversible and neither changing any existing result: `idempotency_keys_2026` creates a table, and `row_level_security_2026` adds policies that do nothing until a later console step. Clients that send nothing new (iOS Shortcuts, older apps) behave exactly as before. The reasoning is in [docs/architecture.md](docs/architecture.md) "System design decisions".
+
+### Fixed
+
+- **A large import no longer leaves "figures are out of date".** The recompute that runs right after an upload or a Money Manager backup used the default 30 second statement timeout, so a big ledger could time out after its rows were saved and leave the banner up until someone pressed Recompute. It now gets the same budget as Data Health's Recompute (120 seconds per statement, 300 seconds idle in a transaction, PostgreSQL only).
+
+### Added
+
+- **A daily drain for owed refreshes.** `GET` and `POST /api/analytics/v2/refresh-due` (bearer `CRON_SECRET`, 503 while it is unset, 401 for a wrong secret) refreshes the users whose analytics inputs are not current: active users only, oldest publication first, at most 25 a run, no new user started after 150 seconds, and one failure never stops the rest. `backend/vercel.json` calls it at `30 3 * * *`, next to the push run at `0 3 * * *`. A refresh that failed after an upload now finishes by itself instead of waiting for a click.
+- **Retry-safe uploads.** `POST /api/upload` and `POST /api/upload/money-manager` take an optional `Idempotency-Key` header (8 to 128 letters, digits, `-` or `_`; a blank header counts as none). A retry with the same key gets the first result back with `Idempotent-Replayed: true` instead of "already imported", and a retry after a lost response finishes the analytics refresh without importing twice. A duplicate that arrives while the first is still running gets 409 with `Retry-After: 5`, the same key with a different file or options gets 422, and a malformed key gets 400. Keys are per user and route, are kept 24 hours, and a running claim frees itself after 6 minutes. A ledger reset and an account delete remove them, and a dry run never stores one. The web app sends a new key for each committing attempt and reuses it on Retry, and its timeout message now says retrying is safe. New table `idempotency_keys` (migration `idempotency_keys_2026`, expand-only, with a real downgrade).
+- **Reconciliation on Data Health and Upload.** `GET /api/analytics/v2/data-health` gains an optional `reconciliation` object (`state` of `reconciled`, `attention` or `unchecked`, plus `accounts_matched`, `accounts_mismatched`, `accounts_changed`, `alerts_missing` and `score_pct`), derived on every read from the balance checks and the bank alert inbox (last 60 days). It is null when it cannot be read, so Data Health never fails because of it. Data Health shows it as a Reconciliation panel, and the newest row of Import History carries a Reconciled, Needs attention or Not checked badge.
+- **Sentry error tracking, off unless `LEDGER_SYNC_SENTRY_DSN` is set** (optional `LEDGER_SYNC_SENTRY_TRACES_SAMPLE_RATE`, 0 to 1, default 0). Nothing that can hold ledger data leaves the server: no request body, cookies, query string or credential headers, no local variables, breadcrumbs or extras, exception messages cut to their type, log events reduced to their template, and trace spans without data or query strings. A failed post-upload refresh, a failed post-backup refresh, a failed scheduled refresh and a failed Data Health reconciliation read are reported; Vercel keeps runtime logs for an hour or a day, so these used to vanish.
+- **A migration rehearsal in CI.** The `migration-rehearsal` job cuts a Neon branch from production on same-repo pull requests opened by people (never bots), runs `alembic upgrade head` and `alembic check` on it, and always deletes the branch. It does nothing until the repository secret `NEON_API_KEY` and variable `NEON_PROJECT_ID` exist, and it is not a dependency of `migrate` or the deploy.
+- **Postgres row-level security as a second net.** Each of 48 user-owned tables gets one policy, `ledger_sync_user_isolation`: every row is visible while no user is bound to the session, and only that user's rows once a signed-in request binds it (`db/row_security.py`). The admin statistics, the two cron routes, OAuth, token refresh, the CLI and migrations never bind. This changes nothing at release: the policies are not forced, and the role the app connects as today owns the tables and bypasses them. The migration takes one sorted `LOCK TABLE` on all 48 tables under a 5 second lock timeout, so a busy moment fails it before changing anything and the migrate job can be re-run. A new test fails CI when a user-owned table has no policy.
+- [docs/STATE_MACHINES.md](docs/STATE_MACHINES.md) rows for the idempotency key, the reconciliation verdict, the scheduled drain and the row-security binding.
+- `sentry-sdk[fastapi]` as a backend dependency.
+
+### Changed
+
+- The cron bearer check moved from `api/push.py` into `api/cron_auth.py` (`require_cron_secret`), shared by `/api/push/run-due` and `/api/analytics/v2/refresh-due`. The push route's answers are unchanged.
+- The analytics publication gap in STATE_MACHINES now says the daily drain finishes refreshes a client never asked for; a preference or budget edit still waits for the next drain or refresh.
+
+### Not adopted
+
+Considered in the same study and left out, with the reason:
+
+- **Incremental transaction sync.** Every import rewrites `last_seen_at` on every row (`core/reconciler.py`), so a delta after any upload is the whole ledger; uploads already clear the client cache; a hard delete leaves no trace; and the full ledger is 394 KB gzipped at 6,961 rows. A provable delta needs a new change column stamped by every writer.
+- **Transfers as linked pairs, and cleaning the `Transfer: X -> Y` labels.** The category feeds the version-2 import fingerprint (`ingest/hash_id.py`), so a second row or a changed label would give existing rows new IDs. The visible problem, the routing labels swamping the Transactions category list, is already handled in `api/transactions_impl/facets.py`.
+- **Double-entry storage** (Firefly III's own documentation calls it technically pointless for personal use), **event sourcing and CQRS** (Fowler and Azure advise against them for a simple domain), **`pg_ivm`** (Neon does not offer it for new installs) and **local-first sync engines** (Zero, Electric and PowerSync each need an always-on service that Vercel functions cannot host).
+
+### Console steps for the owner
+
+None is needed for the release itself. Each of these turns a feature on:
+
+1. **Sentry:** create a Sentry project, set `LEDGER_SYNC_SENTRY_DSN` in the Vercel project (Production) and redeploy. Optionally set `LEDGER_SYNC_SENTRY_TRACES_SAMPLE_RATE`.
+2. **Daily drain:** `CRON_SECRET` is already set for the push run and is the same secret. After the deploy, confirm `/api/analytics/v2/refresh-due` is listed under Settings > Cron Jobs and trigger it once.
+3. **Migration rehearsal:** add the GitHub Actions secret `NEON_API_KEY` and variable `NEON_PROJECT_ID`; optionally the variables `NEON_DATABASE_NAME` (default `neondb`) and `NEON_ROLE_NAME` (default `neondb_owner`).
+4. **Row-level security activation (later, optional):** follow the runbook in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) "Row-level security". Until then the policies are inert.
+5. **iOS Shortcut (optional):** add an `Idempotency-Key` header to the upload action if you want its retries to be safe.
+
+If the migrate job fails with a lock timeout on `row_level_security_2026`, run it again: the revision changes nothing until it holds every lock.
+
 ## 2.36.0 - 2026-11-09
 
 Every lifecycle in the app with more than two states is now written down in [docs/STATE_MACHINES.md](docs/STATE_MACHINES.md): about 130 of them, from an audit of the whole repo, each with its states, the file that owns it and any known gap. The contradictions it found came from a few repeated shapes, so most fixes below are one shared piece used everywhere rather than many local patches. No migration, and the API shape is unchanged.

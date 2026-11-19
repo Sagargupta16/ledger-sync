@@ -29,6 +29,7 @@ from ledger_sync.db.models import (
     FinancialGoal,
     ForeignAssetEvent,
     FYSummary,
+    IdempotencyKey,
     ImportLog,
     InvestmentHolding,
     LedgerAccount,
@@ -147,6 +148,8 @@ class AccountDataMixin:
         # Transaction-derived data
         self.session.query(Transaction).filter(Transaction.user_id == user_id).delete()
         self.session.query(ImportLog).filter(ImportLog.user_id == user_id).delete()
+        # A stored upload result must not replay into the emptied ledger.
+        self._delete_if_migrated(IdempotencyKey, IdempotencyKey.user_id == user_id)
         self.session.query(ScheduledTransaction).filter(
             ScheduledTransaction.user_id == user_id
         ).delete()

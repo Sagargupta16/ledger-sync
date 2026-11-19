@@ -33,6 +33,7 @@ from ledger_sync.db._models.enums import (
     TransactionType,
 )
 from ledger_sync.db._models.external_refs import ExternalRef
+from ledger_sync.db._models.idempotency_keys import IdempotencyKey, IdempotencyState
 from ledger_sync.db._models.investments import (
     InvestmentHolding,
     NetWorthSnapshot,
@@ -98,6 +99,8 @@ __all__ = [
     "FinancialGoal",
     "ForeignAssetEvent",
     "GoalStatus",
+    "IdempotencyKey",
+    "IdempotencyState",
     "ImportLog",
     "InvestmentHolding",
     "LedgerAccount",

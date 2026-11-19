@@ -10,7 +10,7 @@ describe('MoneyManagerReview', () => {
     const onConfirm = vi.fn<() => Promise<void>>().mockResolvedValue()
     render(
       <MoneyManagerReview
-        review={{ fileName: BACKUP_NAME, backup: GZIPPED, preview: PREVIEW, force: false }}
+        review={{ fileName: BACKUP_NAME, backup: GZIPPED, preview: PREVIEW, force: false, idempotencyKey: 'key-1' }}
         isBusy={false}
         onConfirm={onConfirm}
         onCancel={vi.fn()}
@@ -57,7 +57,7 @@ describe('MoneyManagerNotice', () => {
 
   it('offers a retry only when the import itself failed', () => {
     const onRetry = vi.fn<() => Promise<void>>().mockResolvedValue()
-    const review = { fileName: BACKUP_NAME, backup: GZIPPED, preview: PREVIEW, force: false }
+    const review = { fileName: BACKUP_NAME, backup: GZIPPED, preview: PREVIEW, force: false, idempotencyKey: 'key-1' }
     const { rerender } = render(
       <MoneyManagerNotice
         notice={{ kind: 'failed', fileName: BACKUP_NAME, message: 'Too many uploads.', retry: review }}

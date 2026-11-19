@@ -17,13 +17,17 @@ from ledger_sync.api.rate_limit import user_limiter
 from ledger_sync.core.admin_access import is_admin_email
 from ledger_sync.core.admin_stats import admin_stats
 from ledger_sync.db.models import User
+from ledger_sync.db.row_security import unbind_rls_user
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def require_admin(current_user: CurrentUser) -> User:
+def require_admin(current_user: CurrentUser, session: DatabaseSession) -> User:
     if not is_admin_email(current_user.email):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+    # The stats read across users on purpose; the request session is the one
+    # get_current_user bound to the admin's own rows.
+    unbind_rls_user(session)
     return current_user
 
 

@@ -30,6 +30,8 @@ export interface UploadFailure {
   readonly fileName: string
   readonly message: string
   readonly force: boolean
+  /** Reused by a retry so the server can return the saved result; null for a parse failure. */
+  readonly idempotencyKey: string | null
 }
 
 export interface UploadSuccess {
@@ -45,7 +47,7 @@ function getUploadErrorMessage(error: unknown, ledgerSaved = false): string {
     if (ledgerSaved) {
       return 'The insights refresh timed out. Your ledger is saved; try refreshing insights again.'
     }
-    return 'The request timed out. Check import history before retrying; the server may have saved your ledger.'
+    return 'The request timed out. Retrying is safe: the server returns the saved result instead of importing twice.'
   }
   if (axiosError.code === 'ERR_NETWORK') {
     return 'Could not reach the server. Check your internet connection and try again.'
@@ -75,7 +77,7 @@ export function useUploadSync() {
   const { guardDemoAction } = useDemoGuard()
   const backup = useMoneyManagerImport({ busyRef: busy, setPhase, setSelectedFileName, setSuccess })
 
-  const uploadParsedFile = async (parsed: ParseResult, force: boolean) => {
+  const uploadParsedFile = async (parsed: ParseResult, force: boolean, idempotencyKey: string) => {
     if (busy.current) return
     busy.current = true
     setFailure(null)
@@ -88,6 +90,7 @@ export function useUploadSync() {
         fileHash: parsed.fileHash,
         rows: parsed.rows,
         force,
+        idempotencyKey,
       })
 
       const { inserted, updated, deleted, unchanged } = result.stats
@@ -128,7 +131,7 @@ export function useUploadSync() {
 
       const message = getUploadErrorMessage(error)
       setSelectedFileName(null)
-      setFailure({ parsed, fileName: parsed.fileName, message, force })
+      setFailure({ parsed, fileName: parsed.fileName, message, force, idempotencyKey })
       toast.error(force ? 'Reupload Failed' : 'Upload Failed', {
         description: message,
         duration: 6000,
@@ -168,7 +171,7 @@ export function useUploadSync() {
         ? error.message
         : 'Could not read file. Ensure it is a valid .xlsx, .xls, or .csv file, or a Money Manager .mmbak backup.'
       toast.error('Parse Error', { description: message, duration: 6000 })
-      setFailure({ parsed: null, fileName: file.name, message, force: false })
+      setFailure({ parsed: null, fileName: file.name, message, force: false, idempotencyKey: null })
       return
     } finally {
       busy.current = false
@@ -189,14 +192,14 @@ export function useUploadSync() {
 
   const handleRetryUpload = async () => {
     if (!failure?.parsed) return
-    const { parsed, force } = failure
+    const { parsed, force, idempotencyKey } = failure
     setFailure(null)
     setSelectedFileName(parsed.fileName)
-    await uploadParsedFile(parsed, force)
+    await uploadParsedFile(parsed, force, idempotencyKey ?? crypto.randomUUID())
   }
 
   const handleConfirmUpload = async () => {
-    if (review) await uploadParsedFile(review.parsed, review.force)
+    if (review) await uploadParsedFile(review.parsed, review.force, crypto.randomUUID())
   }
 
   const handleCancelReview = () => {

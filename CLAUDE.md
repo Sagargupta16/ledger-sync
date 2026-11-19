@@ -58,12 +58,12 @@ Area-specific detail moved verbatim into path-scoped rules on 2026-10-31. Claude
 
 | Rule | Loads for | Holds |
 |------|-----------|-------|
-| [`backend.md`](.claude/rules/backend.md) | `backend/**` | Backend layers (`api/`, `core/`, `ingest/`, `db/`, `schemas/`, `services/`, `config/`); data deduplication, analytics publication, execution boundaries, database, database-agnostic SQL, DB URL normalization and security patterns; new API endpoint and DB model recipes; local PostgreSQL needs pgvector |
+| [`backend.md`](.claude/rules/backend.md) | `backend/**` | Backend layers (`api/`, `core/`, `ingest/`, `db/`, `schemas/`, `services/`, `config/`); data deduplication, analytics publication, execution boundaries, database, database-agnostic SQL, DB URL normalization and security patterns (row-level security binding), idempotency and error reporting; new API endpoint and DB model recipes (a new user-owned table needs a row-level security policy); local PostgreSQL needs pgvector |
 | [`frontend.md`](.claude/rules/frontend.md) | `frontend/**`, root pnpm files, `.sonarcloud.properties` | Frontend directories; session boundaries, path alias, styling, API proxy, settings, PWA, installed-app orientation and mobile navigation patterns; two TypeScripts, `react-router` 8, Vitest 5 and `!important` gotchas; new page, hook and store recipes; import conventions; performance rules |
 | [`frontend-ui.md`](.claude/rules/frontend-ui.md) | `frontend/src/**/*.tsx`, `*.css`, `components/**`, `constants/**` | Design System Constraints: colors, page scaffold, charts, layout, page filters, tables, Money, historical charts, themes, inline styles, mobile-first |
 | [`shared-patterns.md`](.claude/rules/shared-patterns.md) | `backend/**`, `frontend/**`, `docs/CALCULATIONS.md` | Cross-stack patterns: auth flow, upload pipeline, server-side aggregation, capital losses and savings, state machines, goals |
 | [`ai-chat.md`](.claude/rules/ai-chat.md) | AI chat, tools, MCP, canvas, AI settings and encryption files | AI Chatbot: modes, key preservation, transport, tool calling, system prompt, usage accounting; app-funded Bedrock deploy and AI rollout |
-| [`deployment.md`](.claude/rules/deployment.md) | `.github/**`, `backend/vercel.json`, `backend/api/**`, `backend/pyproject.toml`, config, migrations, models, `docs/DEPLOYMENT.md` | Frontend and backend deploy mechanics (Vercel bundle limit, `cas` extra), Vercel config, Neon URL, OAuth redirect URIs, JWT secret, `feature_domains_2026`; CI pipeline |
+| [`deployment.md`](.claude/rules/deployment.md) | `.github/**`, `backend/vercel.json`, `backend/api/**`, `backend/pyproject.toml`, config, migrations, models, `docs/DEPLOYMENT.md` | Frontend and backend deploy mechanics (Vercel bundle limit, `cas` extra), Vercel config and the two daily crons, Neon URL, OAuth redirect URIs, JWT secret, `feature_domains_2026`, `idempotency_keys_2026` and `row_level_security_2026`, Sentry; CI pipeline including `migration-rehearsal` |
 
 ### Key Patterns
 
@@ -121,11 +121,11 @@ The repo-specific skill set (atlas/craft/task skills under `.claude/skills/`) wa
 ## Database Rules
 
 - All queries must be user-scoped -- always filter by `user_id`. Never expose cross-user data. The single exception is the admin stats (`core/admin_stats.py`, `admin_users.py`, `admin_app.py`; admins only): counts, sums and masked account emails, never a transaction, amount, name or full email.
-- New tables require Alembic migrations. Never modify models without generating one.
+- New tables require Alembic migrations. Never modify models without generating one. A new user-owned table also needs a `ledger_sync_user_isolation` row-level security policy in its migration, or an exempt entry in `backend/tests/integration/test_row_level_security.py`; that test fails CI otherwise ([`backend.md`](.claude/rules/backend.md)). The policies are a second net behind the `user_id` filter and stay inert until the runtime role is swapped ([`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) "Row-level security").
 - Use `query_helpers.py` for shared aggregation logic. Don't duplicate SQL.
 - **Never use raw `func.strftime()`** -- it only works on SQLite. Use `fmt_year_month()`, `fmt_year()`, `fmt_month()`, `fmt_date()` from `query_helpers.py` for database-agnostic date formatting.
 - Irreversible migrations fail closed instead of pretending to downgrade. Use the backup and forward-repair procedures in [`docs/DATABASE.md`](docs/DATABASE.md); verify dialect behavior with synthetic SQLite and native PostgreSQL databases.
-- Hosted PostgreSQL can suspend while idle. Default connection timeout is 10s and statement timeout is 30s; confirm configured values when diagnosing a deployment.
+- Hosted PostgreSQL can suspend while idle. Default connection timeout is 10s and statement timeout is 30s, except the analytics refresh, which runs under 120s and 300s idle-in-transaction through `apply_refresh_budget`; confirm configured values when diagnosing a deployment.
 
 ## Knowledge Graph (graphify)
 
