@@ -107,6 +107,7 @@ describe('useUploadSync with a Money Manager backup', () => {
 
     expect(mocks.importBackup).toHaveBeenLastCalledWith({
       fileName: BACKUP_NAME, backup: GZIPPED, dryRun: false, force: false, allowLargeDelete: true,
+      idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/) as string,
     })
     expect(mocks.gzipBackup).toHaveBeenCalledOnce()
     expect(clear).toHaveBeenCalledOnce()
@@ -165,7 +166,7 @@ describe('useUploadSync with a Money Manager backup', () => {
 
     const { notice } = result.current.backup
     if (notice?.kind !== 'failed') throw new Error('Expected a failed import notice')
-    expect(notice.message).toContain('Check import history')
+    expect(notice.message).toContain('Retrying is safe')
     expect(notice.retry?.preview).toEqual(PREVIEW)
 
     await act(() => result.current.backup.retry())
@@ -173,6 +174,10 @@ describe('useUploadSync with a Money Manager backup', () => {
     expect(mocks.importBackup).toHaveBeenLastCalledWith(expect.objectContaining({
       backup: GZIPPED, dryRun: false,
     }))
+    const [dryRun, failed, retried] = mocks.importBackup.mock.calls.map(([params]) => params)
+    expect(dryRun?.idempotencyKey).toBeUndefined()
+    expect(retried?.idempotencyKey).toBeTruthy()
+    expect(retried?.idempotencyKey).toBe(failed?.idempotencyKey)
     expect(result.current.success?.summary).toBe(CHANGE_SUMMARY)
   })
 

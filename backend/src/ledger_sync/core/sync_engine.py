@@ -57,11 +57,15 @@ class SnapshotOptions:
     ``dry_run`` reconciles and reports, then rolls back. ``guard_deletions``
     refuses a snapshot that would remove more than the allowance below.
     ``before_commit`` adds writes (such as account settings) to the same unit.
+    ``record_outcome`` receives the final counts after the import log is
+    written and before the commit, so its writes (an idempotency recovery
+    point) commit or roll back with the ledger; raising rolls the import back.
     """
 
     dry_run: bool = False
     guard_deletions: bool = False
     before_commit: Callable[[], None] | None = None
+    record_outcome: Callable[[ReconciliationStats], None] | None = None
 
 
 def _deletion_allowance(live: int) -> int:
@@ -202,6 +206,8 @@ class SyncEngine:
             self._record_import(
                 existing_import, user_id, file_hash, source_file, import_time, stats
             )
+            if options.record_outcome is not None:
+                options.record_outcome(stats)
             if stats.inserted or stats.updated or stats.deleted:
                 mark_ledger_changed(self.session, user_id, self.reconciler.affected_dates)
             self.session.commit()

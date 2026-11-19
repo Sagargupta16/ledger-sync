@@ -8,10 +8,10 @@ The endpoints are split across submodules for readability; this file is the
 thin facade that mounts them.
 """
 
+from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.analytics_v2_impl import (
@@ -20,10 +20,14 @@ from ledger_sync.api.analytics_v2_impl import (
     spending_rule_router,
     summaries_router,
 )
+from ledger_sync.api.cron_auth import require_cron_secret
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import user_limiter
+from ledger_sync.core.analytics.drain import refresh_due_users
 from ledger_sync.core.analytics.refresh import lock_analytics_user
+from ledger_sync.core.analytics.refresh_budget import apply_refresh_budget
 from ledger_sync.core.analytics_engine import AnalyticsEngine
+from ledger_sync.db import session as session_module
 from ledger_sync.db.models import User
 from ledger_sync.utils.logging import logger
 
@@ -41,6 +45,38 @@ router.include_router(summaries_router, dependencies=[Depends(lock_analytics_rea
 router.include_router(recurring_router, dependencies=[Depends(lock_analytics_read)])
 router.include_router(spending_rule_router, dependencies=[Depends(lock_analytics_read)])
 router.include_router(networth_misc_router, dependencies=[Depends(lock_analytics_read)])
+
+
+def _refresh_due(request: Request) -> dict[str, int]:
+    """Cron body: finish the refreshes users are owed, behind the cron secret."""
+    require_cron_secret(request, feature="Scheduled analytics refreshes are")
+    report = refresh_due_users(session_module.SessionLocal)
+    logger.info(
+        "Analytics drain: %s due, %s refreshed, %s failed, %s deferred",
+        report.due,
+        report.refreshed,
+        report.failed,
+        report.deferred,
+    )
+    return asdict(report)
+
+
+@router.get(
+    "/refresh-due",
+    responses={401: {"description": "Bad secret"}, 503: {"description": "Cron secret not set"}},
+)
+def get_refresh_due(request: Request) -> dict[str, int]:
+    """The daily Vercel cron: refresh users whose analytics inputs are not current."""
+    return _refresh_due(request)
+
+
+@router.post(
+    "/refresh-due",
+    responses={401: {"description": "Bad secret"}, 503: {"description": "Cron secret not set"}},
+)
+def post_refresh_due(request: Request) -> dict[str, int]:
+    """The same run, started by hand with the cron secret."""
+    return _refresh_due(request)
 
 
 @router.post(
@@ -78,9 +114,7 @@ def refresh_analytics(
     try:
         # Override defaults only for this transaction, including constructor
         # reads. Commit/rollback restores the connection's normal timeouts.
-        if db.bind is not None and db.bind.dialect.name == "postgresql":
-            db.execute(text("SET LOCAL statement_timeout = '120s'"))
-            db.execute(text("SET LOCAL idle_in_transaction_session_timeout = '300s'"))
+        apply_refresh_budget(db)
 
         engine = AnalyticsEngine(db, user_id=user_id)
         results = (

@@ -106,7 +106,7 @@ export function getBackupErrorMessage(error: unknown, saving: boolean): string {
   const axiosError = isAxiosError(error) ? error : null
   if (axiosError?.code === 'ECONNABORTED' || axiosError?.response?.status === 504) {
     return saving
-      ? 'The request timed out. Check import history before retrying; the server may have saved your ledger.'
+      ? 'The request timed out. Retrying is safe: the server returns the saved result instead of importing twice.'
       : 'The request timed out before the backup was checked. Nothing was saved; try again.'
   }
   if (axiosError?.code === 'ERR_NETWORK') {

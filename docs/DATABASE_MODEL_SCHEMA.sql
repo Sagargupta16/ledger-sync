@@ -1,8 +1,8 @@
--- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-10-27
--- Base checkout: daa6d560bd8587a0e445430407662dbe4092933f; includes uncommitted changes.
--- Source migration head: feature_domains_2026
+-- REFERENCE ONLY: generated offline from working-tree SQLAlchemy metadata on 2026-11-19
+-- Base checkout: 220355c039315b0b56ffb64d0d9c94f3648b50c2; includes uncommitted changes.
+-- Source migration head: row_level_security_2026
 -- Not a Neon dump, not a migration, and not a production restore script.
--- Includes 49 model tables and 616 columns. Excludes Alembic and the reported manual archive.
+-- Includes 50 model tables and 626 columns. Excludes Alembic and the reported manual archive.
 -- Models do not capture every server default/name retained by historical migrations.
 -- Unqualified object names use the database search_path; public is the application convention.
 
@@ -336,6 +336,23 @@ CREATE TABLE external_refs (
 	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 	PRIMARY KEY (id),
 	CONSTRAINT uq_external_refs_user_source_kind_uid UNIQUE (user_id, source_system, kind, source_uid),
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE idempotency_keys (
+	id SERIAL NOT NULL,
+	user_id INTEGER NOT NULL,
+	route VARCHAR(32) NOT NULL,
+	idempotency_key VARCHAR(128) NOT NULL,
+	request_hash VARCHAR(64) NOT NULL,
+	state VARCHAR(16) NOT NULL,
+	response_body TEXT,
+	locked_at TIMESTAMP WITHOUT TIME ZONE,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_idempotency_keys_user_route_key UNIQUE (user_id, route, idempotency_key),
+	CONSTRAINT ck_idempotency_keys_state CHECK (state IN ('started', 'ledger_saved', 'completed')),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -1006,6 +1023,8 @@ CREATE INDEX ix_foreign_asset_events_vesting ON foreign_asset_events (vesting_id
 CREATE INDEX ix_fy_summaries_fiscal_year ON fy_summaries (fiscal_year);
 
 CREATE INDEX ix_fy_summaries_user_id ON fy_summaries (user_id);
+
+CREATE INDEX ix_idempotency_keys_user_created ON idempotency_keys (user_id, created_at);
 
 CREATE INDEX ix_import_logs_file_hash ON import_logs (file_hash);
 

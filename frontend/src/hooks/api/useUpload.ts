@@ -9,6 +9,7 @@ interface UploadParams {
   fileHash: string
   rows: ParsedTransaction[]
   force?: boolean
+  idempotencyKey?: string
 }
 
 export function useUpload() {
@@ -17,9 +18,9 @@ export function useUpload() {
 
   return useMutation({
     mutationKey: ['upload', getSessionGeneration()],
-    mutationFn: ({ fileName, fileHash, rows, force = false }: UploadParams) => {
+    mutationFn: ({ fileName, fileHash, rows, force = false, idempotencyKey }: UploadParams) => {
       assertCurrentSession(sessionSignal)
-      return uploadService.uploadTransactions({ fileName, fileHash, rows, force })
+      return uploadService.uploadTransactions({ fileName, fileHash, rows, force, idempotencyKey })
     },
     onMutate: () => sessionSignal,
     onSuccess: (_data, _variables, signal) => {

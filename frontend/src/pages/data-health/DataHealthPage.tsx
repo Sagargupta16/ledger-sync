@@ -14,6 +14,7 @@ import CoveragePanel from './components/CoveragePanel'
 import HealthMetricGrid from './components/HealthMetricGrid'
 import ImportLedgerPanel from './components/ImportLedgerPanel'
 import QualityIssueList from './components/QualityIssueList'
+import ReconciliationPanel from './components/ReconciliationPanel'
 import StalenessBanner from './components/StalenessBanner'
 import { useDataHealth } from './useDataHealth'
 
@@ -83,6 +84,8 @@ export default function DataHealthPage() {
       />
 
       {state.coverage && <CoveragePanel coverage={state.coverage} />}
+
+      {health.reconciliation && <ReconciliationPanel reconciliation={health.reconciliation} />}
 
       {/* Own queries and states: a failed balance or alert read must not blank the page. */}
       <BalanceChecksPanel />

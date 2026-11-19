@@ -20,6 +20,7 @@ from ledger_sync.config.settings import settings
 from ledger_sync.core.auth.tokens import verify_token
 from ledger_sync.db._models.upload_tokens import TOKEN_SCOPES
 from ledger_sync.db.models import User
+from ledger_sync.db.row_security import bind_rls_user
 from ledger_sync.db.session import SessionLocal, get_session
 from ledger_sync.services.upload_tokens import PLAINTEXT_PREFIX, authenticate_upload_token
 
@@ -73,6 +74,7 @@ def get_current_user(
             detail="User account is disabled",
         )
 
+    bind_rls_user(session, user.id)
     return user
 
 
@@ -121,6 +123,7 @@ def get_upload_principal(
         )
     record, _ = authenticated
     principal = UploadPrincipal(user_id=record.user_id, token_id=record.id)
+    bind_rls_user(session, record.user_id)
     # Record the use and end the authentication transaction before the upload.
     session.commit()
     return principal
@@ -153,6 +156,7 @@ def require_token_scope(scope: str) -> Callable[..., User]:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         _, user = authenticated
+        bind_rls_user(session, user.id)
         _commit_keeping_loaded(session)
         return user
 

@@ -29,6 +29,7 @@ from ledger_sync.core.mf_nav_store import CachedNav, load_navs, save_navs
 from ledger_sync.core.mf_store import ImportRecord, load_positions
 from ledger_sync.core.mf_valuation import Position, lookup_keys
 from ledger_sync.db import session as db_session
+from ledger_sync.db.row_security import bind_rls_user
 from ledger_sync.utils.logging import logger
 
 NAV_UNAVAILABLE = (
@@ -65,6 +66,7 @@ class Snapshot:
 
 def load_snapshot(user_id: int) -> Snapshot:
     with db_session.SessionLocal() as session:
+        bind_rls_user(session, user_id)
         positions, imports = load_positions(session, user_id)
         keys = frozenset(key for p in positions for key in lookup_keys(p.isin, p.amfi_code))
         return Snapshot(positions, imports, keys, load_navs(session, keys))

@@ -26,7 +26,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Sends validated JSON rows to the API instead of uploading the source file.
 - Reviews the date range, accounts, and row counts before replacing the complete ledger snapshot.
 - Uses deterministic SHA-256 transaction IDs plus occurrence counters so repeated imports remain idempotent without collapsing legitimate duplicate rows.
-- Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again.
+- Commits reconciliation and import history together, then refreshes analytics separately. A failed refresh can be retried without importing again, a daily server run finishes any refresh that still failed, and an optional `Idempotency-Key` header makes a retried upload return its saved result instead of importing twice.
 - Imports Money Manager `.mmbak` backups directly. Each transaction keeps its Money Manager ID, so later edits update it in place. Card statement and payment days, times of day, repeat rules (as scheduled payments) and monthly category budgets come along, and an upload-only Access Token lets an iOS Shortcut sync the newest backup automatically ([Handbook](docs/HANDBOOK.md#money-manager-backups)).
 - Suggests categories for placeholder rows in the upload review from your own categorized history. A per-user naive Bayes in plain Python; nothing is applied to the import.
 - Imports a mutual fund CAS PDF (CAMS, KFintech, NSDL or CDSL) on Investment Analytics. The PDF is read in memory for one request and never stored; holdings are valued at AMFI's latest NAV with cost, gain and XIRR.
@@ -42,7 +42,7 @@ Ledger Sync is built for people who want useful personal finance analysis withou
 - Category budgets you can add, edit, pause and delete, beside the 50/30/20 analysis; goals; recurring commitments with amounts you can set; a bill calendar with credit card statement due dates and advance tax dates; and anomaly review with eight checks (duplicates, fees and interest, missing recurring entries, budgets, closed accounts, large transfers, unusual categories, high expenses).
 - Account-backed goals with explicit review before recovering older browser-only edits.
 - Merchant intelligence derived from transaction notes, with spend concentration and recurring detection.
-- Data health reporting: ledger coverage, last-import row counts, whether analytics rollups are current, balance checks against what your bank shows, and a bank-alert inbox for SMS or email alerts that no ledger row answers.
+- Data health reporting: ledger coverage, last-import row counts, whether analytics rollups are current, balance checks against what your bank shows, a bank-alert inbox for SMS or email alerts that no ledger row answers, and one reconciliation verdict on whether the ledger agrees with the bank.
 - Indian income tax (Tax Year 2026-27 rules under the Income-tax Act 2025, saved deductions, an advance tax planner and filing calendar), RSU vesting with a Schedule FA and FAST-DS 2026 worksheet, AIS import, projected TDS, GST estimation, and FIRE planning with a Monte Carlo simulation. Estimates are computation aids, not tax or financial advice.
 
 ### AI assistant
@@ -254,10 +254,15 @@ The hosted installation uses:
 
 On `main`, CI checks gate database migrations. GitHub Pages then waits for a
 healthy backend reporting the frontend release version and a connected database.
-PostgreSQL migration checks use a native instance. Vercel's Git
+PostgreSQL migration checks use a native instance, and a pull request's
+migrations are rehearsed on a Neon branch of production once the owner adds the
+`NEON_API_KEY` secret and `NEON_PROJECT_ID` variable. Vercel's Git
 deployment is a separate platform path, so schema-compatible backend releases
-still need coordination. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before
-changing production configuration.
+still need coordination. Optional Sentry error tracking (`LEDGER_SYNC_SENTRY_DSN`,
+off by default, no ledger data sent) and PostgreSQL row-level security (a second
+net under the user filters, inert until a console step) are covered there too.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) before changing production
+configuration.
 
 ## Documentation
 

@@ -20,7 +20,7 @@ Open:
 - Health: `http://localhost:8000/health`
 - Database health: `http://localhost:8000/health/db`
 
-The application version is `2.36.0`.
+The application version is `2.37.0`.
 
 ## Authentication
 
@@ -41,7 +41,7 @@ Financial and preference endpoints require:
 Authorization: Bearer <access-token>
 ```
 
-Four paths accept another credential. Three take an `lsu_` access token that holds one scope (created in Settings > Advanced > Access Tokens): `POST /api/upload/money-manager` (`mmbak:upload`, which also accepts a signed-in access token), `POST /mcp` (`ledger:read`) and `POST /api/ingest/text` (`alerts:ingest`). `GET` and `POST /api/push/run-due`, the daily Vercel cron, take `Authorization: Bearer <CRON_SECRET>`. A token reaches only the route that requires its scope; `require_token_scope(scope)` in `api/deps.py` enforces it.
+Four paths accept another credential. Three take an `lsu_` access token that holds one scope (created in Settings > Advanced > Access Tokens): `POST /api/upload/money-manager` (`mmbak:upload`, which also accepts a signed-in access token), `POST /mcp` (`ledger:read`) and `POST /api/ingest/text` (`alerts:ingest`). `GET` and `POST /api/push/run-due` and `GET` and `POST /api/analytics/v2/refresh-due`, the two daily Vercel crons, take `Authorization: Bearer <CRON_SECRET>` (one shared check in `api/cron_auth.py`). A token reaches only the route that requires its scope; `require_token_scope(scope)` in `api/deps.py` enforces it.
 
 `POST /api/auth/oauth/{provider}/authorize` returns a 10-minute HMAC-signed, one-use OAuth state bound to the provider and the browser's S256 PKCE challenge. Callback requests without a valid, unexpired, unconsumed state or the matching verifier are rejected.
 
@@ -102,6 +102,8 @@ Success response:
 ```
 
 The upload endpoint normalizes and reconciles rows, then runs a versioned analytics refresh in a separate transaction. If that refresh fails after transaction persistence, the upload still succeeds with `analytics_status: "failed"` and `POST /api/analytics/v2/refresh` can be retried.
+
+An optional `Idempotency-Key` header (8 to 128 letters, digits, `-` or `_`) on `POST /api/upload` and `POST /api/upload/money-manager` makes a retry return the first result with `Idempotent-Replayed: true` instead of importing again. A running duplicate gets 409 with `Retry-After: 5`, the same key with a different upload gets 422, a malformed key gets 400, and a request without the header behaves as before. The contract is in [docs/API.md](../../../../docs/API.md#idempotency-keys).
 
 ## Router Groups
 

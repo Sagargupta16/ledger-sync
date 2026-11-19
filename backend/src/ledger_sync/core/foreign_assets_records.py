@@ -30,6 +30,7 @@ from ledger_sync.db.models import (
     RsuVestingRecord,
     UserPreferences,
 )
+from ledger_sync.db.row_security import bind_rls_user
 
 _ZERO = Decimal(0)
 
@@ -168,11 +169,13 @@ def load_holdings(session: Session, user_id: int) -> Holdings:
 def load_holdings_for(user_id: int) -> Holdings:
     """A complete worker phase: its own session, closed before any provider call."""
     with db_session.SessionLocal() as session:
+        bind_rls_user(session, user_id)
         return load_holdings(session, user_id)
 
 
 def load_vest_for(user_id: int, vesting_id: str) -> tuple[str, date]:
     """The vest's ticker and date, in a worker phase of its own."""
     with db_session.SessionLocal() as session:
+        bind_rls_user(session, user_id)
         vesting, stock_name = owned_vesting(session, user_id, vesting_id)
         return stock_name.upper(), vesting.date

@@ -212,6 +212,95 @@ jobs:
             "$POSTGRES_BIN/pg_ctl" -D "$POSTGRES_TEST_DATA" -m fast -w stop
           fi
 
+  # Rehearse the PR's migrations on a copy-on-write Neon branch of production so
+  # they meet real data shapes before merge. Not a dependency of migrate or
+  # deploy, so it never blocks a release. Without the NEON_API_KEY secret (forks,
+  # or before it is added) the guard turns every later step off and the job passes.
+  migration-rehearsal:
+    # Same-repo PRs from people only: a bot PR (Renovate, Dependabot) would run
+    # new dependency code with the Neon key and a copy of production data.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      PYTHONPATH: src
+      LEDGER_SYNC_ENVIRONMENT: development
+      LEDGER_SYNC_JWT_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+    steps:
+      - name: Guard on the Neon secret
+        id: guard
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+        run: |
+          if [ -n "$NEON_API_KEY" ] && [ -n "$NEON_PROJECT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "NEON_API_KEY or NEON_PROJECT_ID is not set; skipping the migration rehearsal."
+          fi
+
+      - if: steps.guard.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - if: steps.guard.outputs.enabled == 'true'
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        if: steps.guard.outputs.enabled == 'true'
+        run: uv sync --locked --no-build --no-install-project --all-extras --group dev
+
+      # No parent_branch: the branch is cut from the project's default (production) branch.
+      - name: Create Neon branch from production
+        id: neon
+        if: steps.guard.outputs.enabled == 'true'
+        uses: neondatabase/create-branch-action@fb620d43d4c565abaf088b848a4e28e5c4ea4d9c # 6.3.1
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          branch_name: ci-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
+
+      # The action's db_url and password outputs are not marked secret, and a
+      # step prints its env block before it runs, so the URL never crosses steps:
+      # this step asks the Neon API for it with the (masked) key and masks it
+      # before anything else runs. Direct (non-pooled) URI: DDL needs a session.
+      - name: Alembic upgrade and check on the Neon branch
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_BRANCH_ID: ${{ steps.neon.outputs.branch_id }}
+          NEON_DATABASE: ${{ vars.NEON_DATABASE_NAME || 'neondb' }}
+          NEON_ROLE: ${{ vars.NEON_ROLE_NAME || 'neondb_owner' }}
+        run: |
+          set -euo pipefail
+          uri=$(curl -sS --fail -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri?branch_id=$NEON_BRANCH_ID&database_name=$NEON_DATABASE&role_name=$NEON_ROLE&pooled=false" \
+            | jq -r .uri)
+          echo "::add-mask::$uri"
+          LEDGER_SYNC_DATABASE_URL="$uri" uv run --no-sync --locked --no-build alembic upgrade head
+          LEDGER_SYNC_DATABASE_URL="$uri" uv run --no-sync --locked --no-build alembic check
+
+      # Free plan allows 10 branches per project: always delete.
+      - name: Delete Neon branch
+        if: always() && steps.guard.outputs.enabled == 'true' && steps.neon.outputs.branch_id != ''
+        uses: neondatabase/delete-branch-action@4468d825d5a88ef4012f1705a82f02ec3072f776 # v3.2.1
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          branch: ${{ steps.neon.outputs.branch_id }}
+
   security:
     uses: Sagargupta16/shared-workflows/.github/workflows/security-scan.yml@526859720d9ce8689f230dafbfa4e40d798b83cb # main
     permissions:

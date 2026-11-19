@@ -63,6 +63,7 @@ from ledger_sync.api.upload import router as upload_router
 from ledger_sync.api.upload_tokens import router as upload_tokens_router
 from ledger_sync.api.weekly_recap import router as weekly_recap_router
 from ledger_sync.config.settings import settings
+from ledger_sync.core.observability import init_error_tracking
 from ledger_sync.db.session import get_engine, init_db
 from ledger_sync.schemas.transactions import HealthResponse
 from ledger_sync.utils.logging import logger, setup_logging
@@ -73,6 +74,9 @@ APP_VERSION = __version__
 
 # Initialize logging at the configured level (LEDGER_SYNC_LOG_LEVEL, default INFO)
 setup_logging(settings.log_level)
+
+# Error tracking starts before the app is built so the FastAPI integration sees it.
+init_error_tracking(settings)
 
 
 _BOUNDED_UPLOAD_PATHS = frozenset({"/api/upload", "/api/upload/money-manager"})

@@ -121,12 +121,19 @@ An already imported file produces a conflict prompt. Force Reupload returns
 to review and still requires confirmation of the complete snapshot.
 
 If the ledger is saved but analytics fail, use **Retry insights refresh** to refresh
-insights without uploading again. If the upload times out, check Import History
-before retrying because the save may already have completed.
+insights without uploading again. If the upload times out, press **Retry upload** (**Retry import** for a Money Manager backup): the
+message says retrying is safe, because each upload attempt carries a key and
+the server returns the result it already saved instead of importing twice.
+If the figures still say they are out of date after a large import, a daily
+background run on the server (it needs the server's `CRON_SECRET`) refreshes
+them without you pressing anything.
 
 Import history below the upload area lists the most recent runs with local-time
-timestamps and processed, new, updated, and already-present row counts. It is
-account-scoped and is hidden in demo mode, where no server-side imports occur.
+timestamps and processed, new, updated, and already-present row counts. The
+newest import carries a badge, Reconciled, Needs attention or Not checked, that
+says whether your ledger agrees with your bank (see
+[Data Health](#data-health)). It is account-scoped and is hidden in demo mode,
+where no server-side imports occur.
 
 The review summarizes the selected snapshot; it is not a row editor or
 column-remapping screen. The table below the drop zone remains an
@@ -222,6 +229,12 @@ Sheet, replace actions 1 to 3 with Receive Files from Share Sheet, and run it
 from Money Manager > More > Backup > Export. Revoke the token in Settings to
 stop the automation at once. A Shortcut upload that would remove more than 5%
 of the ledger is refused; upload that backup from the Upload page instead.
+
+The shortcut works as written. If you want its retries to be safe, add one
+header to the **Get Contents of URL** action, `Idempotency-Key`, with a value of
+8 to 128 letters, digits, `-` or `_` that is new for each run (a colon or a
+space is not allowed, so a raw timestamp will not do). Sending the same key again with the same backup returns the first result instead of
+importing twice, and a key reused for a different backup is refused with 422.
 
 Name the shortcut Ledger Sync Backup. On an iPhone or iPad, the Sync from Money
 Manager button on the Upload page runs it by that name (iOS may ask before
@@ -656,6 +669,8 @@ Keep only marks the row as reviewed: if the source later recategorizes it, the n
 **Route:** `/data-health`
 
 Data Health says how current the ledger is and what the importer did to it. It shows a freshness banner, the days since the newest transaction that you have not imported, the last import, the transactions stored and the date range covered, a timeline of covered days, and a list of issues with actions: analytics that are behind the last import (with a Recompute analytics action), placeholder notes, catch-all categories and future-dated rows. Realised investment losses can be classified here: a classified loss leaves every spending total and category ranking, but still reduces what you saved. The last import's row counts close the page.
+
+A Reconciliation panel gives one verdict on whether your ledger agrees with your bank: **Ledger agrees with the bank** when every account you checked matches its statement balance and no bank alert is missing, **Ledger needs attention** when an account is off or an alert has no ledger row, and **Not checked yet** until you record a balance check. It also shows the share of checked accounts that match and four counts: accounts matched, accounts mismatched, accounts with rows added since their last check, and missing bank alerts from the last 60 days. It is worked out from the Balance checks and Bank alerts below it, so recording a check or ignoring an alert changes it, and a re-import changes it at once. If it cannot be worked out, the panel is left out and the rest of the page is unaffected.
 
 #### Balance checks
 

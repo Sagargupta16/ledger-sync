@@ -248,7 +248,7 @@ request
   -> JWT decode
   -> token_version comparison against users table
   -> CurrentUser dependency
-  -> request-scoped SQLAlchemy session
+  -> request-scoped SQLAlchemy session, bound to the user for row-level security
   -> user-scoped router or domain logic
   -> commit only when the session has changes
   -> JSON response
@@ -258,6 +258,12 @@ A token route replaces the JWT steps with `require_token_scope`: it looks the
 `lsu_` token up by hash on a unique index, checks its scope, and loads the
 active user. The MCP route counts every call by token digest and IP before that
 lookup, so guessed tokens are throttled too.
+
+On PostgreSQL the dependency also binds the request session to the signed-in
+user (`bind_rls_user` in `db/row_security.py`), so each transaction starts with
+`app.user_id` set and the row-level security policy described under
+[Row-level security](#row-level-security) can apply. The admin statistics unbind
+the session on purpose, and the cron routes, OAuth and token refresh never bind.
 
 An exception rolls back the request session. Database operational errors become
 HTTP 503. Unexpected errors return a correlation ID without a traceback.
@@ -295,7 +301,63 @@ together or rolls all of them back. Upload orchestration lives in
 one worker phase. It then refreshes analytics separately and reports its status.
 A failed analytics refresh leaves the saved ledger intact. The frontend offers
 an analytics-only retry instead of a second import. An upload timeout can occur
-after persistence, so recovery first directs the user to import history.
+after persistence, so a retry carries an `Idempotency-Key` (see
+[Idempotent retries](#idempotent-retries)) and returns the saved result instead
+of importing twice.
+
+That refresh runs under the same time budget as Data Health's Recompute
+(`apply_refresh_budget` in `core/analytics/refresh_budget.py`: on PostgreSQL a
+120 second statement timeout and a 300 second idle-in-transaction timeout,
+transaction-local), not the default 30 seconds that used to cut a large import's
+refresh short and leave the "figures are out of date" banner. A refresh that
+still fails is reported to error tracking and settled later by the daily drain:
+`GET /api/analytics/v2/refresh-due`, a second Vercel cron, selects active users
+whose analytics inputs are not current, oldest publication first, at most 25 a
+run, and starts no new user after 150 seconds (`core/analytics/drain.py`). Each
+user refreshes in its own session; one failure never stops the rest.
+
+### Idempotent retries
+
+`POST /api/upload` and `POST /api/upload/money-manager` take an optional
+`Idempotency-Key` header, the pattern Stripe and Brandur describe: the client
+chooses the key, the server records how far that request got, and a retry reads
+the record instead of repeating the work. A request without the header takes
+exactly the old path, so iOS Shortcuts and older apps are unaffected.
+
+[idempotency.py](../backend/src/ledger_sync/services/idempotency.py) owns one
+row per user, route and key in `idempotency_keys` with three recovery points:
+
+1. `started`: the key is claimed in its own committed transaction.
+2. `ledger_saved`: written inside the transaction that commits the ledger and
+   its import log (through the sync engine's `record_outcome` hook), so it exists
+   exactly when the ledger change does.
+3. `completed`: the final response is stored after the analytics refresh.
+
+`classify` is the only function that decides what a stored row means for a new
+request: replay the stored body, resume (the ledger was saved, so only the
+refresh is rerun), wait (409, `Retry-After: 5`, while another request holds a
+fresh lock), refuse (422, the key belongs to a different upload), or run. Every
+write is fenced on the `locked_at` the request claimed, so one that lost its
+lock cannot overwrite the one that took over. The lock lasts 6 minutes because
+Vercel stops a function at 300 seconds. A failure before `ledger_saved` releases
+the claim. Rows live 24 hours and are removed by a ledger reset or an account
+delete. A backend served before the migration ignores the header. The web app
+sends a new key per committing attempt and reuses it on Retry. The state names
+are registered in [STATE_MACHINES.md](STATE_MACHINES.md).
+
+### Reconciliation
+
+Data Health and the newest import in Import History show one verdict on whether
+the imported ledger agrees with the bank: `reconciled`, `attention` or
+`unchecked`
+([import_reconciliation.py](../backend/src/ledger_sync/core/import_reconciliation.py)).
+It only reads two independent witnesses that already exist, the balance checks
+(a statement balance against the running ledger balance) and the bank alert
+inbox (alerts with no ledger row, last 60 days), in the spirit of Beancount's
+balance assertions and a completeness score. Nothing is stored, so the verdict
+moves the moment a re-import changes a row. It is read inside a savepoint and is
+null when it fails, because Data Health feeds the startup prefetch and the stale
+banner and must never fail because of it.
 
 ### Money Manager backups
 
@@ -1081,9 +1143,44 @@ There is no approximate index, so no tenant shares a graph with another.
   the browser with its PAN and date of birth never sent
 - Push subscriptions limited to https endpoints at the FCM, Mozilla, Apple, and
   Windows push services
-- A constant-time check of the cron secret on the daily alert run
+- A constant-time check of the cron secret on both daily crons, in one shared
+  helper (`api/cron_auth.py`)
+- Optional per-request idempotency keys on the two upload routes, scoped to the
+  user and route, with a fingerprint check so a key cannot be replayed for a
+  different upload
+- PostgreSQL row-level security as a second net under the user filters (OWASP
+  API1, broken object level authorization): one policy per user-owned table
+  restricts a bound session to its own rows (see below)
+- Optional Sentry error tracking that sends no ledger data: no request body,
+  cookies, query string, credential headers or local variables, and exception
+  messages cut to their type (`core/observability.py`)
 - Distributed SlowAPI storage required for global per-minute limits
 - Generic server errors with correlation IDs
+
+### Row-level security
+
+Every query already filters by `user_id`; the risk OWASP API1 names is the one
+query that forgets. `row_level_security_2026` adds a second net in the database:
+48 user-owned tables (every table with a `user_id`, plus `users` and
+`idempotency_keys`; `mf_nav_prices` and `column_mapping_logs` are exempt) carry
+one `PERMISSIVE` policy, `ledger_sync_user_isolation`. While `app.user_id` is
+unset every row is visible; once a request binds it, only that user's rows are.
+`db/row_security.py` stores the id on the session and a global `after_begin`
+listener re-applies it with `set_config(..., true)` at the start of every
+transaction, so it survives each commit and rollback and never reaches the next
+request on a pooled connection. A ContextVar in an engine event was rejected,
+because FastAPI copies context into its threadpool dependencies; a settings flag
+was rejected as a second switch to forget; `FORCE ROW LEVEL SECURITY` was
+rejected because it would turn the net on at release.
+
+**At release it changes nothing.** The role the app connects as today owns the
+tables and bypasses the policies. They apply only after the owner creates a
+`NOBYPASSRLS` role that does not own the tables and points the Vercel
+`LEDGER_SYNC_DATABASE_URL` at it, with a rehearsal on a Neon branch first; the
+runbook is [DEPLOYMENT.md](DEPLOYMENT.md#row-level-security) and the design is in
+[DATABASE.md](DATABASE.md#row-level-security). A PostgreSQL integration test
+(`tests/integration/test_row_level_security.py`) fails CI when a user-owned
+table has neither a policy nor an exemption.
 
 ## Performance Design
 
@@ -1134,8 +1231,13 @@ Deployment Check on `migrate / migrate` does. Preserve schema compatibility
 and follow [DEPLOYMENT.md](DEPLOYMENT.md) for that console step, rollout,
 health, and recovery procedures.
 
-`backend/vercel.json` also schedules the daily push alert run
-(`GET /api/push/run-due`, gated by `CRON_SECRET`). The 2.31.0 revision enables
+`backend/vercel.json` also schedules two daily crons, both gated by
+`CRON_SECRET`: the push alert run (`GET /api/push/run-due`, `0 3 * * *`) and the
+analytics drain (`GET /api/analytics/v2/refresh-due`, `30 3 * * *`). A
+`migration-rehearsal` CI job runs a pull request's migrations on a Neon branch
+cut from production before merge; it skips until the owner adds `NEON_API_KEY`
+and `NEON_PROJECT_ID`, and never gates a release. Sentry error tracking starts
+only when `LEDGER_SYNC_SENTRY_DSN` is set. The 2.31.0 revision enables
 pgvector, so the CI PostgreSQL job installs it for the runner's PostgreSQL
 major. The CAS import's dependencies are the optional `cas` extra, left out of
 the Vercel install to keep the function under the 250 MB standard size, so the
@@ -1151,7 +1253,10 @@ CI checks include:
   `alembic upgrade head` plus `alembic check` run against an empty database
 - Shared security scan workflow
 - Native PostgreSQL bootstrap, constraints, data preservation, and rollback
-  guards, with pgvector installed first
+  guards, with pgvector installed first, and the row-level security suite
+- On same-repo pull requests from people, a Neon branch of production that runs
+  `alembic upgrade head` and `alembic check` (`migration-rehearsal`; skipped
+  until its secret and variable exist)
 
 Test totals change with the source and are not an architecture contract.
 SQLite tests do not establish PostgreSQL migration or locking behavior; those
@@ -1189,6 +1294,25 @@ See the [focused calculation checks](CALCULATIONS.md#focused-calculation-checks)
 and [TESTING.md](TESTING.md) for commands and scope. Deployment health and
 database recovery checks are maintained in [DEPLOYMENT.md](DEPLOYMENT.md) and
 [DATABASE.md](DATABASE.md).
+
+## System design decisions
+
+Dated 2026-11-19, from a study of how real systems handle retries, schedulers,
+tenant isolation and reconciliation (Stripe and Brandur on idempotency keys, the
+AWS Builders' Library, the transactional outbox, Beancount balance assertions,
+Postgres row-level security and the AWS SaaS tenant-isolation guidance, OWASP
+API1, Neon branching, Sentry). Adopted in 2.37.0: idempotency keys, a scheduled
+drain, a reconciliation verdict, row-level security, error tracking and a
+migration rehearsal. Considered and not adopted, so nobody re-derives them:
+
+| Idea | Why not |
+| --- | --- |
+| Incremental transaction sync | Every import rewrites `last_seen_at` on every row (`core/reconciler.py`), so a delta after any upload is the whole ledger; uploads already clear the client cache; a hard delete leaves no trace; and the full ledger is 394 KB gzipped at 6,961 rows (comment in `api/transactions.py`). A provable delta needs a new change column stamped by every writer. |
+| Transfers as linked pairs, and cleaning the `Transfer: X -> Y` labels | The category feeds the version-2 import fingerprint (`ingest/hash_id.py`), so a second row or a changed label would give existing rows new IDs. The visible problem, the routing labels swamping the Transactions category list, is already handled in `api/transactions_impl/facets.py`. Transfers stay one canonical row; see [CALCULATIONS.md](CALCULATIONS.md). |
+| Double-entry storage | Firefly III's own documentation calls it technically pointless for personal use. |
+| Event sourcing and CQRS | Fowler and Azure advise against them for a simple domain. |
+| `pg_ivm` incremental views | Neon does not offer it for new installs. |
+| Local-first sync engines (Zero, Electric, PowerSync) | Each needs an always-on service that Vercel functions cannot host. |
 
 ## Related Reading
 

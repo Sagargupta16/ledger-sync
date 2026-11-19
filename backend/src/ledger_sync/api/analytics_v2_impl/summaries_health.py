@@ -20,7 +20,9 @@ from ledger_sync.core.expense_class import (
     is_capital_loss,
     looks_like_capital_loss,
 )
+from ledger_sync.core.import_reconciliation import reconciliation_summary
 from ledger_sync.core.ledger_clock import ledger_today_iso
+from ledger_sync.core.observability import report_exception
 from ledger_sync.core.query_helpers import fmt_date
 from ledger_sync.db.models import (
     AnalyticsState,
@@ -30,8 +32,28 @@ from ledger_sync.db.models import (
     TransactionType,
     UserPreferences,
 )
+from ledger_sync.utils.logging import logger
 
 router = APIRouter()
+
+
+def _reconciliation(db: Session, user_id: int) -> dict[str, Any] | None:
+    """The reconciliation verdict, or None when it cannot be read.
+
+    Data Health feeds the startup prefetch and the global stale banner, so a
+    failed balance or alert read must never blank the whole endpoint. The
+    savepoint keeps a failed statement from poisoning the rest of the request.
+    """
+    try:
+        with db.begin_nested():
+            return reconciliation_summary(db, user_id)
+    except Exception as exc:
+        logger.warning(
+            "Data Health reconciliation failed for user_id=%s (%s)", user_id, type(exc).__name__
+        )
+        report_exception(exc)
+        return None
+
 
 # The catch-all bucket the categoriser falls back to. Counted as
 # uncategorised because it carries no analytical meaning.
@@ -306,4 +328,5 @@ def get_data_health(
         **_rollup_freshness(db, current_user.id),
         **_ledger_quality(db, current_user.id),
         **_unclassified_capital_losses(db, current_user.id),
+        "reconciliation": _reconciliation(db, current_user.id),
     }

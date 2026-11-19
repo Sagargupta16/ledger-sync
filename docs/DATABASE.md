@@ -1,9 +1,10 @@
 # Database Reference
 
-Database reference for Ledger Sync 2.31.0.
+Database reference for Ledger Sync 2.37.0.
 
-Updated for the 2026-09-18 domain storage implementation and the 2026-10-27
-feature domains revision. The current model contains 49 application tables;
+Updated for the 2026-09-18 domain storage implementation, the 2026-10-27
+feature domains revision and the 2026-11-19 idempotency keys and row-level
+security revisions. The current model contains 50 application tables;
 Alembic also maintains its own version table. This describes the source
 checkout, not a confirmation of production deployment.
 
@@ -65,6 +66,8 @@ backend/src/ledger_sync/db/
     rsu_tax.py
     mf_holdings.py
     transaction_embeddings.py
+    idempotency_keys.py
+  row_security.py           Binds a session to the signed-in user for row-level security
   migrations/
     env.py
     versions/
@@ -99,6 +102,7 @@ re-exported through `_models/__init__.py` and `models.py`.
 | `ledger_subcategories` | Subcategory identities qualified by owner and parent category |
 | `transaction_tags` | User-owned tags attached to transactions |
 | `import_logs` | File hash idempotency and reconciliation counts |
+| `idempotency_keys` | A 24-hour replay cache for retried uploads: one row per user, route and `Idempotency-Key`, with its request fingerprint, state and stored response (see [Idempotency keys](#idempotency-keys)) |
 | `column_mapping_logs` | Parser column-mapping diagnostics |
 | `categorization_rules` | Ordered pattern-based category rules |
 | `saved_filter_views` | Named transaction filter objects |
@@ -459,6 +463,7 @@ What each reset clears:
 | `saved_view_pins` | Kept | Cleared with its views |
 | `external_refs` | `repeat_rule` links cleared with their schedules; `budget` links kept | Cleared |
 | `category_overrides`, `transaction_embeddings` | Cleared with the transactions (cascade) | Cleared |
+| `idempotency_keys` (2.37.0) | Cleared, so a stored upload result cannot replay into the emptied ledger | Cleared |
 | `push_subscriptions` | Kept | Kept |
 | `upload_tokens` | Kept | Kept |
 | `mf_nav_prices` | Not user data | Not user data |
@@ -468,6 +473,98 @@ the user foreign keys cascade through the rest, `push_subscriptions` and
 `upload_tokens` included.
 Reset and delete skip a table whose migration has not run yet, so they keep
 working on a database that predates `feature_domains_2026`.
+
+## Idempotency keys
+
+`idempotency_keys` (model `IdempotencyKey` in `db/_models/idempotency_keys.py`,
+revision `idempotency_keys_2026`) lets a client retry `POST /api/upload` or
+`POST /api/upload/money-manager` safely. The route contract is in
+[API.md](API.md#idempotency-keys); `services/idempotency.py` is the only code
+that changes a row.
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `id` | integer, primary key | |
+| `user_id` | integer, `ON DELETE CASCADE` to `users.id` | The uploading user; every query filters on it |
+| `route` | `VARCHAR(32)` | `upload` or `money_manager`, so one key on two routes is two uploads |
+| `idempotency_key` | `VARCHAR(128)` | The client's header value |
+| `request_hash` | `VARCHAR(64)` | SHA-256 of the route, its options and the raw body; a different upload under the same key is refused |
+| `state` | `VARCHAR(16)`, check `ck_idempotency_keys_state` | `started`, `ledger_saved` or `completed` |
+| `response_body` | text, nullable | The response model as JSON; null while `started` |
+| `locked_at` | datetime, nullable | When the running request claimed the key, and the fence each later write matches on; null once `completed` |
+| `created_at`, `updated_at` | datetime | Naive UTC |
+
+Unique `uq_idempotency_keys_user_route_key` on `(user_id, route,
+idempotency_key)`, and index `ix_idempotency_keys_user_created` on `(user_id,
+created_at)`.
+
+State: `started` (claimed in its own committed transaction) moves to
+`ledger_saved` inside the transaction that commits the ledger and its import
+log, with the provisional response (analytics status `failed`), and to
+`completed` once the analytics refresh has run and the final body is stored. A
+request that fails before `ledger_saved` deletes its own row, only while it is
+still `started` and still holds its lock. A lock older than 6 minutes (longer
+than Vercel's 300 second function limit) can be taken over: a `started` row
+runs again from scratch, a `ledger_saved` row only finishes the analytics
+refresh. Rows older than 24 hours are deleted for the same user at the start of
+the next keyed request; a transactions-only reset, a full reset and an account
+delete remove all of the user's rows, and the foreign key cascades on user
+delete. The routes work as before when the table is absent (a backend served
+before the migrate job): they ignore the key and log it at info.
+
+## Row-level security
+
+`row_level_security_2026` adds PostgreSQL row-level security as a second net
+under the `user_id` filter every query already has. Application code is the
+first net and is unchanged: every API query still filters by the authenticated
+user, and a policy does not replace that.
+
+- **Policy.** Each of 48 tables gets `ENABLE ROW LEVEL SECURITY` and one
+  `PERMISSIVE` policy for all commands, `ledger_sync_user_isolation`, whose
+  `USING` and `WITH CHECK` accept a row when `app.user_id` is unset or the
+  table's owner column equals it. The owner column is `user_id`, or `id` on
+  `users`. `NULLIF(current_setting('app.user_id', true), '')` is used because
+  after any transaction-local setting a custom setting reads as an empty string,
+  not NULL, for the rest of that pooled connection's life. Foreign-key checks and
+  `ON DELETE CASCADE` bypass row security by PostgreSQL rule, so account deletion
+  still cascades.
+- **Covered tables.** Every table with a `user_id` column, `users`, and
+  `idempotency_keys`: 48 of the 50 tables. `mf_nav_prices` (public AMFI data) and
+  `column_mapping_logs` (no owner column) are exempt. `audit_logs.user_id` and
+  `user_preferences.user_id` are nullable (OAuth state rows, the ownerless
+  defaults row); those rows are visible only while a session is unbound.
+- **Binding.** `db/row_security.py` stores the user id in
+  `session.info["rls_user_id"]`, and a global SQLAlchemy `after_begin` listener
+  runs `SELECT set_config('app.user_id', <id>, true)` at the start of every
+  transaction of a bound session, so the binding survives each commit and
+  rollback and never leaks to the next request on a pooled connection.
+  `bind_rls_user` binds, `unbind_rls_user` clears. They are no-ops on SQLite.
+- **Who binds.** `get_current_user` (every signed-in route), the `lsu_` token
+  paths in `get_upload_principal` and `require_token_scope` (so MCP and the alert
+  inbox), and the worker sessions that already receive a user id (CAS import,
+  mutual fund snapshot, foreign asset records). **Who stays unbound:** the admin
+  statistics (`require_admin` unbinds the request session, because they read
+  across users on purpose), the two cron routes and the scheduled drain's
+  per-user sessions, OAuth authorize and callback, token refresh, the CLI and
+  Alembic.
+- **Inert at release.** There is no `FORCE ROW LEVEL SECURITY`, and the role the
+  app connects as today owns the tables, so it bypasses the policies. They take
+  effect only after the activation steps in
+  [DEPLOYMENT.md](DEPLOYMENT.md#row-level-security): a `NOBYPASSRLS` role that
+  does not own the tables, and the Vercel `LEDGER_SYNC_DATABASE_URL` pointed at it.
+- **Migration.** On PostgreSQL it sets a 5 s lock timeout and takes one sorted
+  `LOCK TABLE ... IN ACCESS EXCLUSIVE MODE` on all 48 tables before changing any,
+  so it either holds every lock or fails before a change; re-running it is safe.
+  It lists its own tables and owner columns (a migration must not change when a
+  model does). The downgrade drops the policies and disables row security.
+  SQLite returns at once; `alembic check` is unaffected.
+- **New user-owned tables.** A table with a `user_id` column needs the policy in
+  its own migration, or an entry in the exempt set of
+  `tests/integration/test_row_level_security.py`. That test runs in the native
+  PostgreSQL CI job and fails until one of the two is done. It also exercises a
+  `NOBYPASSRLS` probe role: an unbound session sees every row, a bound one only
+  its own, a write for another user is rejected, the binding survives a commit
+  and a rollback, and account deletion still cascades.
 
 ## User Scoping and Cascades
 
@@ -502,7 +599,8 @@ secondary relationships include:
   user, while database cascades provide defense in depth.
 
 Every API query must still filter by the authenticated user. A cascade does not
-replace authorization.
+replace authorization, and neither does [row-level security](#row-level-security),
+which is a second net behind that filter.
 
 ## Common ORM Patterns
 
@@ -761,6 +859,19 @@ runs, so apply the migration before or with the backend, as the `migrate` job
 does ahead of the Pages deployment. The native PostgreSQL CI job installs
 `postgresql-<major>-pgvector` from apt.postgresql.org for its cluster's own
 major and checks that `vector.control` exists before the migration suite runs.
+
+Revision `idempotency_keys_2026` follows `feature_domains_2026` and creates
+`idempotency_keys` (see Idempotency keys). It is expand-only, like the revision
+before it: the running backend and the next one both work before and after it,
+a table that already exists with exactly the expected columns is skipped, any
+other shape stops the revision before a change, and PostgreSQL gets a 10 second
+lock timeout. Its downgrade is real (drop the index, then the table), because the
+rows are a replay cache and the code tolerates the table being absent.
+
+Revision `row_level_security_2026` follows `idempotency_keys_2026` and is the
+current head. It enables row-level security with one policy on 48 tables and
+changes no result at release (see Row-level security). It has a real downgrade
+that drops the policies and disables row security.
 
 Rolling back the backend to 2.30.x needs one cleanup first.
 `anomalies.anomaly_type` holds the `AnomalyType` member name in `VARCHAR(50)`,

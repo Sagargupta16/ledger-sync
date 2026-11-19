@@ -410,7 +410,10 @@ occurrence before hashing, so legitimate duplicate purchases are preserved.
 
 Transfers use normalized source and destination accounts. Matching
 Transfer-In and Transfer-Out source rows collapse into one canonical
-`Transfer`.
+`Transfer`. Transfers stay one canonical row, not a linked pair, and the
+synthetic `Transfer: X -> Y` label stays stored and stays in the fingerprint
+input, because the category feeds the import fingerprint above and a second row
+or a changed label would give existing rows new IDs.
 
 ### Reconciliation actions
 

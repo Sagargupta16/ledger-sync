@@ -606,6 +606,7 @@ Displays:
 - Rows processed, inserted, and already present from the most recent import.
 - Placeholder-note, uncategorized, and future-dated row counts.
 - Whether the analytics rollups are behind the committed transactions, with an in-place recompute action.
+- A Reconciliation panel (`pages/data-health/components/ReconciliationPanel.tsx`) with one verdict on whether the ledger agrees with the bank: Ledger agrees with the bank, Ledger needs attention (a mismatched account or a missing bank alert) or Not checked yet, the share of checked accounts that match, and four counts (accounts matched, accounts mismatched, changed since check, missing bank alerts). It reads the `reconciliation` object of the data-health response, so it adds no request, and it is absent when the backend omits the object or could not read it.
 - Balance checks per account: a freshness dot, the ledger balance today, and the newest check's verdict. The verdict is one of: matched, off by an amount, rows dated after the check, idle for 30 days, or never checked. Opening an account records, edits or deletes checks and shows a month-by-month coverage grid: months with rows, gaps between the first and last row, and months with checks (`pages/data-health/components/BalanceChecksPanel.tsx`).
 - Bank alerts not in your ledger (`components/shared/BankAlertsPanel.tsx`): missing alerts newest first with payee, Debit or Credit, date, bank and last four digits, an After last backup tag, the amount and an Ignore button; an Ignored disclosure with Restore; and, until the first alert arrives, the steps to set up a Bank alert inbox token and a Shortcut.
 
@@ -752,9 +753,18 @@ failed analytics offers an explicit refresh-only call to
 `/api/analytics/v2/refresh`. A timeout directs the user to history before
 retrying because ledger persistence may already have completed.
 
+Each committing attempt sends a fresh `Idempotency-Key` header
+(`crypto.randomUUID()`), created in `handleConfirmUpload` and kept on the
+failure so Retry reuses it: after a timeout the server returns the saved result
+instead of importing twice, and the timeout message says "Retrying is safe".
+Parse failures carry no key, and confirming a new review (including the forced
+review after a conflict) mints a new one. Dry runs never send a key.
+
 The account-scoped Import History section reads `GET /api/upload/history`, lists
 the most recent runs and row counts, and switches to mobile cards below `sm`.
-Demo mode omits the section because it has no server-side import log.
+The newest row carries a Reconciled, Needs attention or Not checked badge taken
+from the Data Health read the app already makes. Demo mode omits the section
+because it has no server-side import log.
 
 A Money Manager `.mmbak` backup takes its own flow (`useMoneyManagerImport.ts`).
 The browser gzips the file with `CompressionStream` (bodies over 4.5 MB are
@@ -762,7 +772,9 @@ refused before sending) and posts it to `/api/upload/money-manager` with
 `dry_run=true`. `MoneyManagerReview` shows the backup's transactions,
 transfers, accounts and date range with what the import would add, update and
 remove, behind a complete-ledger checkbox. Confirming posts the same bytes with
-`allow_large_delete=true`. An `unchanged` reply shows "Already up to date" with
+`allow_large_delete=true` and an `Idempotency-Key` created when the preview
+became a review (`BackupReview.idempotencyKey`), which Retry reuses; the dry run
+sends none. An `unchanged` reply shows "Already up to date" with
 a forced re-import, and errors show the backend's detail.
 
 For a backup with repeat rules or budgets, `MoneyManagerReview` adds a Repeat

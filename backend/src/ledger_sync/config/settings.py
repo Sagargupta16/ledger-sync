@@ -5,6 +5,7 @@ import secrets
 import warnings
 from pathlib import Path
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Maximum upload file size (50 MB)
@@ -67,6 +68,11 @@ class Settings(BaseSettings):
     # tokens live 7 days, so a tv-less token can only be a stale or forged one.
     # Set LEDGER_SYNC_JWT_STRICT_TV=false only to reopen that legacy window.
     jwt_strict_tv: bool = True
+
+    # Sentry error tracking. Off unless LEDGER_SYNC_SENTRY_DSN is set; see
+    # core/observability.py for what is stripped before an event leaves.
+    sentry_dsn: SecretStr | None = None
+    sentry_traces_sample_rate: float = Field(default=0.0, ge=0.0, le=1.0)
 
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES

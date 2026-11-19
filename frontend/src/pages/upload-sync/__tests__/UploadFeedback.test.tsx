@@ -91,7 +91,7 @@ describe('UploadFeedback', () => {
     render(
       <UploadFeedback
         conflict={null}
-        failure={{ parsed: PARSED, fileName: PARSED.fileName, message: 'Network unavailable', force: false }}
+        failure={{ parsed: PARSED, fileName: PARSED.fileName, message: 'Network unavailable', force: false, idempotencyKey: 'key-1' }}
         success={null}
         isBusy={false}
         onForceReupload={vi.fn()}
@@ -210,5 +210,30 @@ describe('useUploadSync', () => {
     expect(mocks.mutateAsync).toHaveBeenCalledOnce()
     await act(() => result.current.handleConfirmUpload())
     expect(mocks.mutateAsync).toHaveBeenLastCalledWith(expect.objectContaining({ force: true }))
+  })
+
+  it('reuses the idempotency key on retry and mints a new one for a new confirmation', async () => {
+    mocks.mutateAsync
+      .mockRejectedValueOnce(Object.assign(new Error('timeout'), { code: 'ECONNABORTED' }))
+      .mockResolvedValueOnce({
+        success: true, analytics_status: 'ready',
+        stats: { inserted: 1, updated: 0, deleted: 0, unchanged: 0 },
+      })
+    const { result } = renderHook(() => useUploadSync(), { wrapper })
+    await act(() => result.current.handleFileSelect(new File(['csv'], 'statement.csv')))
+    await act(() => result.current.handleConfirmUpload())
+    expect(result.current.failure?.message).toContain('Retrying is safe')
+    await act(() => result.current.handleRetryUpload())
+
+    const keys = (mocks.mutateAsync.mock.calls as [{ idempotencyKey?: string }][]).map(([params]) => params.idempotencyKey)
+    const [first, second] = keys
+    expect(first).toBeTruthy()
+    expect(second).toBe(first)
+
+    await act(() => result.current.handleFileSelect(new File(['csv'], 'statement.csv')))
+    await act(() => result.current.handleConfirmUpload())
+    const third = (mocks.mutateAsync.mock.calls as [{ idempotencyKey?: string }][])[2]?.[0].idempotencyKey
+    expect(third).toBeTruthy()
+    expect(third).not.toBe(first)
   })
 })

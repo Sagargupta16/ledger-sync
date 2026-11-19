@@ -12,7 +12,7 @@ import secrets
 from datetime import UTC
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import desc, func, select
@@ -30,7 +30,15 @@ from ledger_sync.schemas.transactions import (
     UploadResponse,
 )
 from ledger_sync.schemas.upload import TransactionUploadRequest
-from ledger_sync.services.upload_service import process_upload
+from ledger_sync.services.idempotency import (
+    IdempotencyConflictError,
+    IdempotencyScope,
+    IdempotentRoute,
+    InvalidIdempotencyKeyError,
+    parse_key,
+    request_fingerprint,
+)
+from ledger_sync.services.upload_service import process_upload_once
 from ledger_sync.utils.logging import logger
 
 router = APIRouter(prefix="", tags=["upload"])
@@ -72,10 +80,15 @@ def _read_snapshot(body: bytes) -> TransactionUploadRequest:
     "/api/upload",
     openapi_extra={"requestBody": _UPLOAD_BODY},
     responses={
-        400: {"description": "Data format issue"},
-        409: {"description": "File already imported"},
+        400: {"description": "Data format issue, or a malformed Idempotency-Key"},
+        409: {
+            "description": (
+                "File already imported, or an upload with this Idempotency-Key is still "
+                "running (Retry-After)"
+            )
+        },
         413: {"description": "Upload exceeds configured size limit"},
-        422: {"description": "Validation error"},
+        422: {"description": "Validation error, or an Idempotency-Key used for a different upload"},
         429: {"description": "Rate limit exceeded"},
         500: {"description": "Processing failed"},
     },
@@ -84,8 +97,10 @@ def _read_snapshot(body: bytes) -> TransactionUploadRequest:
 @limiter.limit("50/minute")
 async def upload_transactions(
     request: Request,  # required by slowapi; carries the JSON body
+    response: Response,
     current_user: CurrentUser,
     db: DatabaseSession,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> UploadResponse:
     """Replace the current user's ledger with a complete INR snapshot.
 
@@ -96,10 +111,16 @@ async def upload_transactions(
     sync with the raw data. If the analytics step fails the upload still
     succeeds and the user can re-run POST /api/analytics/v2/refresh.
 
+    An optional ``Idempotency-Key`` makes a retry safe: the same key and body
+    return the first result (with ``Idempotent-Replayed: true``) instead of
+    importing again. Without it the route behaves exactly as before.
+
     Args:
         request: Request whose JSON body holds file_name, file_hash, rows, and force flag.
+        response: Carries the replay header.
         current_user: Authenticated user.
         db: Database session.
+        idempotency_key: Optional client key, 8-128 letters, digits, '-' or '_'.
 
     Returns:
         Upload response with statistics.
@@ -108,9 +129,24 @@ async def upload_transactions(
         HTTPException: If upload fails.
 
     """
-    payload = _read_snapshot(await request.body())
     try:
-        return await run_in_threadpool(process_upload, db, current_user.id, payload)
+        key = parse_key(idempotency_key)
+    except InvalidIdempotencyKeyError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    body = await request.body()
+    payload = _read_snapshot(body)
+    user_id = current_user.id
+    scope = None
+    if key is not None:
+        fingerprint = request_fingerprint(IdempotentRoute.UPLOAD, body, ())
+        scope = IdempotencyScope(user_id, IdempotentRoute.UPLOAD, key, fingerprint)
+    try:
+        result, replayed = await run_in_threadpool(process_upload_once, db, user_id, payload, scope)
+
+    except IdempotencyConflictError as e:
+        logger.warning("Upload refused: Idempotency-Key conflict (%d)", e.status_code)
+        headers = {"Retry-After": str(e.retry_after)} if e.retry_after is not None else None
+        raise HTTPException(status_code=e.status_code, detail=e.detail, headers=headers) from e
 
     except AlreadyImportedError as e:
         logger.warning("Upload rejected: already imported")
@@ -130,6 +166,10 @@ async def upload_transactions(
             status_code=500,
             detail=f"Failed to process data. Please try again. (error id {error_id})",
         ) from e
+
+    if replayed:
+        response.headers["Idempotent-Replayed"] = "true"
+    return result
 
 
 @router.get("/api/upload/history")

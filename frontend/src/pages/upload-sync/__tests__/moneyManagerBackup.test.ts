@@ -81,6 +81,21 @@ describe('moneyManagerBackupService.importBackup', () => {
     })
   })
 
+  it('sends no idempotency key on a dry run, even when one is given', async () => {
+    post.mockResolvedValue({ data: PREVIEW })
+
+    await moneyManagerBackupService.importBackup({
+      fileName: 'backup.mmbak',
+      backup: new Blob(['gzip bytes']),
+      dryRun: true,
+      force: false,
+      allowLargeDelete: true,
+      idempotencyKey: 'key-1',
+    })
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Content-Type': 'application/gzip' } })
+    expect(post.mock.calls[0]?.[2]).not.toHaveProperty('headers.Idempotency-Key')
+  })
+
   it('refuses a body Vercel would reject, without sending it', async () => {
     const backup = new Blob([new Uint8Array(4_500_001)])
 
