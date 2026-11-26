@@ -185,12 +185,15 @@ jobs:
           "$pg_bin/createdb" -h 127.0.0.1 -p 55432 -U ledger_sync_test ledger_sync_test_migrations
           "$pg_bin/psql" -h 127.0.0.1 -p 55432 -U ledger_sync_test \
             -d ledger_sync_test_migrations -c "SELECT version();"
+      # -k drops the SQLite-only parametrisations the backend job already runs:
+      # a test id with 'sqlite' and without 'postgresql' never runs on PostgreSQL.
       - name: Integration tests with native PostgreSQL
         run: >-
           uv run --no-sync --locked --no-build pytest tests/integration/
           tests/unit/test_ai_settings_migration.py
           tests/unit/test_compensation_migration.py
           tests/unit/test_compensation_records.py -q
+          -k "not sqlite or postgresql"
       # The integration step above runs `alembic check` against a freshly
       # migrated PostgreSQL schema (test_migrations_from_scratch). This covers
       # the operator CLI path the migrate job uses: settings-driven URL
