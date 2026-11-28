@@ -64,7 +64,14 @@ function InsightCard({
   item,
   emphasis = false,
   index = 0,
-}: Readonly<{ item: InsightDescriptor; emphasis?: boolean; index?: number }>) {
+  stackBelowSm = false,
+}: Readonly<{
+  item: InsightDescriptor
+  emphasis?: boolean
+  index?: number
+  /** Icon above the text on phones, where two tiles share a row and a side icon left the figure 99 px. */
+  stackBelowSm?: boolean
+}>) {
   // Format-preserving count-up; settles on the exact formatted string. Its
   // frames go into the motion.dd text, so the card renders once per value.
   const animatedValue = useAnimatedValue(item.value)
@@ -108,7 +115,9 @@ function InsightCard({
   return (
     <motion.div
       {...reveal}
-      className="ledger-cell flex min-h-28 min-w-[min(100%,13rem)] basis-52 items-start gap-3 p-4"
+      className={`ledger-cell flex min-h-28 min-w-[min(100%,13rem)] basis-52 items-start p-4 ${
+        stackBelowSm ? 'flex-col gap-2 sm:flex-row sm:gap-3' : 'gap-3'
+      }`}
     >
       <div className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${item.bg}`}>
         <item.icon className={`size-3.5 ${item.color}`} aria-hidden="true" />
@@ -418,7 +427,7 @@ export default function QuickInsights({
         </summary>
         <div className="ledger-band ledger-flow-grid mt-2">
           {visibleFunFacts.map((item, index) => (
-            <InsightCard key={item.title} item={item} index={index} />
+            <InsightCard key={item.title} item={item} index={index} stackBelowSm />
           ))}
         </div>
       </details>

@@ -573,7 +573,7 @@ wheels = [
 
 [[package]]
 name = "ledger-sync"
-version = "2.38.1"
+version = "2.38.2"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
