@@ -28,6 +28,8 @@ export interface UsageResponse {
   }
   /** Shared-funded Bedrock calls today, including pending calls. */
   messages_today: number
+  /** False when this account may not use the app's shared AI; absent on older servers. */
+  app_access?: boolean
   as_of: string
   day_start: string
   month_start: string

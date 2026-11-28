@@ -40,6 +40,12 @@ from ledger_sync.services.ai_settings import rewrap_stored_ai_key
 TEST_BCRYPT_HASH = "$2b$12$dummy_hash_for_testing_purposes"
 
 
+@pytest.fixture(autouse=True)
+def _app_ai_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests spend app-funded calls, so app AI is open to every account."""
+    monkeypatch.setattr(settings, "ai_app_emails", ["*"])
+
+
 def _make_app() -> tuple[FastAPI, Session, User]:
     """FastAPI app + in-memory DB + authed user, with deps overridden.
 

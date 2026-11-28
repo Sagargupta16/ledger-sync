@@ -77,6 +77,7 @@ Optional AI settings:
 | `LEDGER_SYNC_AI_DEFAULT_BEDROCK_REGION` | `us-east-1` | Bedrock region |
 | `LEDGER_SYNC_AI_DAILY_MESSAGE_LIMIT` | `10` | Per-user daily app-mode cap |
 | `LEDGER_SYNC_AI_UNLIMITED_EMAILS` | `[]` | JSON array of account emails with no app-mode cap (the owner's), matched without case; personal token budgets still apply |
+| `LEDGER_SYNC_AI_APP_EMAILS` | `[]` | JSON array of the other account emails allowed to spend the app's Bedrock credentials (chat and Smart search), matched the same way; admins and the unlimited list always may. Anyone else gets 403 and can save a personal key. `["*"]` opens app AI to every account |
 | `LEDGER_SYNC_ADMIN_EMAILS` | `[]` | JSON array of owner account emails, matched the same way: they see `/admin` (app-wide totals from `GET /api/admin/stats`) and have no app-mode cap either |
 | `LEDGER_SYNC_AI_MAX_TOOL_ROUNDS` | `6` | Tool rounds per message |
 
@@ -614,10 +615,22 @@ What to know after activation:
 
 Apply `ai_usage_reservations_2026` and subsequent revisions before promoting
 the new backend. Reservations enforce message and token budgets across workers
-through database row locks. Shared per-minute account and IP rates additionally
-require distributed SlowAPI storage; process-local storage cannot enforce a
-global limit across Vercel instances. Configure and verify that storage before
-claiming global per-minute enforcement.
+through database row locks. Per-minute account and IP rates are shared across
+Vercel instances once `LEDGER_SYNC_RATE_LIMIT_STORAGE_URI` points at a Redis
+server (`rediss://default:<password>@<host>:6379`); unset, each instance counts
+in its own memory and resets on a cold start, and the backend logs a start-up
+warning outside development. A store that stops answering falls back to that
+in-memory counting within a one second timeout instead of failing requests. Per-IP
+limits key on `X-Forwarded-For`, which Vercel overwrites with the real client
+address, outside development.
+
+Owner console step for the store: create a Redis database (Upstash works; pick
+a region near the function, `sin1`, such as Singapore), copy its TLS
+(`rediss://`) connection URL, add it in Vercel as
+`LEDGER_SYNC_RATE_LIMIT_STORAGE_URI` for Production (it holds a password, so
+mark it sensitive), and redeploy. To check it, send 21 `POST /api/auth/refresh`
+requests with an invalid token from one address: the 21st answers 429 even when
+the calls land on different instances.
 
 Drain old workers before allowing new workers to write v3 encrypted API keys.
 Old code cannot read the new envelope. Retain previous encryption key material
@@ -714,9 +727,10 @@ token lookup. What Claude reads goes to the user's own Claude account. The
 alert inbox limits each token to 30 requests a minute and 500 a day, plus 60 a
 minute per IP, and stores at most 500 new alerts per user in any 24 hours,
 enforced in the database. Like every SlowAPI limit here, the per-minute and
-per-day counters live in each serverless instance's memory (see
-[AI configuration and encryption rollout](#ai-configuration-and-encryption-rollout)),
-so treat them as best effort.
+per-day counters live in the shared store when
+`LEDGER_SYNC_RATE_LIMIT_STORAGE_URI` is set, and otherwise in each serverless
+instance's memory (see
+[AI configuration and encryption rollout](#ai-configuration-and-encryption-rollout)).
 
 ### Health checks
 

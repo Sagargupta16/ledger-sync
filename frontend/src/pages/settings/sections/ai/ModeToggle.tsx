@@ -115,6 +115,12 @@ export function AppModePanel({
         <span className="text-sm font-medium text-foreground">Today's usage</span>
         <AppMessageBadge usage={usage} />
       </div>
+      {usage?.app_access === false && (
+        <FieldHint>
+          The app's shared AI is for invited accounts. Save your own key with a personal
+          provider to use the assistant.
+        </FieldHint>
+      )}
       <FieldHint>
         App mode uses the shared Bedrock key and the app's model. Tool-assisted messages can
         use more than one AI call. The daily quota resets at midnight UTC. A personal key
