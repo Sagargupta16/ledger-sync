@@ -241,7 +241,7 @@ class AnalyticsEngine(
 
             # 8. Anomalies
             t0 = time.time()
-            results["anomalies"] = self._detect_anomalies()
+            results["anomalies"] = self._detect_anomalies(all_transactions)
             log_analytics_calculation(
                 "Anomalies detected",
                 results["anomalies"],

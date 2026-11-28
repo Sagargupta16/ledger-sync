@@ -13,6 +13,7 @@ import unicodedata
 from collections.abc import Callable
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from functools import lru_cache
 from typing import Any, ClassVar
 
 import pandas as pd
@@ -230,6 +231,18 @@ class DataNormalizer(NormalizeRowsMixin):
         "dbs": "DBS",
         "au small finance": "AU Small Finance",
     }
+    # Keys longest-first so "idfc first" is matched before "idfc", and
+    # "standard chartered" before "standard". Case-insensitive whole-token
+    # match; _recase_bank_token decides whether the matched spelling is
+    # actually ours to change.
+    BANK_TOKEN_PATTERNS: ClassVar[
+        tuple[tuple[re.Pattern[str], Callable[[re.Match[str]], str]], ...]
+    ] = tuple(
+        (re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE), _recase_bank_token(canonical))
+        for token, canonical in sorted(
+            BANK_CANONICAL_NAMES.items(), key=lambda item: len(item[0]), reverse=True
+        )
+    )
 
     def _standardize_account(self, account: str) -> str:
         """Standardize account name for consistency.
@@ -247,18 +260,7 @@ class DataNormalizer(NormalizeRowsMixin):
         if not account:
             return ""
 
-        account = self._clean_text(account)
-
-        # Sort keys longest-first so "idfc first" is matched before "idfc",
-        # and "standard chartered" before "standard". Case-insensitive
-        # whole-token match; _recase_bank_token decides whether the matched
-        # spelling is actually ours to change.
-        for token in sorted(self.BANK_CANONICAL_NAMES, key=len, reverse=True):
-            canonical = self.BANK_CANONICAL_NAMES[token]
-            pattern = re.compile(rf"\b{re.escape(token)}\b", re.IGNORECASE)
-            account = pattern.sub(_recase_bank_token(canonical), account)
-
-        return account
+        return _recase_bank_tokens(self._clean_text(account))
 
     def account_label(self, value: Any) -> str:
         """The spelling every import path stores for a raw account name."""
@@ -408,3 +410,15 @@ class DataNormalizer(NormalizeRowsMixin):
             raise NormalizationError(msg)
 
         return transaction_type
+
+
+@lru_cache(maxsize=1024)
+def _recase_bank_tokens(account: str) -> str:
+    """Apply every bank-token re-case to a cleaned label.
+
+    Cached: a ledger repeats a few dozen account labels across thousands of
+    rows, and the result depends on the label alone.
+    """
+    for pattern, recase in DataNormalizer.BANK_TOKEN_PATTERNS:
+        account = pattern.sub(recase, account)
+    return account

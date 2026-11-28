@@ -13,7 +13,9 @@ from ledger_sync.ingest.hash_id import TransactionHasher
 from ledger_sync.ingest.normalizer import NormalizationError
 
 _HASHER = TransactionHasher()
-_CHUNK_SIZE = 200
+# Up to four binds per identity (fingerprint, ID and two legacy IDs), so a
+# chunk stays far under SQLite's 32,766 and PostgreSQL's 65,535 bind limits.
+_CHUNK_SIZE = 2000
 
 
 def row_fingerprint(

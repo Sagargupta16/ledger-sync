@@ -11,7 +11,6 @@ from decimal import Decimal
 from typing import NamedTuple
 
 from sqlalchemy import case, func
-from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.ledger_clock import ledger_now
@@ -153,25 +152,11 @@ def get_filtered_transactions(
     return [MetricRow._make(row) for row in query]
 
 
-def _build_base_query(
-    db: Session,
-    user: User,
-    time_range: TimeRange,
-) -> SAQuery[Transaction]:
-    """Build a filtered base query for the given user and time range.
-
-    Returns a SQLAlchemy query on the Transaction table with user_id,
-    is_deleted, and date range filters already applied.  Callers add
-    their own column expressions / GROUP BY on top of this.
-    """
-    start_date, end_date = _get_time_range_dates(db, user, time_range)
-    return build_transaction_query(db, user, start_date, end_date)
-
-
 def _get_sql_totals(
     db: Session,
     user: User,
-    time_range: TimeRange,
+    start_date: datetime | None,
+    end_date: datetime | None,
 ) -> dict[str, float]:
     """Compute total income, expenses, losses, net change, and count in one SQL query.
 
@@ -185,7 +170,7 @@ def _get_sql_totals(
     had two answers depending on which endpoint the page happened to call.
     """
     loss_keys = capital_loss_keys_for(user)
-    base = _build_base_query(db, user, time_range).subquery()
+    base = build_transaction_query(db, user, start_date, end_date).subquery()
 
     row = db.query(
         income_sum_col(base),
@@ -210,7 +195,8 @@ def _get_sql_totals(
 def _get_sql_monthly_data(
     db: Session,
     user: User,
-    time_range: TimeRange,
+    start_date: datetime | None,
+    end_date: datetime | None,
 ) -> dict[str, dict[str, float]]:
     """Return monthly income/expenses/capital_losses using SQL GROUP BY.
 
@@ -220,7 +206,7 @@ def _get_sql_monthly_data(
     monthly-trends chart) can subtract the loss instead of losing it.
     """
     loss_keys = capital_loss_keys_for(user)
-    base = _build_base_query(db, user, time_range).subquery()
+    base = build_transaction_query(db, user, start_date, end_date).subquery()
     month_col = fmt_year_month(base.c.date).label("month")
 
     rows = (
@@ -247,7 +233,8 @@ def _get_sql_monthly_data(
 def _get_sql_account_totals(
     db: Session,
     user: User,
-    time_range: TimeRange,
+    start_date: datetime | None,
+    end_date: datetime | None,
 ) -> dict[str, float]:
     """Return net account balances using SQL aggregation.
 
@@ -255,7 +242,7 @@ def _get_sql_account_totals(
     source (``from_account``) and credit the destination (``to_account``).
     The result matches ``calculator.group_by_account``.
     """
-    base = _build_base_query(db, user, time_range).subquery()
+    base = build_transaction_query(db, user, start_date, end_date).subquery()
 
     # Income / Expense rows contribute to the `account` column
     regular_rows = (

@@ -31,7 +31,8 @@ SOURCE_FIELDS = {
     "_occurred_at": "occurred_at",
 }
 
-_CHUNK_SIZE = 200
+# One bind per key, far under SQLite's and PostgreSQL's bind limits.
+_CHUNK_SIZE = 2000
 _HASHER = TransactionHasher()
 _LooseShape = tuple[str, ...]
 

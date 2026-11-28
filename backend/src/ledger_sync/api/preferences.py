@@ -30,6 +30,8 @@ from ledger_sync.api.preferences_helpers import (
     UserPreferencesUpdate,
     _apply_preference_updates,
     _get_or_create_preferences,
+    _locked_preferences,
+    _locked_response,
     _model_to_response,
     _update_section,
 )
@@ -53,9 +55,15 @@ def get_preferences(
     current_user: CurrentUser,
     session: DatabaseSession,
 ) -> UserPreferencesResponse:
-    """Get current user preferences."""
-    prefs = _get_or_create_preferences(session, current_user)
-    return _model_to_response(prefs, session)
+    """Get current user preferences.
+
+    An existing row is read once under the write lock this transaction keeps,
+    so it needs no second lock and re-read; a first visit creates the row.
+    """
+    prefs = _locked_preferences(session, current_user)
+    if prefs is not None:
+        return _locked_response(prefs, session)
+    return _model_to_response(_get_or_create_preferences(session, current_user), session)
 
 
 @router.put("")

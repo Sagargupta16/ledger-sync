@@ -76,6 +76,11 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
     lock_analytics_user(session, prefs.user_id, read_only=True)
     if not session.is_modified(prefs):
         session.refresh(prefs)
+    return _locked_response(prefs, session)
+
+
+def _locked_response(prefs: UserPreferences, session: Session) -> UserPreferencesResponse:
+    """The response for *prefs*, read under a user lock this transaction still holds."""
     compensation = read_compensation(session, prefs.user_id)
     return UserPreferencesResponse(
         id=prefs.id,
@@ -135,13 +140,19 @@ def _model_to_response(prefs: UserPreferences, session: Session) -> UserPreferen
     )
 
 
+def _locked_preferences(session: Session, user: User) -> UserPreferences | None:
+    """The user's preferences row read under the user write lock, or None."""
+    lock_analytics_user(session, user.id)
+    return session.execute(
+        select(UserPreferences).where(UserPreferences.user_id == user.id)
+    ).scalar_one_or_none()
+
+
 def _get_or_create_preferences(
     session: Session, user: User, *, commit: bool = True
 ) -> UserPreferences:
     """Get defaults under the user lock; mutation callers keep one transaction."""
-    lock_analytics_user(session, user.id)
-    result = session.execute(select(UserPreferences).where(UserPreferences.user_id == user.id))
-    prefs = result.scalar_one_or_none()
+    prefs = _locked_preferences(session, user)
 
     if prefs is None:
         # Create default preferences for this user

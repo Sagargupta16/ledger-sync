@@ -41,6 +41,8 @@ _DIMENSION_FIELDS = (
     "subcategory_id",
 )
 _VALUE_FIELDS = ("category", "subcategory", "note", "type", "currency")
+# One bind per ID, far under SQLite's 32,766 and PostgreSQL's 65,535 limits.
+_SEEN_CHUNK_SIZE = 5000
 __all__ = ["Reconciler", "ReconciliationStats"]
 
 
@@ -94,7 +96,6 @@ class Reconciler(TransferReconcilerMixin):
             setattr(existing, field, row.get(field))
         existing.source_fingerprint = identity.fingerprint
         existing.fingerprint_version = 2
-        existing.last_seen_at = import_time
         existing.is_deleted = False
         if changed:
             self.affected_dates.add(existing.date.date())
@@ -155,9 +156,35 @@ class Reconciler(TransferReconcilerMixin):
             if values:
                 source_writes.append((transaction.transaction_id, values))
         self.session.flush()
+        self._mark_seen(
+            user_id,
+            [transaction.transaction_id for transaction, action in results if action != "inserted"],
+            import_time,
+        )
         if source_writes:
             write_source_values(self.session, user_id, source_writes)
         return results
+
+    def _mark_seen(self, user_id: int, transaction_ids: list[str], import_time: datetime) -> None:
+        """Stamp matched rows as present in this import with one UPDATE per chunk.
+
+        On an unchanged re-upload this is the only write, and through the ORM it
+        cost one unit-of-work entry and UPDATE parameter set per row. The
+        soft-delete sweep reads the column in SQL afterwards, and the commit
+        expires the loaded rows, so nothing reads the stale attribute.
+        """
+        for start in range(0, len(transaction_ids), _SEEN_CHUNK_SIZE):
+            self.session.execute(
+                update(Transaction)
+                .where(
+                    Transaction.user_id == user_id,
+                    Transaction.transaction_id.in_(
+                        transaction_ids[start : start + _SEEN_CHUNK_SIZE]
+                    ),
+                )
+                .values(last_seen_at=import_time)
+                .execution_options(synchronize_session=False)
+            )
 
     def reconcile_transaction(
         self,

@@ -8,6 +8,7 @@ from ledger_sync.api.analytics_helpers import (
     _get_sql_account_totals,
     _get_sql_monthly_data,
     _get_sql_totals,
+    _get_time_range_dates,
     get_filtered_transactions,
 )
 from ledger_sync.api.analytics_metrics import behavior_metrics, kpi_metrics, trend_metrics
@@ -36,7 +37,8 @@ def get_overview(
     ``/api/calculations/totals`` (``net_change == net_savings``) instead of
     overstating the net position by the loss amount.
     """
-    totals = _get_sql_totals(db, current_user, time_range)
+    start_date, end_date = _get_time_range_dates(db, current_user, time_range)
+    totals = _get_sql_totals(db, current_user, start_date, end_date)
 
     if totals["transaction_count"] == 0:
         return {
@@ -51,9 +53,9 @@ def get_overview(
         }
 
     # SQL-based aggregations
-    monthly_data = _get_sql_monthly_data(db, current_user, time_range)
+    monthly_data = _get_sql_monthly_data(db, current_user, start_date, end_date)
     best_worst = calculator.find_best_worst_months(monthly_data)
-    account_activity = _get_sql_account_totals(db, current_user, time_range)
+    account_activity = _get_sql_account_totals(db, current_user, start_date, end_date)
 
     # Format asset allocation
     asset_allocation: list[dict[str, Any]] = [
