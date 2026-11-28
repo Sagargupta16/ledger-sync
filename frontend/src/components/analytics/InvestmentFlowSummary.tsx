@@ -35,7 +35,7 @@ export default function InvestmentFlowSummary({ flows, hasMappings }: Readonly<P
           Explore investments <ArrowUpRight className="size-3.5" aria-hidden="true" />
         </Link>
       </div>
-      <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-[var(--hairline-1)] pt-4 min-[360px]:grid-cols-2 xl:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-[var(--hairline-1)] pt-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="min-w-0">
           <dt className="text-xs text-muted-foreground">Net contributed</dt>
           <dd className="mt-2 break-words font-mono text-xl font-semibold tabular-nums text-foreground">
