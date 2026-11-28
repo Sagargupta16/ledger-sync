@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.38.2 - 2026-11-28
+
+### Fixed
+
+- **Dashboard Behavior signals amounts stay on one line on phones.** The 14 tiles sit two to a row on a phone, and the icon beside the text left a figure 99 px, so Monthly Burn Rate (such as ₹1,00,225.34) and Internal Transfers (₹87,13,834.00) broke mid-number. Below 640 px the icon now sits above the text, giving the figure about 135 px; from 640 px up the tiles are unchanged, and Operating position keeps its side icon.
+
 ## 2.38.1 - 2026-11-28
 
 ### Fixed
