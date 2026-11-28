@@ -6,6 +6,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.38.1 - 2026-11-28
+
+### Fixed
+
+- **Large amounts no longer break across lines on phones.** 2.38.0 made the SIP projection overview cards and the Dashboard investment flow summary two columns from 360 px, and their 20 px figures (such as ₹8,90,000.00) then wrapped mid-number on a 375 px screen. Both are one column on phones again, as before 2.38.0; the other five grids 2.38.0 changed (Goals, three on Tax, Investment analytics) keep two columns, measured with no wrapped amount.
+
 ## 2.38.0 - 2026-11-28
 
 A speed pass measured on a real 7,161-row ledger, an audit that kept 55 findings after a refute pass, and fixes for its medium rows. No migration. Two new optional settings; with neither set, the only change in who can do what is that app-funded AI now needs an allowed account (see Changed).
@@ -21,7 +27,7 @@ A speed pass measured on a real 7,161-row ledger, an audit that kept 55 findings
 - **The daily crons report failure.** `/api/analytics/v2/refresh-due` and `/api/push/run-due` answer 500 with the run's counts when every attempt in the run failed, so Vercel shows the run red instead of green; a push run where no device got its alert is also sent to Sentry. A partly failed or empty run still answers 200.
 - **Apply rules no longer claims success when totals did not refresh.** If the analytics rebuild after applying rules fails, Settings shows a warning that points to Recompute analytics in Data Health.
 - **A hung AI provider ends in an error.** OpenAI, Anthropic and Bedrock chat calls and the Settings connection test stop after 60 seconds with a readable message instead of spinning; a cancel is still a quiet abort.
-- **Amounts fit on phones.** Nine amounts in flex rows (Dashboard, Overview, Bill calendar, GST, Investment analytics, Returns, the source panels) use `Money`, so the digits never wrap or clip, and seven KPI and stat grids (SIP projection, Goals, Tax, Investment analytics, the investment flow summary) show two columns from 360 px like the rest of the app.
+- **Amounts fit on phones.** Nine amounts in flex rows (Dashboard, Overview, Bill calendar, GST, Investment analytics, Returns, the source panels) use `Money`, so the digits never wrap or clip, and seven KPI and stat grids (SIP projection, Goals, Tax, Investment analytics, the investment flow summary) show two columns from 360 px like the rest of the app (two of them reverted in 2.38.1).
 - The Transactions page mounts either the table or the phone cards, not both.
 
 ## 2.37.0 - 2026-11-19
