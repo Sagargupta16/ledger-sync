@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import { ROUTES } from '@/constants'
-import { PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
+import { Money, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import MetricCard from '@/components/shared/MetricCard'
 import ProgressBar from '@/components/shared/ProgressBar'
 import EmptyState from '@/components/shared/EmptyState'
@@ -229,7 +229,7 @@ export default function OverviewPage() {
                   {topIncome.length > 0 ? topIncome.map((d) => (
                     <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
-                      <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
+                      <Money value={d.value} />
                     </li>
                   )) : <li className="text-sm text-text-tertiary">No income data</li>}
                 </ul>
@@ -240,7 +240,7 @@ export default function OverviewPage() {
                   {topExpense.length > 0 ? topExpense.map((d) => (
                     <li key={d.name} className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate text-muted-foreground" title={d.name}>{d.name}</span>
-                      <span className="shrink-0 tabular-nums font-medium">{formatCurrency(d.value)}</span>
+                      <Money value={d.value} />
                     </li>
                   )) : <li className="text-sm text-text-tertiary">No expense data</li>}
                 </ul>
@@ -319,7 +319,7 @@ export default function OverviewPage() {
                   <div className="mb-1 flex flex-col items-start gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                     <span className="truncate" title={g.name}>{g.name}</span>
                     <span className="break-words text-xs tabular-nums text-muted-foreground sm:shrink-0 sm:text-sm">
-                      {formatCurrency(g.current_amount)} / {formatCurrency(g.target_amount)}
+                      <Money value={g.current_amount} muted className="font-normal" /> / <Money value={g.target_amount} muted className="font-normal" />
                     </span>
                   </div>
                   <ProgressBar

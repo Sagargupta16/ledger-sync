@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { DollarSign, PieChart, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import MetricCard from '@/components/shared/MetricCard'
+import { Money } from '@/components/ui'
 import { DURATION, EASING } from '@/constants/animations'
 import { formatCurrency, formatPercent } from '@/lib/formatters'
 
@@ -47,7 +48,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
 
   return (
     <div
-      className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 ${
+      className={`grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 ${
         monthlyInvestmentTarget > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'
       }`}
     >
@@ -106,7 +107,7 @@ export function PortfolioMetrics(props: Readonly<PortfolioMetricsProps>) {
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="ledger-figure text-text-tertiary">
-                {formatCurrency(currentMonthInvestment)} invested
+                <Money value={currentMonthInvestment} className="font-normal text-text-tertiary" /> invested
               </span>
               <span
                 className={`ledger-figure ${

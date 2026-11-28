@@ -13,6 +13,7 @@ import {
   isOpenAIReasoningModel,
   openAIHeaders,
 } from '@/lib/chatAdapters'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 import { getApiErrorMessage } from '@/lib/errorUtils'
 import { assertCurrentSession, getSessionGeneration, getSessionSignal, isCurrentSession } from '@/lib/session'
 import {
@@ -295,7 +296,7 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
       }
 
       assertCurrentSession(sessionSignal)
-      const resp = await fetch(url, { method: 'POST', headers, body, signal: sessionSignal })
+      const resp = await fetchWithTimeout(url, { method: 'POST', headers, body, signal: sessionSignal })
       assertCurrentSession(sessionSignal)
       if (resp.ok) {
         setTestStatus('success')
@@ -311,9 +312,11 @@ export default function AIAssistantSection({ index }: Readonly<Props>) {
         setTestError(errMsg)
         setTestStatus('error')
       }
-    } catch {
+    } catch (err) {
       if (!isCurrentSession(sessionSignal)) return
-      setTestError('Network error -- check your connection')
+      setTestError(err instanceof DOMException && err.name === 'TimeoutError'
+        ? err.message
+        : 'Network error -- check your connection')
       setTestStatus('error')
     }
   }

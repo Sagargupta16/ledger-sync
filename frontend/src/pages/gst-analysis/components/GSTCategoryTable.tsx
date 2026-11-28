@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { motion } from 'motion/react'
 
 import { ProgressBar } from '@/components/shared'
-import { DataTable, type DataTableColumn } from '@/components/ui'
+import { DataTable, Money, type DataTableColumn } from '@/components/ui'
 import { fadeUpItem } from '@/constants/animations'
 import { colors } from '@/constants/colors'
 import { formatCurrencyCompact, formatPercent } from '@/lib/formatters'
@@ -52,13 +52,11 @@ export default function GSTCategoryTable({ data }: Readonly<Props>) {
       <div className="border-t border-border bg-[var(--overlay-1)] px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
         <span className="font-semibold text-foreground">Total</span>
         <span className="flex items-center gap-4 tabular-nums">
-          <span className="font-semibold">{formatCurrencyCompact(data.totalSpending)}</span>
+          <Money value={data.totalSpending} formatter={formatCurrencyCompact} bold />
           <span className="font-semibold text-muted-foreground">
             {formatPercent(data.effectiveRate)}
           </span>
-          <span className="font-semibold text-app-indigo">
-            {formatCurrencyCompact(data.totalGST)}
-          </span>
+          <Money value={data.totalGST} formatter={formatCurrencyCompact} bold className="text-app-indigo" />
         </span>
       </div>
     </motion.div>

@@ -22,7 +22,7 @@ import { blockingError, refreshFailed, retryFailed } from '@/lib/queryStatus'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { getFYFromDate, getTodayKey } from '@/lib/dateUtils'
 import { summarizeRecurringCommitments } from '@/lib/recurringCalculations'
-import { Button, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
+import { Button, Money, PageContainer, PageHeader, StickyToolbar } from '@/components/ui'
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics'
 import { RECURRING_COMMITMENTS_PARAMS } from '@/hooks/api/recurringCommitmentsParams'
 import { useRecurringTransactions } from '@/hooks/api/useAnalyticsV2'
@@ -261,7 +261,7 @@ export default function DashboardPage() {
             {cashbacksTotal > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-app-teal">Net Cashback Earned</span>
-                <span className="text-app-teal font-medium">{formatCurrency(cashbacksTotal)}</span>
+                <Money value={cashbacksTotal} className="text-app-teal" />
               </div>
             )}
           </SourcePanel>

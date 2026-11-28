@@ -50,7 +50,7 @@ export default function TaxOverviewSections({ planning }: Readonly<Props>) {
             Employment compensation only. RSUs are taxed on the gross vest; retained shares remain invested.
             The annual tax estimate also includes other taxable income recorded for this year.
           </p>
-          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <dl className="mt-4 grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 sm:grid-cols-3">
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">Net share value</dt>
               <dd className="mt-1 text-lg"><Money value={planning.salaryProjection.netShareValue} bold /></dd>

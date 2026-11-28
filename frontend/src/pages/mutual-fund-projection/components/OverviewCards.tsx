@@ -69,7 +69,7 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
   } = props
 
   if (isLoading) {
-    return <CardGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+    return <CardGridSkeleton count={4} cols="grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4" />
   }
 
   const currentBalanceDisplay = formatCurrency(currentBalance)
@@ -82,7 +82,7 @@ export function OverviewCards(props: Readonly<OverviewCardsProps>) {
   const avgPerMonth = durationMonths > 0 ? totalHistoricalInvested / durationMonths : 0
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-4 xl:grid-cols-4">
       <OverviewCard
         icon={TrendingUp}
         iconClassName="text-app-purple"

@@ -57,7 +57,7 @@ export default function SavingsPoolSummary({
         <h3 className="text-base font-semibold text-foreground">Savings Pool</h3>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+      <div className="mb-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-4">
         <div className="min-w-0">
           <p className="mb-1 text-xs leading-4 text-text-tertiary">Total Net Savings</p>
           <p className="ledger-figure whitespace-nowrap text-xs font-bold text-foreground min-[360px]:text-base sm:text-xl">
