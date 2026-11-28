@@ -23,6 +23,7 @@ from ledger_sync.api.rate_limit import _user_key_func, limiter
 from ledger_sync.config.push_settings import CRON_ENV, push_settings
 from ledger_sync.config.settings import settings
 from ledger_sync.core.ledger_clock import ledger_now
+from ledger_sync.core.observability import report_exception
 from ledger_sync.core.push_delivery import run_due_alerts, send_test
 from ledger_sync.core.push_devices import (
     MAX_DEVICES,
@@ -189,10 +190,20 @@ def _run_due(request: Request, db: DatabaseSession) -> PushRunReport:
         report.up_to_date,
         report.deferred,
     )
+    if report.failed and not report.sent:
+        # Nothing reached any device (a bad VAPID key, a broken encryption
+        # path): report it and turn the cron run red rather than return 200
+        # while every user silently stops getting alerts.
+        report_exception(RuntimeError("Every push delivery in the run failed"))
+        raise HTTPException(status_code=500, detail=asdict(report))
     return PushRunReport(**asdict(report))
 
 
-_RUN_RESPONSES: dict[int | str, dict[str, Any]] = {401: {"description": "Bad secret"}, **_OFF}
+_RUN_RESPONSES: dict[int | str, dict[str, Any]] = {
+    401: {"description": "Bad secret"},
+    500: {"description": "Every push delivery in the run failed"},
+    **_OFF,
+}
 
 
 @router.get("/run-due", responses=_RUN_RESPONSES)

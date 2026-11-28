@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 from ledger_sync.schemas.transactions import TransactionResponse
 
 #: Why semantic search cannot call Bedrock for this user right now.
-UnavailableReason = Literal["server_not_configured", "personal_key_missing", "provider_not_bedrock"]
+UnavailableReason = Literal[
+    "server_not_configured", "personal_key_missing", "provider_not_bedrock", "app_not_allowed"
+]
 
 
 class SemanticSearchStatus(BaseModel):

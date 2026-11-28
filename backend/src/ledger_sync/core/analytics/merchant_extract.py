@@ -22,6 +22,7 @@ token, so nothing is dropped and nothing is over-merged.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 # Excel exports carry a literal carriage-return artifact in text columns. The
 # whole pattern is case-insensitive, so a `[dD]` class would be redundant with
@@ -218,6 +219,7 @@ def match_brand(note: str, category: str | None = None) -> str | None:
     return None
 
 
+@lru_cache(maxsize=4096)
 def extract_merchant(note: str | None, category: str | None = None) -> tuple[str, str] | None:
     """Extract ``(label, kind)`` from a note, where kind is brand or descriptor.
 
@@ -225,6 +227,8 @@ def extract_merchant(note: str | None, category: str | None = None) -> tuple[str
     never merges unrelated purchases: when no brand is recognised the whole
     cleaned note becomes the descriptor, so "Milk Shake - Apple" stays
     "Milk Shake - Apple" instead of collapsing into "Milk" or "Apple".
+    Cached: notes repeat heavily (about 1,000 distinct in 5,000 expense rows)
+    and the result is an immutable tuple.
     """
     cleaned = clean_note(note)
     if not cleaned or is_placeholder(cleaned):

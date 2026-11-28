@@ -1,6 +1,7 @@
 import { Banknote, Receipt } from 'lucide-react'
 
 import ProgressBar from '@/components/shared/ProgressBar'
+import { Money } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -47,9 +48,7 @@ function BreakdownColumn({
           <div key={item.label}>
             <div className="mb-1 flex items-start justify-between gap-3">
               <span className="min-w-0 text-xs text-muted-foreground">{item.label}</span>
-              <span className={`ledger-figure min-w-0 break-words text-right text-sm font-semibold ${item.color}`}>
-                {formatCurrency(item.value)}
-              </span>
+              <Money value={item.value} bold className={`ledger-figure text-sm ${item.color}`} />
             </div>
             {total > 0 && (
               <ProgressBar

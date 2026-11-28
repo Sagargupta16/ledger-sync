@@ -152,7 +152,10 @@ export function useSettingsState() {
     try {
       const res = await categorizationRulesService.applyRules()
       assertCurrentSession(signal)
-      toast.success(`Updated ${res.updated} of ${res.matched} matching transactions`)
+      const updated = `Updated ${res.updated} of ${res.matched} matching transactions`
+      // The rewrites are saved either way; a failed rebuild leaves totals stale.
+      if (res.analytics_refreshed) toast.success(updated)
+      else toast.warning(`${updated}, but totals did not refresh. Run Recompute analytics in Data Health.`)
       void invalidatePreferenceDependents(queryClient, false)
     } catch {
       if (isCurrentSession(signal)) toast.error('Failed to apply rules')

@@ -7,6 +7,7 @@ export type SmartSearchUnavailableReason =
   | 'server_not_configured'
   | 'personal_key_missing'
   | 'provider_not_bedrock'
+  | 'app_not_allowed'
 
 /** `GET /api/semantic-search/status`: Bedrock readiness and index coverage. */
 export interface SemanticSearchStatus {

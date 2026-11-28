@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.config.settings import settings
-from ledger_sync.core.admin_access import has_unlimited_ai
+from ledger_sync.core.admin_access import can_use_app_ai, has_unlimited_ai
 from ledger_sync.core.ai_pricing import estimate_cost_usd
 from ledger_sync.db._models.ai_settings import UserAISettings
 from ledger_sync.db.models import AIUsageLog, User
@@ -369,6 +369,9 @@ def get_usage(
             "app_daily_messages": app_message_limit(session, current_user.id),
         },
         "messages_today": messages_today,
+        # False when this account may not spend the app's credentials
+        # (LEDGER_SYNC_AI_APP_EMAILS); app mode then needs a personal key.
+        "app_access": can_use_app_ai(current_user.email),
         "as_of": now.isoformat(),
         "day_start": _start_of_day(now).isoformat(),
         "month_start": _start_of_month(now).isoformat(),

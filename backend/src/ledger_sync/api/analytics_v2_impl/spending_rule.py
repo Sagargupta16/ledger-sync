@@ -88,6 +88,7 @@ from sqlalchemy import and_, or_
 # Bucket rules and the transaction fold live in sibling modules; the names the
 # tests import are re-exported here so this module stays the public entry point.
 from ledger_sync.api.analytics_v2_impl.spending_rule_aggregate import (
+    SpendingRow,
     _aggregate_txns,
     _pct_of_income,
 )
@@ -256,8 +257,9 @@ def get_spending_rule_breakdown(
     # Pull every relevant txn in one shot. Volume is bounded by user history +
     # date range; per-user datasets are small enough that a single scan is
     # cheaper than three separate group-by queries.
+    # Only the seven fields the fold reads are selected: no ORM object per row.
     # Excluded accounts are dropped here as on every other analytics path.
-    txns = apply_excluded_accounts_filter(
+    query = apply_excluded_accounts_filter(
         db.query(Transaction).filter(
             Transaction.user_id == current_user.id,
             Transaction.is_deleted.is_(False),
@@ -273,7 +275,19 @@ def get_spending_rule_breakdown(
             ),
         ),
         excluded_accounts_for(current_user),
-    ).all()
+    )
+    txns = [
+        SpendingRow._make(row)
+        for row in query.with_entities(
+            Transaction.date,
+            Transaction.amount,
+            Transaction.type,
+            Transaction.account,
+            Transaction.to_account,
+            Transaction.category,
+            Transaction.subcategory,
+        )
+    ]
 
     income_total, expense_total, bucket_totals, category_rows = _aggregate_txns(
         txns,

@@ -58,12 +58,21 @@ def _refresh_due(request: Request) -> dict[str, int]:
         report.failed,
         report.deferred,
     )
+    if report.failed and not report.refreshed:
+        # Every refresh it tried failed: a non-2xx turns the cron run red in
+        # Vercel instead of reporting success. Each failure already went to
+        # report_exception in the drain.
+        raise HTTPException(status_code=500, detail=asdict(report))
     return asdict(report)
 
 
 @router.get(
     "/refresh-due",
-    responses={401: {"description": "Bad secret"}, 503: {"description": "Cron secret not set"}},
+    responses={
+        401: {"description": "Bad secret"},
+        500: {"description": "Every refresh in the run failed"},
+        503: {"description": "Cron secret not set"},
+    },
 )
 def get_refresh_due(request: Request) -> dict[str, int]:
     """The daily Vercel cron: refresh users whose analytics inputs are not current."""
@@ -72,7 +81,11 @@ def get_refresh_due(request: Request) -> dict[str, int]:
 
 @router.post(
     "/refresh-due",
-    responses={401: {"description": "Bad secret"}, 503: {"description": "Cron secret not set"}},
+    responses={
+        401: {"description": "Bad secret"},
+        500: {"description": "Every refresh in the run failed"},
+        503: {"description": "Cron secret not set"},
+    },
 )
 def post_refresh_due(request: Request) -> dict[str, int]:
     """The same run, started by hand with the cron secret."""

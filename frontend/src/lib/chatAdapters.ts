@@ -13,6 +13,7 @@
  */
 
 import { API_BASE_URL } from '@/constants'
+import { fetchWithTimeout } from '@/lib/fetchWithTimeout'
 import { getMe } from '@/services/api/auth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -291,7 +292,7 @@ async function callOpenAI(params: SendParams): Promise<ChatResponse> {
     })),
   }
 
-  const res = await fetch(OPENAI_CHAT_URL, {
+  const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
     method: 'POST',
     headers: openAIHeaders(params.apiKey),
     body: JSON.stringify(body),
@@ -383,7 +384,7 @@ async function callAnthropic(params: SendParams): Promise<ChatResponse> {
       input_schema: t.parameters,
     })),
   }
-  const res = await fetch(ANTHROPIC_MESSAGES_URL, {
+  const res = await fetchWithTimeout(ANTHROPIC_MESSAGES_URL, {
     method: 'POST',
     headers: anthropicHeaders(params.apiKey),
     body: JSON.stringify(body),
@@ -454,7 +455,7 @@ async function callBedrock(params: SendParams): Promise<ChatResponse> {
   // MUST be absolute against the backend host: a relative /api path resolves
   // to GitHub Pages in production, whose static host answers POST with 405.
   const post = () =>
-    fetch(`${API_BASE_URL}/api/ai/bedrock/chat`, {
+    fetchWithTimeout(`${API_BASE_URL}/api/ai/bedrock/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

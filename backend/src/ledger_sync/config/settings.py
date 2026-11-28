@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     sentry_dsn: SecretStr | None = None
     sentry_traces_sample_rate: float = Field(default=0.0, ge=0.0, le=1.0)
 
+    # Where rate-limit counters live, shared by every serverless instance:
+    # LEDGER_SYNC_RATE_LIMIT_STORAGE_URI=rediss://default:<password>@<host>:6379
+    # (Upstash and other Redis servers). Unset, each instance counts on its own
+    # in memory, which resets on a cold start. A Redis outage falls back to
+    # that in-memory counting rather than failing requests.
+    rate_limit_storage_uri: SecretStr | None = None
+
     # Upload limits
     max_upload_size_bytes: int = MAX_UPLOAD_SIZE_BYTES
 
@@ -124,6 +131,11 @@ class Settings(BaseSettings):
     # provider-verified address and which is unique per user. Token budgets a
     # user sets in Settings still apply.
     ai_unlimited_emails: list[str] = []
+    # Who may spend the app's Bedrock credentials (chat and Smart search),
+    # matched the same way: LEDGER_SYNC_AI_APP_EMAILS='["friend@example.com"]'.
+    # Admins and the unlimited list always may; '["*"]' opens app AI to every
+    # account. Anyone else gets a clear 403 and can save a personal key.
+    ai_app_emails: list[str] = []
     # Owner accounts (JSON array, matched the same way): they see /admin, the
     # app-wide totals in core/admin_stats.py, and have no app AI cap either.
     admin_emails: list[str] = []
@@ -192,6 +204,12 @@ class Settings(BaseSettings):
                 issues.append(
                     "WARNING: encryption_key is not set, so BYOK ciphertexts fall back to "
                     "jwt_secret_key. Set LEDGER_SYNC_ENCRYPTION_KEY."
+                )
+            if self.rate_limit_storage_uri is None:
+                issues.append(
+                    "WARNING: rate_limit_storage_uri is not set, so every serverless "
+                    "instance keeps its own rate-limit counters. Set "
+                    "LEDGER_SYNC_RATE_LIMIT_STORAGE_URI."
                 )
 
         if self.environment not in ("development", "staging", "production"):

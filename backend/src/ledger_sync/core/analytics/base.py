@@ -10,6 +10,7 @@ from __future__ import annotations
 import calendar
 import logging
 from datetime import UTC, datetime
+from functools import cached_property
 from typing import Any
 
 from sqlalchemy import select
@@ -110,7 +111,15 @@ class AnalyticsEngineBase:
     # ─── preferences loading / parsing ──────────────────────────────────────
 
     def _load_preferences(self) -> None:
-        """Load user preferences from database (tolerates missing rows)."""
+        """Load user preferences from database (tolerates missing rows).
+
+        Every ``cached_property`` on the engine derives from the preferences,
+        so each load drops them and the next read rebuilds from the new row.
+        """
+        for klass in type(self).__mro__:
+            for name, value in vars(klass).items():
+                if isinstance(value, cached_property):
+                    self.__dict__.pop(name, None)
         try:
             stmt = (
                 select(UserPreferences)
@@ -179,7 +188,7 @@ class AnalyticsEngineBase:
             return {str(c) for c in cats if c}
         return DEFAULT_ESSENTIAL_CATEGORIES
 
-    @property
+    @cached_property
     def essential_keywords(self) -> set[str]:
         """The canonical Needs keyword set (``core.metric_rules``).
 
@@ -210,7 +219,7 @@ class AnalyticsEngineBase:
             return {str(a) for a in accounts if a}
         return set()
 
-    @property
+    @cached_property
     def investment_account_patterns(self) -> dict[str, str]:
         """Account-name fragment -> investment type, from preferences.
 
@@ -297,17 +306,17 @@ class AnalyticsEngineBase:
             return []
         return list(_INCOME_LIST_DEFAULTS[field])
 
-    @property
+    @cached_property
     def taxable_income_categories(self) -> list[str]:
         """Get taxable income subcategories from preferences."""
         return self._income_categories("taxable_income_categories")
 
-    @property
+    @cached_property
     def investment_returns_categories(self) -> list[str]:
         """Get investment returns subcategories from preferences."""
         return self._income_categories("investment_returns_categories")
 
-    @property
+    @cached_property
     def investment_returns_categories_is_default(self) -> bool:
         """True when the user has not chosen their own investment-returns list.
 
@@ -320,17 +329,17 @@ class AnalyticsEngineBase:
             _INCOME_LIST_DEFAULTS["investment_returns_categories"]
         )
 
-    @property
+    @cached_property
     def non_taxable_income_categories(self) -> list[str]:
         """Get non-taxable income subcategories from preferences."""
         return self._income_categories("non_taxable_income_categories")
 
-    @property
+    @cached_property
     def other_income_categories(self) -> list[str]:
         """Get other income subcategories from preferences."""
         return self._income_categories("other_income_categories")
 
-    @property
+    @cached_property
     def capital_loss_keys(self) -> set[str]:
         """Normalised keys the user declared to be realised investment losses.
 
@@ -395,6 +404,10 @@ class AnalyticsEngineBase:
             *ledger_criteria(self.user_id, self.excluded_accounts)
         )
         return query.populate_existing()
+
+    def _ascending_ledger(self) -> list[Transaction]:
+        """The user's filtered rows, oldest first."""
+        return self._user_transaction_query().order_by(Transaction.date.asc()).all()
 
     def _exclude_capital_losses[QueryT: Query[Any]](self, query: QueryT) -> QueryT:
         """Drop rows the user classified as realised investment losses.

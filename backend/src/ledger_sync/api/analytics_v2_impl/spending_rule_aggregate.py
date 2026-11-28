@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, NamedTuple
 
 from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
     _classify_expense,
@@ -20,9 +21,21 @@ from ledger_sync.api.analytics_v2_impl.spending_rule_classify import (
 )
 from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.core.metric_rules import investment_account_names, is_investment_account
-from ledger_sync.db.models import Transaction, TransactionType
+from ledger_sync.db.models import TransactionType
 
 _TOP_SUBS_PER_ROW = 3
+
+
+class SpendingRow(NamedTuple):
+    """One transaction projected to the seven fields the fold reads."""
+
+    date: datetime
+    amount: Decimal
+    type: TransactionType
+    account: str
+    to_account: str | None
+    category: str
+    subcategory: str | None
 
 
 @dataclass
@@ -76,7 +89,7 @@ class _CategoryRow:
 
 
 def _aggregate_txns(
-    txns: list[Transaction],
+    txns: list[SpendingRow],
     *,
     essential_set: set[str],
     mapped_investment_accounts: Iterable[str],
@@ -170,7 +183,7 @@ def _aggregate_txns(
 
 def _book_income_savings(
     category_rows: dict[tuple[str, str], _CategoryRow],
-    t: Transaction,
+    t: SpendingRow,
     amount: Decimal,
     *,
     inside: bool,
@@ -190,7 +203,7 @@ def _book_income_savings(
 
 def _book_transfer_savings(
     category_rows: dict[tuple[str, str], _CategoryRow],
-    t: Transaction,
+    t: SpendingRow,
     amount: Decimal,
     *,
     perimeter: frozenset[str],
@@ -215,7 +228,7 @@ def _book_transfer_savings(
 
 def _book_capital_loss_savings(
     category_rows: dict[tuple[str, str], _CategoryRow],
-    t: Transaction,
+    t: SpendingRow,
     amount: Decimal,
     *,
     inside: bool,
@@ -235,7 +248,7 @@ def _book_capital_loss_savings(
 
 def _book_consumption(
     category_rows: dict[tuple[str, str], _CategoryRow],
-    t: Transaction,
+    t: SpendingRow,
     amount: Decimal,
     *,
     inside: bool,

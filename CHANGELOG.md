@@ -6,6 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## 2.38.0 - 2026-11-28
+
+A speed pass measured on a real 7,161-row ledger, an audit that kept 55 findings after a refute pass, and fixes for its medium rows. No migration. Two new optional settings; with neither set, the only change in who can do what is that app-funded AI now needs an allowed account (see Changed).
+
+### Changed
+
+- **App-funded AI is for allowed accounts.** Chat on the app's Bedrock credentials and app-funded Smart search now answer 403 for any account that is not an admin, not in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` and not in the new `LEDGER_SYNC_AI_APP_EMAILS` (JSON array, matched without case), before any usage is reserved. `["*"]` keeps the old open behavior. Personal keys are unaffected. `GET /api/ai/usage` gains `app_access`, and Settings > AI Assistant says when app mode is not available to the account. Until now any new Google or GitHub sign-in could spend the app's AWS credits, ten calls a day per account.
+- **Shared rate limits.** Set `LEDGER_SYNC_RATE_LIMIT_STORAGE_URI` to a Redis URL (`rediss://` for TLS, such as Upstash) and every SlowAPI limit counts across all Vercel instances instead of per instance; unset, nothing changes, and the backend warns at start-up outside development. A store that stops answering falls back to in-memory counting within a one second timeout, so requests never fail because of it. Per-IP limits outside development key on the `X-Forwarded-For` address Vercel sets. New backend dependency: `limits[redis]` (redis 7.4.1).
+- **Faster analytics refresh, uploads and reads, same results.** A full analytics rebuild dropped from 1.38 s to 0.70 s and an unchanged re-upload from 0.89 s to 0.52 s (55 to 23 statements), measured on a local copy of a 7,161-row ledger with every rollup, endpoint body and stored row compared byte for byte against 2.37.0. `/api/preferences`, `/api/analytics/v2/data-health`, `/api/analytics/overview` and `/api/transactions/facets` send fewer statements, and the 50/30/20 endpoint reads only the seven columns it uses (104 ms to 52 ms over full history).
+
+### Fixed
+
+- **The daily crons report failure.** `/api/analytics/v2/refresh-due` and `/api/push/run-due` answer 500 with the run's counts when every attempt in the run failed, so Vercel shows the run red instead of green; a push run where no device got its alert is also sent to Sentry. A partly failed or empty run still answers 200.
+- **Apply rules no longer claims success when totals did not refresh.** If the analytics rebuild after applying rules fails, Settings shows a warning that points to Recompute analytics in Data Health.
+- **A hung AI provider ends in an error.** OpenAI, Anthropic and Bedrock chat calls and the Settings connection test stop after 60 seconds with a readable message instead of spinning; a cancel is still a quiet abort.
+- **Amounts fit on phones.** Nine amounts in flex rows (Dashboard, Overview, Bill calendar, GST, Investment analytics, Returns, the source panels) use `Money`, so the digits never wrap or clip, and seven KPI and stat grids (SIP projection, Goals, Tax, Investment analytics, the investment flow summary) show two columns from 360 px like the rest of the app.
+- The Transactions page mounts either the table or the phone cards, not both.
+
 ## 2.37.0 - 2026-11-19
 
 A study of how real systems handle retries, schedulers, tenant isolation and reconciliation (Stripe's and Brandur's idempotency keys, the AWS Builders' Library, the transactional outbox, Beancount's balance assertions, Postgres row-level security, OWASP API1 and Neon branching) turned into one fix and six additions. Two new migrations, both reversible and neither changing any existing result: `idempotency_keys_2026` creates a table, and `row_level_security_2026` adds policies that do nothing until a later console step. Clients that send nothing new (iOS Shortcuts, older apps) behave exactly as before. The reasoning is in [docs/architecture.md](docs/architecture.md) "System design decisions".

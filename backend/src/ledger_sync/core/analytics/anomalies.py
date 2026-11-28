@@ -66,6 +66,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from operator import attrgetter
 from typing import Any
 
 from ledger_sync.core.analytics.anomaly_baselines import AnomalyBaselinesMixin, CategoryGates
@@ -124,34 +125,42 @@ class AnomaliesMixin(
         prefs = self._preferences
         return True if prefs is None else bool(prefs.auto_dismiss_recurring_anomalies)
 
-    def _detect_anomalies(self) -> int:
+    def _detect_anomalies(self, ledger: list[Transaction] | None = None) -> int:
         """Run the enabled detectors and replace this user's open findings.
 
-        Returns how many open (not auto-dismissed) findings survived review
-        suppression, before the per-type caps.
+        ``ledger`` is the user's rows as the refresh already loaded them; they
+        are read here when not given. Returns how many open (not
+        auto-dismissed) findings survived review suppression, before the
+        per-type caps.
         """
         enabled = self._enabled_anomaly_types
         # Map the legacy stdev-multiplier preference to the modified-Z cutoff.
         # See module docstring for the anchor rationale.
         stored = self.anomaly_expense_threshold
         z_cutoff = _DEFAULT_MODIFIED_Z_CUTOFF * (stored / _LEGACY_ANCHOR_STDEV)
+        ascending = (
+            self._ascending_ledger() if ledger is None else sorted(ledger, key=attrgetter("date"))
+        )
 
         findings: list[dict[str, Any]] = []
         if AnomalyType.HIGH_EXPENSE in enabled:
             self._detect_high_expense_months(findings, z_cutoff)
-            self._detect_large_transactions(findings)
+            self._detect_large_transactions(findings, ascending)
         if enabled & _LEDGER_TYPES or (findings and self._auto_dismiss_recurring):
-            self._run_ledger_detectors(findings, enabled, z_cutoff)
+            self._run_ledger_detectors(findings, enabled, z_cutoff, ascending)
         if AnomalyType.CLOSED_ACCOUNT_ACTIVITY in enabled:
             self._detect_closed_account_activity(findings)
 
         return self._replace_findings(findings)
 
     def _run_ledger_detectors(
-        self, findings: list[dict[str, Any]], enabled: frozenset[AnomalyType], z_cutoff: float
+        self,
+        findings: list[dict[str, Any]],
+        enabled: frozenset[AnomalyType],
+        z_cutoff: float,
+        ledger: list[Transaction],
     ) -> None:
         """The detectors that share one ascending read of the ledger."""
-        ledger = self._user_transaction_query().order_by(Transaction.date.asc()).all()
         recurring = self._recurring_index()
         scale = SpendScale.from_ledger(ledger, self.capital_loss_keys)
         if AnomalyType.UNUSUAL_CATEGORY in enabled:

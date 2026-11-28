@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import case, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ledger_sync.core.query_helpers import (
@@ -25,29 +25,28 @@ def transaction_facets(db: Session, user: User) -> TransactionFacetsResponse:
     # list. On the reference ledger that is 118 routing labels against 17 real
     # categories, i.e. the dropdown was 87% noise. A label used by BOTH a
     # transfer and a real row counts as real, so nothing legitimate is hidden.
-    category_rows = (
-        base.with_entities(
-            Transaction.category,
-            func.min(case((Transaction.type == TransactionType.TRANSFER, 1), else_=0)).label(
-                "transfer_only"
-            ),
-        )
-        .group_by(Transaction.category)
+    # One GROUP BY (category, type) gives both the category split and the
+    # per-type counts.
+    transfer_only: dict[str, bool] = {}
+    counts: dict[TransactionType, int] = {}
+    for category, tx_type, count in (
+        base.with_entities(Transaction.category, Transaction.type, func.count())
+        .group_by(Transaction.category, Transaction.type)
         .all()
-    )
-    categories = [row[0] for row in category_rows if row[0] and not row.transfer_only]
-    transfer_categories = [row[0] for row in category_rows if row[0] and row.transfer_only]
+    ):
+        is_transfer = tx_type == TransactionType.TRANSFER
+        transfer_only[category] = transfer_only.get(category, True) and is_transfer
+        counts[tx_type] = counts.get(tx_type, 0) + count
+    categories = [name for name, only in transfer_only.items() if name and not only]
+    transfer_categories = [name for name, only in transfer_only.items() if name and only]
 
-    # The account filter matches the transfer endpoints too, so list them as well.
-    accounts = {
-        row[0]
+    # The account filter matches the transfer endpoints too, so list them as
+    # well: one UNION of the three columns.
+    legs = [
+        base.with_entities(column.label("account"))
         for column in (Transaction.account, Transaction.from_account, Transaction.to_account)
-        for row in base.with_entities(column).distinct().all()
-        if row[0]
-    }
-
-    count_rows = base.with_entities(Transaction.type, func.count()).group_by(Transaction.type).all()
-    counts: dict[TransactionType, int] = {row[0]: row[1] for row in count_rows}
+    ]
+    accounts = {row[0] for row in legs[0].union(*legs[1:]).all() if row[0]}
 
     income = counts.get(TransactionType.INCOME, 0)
     expense = counts.get(TransactionType.EXPENSE, 0)

@@ -133,7 +133,7 @@ export default function TdsScheduleChart({ schedule, paidMonthIndices, paidEstim
         )}
       </CartesianChart>
 
-      <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+      <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 min-[360px]:grid-cols-2">
         <div className="min-w-0">
           <dt className="text-xs text-muted-foreground">Projected cash take-home</dt>
           <dd className="mt-1 break-words font-mono text-lg font-semibold tabular-nums">{formatCurrency(summary.cashTakeHome)}</dd>

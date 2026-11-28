@@ -13,6 +13,7 @@ import { motion } from 'motion/react'
 import EmptyState from '@/components/shared/EmptyState'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import { Money } from '@/components/ui'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import type { Transaction } from '@/types'
 import { getSemanticTextClass } from '@/constants/chartColors'
@@ -73,6 +74,8 @@ export default function TransactionTable({
   availableTags = [],
 }: Readonly<TransactionTableProps>) {
   const tableMeta: TransactionTableMeta = { availableTags }
+  // One layout mounted at a time; hiding one with CSS still rendered every row twice.
+  const isMobile = useIsMobile(768)
 
   // Wrapper to handle TanStack Table's updater pattern
   const handleSortingChange = useCallback(
@@ -182,188 +185,192 @@ export default function TransactionTable({
       className="ledger-panel"
     >
       {/* Desktop table */}
-      <div className="hidden md:block">
-        <section className="overflow-x-auto" aria-label="Transaction table">
-          <table className="w-full">
-            <caption className="sr-only">
-              Transactions matching the current filters
-            </caption>
-            <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const sorted = header.column.getIsSorted()
-                    const canSort = header.column.getCanSort()
-                    const ariaSort = (() => {
-                      if (!canSort) return undefined
-                      if (sorted === 'asc') return 'ascending'
-                      if (sorted === 'desc') return 'descending'
-                      return 'none'
-                    })()
-                    return (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${
-                          header.column.id === 'amount'
-                            ? 'text-right ledger-figure [&_button]:ml-auto'
-                            : 'text-left'
-                        }`}
-                        aria-sort={ariaSort}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    )
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <motion.tbody
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
-                >
-                  {row.getAllCells().map((cell) => {
-                    const cellClass = getCellClass(cell.column.id)
-                    return (
-                      <td key={cell.id} className={`px-4 py-3 text-[13px] ${cellClass}`}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </motion.tbody>
-          </table>
-        </section>
-      </div>
+      {!isMobile && (
+        <div className="hidden md:block">
+          <section className="overflow-x-auto" aria-label="Transaction table">
+            <table className="w-full">
+              <caption className="sr-only">
+                Transactions matching the current filters
+              </caption>
+              <thead className="sticky top-0 z-10 border-b border-[var(--hairline-1)] bg-surface-3">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const sorted = header.column.getIsSorted()
+                      const canSort = header.column.getCanSort()
+                      const ariaSort = (() => {
+                        if (!canSort) return undefined
+                        if (sorted === 'asc') return 'ascending'
+                        if (sorted === 'desc') return 'descending'
+                        return 'none'
+                      })()
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${
+                            header.column.id === 'amount'
+                              ? 'text-right ledger-figure [&_button]:ml-auto'
+                              : 'text-left'
+                          }`}
+                          aria-sort={ariaSort}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </thead>
+              <motion.tbody
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                {table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[var(--hairline-1)] hover:bg-[var(--overlay-2)] transition-colors duration-150"
+                  >
+                    {row.getAllCells().map((cell) => {
+                      const cellClass = getCellClass(cell.column.id)
+                      return (
+                        <td key={cell.id} className={`px-4 py-3 text-[13px] ${cellClass}`}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </motion.tbody>
+            </table>
+          </section>
+        </div>
+      )}
 
       {/* Mobile card view -- grouped by day with daily totals */}
-      <ul
-        className="m-0 list-none p-0 md:hidden"
-        aria-label="Transactions grouped by date"
-      >
-        {groupedRows.map(({ dateKey, rows: dayRows }) => {
-            const dayTotal = dayRows.reduce((sum, r) => {
-              if (r.original.type === 'Expense') return sum - r.original.amount
-              if (r.original.type === 'Income') return sum + r.original.amount
-              return sum
-            }, 0)
-            const dayLabel = formatDate(dateKey, {
-              weekday: 'short',
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric',
-            })
+      {isMobile && (
+        <ul
+          className="m-0 list-none p-0 md:hidden"
+          aria-label="Transactions grouped by date"
+        >
+          {groupedRows.map(({ dateKey, rows: dayRows }) => {
+              const dayTotal = dayRows.reduce((sum, r) => {
+                if (r.original.type === 'Expense') return sum - r.original.amount
+                if (r.original.type === 'Income') return sum + r.original.amount
+                return sum
+              }, 0)
+              const dayLabel = formatDate(dateKey, {
+                weekday: 'short',
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+              })
 
-            return (
-              <li key={`${dateKey}-${dayRows[0].id}`} aria-label={dayLabel}>
-                {/* Day header */}
-                {/* Sticks below the page's StickyToolbar, which publishes its
-                    height on the scroll container. */}
-                <div className="sticky top-[var(--sticky-toolbar-h,0px)] z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
-                  <span className="min-w-0 text-xs font-semibold text-text-tertiary">
-                    {dayLabel}
-                  </span>
-                  <Money
-                    value={Math.abs(dayTotal)}
-                    formatter={(value) =>
-                      `${dayTotal >= 0 ? '+' : '-'}${formatCurrency(value)}`
-                    }
-                    ariaLabel={`Net of the transactions listed for this day ${formatCurrency(dayTotal)}`}
-                    className={`text-xs ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}
-                  />
-                </div>
-                {/* Day transactions */}
-                <ul
-                  className="m-0 list-none divide-y divide-[var(--hairline-1)] p-0"
-                  aria-label={`${dayLabel} transactions`}
-                >
-                  {dayRows.map((row) => {
-                    const tx = row.original
-                    const isIncome = tx.type === 'Income'
-                    const isTransfer = tx.type === 'Transfer'
-                    const amountColor = getAmountColor(tx.type)
-                    const prefix = getAmountPrefix(tx.type)
-                    const TypeIcon = isIncome ? TrendingUp : TrendingDown
+              return (
+                <li key={`${dateKey}-${dayRows[0].id}`} aria-label={dayLabel}>
+                  {/* Day header */}
+                  {/* Sticks below the page's StickyToolbar, which publishes its
+                      height on the scroll container. */}
+                  <div className="sticky top-[var(--sticky-toolbar-h,0px)] z-10 flex items-center justify-between gap-3 border-b border-[var(--hairline-1)] bg-surface-3 px-4 py-2">
+                    <span className="min-w-0 text-xs font-semibold text-text-tertiary">
+                      {dayLabel}
+                    </span>
+                    <Money
+                      value={Math.abs(dayTotal)}
+                      formatter={(value) =>
+                        `${dayTotal >= 0 ? '+' : '-'}${formatCurrency(value)}`
+                      }
+                      ariaLabel={`Net of the transactions listed for this day ${formatCurrency(dayTotal)}`}
+                      className={`text-xs ${dayTotal >= 0 ? 'text-app-green' : 'text-app-red'}`}
+                    />
+                  </div>
+                  {/* Day transactions */}
+                  <ul
+                    className="m-0 list-none divide-y divide-[var(--hairline-1)] p-0"
+                    aria-label={`${dayLabel} transactions`}
+                  >
+                    {dayRows.map((row) => {
+                      const tx = row.original
+                      const isIncome = tx.type === 'Income'
+                      const isTransfer = tx.type === 'Transfer'
+                      const amountColor = getAmountColor(tx.type)
+                      const prefix = getAmountPrefix(tx.type)
+                      const TypeIcon = isIncome ? TrendingUp : TrendingDown
 
-                    return (
-                      <li
-                        key={row.id}
-                        className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150"
-                      >
-                        <div className="mb-1.5 flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-start gap-2">
-                            {isTransfer ? (
-                              <ArrowRightLeft
-                                className="mt-0.5 size-3.5 shrink-0 text-app-teal"
-                                aria-hidden
-                              />
-                            ) : (
-                              <TypeIcon
-                                className={`mt-0.5 size-3.5 shrink-0 ${
-                                  isIncome ? 'text-app-green' : 'text-app-red'
-                                }`}
-                                aria-hidden
-                              />
-                            )}
-                            <span className="min-w-0">
-                              <span className="block break-words text-sm font-medium">
-                                {tx.category}
-                              </span>
-                              {tx.subcategory && (
-                                <span className="block break-words text-xs text-text-tertiary">
-                                  {tx.subcategory}
-                                </span>
+                      return (
+                        <li
+                          key={row.id}
+                          className="p-3 sm:p-4 hover:bg-[var(--overlay-2)] transition-colors duration-150"
+                        >
+                          <div className="mb-1.5 flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-start gap-2">
+                              {isTransfer ? (
+                                <ArrowRightLeft
+                                  className="mt-0.5 size-3.5 shrink-0 text-app-teal"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <TypeIcon
+                                  className={`mt-0.5 size-3.5 shrink-0 ${
+                                    isIncome ? 'text-app-green' : 'text-app-red'
+                                  }`}
+                                  aria-hidden
+                                />
                               )}
-                            </span>
+                              <span className="min-w-0">
+                                <span className="block break-words text-sm font-medium">
+                                  {tx.category}
+                                </span>
+                                {tx.subcategory && (
+                                  <span className="block break-words text-xs text-text-tertiary">
+                                    {tx.subcategory}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex min-h-11 shrink-0 items-center gap-1">
+                              <Money
+                                value={Math.abs(tx.amount)}
+                                formatter={(value) => `${prefix}${formatCurrency(value)}`}
+                                ariaLabel={`${tx.type} ${formatCurrency(Math.abs(tx.amount))}`}
+                                bold
+                                className={`text-sm ${amountColor}`}
+                              />
+                              <TagEditor
+                                transactionId={tx.id}
+                                tags={tx.tags ?? []}
+                                availableTags={availableTags}
+                              />
+                            </div>
                           </div>
-                          <div className="flex min-h-11 shrink-0 items-center gap-1">
-                            <Money
-                              value={Math.abs(tx.amount)}
-                              formatter={(value) => `${prefix}${formatCurrency(value)}`}
-                              ariaLabel={`${tx.type} ${formatCurrency(Math.abs(tx.amount))}`}
-                              bold
-                              className={`text-sm ${amountColor}`}
-                            />
-                            <TagEditor
-                              transactionId={tx.id}
-                              tags={tx.tags ?? []}
-                              availableTags={availableTags}
-                            />
-                          </div>
-                        </div>
-                        {tx.tags && tx.tags.length > 0 && (
-                          <div className="mb-1.5">
-                            <TagChips tags={tx.tags} />
-                          </div>
-                        )}
-                        <div className="flex items-start justify-between gap-3 text-xs text-text-tertiary">
-                          <span className="min-w-0 break-words text-muted-foreground">
-                            {tx.account}
-                          </span>
-                          {tx.note && (
-                            <span className="max-w-[55%] break-words text-right">
-                              {tx.note}
-                            </span>
+                          {tx.tags && tx.tags.length > 0 && (
+                            <div className="mb-1.5">
+                              <TagChips tags={tx.tags} />
+                            </div>
                           )}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </li>
-            )
-          })
-        }
-      </ul>
+                          <div className="flex items-start justify-between gap-3 text-xs text-text-tertiary">
+                            <span className="min-w-0 break-words text-muted-foreground">
+                              {tx.account}
+                            </span>
+                            {tx.note && (
+                              <span className="max-w-[55%] break-words text-right">
+                                {tx.note}
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </li>
+              )
+            })
+          }
+        </ul>
+      )}
     </motion.div>
   )
 }

@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
-from sqlalchemy import desc, func, or_
+from sqlalchemy import case, desc, func, or_
 from sqlalchemy.orm import Session
 
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
@@ -191,24 +191,38 @@ def _ledger_quality(db: Session, user_id: int) -> dict[str, Any]:
     # restated per endpoint.
     today = ledger_today_iso()
 
-    count, earliest, latest = base.with_entities(
+    # One scan: COUNT(CASE ...) counts the rows a condition holds for, and MAX
+    # over a CASE skips the rows it maps to NULL.
+    (
+        count,
+        earliest,
+        latest,
+        future_dated_count,
+        latest_past,
+        placeholder_note_count,
+        uncategorized_count,
+    ) = base.with_entities(
         func.count(),
         func.min(day),
         func.max(day),
+        func.count(case((day > today, 1))),
+        func.max(case((day <= today, day))),
+        func.count(
+            case((func.lower(func.trim(Transaction.note)).in_(sorted(PLACEHOLDER_NOTES)), 1))
+        ),
+        func.count(
+            case(
+                (
+                    or_(
+                        Transaction.category.is_(None),
+                        func.trim(Transaction.category) == "",
+                        Transaction.category == CATCH_ALL_CATEGORY,
+                    ),
+                    1,
+                )
+            )
+        ),
     ).one()
-
-    future_dated_count = base.filter(day > today).count()
-    latest_past = base.filter(day <= today).with_entities(func.max(day)).scalar()
-    placeholder_note_count = base.filter(
-        func.lower(func.trim(Transaction.note)).in_(sorted(PLACEHOLDER_NOTES))
-    ).count()
-    uncategorized_count = base.filter(
-        or_(
-            Transaction.category.is_(None),
-            func.trim(Transaction.category) == "",
-            Transaction.category == CATCH_ALL_CATEGORY,
-        )
-    ).count()
 
     return {
         "transaction_count": count,

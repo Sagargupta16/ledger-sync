@@ -88,7 +88,7 @@ export default function WithholdingSummary({
         Payroll uses estimated full-year earnings. RSU withholding is counted on vesting.
         These amounts are separate from the tax liability calculated above.
       </p>
-      <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <dl className="mt-4 grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 sm:grid-cols-3">
         <div>
           <dt className="text-xs text-muted-foreground">Cash payroll withholding · estimate</dt>
           <dd className="mt-1 text-lg"><Money value={estimate.cashTaxPaid} bold /></dd>

@@ -1,8 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
 
-import { Button } from '@/components/ui'
-import { formatCurrency } from '@/lib/formatters'
+import { Button, Money } from '@/components/ui'
 
 import { formatShortDate } from '../billUtils'
 import type { PlacedBill } from '../types'
@@ -73,11 +72,10 @@ export default function SelectedDayPanel({
               ))}
               <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
                 <span className="text-sm text-muted-foreground">Due this day</span>
-                <span className="text-sm font-bold tabular-nums text-foreground">
-                  {formatCurrency(
-                    bills.reduce((sum, bill) => (bill.informational ? sum : sum + bill.amount), 0),
-                  )}
-                </span>
+                <Money
+                  value={bills.reduce((sum, bill) => (bill.informational ? sum : sum + bill.amount), 0)}
+                  className="text-sm font-bold"
+                />
               </div>
             </div>
           )}

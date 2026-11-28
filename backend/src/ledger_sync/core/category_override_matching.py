@@ -22,7 +22,8 @@ from ledger_sync.core.source_identity import has_source_uid
 from ledger_sync.db._models.category_overrides import DECISION_CHANGE
 from ledger_sync.db.models import TRANSACTIONS, CategoryOverride, Transaction, TransactionType
 
-_CHUNK_SIZE = 200
+# Two binds per (system, uid) pair, far under SQLite's and PostgreSQL's bind limits.
+_CHUNK_SIZE = 2000
 _UidKey = tuple[str, str]
 
 

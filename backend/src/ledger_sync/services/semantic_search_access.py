@@ -33,8 +33,9 @@ from ledger_sync.api.ai_chat_bedrock import (
 from ledger_sync.api.ai_usage import _lock_usage, _start_of_day, check_token_limits, release_usage
 from ledger_sync.config.embedding_settings import embedding_settings
 from ledger_sync.config.settings import settings
+from ledger_sync.core.admin_access import can_use_app_ai
 from ledger_sync.core.embeddings import TITAN_V2_MODEL_ID, BedrockRuntime, usd_cost
-from ledger_sync.db.models import AIUsageLog
+from ledger_sync.db.models import AIUsageLog, User
 from ledger_sync.schemas.semantic_search import UnavailableReason
 from ledger_sync.services.ai_settings import get_ai_settings, has_personal_ai_key
 
@@ -51,6 +52,10 @@ _MESSAGES: dict[UnavailableReason, str] = {
     "provider_not_bedrock": (
         "Smart search runs on Amazon Bedrock. In Settings > AI Assistant, choose App "
         "Bedrock or save a personal Bedrock key."
+    ),
+    "app_not_allowed": (
+        "Smart search on the app's Bedrock is for invited accounts. Save a personal "
+        "Bedrock key in Settings > AI Assistant to use it."
     ),
     "personal_key_missing": (
         "Your AI mode uses a personal Bedrock key, but none is saved. Add it in "
@@ -79,6 +84,9 @@ def embedding_access(session: Session, user_id: int) -> EmbeddingAccess:
             _check_server_credential_path()
         except HTTPException:
             return EmbeddingAccess(default_region, reason="server_not_configured")
+        user = session.get(User, user_id)
+        if not can_use_app_ai(user.email if user else None):
+            return EmbeddingAccess(default_region, reason="app_not_allowed")
         return EmbeddingAccess(default_region, funding="app")
     if ai_settings.ai_provider != "bedrock":
         return EmbeddingAccess(default_region, reason="provider_not_bedrock")
@@ -94,7 +102,7 @@ def open_client(session: Session, user_id: int) -> tuple[EmbeddingAccess, Bedroc
     """Resolve funding and build the bedrock-runtime client, or raise 400/502/503."""
     access = embedding_access(session, user_id)
     if access.reason is not None:
-        status = 503 if access.reason == "server_not_configured" else 400
+        status = {"server_not_configured": 503, "app_not_allowed": 403}.get(access.reason, 400)
         raise HTTPException(status_code=status, detail=access.message)
     bearer = None
     if access.funding == "personal":

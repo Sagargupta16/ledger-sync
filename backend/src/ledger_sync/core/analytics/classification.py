@@ -8,6 +8,8 @@ API endpoints share one definition of each figure.
 
 from __future__ import annotations
 
+from functools import cached_property
+
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
 from ledger_sync.core.expense_class import classification_key, is_capital_loss
 from ledger_sync.core.metric_rules import (
@@ -28,10 +30,22 @@ class ClassificationMixin(AnalyticsEngineBase):
     happens in ``engine.AnalyticsEngine`` via MRO, not via this inheritance.
     """
 
+    @cached_property
+    def _taxable_income_keys(self) -> frozenset[str]:
+        return income_keys(self.taxable_income_categories)
+
+    @cached_property
+    def _investment_returns_keys(self) -> frozenset[str]:
+        return income_keys(self.investment_returns_categories)
+
+    @cached_property
+    def _investment_account_names(self) -> frozenset[str]:
+        return investment_account_names(self.investment_account_patterns)
+
     def _is_taxable_income(self, txn: Transaction) -> bool:
         """Taxable income: the row's key is in the taxable list, case-insensitively."""
         key = classification_key(txn.category, txn.subcategory)
-        return key in income_keys(self.taxable_income_categories)
+        return key in self._taxable_income_keys
 
     def _is_salary_income(self, txn: Transaction) -> bool:
         """Salary income: a taxable item that ``classify_employment_income`` calls salary.
@@ -64,14 +78,15 @@ class ClassificationMixin(AnalyticsEngineBase):
         another income list is never re-claimed by a keyword.
         """
         key = classification_key(txn.category, txn.subcategory)
-        if key in income_keys(self.investment_returns_categories):
+        if key in self._investment_returns_keys:
             return True
         if not self.investment_returns_categories_is_default:
             return False
-        if key in self._other_income_list_keys():
+        if key in self._other_income_list_keys:
             return False
         return looks_like_investment_income(txn.category, txn.subcategory)
 
+    @cached_property
     def _other_income_list_keys(self) -> frozenset[str]:
         """Keys the user classified as taxable, non-taxable or other income."""
         return income_keys(
@@ -103,9 +118,7 @@ class ClassificationMixin(AnalyticsEngineBase):
         Mapped accounts match on their exact name, case-insensitively; with no
         mapping the default keyword list applies.
         """
-        return is_investment_account(
-            account_name, investment_account_names(self.investment_account_patterns)
-        )
+        return is_investment_account(account_name, self._investment_account_names)
 
     def _get_investment_type(self, account_name: str | None) -> str | None:
         """Return the mapped investment type for an account (e.g. ``'stocks'``).

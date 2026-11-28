@@ -8,7 +8,8 @@ import { capPieSlices, type PieSliceDatum } from '@/components/ui/pieSlices'
 import { ROUTES } from '@/constants'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
-import { formatCurrency, formatCurrencyShort } from '@/lib/formatters'
+import { Money } from '@/components/ui'
+import { formatCurrencyShort } from '@/lib/formatters'
 
 // Loaded on demand so the chart kit stays off the Dashboard's first-load path.
 const StandardPieChart = lazy(() => import('@/components/analytics/StandardPieChart'))
@@ -100,7 +101,7 @@ export default function SourcePanel({ kind, data, total, children }: Readonly<{
             <div className="pt-2 mt-2 border-t border-border space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Total</span>
-                <span className={`text-sm font-bold ${textClass}`}>{formatCurrency(total ?? chartTotal)}</span>
+                <Money value={total ?? chartTotal} className={`text-sm font-bold ${textClass}`} />
               </div>
               {children}
             </div>

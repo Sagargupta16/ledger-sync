@@ -55,6 +55,7 @@ from ledger_sync.api.ai_usage import (
 from ledger_sync.api.deps import CurrentUser, DatabaseSession
 from ledger_sync.api.rate_limit import limiter, user_limiter
 from ledger_sync.config.settings import settings
+from ledger_sync.core.admin_access import APP_AI_NOT_ALLOWED, can_use_app_ai
 from ledger_sync.services.ai_settings import get_ai_settings
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -64,6 +65,7 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
     "/bedrock/chat",
     responses={
         400: {"description": "Bedrock not configured for this user"},
+        403: {"description": "This account may not use the app's AI credentials"},
         404: {"description": "No AI preferences found for this user"},
         502: {"description": "Bedrock returned an error or unexpected response shape"},
         503: {"description": "Bedrock is not configured on the server"},
@@ -100,6 +102,10 @@ def bedrock_chat_proxy(
         # misleading "model identifier is invalid" exception (which is what
         # it says when it can't sign the request).
         _check_server_credential_path()
+        # The app's credentials are only for accounts allowed to spend them;
+        # refused before any usage is reserved.
+        if not can_use_app_ai(current_user.email):
+            raise HTTPException(status_code=403, detail=APP_AI_NOT_ALLOWED)
         model_id = settings.ai_default_bedrock_model
         region = settings.ai_default_bedrock_region
 

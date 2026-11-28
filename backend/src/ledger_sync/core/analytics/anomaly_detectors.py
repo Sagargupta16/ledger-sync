@@ -8,6 +8,7 @@ threshold mapping are documented in ``ledger_sync.core.analytics.anomalies``.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from datetime import datetime, timedelta
 from decimal import Decimal
 from math import log
@@ -17,6 +18,7 @@ from typing import Any
 from sqlalchemy import func
 
 from ledger_sync.core.analytics.base import AnalyticsEngineBase
+from ledger_sync.core.expense_class import is_capital_loss
 from ledger_sync.core.query_helpers import (
     apply_excluded_accounts_filter,
     fmt_year_month,
@@ -201,12 +203,12 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
     @staticmethod
     def _category_amount_history(
         expense_txns: list[Transaction],
-    ) -> dict[str, list[tuple[datetime, float]]]:
-        history: dict[str, list[tuple[datetime, float]]] = {}
+    ) -> dict[str, tuple[list[datetime], list[float]]]:
+        history: dict[str, tuple[list[datetime], list[float]]] = {}
         for transaction in expense_txns:
-            history.setdefault(transaction.category, []).append(
-                (transaction.date, float(transaction.amount))
-            )
+            dates, amounts = history.setdefault(transaction.category, ([], []))
+            dates.append(transaction.date)
+            amounts.append(float(transaction.amount))
         return history
 
     def _passes_log_dispersion_gate(self, amount: float, window: list[float]) -> bool:
@@ -220,13 +222,16 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
         log_modified_z = _MZ_CONSTANT * (log(amount) - log_median) / log_mad
         return log_modified_z > _DEFAULT_MODIFIED_Z_CUTOFF
 
-    def _detect_large_transactions(self, anomalies: list[dict[str, Any]]) -> None:
+    def _detect_large_transactions(
+        self, anomalies: list[dict[str, Any]], ledger: list[Transaction] | None = None
+    ) -> None:
         """Append anomaly dicts for individual expenses that look large versus
         their category's rolling-12-month baseline.
 
         Rolling window + median means a legitimate big purchase from 2 years
         ago no longer poisons the baseline, and the txn under test is compared
-        against a leave-one-out median (excluding itself).
+        against a leave-one-out median (excluding itself). ``ledger`` is the
+        user's rows in ascending date order; it is read when not given.
         """
         sym = self._currency_symbol
 
@@ -236,22 +241,21 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
         # trade the user already knows about, AND inflated its category's
         # rolling median so subsequent genuine outliers in that category slipped
         # under the 3x ratio gate.
-        expense_txns = (
-            self._exclude_capital_losses(
-                self._user_transaction_query().filter(Transaction.type == TransactionType.EXPENSE)
-            )
-            .order_by(Transaction.date.asc())
-            .all()
-        )
+        losses = self.capital_loss_keys
+        expense_txns = [
+            txn
+            for txn in (self._ascending_ledger() if ledger is None else ledger)
+            if txn.type == TransactionType.EXPENSE
+            and not is_capital_loss(txn.category, txn.subcategory, losses)
+        ]
 
         # Materiality floor: a 3x-of-median blip in a tiny category (a pricier
         # chai) is not worth a user's attention. Derived per user from their
         # own median monthly expense -- no hardcoded currency constants.
         materiality_floor = self._large_transaction_materiality_floor(expense_txns)
 
-        # Group amounts by category, retaining chronological order so the
-        # rolling window can prune old entries with an O(1) index cursor.
-        # amount_history[cat] = list of (date, amount) sorted ascending.
+        # Group dates and amounts by category in chronological order, so the
+        # rolling window is a slice between two binary searches.
         history = self._category_amount_history(expense_txns)
 
         for txn in expense_txns:
@@ -259,12 +263,12 @@ class AnomalyDetectorsMixin(AnalyticsEngineBase):
             if amount < materiality_floor:
                 continue
 
-            cat_history = history.get(txn.category, [])
+            dates, amounts = history[txn.category]
             # Rolling window: keep amounts strictly older than the txn under
             # test AND within the last 12 months. Leave-one-out prevents the
             # txn from being compared against a baseline it moved.
             cutoff_start = txn.date - _LARGE_TXN_WINDOW
-            window = [amt for (date, amt) in cat_history if cutoff_start <= date < txn.date]
+            window = amounts[bisect_left(dates, cutoff_start) : bisect_left(dates, txn.date)]
             if len(window) < _LARGE_TXN_MIN_HISTORY:
                 continue  # warmup: not enough history for a meaningful baseline
 

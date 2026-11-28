@@ -354,7 +354,7 @@ against intervening edits.
 | --- | --- | --- |
 | `POST` | `/api/upload/cas` | Import a CAS PDF (multipart `file` and `password`, 4.5 MB cap); replaces the holdings of the same issuer kind |
 | `GET` | `/api/mf-holdings` | CAS holdings at AMFI's latest NAV with cost, gain, XIRR, NAV freshness and the import list |
-| `GET` | `/api/semantic-search/status` | Whether semantic search can run for this user and how much of the ledger is indexed |
+| `GET` | `/api/semantic-search/status` | Whether semantic search can run for this user (`reason` `app_not_allowed` for an account that may not use the app's credentials) and how much of the ledger is indexed |
 | `POST`, `DELETE` | `/api/semantic-search/index` | Embed the next batch of new or changed rows (call until `done`), or remove every vector |
 | `GET` | `/api/semantic-search` | Rank the user's rows by meaning for `q`, within the Transactions-page filters |
 | `GET` | `/api/push/config` | Whether Web Push is configured: `enabled`, `daily_alerts`, the VAPID public key and the missing variable names |
@@ -373,11 +373,11 @@ against intervening edits.
 | `PATCH` | `/api/preferences/ai-config/mode` | Switch `app_bedrock` or `byok` |
 | `PATCH` | `/api/preferences/ai-config/limits` | Set or clear user token limits |
 | `GET` | `/api/preferences/ai-config/key` | Reveal the current user's decrypted key |
-| `POST` | `/api/ai/bedrock/chat` | Non-streaming Bedrock Converse proxy |
+| `POST` | `/api/ai/bedrock/chat` | Non-streaming Bedrock Converse proxy; on the app's credentials, 403 for an account outside the admins, `LEDGER_SYNC_AI_UNLIMITED_EMAILS` and `LEDGER_SYNC_AI_APP_EMAILS` |
 | `GET` | `/api/ai/tools` | List 19 read-only tool schemas |
 | `POST` | `/api/ai/tools/execute` | Execute one user-scoped tool |
 | `POST` | `/api/ai/usage/log` | Record browser-direct provider usage |
-| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` or `LEDGER_SYNC_ADMIN_EMAILS`) |
+| `GET` | `/api/ai/usage` | Today, month-to-date, and all-time usage, plus this user's limits (`limits.app_daily_messages` is 0 for an account in `LEDGER_SYNC_AI_UNLIMITED_EMAILS` or `LEDGER_SYNC_ADMIN_EMAILS`; `app_access` is false for an account that may not use the app's credentials) |
 | `GET` | `/api/exchange-rates` | Latest or historical currency rates by base currency |
 | `GET` | `/api/rates/instruments` | EPF, PPF, and NPS reference rates |
 | `GET` | `/api/stock-price/{symbol}` | Latest or historical stock price |
@@ -1098,6 +1098,9 @@ without a click. Vercel's cron calls it with `GET` (`30 3 * * *` UTC in
   the published one, a pending full rebuild or no analytics state, oldest
   publication first, at most 25 per run. It starts no new user after 150
   seconds, and one user's failure never stops the rest.
+- 500 with the run's counts as `detail` when every refresh it tried failed, so
+  the cron run shows red; `/api/push/run-due` does the same when no device got
+  its alert. A partly failed or empty run answers 200.
 - It returns `{due, refreshed, failed, deferred}`; `deferred` counts selected
   users it did not reach before the 150 second mark.
 

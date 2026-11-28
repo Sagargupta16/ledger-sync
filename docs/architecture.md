@@ -1027,7 +1027,10 @@ says otherwise) and region and applies the shared daily limit. A usable
 personal Bedrock bearer key uses personal funding. Missing,
 empty, placeholder, or unreadable Bedrock BYOK keys return HTTP 400 before
 reservation or invocation. Shared funding requires an explicit `app_bedrock`
-selection. OpenAI and Anthropic use the user's key directly from the browser.
+selection and an account the app allows to spend it: admins,
+`LEDGER_SYNC_AI_UNLIMITED_EMAILS` and `LEDGER_SYNC_AI_APP_EMAILS` (`["*"]` for
+everyone); any other account gets 403 before reservation and can save a
+personal key. OpenAI and Anthropic use the user's key directly from the browser.
 
 For Bedrock, `ai_usage.py` locks the user row while checking limits and writing
 a reservation, then commits before the network call. Outstanding reservations
@@ -1154,7 +1157,8 @@ There is no approximate index, so no tenant shares a graph with another.
 - Optional Sentry error tracking that sends no ledger data: no request body,
   cookies, query string, credential headers or local variables, and exception
   messages cut to their type (`core/observability.py`)
-- Distributed SlowAPI storage required for global per-minute limits
+- Shared SlowAPI storage (Redis, `LEDGER_SYNC_RATE_LIMIT_STORAGE_URI`) for
+  per-minute limits across instances, falling back to per-instance memory
 - Generic server errors with correlation IDs
 
 ### Row-level security
@@ -1287,8 +1291,8 @@ its major version. Run fresh/populated migrations, constraints, downgrade
 guards, transaction-local timeouts, and cross-connection quota races there when
 those boundaries change. These commands and coverage descriptions are not a
 claim that CI or deployment checks passed.
-Vercel protection/promotion and distributed rate-limit storage remain external
-deployment configuration.
+Vercel protection/promotion and the rate-limit store
+(`LEDGER_SYNC_RATE_LIMIT_STORAGE_URI`) remain external deployment configuration.
 
 See the [focused calculation checks](CALCULATIONS.md#focused-calculation-checks)
 and [TESTING.md](TESTING.md) for commands and scope. Deployment health and

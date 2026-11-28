@@ -36,6 +36,7 @@ from ledger_sync.api.deps import get_current_user
 from ledger_sync.api.rate_limit import limiter
 from ledger_sync.api.semantic_search import router
 from ledger_sync.config.embedding_settings import embedding_settings
+from ledger_sync.config.settings import settings
 from ledger_sync.core.embeddings import TITAN_V2_MODEL_ID, usd_cost
 from ledger_sync.core.query_helpers import ledger_criteria
 from ledger_sync.core.semantic_search import PendingRow, nearest, store_embeddings, text_hash
@@ -146,6 +147,12 @@ def _transaction(user: User, transaction_id: str, row: tuple[Any, ...], day: int
         note=note,
         source_file="seed.csv",
     )
+
+
+@pytest.fixture(autouse=True)
+def _app_ai_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests spend app-funded calls, so app AI is open to every account."""
+    monkeypatch.setattr(settings, "ai_app_emails", ["*"])
 
 
 @pytest.fixture
